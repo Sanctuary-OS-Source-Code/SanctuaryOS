@@ -20,6 +20,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: install dependencies
         run: npm install
+        working-directory: ./sanctuary-os
       - name: build and publish
         uses: tauri-apps/tauri-action@v0
         env:
@@ -27,6 +28,7 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
+          projectPath: ./sanctuary-os
           tagName: ${{ github.ref_name }}
           releaseName: 'Sanctuary OS ${{ github.ref_name }}'
           releaseBody: 'See the assets to download this version and install.'
