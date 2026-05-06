@@ -19,6 +19,8 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { supabase } from "./supabase";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import ArchitectHub from "./ArchitectHub";
 import GlobalFeed from "./GlobalFeed";
 import Settings from "./SettingsTab";
@@ -95,6 +97,20 @@ function App() {
   const setModList = useStore((state) => state.setModList);
 
   useEffect(() => {
+    async function checkForUpdates() {
+      try {
+        const update = await check();
+        if (update) {
+          console.log(`Installing update: ${update.version}`);
+          await update.downloadAndInstall();
+          await relaunch();
+        }
+      } catch (e) {
+        console.error("Update check failed", e);
+      }
+    }
+    checkForUpdates();
+
     const unlistenPromise = getCurrentWebview().onDragDropEvent((event) => {
       if (event.payload.type === "enter" || event.payload.type === "over") {
         setIsDragging(true);
