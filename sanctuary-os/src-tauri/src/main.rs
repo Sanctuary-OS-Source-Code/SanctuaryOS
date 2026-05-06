@@ -1855,6 +1855,7 @@ fn auto_detect_paths() -> serde_json::Value {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(SecurityState {
             malware_hashes: std::sync::Mutex::new(Vec::new()),

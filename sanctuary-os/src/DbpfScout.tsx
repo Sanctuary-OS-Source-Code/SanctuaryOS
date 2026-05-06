@@ -197,8 +197,8 @@ export const DbpfScout = () => {
                 value={scanScope}
                 onChange={setScanScope}
                 options={[
-                  { id: "ALL", label: "Entire Vault" },
-                  { id: "EQUIPPED", label: "Equipped Only" },
+                  { id: "vault", label: "Entire Vault" },
+                  { id: "active", label: "Equipped Only" },
                   ...playSets.map((s: any) => ({ id: s.name, label: `Blueprint: ${s.name}` }))
                 ]}
               />
