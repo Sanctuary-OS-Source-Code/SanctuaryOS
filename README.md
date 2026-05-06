@@ -1,4 +1,5 @@
 🛠️ Forking & Development Guide: Sanctuary OS
+
 Welcome to the developer guide for Sanctuary OS, a robust, desktop-native artifact and mod manager built for The Sims 4. This application relies on a React 18/TypeScript frontend, a Tauri V2 (Rust) backend for heavy file-system operations, and Supabase for cloud synchronization and global DNA registry.
 
 📦 Tech Stack Overview
