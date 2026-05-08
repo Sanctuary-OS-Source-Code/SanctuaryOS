@@ -146,7 +146,7 @@ function App() {
         }
       }
       setStatus(t("status_ingest_success"));
-      runRadarSweep(true);
+      runRadarSweep(true); 
     } catch (err) {
       setStatus(`${t("status_link_failed")}${err}`);
     }
@@ -222,7 +222,9 @@ function App() {
     null,
   );
 
+
   const [associatedMods, setAssociatedMods] = useState<any[]>([]);
+
   const saveLocalMetadata = async () => {
     if (!activeDossier || !metaNameInput.trim()) return;
     setStatus("Syncing metadata to the Network...");
@@ -269,6 +271,7 @@ function App() {
       setStatus(`Error: ${err.message || err}`);
     }
   };
+
 
   const handleUpdateMod = (mod: any) => {};
 
@@ -466,24 +469,23 @@ function App() {
     };
     bootDLCProtocol();
   }, []);
-  const detectGameVersion = async () => {
-    if (!isConfigured) return;
-    try {
-      const config: any = await invoke("get_saved_coordinates");
-      if (!config.live_path) return;
-      
-      const rawRipped = await invoke<string>("rip_game_version", {
-        livePath: config.live_path,
-      });
-      const cleanVersion = rawRipped.replace(/[^0-9.]/g, "");
-      setSelectedVersion(cleanVersion);
-      setStatus(`${t("status_standing_by")} |  v${cleanVersion}`);
-    } catch (err) {
-      console.warn("Version detection failed:", err);
-    }
-  };
-
   useEffect(() => {
+    const detectGameVersion = async () => {
+      if (!isConfigured) return;
+      try {
+        const config: any = await invoke("get_saved_coordinates");
+        if (!config.live_path) return;
+        
+        const rawRipped = await invoke<string>("rip_game_version", {
+          livePath: config.live_path,
+        });
+        const cleanVersion = rawRipped.replace(/[^0-9.]/g, "");
+        setSelectedVersion(cleanVersion);
+        setStatus(`${t("status_standing_by")} |  v${cleanVersion}`);
+      } catch (err) {
+        console.warn("Version detection failed:", err);
+      }
+    };
     detectGameVersion();
   }, [isConfigured]);
   useEffect(() => {
@@ -571,6 +573,7 @@ function App() {
       }
     }
   }, []);
+
 
   const toggleInActiveSet = (targetName: string, excludeBroken: boolean = false) => {
     setPlaySets((prevSets) => {
@@ -927,7 +930,6 @@ function App() {
             backupName: filename,
           });
           setStatus(msg as string);
-          await detectGameVersion();
         } catch (err) {
           setStatus(`${t("status_restore_failure")}${err}`);
         } finally {
@@ -1965,6 +1967,7 @@ function App() {
     setDraftSetName("");
   }
   const displayModList = modList;
+  
 
   async function triggerShelter(active: boolean) {
     setStatus(active ? t("status_evacuating") : t("status_restoring_bunker"));
@@ -2351,7 +2354,7 @@ function App() {
         mods_path: config.mods_path,
         vault_path: config.vault_path,
       });
-      await executeHotSwap();
+      await executeHotSwap(); 
     } catch (err) {
       setStatus(`${t("status_lab_error")}${err}`);
     }
