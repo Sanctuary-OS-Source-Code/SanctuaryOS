@@ -400,6 +400,7 @@
   "status_dd_review": "Under Review",
   "status_dd_broken": "Broken / Fatal",
   "status_dd_unverified": "Unverified",
+  "status_dd_under_review": "Under Review",
   "class_dd_script": "📜 Script",
   "class_dd_buildbuy": "🏗️ Build/Buy",
   "class_dd_cas": "🎭 CAS",

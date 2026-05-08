@@ -92,6 +92,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
 
   const[isMasonModalOpen, setIsMasonModalOpen] = useState(false);
   const [newMasonName, setNewMasonName] = useState("");
+  const [newMasonTier, setNewMasonTier] = useState(0);
 
   const fetchGlobalCatalog = async () => {
     setIsLoading(true);
@@ -187,7 +188,8 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
         status: activeMaster.status,
         requiredDLC: activeMaster.requiredDLC,
         latest_version: activeMaster.latest_version,
-        allow_write: activeMaster.allow_write
+        allow_write: activeMaster.allow_write,
+        compliance_tier: activeMaster.compliance_tier || 0
       }).eq('id', activeMaster.id);
       if (error) throw error;
       setCommitSuccess(true);
@@ -204,13 +206,14 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
   const handleCreateMasonSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMasonName.trim()) return;
-    const { data, error } = await supabase.from('masons').insert([{ name: newMasonName.trim() }]).select().single();
+    const { data, error } = await supabase.from('masons').insert([{ name: newMasonName.trim(), compliance_tier: newMasonTier }]).select().single();
     if (error) { alert(`${t("registry_err_mason")}${error.message}`); return; }
     
     setMasonsList(prev => [...prev, data].sort((a,b) => a.name.localeCompare(b.name)));
     setActiveMaster({ ...activeMaster, mason_id: data.id });
     setIsMasonModalOpen(false);
     setNewMasonName("");
+    setNewMasonTier(0);
   };
 
   const handleAddProtocol = async (targetId: string) => {
@@ -586,8 +589,12 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                 placeholder={t("mason_modal_placeholder")}
                 className="w-full theme-glass-inner px-5 py-4 rounded-xl text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all"
               />
-              <div className="flex gap-3 mt-2">
-                <button type="button" onClick={() => { setIsMasonModalOpen(false); setNewMasonName(""); }} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/5">
+              <div className="flex flex-col gap-2 mt-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">CONTENT RATING</label>
+                <CustomComplianceDropdown value={newMasonTier} onChange={setNewMasonTier} />
+              </div>
+              <div className="flex gap-3 mt-4">
+                <button type="button" onClick={() => { setIsMasonModalOpen(false); setNewMasonName(""); setNewMasonTier(0); }} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/5">
                   {t("playsets_btn_cancel")}
                 </button>
                 <button type="submit" className="flex-1 py-3 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 shadow-lg transition-all">
@@ -669,6 +676,7 @@ function CCRegistry() {
   const [filter, setFilter] = useState("ALL");
   const [isMasonModalOpen, setIsMasonModalOpen] = useState(false);
   const [newMasonName, setNewMasonName] = useState("");
+  const [newMasonTier, setNewMasonTier] = useState(0);
 
   const fetchGlobalCatalog = async () => {
     setIsLoading(true);
@@ -729,13 +737,14 @@ function CCRegistry() {
   const handleCreateMasonSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMasonName.trim()) return;
-    const { data, error } = await supabase.from('masons').insert([{ name: newMasonName.trim() }]).select().single();
+    const { data, error } = await supabase.from('masons').insert([{ name: newMasonName.trim(), compliance_tier: newMasonTier }]).select().single();
     if (error) { alert(`${t("registry_err_mason")}${error.message}`); return; }
     
     setMasonsList(prev => [...prev, data].sort((a,b) => a.name.localeCompare(b.name)));
     setActiveMaster({ ...activeMaster, mason_id: data.id });
     setIsMasonModalOpen(false);
     setNewMasonName("");
+    setNewMasonTier(0);
   };
 
   const removeDLC = (pack: string) => {
@@ -858,6 +867,11 @@ function CCRegistry() {
               </div>
 
               <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">SAFETY RATING</label>
+                <CustomComplianceDropdown value={activeMaster.compliance_tier || 0} onChange={(newTier: number) => setActiveMaster({...activeMaster, compliance_tier: newTier})} />
+              </div>
+
+              <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_req_dlc")}</label>
                 <div className="theme-glass-inner rounded-xl p-4 flex flex-col gap-3">
                   <div className="flex flex-wrap gap-2">
@@ -923,13 +937,23 @@ function CCRegistry() {
                 />
               </div>
 
-              <button 
-                type="submit"
-                disabled={!newMasonName.trim()}
-                className="w-full py-4 theme-bg-accent text-[var(--bg)] rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 disabled:grayscale"
-              >
-                {t("mason_btn_mint")}
-              </button>
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">CONTENT RATING</label>
+                <CustomComplianceDropdown value={newMasonTier} onChange={setNewMasonTier} />
+              </div>
+
+              <div className="flex gap-3">
+                <button type="button" onClick={() => { setIsMasonModalOpen(false); setNewMasonName(""); setNewMasonTier(0); }} className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-[var(--text)] font-black text-[11px] uppercase tracking-[0.2em] rounded-2xl transition-all border border-white/5">
+                  {t("playsets_btn_cancel")}
+                </button>
+                <button 
+                  type="submit"
+                  disabled={!newMasonName.trim()}
+                  className="flex-1 py-4 theme-bg-accent text-[var(--bg)] rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 disabled:grayscale"
+                >
+                  {t("mason_btn_mint")}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -1573,11 +1597,13 @@ function CustomStatusDropdown({ value, onChange }: { value: string, onChange: (v
   );
 }
 
-function CustomComplianceDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+function CustomComplianceDropdown({ value, onChange }: { value: number, onChange: (val: number) => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const options = [
-    { id: 'CLEAN', label: 'CLEAN', color: 'theme-text-success', glow: 'theme-bg-success' },
-    { id: 'NSFW', label: 'NSFW', color: 'theme-text-warning', glow: 'theme-bg-warning' },
+    { id: 0, label: 'CLEAN / SAFE', color: 'theme-text-success', glow: 'theme-bg-success' },
+    { id: 1, label: 'NSFW (18+)', color: 'theme-text-warning', glow: 'theme-bg-warning' },
+    { id: 2, label: 'EXPLICIT', color: 'theme-text-danger', glow: 'theme-bg-danger' },
+    { id: 3, label: 'MALWARE', color: 'text-red-600', glow: 'bg-red-600 animate-pulse' },
   ];
   const selected = options.find(o => o.id === value) || options[0];
   return (
@@ -1591,7 +1617,7 @@ function CustomComplianceDropdown({ value, onChange }: { value: string, onChange
           <div className={`w-2 h-2 rounded-full ${selected.glow}`} />
           {selected.label}
         </div>
-        <span className="text-[var(--subtext)] opacity-60 text-[10px]">{isOpen ? '' : ''}</span>
+        <span className="text-[var(--subtext)] opacity-60 text-[10px]">{isOpen ? '▲' : '▼'}</span>
       </button>
 
       {isOpen && (
