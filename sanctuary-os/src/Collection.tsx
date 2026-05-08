@@ -11,7 +11,7 @@ export default function Collection(props: any) {
     equipFilter, setEquipFilter, searchQuery, setSearchQuery, filterStatus, 
     setFilterStatus, activeCategory, setActiveCategory, activeSubType, setActiveSubType, 
     visibleMods, displayModList, activePlaySetIndex, toggleInActiveSet, 
-    openUrl, setLocalFolderName, setLocalFolderType, executeHotSwap, setMetaNameInput, 
+    openUrl, setLocalFolderName, setLocalFolderType, executeHotSwap, equipPlaySet, setMetaNameInput, 
     setMetaAuthorInput, setMetaVersionInput, setActiveDossier, setDrawerConfirmHash, 
     quarantineList, restoreMod, purgeMod, ownedDLC, maskedDLC, setMetaDescInput, 
     setMetaImageInput, setMetaAllowWriteInput, expandedFolder, setExpandedFolder, 
@@ -125,7 +125,7 @@ export default function Collection(props: any) {
                           />
                         </div>
                         <button
-                          onClick={() => executeHotSwap && executeHotSwap(playSets[props.activePlaySetIndex]?.name)}
+                          onClick={() => equipPlaySet && equipPlaySet(playSets[props.activePlaySetIndex]?.name)}
                           className="h-12 px-6 rounded-2xl theme-bg-success text-[var(--bg)] text-[10px] font-black uppercase tracking-widest shadow-md hover:opacity-90 transition-all flex items-center gap-2"
                         >
                           {t("ui_icon_success")} Save

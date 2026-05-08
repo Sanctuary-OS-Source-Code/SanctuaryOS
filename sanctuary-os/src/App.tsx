@@ -2700,7 +2700,7 @@ function App() {
                 setActivePlaySetIndex={setActivePlaySetIndex}
                 toggleInActiveSet={toggleInActiveSet}
                 openUrl={openUrl} setLocalFolderName={setLocalFolderName} setLocalFolderType={setLocalFolderType}
-                executeHotSwap={executeHotSwap} setMetaNameInput={setMetaNameInput} setMetaAuthorInput={setMetaAuthorInput}
+                executeHotSwap={executeHotSwap} equipPlaySet={equipPlaySet} setMetaNameInput={setMetaNameInput} setMetaAuthorInput={setMetaAuthorInput}
                 setMetaVersionInput={setMetaVersionInput} setActiveDossier={setActiveDossier} setDrawerConfirmHash={setDrawerConfirmHash}
                 quarantineList={quarantineList} restoreMod={restoreMod} purgeMod={purgeMod}
                 ownedDLC={ownedDLC} maskedDLC={maskedDLC} setMetaDescInput={setMetaDescInput}
