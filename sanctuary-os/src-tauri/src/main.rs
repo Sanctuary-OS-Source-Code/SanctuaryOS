@@ -1939,28 +1939,36 @@ fn ingest_dropped_file(
     }
 
     if !source.is_dir() && !force_replace {
-        let hash = calculate_hash(&source).unwrap_or_default();
+        let source_file_name = source.file_name().unwrap_or_default();
         let cache = load_cache(&config.vault_path);
         let mut exists = false;
         let mut existing_name = String::new();
         let mut match_reason = String::new();
-        let source_file_name = source.file_name().unwrap_or_default();
-        
-        for (k, v) in cache.iter() {
-            if Path::new(k).exists() {
-                if v.dna_hash == hash && !hash.is_empty() {
+        let mut hash = String::new();
+        let mut needs_hash = true;
+
+        for (k, _) in cache.iter() {
+            if Path::new(k).exists() && Path::new(k).file_name() == Some(source_file_name) {
+                exists = true;
+                existing_name = k.clone();
+                match_reason = "NAME_MATCH".to_string();
+                needs_hash = false;
+                break;
+            }
+        }
+
+        if needs_hash {
+            hash = calculate_hash(&source).unwrap_or_default();
+            for (k, v) in cache.iter() {
+                if Path::new(k).exists() && v.dna_hash == hash && !hash.is_empty() {
                     exists = true;
                     existing_name = k.clone();
                     match_reason = "DNA_MATCH".to_string();
                     break;
-                } else if Path::new(k).file_name() == Some(source_file_name) {
-                    exists = true;
-                    existing_name = k.clone();
-                    match_reason = "NAME_MATCH".to_string();
-
                 }
             }
         }
+
         if exists {
             let _ = app.emit("dna_match_detected", serde_json::json!({ "path": path, "hash": hash, "existing_name": existing_name, "source_action": "ingest_dropped_file", "reason": match_reason }));
             return Err("DNA_MATCH".into());

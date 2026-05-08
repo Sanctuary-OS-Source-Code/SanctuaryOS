@@ -127,6 +127,7 @@ function App() {
           isProcessingDrop = true;
           setIsDropzoneOpen(true);
           setDropzoneState("ingesting");
+          setIngestProgress({ active: true, current: 0, total: paths.length });
           // Give React two animation frames to paint the INGESTING UI before we block IPC
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
