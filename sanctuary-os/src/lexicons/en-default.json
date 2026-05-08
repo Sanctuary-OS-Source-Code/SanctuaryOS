@@ -683,6 +683,7 @@
   "modal_btn_keep_old": "Discard New",
   "modal_btn_discard": "Ignore",
   "modal_btn_replace_all": "Merge All",
+  "modal_btn_keep_all_old": "Discard All New",
   "modal_btn_discard_all": "Ignore All",
   "ui_icon_dna": "🧬",
   "defcon_prompt_patch_detected": "⚠️ A game update has been detected.\n\nWould you like to run an emergency backup now?",

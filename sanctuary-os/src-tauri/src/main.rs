@@ -186,7 +186,6 @@ fn launch_game(live_path: String, mods_path: String) -> Result<String, String> {
 
     let mut exe_path = std::path::PathBuf::from(&live_path);
 
-    // Only add Game/Bin if Jimmy selected the root folder
     if !exe_path.ends_with("Bin") && !exe_path.ends_with("bin") {
         exe_path.push("Game");
         exe_path.push("Bin");
@@ -194,7 +193,6 @@ fn launch_game(live_path: String, mods_path: String) -> Result<String, String> {
 
     exe_path.push("TS4_x64.exe");
 
-    // Fallback for DX9
     if !exe_path.exists() {
         exe_path.pop();
         exe_path.push("TS4_DX9_x64.exe");
@@ -222,7 +220,6 @@ fn rip_game_version(live_path: String) -> Result<String, String> {
 
     let mut bin_path = PathBuf::from(live_path);
     
-    // Convert to bin path
     if bin_path.is_file() {
         bin_path.pop();
     } else if !bin_path.ends_with("Bin") && !bin_path.ends_with("bin") {
@@ -300,7 +297,6 @@ fn save_coordinates(
     Ok("Locked".into())
 }
 
-// Helper: Creates a physical directory and hardlinks files inside it (Air Gap)
 fn deploy_air_gap(source: &Path, target: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(target)?;
     if let Ok(entries) = std::fs::read_dir(source) {
@@ -319,7 +315,6 @@ fn deploy_air_gap(source: &Path, target: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-// Helper: Creates a Directory Junction allowing the game to write directly to the Vault
 fn deploy_junction(source: &Path, target: &Path) -> std::io::Result<()> {
     #[cfg(target_os = "windows")]
     {
@@ -375,7 +370,6 @@ async fn deploy_playset_bulk(
         return Err("Mods folder missing.".into());
     }
 
-    // 1. Wipe current Live Mods folder safely
     if let Ok(entries) = std::fs::read_dir(&mods_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -402,9 +396,6 @@ async fn deploy_playset_bulk(
             continue;
         }
 
-        // Determine destination: Flat unless it's a subfolder in the mod itself
-        // Example: m.path = "ModName/File.package" -> "Mods/File.package"
-        // Example: m.path = "ModName/Sub/Data.package" -> "Mods/Sub/Data.package"
 
         let path_parts: Vec<_> = Path::new(&m.path).components().collect();
         if path_parts.len() < 1 {
@@ -414,14 +405,12 @@ async fn deploy_playset_bulk(
         let target_rel = if path_parts.len() > 2
             && path_parts[0].as_os_str().to_string_lossy().starts_with('!')
         {
-            // Priority Folder: Keep first part, skip second part (ModName), keep rest
             let mut p = PathBuf::from(path_parts[0].as_os_str());
             for comp in path_parts.iter().skip(2) {
                 p.push(comp);
             }
             p
         } else if path_parts.len() > 1 {
-            // Normal Mod: Skip first part (ModName), keep rest
             let mut p = PathBuf::new();
             for comp in path_parts.iter().skip(1) {
                 p.push(comp);
@@ -438,8 +427,7 @@ async fn deploy_playset_bulk(
         }
 
         if m.allow_write {
-            // For files, we can't do Junctions. We'll use symlink or copy.
-            // But if it's a folder, we can.
+
             if source.is_dir() {
                 let _ = deploy_junction(&source, &target);
             } else {
@@ -457,7 +445,6 @@ async fn deploy_playset_bulk(
             }
         }
 
-        // NEW: Bring along data files/folders from the same parent folder in the Vault
         if let Some(source_parent) = source.parent() {
             if let Some(target_parent) = target.parent() {
                 if let Ok(entries) = std::fs::read_dir(source_parent) {
@@ -525,7 +512,6 @@ async fn sanitize_vault(vault_path: String) -> Result<String, String> {
 
     let mut moved = 0;
 
-    // Sanitize 1.0: Move ZST files to Backups
     if let Ok(entries) = std::fs::read_dir(&vault_root) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -540,7 +526,6 @@ async fn sanitize_vault(vault_path: String) -> Result<String, String> {
         }
     }
 
-    // Sanitize 2.0: Enforce "One Mod, One Folder" inside the Vault
     if let Ok(entries) = std::fs::read_dir(&mods_lane) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -645,7 +630,6 @@ fn check_is_explicitly_local(path: &Path, is_script: bool) -> bool {
         return true;
     }
 
-    // Ignore explicit local blocking for Simmatticly's other mods to allow them through
     if file_name.contains("simmattic") || file_name.contains("simmatic") {
         return false;
     }
@@ -674,7 +658,7 @@ fn check_is_explicitly_local(path: &Path, is_script: bool) -> bool {
                 let major = u32::from_le_bytes(buffer[4..8].try_into().unwrap());
                 let minor = u32::from_le_bytes(buffer[8..12].try_into().unwrap());
                 
-                if minor > 1 { // DX11 Optimization or newer
+                if minor > 1 { 
                     return true;
                 }
 
@@ -737,14 +721,14 @@ fn check_is_explicitly_local(path: &Path, is_script: bool) -> bool {
                                         t = u32::from_le_bytes(b);
                                         offset += 4;
                                     }
-                                    if flags & 0x02 == 0 { offset += 4; } // group
-                                    if flags & 0x04 == 0 { offset += 4; } // inst_ex
-                                    offset += 8; // instance
-                                    offset += 4; // pos
-                                    offset += 4; // size and compression
+                                    if flags & 0x02 == 0 { offset += 4; } 
+                                    if flags & 0x04 == 0 { offset += 4; } 
+                                    offset += 8; 
+                                    offset += 4; 
+                                    offset += 4; 
 
-                                    if t == 0x54533453 { return true; } // Merged Manifest
-                                    if t == 0x01357924 { return true; } // Batch Fix Metadata
+                                    if t == 0x54533453 { return true; } 
+                                    if t == 0x01357924 { return true; } 
                                     if t == 0x034AEECB { casp_count += 1; }
                                     if t == 0x319E4F1D { objd_count += 1; }
                                 }
@@ -783,7 +767,7 @@ fn scan_bunker(
         return Ok(vec![]);
     }
 
-    // Auto-Enforce "One Mod, One Folder" inside the Vault before scanning
+   
     if let Ok(entries) = std::fs::read_dir(&mods_lane) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -875,7 +859,7 @@ fn scan_bunker(
             (hash, explicit)
         };
 
-        // Check for duplicate in current cache (Radar Sweep)
+
         let mut duplicate_path = None;
         for (k, v) in cache.iter() {
             if v.dna_hash == dna_hash && !dna_hash.is_empty() && k != &path_str {
@@ -896,7 +880,6 @@ fn scan_bunker(
                     "source_action": "radar_sweep"
                 }),
             );
-            // Continue scanning to find all duplicates instead of halting
             continue;
         }
 
@@ -1554,7 +1537,6 @@ fn evacuate_to_shelter() -> Result<String, String> {
     }
     let mut items = Vec::new();
     
-    // Recursive closure to find all items without traversing symlinks
     fn walk_physical_items(dir: &Path, items: &mut Vec<PathBuf>) {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
@@ -1578,7 +1560,6 @@ fn evacuate_to_shelter() -> Result<String, String> {
     let mut moved = 0;
     let mut exorcised = 0;
     
-    // Process files first, then directories (to avoid moving a parent before its children)
     items.sort_by_key(|p| p.to_string_lossy().len());
     items.reverse();
 
@@ -1595,13 +1576,9 @@ fn evacuate_to_shelter() -> Result<String, String> {
                         exorcised += 1;
                     }
                 } else if meta.is_dir() {
-                    // It's a real directory. We don't need to move it if it's just a structural folder, 
-                    // but we should clean it up if it's empty after its contents were moved.
                     if fs::remove_dir(&path).is_ok() {
-                        // Was empty, safely removed
                     }
                 } else {
-                    // It's a real file (dynamically generated data, settings, log, etc)
                     if let Some(parent) = dest.parent() {
                         let _ = fs::create_dir_all(parent);
                     }
@@ -1636,7 +1613,6 @@ async fn repopulate_from_shelter() -> Result<String, String> {
         })
         .collect();
 
-    // Convert the strings into the new DeployMod struct (defaulting allow_write to false)
     let deploy_mods: Vec<DeployMod> = mod_names
         .into_iter()
         .map(|name| DeployMod {
@@ -1750,13 +1726,11 @@ fn initialize_airgap_watch(app_handle: tauri::AppHandle, docs_path: String, vaul
 fn scan_game_logs(docs_path: String) -> Result<String, String> {
     let path = PathBuf::from(docs_path);
 
-    // 1. Check for lastCrash.txt
     let crash_path = path.join("lastCrash.txt");
     if crash_path.exists() {
         return Ok("🛑 CRASH DETECTED: System instability confirmed.".into());
     }
 
-    // 2. Check for lastException.txt and variants
     let mut exceptions = Vec::new();
     if let Ok(entries) = fs::read_dir(&path) {
         for entry in entries.flatten() {
@@ -1775,13 +1749,11 @@ fn scan_game_logs(docs_path: String) -> Result<String, String> {
         return Ok("Clean".into());
     }
 
-    // Get the latest one
     exceptions.sort_by(|a, b| b.0.cmp(&a.0));
     let latest = &exceptions[0].1;
 
     match fs::read_to_string(latest) {
         Ok(content) => {
-            // Extract the first 500 chars or some meaningful part
             let snippet = content.chars().take(1000).collect::<String>();
             Ok(format!("⚠️ EXCEPTION DETECTED: {}", snippet))
         }
@@ -1820,7 +1792,6 @@ fn move_to_lab(filename: String) -> Result<String, String> {
         let _ = fs::create_dir_all(parent);
     }
 
-    // Copy to Mods for testing (Air Gap style)
     if vault_path.is_dir() {
         deploy_air_gap(&vault_path, &mods_path).map_err(|e| e.to_string())?;
     } else {
@@ -1868,7 +1839,6 @@ fn restore_quarantined_file(filename: String) -> String {
 fn purge_quarantined_file(filename: String) -> String {
     let config = get_saved_coordinates();
 
-    // Check both standard quarantine and malware quarantine
     let paths_to_check = vec![
         PathBuf::from(&config.vault_path)
             .join("Quarantine")
@@ -1880,7 +1850,6 @@ fn purge_quarantined_file(filename: String) -> String {
 
     for q_path in paths_to_check {
         if q_path.exists() {
-            // Secure shred: write zeros then delete
             if let Ok(mut f) = fs::OpenOptions::new().write(true).open(&q_path) {
                 if let Ok(meta) = f.metadata() {
                     let zeros = vec![0u8; 1024 * 1024];
@@ -1988,8 +1957,7 @@ fn ingest_dropped_file(
                     exists = true;
                     existing_name = k.clone();
                     match_reason = "NAME_MATCH".to_string();
-                    // We don't break immediately, because a DNA match is a stronger match, 
-                    // but if we only find a name match, it's probably an update!
+
                 }
             }
         }
@@ -2017,8 +1985,7 @@ fn ingest_dropped_file(
     let target = target_dir.join(file_name);
 
     if source.is_dir() {
-        // Move directory
-        // Fallback if cross-drive
+
         let _ = deploy_air_gap(source, &target);
     } else {
         let ext = source
@@ -2027,7 +1994,6 @@ fn ingest_dropped_file(
             .unwrap_or("")
             .to_lowercase();
         if ext == "package" || ext == "ts4script" || ext == "zip" || ext == "7z" || ext == "rar" || ext == "dat" || ext == "cfg" || ext == "ini" || ext == "json" {
-            // Always copy, do not remove the source file to prevent "eating" user files
             std::fs::copy(source, &target).map_err(|e| e.to_string())?;
         } else {
             return Err("UNSUPPORTED_ARTIFACT_TYPE".into());
@@ -2053,7 +2019,6 @@ fn resolve_dna_match(
                 let _ = std::fs::create_dir_all(parent);
             }
             if std::fs::copy(source, existing).is_ok() {
-                // Update mtime to now
                 let now = filetime::FileTime::now();
                 let _ = filetime::set_file_times(existing, now, now);
             } else {
@@ -2061,7 +2026,6 @@ fn resolve_dna_match(
             }
         }
     } else if action == "discard" {
-        // Only delete the source path if it was found via radar sweep (meaning it was already inside the vault)
         if source_action == "radar_sweep" && source.exists() && source != existing {
             let _ = std::fs::remove_file(source);
         }

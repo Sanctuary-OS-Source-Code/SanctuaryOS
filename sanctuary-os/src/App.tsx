@@ -127,12 +127,27 @@ function App() {
           isProcessingDrop = true;
           setIsDropzoneOpen(true);
           setDropzoneState("ingesting");
-          
-          // Give React a tiny bit of time to render the 'INGESTING...' UI before we block the thread
-          setTimeout(async () => {
-             await handleDroppedFiles(paths);
-             isProcessingDrop = false;
-          }, 100);
+          // Give React two animation frames to paint the INGESTING UI before we block IPC
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              setTimeout(async () => {
+                 const startTime = Date.now();
+                 await handleDroppedFiles(paths);
+                 
+                 // Enforce minimum 1.5s loading screen so it doesn't just flash instantly
+                 const elapsed = Date.now() - startTime;
+                 if (elapsed < 1500) {
+                   await new Promise(r => setTimeout(r, 1500 - elapsed));
+                 }
+                 
+                 isProcessingDrop = false;
+                 setIsDropzoneOpen(false);
+                 setDropzoneState("awaiting");
+                 setDroppedFiles([]);
+                 setIngestProgress({ active: false, current: 0, total: 0 });
+              }, 50);
+            });
+          });
         }
       }
     });
@@ -160,11 +175,6 @@ function App() {
       runRadarSweep(true); 
     } catch (err) {
       setStatus(`${t("status_link_failed")}${err}`);
-    } finally {
-      setIsDropzoneOpen(false);
-      setDropzoneState("awaiting");
-      setDroppedFiles([]);
-      setIngestProgress({ active: false, current: 0, total: 0 });
     }
   }
   const view = useStore((state) => state.view);
