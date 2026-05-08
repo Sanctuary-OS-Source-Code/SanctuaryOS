@@ -2865,6 +2865,7 @@ function App() {
           isEditingMeta={isEditingMeta}
           setIsEditingMeta={setIsEditingMeta}
           isCorrecting={isCorrectingMeta}
+          setIsCorrecting={setIsCorrectingMeta}
           editMode={editMode}
           setEditMode={setEditMode}
           configContent={configContent}
