@@ -27,7 +27,6 @@ export default function CommandCenter({
           <h3 className="text-xl font-bold text-[var(--text)] mb-2">{t("dashboard_quick_actions") || "Quick Actions"}</h3>
           
           <button onClick={() => runRadarSweep(false)} className="w-full py-4 rounded-2xl theme-glass-inner border border-white/5 hover:border-white/20 hover:theme-border-accent text-[var(--text)] text-xs uppercase font-black tracking-widest transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3">{t("dashboard_btn_radar") || " RADAR SWEEP"}</button>
-          <button onClick={massIngestToCloud} className="w-full py-4 rounded-2xl theme-glass-inner border border-white/5 hover:border-white/20 hover:theme-border-accent text-[var(--text)] text-xs uppercase font-black tracking-widest transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3">{t("dashboard_btn_upload") || " UPLOAD UNKNOWNS"}</button>
           <button onClick={() => triggerShelter(!shelterActive)} className={`w-full py-4 rounded-2xl theme-glass-inner border border-white/5 hover:border-white/20 hover:theme-border-accent text-[var(--text)] text-xs uppercase font-black tracking-widest flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.02] active:scale-95 ${shelterActive ? 'theme-text-danger' : 'theme-text-success'}`}>{shelterActive ? (t("dashboard_btn_reclaim") || " RECLAIM BUNKER") : (t("dashboard_btn_lockdown") || " LOCKDOWN BUNKER")}</button>
         </div>
       </div>          

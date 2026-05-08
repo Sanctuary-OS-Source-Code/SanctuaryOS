@@ -23,7 +23,7 @@ export function useSolderLab(modList: any[], playSets: any[], setPlaySets: any, 
           
       const isActuallyFlavorFolder = targetMod.isVirtual && kids.some(k => k.flavorGroupId != null);
       let isEquipping = targetMod.isVirtual 
-          ? (isActuallyFlavorFolder ? !kids.some(k => newMods.has(k.name)) : !kids.every(k => newMods.has(k.name))) 
+          ? !kids.some(k => newMods.has(k.name))
           : !newMods.has(targetName);
 
       const deepDelete = (nameToDelete: string) => {
@@ -31,8 +31,16 @@ export function useSolderLab(modList: any[], playSets: any[], setPlaySets: any, 
           newMods.delete(nameToDelete);
           if (currentRules.dependencies !== false) {
             const mData = modList.find(m => m.name === nameToDelete);
-            if (mData?.dbId) {
-                modList.filter(m => m.requirements?.some((r: any) => String(r) === String(mData.dbId)) && newMods.has(m.name))
+            if (mData) {
+                modList.filter(m => m.requirements?.some((r: any) => {
+                    const reqId = typeof r === 'string' ? r : r.id || r.dbId;
+                    const reqName = typeof r === 'string' ? r : r.name;
+                    const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "").toUpperCase();
+                    const isReqNumeric = !isNaN(Number(reqName));
+                    return (reqId && String(mData.dbId) === String(reqId)) ||
+                           (reqId && mData.hash === reqId) ||
+                           (!isReqNumeric && reqBaseName && mData.displayName && (mData.displayName.toUpperCase().includes(reqBaseName) || mData.displayName.toUpperCase().replace(/_/g, " ").includes(reqBaseName.replace(/_/g, " "))));
+                }) && newMods.has(m.name))
                        .forEach(dep => deepDelete(dep.name));
             }
           }

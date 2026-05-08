@@ -30,6 +30,8 @@ interface ModalState {
   setYeetConfirmPending: (val: any) => void;
   dnaMatchQueue: any[];
   setDnaMatchQueue: (val: any[] | ((prev: any[]) => any[])) => void;
+  scoutQueue: any[];
+  setScoutQueue: (val: any[] | ((prev: any[]) => any[])) => void;
   setLocalFolderName: (val: string) => void;
   pendingImportSet: any;
   setPendingImportSet: (val: any) => void;
@@ -102,6 +104,8 @@ export const useModalStore = create<ModalState>((set) => ({
   setYeetConfirmPending: (yeetConfirmPending) => set({ yeetConfirmPending }),
   dnaMatchQueue: [],
   setDnaMatchQueue: (dnaMatchQueue) => set((state) => ({ dnaMatchQueue: typeof dnaMatchQueue === 'function' ? dnaMatchQueue(state.dnaMatchQueue) : dnaMatchQueue })),
+  scoutQueue: [],
+  setScoutQueue: (scoutQueue) => set((state) => ({ scoutQueue: typeof scoutQueue === 'function' ? scoutQueue(state.scoutQueue) : scoutQueue })),
   dnaMatches: [],
   setDnaMatches: (dnaMatches) => set({ dnaMatches }),
   isDnaModalOpen: false,

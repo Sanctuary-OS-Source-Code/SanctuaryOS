@@ -24,7 +24,15 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       if (!currentMod) return;
       const deps = (modList || []).filter((m: any) => 
         !m.isVirtual && 
-        (m.requirements?.some((r: any) => String(r) === String(modId)) ||
+        (m.requirements?.some((r: any) => {
+          const reqId = typeof r === 'string' ? r : r.id || r.dbId;
+          const reqName = typeof r === 'string' ? r : r.name;
+          const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "").toUpperCase();
+          const isReqNumeric = !isNaN(Number(reqName));
+          return (reqId && String(currentMod.dbId) === String(reqId)) ||
+                 (reqId && currentMod.hash === reqId) ||
+                 (!isReqNumeric && reqBaseName && currentMod.displayName && (currentMod.displayName.toUpperCase().includes(reqBaseName) || currentMod.displayName.toUpperCase().replace(/_/g, " ").includes(reqBaseName.replace(/_/g, " "))));
+        }) ||
         (String(m.familyId) === String(currentMod.familyId || modId) && m.relationshipType === 'addon' && currentMod.relationshipType !== 'addon')) &&
         activeMods.includes(m.name)
       );

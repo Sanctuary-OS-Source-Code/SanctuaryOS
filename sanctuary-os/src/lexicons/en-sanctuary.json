@@ -887,5 +887,8 @@
   "feed_tab_discover": "Network Sweep",
   "feed_tab_following": "Subscribed Channels",
   "feed_login_required": "IDENTITY REQUIRED TO ACCESS SECURE CHANNELS",
-  "feed_no_following": "NO ACTIVE CHANNELS SUBSCRIBED"
+  "feed_no_following": "NO ACTIVE CHANNELS SUBSCRIBED",
+  "ui_icon_refresh": "⟳",
+  "nav_prev": "PREV",
+  "nav_next": "NEXT"
 }

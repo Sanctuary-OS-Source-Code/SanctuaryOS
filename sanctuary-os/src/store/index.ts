@@ -7,6 +7,8 @@ interface GlobalState {
   setStatus: (status: string) => void;
   userRole: string;
   setUserRole: (role: string) => void;
+  session: any | null;
+  setSession: (session: any | null) => void;
   isConfigured: boolean;
   setIsConfigured: (isConfigured: boolean) => void;
   livePath: string;
@@ -60,6 +62,8 @@ export const useStore = create<GlobalState>((set) => ({
   setStatus: (status) => set({ status }),
   userRole: 'citizen',
   setUserRole: (userRole) => set({ userRole }),
+  session: null,
+  setSession: (session) => set({ session }),
   isConfigured: false,
   setIsConfigured: (isConfigured) => set({ isConfigured }),
   livePath: '',

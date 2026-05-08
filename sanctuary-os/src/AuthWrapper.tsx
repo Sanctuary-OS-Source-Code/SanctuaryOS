@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
+import { useStore } from "./store";
 
 export default function AuthWrapper({ children }: { children: React.ReactNode }) {
   const { t } = useLexicon();
-  const[session, setSession] = useState<any>(null);
+  const session = useStore((state) => state.session);
+  const setSession = useStore((state) => state.setSession);
   const [loadingSession, setLoadingSession] = useState(true);
 
   // Login Form States
@@ -14,6 +16,8 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [username, setUsername] = useState("");
   const [status, setStatus] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const [showLoginUI, setShowLoginUI] = useState(() => localStorage.getItem("sanctuary_show_login") === "true");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -70,12 +74,12 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     );
   }
 
-  // If authenticated, render the OS!
-  if (session) {
+  // If authenticated or not explicitly showing login UI, render the OS!
+  if (session || !showLoginUI) {
     return <>{children}</>;
   }
 
-  // If not authenticated, render the Glassmorphism Login Screen
+  // If not authenticated and showLoginUI is true, render the Glassmorphism Login Screen
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-[var(--bg)] font-sans relative overflow-hidden">
       {/* Background Thematic Blobs */}
@@ -125,6 +129,15 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             {isLogin ? t("auth_btn_login") : t("auth_btn_signup")}
           </button>
         </form>
+
+        <div className="mt-4">
+          <button
+            onClick={() => { localStorage.removeItem("sanctuary_show_login"); setShowLoginUI(false); }}
+            className="w-full py-3 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all bg-white/5 text-[var(--text)] hover:bg-white/10 hover:scale-[1.02] active:scale-95 border border-white/10"
+          >
+            {t("auth_btn_skip") || "SKIP FOR NOW"}
+          </button>
+        </div>
 
         <div className="mt-6 flex flex-col items-center gap-4 border-t border-white/10 pt-6">
           <button

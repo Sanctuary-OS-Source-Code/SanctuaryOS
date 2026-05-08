@@ -19,6 +19,10 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       mods: targetSet.mods.map((modName: string) => {
         const mod = modList.find(m => m.name === modName);
         return { name: modName, hash: mod?.hash || "", url: mod?.url || "", author: mod?.author || "Unknown" };
+      }).filter((m: any) => {
+        const lower = m.name.toLowerCase();
+        if (lower.includes("customchallenge_")) return true;
+        return !lower.includes("merged") && !lower.includes("simmatticly") && !lower.includes("batch fix") && !lower.includes("batch_fix");
       })
     };
     

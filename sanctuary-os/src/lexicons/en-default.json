@@ -887,5 +887,8 @@
   "feed_tab_discover": "Discover",
   "feed_tab_following": "Following",
   "feed_login_required": "LOGIN REQUIRED TO VIEW FOLLOWED CREATORS",
-  "feed_no_following": "YOU ARE NOT FOLLOWING ANY ACTIVE CREATORS"
+  "feed_no_following": "YOU ARE NOT FOLLOWING ANY ACTIVE CREATORS",
+  "ui_icon_refresh": "⟳",
+  "nav_prev": "PREV",
+  "nav_next": "NEXT"
 }

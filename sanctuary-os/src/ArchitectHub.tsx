@@ -26,8 +26,8 @@ export default function ArchitectHub({ userRole }: { userRole?: string }) {
         <TabButton id="queue" label={t("hub_tab_queue")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="matrix" label={t("hub_tab_matrix")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="lab" label={t("hub_tab_lab")} activeTab={activeTab} setTab={setActiveTab} />
-        {['wayfinder', 'admin'].includes(userRole || '') && (
-            <TabButton id="mason_link" label="Mason Link" activeTab={activeTab} setTab={setActiveTab} />
+        {['senior_architect', 'wayfinder', 'admin'].includes(userRole || '') && (
+            <TabButton id="senior_architect" label="Senior Architect" activeTab={activeTab} setTab={setActiveTab} />
         )}
       </div>
 
@@ -39,7 +39,7 @@ export default function ArchitectHub({ userRole }: { userRole?: string }) {
         {activeTab === "queue" && <ScoutQueue />}
         {activeTab === "lab" && <ProvingGrounds />}
         {activeTab === "matrix" && <ConflictMatrix />}
-        {activeTab === "mason_link" && <MasonLinker />}
+        {activeTab === "senior_architect" && <SeniorArchitectTab />}
       </div>
     </div>
   );
@@ -1757,9 +1757,9 @@ function DLCSearchDropdown({ onSelect, currentDLC =[] }: { onSelect: (pack: stri
 
 function CommandCenter({ onNavigate }: any = {}) {
   const { t } = useLexicon();
-  const [defconLevel, setDefconLevel] = useState<number>(5);
+
   const [stats, setStats] = useState({ unverified: 0, reports: 0, scoutQueue: 0, nsfw: 0 });
-  const [showDefconConfirmModal, setShowDefconConfirmModal] = useState(false);
+
   
   const [commsInput, setCommsInput] = useState("");
   const [commsMessages, setCommsMessages] = useState<any[]>([]);
@@ -1823,26 +1823,13 @@ function CommandCenter({ onNavigate }: any = {}) {
         nsfw: nsfwCount || 0
       });
 
-      const { data } = await supabase.from('global_network_status').select('defcon_level').eq('id', 1).single();
-      if (data) setDefconLevel(data.defcon_level);
+
+
     };
     fetchStats();
   }, []);
 
-  const triggerDefcon = async () => {
-    const newLevel = defconLevel === 1 ? 5 : 1;
-    const msg = newLevel === 1 ? 'Emergency Patch Detected' : 'System Normal';
-    
-    setDefconLevel(newLevel);
-    
-    const { error } = await supabase.from('global_network_status')
-      .update({ defcon_level: newLevel, message: msg })
-      .eq('id', 1);
-    
-    if (error) {
-      console.warn("Supabase RLS blocked global defcon sync. You may need to add an UPDATE policy to the 'global_network_status' table.", error.message);
-    }
-  };
+
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-500">
@@ -1915,8 +1902,47 @@ function CommandCenter({ onNavigate }: any = {}) {
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
 
-        <div className="w-full md:w-96 theme-glass-panel theme-border-danger border rounded-[3rem] p-8 flex flex-col items-center justify-center text-center gap-6 relative overflow-hidden shadow-[inset_0_0_100px_rgba(255,0,0,0.1)]">
+function SeniorArchitectTab() {
+  const { t } = useLexicon();
+  const [defconLevel, setDefconLevel] = useState<number>(5);
+  const [showDefconConfirmModal, setShowDefconConfirmModal] = useState(false);
+
+  useEffect(() => {
+    const fetchDefcon = async () => {
+      const { data } = await supabase.from('global_network_status').select('defcon_level').eq('id', 1).single();
+      if (data) setDefconLevel(data.defcon_level);
+    };
+    fetchDefcon();
+  }, []);
+
+  const triggerDefcon = async () => {
+    const newLevel = defconLevel === 1 ? 5 : 1;
+    const msg = newLevel === 1 ? 'Emergency Patch Detected' : 'System Normal';
+    
+    setDefconLevel(newLevel);
+    
+    const { error } = await supabase.from('global_network_status')
+      .update({ defcon_level: newLevel, message: msg })
+      .eq('id', 1);
+    
+    if (error) {
+      console.warn("Supabase RLS blocked global defcon sync.", error.message);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-8 animate-in fade-in h-full pb-12">
+      <div className="flex flex-col md:flex-row gap-8 h-full items-start">
+        <div className="flex-1 w-full overflow-hidden">
+          <MasonLinker />
+        </div>
+        
+        <div className="w-full md:w-96 theme-glass-panel theme-border-danger border rounded-[3rem] p-8 flex flex-col items-center justify-center text-center gap-6 relative overflow-hidden shadow-[inset_0_0_100px_rgba(255,0,0,0.1)] shrink-0">
           {defconLevel === 1 && <div className="absolute inset-0 theme-bg-danger opacity-10 animate-pulse pointer-events-none" />}
           
           <div className="w-24 h-24 rounded-full border-4 theme-border-danger flex items-center justify-center shadow-[0_0_50px_rgba(255,0,0,0.2)]">
@@ -1924,9 +1950,9 @@ function CommandCenter({ onNavigate }: any = {}) {
           </div>
           
           <div className="flex flex-col gap-2 relative z-10">
-            <h3 className="text-xl font-black theme-text-danger uppercase tracking-tighter drop-shadow-md">{t("hub_defcon_override_title")}</h3>
+            <h3 className="text-xl font-black theme-text-danger uppercase tracking-tighter drop-shadow-md">{t("hub_defcon_override_title") || "DEFCON OVERRIDE"}</h3>
             <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">
-              {t("hub_defcon_override_desc")}
+              {t("hub_defcon_override_desc") || "Force global shutdown"}
             </p>
           </div>
 
@@ -1938,10 +1964,9 @@ function CommandCenter({ onNavigate }: any = {}) {
                 : 'bg-transparent theme-text-danger theme-border-danger hover:theme-bg-danger hover:text-[var(--bg)]'
             }`}
           >
-            {defconLevel === 1 ? t("hub_defcon_stand_down") : t("hub_defcon_initiate")}
+            {defconLevel === 1 ? (t("hub_defcon_stand_down") || "STAND DOWN") : (t("hub_defcon_initiate") || "INITIATE LOCKDOWN")}
           </button>
         </div>
-
       </div>
 
       {showDefconConfirmModal && (
@@ -1949,11 +1974,11 @@ function CommandCenter({ onNavigate }: any = {}) {
           <div className="w-full max-w-md theme-glass-panel border border-white/10 rounded-[3rem] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col items-center gap-6 text-center">
             <span className="text-6xl animate-bounce drop-shadow-md">{t("ui_icon_warning") || "⚠️"}</span>
             <div className="flex flex-col gap-1 min-w-0 flex-1">
-              <h2 className="text-xl font-black theme-text-danger uppercase tracking-tighter">{t("hub_defcon_confirm_title")}</h2>
+              <h2 className="text-xl font-black theme-text-danger uppercase tracking-tighter">{t("hub_defcon_confirm_title") || "CONFIRM PROTOCOL"}</h2>
               <p className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest">
                 {defconLevel === 1 
-                  ? t("hub_defcon_confirm_stand_down")
-                  : t("hub_defcon_confirm_execute")}
+                  ? (t("hub_defcon_confirm_stand_down") || "Are you sure you want to stand down?")
+                  : (t("hub_defcon_confirm_execute") || "Are you sure you want to execute lockdown?")}
               </p>
             </div>
             <div className="flex gap-3 w-full mt-2">
@@ -1961,13 +1986,13 @@ function CommandCenter({ onNavigate }: any = {}) {
                 onClick={() => { triggerDefcon(); setShowDefconConfirmModal(false); }}
                 className="flex-1 py-4 theme-bg-danger text-[var(--bg)] rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 shadow-[0_0_15px_rgba(var(--danger-rgb),0.4)] transition-all"
               >
-                {defconLevel === 1 ? t("hub_btn_confirm_stand_down") : t("hub_btn_execute_defcon")}
+                {defconLevel === 1 ? (t("hub_btn_confirm_stand_down") || "STAND DOWN") : (t("hub_btn_execute_defcon") || "EXECUTE")}
               </button>
               <button 
                 onClick={() => setShowDefconConfirmModal(false)}
                 className="flex-1 py-4 theme-glass-inner border border-white/5 rounded-xl font-black text-[10px] uppercase tracking-widest text-[var(--text)] hover:bg-white/5 transition-all shadow-sm"
               >
-                {t("hub_btn_abort")}
+                {t("hub_btn_abort") || "ABORT"}
               </button>
             </div>
           </div>
@@ -2018,8 +2043,8 @@ function MasonLinker() {
     fetchData(); // refresh
   };
 
-  const filteredProles = proles.filter(p => p.username?.toLowerCase().includes(proleSearch.toLowerCase()));
-  const filteredMasons = masons.filter(m => m.name?.toLowerCase().includes(masonSearch.toLowerCase()));
+  const filteredProles = proles.filter((p: any) => p.username?.toLowerCase().includes(proleSearch.toLowerCase()));
+  const filteredMasons = masons.filter((m: any) => m.name?.toLowerCase().includes(masonSearch.toLowerCase()));
 
   if (loading) return <div className="p-12 text-center animate-pulse theme-text-accent font-black tracking-widest uppercase">Fetching Records...</div>;
 
@@ -2073,3 +2098,5 @@ function MasonLinker() {
     </div>
   );
 }
+
+
