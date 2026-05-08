@@ -121,9 +121,8 @@ function App() {
         setIsDragging(false);
         const paths = event.payload.paths;
         if (paths && paths.length > 0) {
-          setDroppedFiles(paths);
           setIsDropzoneOpen(true);
-          setDropzoneState("received");
+          handleDroppedFiles(paths);
         }
       }
     });

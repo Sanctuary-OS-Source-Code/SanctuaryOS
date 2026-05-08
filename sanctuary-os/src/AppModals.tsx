@@ -421,7 +421,7 @@ export function AppModals(props: any) {
                        onClick={async () => {
                          try {
                            await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "replace", sourceAction: match.source_action });
-                           if (dnaMatchQueue.length === 1 && match.source_action === "radar_sweep") runRadarSweep(true);
+                           if (dnaMatchQueue.length === 1) runRadarSweep(true);
                          } catch (e: any) { setStatus(`Error replacing file: ${e}`); }
                          setDnaMatchQueue((prev: any[]) => prev.filter((_: any, i: number) => i !== index));
                        }}
@@ -456,7 +456,7 @@ export function AppModals(props: any) {
                         await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "replace", sourceAction: match.source_action });
                       } catch(e) {}
                     }
-                    if (dnaMatchQueue.some((m: any) => m.source_action === "radar_sweep")) runRadarSweep(true);
+                    if (dnaMatchQueue.length > 0) runRadarSweep(true);
                     setDnaMatchQueue([]);
                   }}
                   className="flex-1 py-4 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all hover:scale-105 shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]"
@@ -471,7 +471,7 @@ export function AppModals(props: any) {
                         await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "ignore", sourceAction: match.source_action });
                       } catch(e) {}
                     }
-                    if (dnaMatchQueue.some((m: any) => m.source_action === "radar_sweep")) runRadarSweep(true);
+                    if (dnaMatchQueue.length > 0) runRadarSweep(true);
                     setDnaMatchQueue([]);
                   }}
                   className="flex-1 py-4 theme-glass-inner text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl border border-white/5 transition-all hover:bg-white/5 shadow-sm"
