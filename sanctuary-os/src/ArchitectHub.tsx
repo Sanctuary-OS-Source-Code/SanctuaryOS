@@ -392,6 +392,11 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                 <CustomStatusDropdown value={activeMaster.status || "unverified"} onChange={(newStatus: string) => setActiveMaster({...activeMaster, status: newStatus})} />
               </div>
 
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">SAFETY RATING</label>
+                <CustomComplianceDropdown value={activeMaster.compliance_tier || 0} onChange={(newTier: number) => setActiveMaster({...activeMaster, compliance_tier: newTier})} />
+              </div>
+
               </div>
             </div>
 
@@ -969,6 +974,7 @@ function CCSetForge() {
   const [manifestMembers, setManifestMembers] = useState<any[]>([]);
   const [setName, setSetName] = useState("");
   const [setCreator, setSetCreator] = useState("");
+  const [setTier, setSetTier] = useState(0);
   const [assetSearch, setAssetSearch] = useState("");
   const [availableAssets, setAvailableAssets] = useState<any[]>([]);
   const[isSearching, setIsSearching] = useState(false);
@@ -996,7 +1002,8 @@ function CCSetForge() {
     const { error } = await supabase.from('cc_sets').update({
       name: activeSet.name,
       creator_name: activeSet.creator_name,
-      image_url: activeSet.image_url
+      image_url: activeSet.image_url,
+      compliance_tier: activeSet.compliance_tier || 0
     }).eq('id', activeSet.id);
     if (!error) fetchSets();
   };
@@ -1023,8 +1030,8 @@ function CCSetForge() {
 
   const createSet = async () => {
     if (!setName) return;
-    const { data, error } = await supabase.from('cc_sets').insert([{ name: setName, creator_name: setCreator, is_official: true }]).select().single();
-    if (!error && data) { setSets([...sets, data]); setSetName(""); setSetCreator(""); }
+    const { data, error } = await supabase.from('cc_sets').insert([{ name: setName, creator_name: setCreator, is_official: true, compliance_tier: setTier }]).select().single();
+    if (!error && data) { setSets([...sets, data]); setSetName(""); setSetCreator(""); setSetTier(0); }
   };
 
   return (
@@ -1034,7 +1041,11 @@ function CCSetForge() {
           <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest ml-1">{t("forge_new_set")}</h4>
           <input placeholder={t("forge_set_name")} value={setName} onChange={e => setSetName(e.target.value)} className="theme-glass-inner rounded-xl px-4 py-2 text-[var(--text)] outline-none focus:theme-border-accent" />
           <input placeholder={t("forge_creator")} value={setCreator} onChange={e => setSetCreator(e.target.value)} className="theme-glass-inner rounded-xl px-4 py-2 text-[var(--text)] outline-none focus:theme-border-accent" />
-          <button onClick={createSet} className="theme-bg-accent text-[var(--bg)] hover:opacity-90 font-black text-[10px] py-3 rounded-xl transition-all">{t("forge_init_set")}</button>
+          <div className="flex flex-col gap-1">
+            <label className="text-[8px] font-black opacity-60 ml-2">SAFETY RATING</label>
+            <CustomComplianceDropdown value={setTier} onChange={setSetTier} />
+          </div>
+          <button onClick={createSet} className="theme-bg-accent text-[var(--bg)] hover:opacity-90 font-black text-[10px] py-3 rounded-xl transition-all mt-2">{t("forge_init_set")}</button>
         </div>
 
         <div className="flex-1 theme-glass-panel rounded-[2rem] overflow-y-auto custom-scrollbar p-3">
@@ -1056,8 +1067,11 @@ function CCSetForge() {
                 <button onClick={saveSetMeta} className="px-6 py-2 theme-bg-accent text-[var(--bg)] rounded-xl text-[10px] font-black hover:opacity-90 shadow-xl">{t("forge_save_sig")}</button>
               </div>
               <div className="flex gap-4">
-                <input placeholder={t("forge_architect")} value={activeSet.creator_name || ""} onChange={e => setActiveSet({...activeSet, creator_name: e.target.value})} className="theme-glass-panel rounded-lg px-3 py-1 text-[10px] text-[var(--subtext)] opacity-80 outline-none" />
+                <input placeholder={t("forge_architect")} value={activeSet.creator_name || ""} onChange={e => setActiveSet({...activeSet, creator_name: e.target.value})} className="theme-glass-panel rounded-lg px-3 py-1 text-[10px] text-[var(--subtext)] opacity-80 outline-none w-1/4" />
                 <input placeholder={t("forge_cover_url")} value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} className="flex-1 theme-glass-panel rounded-lg px-3 py-1 text-[10px] text-[var(--subtext)] opacity-80 font-mono outline-none" />
+                <div className="w-[200px]">
+                  <CustomComplianceDropdown value={activeSet.compliance_tier || 0} onChange={(newTier: number) => setActiveSet({...activeSet, compliance_tier: newTier})} />
+                </div>
               </div>
               
               <div className="relative">
