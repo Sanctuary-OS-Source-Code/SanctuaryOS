@@ -26,9 +26,6 @@ export default function ArchitectHub({ userRole }: { userRole?: string }) {
         <TabButton id="queue" label={t("hub_tab_queue")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="matrix" label={t("hub_tab_matrix")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="lab" label={t("hub_tab_lab")} activeTab={activeTab} setTab={setActiveTab} />
-        {['senior_architect', 'wayfinder', 'admin'].includes(userRole || '') && (
-            <TabButton id="senior_architect" label="Senior Architect" activeTab={activeTab} setTab={setActiveTab} />
-        )}
       </div>
 
       <div className="flex-1 w-full overflow-y-auto custom-scrollbar pr-4 pb-48">
@@ -39,7 +36,6 @@ export default function ArchitectHub({ userRole }: { userRole?: string }) {
         {activeTab === "queue" && <ScoutQueue />}
         {activeTab === "lab" && <ProvingGrounds />}
         {activeTab === "matrix" && <ConflictMatrix />}
-        {activeTab === "senior_architect" && <SeniorArchitectTab />}
       </div>
     </div>
   );
@@ -279,11 +275,16 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
     setActiveMaster({ ...activeMaster, requiredDLC: updatedDLC });
   };
 
-  const filteredMods = cloudMods.filter(m => 
-    (m.name || '').toLowerCase().includes((searchTerm || '').toLowerCase()) || 
-    (m.master_author || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
-    (m.status || '').toLowerCase().includes((searchTerm || '').toLowerCase())
-  );
+  const filteredMods = cloudMods.filter(m => {
+    const term = (searchTerm || '').toLowerCase();
+    const tierStr = m.compliance_tier === 1 ? 'nsfw' : m.compliance_tier === 2 ? 'explicit' : m.compliance_tier === 3 ? 'malware' : 'clean';
+    return (
+      (m.name || '').toLowerCase().includes(term) || 
+      (m.master_author || '').toLowerCase().includes(term) ||
+      (m.status || '').toLowerCase().includes(term) ||
+      tierStr.includes(term)
+    );
+  });
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-250px)]">
@@ -1819,7 +1820,7 @@ function DLCSearchDropdown({ onSelect, currentDLC =[] }: { onSelect: (pack: stri
 function CommandCenter({ onNavigate }: any = {}) {
   const { t } = useLexicon();
 
-  const [stats, setStats] = useState({ unverified: 0, reports: 0, scoutQueue: 0, nsfw: 0 });
+  const [stats, setStats] = useState({ unverified: 0, reports: 0, scoutQueue: 0, nsfw: 0, explicit: 0, malware: 0 });
 
   const [commsInput, setCommsInput] = useState("");
   const [commsMessages, setCommsMessages] = useState<any[]>([]);
@@ -1876,13 +1877,16 @@ function CommandCenter({ onNavigate }: any = {}) {
 
       const { count: reportsCount } = await supabase.from('solder_lab_logs').select('*', { count: 'exact', head: true });
       const { count: nsfwCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 1);
+      const { count: explicitCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 2);
+      const { count: malwareCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 3);
       setStats({
         unverified: unverifiedCount || 0,
         reports: reportsCount || 0,
         scoutQueue: 0,
-        nsfw: nsfwCount || 0
+        nsfw: nsfwCount || 0,
+        explicit: explicitCount || 0,
+        malware: malwareCount || 0
       });
-
     };
     fetchStats();
   }, []);
@@ -1890,22 +1894,30 @@ function CommandCenter({ onNavigate }: any = {}) {
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-500">
       
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <button onClick={() => onNavigate && onNavigate('registry', 'unverified')} className="theme-glass-inner p-8 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+        <button onClick={() => onNavigate && onNavigate('registry', 'unverified')} className="theme-glass-inner p-6 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
           <span className="text-4xl font-black text-[var(--text)] group-hover:theme-text-success transition-colors">{stats.unverified}</span>
-          <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("status_dd_unverified")}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("status_dd_unverified")}</span>
         </button>
-        <button onClick={() => onNavigate && onNavigate('lab')} className="theme-glass-inner p-8 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
+        <button onClick={() => onNavigate && onNavigate('lab')} className="theme-glass-inner p-6 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
           <span className="text-4xl font-black theme-text-warning group-hover:scale-110 origin-left transition-transform">{stats.reports}</span>
-          <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("lab_queue")}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("lab_queue")}</span>
         </button>
-        <button onClick={() => onNavigate && onNavigate('queue')} className="theme-glass-inner p-8 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
-          <span className="text-4xl font-black theme-text-accent group-hover:scale-110 origin-left transition-transform">{stats.scoutQueue}</span>
-          <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_queue")}</span>
-        </button>
-        <button onClick={() => onNavigate && onNavigate('registry', 'nsfw')} className="theme-glass-inner p-8 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
+        <button onClick={() => onNavigate && onNavigate('registry', 'nsfw')} className="theme-glass-inner p-6 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
           <span className="text-4xl font-black theme-text-warning group-hover:scale-110 origin-left transition-transform">{stats.nsfw}</span>
-          <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">NSFW FLAGS</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">NSFW Reported</span>
+        </button>
+        <button onClick={() => onNavigate && onNavigate('registry', 'explicit')} className="theme-glass-inner p-6 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
+          <span className="text-4xl font-black theme-text-danger group-hover:scale-110 origin-left transition-transform">{stats.explicit}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">Explicit Reported</span>
+        </button>
+        <button onClick={() => onNavigate && onNavigate('registry', 'malware')} className="theme-glass-inner p-6 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-red-600/10 transition-all text-left group border border-transparent hover:border-red-500/30">
+          <span className="text-4xl font-black text-red-500 group-hover:scale-110 origin-left transition-transform">{stats.malware}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">Malware Reported</span>
+        </button>
+        <button onClick={() => onNavigate && onNavigate('queue')} className="theme-glass-inner p-6 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
+          <span className="text-4xl font-black theme-text-accent group-hover:scale-110 origin-left transition-transform">{stats.scoutQueue}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_queue")}</span>
         </button>
       </div>
 
@@ -1959,198 +1971,6 @@ function CommandCenter({ onNavigate }: any = {}) {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function SeniorArchitectTab() {
-  const { t } = useLexicon();
-  const [defconLevel, setDefconLevel] = useState<number>(5);
-  const [showDefconConfirmModal, setShowDefconConfirmModal] = useState(false);
-
-  useEffect(() => {
-    const fetchDefcon = async () => {
-      const { data } = await supabase.from('global_network_status').select('defcon_level').eq('id', 1).single();
-      if (data) setDefconLevel(data.defcon_level);
-    };
-    fetchDefcon();
-  }, []);
-
-  const triggerDefcon = async () => {
-    const newLevel = defconLevel === 1 ? 5 : 1;
-    const msg = newLevel === 1 ? 'Emergency Patch Detected' : 'System Normal';
-    
-    setDefconLevel(newLevel);
-    
-    const { error } = await supabase.from('global_network_status')
-      .update({ defcon_level: newLevel, message: msg })
-      .eq('id', 1);
-    
-    if (error) {
-      console.warn("Supabase RLS blocked global defcon sync.", error.message);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-8 animate-in fade-in h-full pb-12">
-      <div className="flex flex-col md:flex-row gap-8 h-full items-start">
-        <div className="flex-1 w-full overflow-hidden">
-          <MasonLinker />
-        </div>
-        
-        <div className="w-full md:w-96 theme-glass-panel theme-border-danger border rounded-[3rem] p-8 flex flex-col items-center justify-center text-center gap-6 relative overflow-hidden shadow-[inset_0_0_100px_rgba(255,0,0,0.1)] shrink-0">
-          {defconLevel === 1 && <div className="absolute inset-0 theme-bg-danger opacity-10 animate-pulse pointer-events-none" />}
-          
-          <div className="w-24 h-24 rounded-full border-4 theme-border-danger flex items-center justify-center shadow-[0_0_50px_rgba(255,0,0,0.2)]">
-            <span className={`text-4xl ${defconLevel === 1 ? 'animate-bounce' : ''}`}>{t("ui_icon_warning") || "⚠️"}</span>
-          </div>
-          
-          <div className="flex flex-col gap-2 relative z-10">
-            <h3 className="text-xl font-black theme-text-danger uppercase tracking-tighter drop-shadow-md">{t("hub_defcon_override_title") || "DEFCON OVERRIDE"}</h3>
-            <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">
-              {t("hub_defcon_override_desc") || "Force global shutdown"}
-            </p>
-          </div>
-
-          <button 
-            onClick={() => setShowDefconConfirmModal(true)}
-            className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl border relative z-10 ${
-              defconLevel === 1 
-                ? 'theme-bg-success text-[var(--bg)] border-transparent hover:opacity-90' 
-                : 'bg-transparent theme-text-danger theme-border-danger hover:theme-bg-danger hover:text-[var(--bg)]'
-            }`}
-          >
-            {defconLevel === 1 ? (t("hub_defcon_stand_down") || "STAND DOWN") : (t("hub_defcon_initiate") || "INITIATE LOCKDOWN")}
-          </button>
-        </div>
-      </div>
-
-      {showDefconConfirmModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--bg)]/10 backdrop-blur-3xl animate-in fade-in duration-300 p-8">
-          <div className="w-full max-w-md theme-glass-panel border border-white/10 rounded-[3rem] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col items-center gap-6 text-center">
-            <span className="text-6xl animate-bounce drop-shadow-md">{t("ui_icon_warning") || "⚠️"}</span>
-            <div className="flex flex-col gap-1 min-w-0 flex-1">
-              <h2 className="text-xl font-black theme-text-danger uppercase tracking-tighter">{t("hub_defcon_confirm_title") || "CONFIRM PROTOCOL"}</h2>
-              <p className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest">
-                {defconLevel === 1 
-                  ? (t("hub_defcon_confirm_stand_down") || "Are you sure you want to stand down?")
-                  : (t("hub_defcon_confirm_execute") || "Are you sure you want to execute lockdown?")}
-              </p>
-            </div>
-            <div className="flex gap-3 w-full mt-2">
-              <button 
-                onClick={() => { triggerDefcon(); setShowDefconConfirmModal(false); }}
-                className="flex-1 py-4 theme-bg-danger text-[var(--bg)] rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 shadow-[0_0_15px_rgba(var(--danger-rgb),0.4)] transition-all"
-              >
-                {defconLevel === 1 ? (t("hub_btn_confirm_stand_down") || "STAND DOWN") : (t("hub_btn_execute_defcon") || "EXECUTE")}
-              </button>
-              <button 
-                onClick={() => setShowDefconConfirmModal(false)}
-                className="flex-1 py-4 theme-glass-inner border border-white/5 rounded-xl font-black text-[10px] uppercase tracking-widest text-[var(--text)] hover:bg-white/5 transition-all shadow-sm"
-              >
-                {t("hub_btn_abort") || "ABORT"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MasonLinker() {
-  const [proles, setProles] = useState<any[]>([]);
-  const [masons, setMasons] = useState<any[]>([]);
-  
-  const [proleSearch, setProleSearch] = useState("");
-  const [masonSearch, setMasonSearch] = useState("");
-
-  const [selectedProle, setSelectedProle] = useState<any>(null);
-  const [selectedMason, setSelectedMason] = useState<any>(null);
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  const fetchData = async () => {
-    setLoading(true);
-    const { data: mData } = await supabase.from('masons').select('id, name, profile_id').order('name');
-    if (mData) setMasons(mData);
-
-    const { data: pData } = await supabase.from('profiles').select('id, username, role').order('username');
-    if (pData) setProles(pData);
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchData(); }, []);
-
-  const handleLink = async () => {
-    if (!selectedProle || !selectedMason) return;
-    setStatus("LINKING...");
-    
-    const { error: masonErr } = await supabase.from('masons').update({ profile_id: selectedProle.id }).eq('id', selectedMason.id);
-    if (masonErr) { setStatus("FAILED: " + masonErr.message); return; }
-    
-    if (selectedProle.role === 'citizen' || !selectedProle.role) {
-       await supabase.from('profiles').update({ role: 'mason' }).eq('id', selectedProle.id);
-    }
-    
-    setStatus(` LINKED ${selectedProle.username} TO ${selectedMason.name}`);
-    setSelectedProle(null);
-    setSelectedMason(null);
-    fetchData();
-  };
-
-  const filteredProles = proles.filter((p: any) => p.username?.toLowerCase().includes(proleSearch.toLowerCase()));
-  const filteredMasons = masons.filter((m: any) => m.name?.toLowerCase().includes(masonSearch.toLowerCase()));
-
-  if (loading) return <div className="p-12 text-center animate-pulse theme-text-accent font-black tracking-widest uppercase">Fetching Records...</div>;
-
-  return (
-    <div className="flex flex-col gap-6 animate-in fade-in h-full pb-12">
-       <div className="theme-glass-inner rounded-[2.5rem] p-8">
-         <h2 className="text-2xl font-black uppercase italic tracking-tighter text-[var(--text)] mb-2">Prole to Mason Linker</h2>
-         <p className="text-xs font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-6">Bind an authenticated Citizen to a Creator ID.</p>
-         
-         <div className="grid grid-cols-2 gap-8 h-[500px]">
-            <div className="flex flex-col gap-4 border border-white/10 rounded-3xl theme-glass-inner p-4">
-               <input type="text" placeholder="Search Citizens (Proles)..." value={proleSearch} onChange={e => setProleSearch(e.target.value)} className="w-full theme-glass-panel rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all" />
-               <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-2">
-                 {filteredProles.map(p => (
-                    <div key={p.id} onClick={() => setSelectedProle(p)} className={`p-4 rounded-xl cursor-pointer border transition-all flex flex-col gap-1 ${selectedProle?.id === p.id ? 'theme-bg-accent text-black border-transparent shadow-lg scale-[1.02]' : 'bg-white/5 border-white/5 hover:bg-white/10 text-[var(--text)]'}`}>
-                       <p className="text-sm font-black uppercase truncate">{p.username || 'UNKNOWN'}</p>
-                       <p className="text-[10px] font-bold uppercase opacity-60">ROLE: {p.role || 'CITIZEN'}</p>
-                    </div>
-                 ))}
-               </div>
-            </div>
-
-            <div className="flex flex-col gap-4 border border-white/10 rounded-3xl theme-glass-inner p-4">
-               <input type="text" placeholder="Search Creator IDs (Masons)..." value={masonSearch} onChange={e => setMasonSearch(e.target.value)} className="w-full theme-glass-panel rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all" />
-               <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-2">
-                 {filteredMasons.map(m => (
-                    <div key={m.id} onClick={() => setSelectedMason(m)} className={`p-4 rounded-xl cursor-pointer border transition-all relative flex flex-col gap-1 ${selectedMason?.id === m.id ? 'theme-bg-accent text-black border-transparent shadow-lg scale-[1.02]' : 'bg-white/5 border-white/5 hover:bg-white/10 text-[var(--text)]'}`}>
-                       <p className="text-sm font-black uppercase truncate pr-20">{m.name}</p>
-                       {m.profile_id && <span className="absolute top-4 right-4 text-[9px] font-black uppercase text-red-400">ALREADY LINKED</span>}
-                    </div>
-                 ))}
-               </div>
-            </div>
-         </div>
-
-         <div className="mt-8 flex items-center justify-between theme-glass-inner p-6 rounded-3xl border border-white/5 shadow-inner">
-            <div className="flex flex-col">
-               <p className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">Status</p>
-               <p className="text-sm font-black theme-text-accent uppercase">{status || "AWAITING SELECTION"}</p>
-            </div>
-            
-            <button 
-              disabled={!selectedProle || !selectedMason} 
-              onClick={handleLink}
-              className="px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all theme-bg-accent text-[var(--bg)] hover:scale-[1.02] active:scale-95 disabled:opacity-30 disabled:scale-100 shadow-lg"
-            >
-               ESTABLISH LINK 
-            </button>
-         </div>
-       </div>
     </div>
   );
 }

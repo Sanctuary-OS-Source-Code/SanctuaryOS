@@ -68,7 +68,14 @@ export default function MasonProfile({ masonId, initialPostId, onModClick }: { m
       if (mData) setMason(mData);
 
       const { data: modsData } = await supabase.from('mods').select('*').eq('mason_id', masonId).order('name');
-      if (modsData) setMods(modsData);
+      if (modsData) {
+        const matureEnabled = localStorage.getItem("sanctuary_mature_transmissions") === "true";
+        setMods(modsData.filter((m: any) => {
+          if (m.compliance_tier > 1) return false;
+          if (!matureEnabled && m.compliance_tier > 0) return false;
+          return true;
+        }));
+      }
 
       const { data: postsData } = await supabase.from('mason_posts').select('*').eq('mason_id', masonId).order('created_at', { ascending: false });
       if (postsData) setPosts(postsData);

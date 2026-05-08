@@ -38,6 +38,7 @@ import Blueprints from "./Blueprints";
 import Collection from "./Collection";
 import Lab from "./Lab";
 import TimeCapsule from "./TimeCapsule";
+import SeniorArchitect from "./SeniorArchitect";
 
 const setupBtnStyle: React.CSSProperties = {
   padding: "12px",
@@ -2617,6 +2618,19 @@ function App() {
               />
             </div>
           )}
+          {session && ["senior_architect", "wayfinder", "admin"].includes(userRole) && (
+            <div className="my-4 border-t border-white/5 pt-4">
+              <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left">
+                Senior Architect
+              </p>
+              <NavButton
+                active={view === "SeniorArchitect"}
+                onClick={() => setView("SeniorArchitect")}
+                icon={"👁️"}
+                label={"Oversight"}
+              />
+            </div>
+          )}
           {!session && (
             <div className="my-4 border-t border-white/5 pt-4">
               <NavButton
@@ -2636,6 +2650,12 @@ function App() {
             onClick={() => setView("settings")}
             icon={t("ui_icon_settings")}
             label={t("sidebar_settings")}
+          />
+          <NavButton
+            active={false}
+            onClick={() => openUrl("https://discord.gg/3f82BTtTm")}
+            icon={"💬"}
+            label={"Discord"}
           />
           <button
             onClick={handleQuickLaunch}
@@ -2797,6 +2817,12 @@ function App() {
             ["architect", "wayfinder", "admin"].includes(userRole) && (
               <ErrorBoundary moduleName="Architect Hub">
                 <ArchitectHub userRole={userRole} />
+              </ErrorBoundary>
+            )}
+          {view === "SeniorArchitect" &&
+            ["senior_architect", "wayfinder", "admin"].includes(userRole) && (
+              <ErrorBoundary moduleName="Senior Architect">
+                <SeniorArchitect />
               </ErrorBoundary>
             )}
           {view === "DbpfScout" && <DbpfScout />}

@@ -32,10 +32,15 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
           setLoading(false);
           return;
         }
-        const { data } = await supabase.from('mason_posts').select('*, masons(name)').in('mason_id', followedIds).order('created_at', { ascending: false }).limit(100);
+        const { data, error } = await supabase.from('mason_posts').select('*, masons(*)').in('mason_id', followedIds).order('created_at', { ascending: false }).limit(100);
+        if (error) console.error(error);
         if (data) setPosts(data);
       } else {
-        const { data } = await supabase.from('mason_posts').select('*, masons(name)').order('created_at', { ascending: false }).limit(100);
+        const { data, error } = await supabase.from('mason_posts').select('*, masons(*)').order('created_at', { ascending: false }).limit(100);
+        if (error) {
+          console.error("GlobalFeed Error:", error);
+          alert("GlobalFeed Error: " + error.message);
+        }
         if (data) setPosts(data);
       }
       setLoading(false);
@@ -44,6 +49,13 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
   }, [activeTab]);
 
   const filteredPosts = posts.filter(p => {
+    const matureEnabled = localStorage.getItem("sanctuary_mature_transmissions") === "true";
+    const masonTier = p.masons?.compliance_tier || 0;
+    
+    // Global filter rules
+    if (masonTier > 1) return false; // Explicit/Malware always blocked in global feed
+    if (!matureEnabled && masonTier > 0) return false;
+
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (

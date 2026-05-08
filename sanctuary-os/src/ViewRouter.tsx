@@ -12,6 +12,7 @@ import MasonHub from "./MasonHub";
 import MasonProfile from "./MasonProfile";
 import TimeCapsule from "./TimeCapsule";
 import Blueprints from "./Blueprints";
+import SeniorArchitect from "./SeniorArchitect";
 
 export function ViewRouter({ props }: any) {
   const view = useStore(state => state.view);
@@ -36,9 +37,15 @@ export function ViewRouter({ props }: any) {
         </ErrorBoundary>
       )}
       
-      {(view === "hub" || view === "architect") && (
+      {(view === "hub" || view === "architect" || view === "ArchitectHub") && (
         <ErrorBoundary moduleName="Architect Hub">
           <ArchitectHub {...props} />
+        </ErrorBoundary>
+      )}
+      
+      {view === "SeniorArchitect" && (
+        <ErrorBoundary moduleName="Senior Architect">
+          <SeniorArchitect {...props} />
         </ErrorBoundary>
       )}
       

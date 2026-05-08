@@ -146,6 +146,12 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
   const executeOverride = async () => {
     if (overrideInput !== "I Confirm") return;
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from('profiles').update({ role: 'blacklisted' }).eq('id', user.id);
+    }
+
     localStorage.setItem("sanctuary_blacklisted", "true");
     await supabase.auth.signOut();
     alert("You have chosen to override the Malware Protocol. Your Database Access has been severed.");
@@ -379,6 +385,16 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_security")}</h2>
         <button onClick={() => { setShowMalwareOverride(true); setMalwareToggleActive(false); setOverrideInput(''); }} className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl border bg-transparent theme-text-danger theme-border-danger hover:theme-bg-danger hover:text-[var(--bg)]">
           {t("settings_malware_btn")}
+        </button>
+      </section>
+
+      <section className="space-y-6 pt-6 border-t border-white/5">
+        <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">Session Management</h2>
+        <button onClick={async () => {
+          await supabase.auth.signOut();
+          window.location.reload();
+        }} className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl border bg-transparent theme-text-warning border-white/10 hover:bg-white/10 hover:text-[var(--text)]">
+          LOG OUT (GUEST TEST)
         </button>
       </section>
 
