@@ -680,6 +680,7 @@
   "overlay_dna_incoming": "Incoming Artifact",
   "overlay_dna_existing": "Existing Artifact",
   "modal_btn_replace": "Merge",
+  "modal_btn_keep_old": "Keep Old",
   "modal_btn_discard": "Ignore",
   "modal_btn_replace_all": "Merge All",
   "modal_btn_discard_all": "Ignore All",

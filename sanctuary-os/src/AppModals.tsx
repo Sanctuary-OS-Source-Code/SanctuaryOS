@@ -240,14 +240,23 @@ export function AppModals(props: any) {
                     </div>
                   )}
                   <div className="flex gap-4">
-                    <button onClick={() => { handleDroppedFiles(droppedFiles); setIsDropzoneOpen(false); setDropzoneState("awaiting"); setDroppedFiles([]); }} className="px-8 py-5 theme-bg-success text-[var(--bg)] rounded-[2rem] hover:scale-105 transition-all shadow-lg flex flex-col items-center gap-1 min-w-[200px]">
-                      <span className="text-sm font-black uppercase tracking-widest">{t("dropzone_btn_yeet")}</span>
-                      <span className="text-[9px] font-bold opacity-70 uppercase tracking-widest">{t("dropzone_btn_yeet_sub")}</span>
-                    </button>
-                    <button onClick={() => { alert(t("dropzone_alert_quarantine")); setIsDropzoneOpen(false); setDropzoneState("awaiting"); setDroppedFiles([]); runRadarSweep(true); }} className="px-8 py-5 theme-bg-warning text-[var(--bg)] rounded-[2rem] hover:scale-105 transition-all shadow-lg flex flex-col items-center gap-1 min-w-[200px]">
-                      <span className="text-sm font-black uppercase tracking-widest">{t("dropzone_btn_quarantine")}</span>
-                      <span className="text-[9px] font-bold opacity-70 uppercase tracking-widest">{t("dropzone_btn_quarantine_sub")}</span>
-                    </button>
+                    {dropzoneState === "ingesting" ? (
+                      <div className="px-8 py-5 theme-bg-accent/20 text-[var(--text)] rounded-[2rem] border border-[var(--accent)]/50 shadow-lg flex flex-col items-center gap-2 min-w-[200px]">
+                        <span className="text-sm font-black uppercase tracking-widest animate-pulse">INGESTING...</span>
+                        <span className="text-[9px] font-bold opacity-70 uppercase tracking-widest">{ingestProgress?.current || 0} / {ingestProgress?.total || 0} Files</span>
+                      </div>
+                    ) : (
+                      <>
+                        <button onClick={() => { handleDroppedFiles(droppedFiles); }} className="px-8 py-5 theme-bg-success text-[var(--bg)] rounded-[2rem] hover:scale-105 transition-all shadow-lg flex flex-col items-center gap-1 min-w-[200px]">
+                          <span className="text-sm font-black uppercase tracking-widest">{t("dropzone_btn_yeet")}</span>
+                          <span className="text-[9px] font-bold opacity-70 uppercase tracking-widest">{t("dropzone_btn_yeet_sub")}</span>
+                        </button>
+                        <button onClick={() => { alert(t("dropzone_alert_quarantine")); setIsDropzoneOpen(false); setDropzoneState("awaiting"); setDroppedFiles([]); runRadarSweep(true); }} className="px-8 py-5 theme-bg-warning text-[var(--bg)] rounded-[2rem] hover:scale-105 transition-all shadow-lg flex flex-col items-center gap-1 min-w-[200px]">
+                          <span className="text-sm font-black uppercase tracking-widest">{t("dropzone_btn_quarantine")}</span>
+                          <span className="text-[9px] font-bold opacity-70 uppercase tracking-widest">{t("dropzone_btn_quarantine_sub")}</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

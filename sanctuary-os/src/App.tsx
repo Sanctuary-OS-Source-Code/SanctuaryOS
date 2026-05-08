@@ -132,13 +132,15 @@ function App() {
     };
   }, []);
   async function handleDroppedFiles(paths: string[]) {
+    setDropzoneState("ingesting");
     setStatus(
       `${t("status_mass_ingestion_prefix")}${paths.length}${t("status_mass_ingestion_suffix")}`,
     );
     try {
-      for (const path of paths) {
+      for (let i = 0; i < paths.length; i++) {
+        setIngestProgress({ active: true, current: i + 1, total: paths.length });
         try {
-          await invoke("ingest_dropped_file", { path, forceReplace: false });
+          await invoke("ingest_dropped_file", { path: paths[i], forceReplace: false });
         } catch (err) {
           if (err !== "DNA_MATCH") {
             setStatus(`${t("status_link_failed")}${err}`);
@@ -149,6 +151,11 @@ function App() {
       runRadarSweep(true); 
     } catch (err) {
       setStatus(`${t("status_link_failed")}${err}`);
+    } finally {
+      setIsDropzoneOpen(false);
+      setDropzoneState("awaiting");
+      setDroppedFiles([]);
+      setIngestProgress({ active: false, current: 0, total: 0 });
     }
   }
   const view = useStore((state) => state.view);
@@ -191,6 +198,7 @@ function App() {
     (state) => state.setActivePlaySetIndex,
   );
   const [isEditingMeta, setIsEditingMeta] = useState(false);
+  const [isCorrectingMeta, setIsCorrectingMeta] = useState(false);
   const [metaNameInput, setMetaNameInput] = useState("");
   const [metaAuthorInput, setMetaAuthorInput] = useState("");
   const [metaUrlInput, setMetaUrlInput] = useState("");
@@ -2806,9 +2814,11 @@ function App() {
             setActiveDossier(null);
             setEditMode(false);
             setIsEditingMeta(false);
+            setIsCorrectingMeta(false);
           }}
           isEditingMeta={isEditingMeta}
           setIsEditingMeta={setIsEditingMeta}
+          isCorrecting={isCorrectingMeta}
           editMode={editMode}
           setEditMode={setEditMode}
           configContent={configContent}
@@ -2941,6 +2951,7 @@ function App() {
           setActiveDossier(mod);
           setIsEditingMeta(true);
           setEditMode(true);
+          setIsCorrectingMeta(true);
         }}
         isBackingUp={isBackingUp}
         isRestoring={isRestoring}

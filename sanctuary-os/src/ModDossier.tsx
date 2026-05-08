@@ -2,11 +2,10 @@ import { useState } from "react";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
 
-export default function ModDossier({ mod, modList, activePlaySet, onToggleInActiveSet, onShowYeetAlert, onClose, metaInputs, setMetaInputs, onSaveMetadata, onOpenMasonProfile, editMode, setEditMode, onSendToLab, onSecureShred }: any) {
+export default function ModDossier({ mod, modList, activePlaySet, onToggleInActiveSet, onShowYeetAlert, onClose, metaInputs, setMetaInputs, onSaveMetadata, onOpenMasonProfile, editMode, setEditMode, onSendToLab, onSecureShred, isCorrecting }: any) {
   const [selectedKid, setSelectedKid] = useState<any | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
-  const [isCorrecting, setIsCorrecting] = useState(false);
   const { t } = useLexicon();
   if (!mod) return null;
 
@@ -146,7 +145,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
     } else {
       alert("Successfully submitted to Vault for Architect verification!");
       setEditMode(false);
-      setIsCorrecting(false);
     }
     setIsSaving(false);
   };
