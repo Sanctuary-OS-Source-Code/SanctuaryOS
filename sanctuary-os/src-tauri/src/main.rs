@@ -311,7 +311,7 @@ fn deploy_air_gap(source: &Path, target: &Path) -> std::io::Result<()> {
                 deploy_air_gap(&entry.path(), &dest)?;
             } else {
                 let _ = std::fs::hard_link(&entry.path(), &dest)
-                    .or_else(|_| std::os::windows::fs::symlink_file(&entry.path(), &dest))
+                    .or_else(|_| create_symlink_file(&entry.path(), &dest))
                     .or_else(|_| std::fs::copy(&entry.path(), &dest).map(|_| ()));
             }
         }
@@ -344,6 +344,17 @@ fn deploy_junction(source: &Path, target: &Path) -> std::io::Result<()> {
         std::os::unix::fs::symlink(source, target)?;
     }
     Ok(())
+}
+
+fn create_symlink_file(source: &Path, target: &Path) -> std::io::Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        std::os::windows::fs::symlink_file(source, target)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::os::unix::fs::symlink(source, target)
+    }
 }
 
 #[tauri::command]
@@ -432,7 +443,7 @@ async fn deploy_playset_bulk(
             if source.is_dir() {
                 let _ = deploy_junction(&source, &target);
             } else {
-                let _ = std::os::windows::fs::symlink_file(&source, &target)
+                let _ = create_symlink_file(&source, &target)
                     .or_else(|_| std::fs::hard_link(&source, &target))
                     .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
             }
@@ -440,7 +451,7 @@ async fn deploy_playset_bulk(
             if source.is_dir() {
                 let _ = deploy_air_gap(&source, &target);
             } else {
-                let _ = std::os::windows::fs::symlink_file(&source, &target)
+                let _ = create_symlink_file(&source, &target)
                     .or_else(|_| std::fs::hard_link(&source, &target))
                     .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
             }
@@ -466,7 +477,7 @@ async fn deploy_playset_bulk(
                             if ext_lower != "package" && ext_lower != "ts4script" {
                                 let dest = target_parent.join(entry.file_name());
                                 if !dest.exists() {
-                                    let _ = std::os::windows::fs::symlink_file(&path, &dest)
+                                    let _ = create_symlink_file(&path, &dest)
                                         .or_else(|_| std::fs::hard_link(&path, &dest))
                                         .or_else(|_| std::fs::copy(&path, &dest).map(|_| ()));
                                 }
