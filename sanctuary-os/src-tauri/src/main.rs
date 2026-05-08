@@ -2041,14 +2041,18 @@ fn resolve_dna_match(
     let existing = Path::new(&existing_name);
 
     if action == "replace" {
-        if source.exists() {
-            let _ = std::fs::copy(source, existing);
-            if source != existing {
-                let _ = std::fs::remove_file(source);
+        if source.exists() && source != existing {
+            if let Some(parent) = existing.parent() {
+                let _ = std::fs::create_dir_all(parent);
             }
-            // Update mtime to now
-            let now = filetime::FileTime::now();
-            let _ = filetime::set_file_times(existing, now, now);
+            if std::fs::copy(source, existing).is_ok() {
+                let _ = std::fs::remove_file(source);
+                // Update mtime to now
+                let now = filetime::FileTime::now();
+                let _ = filetime::set_file_times(existing, now, now);
+            } else {
+                return Err("FAILED_TO_COPY".into());
+            }
         }
     } else if action == "discard" {
         // Only delete the source path if it was found via radar sweep (meaning it was already inside the vault)
