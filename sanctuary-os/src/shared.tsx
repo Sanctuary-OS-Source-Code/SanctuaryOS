@@ -51,7 +51,7 @@ export function ViewHeader({ title, subtitle, children }: any) {
           {subtitle}
         </p>
       </div>
-      <div className="flex items-center gap-4 shrink-0 pl-6 h-12">
+      <div className="flex items-center gap-4 shrink-0 pl-6 min-h-[3rem]">
         {children}
       </div>
     </header>

@@ -42,6 +42,8 @@ pub struct ModData {
 struct CacheEntry {
     mtime: u64,
     dna_hash: String,
+    #[serde(default)]
+    explicitly_local: bool,
 }
 
 type BunkerCache = HashMap<String, CacheEntry>;
@@ -86,6 +88,18 @@ fn save_cache(vault_path: &str, cache: &BunkerCache) {
     if let Ok(file) = std::fs::File::create(&path) {
         let writer = BufWriter::new(file);
         let _ = serde_json::to_writer(writer, cache);
+    }
+}
+
+#[tauri::command]
+fn mark_explicitly_local(vault_path: String, file_path: String) -> Result<(), String> {
+    let mut cache = load_cache(&vault_path);
+    if let Some(entry) = cache.get_mut(&file_path) {
+        entry.explicitly_local = true;
+        save_cache(&vault_path, &cache);
+        Ok(())
+    } else {
+        Err("File not found in cache".to_string())
     }
 }
 
@@ -146,19 +160,29 @@ fn launch_game(live_path: String, mods_path: String) -> Result<String, String> {
         doc_dir.pop();
     }
 
-    if doc_dir.exists() && doc_dir.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&doc_dir) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_lowercase();
-                if (name.starts_with("lastexception") && name.ends_with(".txt"))
-                    || (name.starts_with("be-exceptionreport") && name.ends_with(".html"))
-                    || (name == "mc_lastexception.html")
-                {
-                    let _ = std::fs::remove_file(entry.path());
+    let check_and_delete = |dir: &std::path::Path| {
+        if dir.exists() && dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().to_lowercase();
+                    if (name.starts_with("lastexception") && name.ends_with(".txt"))
+                        || (name.starts_with("lastuiexception") && name.ends_with(".txt"))
+                        || (name.starts_with("lastcleanexception") && name.ends_with(".txt"))
+                        || (name.starts_with("be-exceptionreport") && name.ends_with(".html"))
+                        || name == "mc_lastexception.html"
+                        || name == "localthumbcache.package"
+                        || name == "avatarcache.package"
+                        || name == "localsimtexturecache.package"
+                    {
+                        let _ = std::fs::remove_file(entry.path());
+                    }
                 }
             }
         }
-    }
+    };
+
+    check_and_delete(&doc_dir);
+    check_and_delete(std::path::Path::new(&mods_path));
 
     let mut exe_path = std::path::PathBuf::from(&live_path);
 
@@ -192,33 +216,44 @@ fn launch_game(live_path: String, mods_path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn rip_game_version(mods_path: String) -> Result<String, String> {
+fn rip_game_version(live_path: String) -> Result<String, String> {
     use std::fs;
     use std::path::PathBuf;
 
-    let mut path = PathBuf::from(mods_path);
-    path.pop();
-    path.push("GameVersion.txt");
-
-    if !path.exists() {
-        return Err("VERSION_FILE_MISSING".into());
+    let mut bin_path = PathBuf::from(live_path);
+    
+    // Convert to bin path
+    if bin_path.is_file() {
+        bin_path.pop();
+    } else if !bin_path.ends_with("Bin") && !bin_path.ends_with("bin") {
+        bin_path.push("Game");
+        bin_path.push("Bin");
     }
 
-    // 1. Read as raw bytes (avoiding the UTF-8 conversion crash/squares)
-    let bytes = fs::read(path).map_err(|e| e.to_string())?;
+    let default_ini = bin_path.join("Default.ini");
 
-    // 2. Convert to string and filter out "nonsense"
-    // This strips null bytes (common in UTF-16) and non-printable characters (the squares)
-    let version = String::from_utf8_lossy(&bytes)
-        .chars()
-        .filter(|c| c.is_ascii_digit() || *c == '.')
-        .collect::<String>();
-
-    if version.is_empty() {
-        return Err("VERSION_STRING_EMPTY".into());
+    if !default_ini.exists() {
+        return Err("DEFAULT_INI_MISSING".into());
     }
 
-    Ok(version)
+    if let Ok(content) = fs::read_to_string(&default_ini) {
+        for line in content.lines() {
+            if line.to_lowercase().starts_with("gameversion") {
+                if let Some(idx) = line.find('=') {
+                    let raw_version = line[idx + 1..].trim();
+                    let version: String = raw_version.chars()
+                        .filter(|c| c.is_ascii_digit() || *c == '.')
+                        .collect();
+                        
+                    if !version.is_empty() {
+                        return Ok(version);
+                    }
+                }
+            }
+        }
+    }
+
+    Err("VERSION_STRING_EMPTY".into())
 }
 
 #[tauri::command]
@@ -408,6 +443,37 @@ async fn deploy_playset_bulk(
                     .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
             }
         }
+
+        // NEW: Bring along data files/folders from the same parent folder in the Vault
+        if let Some(source_parent) = source.parent() {
+            if let Some(target_parent) = target.parent() {
+                if let Ok(entries) = std::fs::read_dir(source_parent) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_dir() {
+                            let dest = target_parent.join(entry.file_name());
+                            if !dest.exists() {
+                                if m.allow_write {
+                                    let _ = deploy_junction(&path, &dest);
+                                } else {
+                                    let _ = deploy_air_gap(&path, &dest);
+                                }
+                            }
+                        } else if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                            let ext_lower = ext.to_lowercase();
+                            if ext_lower != "package" && ext_lower != "ts4script" {
+                                let dest = target_parent.join(entry.file_name());
+                                if !dest.exists() {
+                                    let _ = std::os::windows::fs::symlink_file(&path, &dest)
+                                        .or_else(|_| std::fs::copy(&path, &dest).map(|_| ()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         count += 1;
     }
 
@@ -558,6 +624,130 @@ fn generate_full_dna_hash(file_path: PathBuf) -> String {
         .collect()
 }
 
+fn check_is_explicitly_local(path: &Path, is_script: bool) -> bool {
+    let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+    
+    if file_name.contains("customchallenge") {
+        return true;
+    }
+
+    // Ignore explicit local blocking for Simmatticly's other mods to allow them through
+    if file_name.contains("simmattic") || file_name.contains("simmatic") {
+        return false;
+    }
+
+    if is_script {
+        if let Ok(file) = std::fs::File::open(path) {
+            if let Ok(mut archive) = zip::ZipArchive::new(file) {
+                for i in 0..archive.len() {
+                    if let Ok(file) = archive.by_index(i) {
+                        let name = file.name().to_lowercase();
+                        if name.contains("__pycache__") {
+                            return true;
+                        }
+                        if name.ends_with(".pyc") && name.contains('/') {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        if let Ok(mut file) = std::fs::File::open(path) {
+            let mut reader = BufReader::new(file);
+            let mut buffer = [0u8; 72];
+            if reader.read_exact(&mut buffer).is_ok() && &buffer[0..4] == b"DBPF" {
+                let major = u32::from_le_bytes(buffer[4..8].try_into().unwrap());
+                let minor = u32::from_le_bytes(buffer[8..12].try_into().unwrap());
+                
+                if minor > 1 { // DX11 Optimization or newer
+                    return true;
+                }
+
+                let index_count = u32::from_le_bytes(buffer[36..40].try_into().unwrap());
+
+                let (index_size, index_offset) = if major == 2 && minor == 0 {
+                    let offset = u32::from_le_bytes(buffer[40..44].try_into().unwrap()) as u64;
+                    let size = u32::from_le_bytes(buffer[44..48].try_into().unwrap());
+                    (size, offset)
+                } else {
+                    let size = u32::from_le_bytes(buffer[40..44].try_into().unwrap());
+                    let offset = u64::from_le_bytes(buffer[64..72].try_into().unwrap());
+                    (size, offset)
+                };
+
+                if index_count > 0 && index_count < 1_000_000 {
+                    if reader.seek(SeekFrom::Start(index_offset)).is_ok() {
+                        let mut flags_buf = [0u8; 4];
+                        if reader.read_exact(&mut flags_buf).is_ok() {
+                            let flags = u32::from_le_bytes(flags_buf);
+                            let mut const_bytes = 4;
+                            let mut const_type = 0u32;
+                            let mut const_group = 0u32;
+                            let mut const_inst_ex = 0u32;
+
+                            if flags & 0x01 != 0 {
+                                let mut b = [0u8; 4];
+                                if reader.read_exact(&mut b).is_ok() {
+                                    const_type = u32::from_le_bytes(b);
+                                    const_bytes += 4;
+                                }
+                            }
+                            if flags & 0x02 != 0 {
+                                let mut b = [0u8; 4];
+                                if reader.read_exact(&mut b).is_ok() {
+                                    const_group = u32::from_le_bytes(b);
+                                    const_bytes += 4;
+                                }
+                            }
+                            if flags & 0x04 != 0 {
+                                let mut b = [0u8; 4];
+                                if reader.read_exact(&mut b).is_ok() {
+                                    const_inst_ex = u32::from_le_bytes(b);
+                                    const_bytes += 4;
+                                }
+                            }
+
+                            let entry_size = 32 - const_bytes;
+                            let mut entries_buf = vec![0u8; (index_count * entry_size) as usize];
+                            if reader.read_exact(&mut entries_buf).is_ok() {
+                                let mut casp_count = 0;
+                                let mut objd_count = 0;
+                                let mut offset = 0;
+
+                                for _ in 0..index_count {
+                                    if offset + 4 > entries_buf.len() { break; }
+                                    let mut t = const_type;
+                                    if flags & 0x01 == 0 {
+                                        let b: [u8; 4] = entries_buf[offset..offset + 4].try_into().unwrap();
+                                        t = u32::from_le_bytes(b);
+                                        offset += 4;
+                                    }
+                                    if flags & 0x02 == 0 { offset += 4; } // group
+                                    if flags & 0x04 == 0 { offset += 4; } // inst_ex
+                                    offset += 8; // instance
+                                    offset += 4; // pos
+                                    offset += 4; // size and compression
+
+                                    if t == 0x54533453 { return true; } // Merged Manifest
+                                    if t == 0x01357924 { return true; } // Batch Fix Metadata
+                                    if t == 0x034AEECB { casp_count += 1; }
+                                    if t == 0x319E4F1D { objd_count += 1; }
+                                }
+
+                                if casp_count > 50 || objd_count > 50 {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
 #[tauri::command]
 fn scan_bunker(
     app: tauri::AppHandle,
@@ -577,6 +767,28 @@ fn scan_bunker(
     if !mods_lane.exists() {
         let _ = fs::create_dir_all(&mods_lane);
         return Ok(vec![]);
+    }
+
+    // Auto-Enforce "One Mod, One Folder" inside the Vault before scanning
+    if let Ok(entries) = std::fs::read_dir(&mods_lane) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                    let ext_lower = ext.to_lowercase();
+                    if ext_lower == "package" || ext_lower == "ts4script" {
+                        if let Some(file_stem) = path.file_stem() {
+                            let folder_name = file_stem.to_string_lossy().to_string();
+                            let target_dir = mods_lane.join(&folder_name);
+                            let _ = std::fs::create_dir_all(&target_dir);
+
+                            let target_path = target_dir.join(path.file_name().unwrap());
+                            let _ = std::fs::rename(&path, &target_path);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     let mut paths = Vec::new();
@@ -615,32 +827,38 @@ fn scan_bunker(
             .map(|d| d.as_secs())
             .unwrap_or(0);
 
-        let dna_hash = if let Some(cached) = cache.get(&path_str) {
+        let is_script = path.extension().map_or(false, |ext| ext == "ts4script");
+        
+        let (dna_hash, explicitly_local) = if let Some(cached) = cache.get(&path_str) {
             if cached.mtime == mtime {
-                cached.dna_hash.clone()
+                (cached.dna_hash.clone(), cached.explicitly_local)
             } else {
                 let hash = calculate_hash(&path).unwrap_or_default();
+                let explicit = check_is_explicitly_local(&path, is_script);
                 cache.insert(
                     path_str.clone(),
                     CacheEntry {
                         mtime,
                         dna_hash: hash.clone(),
+                        explicitly_local: explicit,
                     },
                 );
                 cache_updated = true;
-                hash
+                (hash, explicit)
             }
         } else {
             let hash = calculate_hash(&path).unwrap_or_default();
+            let explicit = check_is_explicitly_local(&path, is_script);
             cache.insert(
                 path_str.clone(),
                 CacheEntry {
                     mtime,
                     dna_hash: hash.clone(),
+                    explicitly_local: explicit,
                 },
             );
             cache_updated = true;
-            hash
+            (hash, explicit)
         };
 
         // Check for duplicate in current cache (Radar Sweep)
@@ -691,12 +909,18 @@ fn scan_bunker(
             continue;
         }
 
+        let status_string = if explicitly_local {
+            "🚫 EXPLICIT LOCAL".to_string()
+        } else {
+            "🔘 LOCAL_ONLY".to_string()
+        };
+
         results.push(ModData {
             name: rel.replace("\\", "/"),
             hash: dna_hash,
-            status: "🔘 LOCAL_ONLY".to_string(),
+            status: status_string,
             color: "var(--text-sub)".to_string(),
-            is_script: path.extension().map_or(false, |ext| ext == "ts4script"),
+            is_script,
         });
     }
 
@@ -1309,29 +1533,68 @@ fn evacuate_to_shelter() -> Result<String, String> {
     if !mods_dir.exists() {
         return Err("Mods path not found.".into());
     }
-    let mut packages = Vec::new();
-    walk_packages(&mods_dir, &mut packages);
+    let mut items = Vec::new();
+    
+    // Recursive closure to find all items without traversing symlinks
+    fn walk_physical_items(dir: &Path, items: &mut Vec<PathBuf>) {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Ok(meta) = fs::symlink_metadata(&path) {
+                    if meta.file_type().is_symlink() {
+                        items.push(path);
+                    } else if meta.is_dir() {
+                        items.push(path.clone());
+                        walk_physical_items(&path, items);
+                    } else {
+                        items.push(path);
+                    }
+                }
+            }
+        }
+    }
+    
+    walk_physical_items(&mods_dir, &mut items);
+    
     let mut moved = 0;
     let mut exorcised = 0;
-    for path in packages {
+    
+    // Process files first, then directories (to avoid moving a parent before its children)
+    items.sort_by_key(|p| p.to_string_lossy().len());
+    items.reverse();
+
+    for path in items {
+        if path.file_name().map_or(false, |n| n == "Resource.cfg") {
+            continue;
+        }
         if let Ok(rel_path) = path.strip_prefix(&mods_dir) {
             let dest = vault_mods_lane.join(rel_path);
-            if let Some(parent) = dest.parent() {
-                let _ = fs::create_dir_all(parent);
-            }
+            
             if let Ok(meta) = fs::symlink_metadata(&path) {
                 if meta.file_type().is_symlink() {
-                    if fs::remove_file(&path).is_ok() {
+                    if fs::remove_file(&path).is_ok() || fs::remove_dir(&path).is_ok() {
                         exorcised += 1;
                     }
+                } else if meta.is_dir() {
+                    // It's a real directory. We don't need to move it if it's just a structural folder, 
+                    // but we should clean it up if it's empty after its contents were moved.
+                    if fs::remove_dir(&path).is_ok() {
+                        // Was empty, safely removed
+                    }
                 } else {
-                    if fs::rename(&path, &dest).is_ok() {
+                    // It's a real file (dynamically generated data, settings, log, etc)
+                    if let Some(parent) = dest.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+                    if fs::rename(&path, &dest).is_ok() || fs::copy(&path, &dest).is_ok() {
+                        let _ = fs::remove_file(&path);
                         moved += 1;
                     }
                 }
             }
         }
     }
+    
     Ok(format!(
         "{} ghosts busted, {} physical moved.",
         exorcised, moved
@@ -1735,7 +1998,7 @@ fn ingest_dropped_file(
             .and_then(|s| s.to_str())
             .unwrap_or("")
             .to_lowercase();
-        if ext == "package" || ext == "ts4script" || ext == "zip" || ext == "7z" || ext == "rar" {
+        if ext == "package" || ext == "ts4script" || ext == "zip" || ext == "7z" || ext == "rar" || ext == "dat" || ext == "cfg" || ext == "ini" || ext == "json" {
             if let Err(_) = std::fs::rename(source, &target) {
                 std::fs::copy(source, &target).map_err(|e| e.to_string())?;
                 let _ = std::fs::remove_file(source);
@@ -1914,7 +2177,8 @@ fn main() {
             load_master_cache,
             sync_security_definitions,
             purge_vault_artifacts,
-            initialize_airgap_watch
+            initialize_airgap_watch,
+            mark_explicitly_local
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

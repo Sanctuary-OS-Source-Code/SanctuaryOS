@@ -92,6 +92,7 @@ function App() {
   const setActiveSetName = useStore((state) => state.setActiveSetName);
   const status = useStore((state) => state.status);
   const setStatus = useStore((state) => state.setStatus);
+  const session = useStore((state) => state.session);
 
   const modList = useStore((state) => state.modList);
   const setModList = useStore((state) => state.setModList);
@@ -224,7 +225,53 @@ function App() {
   // @ts-ignore
   const [associatedMods, setAssociatedMods] = useState<any[]>([]);
   // @ts-ignore
-  const saveLocalMetadata = async (mod: any) => {};
+  const saveLocalMetadata = async () => {
+    if (!activeDossier || !metaNameInput.trim()) return;
+    setStatus("Syncing metadata to the Network...");
+    try {
+      let { data: existingMod } = await supabase
+        .from("mods")
+        .select("id")
+        .eq("name", metaNameInput.trim())
+        .single();
+        
+      if (!existingMod) {
+        const { data: newMod, error: insertError } = await supabase
+          .from("mods")
+          .insert([{ 
+            name: metaNameInput.trim(), 
+            master_author: metaAuthorInput.trim() || null,
+            image_url: metaImageInput.trim() || null,
+            status: "unverified" 
+          }])
+          .select()
+          .single();
+        if (insertError) throw insertError;
+        existingMod = newMod;
+      }
+      
+      if (existingMod && activeDossier.hash) {
+        await supabase.from("mod_versions").upsert(
+          [
+            {
+              mod_id: existingMod.id,
+              dna_hash: activeDossier.hash,
+              version_label: metaVersionInput || "v.1.0",
+            },
+          ],
+          { onConflict: "dna_hash" },
+        );
+      }
+      setStatus(`✓ Artifact metadata submitted to registry.`);
+      setIsEditingMeta(false);
+      setEditMode(false);
+      runRadarSweep(true);
+    } catch (err: any) {
+      console.error(err);
+      setStatus(`Error: ${err.message || err}`);
+    }
+  };
+
   // @ts-ignore
   const handleUpdateMod = (mod: any) => {};
 
@@ -330,6 +377,8 @@ function App() {
     setYeetConfirmPending,
     dnaMatchQueue,
     setDnaMatchQueue,
+    scoutQueue,
+    setScoutQueue,
   } = useModalStore();
 
   const {
@@ -422,10 +471,13 @@ function App() {
   }, []);
   useEffect(() => {
     const detectGameVersion = async () => {
-      if (!isConfigured || !modsPath) return;
+      if (!isConfigured) return;
       try {
+        const config: any = await invoke("get_saved_coordinates");
+        if (!config.live_path) return;
+        
         const rawRipped = await invoke<string>("rip_game_version", {
-          modsPath,
+          livePath: config.live_path,
         });
         const cleanVersion = rawRipped.replace(/[^0-9.]/g, "");
         setSelectedVersion(cleanVersion);
@@ -435,7 +487,7 @@ function App() {
       }
     };
     detectGameVersion();
-  }, [isConfigured, modsPath]);
+  }, [isConfigured]);
   useEffect(() => {
     if (view === "lab") {
       const fetchLabQueue = async () => {
@@ -523,7 +575,7 @@ function App() {
   }, []);
 
 
-  const toggleInActiveSet = (targetName: string) => {
+  const toggleInActiveSet = (targetName: string, excludeBroken: boolean = false) => {
     setPlaySets((prevSets) => {
       const currentSet = prevSets[activePlaySetIndex];
       if (!currentSet) return prevSets;
@@ -547,22 +599,26 @@ function App() {
       const isActuallyFlavorFolder =
         targetMod.isVirtual && kids.some((k) => k.flavorGroupId != null);
       let isEquipping = targetMod.isVirtual
-        ? isActuallyFlavorFolder
-          ? !kids.some((k) => newMods.has(k.name))
-          : !kids.every((k) => newMods.has(k.name))
+        ? !kids.some((k) => newMods.has(k.name))
         : !newMods.has(targetName);
       const deepDelete = (nameToDelete: string) => {
         if (!newMods.has(nameToDelete)) return;
         newMods.delete(nameToDelete);
         if (currentRules.dependencies !== false) {
           const mData = modList.find((m) => m.name === nameToDelete);
-          if (mData?.dbId) {
+          if (mData) {
             modList
               .filter(
                 (m) =>
-                  m.requirements?.some(
-                    (r: any) => String(r) === String(mData.dbId),
-                  ) && newMods.has(m.name),
+                  m.requirements?.some((r: any) => {
+                    const reqId = typeof r === 'string' ? r : r.id || r.dbId;
+                    const reqName = typeof r === 'string' ? r : r.name;
+                    const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "").toUpperCase();
+                    const isReqNumeric = !isNaN(Number(reqName));
+                    return (reqId && String(mData.dbId) === String(reqId)) ||
+                           (reqId && mData.hash === reqId) ||
+                           (!isReqNumeric && reqBaseName && mData.displayName && (mData.displayName.toUpperCase().includes(reqBaseName) || mData.displayName.toUpperCase().replace(/_/g, " ").includes(reqBaseName.replace(/_/g, " "))));
+                  }) && newMods.has(m.name),
               )
               .forEach((dep) => deepDelete(dep.name));
           }
@@ -570,6 +626,7 @@ function App() {
       };
       const addWithFamily = (modObj: any) => {
         if (!modObj || !modObj.name) return;
+        if (excludeBroken && (modObj.status === t("status_broken") || modObj.status?.includes("BROKEN"))) return;
         if (modObj.flavorGroupId && currentRules.highlander !== false) {
           modList
             .filter(
@@ -597,9 +654,12 @@ function App() {
                 !isRival &&
                 (m.relationshipType === "twin" ||
                   m.relationshipType === "beta" ||
+                  m.relationshipType === "core" ||
                   !m.relationshipType)
               ) {
-                newMods.add(m.name);
+                if (!(excludeBroken && (m.status === t("status_broken") || m.status?.includes("BROKEN")))) {
+                  newMods.add(m.name);
+                }
               }
             }
           });
@@ -640,14 +700,25 @@ function App() {
               if (!newMods.has(name)) continue;
               const mData = modList.find((m) => m.name === name);
               if (mData?.requirements) {
-                for (const reqId of mData.requirements) {
+                for (const req of mData.requirements) {
+                  const reqId = typeof req === 'string' ? req : req.id || req.dbId;
+                  const reqName = typeof req === 'string' ? req : req.name;
+                  const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "").toUpperCase();
+                  const isReqNumeric = !isNaN(Number(reqName));
+                  
                   const alreadySatisfied = Array.from(newMods).some((n) => {
                     const equipped = modList.find((m: any) => m.name === n);
-                    return equipped && String(equipped.dbId) === String(reqId);
+                    return equipped && (
+                      String(equipped.dbId) === String(reqId) ||
+                      (!isReqNumeric && reqBaseName && equipped.displayName && equipped.displayName.toUpperCase().includes(reqBaseName))
+                    );
                   });
                   if (!alreadySatisfied) {
                     const provider = modList.find(
-                      (m) => String(m.dbId) === String(reqId) && !m.isVirtual,
+                      (m) => !m.isVirtual && (
+                        String(m.dbId) === String(reqId) ||
+                        (!isReqNumeric && reqBaseName && m.displayName && m.displayName.toUpperCase().includes(reqBaseName))
+                      )
                     );
                     if (provider) {
                       addWithFamily(provider);
@@ -668,6 +739,7 @@ function App() {
           (currentRules.family !== false &&
             (isMaster ||
               targetMod.relationshipType === "twin" ||
+              targetMod.relationshipType === "core" ||
               targetMod.relationshipType === "beta"))
         ) {
           modList
@@ -689,6 +761,7 @@ function App() {
         ...currentSet,
         mods: Array.from(newMods),
       };
+      localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
       return updatedSets;
     });
   };
@@ -881,6 +954,21 @@ function App() {
     });
     try {
       const config: any = await invoke("get_saved_coordinates");
+
+      // Sync Malware Protocols before scanning
+      try {
+        const { data: malwareData } = await supabase
+          .from("mod_versions")
+          .select("dna_hash, mods!inner(status)")
+          .in("mods.status", ["quarantined", "blacklisted", "malware"]);
+        if (malwareData && malwareData.length > 0) {
+          const malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
+          await invoke("sync_security_definitions", { malware: malwareHashes, tier2: [] });
+        }
+      } catch (err) {
+        console.error("Malware sync failed", err);
+      }
+
       const rawLocalMods = await invoke<any[]>("scan_bunker", {
         vaultPath: config.vault_path,
         shelterActive: true,
@@ -985,7 +1073,19 @@ function App() {
                 .in("id", chunk);
               if (gData)
                 gData.forEach((g) => {
-                  flavorGroupNames[g.id] = g.name;
+                  flavorGroupNames[String(g.id)] = g.name;
+                });
+              const { data: pMods } = await supabase
+                .from("mods")
+                .select("id, name, master_author, image_url")
+                .in("id", chunk);
+              if (pMods)
+                pMods.forEach((pm) => {
+                  parentNameMap[String(pm.id)] = {
+                    name: pm.name,
+                    author: pm.master_author || "Unknown",
+                    image_url: pm.image_url,
+                  };
                 });
             }
           }
@@ -1020,7 +1120,9 @@ function App() {
         const pIds = [
           ...new Set([
             ...allRels.map((r) => String(r.parent_id)),
+            ...allRels.map((r) => String(r.child_id)),
             ...allDeps.map((d) => String(d.parent_id)),
+            ...allDeps.map((d) => String(d.child_id)),
           ]),
         ];
         if (pIds.length > 0) {
@@ -1073,7 +1175,10 @@ function App() {
           .map((r) => String(r.child_id));
         const myDeps = allDeps
           .filter((d) => String(d.child_id) === String(dbId))
-          .map((d) => String(d.parent_id));
+          .map((d) => ({
+            id: String(d.parent_id),
+            name: parentNameMap[String(d.parent_id)]?.name || String(d.parent_id)
+          }));
         const isDlcMissing = (dbMod?.requiredDLC || []).some(
           (dlc: string) => !ownedDLC.includes(dlc) || maskedDLC.includes(dlc),
         );
@@ -1119,7 +1224,28 @@ function App() {
           relationshipType: myRelType,
           invisibleRivals:
             invisibleRivalIds.length > 0 ? invisibleRivalIds : undefined,
-          requirements: myDeps.length > 0 ? myDeps : undefined,
+          requirements: myDeps.length > 0 || myParentRels.some(r => r.relationship_type === "addon")
+            ? [
+                ...myDeps,
+                ...myParentRels.filter((r) => r.relationship_type === "addon").map((r) => ({
+                  id: String(r.parent_id),
+                  name: parentNameMap[String(r.parent_id)]?.name || String(r.parent_id)
+                }))
+              ]
+            : undefined,
+          twins:
+            myParentRels.some((r) => r.relationship_type === "twin") || myChildRels.some((r) => r.relationship_type === "twin")
+              ? [
+                  ...myParentRels.filter((r) => r.relationship_type === "twin").map((r) => ({
+                    id: String(r.parent_id),
+                    name: parentNameMap[String(r.parent_id)]?.name || String(r.parent_id)
+                  })),
+                  ...myChildRels.filter((r) => r.relationship_type === "twin").map((r) => ({
+                    id: String(r.child_id),
+                    name: parentNameMap[String(r.child_id)]?.name || String(r.child_id)
+                  })),
+                ]
+              : undefined,
           displayName: mod.name
             .split(/[\\/]/)
             .pop()
@@ -1131,13 +1257,20 @@ function App() {
             ? dbMod.status === "verified"
               ? t("status_verified")
               : t("status_unverified")
-            : t("status_local_only"),
+            : mod.status?.includes("EXPLICIT LOCAL") ? "🚫 EXPLICIT LOCAL" : t("status_local_only"),
           isSynced: !!dbMod,
           isVirtual: false,
           isGhosted: isDlcMissing,
           ghostReason: isDlcMissing ? "MISSING_DLC" : null,
         };
       });
+
+      const unidentified = physicalMods.filter(
+        (m) => !m.isSynced && !m.status?.includes("EXPLICIT LOCAL") && !m.name.toLowerCase().includes("customchallenge")
+      );
+      if (unidentified.length > 0 && !isSilent) {
+        setScoutQueue(unidentified);
+      }
       const virtualCards: any[] = [];
       ccSetsMetadata.forEach((set) => {
         const setMembers = physicalMods.filter(
@@ -1168,7 +1301,7 @@ function App() {
           (m) => String(m.familyId) === String(fId),
         );
         if (familyMembers.length > 1) {
-          const isFlavorFolder = !!flavorGroupNames[String(fId)];
+          const isFlavorFolder = !!flavorGroupNames[String(fId)] && !parentNameMap[String(fId)];
           const isTwinGroup = familyMembers.some(
             (m) =>
               m.relationshipType === "twin" || m.relationshipType === "beta",
@@ -1180,22 +1313,61 @@ function App() {
             author: familyMembers[0].author,
           };
           const safeName = pData.name || t("status_unknown_folder");
+          const isAllVerified = familyMembers.every((m) => m.status === t("status_verified"));
+          const isAnyBroken = familyMembers.some((m) => m.status === t("status_broken") || m.status?.includes("BROKEN"));
+          
+          let folderStatus = isFlavorFolder
+            ? t("status_exclusives")
+            : isTwinGroup
+              ? t("status_twin_bond")
+              : t("status_collection");
+              
+          if (isAnyBroken) {
+            folderStatus = "BROKEN ARTIFACTS DETECTED";
+          } else if (isAllVerified) {
+            folderStatus = t("status_verified");
+          }
+
+          const myParentRels = allRels.filter((r) => String(r.child_id) === String(fId));
+          const myChildRels = allRels.filter((r) => String(r.parent_id) === String(fId));
+          const folderDeps = [
+            ...allDeps.filter((d) => String(d.child_id) === String(fId)).map((d) => ({
+              id: String(d.parent_id),
+              name: parentNameMap[String(d.parent_id)]?.name || String(d.parent_id)
+            })),
+            ...myParentRels.filter((r) => r.relationship_type === "addon").map((r) => ({
+              id: String(r.parent_id),
+              name: parentNameMap[String(r.parent_id)]?.name || String(r.parent_id)
+            }))
+          ];
+            
+          const folderTwins = myParentRels.some((r) => r.relationship_type === "twin") || myChildRels.some((r) => r.relationship_type === "twin")
+            ? [
+                ...myParentRels.filter((r) => r.relationship_type === "twin").map((r) => ({
+                  id: String(r.parent_id),
+                  name: parentNameMap[String(r.parent_id)]?.name || String(r.parent_id)
+                })),
+                ...myChildRels.filter((r) => r.relationship_type === "twin").map((r) => ({
+                  id: String(r.child_id),
+                  name: parentNameMap[String(r.child_id)]?.name || String(r.child_id)
+                })),
+              ]
+            : undefined;
+
           virtualCards.push({
             hash: "virtual_" + fId,
             name: "FOLDER_" + fId,
             dbId: String(fId),
             displayName: safeName.toUpperCase(),
             author: pData.author,
-            status: isFlavorFolder
-              ? t("status_exclusives")
-              : isTwinGroup
-                ? t("status_twin_bond")
-                : t("status_collection"),
+            status: folderStatus,
             color: isFlavorFolder ? "var(--warning)" : "var(--accent)",
             isSynced: true,
             isVirtual: true,
             isParent: true,
             isFlavorFolder: isFlavorFolder,
+            twins: folderTwins,
+            requirements: folderDeps.length > 0 ? folderDeps : undefined,
             flavors: familyMembers,
           });
         }
@@ -2392,7 +2564,7 @@ function App() {
             icon={t("ui_icon_backups")}
             label={t("sidebar_time_capsule")}
           />
-          {["mason", "wayfinder", "admin"].includes(userRole) && (
+          {session && ["mason", "wayfinder", "admin"].includes(userRole) && (
             <div className="my-4 border-t border-white/5 pt-4">
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left">
                 {t("sidebar_creator_tools")}
@@ -2405,7 +2577,7 @@ function App() {
               />
             </div>
           )}
-          {["architect", "wayfinder", "admin"].includes(userRole) && (
+          {session && ["architect", "wayfinder", "admin"].includes(userRole) && (
             <div className="my-4 border-t border-white/5 pt-4">
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left">
                 {t("sidebar_architect_tools")}
@@ -2415,6 +2587,18 @@ function App() {
                 onClick={() => setView("ArchitectHub")}
                 icon={t("ui_icon_architect")}
                 label={t("sidebar_architect_hub")}
+              />
+            </div>
+          )}
+          {!session && (
+            <div className="my-4 border-t border-white/5 pt-4">
+              <NavButton
+                onClick={() => {
+                  localStorage.setItem("sanctuary_show_login", "true");
+                  window.location.reload();
+                }}
+                icon={"🔑"}
+                label={"SIGN IN / SIGN UP"}
               />
             </div>
           )}
@@ -2486,6 +2670,7 @@ function App() {
                 activeSubType={activeSubType} setActiveSubType={setActiveSubType} 
                 visibleMods={visibleMods} displayModList={displayModList} 
                 activePlaySetIndex={activePlaySetIndex} 
+                setActivePlaySetIndex={setActivePlaySetIndex}
                 toggleInActiveSet={toggleInActiveSet}
                 openUrl={openUrl} setLocalFolderName={setLocalFolderName} setLocalFolderType={setLocalFolderType}
                 executeHotSwap={executeHotSwap} setMetaNameInput={setMetaNameInput} setMetaAuthorInput={setMetaAuthorInput}
@@ -2749,6 +2934,13 @@ function App() {
         quarantineList={quarantineList}
         restoreMod={restoreMod}
         purgeMod={purgeMod}
+        scoutQueue={scoutQueue}
+        setScoutQueue={setScoutQueue}
+        onOpenScoutDossier={(mod: any) => {
+          setActiveDossier(mod);
+          setIsEditingMeta(true);
+          setEditMode(true);
+        }}
         isBackingUp={isBackingUp}
         isRestoring={isRestoring}
         ingestProgress={ingestProgress}

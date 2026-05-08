@@ -25,7 +25,8 @@ export function AppModals(props: any) {
     status,
     showDefconAlert, setShowDefconAlert, triggerFullEngineBackup, triggerPrePatchSnapshot,
     yeetConfirmPending, setYeetConfirmPending,
-    dnaMatchQueue, setDnaMatchQueue, ignoredHashesRef, setStatus
+    dnaMatchQueue, setDnaMatchQueue, ignoredHashesRef, setStatus,
+    scoutQueue, setScoutQueue, onOpenScoutDossier
   } = props;
 
   return (
@@ -215,7 +216,7 @@ export function AppModals(props: any) {
            <div 
              className={`w-full max-w-4xl h-full max-h-[600px] border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center relative transition-all group ${dropzoneState === 'received' ? 'border-emerald-500/50 bg-emerald-500/5 shadow-[0_0_100px_rgba(16,185,129,0.1)]' : (isDragging ? 'bg-white/10 border-[var(--accent)] shadow-[0_0_100px_rgba(37,99,235,0.2)] scale-[1.02]' : 'bg-white/5 border-white/20 hover:border-[var(--accent)] hover:shadow-[0_0_100px_rgba(37,99,235,0.1)]')}`}
            >
-              <button onClick={() => { setIsDropzoneOpen(false); setDropzoneState("awaiting"); setDroppedFiles([]); setIsDragging(false); }} className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center text-[var(--text)]/50 hover:text-[var(--text)] bg-black/20 hover:theme-bg-danger rounded-full transition-all text-xl z-50"></button>
+              <button onClick={() => { setIsDropzoneOpen(false); setDropzoneState("awaiting"); setDroppedFiles([]); setIsDragging(false); }} className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center text-[var(--text)]/50 hover:text-[var(--text)] bg-black/20 hover:theme-bg-danger rounded-full transition-all text-xl z-50">✕</button>
               {dropzoneState === "awaiting" ? (
                 <>
                   <span className="text-[100px] mb-8 group-hover:scale-110 transition-transform drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]"></span>
@@ -341,7 +342,7 @@ export function AppModals(props: any) {
         </div>
       </div>
     )}{isScanning && (
-      <div className="fixed bottom-8 right-8 z-[9999] w-96 theme-glass-panel border border-white/10 p-6 rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-none overflow-hidden">
+      <div className="fixed bottom-8 right-8 z-[9999] w-96 bg-[var(--bg)]/90 backdrop-blur-md border border-white/10 p-6 rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 theme-bg-accent opacity-5 blur-[80px]" />
         <div className="relative z-10 flex flex-col gap-6">
           <div className="flex items-center gap-5">
@@ -430,7 +431,7 @@ export function AppModals(props: any) {
                        }}
                        className="flex-1 py-3 theme-glass-inner text-[var(--text)] font-black text-[9px] uppercase tracking-widest rounded-xl border border-white/5 transition-all hover:bg-white/5 shadow-sm"
                      >
-                       {t("modal_btn_discard")}
+                       {t("modal_btn_keep_old") || "KEEP OLD"}
                      </button>
                    </div>
                 </div>
@@ -466,10 +467,67 @@ export function AppModals(props: any) {
                   }}
                   className="flex-1 py-4 theme-glass-inner text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl border border-white/5 transition-all hover:bg-white/5 shadow-sm"
                 >
-                  {t("modal_btn_discard_all")}
+                  {t("modal_btn_keep_all_old") || "KEEP ALL OLD"}
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {scoutQueue && scoutQueue.length > 0 && (
+        <div className="fixed inset-0 z-[9990] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-3xl animate-in fade-in duration-200 p-8">
+          <div className="theme-glass-panel border border-white/10 w-full max-w-2xl rounded-[2.5rem] p-10 flex flex-col items-center gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center max-h-[85vh]">
+            <span className="text-6xl animate-pulse drop-shadow-md">📡</span>
+            <div className="flex flex-col gap-1 min-w-0 flex-1 w-full">
+              <h2 className="text-xl font-black theme-text-accent uppercase tracking-tighter">UNIDENTIFIED ARTIFACTS</h2>
+              <p className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest">
+                Local artifacts were detected that are not mapped in the global registry.
+              </p>
+            </div>
+            
+            <div className="w-full flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-4">
+              {scoutQueue.map((mod: any, index: number) => (
+                <div key={index} className="w-full bg-[var(--bg)]/40 border border-[var(--text)]/5 rounded-2xl p-4 flex flex-col gap-3 shadow-inner text-left">
+                   <div className="flex flex-col gap-1">
+                     <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">Artifact Target</span>
+                     <span className="text-xs font-black text-[var(--text)] truncate">{mod.displayName || mod.name}</span>
+                   </div>
+                   <div className="flex gap-2 w-full mt-1">
+                     <button
+                       onClick={() => {
+                         onOpenScoutDossier(mod);
+                         setScoutQueue((prev: any[]) => prev.filter((_: any, i: number) => i !== index));
+                       }}
+                       className="flex-1 py-3 theme-bg-accent text-[var(--bg)] font-black text-[9px] uppercase tracking-widest rounded-xl transition-all hover:opacity-90 shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]"
+                     >
+                       UPLOAD TO REGISTRY
+                     </button>
+                     <button
+                       onClick={async () => {
+                         try {
+                           const config: any = await invoke("get_saved_coordinates");
+                           await invoke("mark_explicitly_local", { vaultPath: config.vault_path, filePath: mod.path || mod.name });
+                           setScoutQueue((prev: any[]) => prev.filter((_: any, i: number) => i !== index));
+                         } catch (e) { console.error(e); }
+                       }}
+                       className="flex-1 py-3 theme-glass-inner text-[var(--warning)] font-black text-[9px] uppercase tracking-widest rounded-xl border border-[var(--warning)]/30 transition-all hover:bg-[var(--warning)]/10 shadow-sm"
+                     >
+                       FLAG AS LOCAL (DO NOT UPLOAD)
+                     </button>
+                   </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 w-full mt-2 pt-4 border-t border-white/10 shrink-0">
+              <button
+                onClick={() => setScoutQueue([])}
+                className="w-full py-4 theme-glass-inner text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl border border-white/5 transition-all hover:bg-white/5 shadow-sm"
+              >
+                DISMISS ALL
+              </button>
+            </div>
           </div>
         </div>
       )}

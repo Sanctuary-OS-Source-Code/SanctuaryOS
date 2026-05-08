@@ -1,5 +1,5 @@
 import React from 'react';
-import { ViewHeader } from './shared';
+import { ViewHeader, CustomDropdown } from './shared';
 import { useLexicon } from './LexiconContext';
 import { invoke } from '@tauri-apps/api/core';
 import { ModCard } from './ModCard';
@@ -19,6 +19,27 @@ export default function Collection(props: any) {
   } = props;
   const { t } = useLexicon();
   
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 50;
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [equipFilter, activeCategory, activeSubType, searchQuery, filterStatus, isBulkMode]);
+
+  const finalVisibleMods = visibleMods.filter((mod: any) => {
+    if (mod.isVirtual) return true;
+    const folderExists = displayModList.some(
+      (v: any) =>
+        v.isVirtual &&
+        (String(v.dbId) === String(mod.familyId) ||
+          String(v.dbId) === String(mod.setId)),
+    );
+    return !folderExists;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(finalVisibleMods.length / itemsPerPage));
+  const paginatedMods = finalVisibleMods.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  
   return (
     <>
             <div className="flex flex-col gap-8 animate-in fade-in duration-700">
@@ -26,61 +47,94 @@ export default function Collection(props: any) {
                 title={t("vault_title")}
                 subtitle={t("vault_subtitle")}
               >
-                <button
-                  onClick={() => setIsDropzoneOpen(true)}
-                  className="w-[220px] h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all theme-btn-standard shadow-md flex items-center justify-center gap-2 shrink-0"
-                >
-                  <span className="text-lg"></span> {t("vault_btn_add_assets")}
-                </button>
-                {isBulkMode && selectedMods.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setConfirmDialog({
-                        message: `${t("confirm_purge_artifacts_prefix")}${selectedMods.length}${t("confirm_purge_artifacts_suffix")}`,
-                        action: async () => {
-                          setConfirmDialog(null);
-                          setStatus(t("status_purging_artifacts"));
-                          try {
-                            const config: any = await invoke(
-                              "get_saved_coordinates",
-                            );
-                            const msg = await invoke("purge_vault_artifacts", {
-                              vaultPath: config.vault_path,
-                              filenames: selectedMods,
-                            });
-                            setStatus(`${t("ui_icon_success")} ${msg}`);
-                            setIsBulkMode(false);
-                            setSelectedMods([]);
-                            runRadarSweep(false);
-                          } catch (err) {
-                            setStatus(`${t("status_error")}${err}`);
-                          }
-                        },
-                      });
-                    }}
-                    className="w-[140px] h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center shrink-0 theme-panel-danger theme-text-danger border border-red-500/50 hover:bg-red-500 hover:text-white"
-                  >
-                    {t("vault_btn_purge_artifacts")}
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    if (!isBulkMode) {
-                      setIsBulkMode(true);
-                    } else if (selectedMods.length > 0) {
-                      setLocalFolderModal(true);
-                    } else {
-                      setIsBulkMode(false);
-                    }
-                  }}
-                  className={`w-[220px] h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center shrink-0 ${isBulkMode ? (selectedMods.length > 0 ? "theme-bg-success theme-border-success text-[var(--bg)]" : "theme-bg-accent theme-border-accent text-[var(--bg)]") : "theme-btn-standard"}`}
-                >
-                  {isBulkMode
-                    ? selectedMods.length > 0
-                      ? t("vault_btn_group_folder")
-                      : t("vault_btn_cancel_selection")
-                    : t("vault_btn_select_assets")}
-                </button>
+                <div className="flex flex-col gap-3 items-end">
+                  {/* Top Row */}
+                  <div className="flex gap-4 items-center">
+                    {isBulkMode && selectedMods.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setConfirmDialog({
+                            message: `${t("confirm_purge_artifacts_prefix")}${selectedMods.length}${t("confirm_purge_artifacts_suffix")}`,
+                            action: async () => {
+                              setConfirmDialog(null);
+                              setStatus(t("status_purging_artifacts"));
+                              try {
+                                const config: any = await invoke(
+                                  "get_saved_coordinates",
+                                );
+                                const msg = await invoke("purge_vault_artifacts", {
+                                  vaultPath: config.vault_path,
+                                  filenames: selectedMods,
+                                });
+                                setStatus(`${t("ui_icon_success")} ${msg}`);
+                                setIsBulkMode(false);
+                                setSelectedMods([]);
+                                runRadarSweep(false);
+                              } catch (err) {
+                                setStatus(`${t("status_error")}${err}`);
+                              }
+                            },
+                          });
+                        }}
+                        className="w-[140px] h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center shrink-0 theme-panel-danger theme-text-danger border border-red-500/50 hover:bg-red-500 hover:text-white"
+                      >
+                        {t("vault_btn_purge_artifacts")}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setIsDropzoneOpen(true)}
+                      className="w-[220px] h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all theme-btn-standard shadow-md flex items-center justify-center gap-2 shrink-0"
+                    >
+                      <span className="text-lg"></span> {t("vault_btn_add_assets")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!isBulkMode) {
+                          setIsBulkMode(true);
+                        } else if (selectedMods.length > 0) {
+                          setLocalFolderModal(true);
+                        } else {
+                          setIsBulkMode(false);
+                        }
+                      }}
+                      className={`w-[220px] h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center shrink-0 ${isBulkMode ? (selectedMods.length > 0 ? "theme-bg-success theme-border-success text-[var(--bg)]" : "theme-bg-accent theme-border-accent text-[var(--bg)]") : "theme-btn-standard"}`}
+                    >
+                      {isBulkMode
+                        ? selectedMods.length > 0
+                          ? t("vault_btn_group_folder")
+                          : t("vault_btn_cancel_selection")
+                        : t("vault_btn_select_assets")}
+                    </button>
+                  </div>
+                  
+                  {/* Bottom Row */}
+                  <div className="flex gap-4 items-center">
+                    <button
+                      onClick={() => runRadarSweep(false)}
+                      className="w-12 h-12 rounded-2xl theme-glass-inner flex items-center justify-center text-[var(--text)] hover:theme-bg-accent transition-all shadow-md shrink-0"
+                      title="Refresh Collection"
+                    >
+                      {t("ui_icon_refresh") || "⟳"}
+                    </button>
+                    {playSets.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-[180px]">
+                          <CustomDropdown
+                            value={props.activePlaySetIndex}
+                            options={playSets.map((set: any, idx: number) => ({ id: idx, label: set.name }))}
+                            onChange={(val: any) => props.setActivePlaySetIndex && props.setActivePlaySetIndex(Number(val))}
+                          />
+                        </div>
+                        <button
+                          onClick={() => executeHotSwap && executeHotSwap(playSets[props.activePlaySetIndex]?.name)}
+                          className="h-12 px-6 rounded-2xl theme-bg-success text-[var(--bg)] text-[10px] font-black uppercase tracking-widest shadow-md hover:opacity-90 transition-all flex items-center gap-2"
+                        >
+                          {t("ui_icon_success")} Save
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </ViewHeader>
               <div className="mb-8 animate-in slide-in-from-top-4 duration-500">
                 <div className="flex justify-between items-end w-full relative z-10">
@@ -241,18 +295,8 @@ export default function Collection(props: any) {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 pb-20">
-                {visibleMods
-                  .filter((mod: any) => {
-                    if (mod.isVirtual) return true;
-                    const folderExists = displayModList.some(
-                      (v: any) =>
-                        v.isVirtual &&
-                        (String(v.dbId) === String(mod.familyId) ||
-                          String(v.dbId) === String(mod.setId)),
-                    );
-                    return !folderExists;
-                  })
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 pb-8">
+                {paginatedMods
                   .map((mod: any, index: number) => {
                     const mainKey = `${mod.hash || mod.name}-${index}`;
                     const activeSetMods =
@@ -328,7 +372,15 @@ export default function Collection(props: any) {
                         const dependents = displayModList.filter(
                           (m: any) =>
                             (m.requirements?.some(
-                              (r: any) => String(r) === String(current.dbId),
+                              (r: any) => {
+                                const reqId = typeof r === 'string' ? r : r.id || r.dbId;
+                                const reqName = typeof r === 'string' ? r : r.name;
+                                const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "").toUpperCase();
+                                const isReqNumeric = !isNaN(Number(reqName));
+                                return (reqId && String(current.dbId) === String(reqId)) ||
+                                       (reqId && current.hash === reqId) ||
+                                       (!isReqNumeric && reqBaseName && current.displayName && (current.displayName.toUpperCase().includes(reqBaseName) || current.displayName.toUpperCase().replace(/_/g, " ").includes(reqBaseName.replace(/_/g, " "))));
+                              }
                             ) ||
                               (String(m.familyId) ===
                                 String(current.familyId || current.dbId) &&
@@ -395,6 +447,75 @@ export default function Collection(props: any) {
                         casualties = getDeepCasualties(rivals);
                       }
                     }
+
+                    const missingReqs: any[] = [];
+                    const checkModDeps = (m: any) => {
+                      m.missingReqs = [];
+                      const pushMissing = (reqOrStr: any, fallbackUrl?: string) => {
+                        const isObj = typeof reqOrStr === 'object';
+                        const id = isObj ? (reqOrStr.name || reqOrStr.id) : reqOrStr;
+                        const finalUrl = isObj ? (reqOrStr.url || reqOrStr.link) : fallbackUrl;
+                        if (!missingReqs.some(r => r.id === id)) missingReqs.push({ id, url: finalUrl });
+                        if (!m.missingReqs.some((r: any) => r.id === id)) m.missingReqs.push({ id, url: finalUrl });
+                      };
+
+
+                      
+                      // Explicit protocol for MC CMD CENTER and its dependents
+                      const requiresMcCmd = m.twins?.some((t: any) => (t.name || "").toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER") || String(t.id) === "1000") || 
+                                            m.requirements?.some((r: any) => (r.name || "").toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER") || String(r.id) === "1000");
+                      if (requiresMcCmd || (m.displayName && m.displayName.toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER")) || (m.name && m.name.toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER"))) {
+                         const hasPkg = modList.some((ml: any) => ml.name?.toLowerCase().includes("mc_cmd_center") && ml.name?.toLowerCase().endsWith(".package"));
+                         const hasScript = modList.some((ml: any) => ml.name?.toLowerCase().includes("mc_cmd_center") && ml.name?.toLowerCase().endsWith(".ts4script"));
+                         if (!hasPkg || !hasScript) {
+                           pushMissing("MC CMD CENTER CORE");
+                         }
+                      }
+
+                      if (m.requirements) {
+                        m.requirements.forEach((req: any) => {
+                          const reqId = typeof req === 'string' ? req : req.id || req.dbId;
+                          const reqName = typeof req === 'string' ? req : req.name;
+                          const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "").toUpperCase();
+                          const isReqNumeric = !isNaN(Number(reqName));
+                          const match = modList.find((ml: any) => 
+                            !ml.isVirtual && (
+                              (reqId && String(ml.dbId) === String(reqId)) || 
+                              (reqId && ml.hash === reqId) ||
+                              (!isReqNumeric && reqBaseName && ml.displayName && (ml.displayName.toUpperCase().includes(reqBaseName) || ml.displayName.toUpperCase().replace(/_/g, " ").includes(reqBaseName.replace(/_/g, " "))))
+                            )
+                          );
+                          
+                          if (!match) pushMissing(req);
+                        });
+                      }
+                      if (m.twins) {
+                        m.twins.forEach((twin: any) => {
+                          const twinId = typeof twin === 'string' ? twin : twin.id || twin.dbId;
+                          const twinName = typeof twin === 'string' ? twin : twin.name;
+                          const twinBaseName = twinName?.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "").toUpperCase();
+                          const isTwinNumeric = !isNaN(Number(twinName));
+                          const match = modList.find((ml: any) => 
+                            !ml.isVirtual && 
+                            ml.hash !== m.hash && 
+                            (
+                              (twinId && String(ml.dbId) === String(twinId)) || 
+                              (twinId && ml.hash === twinId) ||
+                              (!isTwinNumeric && twinBaseName && ml.displayName && (ml.displayName.toUpperCase().includes(twinBaseName) || ml.displayName.toUpperCase().replace(/_/g, " ").includes(twinBaseName.replace(/_/g, " "))))
+                            )
+                          );
+                          
+                          if (!match) pushMissing(twin);
+                        });
+                      }
+
+                    };
+
+                    checkModDeps(mod);
+                    if (mod.isVirtual && mod.flavors) {
+                      mod.flavors.forEach(checkModDeps);
+                    }
+
                     return (
                       <div key={mainKey} className="contents">
                         <ModCard
@@ -403,9 +524,10 @@ export default function Collection(props: any) {
                           maskedDLC={maskedDLC}
                           isInActiveSet={isEquipped}
                           casualtyList={casualties.join(", ")}
-                          onToggleSet={(e: any) => {
+                          missingDeps={missingReqs}
+                          onToggleSet={(e: any, excludeBroken?: boolean) => {
                             e.stopPropagation();
-                            toggleInActiveSet(mod.name);
+                            toggleInActiveSet(mod.name, excludeBroken);
                           }}
                           onSelect={() => {
                             setMetaNameInput(mod.displayName || mod.name);
@@ -464,9 +586,15 @@ export default function Collection(props: any) {
                                           displayModList.filter(
                                             (m: any) =>
                                               (m.requirements?.some(
-                                                (r: any) =>
-                                                  String(r) ===
-                                                  String(current.dbId),
+                                                (r: any) => {
+                                                  const reqId = typeof r === 'string' ? r : r.id || r.dbId;
+                                                  const reqName = typeof r === 'string' ? r : r.name;
+                                                  const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "").toUpperCase();
+                                                  const isReqNumeric = !isNaN(Number(reqName));
+                                                  return (reqId && String(current.dbId) === String(reqId)) ||
+                                                         (reqId && current.hash === reqId) ||
+                                                         (!isReqNumeric && reqBaseName && current.displayName && (current.displayName.toUpperCase().includes(reqBaseName) || current.displayName.toUpperCase().replace(/_/g, " ").includes(reqBaseName.replace(/_/g, " "))));
+                                                }
                                               ) ||
                                                 (String(m.familyId) ===
                                                   String(
@@ -502,12 +630,19 @@ export default function Collection(props: any) {
                                       (c: any) => c.name !== flavor.name,
                                     );
                                   }
-                                  const isConfirming =
-                                    drawerConfirmHash === flavor.hash;
+                                  const missingPacks = flavor.requiredDLC?.filter((p: string) => !ownedDLC.includes(p) || maskedDLC.includes(p)) || [];
+                                  const hasMissingDeps = flavor.missingReqs && flavor.missingReqs.length > 0;
+                                  const isFlavorGhosted = missingPacks.length > 0 || hasMissingDeps;
+                                  
+                                  if (flavor.displayName?.toUpperCase().includes("MC ") || flavor.name?.toUpperCase().includes("MC")) {
+                                    console.log("DRAWER FLAVOR RENDER:", flavor.name || flavor.displayName, "ghosted:", isFlavorGhosted, "missingReqs:", flavor.missingReqs, "reqs:", flavor.requirements);
+                                  }
+
+                                  const isConfirming = drawerConfirmHash === flavor.hash;
                                   return (
                                     <div
                                       key={`sub-${flavor.hash}-${subIdx}`}
-                                      className={`p-3 border rounded-xl relative flex transition-all cursor-pointer min-h-[56px] ${isConfirming ? "bg-transparent border-transparent flex-col items-stretch p-0" : "bg-black/40 border-white/5 hover:theme-border-accent items-center justify-between"}`}
+                                      className={`p-3 border rounded-xl relative flex transition-all cursor-pointer min-h-[56px] group/flavorshadow ${isConfirming ? "bg-transparent border-transparent flex-col items-stretch p-0" : isFlavorGhosted ? "bg-red-950/20 border-[var(--danger)]/30 hover:border-[var(--danger)]/50 opacity-50 grayscale" : "bg-black/40 border-white/5 hover:theme-border-accent"} ${isConfirming ? "" : "items-center justify-between"}`}
                                       onClick={() => {
                                         if (!isConfirming) {
                                           setMetaNameInput(
@@ -523,6 +658,13 @@ export default function Collection(props: any) {
                                         }
                                       }}
                                     >
+                                      {isFlavorGhosted && !isConfirming && (
+                                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-[70] hidden group-hover/flavorshadow:flex bg-black/90 backdrop-blur-md border border-[var(--danger)] px-3 py-1.5 rounded-lg shadow-[0_0_15px_rgba(var(--danger-rgb),0.5)] items-center justify-center whitespace-nowrap text-[9px] font-black theme-text-danger max-w-[250px] pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="truncate">
+                                              {hasMissingDeps ? `MISSING ARTIFACT: ${flavor.missingReqs.map((d: string) => d.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "")).join(", ")}` : `MISSING DLC: ${missingPacks.join(", ")}`}
+                                            </div>
+                                          </div>
+                                        )}
                                       {isConfirming ? (
                                         <div
                                           className="w-full flex flex-col rounded-2xl border-2 theme-border-danger p-4 animate-in fade-in zoom-in-95 shadow-xl"
@@ -530,35 +672,85 @@ export default function Collection(props: any) {
                                             backgroundColor: "var(--bg)",
                                           }}
                                         >
-                                          <div className="flex items-center gap-2 mb-3 shrink-0">
-                                            <div className="flex flex-col">
-                                              <span className="text-[10px] font-black theme-text-danger uppercase tracking-widest">
-                                                {t("modcard_yeet_cascade")}
-                                              </span>
-                                              <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-tighter">
-                                                {t(
-                                                  "modcard_override_exclusive",
-                                                )}
-                                              </span>
-                                            </div>
-                                          </div>
-                                          <div className="flex-1 flex flex-col gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1 mb-4">
-                                            <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">
-                                              {t("modcard_artifacts_removed")}
-                                            </p>
-                                            {drawerCasualties.map((r: any) => (
-                                              <div
-                                                key={r.hash || r.name}
-                                                className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold text-[var(--text)]/80 truncate flex items-center gap-2"
-                                              >
-                                                {(
-                                                  r.displayName ||
-                                                  r.name ||
-                                                  ""
-                                                ).replace(/_/g, " ")}
+                                          {isFlavorGhosted && !isFlavorEquipped ? (
+                                            <>
+                                              <div className="flex items-center gap-2 mb-3 shrink-0">
+                                                <div className="flex flex-col">
+                                                  <span className="text-[10px] font-black theme-text-danger uppercase tracking-widest">
+                                                    MISSING DEPENDENCIES
+                                                  </span>
+                                                  <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-tighter">
+                                                    PROCEED WITH CAUTION
+                                                  </span>
+                                                </div>
                                               </div>
-                                            ))}
-                                          </div>
+                                              <div className="flex-1 flex flex-col gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1 mb-4">
+                                                {hasMissingDeps ? (
+                                                  <>
+                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">Missing Artifacts:</p>
+                                                    {flavor.missingReqs.map((req: any) => {
+                                                      const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
+                                                      const reqUrl = typeof req === 'string' ? null : req.url;
+                                                      const cleanName = reqIdStr.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "") || reqIdStr;
+                                                      const searchUrl = reqUrl || `https://www.google.com/search?q=Sims+4+${encodeURIComponent(cleanName)}`;
+                                                      return (
+                                                        <a 
+                                                          key={reqIdStr} 
+                                                          href="#" 
+                                                          className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex items-center justify-between gap-2 mb-1 hover:bg-white/10 transition-colors cursor-pointer" 
+                                                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); openUrl(searchUrl); }}
+                                                        >
+                                                          <span className="truncate">{cleanName}</span>
+                                                          <span className="text-[10px] opacity-70">🔗</span>
+                                                        </a>
+                                                      );
+                                                    })}
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">Missing DLC Packs:</p>
+                                                    {missingPacks.map((p: string) => (
+                                                      <div key={p} className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex items-center gap-2 mb-1">
+                                                        {p}
+                                                      </div>
+                                                    ))}
+                                                  </>
+                                                )}
+                                              </div>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <div className="flex items-center gap-2 mb-3 shrink-0">
+                                                <div className="flex flex-col">
+                                                  <span className="text-[10px] font-black theme-text-danger uppercase tracking-widest">
+                                                    {t("modcard_yeet_cascade")}
+                                                  </span>
+                                                  <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-tighter">
+                                                    {t(
+                                                      "modcard_override_exclusive",
+                                                    )}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                              <div className="flex-1 flex flex-col gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1 mb-4">
+                                                <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">
+                                                  {t("modcard_artifacts_removed")}
+                                                </p>
+                                                {drawerCasualties.map((r: any) => (
+                                                  <div
+                                                    key={r.hash || r.name}
+                                                    className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold text-[var(--text)]/80 truncate flex items-center gap-2"
+                                                  >
+                                                    {(
+                                                      r.displayName ||
+                                                      r.name ||
+                                                      ""
+                                                    ).replace(/_/g, " ")}
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </>
+                                          )}
                                           <div className="flex gap-2 pt-3 border-t border-white/10 shrink-0">
                                             <button
                                               onClick={(e) => {
@@ -634,7 +826,9 @@ export default function Collection(props: any) {
                                             <button
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                if (
+                                                if (!isFlavorEquipped && isFlavorGhosted) {
+                                                  setDrawerConfirmHash(flavor.hash);
+                                                } else if (
                                                   drawerCasualties.length > 0
                                                 ) {
                                                   setDrawerConfirmHash(
@@ -666,6 +860,27 @@ export default function Collection(props: any) {
                     );
                   })}
               </div>
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-4 mb-12">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5"
+                  >
+                    {t("nav_prev") || "PREV"}
+                  </button>
+                  <span className="text-[12px] font-black uppercase tracking-widest text-[var(--subtext)] px-4">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5"
+                  >
+                    {t("nav_next") || "NEXT"}
+                  </button>
+                </div>
+              )}
               {quarantineList.length > 0 && (
                 <div
                   id="quarantine-zone"
