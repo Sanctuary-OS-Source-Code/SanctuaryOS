@@ -10,6 +10,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [loadingSession, setLoadingSession] = useState(true);
 
   const [isLogin, setIsLogin] = useState(true);
+  const [isResetPassword, setIsResetPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -33,6 +34,26 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isResetPassword) {
+      if (!email) {
+        setStatus(t("auth_err_missing"));
+        return;
+      }
+      setIsProcessing(true);
+      setStatus(t("auth_status_authenticating"));
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        if (error) throw error;
+        setStatus(t("auth_status_reset_sent"));
+      } catch (err: any) {
+        setStatus(`${t("auth_err_validation")}${err.message}`);
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
+
     if (!email || !password || (!isLogin && !username)) {
       setStatus(t("auth_err_missing"));
       return;
@@ -91,7 +112,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         </p>
 
         <form onSubmit={handleAuth} className="flex flex-col gap-4">
-          {!isLogin && (
+          {!isLogin && !isResetPassword && (
             <input
               type="text"
               value={username}
@@ -109,20 +130,22 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             className="w-full bg-black/40 border border-white/10 px-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)]"
           />
           
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={t("auth_placeholder_password")}
-            className="w-full bg-black/40 border border-white/10 px-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)]"
-          />
+          {!isResetPassword && (
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={t("auth_placeholder_password")}
+              className="w-full bg-black/40 border border-white/10 px-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)]"
+            />
+          )}
 
           <button
             type="submit"
             disabled={isProcessing}
             className="w-full mt-4 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all theme-bg-accent text-[var(--bg)] hover:scale-[1.02] active:scale-95 shadow-lg disabled:opacity-50 disabled:scale-100"
           >
-            {isLogin ? t("auth_btn_login") : t("auth_btn_signup")}
+            {isResetPassword ? t("auth_btn_send_reset") : isLogin ? t("auth_btn_login") : t("auth_btn_signup")}
           </button>
         </form>
 
@@ -136,11 +159,30 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         </div>
 
         <div className="mt-6 flex flex-col items-center gap-4 border-t border-white/10 pt-6">
+          {!isResetPassword && (
+            <button
+              type="button"
+              onClick={() => { setIsResetPassword(true); setStatus(""); }}
+              className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--accent)] transition-colors"
+            >
+              {t("auth_toggle_to_reset")}
+            </button>
+          )}
+
           <button
-            onClick={() => { setIsLogin(!isLogin); setStatus(""); }}
+            type="button"
+            onClick={() => { 
+              if (isResetPassword) {
+                setIsResetPassword(false);
+                setIsLogin(true);
+              } else {
+                setIsLogin(!isLogin); 
+              }
+              setStatus(""); 
+            }}
             className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--accent)] transition-colors"
           >
-            {isLogin ? t("auth_toggle_to_signup") : t("auth_toggle_to_login")}
+            {isResetPassword ? t("auth_toggle_to_login_from_reset") : isLogin ? t("auth_toggle_to_signup") : t("auth_toggle_to_login")}
           </button>
           
           <div className="flex items-center gap-2 mt-2 bg-black/40 px-4 py-2 rounded-lg border border-white/5 w-full">
