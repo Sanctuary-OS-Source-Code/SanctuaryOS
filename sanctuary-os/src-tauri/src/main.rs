@@ -1974,17 +1974,27 @@ fn ingest_dropped_file(
         let cache = load_cache(&config.vault_path);
         let mut exists = false;
         let mut existing_name = String::new();
+        let mut match_reason = String::new();
+        let source_file_name = source.file_name().unwrap_or_default();
+        
         for (k, v) in cache.iter() {
-            if v.dna_hash == hash && !hash.is_empty() {
-                if Path::new(k).exists() {
+            if Path::new(k).exists() {
+                if v.dna_hash == hash && !hash.is_empty() {
                     exists = true;
                     existing_name = k.clone();
+                    match_reason = "DNA_MATCH".to_string();
                     break;
+                } else if Path::new(k).file_name() == Some(source_file_name) {
+                    exists = true;
+                    existing_name = k.clone();
+                    match_reason = "NAME_MATCH".to_string();
+                    // We don't break immediately, because a DNA match is a stronger match, 
+                    // but if we only find a name match, it's probably an update!
                 }
             }
         }
         if exists {
-            let _ = app.emit("dna_match_detected", serde_json::json!({ "path": path, "hash": hash, "existing_name": existing_name, "source_action": "ingest_dropped_file" }));
+            let _ = app.emit("dna_match_detected", serde_json::json!({ "path": path, "hash": hash, "existing_name": existing_name, "source_action": "ingest_dropped_file", "reason": match_reason }));
             return Err("DNA_MATCH".into());
         }
     }
@@ -1996,7 +2006,12 @@ fn ingest_dropped_file(
         .unwrap_or("")
         .to_lowercase();
 
-    let target_dir = Path::new(&config.vault_path).join("Mods");
+    let mut target_dir = Path::new(&config.vault_path).join("Mods");
+    if source.is_file() && (ext == "package" || ext == "ts4script") {
+        if let Some(stem) = source.file_stem() {
+            target_dir = target_dir.join(stem);
+        }
+    }
 
     std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
     let target = target_dir.join(file_name);
