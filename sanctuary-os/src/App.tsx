@@ -112,7 +112,10 @@ function App() {
     }
     checkForUpdates();
 
+    let isProcessingDrop = false;
     const unlistenPromise = getCurrentWebview().onDragDropEvent((event) => {
+      if (isProcessingDrop) return;
+      
       if (event.payload.type === "enter" || event.payload.type === "over") {
         setIsDragging(true);
       } else if (event.payload.type === "leave") {
@@ -121,8 +124,15 @@ function App() {
         setIsDragging(false);
         const paths = event.payload.paths;
         if (paths && paths.length > 0) {
+          isProcessingDrop = true;
           setIsDropzoneOpen(true);
-          handleDroppedFiles(paths);
+          setDropzoneState("ingesting");
+          
+          // Give React a tiny bit of time to render the 'INGESTING...' UI before we block the thread
+          setTimeout(async () => {
+             await handleDroppedFiles(paths);
+             isProcessingDrop = false;
+          }, 100);
         }
       }
     });

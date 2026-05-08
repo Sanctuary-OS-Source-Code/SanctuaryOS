@@ -1976,9 +1976,11 @@ fn ingest_dropped_file(
         let mut existing_name = String::new();
         for (k, v) in cache.iter() {
             if v.dna_hash == hash && !hash.is_empty() {
-                exists = true;
-                existing_name = k.clone();
-                break;
+                if Path::new(k).exists() {
+                    exists = true;
+                    existing_name = k.clone();
+                    break;
+                }
             }
         }
         if exists {
@@ -1994,23 +1996,15 @@ fn ingest_dropped_file(
         .unwrap_or("")
         .to_lowercase();
 
-    let mut target_dir = Path::new(&config.vault_path).join("Mods");
-    if source.is_file() && (ext == "package" || ext == "ts4script") {
-        if let Some(stem) = source.file_stem() {
-            target_dir = target_dir.join(stem);
-        }
-    }
+    let target_dir = Path::new(&config.vault_path).join("Mods");
 
     std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
     let target = target_dir.join(file_name);
 
     if source.is_dir() {
         // Move directory
-        if let Err(_) = std::fs::rename(source, &target) {
-            // Fallback if cross-drive
-            let _ = deploy_air_gap(source, &target);
-            let _ = std::fs::remove_dir_all(source);
-        }
+        // Fallback if cross-drive
+        let _ = deploy_air_gap(source, &target);
     } else {
         let ext = source
             .extension()
@@ -2018,10 +2012,8 @@ fn ingest_dropped_file(
             .unwrap_or("")
             .to_lowercase();
         if ext == "package" || ext == "ts4script" || ext == "zip" || ext == "7z" || ext == "rar" || ext == "dat" || ext == "cfg" || ext == "ini" || ext == "json" {
-            if let Err(_) = std::fs::rename(source, &target) {
-                std::fs::copy(source, &target).map_err(|e| e.to_string())?;
-                let _ = std::fs::remove_file(source);
-            }
+            // Always copy, do not remove the source file to prevent "eating" user files
+            std::fs::copy(source, &target).map_err(|e| e.to_string())?;
         } else {
             return Err("UNSUPPORTED_ARTIFACT_TYPE".into());
         }
@@ -2046,7 +2038,6 @@ fn resolve_dna_match(
                 let _ = std::fs::create_dir_all(parent);
             }
             if std::fs::copy(source, existing).is_ok() {
-                let _ = std::fs::remove_file(source);
                 // Update mtime to now
                 let now = filetime::FileTime::now();
                 let _ = filetime::set_file_times(existing, now, now);
