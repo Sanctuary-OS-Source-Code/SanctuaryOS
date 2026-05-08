@@ -2873,8 +2873,10 @@ function App() {
         onSearchNetwork={searchGlobalNetwork}
         cloudResults={cloudSearchResults}
         isSearching={isSearchingCloud}
-        allow_write={metaAllowWriteInput}
+        allow_write={true}
         onCloudUpload={uploadBlueprintToCloud}
+        vaultPath={vaultPath}
+        onRefreshMods={runRadarSweep}
       />
 
       <AppModals

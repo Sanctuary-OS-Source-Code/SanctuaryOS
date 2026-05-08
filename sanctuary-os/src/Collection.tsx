@@ -661,7 +661,7 @@ export default function Collection(props: any) {
                                       {isFlavorGhosted && !isConfirming && (
                                           <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-[70] hidden group-hover/flavorshadow:flex bg-black/90 backdrop-blur-md border border-[var(--danger)] px-3 py-1.5 rounded-lg shadow-[0_0_15px_rgba(var(--danger-rgb),0.5)] items-center justify-center whitespace-nowrap text-[9px] font-black theme-text-danger max-w-[250px] pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-2">
                                             <div className="truncate">
-                                              {hasMissingDeps ? `MISSING ARTIFACT: ${flavor.missingReqs.map((d: string) => d.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "")).join(", ")}` : `MISSING DLC: ${missingPacks.join(", ")}`}
+                                              {hasMissingDeps ? `MISSING ARTIFACT: ${flavor.missingReqs.map((d: any) => String(typeof d === 'string' ? d : (d.id || d.name || '')).split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "")).join(", ")}` : `MISSING DLC: ${missingPacks.join(", ")}`}
                                             </div>
                                           </div>
                                         )}
@@ -760,16 +760,16 @@ export default function Collection(props: any) {
                                               }}
                                               className="flex-1 py-2.5 theme-bg-danger text-[var(--bg)] font-black rounded-xl text-[9px] uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]"
                                             >
-                                              {t("vault_btn_confirm")}
+                                              {t("modcard_btn_proceed")}
                                             </button>
                                             <button
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 setDrawerConfirmHash(null);
                                               }}
-                                              className="flex-1 py-2.5 bg-white/5 text-[var(--text)]/60 font-black rounded-xl text-[9px] uppercase tracking-widest border border-white/10 hover:bg-white/10 transition-all"
+                                              className="flex-1 py-2.5 theme-bg-success text-[var(--bg)] font-black rounded-xl text-[9px] uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_10px_rgba(var(--success-rgb),0.4)]"
                                             >
-                                              {t("vault_btn_abort")}
+                                              {t("modcard_btn_safety")}
                                             </button>
                                           </div>
                                         </div>

@@ -303,6 +303,7 @@ function MasonRegistry({ masonId }: { masonId: string }) {
         allow_write: activeMod.allow_write,
         category_override: activeMod.category_override,
         sub_type: activeMod.sub_type,
+        status: activeMod.status,
       }).eq('id', activeMod.id);
       fetchData();
       showToast(t("mason_saved_success"), 'success');
@@ -373,7 +374,10 @@ function MasonRegistry({ masonId }: { masonId: string }) {
                 <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono focus:outline-none focus:theme-border-accent" />
               </div>
 
-              
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">Condition Protocol</label>
+                <MasonStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({...activeMod, status: newStatus})} />
+              </div>
             </div>
 
             <div className="mt-8 pt-8 border-t border-white/10 space-y-6">
@@ -755,6 +759,58 @@ function ModSearchDropdown({
                 No direct match - custom entry allowed
               </div>
             )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function MasonStatusDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+  const { t } = useLexicon();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const options =[
+    { id: 'under_review', label: t("status_dd_verified") + " (Queues for Approval)", color: 'theme-text-warning', glow: 'theme-bg-warning' },
+    { id: 'broken', label: t("status_dd_broken"), color: 'theme-text-danger', glow: 'theme-bg-danger' },
+    { id: 'unverified', label: t("status_dd_unverified"), color: 'text-[var(--subtext)] opacity-80', glow: 'bg-white/10' },
+  ];
+
+  // If the mod is currently 'verified', we can display it but not allow selecting it again
+  if (value === 'verified') {
+     options.unshift({ id: 'verified', label: t("status_dd_verified"), color: 'theme-text-success', glow: 'theme-bg-success' });
+  }
+
+  const selected = options.find(o => o.id === value) || options.find(o => o.id === 'unverified') || options[0];
+
+  return (
+    <div className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full theme-glass-inner rounded-xl px-5 py-3 text-sm font-black uppercase tracking-widest focus:outline-none flex justify-between items-center transition-all ${selected.color}`}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`w-2 h-2 rounded-full ${selected.glow}`} />
+          {selected.label}
+        </div>
+        <span className="text-[var(--subtext)] opacity-60 text-[10px]">{isOpen ? '▲' : '▼'}</span>
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--sidebar)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+            {options.filter(o => o.id !== 'verified' || value === 'verified').map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => { onChange(opt.id); setIsOpen(false); }}
+                className={`w-full text-left px-5 py-3 text-xs font-black uppercase tracking-widest transition-all hover:bg-white/5 flex items-center gap-3 ${opt.color}`}
+              >
+                <div className={`w-2 h-2 rounded-full ${opt.glow} opacity-50`} />
+                {opt.label}
+              </button>
+            ))}
           </div>
         </>
       )}

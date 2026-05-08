@@ -50,8 +50,8 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
     
     if (deepDeps.length === 0) return []; // no cascade
     
-    const cleanTarget = (target.displayName || target.name.split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '');
-    const cleanDeps = deepDeps.map((d: any) => (d.displayName || d.name.split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, ''));
+    const cleanTarget = (target.displayName || (target.name || "").split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '');
+    const cleanDeps = deepDeps.map((d: any) => (d.displayName || (d.name || "").split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, ''));
     
     return [cleanTarget, ...cleanDeps];
   };
@@ -461,22 +461,22 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
             
             <div className="px-8 pt-6 pb-2 relative">
               <button onClick={() => setShowFlagModal(false)} className="absolute top-6 right-6 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--subtext)] hover:text-[var(--text)] rounded-full flex items-center justify-center transition-all shadow-xl">✕</button>
-              <h3 className="text-2xl font-black text-[var(--text)] uppercase truncate">Flag Content</h3>
-              <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">Select a reason to flag this mod for Architect review.</p>
+              <h3 className="text-2xl font-black text-[var(--text)] uppercase truncate">{t("dossier_flag_title")}</h3>
+              <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("dossier_flag_desc")}</p>
             </div>
             
             <div className="p-8 flex flex-col gap-4">
                <button onClick={() => handleFlagMod('Outdated Information')} className="w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-lg hover:scale-[1.02] active:scale-95 border bg-black/40 hover:bg-black/60 text-[var(--text)] border-white/10 hover:border-white/30">
-                 Outdated Information
+                 {t("dossier_flag_outdated")}
                </button>
                <button onClick={() => handleFlagMod('Inaccurate Information')} className="w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-lg hover:scale-[1.02] active:scale-95 border bg-black/40 hover:bg-black/60 text-[var(--text)] border-white/10 hover:border-white/30">
-                 Inaccurate Information
+                 {t("dossier_flag_inaccurate")}
                </button>
                <button onClick={() => handleFlagMod('NSFW')} className="w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-lg hover:scale-[1.02] active:scale-95 border theme-panel-warning theme-btn-warning !text-[var(--text)]">
-                 NSFW Content
+                 {t("dossier_flag_nsfw")}
                </button>
                <button onClick={() => handleFlagMod('adult')} className="w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-lg hover:scale-[1.02] active:scale-95 border theme-panel-danger theme-btn-danger !text-[var(--text)]">
-                 Adult Content
+                 {t("dossier_flag_adult")}
                </button>
             </div>
           </div>

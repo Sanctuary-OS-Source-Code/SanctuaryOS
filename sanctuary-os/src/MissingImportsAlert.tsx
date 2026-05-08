@@ -53,15 +53,18 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
                   );
                 })}
               </div>
-              <div className="flex gap-3 shrink-0 pt-2 border-t border-white/10">
-                <button onClick={() => { setMissingImportMods(null); setPendingImportSet(null); }} className="flex-1 py-3 theme-btn-standard font-black text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/5">
-                  {t("modal_btn_cancel")}
+              <div className="flex gap-2 pt-3 border-t border-white/10 shrink-0">
+                <button 
+                  onClick={() => finalizeImport(pendingImportSet)} 
+                  className="flex-1 py-2.5 theme-bg-danger text-[var(--bg)] font-black rounded-xl text-[9px] uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]"
+                >
+                  {t("modal_btn_confirm") || "CONFIRM"}
                 </button>
-                <button onClick={() => { finalizeImport(pendingImportSet); setMissingImportMods(null); }} className="flex-1 py-3 theme-btn-standard hover:theme-bg-success hover:text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all">
-                  {t("modal_btn_skip_all")}
-                </button>
-                <button onClick={() => finalizeImport(pendingImportSet)} className="flex-1 py-3 theme-btn-standard hover:theme-bg-warning hover:text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all">
-                  {t("modal_btn_import_anyway")}
+                <button 
+                  onClick={() => { setMissingImportMods(null); setPendingImportSet(null); }} 
+                  className="flex-1 py-2.5 theme-bg-success text-[var(--bg)] font-black rounded-xl text-[9px] uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_10px_rgba(var(--success-rgb),0.4)]"
+                >
+                  {t("modal_btn_abort") || "ABORT"}
                 </button>
               </div>
             </div>

@@ -404,10 +404,36 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                 <div className="theme-glass-inner rounded-2xl p-4 flex flex-col gap-2 h-full">
                   {Array.isArray(activeMaster.mod_versions) && activeMaster.mod_versions.length > 0 ? (
                     activeMaster.mod_versions.map((ver: any) => (
-                      <div key={ver.id} className="flex justify-between items-center bg-white/5 border border-white/5 px-4 py-2 rounded-lg hover:border-white/20 transition-colors">
-                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 truncate w-1/2" title={String(ver.dna_hash || '')}>{String(ver.dna_hash || '')}</span>
-                        <span className="text-[9px] font-black theme-text-accent uppercase tracking-widest">{String(ver.version_label || '')}</span>
-                        <button className="theme-text-danger hover:theme-panel-danger px-2 py-1 rounded text-[9px] font-black transition-colors shrink-0">{t("registry_btn_sever")}</button>
+                      <div key={ver.id} className={`flex justify-between items-center bg-white/5 border ${ver.version_label === activeMaster.latest_version ? 'border-green-500/50' : 'border-white/5'} px-4 py-2 rounded-lg hover:border-white/20 transition-colors`}>
+                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 truncate w-1/4" title={String(ver.dna_hash || '')}>{String(ver.dna_hash || '')}</span>
+                        <input
+                          value={String(ver.version_label || '')}
+                          onChange={(e) => {
+                            const newVers = activeMaster.mod_versions.map((v: any) => v.id === ver.id ? { ...v, version_label: e.target.value } : v);
+                            setActiveMaster({ ...activeMaster, mod_versions: newVers });
+                            supabase.from('mod_versions').update({ version_label: e.target.value }).eq('id', ver.id).then();
+                          }}
+                          className="bg-transparent border-b border-white/10 focus:border-white focus:outline-none text-[9px] font-black theme-text-accent uppercase tracking-widest text-center w-1/4 mx-2"
+                        />
+                        <div className="flex items-center gap-2 shrink-0">
+                          {ver.version_label === activeMaster.latest_version ? (
+                            <span className="text-[9px] font-black text-green-400 uppercase tracking-widest px-2 py-1 bg-green-500/10 rounded">Active</span>
+                          ) : (
+                            <button 
+                              onClick={async () => {
+                                setActiveMaster({ ...activeMaster, latest_version: ver.version_label });
+                                await supabase.from('mods').update({ latest_version: ver.version_label }).eq('id', activeMaster.id);
+                              }} 
+                              className="text-[9px] font-black text-[var(--text)] uppercase tracking-widest px-2 py-1 bg-white/10 hover:bg-white/20 rounded transition-colors"
+                            >
+                              Make Active
+                            </button>
+                          )}
+                          <button onClick={async () => {
+                            await supabase.from('mod_versions').delete().eq('id', ver.id);
+                            setActiveMaster({ ...activeMaster, mod_versions: activeMaster.mod_versions.filter((v: any) => v.id !== ver.id) });
+                          }} className="theme-text-danger hover:theme-panel-danger px-2 py-1 rounded text-[9px] font-black transition-colors">{t("registry_btn_sever")}</button>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -431,7 +457,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                     {Array.isArray(activeDependencies) && activeDependencies.length > 0 ? activeDependencies.map(dep => (
                       <div key={dep.id} className="flex justify-between items-center theme-panel-warning border px-3 py-2 rounded-lg">
                         <span className="text-[10px] font-bold theme-text-warning uppercase truncate">{String(dep.name || '')}</span>
-                        <button onClick={() => handleRemoveProtocol(dep.id, 'dependency')} className="theme-text-danger hover:opacity-80 text-[10px] font-black"></button>
+                        <button onClick={() => handleRemoveProtocol(dep.id, 'dependency')} className="theme-text-danger hover:opacity-80 text-[10px] font-black">X</button>
                       </div>
                     )) : <span className="text-[10px] text-gray-600 font-bold tracking-widest uppercase p-2 text-center block">{t("registry_none_linked")}</span>}
                     <button onClick={() => setModalMode('dependency')} className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[9px] font-black text-[var(--text)]/50 uppercase tracking-widest transition-all border border-white/5">{t("registry_btn_require")}</button>
@@ -442,7 +468,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                     <div className="flex flex-wrap gap-2 mb-1">
                       {Array.isArray(activeMaster.requiredDLC) && activeMaster.requiredDLC.length > 0 ? activeMaster.requiredDLC.map((pack: string) => (
                         <div key={pack} className="flex items-center gap-1 theme-panel-success border px-2 py-1 rounded text-[9px] font-bold theme-text-success uppercase animate-in zoom-in-95">
-                          {String(pack)} <button onClick={() => removeDLC(pack)} className="ml-1 theme-text-danger hover:opacity-80 font-black"></button>
+                          {String(pack)} <button onClick={() => removeDLC(pack)} className="ml-1 theme-text-danger hover:opacity-80 font-black">X</button>
                         </div>
                       )) : (
                         <span className="text-[10px] text-gray-600 font-bold tracking-widest uppercase py-1">{t("registry_base_game")}</span>
@@ -462,25 +488,25 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                     {Array.isArray(activeAddons) && activeAddons.map(addon => (
                       <div key={addon.id} className="flex justify-between items-center px-3 py-1.5 theme-panel-success border rounded-md">
                         <span className="text-[9px] font-bold theme-text-success uppercase truncate">{t("registry_bond_addon")}{String(addon.name || '')}</span>
-                        <button onClick={() => handleRemoveProtocol(addon.id, 'addon')} className="theme-text-danger text-[10px] font-black hover:opacity-80"></button>
+                        <button onClick={() => handleRemoveProtocol(addon.id, 'addon')} className="theme-text-danger text-[10px] font-black hover:opacity-80">X</button>
                       </div>
                     ))}
                     {Array.isArray(activeTwins) && activeTwins.map(twin => (
                       <div key={twin.id} className="flex justify-between items-center px-3 py-1.5 theme-panel-accent border rounded-md">
                         <span className="text-[9px] font-bold theme-text-accent uppercase truncate">{t("registry_bond_twin")}{String(twin.name || '')}</span>
-                        <button onClick={() => handleRemoveProtocol(twin.id, 'twin')} className="theme-text-danger text-[10px] font-black hover:opacity-80"></button>
+                        <button onClick={() => handleRemoveProtocol(twin.id, 'twin')} className="theme-text-danger text-[10px] font-black hover:opacity-80">X</button>
                       </div>
                     ))}
                     {Array.isArray(activeRivals) && activeRivals.map(rival => (
                       <div key={rival.id} className="flex justify-between items-center px-3 py-1.5 theme-panel-warning border rounded-md">
                         <span className="text-[9px] font-bold theme-text-warning uppercase truncate">{t("registry_bond_rival")}{String(rival.name || '')}</span>
-                        <button onClick={() => handleRemoveProtocol(rival.id, 'rival')} className="theme-text-danger text-[10px] font-black hover:opacity-80"></button>
+                        <button onClick={() => handleRemoveProtocol(rival.id, 'rival')} className="theme-text-danger text-[10px] font-black hover:opacity-80">X</button>
                       </div>
                     ))}
                     {Array.isArray(activeBetas) && activeBetas.map(beta => (
                       <div key={beta.id} className="flex justify-between items-center px-3 py-1.5 theme-panel-success border rounded-md">
                         <span className="text-[9px] font-bold theme-text-success uppercase truncate">Beta Protocol: {String(beta.name || '')}</span>
-                        <button onClick={() => handleRemoveProtocol(beta.id, 'beta')} className="theme-text-danger text-[10px] font-black hover:opacity-80"></button>
+                        <button onClick={() => handleRemoveProtocol(beta.id, 'beta')} className="theme-text-danger text-[10px] font-black hover:opacity-80">X</button>
                       </div>
                     ))}
                     <div className="grid grid-cols-2 gap-2 mt-2">
@@ -519,7 +545,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                             <span className="text-[11px] font-bold theme-text-danger uppercase truncate">{c.mod_a === activeMaster.name ? c.mod_b : c.mod_a}</span>
                             <div className="flex items-center gap-3">
                               <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded-md text-[9px] font-black uppercase shadow-sm">T{c.severity_rank}</span>
-                              <button type="button" onClick={() => handleDeleteConflict(c.id)} className="theme-text-danger opacity-50 group-hover:opacity-100 hover:!opacity-80 text-[12px] font-black transition-opacity"></button>
+                              <button type="button" onClick={() => handleDeleteConflict(c.id)} className="theme-text-danger opacity-50 group-hover:opacity-100 hover:!opacity-80 text-[12px] font-black transition-opacity">X</button>
                             </div>
                           </div>
                           {c.resolution_note && (
@@ -1872,8 +1898,8 @@ function CommandCenter({ onNavigate }: any = {}) {
                      <div className="flex gap-2 items-center">
                        {currentUserId === msg.sender_id && (
                           <div className="flex gap-2 mr-2">
-                            <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[10px] hover:theme-text-accent transition-colors hover:scale-110"></button>
-                            <button onClick={() => deleteComm(msg.id)} className="text-[10px] hover:theme-text-danger transition-colors hover:scale-110"></button>
+                            <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[10px] hover:theme-text-accent transition-colors hover:scale-110">✏️</button>
+                            <button onClick={() => deleteComm(msg.id)} className="text-[10px] hover:theme-text-danger transition-colors hover:scale-110">✕</button>
                           </div>
                        )}
                        <span className="text-[9px] font-mono text-gray-400">{new Date(msg.created_at).toLocaleTimeString()}</span>

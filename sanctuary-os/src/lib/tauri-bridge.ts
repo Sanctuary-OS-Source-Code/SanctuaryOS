@@ -22,6 +22,7 @@ export const tauriBridge = {
   scanInstalledDlc: (livePath: string) => invoke<string[]>("scan_installed_dlc", { livePath }),
   ripGameVersion: (modsPath: string) => invoke<string>("rip_game_version", { modsPath }),
   saveBlueprint: (path: string, content: string) => invoke("save_blueprint", { path, content }),
+  moveModToPriorityFolder: (vaultPath: string, modName: string, targetFolder: string) => invoke("move_mod_to_priority_folder", { vaultPath, modName, targetFolder }),
   syncSecurityDefinitions: (malware: string[], tier2: string[]) => invoke('sync_security_definitions', { malware, tier2 }),
   listenToVaultChanges: (callback: () => void) => listen("vault_changed", callback),
   listenToScanProgress: (callback: (payload: any) => void) => listen('scan-progress', (event: any) => callback(event.payload)),

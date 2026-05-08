@@ -130,19 +130,19 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
           </div>
 
           <div className="flex gap-2 pt-3 border-t border-white/10 shrink-0">
-            <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 py-2.5 theme-bg-success text-[var(--bg)] font-black rounded-xl text-[9px] uppercase tracking-widest hover:scale-[1.02] transition-transform shadow-[0_0_10px_rgba(var(--success-rgb),0.4)]">Back to Safety</button>
             {confirmMode === 'tier3' ? (
-               <button onClick={(e) => { e.stopPropagation(); onResolveTier3(); setConfirmMode(null); }} className="flex-1 py-2.5 bg-orange-500 text-[var(--bg)] font-black rounded-xl text-[9px] uppercase tracking-widest hover:scale-[1.02] transition-transform shadow-[0_0_10px_rgba(249,115,22,0.4)]">Load Last</button>
+               <button onClick={(e) => { e.stopPropagation(); onResolveTier3(); setConfirmMode(null); }} className="flex-1 py-2.5 bg-orange-500 text-[var(--bg)] font-black rounded-xl text-[9px] uppercase tracking-widest hover:scale-[1.02] transition-transform shadow-[0_0_10px_rgba(249,115,22,0.4)]">{t("modcard_btn_load_last")}</button>
             ) : confirmMode === 'broken' ? (
                <>
-                 <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 py-2.5 bg-white/5 text-[var(--text)]/60 font-black rounded-xl text-[9px] uppercase tracking-widest border border-white/10 hover:bg-white/10 transition-all">Add Not Broken</button>
-                 <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 py-2.5 theme-bg-danger text-[var(--bg)] font-black rounded-xl text-[9px] uppercase tracking-widest hover:scale-[1.02] transition-transform shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]">Proceed Anyways</button>
+                 <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 py-2.5 theme-bg-danger text-[var(--bg)] font-black rounded-xl text-[9px] uppercase tracking-widest hover:scale-[1.02] transition-transform shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]">{t("modcard_btn_proceed")}</button>
+                 <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 py-2.5 bg-white/5 text-[var(--text)]/60 font-black rounded-xl text-[9px] uppercase tracking-widest border border-white/10 hover:bg-white/10 transition-all">{t("modcard_btn_add_not_broken")}</button>
                </>
             ) : (
                <button onClick={(e) => { e.stopPropagation(); onToggleSet(e); setConfirmMode(null); }} className="flex-1 py-2.5 theme-bg-danger text-[var(--bg)] font-black rounded-xl text-[9px] uppercase tracking-widest hover:scale-[1.02] transition-transform shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]">
-                 Proceed Anyways
+                 {t("modcard_btn_proceed")}
                </button>
             )}
+            <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 py-2.5 theme-bg-success text-[var(--bg)] font-black rounded-xl text-[9px] uppercase tracking-widest hover:scale-[1.02] transition-transform shadow-[0_0_10px_rgba(var(--success-rgb),0.4)]">{t("modcard_btn_safety")}</button>
           </div>
         </div>
       )}

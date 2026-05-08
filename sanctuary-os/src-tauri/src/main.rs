@@ -381,7 +381,7 @@ async fn deploy_playset_bulk(
         }
     }
 
-    let config_content = "Priority 500\nPackedFile *.package\nPackedFile */*.package\nPackedFile */*/*.package\nPackedFile */*/*/*.package\nPackedFile */*/*/*/*.package\nPackedFile */Delta/tmscenario1.tmdelta\nPackedFile Data/*Strings.tmcatalog\nPackedFile */Data/*Strings.tmcatalog\n\nPriority 1000\nPackedFile Sanctuary/*.package\nPackedFile Sanctuary/*/*.package\nPackedFile Sanctuary/*/*/*.package";
+    let config_content = "Priority 500\nPackedFile *.package\nPackedFile */*.package\nPackedFile */*/*.package\nPackedFile */*/*/*.package\nPackedFile */*/*/*/*.package\nPackedFile */Delta/tmscenario1.tmdelta\nPackedFile Data/*Strings.tmcatalog\nPackedFile */Data/*Strings.tmcatalog\n\nPriority 1000\nPackedFile Sanctuary/*.package\nPackedFile Sanctuary/*/*.package\nPackedFile Sanctuary/*/*/*.package\n\nPriority 1500\nPackedFile Sanctuary2/*.package\nPackedFile Sanctuary2/*/*.package\nPackedFile Sanctuary2/*/*/*.package\n\nPriority 2000\nPackedFile Sanctuary3/*.package\nPackedFile Sanctuary3/*/*.package\nPackedFile Sanctuary3/*/*/*.package";
     let _ = std::fs::write(mods_dir.join("Resource.cfg"), config_content);
 
     let mut count = 0;
@@ -433,6 +433,7 @@ async fn deploy_playset_bulk(
                 let _ = deploy_junction(&source, &target);
             } else {
                 let _ = std::os::windows::fs::symlink_file(&source, &target)
+                    .or_else(|_| std::fs::hard_link(&source, &target))
                     .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
             }
         } else {
@@ -440,6 +441,7 @@ async fn deploy_playset_bulk(
                 let _ = deploy_air_gap(&source, &target);
             } else {
                 let _ = std::os::windows::fs::symlink_file(&source, &target)
+                    .or_else(|_| std::fs::hard_link(&source, &target))
                     .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
             }
         }
@@ -465,6 +467,7 @@ async fn deploy_playset_bulk(
                                 let dest = target_parent.join(entry.file_name());
                                 if !dest.exists() {
                                     let _ = std::os::windows::fs::symlink_file(&path, &dest)
+                                        .or_else(|_| std::fs::hard_link(&path, &dest))
                                         .or_else(|_| std::fs::copy(&path, &dest).map(|_| ()));
                                 }
                             }
@@ -1153,7 +1156,7 @@ fn move_to_vault(
 #[tauri::command]
 fn set_mod_override(file_name: String, mods_path: String) -> Result<String, String> {
     let mods_dir = PathBuf::from(&mods_path);
-    let config_content = "Priority 500\nPackedFile *.package\nPackedFile */*.package\nPackedFile */*/*.package\nPackedFile */*/*/*.package\nPackedFile */*/*/*/*.package\nPackedFile */Delta/tmscenario1.tmdelta\nPackedFile Data/*Strings.tmcatalog\nPackedFile */Data/*Strings.tmcatalog\n\nPriority 1000\nPackedFile Sanctuary/*.package\nPackedFile Sanctuary/*/*.package\nPackedFile Sanctuary/*/*/*.package";
+    let config_content = "Priority 500\nPackedFile *.package\nPackedFile */*.package\nPackedFile */*/*.package\nPackedFile */*/*/*.package\nPackedFile */*/*/*/*.package\nPackedFile */Delta/tmscenario1.tmdelta\nPackedFile Data/*Strings.tmcatalog\nPackedFile */Data/*Strings.tmcatalog\n\nPriority 1000\nPackedFile Sanctuary/*.package\nPackedFile Sanctuary/*/*.package\nPackedFile Sanctuary/*/*/*.package\n\nPriority 1500\nPackedFile Sanctuary2/*.package\nPackedFile Sanctuary2/*/*.package\nPackedFile Sanctuary2/*/*/*.package\n\nPriority 2000\nPackedFile Sanctuary3/*.package\nPackedFile Sanctuary3/*/*.package\nPackedFile Sanctuary3/*/*/*.package";
     let _ = fs::write(mods_dir.join("Resource.cfg"), config_content);
 
     let source = mods_dir.join(&file_name);
@@ -1242,6 +1245,10 @@ struct BackupProgress {
 
 fn get_all_files(dir: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
+    if dir.is_file() {
+        files.push(dir.to_path_buf());
+        return files;
+    }
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -1286,6 +1293,7 @@ async fn backup_universe(
         let targets = vec![
             ("Saves", sims_docs_path.join("Saves")),
             ("Tray", sims_docs_path.join("Tray")),
+            ("Options.ini", sims_docs_path.join("Options.ini")),
         ];
 
         let mut files_to_backup = Vec::new();
@@ -2116,6 +2124,54 @@ fn auto_detect_paths() -> serde_json::Value {
     })
 }
 
+#[tauri::command]
+async fn move_mod_to_priority_folder(vault_path: String, mod_name: String, target_folder: String) -> Result<String, String> {
+    let vault_mods_lane = if vault_path.ends_with("Mods") {
+        PathBuf::from(&vault_path)
+    } else {
+        PathBuf::from(&vault_path).join("Mods")
+    };
+
+    let mut current_path = vault_mods_lane.join(&mod_name);
+    let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
+    let mut found = false;
+    for f in &folders_to_check {
+        let test_path = if f.is_empty() {
+            vault_mods_lane.join(&mod_name)
+        } else {
+            vault_mods_lane.join(f).join(&mod_name)
+        };
+        if test_path.exists() {
+            current_path = test_path;
+            found = true;
+            break;
+        }
+    }
+
+    if !found {
+        return Err("Mod folder not found in Vault".into());
+    }
+
+    let dest_path = if target_folder.is_empty() {
+        vault_mods_lane.join(&mod_name)
+    } else {
+        let t_folder = vault_mods_lane.join(&target_folder);
+        let _ = std::fs::create_dir_all(&t_folder);
+        t_folder.join(&mod_name)
+    };
+
+    if current_path == dest_path {
+        return Ok("Already in target folder".into());
+    }
+
+    if dest_path.exists() {
+        return Err("Target folder already exists".into());
+    }
+
+    std::fs::rename(&current_path, &dest_path).map_err(|e| e.to_string())?;
+    Ok("Moved successfully".into())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
@@ -2178,7 +2234,8 @@ fn main() {
             sync_security_definitions,
             purge_vault_artifacts,
             initialize_airgap_watch,
-            mark_explicitly_local
+            mark_explicitly_local,
+            move_mod_to_priority_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -135,7 +135,7 @@
   "vault_btn_purge": "PURGE",
   "playsets_title": "Blueprints",
   "playsets_subtitle": "Tactical Loadout Management",
-  "playsets_btn_snapshot": "📸 SNAPSHOT ACTIVE",
+  "playsets_btn_snapshot": "SNAPSHOT ACTIVE",
   "playsets_draft_placeholder": "Blueprint Name...",
   "playsets_btn_save": "SAVE",
   "playsets_btn_cancel": "CANCEL",
@@ -890,5 +890,15 @@
   "feed_no_following": "NO ACTIVE CHANNELS SUBSCRIBED",
   "ui_icon_refresh": "⟳",
   "nav_prev": "PREV",
-  "nav_next": "NEXT"
+  "nav_next": "NEXT",
+  "modcard_btn_proceed": "Proceed Anyways",
+  "modcard_btn_safety": "Back to Safety",
+  "modcard_btn_add_not_broken": "Add Not Broken",
+  "modcard_btn_load_last": "Load Last",
+  "dossier_flag_title": "Flag Content",
+  "dossier_flag_desc": "Select a reason to flag this mod for Architect review.",
+  "dossier_flag_outdated": "Outdated Information",
+  "dossier_flag_inaccurate": "Inaccurate Information",
+  "dossier_flag_nsfw": "NSFW Content",
+  "dossier_flag_adult": "Adult Content"
 }

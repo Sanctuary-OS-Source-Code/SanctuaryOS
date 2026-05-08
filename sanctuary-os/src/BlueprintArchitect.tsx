@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { formatDisplayName, ViewHeader } from "./shared";
+import { formatDisplayName, ViewHeader, CustomDropdown } from "./shared";
 import { useLexicon } from "./LexiconContext";
+import { tauriBridge } from "./lib/tauri-bridge";
 
-export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, toggleInActiveSet, allow_write, onCloudUpload }: any) {
+export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, toggleInActiveSet, allow_write, onCloudUpload, vaultPath, onRefreshMods }: any) {
   const { t } = useLexicon();
   const [localQuery, setLocalQuery] = useState("");
 
@@ -50,8 +51,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
         </div>
 
         <div className="flex-1 flex overflow-hidden">
-          {/* LEFT SIDE: EQUIPPED MODS */}
-          <div className="w-1/2 border-r border-white/5 flex flex-col bg-black/10">
+          <div className="w-full flex flex-col bg-black/10">
             <div className="p-8 border-b border-white/5">
               <h3 className="text-xs font-black text-[var(--text)]/40 uppercase tracking-widest">{t("bp_active_specs")} ({playSet.mods.length})</h3>
             </div>
@@ -63,10 +63,20 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                 </div>
               )}
               {playSet.mods.map((modName: string) => {
-                const isInstalled = modList.some((m: any) => m.name === modName);
+                const modData = modList.find((m: any) => m.name === modName);
+                const isInstalled = !!modData;
+                
+                let currentPriority = "";
+                if (modData && modData.path) {
+                   const firstPart = modData.path.split(/[\/\\]/)[0];
+                   if (["!Sanctuary", "!Sanctuary2", "!Sanctuary3"].includes(firstPart)) {
+                     currentPriority = firstPart;
+                   }
+                }
+
                 return (
-                  <div key={modName} className="group bg-white/5 border border-white/5 p-5 rounded-3xl flex justify-between items-center hover:bg-white/10 transition-all">
-                    <div className="min-w-0 pr-4">
+                  <div key={modName} className="group bg-white/5 border border-white/5 p-5 rounded-3xl flex justify-between items-center hover:bg-white/10 transition-all gap-4">
+                    <div className="min-w-0 flex-1">
                       <p className="text-[var(--text)] font-bold truncate text-sm uppercase tracking-tight">{formatDisplayName(modName)}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <div className={`w-1.5 h-1.5 rounded-full ${isInstalled ? 'theme-bg-success' : 'theme-bg-warning animate-pulse'}`} />
@@ -75,57 +85,35 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                         </span>
                       </div>
                     </div>
+
+                    {isInstalled && allow_write && (
+                       <div className="w-40 shrink-0">
+                         <CustomDropdown
+                           value={currentPriority}
+                           onChange={async (newPrio: string) => {
+                             try {
+                               await tauriBridge.moveModToPriorityFolder(vaultPath, modName, newPrio);
+                               if (onRefreshMods) onRefreshMods();
+                             } catch (e) {
+                               console.error("Failed to move mod priority", e);
+                             }
+                           }}
+                           options={[
+                             { id: "", label: "Default (500)" },
+                             { id: "!Sanctuary", label: "Sanctuary (1000)" },
+                             { id: "!Sanctuary2", label: "Sanctuary 2 (1500)" },
+                             { id: "!Sanctuary3", label: "Sanctuary 3 (2000)" }
+                           ]}
+                         />
+                       </div>
+                    )}
+
                     {allow_write && (
-                      <button onClick={() => toggleInActiveSet(modName)} className="w-10 h-10 rounded-xl theme-panel-danger theme-btn-danger transition-all font-black border">✕</button>
+                      <button onClick={() => toggleInActiveSet(modName)} className="w-10 h-10 shrink-0 rounded-xl theme-panel-danger theme-btn-danger transition-all font-black border">✕</button>
                     )}
                   </div>
                 );
               })}
-            </div>
-          </div>
-
-          {/* RIGHT SIDE: LOCAL BUNKER SEARCH */}
-          <div className="w-1/2 flex flex-col bg-white/5">
-            <div className="p-8 border-b border-white/5 space-y-4">
-              <h3 className="text-xs font-black theme-text-accent opacity-60 uppercase tracking-widest">{t("bp_search_title")}</h3>
-              <div className="flex gap-3">
-                <input 
-                  type="text" 
-                  value={localQuery} 
-                  onChange={(e) => setLocalQuery(e.target.value)} 
-                  placeholder={t("bp_search_placeholder")} 
-                  className="flex-1 bg-black/40 border border-white/10 p-5 rounded-2xl text-[var(--text)] outline-none focus:theme-border-accent transition-all font-bold placeholder:text-[var(--text)]/20" 
-                />
-              </div>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-8 space-y-3 custom-scrollbar">
-              {searchResults.length > 0 ? (
-                searchResults.map((mod: any) => {
-                  const isInSet = playSet.mods.includes(mod.name);
-                  return (
-                    <div key={mod.hash || mod.name} className="bg-black/20 border border-white/5 p-5 rounded-3xl flex justify-between items-center hover:bg-black/40 transition-all">
-                      <div className="min-w-0 pr-4">
-                        <p className="text-[var(--text)] font-bold truncate text-sm uppercase tracking-tight">{mod.displayName || mod.name}</p>
-                        <p className="text-[9px] font-black theme-text-accent opacity-40 uppercase tracking-widest mt-1">{t("bp_creator")} {mod.author || t("bp_unknown_creator")}</p>
-                      </div>
-                      {allow_write && (
-                        <button 
-                          onClick={() => toggleInActiveSet(mod.name)} 
-                          className={`px-6 py-3 rounded-xl font-black text-[10px] tracking-widest transition-all border ${isInSet ? 'theme-panel-danger theme-btn-danger' : 'theme-panel-success theme-btn-success'}`}
-                        >
-                          {isInSet ? t("bp_btn_remove") : t("bp_btn_add")}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center opacity-10 space-y-4">
-                  <span className="text-6xl">📦</span>
-                  <p className="uppercase font-black tracking-widest">{t("bp_no_matches")}</p>
-                </div>
-              )}
             </div>
           </div>
         </div>

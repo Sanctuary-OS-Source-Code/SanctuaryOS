@@ -3,8 +3,8 @@ import { createContext, useContext, useState, useEffect } from 'react';
 const CORE_THEMES: any = {
   architect: { name: "Architect", bg: "#0f172a", sidebar: "#1e293b", accent: "#38bdf8", text: "#f1f5f9", subtext: "#94a3b8", success: "#22c55e", warning: "#f59e0b", danger: "#ef4444" },
   bunker: { name: "Bunker", bg: "#000000", sidebar: "#0d0d0d", accent: "#00ff41", text: "#ffffff", subtext: "#ffffff", success: "#00ff41", warning: "#ffea00", danger: "#ff003c" },
-  clean: { name: "Clean Room", bg: "#E3E3E3", sidebar: "#8C8C8C", accent: "#8C8C8C", text: "#000000", subtext: "#000000", success: "#00ff41", warning: "#ffea00", danger: "#ff003c" },
   dracula: { name: "Dracula", bg: "#1e1e24", sidebar: "#282a36", accent: "#bd93f9", text: "#f8f8f2", subtext: "#6272a4", success: "#50fa7b", warning: "#ffb86c", danger: "#ff5555" },
+  Radiant: { name: "Radiant Room", bg: "#E3E3E3", sidebar: "#8C8C8C", accent: "#8C8C8C", text: "#000000", subtext: "#000000", success: "#00ff41", warning: "#ffea00", danger: "#ff003c" },
   synthwave: { name: "Miami Vice", bg: "#2b213a", sidebar: "#241b2f", accent: "#ff7edb", text: "#f9f8fe", subtext: "#8b8198", success: "#0ce471", warning: "#f9df6d", danger: "#fe4450" }
 };
 
