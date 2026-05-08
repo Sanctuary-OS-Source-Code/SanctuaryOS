@@ -41,10 +41,8 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
         </div>
       </ViewHeader>
 
-      {/* --- CONTROL BAR --- */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-black/40 backdrop-blur-md border border-white/10 p-4 rounded-3xl shadow-inner shrink-0">
-        
-        {/* Search */}
+
         <div className="flex items-center gap-3 theme-glass-panel px-4 py-2 rounded-xl w-full md:w-96">
           <span className="theme-text-accent">{t("cc_icon_search")}</span>
           <input
@@ -56,7 +54,6 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
           />
         </div>
 
-        {/* Filters */}
         <div className="flex gap-2">
           {["ALL", "CAS", "BuildBuy"].map(f => (
             <button
@@ -73,7 +70,6 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
         </div>
       </div>
 
-      {/* --- THE ASSET GRID --- */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 pb-20">
         {filteredCC.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full opacity-50">
@@ -93,8 +89,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
                       ? 'theme-border-accent shadow-lg scale-[1.02]'
                       : 'border-white/10 hover:border-white/30 opacity-70 hover:opacity-100'}`}
                 >
-                  
-                  {/* Image Background */}
+
                   <div className="flex-1 relative w-full bg-black flex items-center justify-center overflow-hidden">
                     {mod.image_url ? (
                       <img src={mod.image_url} alt={t("dossier_cover_alt")} className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
@@ -106,13 +101,11 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
                   </div>
 
-                  {/* Toggle Indicator */}
                   <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border backdrop-blur-md transition-all
                     ${isEquipped ? 'theme-bg-accent text-[var(--bg)] theme-border-accent' : 'bg-black/50 text-transparent border-white/20'}`}>
                     ✓
                   </div>
 
-                  {/* Card Info */}
                   <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-col">
                     <span className="text-[10px] theme-text-accent font-black uppercase tracking-widest mb-0.5 truncate drop-shadow-md">
                       {mod.author || t("dossier_unknown")}

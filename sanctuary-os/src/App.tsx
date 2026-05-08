@@ -146,7 +146,7 @@ function App() {
         }
       }
       setStatus(t("status_ingest_success"));
-      runRadarSweep(true); // Refresh list
+      runRadarSweep(true);
     } catch (err) {
       setStatus(`${t("status_link_failed")}${err}`);
     }
@@ -222,9 +222,7 @@ function App() {
     null,
   );
 
-  // @ts-ignore
   const [associatedMods, setAssociatedMods] = useState<any[]>([]);
-  // @ts-ignore
   const saveLocalMetadata = async () => {
     if (!activeDossier || !metaNameInput.trim()) return;
     setStatus("Syncing metadata to the Network...");
@@ -272,7 +270,6 @@ function App() {
     }
   };
 
-  // @ts-ignore
   const handleUpdateMod = (mod: any) => {};
 
   const [conflictTarget, setConflictTarget] = useState<any | null>(null);
@@ -573,7 +570,6 @@ function App() {
       }
     }
   }, []);
-
 
   const toggleInActiveSet = (targetName: string, excludeBroken: boolean = false) => {
     setPlaySets((prevSets) => {
@@ -955,7 +951,6 @@ function App() {
     try {
       const config: any = await invoke("get_saved_coordinates");
 
-      // Sync Malware Protocols before scanning
       try {
         const { data: malwareData } = await supabase
           .from("mod_versions")
@@ -1968,7 +1963,6 @@ function App() {
     setDraftSetName("");
   }
   const displayModList = modList;
-  
 
   async function triggerShelter(active: boolean) {
     setStatus(active ? t("status_evacuating") : t("status_restoring_bunker"));
@@ -2355,7 +2349,7 @@ function App() {
         mods_path: config.mods_path,
         vault_path: config.vault_path,
       });
-      await executeHotSwap(); // reuse the logic
+      await executeHotSwap();
     } catch (err) {
       setStatus(`${t("status_lab_error")}${err}`);
     }

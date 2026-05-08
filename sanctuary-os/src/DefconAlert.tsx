@@ -1,6 +1,5 @@
 import { useLexicon } from "./LexiconContext";
 
-
 export function DefconAlert({ backupProgress }: any) {
   const { t } = useLexicon();
   return (

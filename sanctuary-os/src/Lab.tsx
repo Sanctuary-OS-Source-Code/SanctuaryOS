@@ -21,9 +21,9 @@ export default function Lab({
       />
       
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-[500px]">
-        {/* Left Panel: Queue & Search */}
+        
         <div className="flex flex-col gap-6 w-full lg:w-1/3 h-full">
-          {/* LOCAL ARTIFACT SEARCH */}
+          
           <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-[2.5rem] flex flex-col gap-4 shadow-xl flex-1 max-h-[50vh]">
             <div className="flex justify-between items-center px-2">
               <h3 className="text-[10px] font-black text-[var(--subtext)] tracking-[0.2em] uppercase opacity-80">{t("lab_local_search")}</h3>
@@ -63,11 +63,10 @@ export default function Lab({
 
           </div>
 
-        {/* Right Panel: Staging Area */}
         <div className="w-full lg:w-2/3 bg-white/5 backdrop-blur-md border border-white/10 p-10 rounded-[3rem] flex flex-col shadow-xl">
           {activeLabMod ? (
             <div className="w-full h-full flex flex-col animate-in fade-in">
-              {/* Header Info */}
+              
               <div className="flex items-center gap-2 mb-2">
                 <span className="px-2 py-0.5 bg-white/10 rounded text-[8px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("lab_dna_subject")}</span>
                 <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 truncate max-w-sm">virtual_{activeLabMod.hash || "unknown_signature"}</span>
@@ -76,9 +75,8 @@ export default function Lab({
                 {activeLabMod.displayName || activeLabMod.name.replace(/_/g, ' ')}
               </h2>
 
-              {/* Grid Content */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
-                {/* Associated Identities */}
+                
                 <div className="bg-black/20 border border-white/5 p-6 rounded-3xl flex flex-col h-full min-h-[250px]">
                   <h3 className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2 mb-6">
                     <span className="text-[var(--accent)]">{t("ui_icon_dna")}</span> {t("lab_associated_identities")}
@@ -91,7 +89,6 @@ export default function Lab({
                   </div>
                 </div>
 
-                {/* Nexus Simulation */}
                 <div className="bg-black/20 border border-white/5 p-6 rounded-3xl flex flex-col h-full min-h-[250px]">
                   <h3 className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2 mb-6">
                     <span className="text-[var(--warning)]">{t("ui_icon_nexus")}</span> {t("lab_nexus_sim")}

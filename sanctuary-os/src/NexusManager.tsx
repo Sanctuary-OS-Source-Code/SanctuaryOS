@@ -57,7 +57,6 @@ export default function NexusManager() {
       <h2 style={{ color: 'var(--accent)', marginBottom: '5px' }}>{t("nexus_title")}</h2>
       <p style={{ color: 'var(--subtext)', marginBottom: '30px', fontSize: '0.9rem' }}>{t("nexus_subtitle")}</p>
 
-      {/* --- THE FORGE --- */}
       <div style={{ background: 'var(--sidebar)', padding: '25px', borderRadius: '12px', marginBottom: '40px', border: '1px solid rgba(255,255,255,0.05)' }}>
         <h3 style={{ marginTop: 0, color: 'var(--warning)', fontSize: '1rem', marginBottom: '20px' }}>
           {t("nexus_forge_title")}
@@ -77,7 +76,6 @@ export default function NexusManager() {
         </form>
       </div>
 
-      {/* --- THE ROSTER --- */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', color: 'var(--accent)' }}>{t("nexus_syncing")}</div>

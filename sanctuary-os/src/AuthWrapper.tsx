@@ -9,7 +9,6 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const setSession = useStore((state) => state.setSession);
   const [loadingSession, setLoadingSession] = useState(true);
 
-  // Login Form States
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,7 +50,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
           email,
           password,
           options: {
-            data: { username }, // This triggers the SQL function we just wrote!
+            data: { username },
           },
         });
         if (error) throw error;
@@ -63,7 +62,6 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     }
   };
 
-  // If verifying initial load, show a stealthy loading state
   if (loadingSession) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-[var(--bg)]">
@@ -74,15 +72,13 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     );
   }
 
-  // If authenticated or not explicitly showing login UI, render the OS!
   if (session || !showLoginUI) {
     return <>{children}</>;
   }
 
-  // If not authenticated and showLoginUI is true, render the Glassmorphism Login Screen
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-[var(--bg)] font-sans relative overflow-hidden">
-      {/* Background Thematic Blobs */}
+      
       <div className="absolute top-1/4 left-1/4 w-[40vw] h-[40vw] rounded-full theme-bg-accent opacity-10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-[30vw] h-[30vw] rounded-full bg-[var(--warning)] opacity-5 blur-[120px] pointer-events-none" />
 

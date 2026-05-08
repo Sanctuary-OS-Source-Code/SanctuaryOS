@@ -2,7 +2,6 @@ import { useLexicon } from "./LexiconContext";
 import { ViewHeader } from "./shared";
 
 export default function Blueprints({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   playSets, activeSetName, equipPlaySet, deletePlaySet, syncCode, setSyncCode, uploadBlueprintToCloud, syncBlueprintByCode,
   importPlaySet, setSnapshotModal, activePlaySetIndex, setActivePlaySetIndex, setIsBlueprintModalOpen, exportPlaySet,
   setIsDraftingSet, isDraftingSet, draftSetName, setDraftSetName, finalizeDraftSet
@@ -13,7 +12,7 @@ export default function Blueprints({
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full">
       <ViewHeader title={t("playsets_title")} subtitle={t("playsets_subtitle")}>
         <div className="flex flex-col gap-3 ml-auto">
-          {/* Top Row: Import & Snapshot */}
+          
           <div className="flex gap-3 justify-end">
             <button onClick={importPlaySet} className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-[var(--text)] font-black text-[9px] uppercase tracking-widest transition-all shadow-md flex items-center gap-2">
               <span className="text-[var(--danger)] text-sm">{t("ui_icon_import")}</span> {t("playsets_btn_import")}
@@ -22,8 +21,7 @@ export default function Blueprints({
               <span className="text-[var(--subtext)] opacity-60">{t("ui_icon_snapshot")}</span> {t("playsets_btn_snapshot")}
             </button>
           </div>
-          
-          {/* Bottom Row: Sync Code & Cloud Uplink */}
+
           <div className="flex gap-3 justify-end items-center">
             <div className="relative flex items-center bg-black/20 rounded-2xl border border-white/10 p-1 w-[220px] h-12">
               <input 
@@ -45,7 +43,7 @@ export default function Blueprints({
       </ViewHeader>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Draft New Blueprint */}
+        
         {isDraftingSet ? (
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-[3rem] flex flex-col gap-4 animate-in zoom-in-95 shadow-xl h-64 justify-center">
             <input 
@@ -73,7 +71,6 @@ export default function Blueprints({
           </div>
         )}
 
-        {/* Playset Cards */}
         {(playSets || []).map((set: any, idx: number) => (
           <div key={set.name} className={`bg-white/5 backdrop-blur-md border p-8 rounded-[3rem] flex flex-col transition-all h-64 shadow-xl ${activeSetName === set.name ? 'border-white/30' : 'border-white/5 hover:border-white/10'}`}>
             <div className="mb-6">

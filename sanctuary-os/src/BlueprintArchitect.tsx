@@ -9,16 +9,15 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
 
   if (!isOpen || !playSet) return null;
 
-  // 🚀 FIX: Search Local Mod List instead of Cloud
   const searchResults = modList.filter((mod: any) => {
-    if (!mod || mod.isVirtual) return false; // Ignore folders, only show equippable items
+    if (!mod || mod.isVirtual) return false;
     
     const q = localQuery.toLowerCase();
     const matchName = (mod.displayName || mod.name || "").toLowerCase().includes(q);
     const matchAuthor = (mod.author || "").toLowerCase().includes(q);
     
     return matchName || matchAuthor;
-  }).slice(0, 50); // Keep it snappy to prevent lag
+  }).slice(0, 50);
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-6 lg:p-12 animate-in fade-in duration-500">

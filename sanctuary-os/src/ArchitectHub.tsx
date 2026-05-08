@@ -45,7 +45,6 @@ export default function ArchitectHub({ userRole }: { userRole?: string }) {
   );
 }
 
-
 function TabButton({ id, label, activeTab, setTab }: any) {
   const isActive = activeTab === id;
   return (
@@ -237,18 +236,16 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
           { parent_id: targetId, child_id: activeMaster.id, relationship_type: 'beta' }
         ]);
       } else if (modalMode === 'bind_hash') {
-        // Merge entries: move mod_versions to activeMaster, then delete targetId mod
+
         const targetMod = cloudMods.find(m => String(m.id) === String(targetId));
         if (targetMod && targetMod.mod_versions) {
           const { error } = await supabase.from('mod_versions').update({ mod_id: activeMaster.id }).eq('mod_id', targetId);
           if (!error) {
              await supabase.from('mods').delete().eq('id', targetId);
-             
-             // Update local state instantly
+
              const mergedVersions = [...(activeMaster.mod_versions || []), ...(targetMod.mod_versions || [])];
              setActiveMaster({ ...activeMaster, mod_versions: mergedVersions });
-             
-             // Refresh global catalog
+
              fetchGlobalCatalog();
           } else {
              console.error("Bind Hash Merge Failed:", error);
@@ -392,7 +389,6 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                 <CustomStatusDropdown value={activeMaster.status || "unverified"} onChange={(newStatus: string) => setActiveMaster({...activeMaster, status: newStatus})} />
               </div>
 
-
               </div>
             </div>
 
@@ -521,7 +517,6 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                 </div>
               </div>
 
-              {/* Logical Conflicts Row */}
             <div className="flex flex-col gap-4 mt-8 pt-8 border-t border-white/10 shrink-0">
               <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
                 Logical Conflicts
@@ -1786,7 +1781,6 @@ function CommandCenter({ onNavigate }: any = {}) {
 
   const [stats, setStats] = useState({ unverified: 0, reports: 0, scoutQueue: 0, nsfw: 0 });
 
-  
   const [commsInput, setCommsInput] = useState("");
   const [commsMessages, setCommsMessages] = useState<any[]>([]);
   const [editingCommId, setEditingCommId] = useState<number | string | null>(null);
@@ -1839,7 +1833,7 @@ function CommandCenter({ onNavigate }: any = {}) {
   useEffect(() => {
     const fetchStats = async () => {
       const { count: unverifiedCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('status', 'unverified');
-      // The status column on solder_lab_logs may not exist, removing filter to avoid 400 error
+
       const { count: reportsCount } = await supabase.from('solder_lab_logs').select('*', { count: 'exact', head: true });
       const { count: nsfwCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 1);
       setStats({
@@ -1849,13 +1843,9 @@ function CommandCenter({ onNavigate }: any = {}) {
         nsfw: nsfwCount || 0
       });
 
-
-
     };
     fetchStats();
   }, []);
-
-
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-500">
@@ -2066,7 +2056,7 @@ function MasonLinker() {
     setStatus(` LINKED ${selectedProle.username} TO ${selectedMason.name}`);
     setSelectedProle(null);
     setSelectedMason(null);
-    fetchData(); // refresh
+    fetchData();
   };
 
   const filteredProles = proles.filter((p: any) => p.username?.toLowerCase().includes(proleSearch.toLowerCase()));
@@ -2124,5 +2114,4 @@ function MasonLinker() {
     </div>
   );
 }
-
 

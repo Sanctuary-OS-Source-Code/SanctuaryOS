@@ -48,7 +48,7 @@ export default function Collection(props: any) {
                 subtitle={t("vault_subtitle")}
               >
                 <div className="flex flex-col gap-3 items-end">
-                  {/* Top Row */}
+                  
                   <div className="flex gap-4 items-center">
                     {isBulkMode && selectedMods.length > 0 && (
                       <button
@@ -106,8 +106,7 @@ export default function Collection(props: any) {
                         : t("vault_btn_select_assets")}
                     </button>
                   </div>
-                  
-                  {/* Bottom Row */}
+
                   <div className="flex gap-4 items-center">
                     <button
                       onClick={() => runRadarSweep(false)}
@@ -459,9 +458,6 @@ export default function Collection(props: any) {
                         if (!m.missingReqs.some((r: any) => r.id === id)) m.missingReqs.push({ id, url: finalUrl });
                       };
 
-
-                      
-                      // Explicit protocol for MC CMD CENTER and its dependents
                       const requiresMcCmd = m.twins?.some((t: any) => (t.name || "").toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER") || String(t.id) === "1000") || 
                                             m.requirements?.some((r: any) => (r.name || "").toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER") || String(r.id) === "1000");
                       if (requiresMcCmd || (m.displayName && m.displayName.toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER")) || (m.name && m.name.toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER"))) {

@@ -147,7 +147,6 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         )}
       </div>
 
-      {/* POST MODAL */}
       {selectedPost && (() => {
         const parsed = parsePostContent(selectedPost);
         return (

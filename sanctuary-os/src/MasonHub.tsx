@@ -776,7 +776,6 @@ function MasonStatusDropdown({ value, onChange }: { value: string, onChange: (va
     { id: 'unverified', label: t("status_dd_unverified"), color: 'text-[var(--subtext)] opacity-80', glow: 'bg-white/10' },
   ];
 
-  // If the mod is currently 'verified', we can display it but not allow selecting it again
   if (value === 'verified') {
      options.unshift({ id: 'verified', label: t("status_dd_verified"), color: 'theme-text-success', glow: 'theme-bg-success' });
   }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { formatDisplayName } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import defaultCover from "./assets/default-cover.jpg"; // Adjust path as needed
+import defaultCover from "./assets/default-cover.jpg";
 
 export function ModCard({ mod, isInActiveSet, onSelect, onToggleSet, ownedDLC = [],
 maskedDLC =[], casualtyList = "", tier3List = "", missingDeps = "", isParent = false, isExpanded = false, onExpand = () => {},
@@ -15,8 +15,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
   const isGhosted = missingPacks.length > 0 || hasMissingDeps;
   const isNemesisEquipped = !isInActiveSet && casualtyList.length > 0;
   const brokenMods = mod.isVirtual && mod.flavors ? mod.flavors.filter((f: any) => f.status === t("status_broken") || f.status?.includes("BROKEN")) : [];
-  
-  // Shadow Card condition
+
   const isShadowed = isGhosted || isNemesisEquipped;
   
   let reqCount = mod.requirements?.length || 0;
@@ -39,7 +38,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
 
   return (
     <div className="relative group/shadow h-full">
-      {/* ⚠️ THE CUSTOM HOVER TOOLTIP */}
+      
       {isGhosted && !confirmMode && (
         <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-[70] hidden group-hover/shadow:flex bg-black/90 backdrop-blur-md border border-[var(--danger)] px-4 py-2.5 rounded-xl shadow-[0_0_20px_rgba(var(--danger-rgb),0.5)] items-center justify-center whitespace-nowrap text-[10px] font-black theme-text-danger max-w-[280px] pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-2">
           <div className="truncate">
@@ -48,7 +47,6 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
         </div>
       )}
 
-      {/* ⚠️ THE ALERT OVERLAY */}
       {confirmMode && (
         <div 
           className={`absolute inset-0 z-[60] rounded-[2.5rem] flex flex-col p-5 border-2 animate-in fade-in zoom-in-95 shadow-2xl ${
@@ -152,7 +150,6 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
         className={`relative flex flex-col h-full theme-glass-panel rounded-[2.5rem] overflow-hidden transition-all duration-500 ${isShadowed ? 'opacity-30 grayscale border-[var(--danger)]' : 'cursor-pointer hover:scale-[1.02] hover:bg-black/5'}`}
       >
 
-      {/* TOP IMAGE AREA */}
       <div className="relative h-40 overflow-hidden border-b border-white/5 shrink-0">
         <img 
   src={mod.image_url || mod.imageUrl || defaultCover} 
@@ -160,7 +157,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
   className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
   alt="cover" 
 />
-        {/* BULK MODE CHECKBOX */}
+        
       {isBulkMode && (
         <div 
           onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
@@ -172,7 +169,6 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
         </div>
       )}
 
-        {/* STATUS LABEL (Top Left) */}
         <div className="absolute top-4 left-4 z-30 bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2 pointer-events-none">
           <div className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_rgba(255,255,255,0.5)]" style={{ backgroundColor: mod.color || '#666' }} />
           <span className="text-[8px] font-black uppercase text-[var(--text)]/80 tracking-widest">
@@ -184,8 +180,6 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
           </span>
         </div>
 
-        
-        
         <div className="absolute top-3 right-3 z-40">
           {!mod.status?.includes('QUARANTINED') && (
             <button 
@@ -202,7 +196,6 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
         </div>
       </div>
 
-      {/* TEXT AREA */}
       <div className="p-5 flex flex-col flex-1">
         <h3 className="text-xs font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
           {formatDisplayName(mod.displayName || mod.name)}
@@ -211,7 +204,6 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
          {mod.author || t("bp_unknown_creator_full")}
         </p>
 
-        {/* FOOTER ROW */}
         <div 
           className={`mt-auto pt-4 flex items-center justify-between border-t border-white/5 ${isParent ? 'cursor-pointer hover:bg-white/5 -mx-5 px-5 -mb-5 pb-5 rounded-b-[2.5rem] transition-colors' : ''}`}
           onClick={(e) => { if (isParent) { e.stopPropagation(); onExpand(e); } }}

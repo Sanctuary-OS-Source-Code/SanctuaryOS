@@ -226,7 +226,7 @@ export const DbpfScout = () => {
 
       {stats.packages > 0 && !error && (
         <div className="space-y-12">
-          {/* STATS TILES */}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="theme-glass-inner p-8 rounded-[2.5rem] backdrop-blur-xl flex flex-col justify-center shadow-inner">
               <p className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2">{t("radar_stat_packages")}</p>
@@ -241,7 +241,6 @@ export const DbpfScout = () => {
             </div>
           </div>
 
-          {/* TIER 4: FATAL ERRORS */}
           {fatalConflicts.length > 0 && (
             <section className="space-y-6">
               <div className="flex flex-col gap-1 border-b theme-border-danger pb-4">
@@ -276,7 +275,6 @@ export const DbpfScout = () => {
             </section>
           )}
 
-          {/* TIER 3: TUNING OVERLAPS */}
           {tuningConflicts.length > 0 && (
             <section className="space-y-6">
               <div className="flex flex-col gap-1 border-b theme-border-warning pb-4">
@@ -333,7 +331,6 @@ export const DbpfScout = () => {
             </section>
           )}
 
-          {/* CLONE WARS */}
           {cloneConflicts.length > 0 && (
             <section className="theme-panel-danger border p-10 rounded-[2.5rem] shadow-xl space-y-8" style={{ color: "var(--text)" }}>
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b theme-border-accent pb-6">
@@ -379,7 +376,6 @@ export const DbpfScout = () => {
             </section>
           )}
 
-          {/* ℹ️ MINOR OVERLAPS (Soft Conflicts) */}
           {softConflicts.length > 0 && (
             <details className="group theme-glass-inner !shadow-none border border-white/10 p-6 rounded-3xl cursor-pointer transition-all hover:border-white/20 mb-8">
               <summary className="flex justify-between items-center list-none outline-none">
@@ -410,7 +406,6 @@ export const DbpfScout = () => {
             </details>
           )}
 
-          {/* SECTOR CLEAR */}
           {hasScanned && stats.totalClashes === 0 && !loading && (
             <div className="py-24 flex flex-col items-center justify-center text-center space-y-6 opacity-60">
               <div className="w-24 h-24 rounded-full theme-panel-success border flex items-center justify-center shadow-lg">
@@ -425,7 +420,6 @@ export const DbpfScout = () => {
         </div>
       )}
 
-      {/* EMPTY FOLDER STATE */}
       {hasScanned && stats.packages === 0 && !loading && !error && (
         <div className="py-24 flex flex-col items-center justify-center text-center space-y-6 opacity-60 animate-in fade-in zoom-in-95 duration-500">
           <div className="w-24 h-24 rounded-full theme-panel-accent border flex items-center justify-center">

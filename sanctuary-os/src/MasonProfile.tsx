@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 
-
 function CustomCategoryDropdown({ value, onChange }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const options = [
@@ -48,7 +47,6 @@ export default function MasonProfile({ masonId, initialPostId, onModClick }: { m
   const [modCategory, setModCategory] = useState("ALL");
   const [lastInitialPostId, setLastInitialPostId] = useState<string | null>(null);
 
-  
   useEffect(() => {
     if (initialPostId && initialPostId !== lastInitialPostId && posts.length > 0) {
       const target = posts.find(p => p.id === initialPostId);
@@ -62,28 +60,22 @@ export default function MasonProfile({ masonId, initialPostId, onModClick }: { m
   useEffect(() => {
     async function loadProfile() {
       setLoading(true);
-      // Get current user
       const { data: { session } } = await supabase.auth.getSession();
       const currentUserId = session?.user?.id || null;
       setUserId(currentUserId);
 
-      // Fetch Mason
       const { data: mData } = await supabase.from('masons').select('*').eq('id', masonId).single();
       if (mData) setMason(mData);
 
-      // Fetch Mods
       const { data: modsData } = await supabase.from('mods').select('*').eq('mason_id', masonId).order('name');
       if (modsData) setMods(modsData);
 
-      // Fetch Posts
       const { data: postsData } = await supabase.from('mason_posts').select('*').eq('mason_id', masonId).order('created_at', { ascending: false });
       if (postsData) setPosts(postsData);
 
-      // Fetch Followers
       const { count } = await supabase.from('mason_followers').select('*', { count: 'exact', head: true }).eq('mason_id', masonId);
       setFollowerCount(count || 0);
 
-      // Check if following
       if (currentUserId) {
         const { data: followData } = await supabase.from('mason_followers').select('*').eq('mason_id', masonId).eq('user_id', currentUserId).maybeSingle();
         setIsFollowing(!!followData);
@@ -131,8 +123,7 @@ const parsePostContent = (post: any) => {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full w-full pb-20">
-      
-      {/* HERO SECTION */}
+
       <div className="theme-glass-panel border border-white/10 rounded-[3rem] p-10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center md:items-start gap-8">
         <div className="absolute top-0 right-0 w-64 h-64 theme-bg-accent opacity-10 blur-[100px] rounded-full pointer-events-none" />
         
@@ -170,7 +161,7 @@ const parsePostContent = (post: any) => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 h-full">
-        {/* LEFT PANE: COMM-LINK (Posts) */}
+        
         <div className="w-full lg:w-1/3 flex flex-col gap-4">
           <h3 className="text-xs font-black theme-text-accent uppercase tracking-widest ml-2 flex items-center gap-2">
             <span>{t("ui_icon_broadcast")}</span> {t("profile_tab_commlink")}
@@ -190,7 +181,6 @@ const parsePostContent = (post: any) => {
           </div>
         </div>
 
-        {/* RIGHT PANE: ARTIFACTS */}
         <div className="w-full lg:w-2/3 flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-4 ml-2">
              <h3 className="text-xs font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
@@ -218,7 +208,6 @@ const parsePostContent = (post: any) => {
         </div>
       </div>
 
-      {/* POST MODAL */}
       {selectedPost && (() => {
         const parsed = parsePostContent(selectedPost);
         return (

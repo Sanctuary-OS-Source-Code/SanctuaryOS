@@ -6,7 +6,6 @@ import { useTheme } from "./ThemeContext";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
 
-// --- SUB-COMPONENT: THE HOT SWAP REGISTRY ---
 export const HotSwapPanel = () => {
   const { currentTheme, activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, updateActiveTheme, createNewTheme, importTheme, deleteTheme } = useTheme();
   const { t, registry, activeLang, setActiveLang, importLexicon, deleteLexicon } = useLexicon();
@@ -44,7 +43,7 @@ export const HotSwapPanel = () => {
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
-      {/* THEME REGISTRY */}
+      
       <section className="space-y-6">
         <div className="flex justify-between items-end px-1">
           <div>
@@ -70,7 +69,6 @@ export const HotSwapPanel = () => {
         </div>
       </section>
 
-      {/* LIVE EDITOR */}
       <section className="theme-glass-panel p-8 border border-white/10 rounded-[2rem] space-y-6 shadow-inner relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 blur-3xl rounded-full opacity-10" style={{ backgroundColor: currentTheme.accent }} />
         <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] opacity-50">{t("settings_forge_live")}</h3>
@@ -87,7 +85,6 @@ export const HotSwapPanel = () => {
         </div>
       </section>
 
-      {/* LEXICON REGISTRY */}
       <section className="pt-10 border-t space-y-6" style={{ borderColor: `${currentTheme.text}10` }}>
         <div className="flex justify-between items-center px-1">
           <div>
@@ -114,7 +111,6 @@ export const HotSwapPanel = () => {
   );
 };
 
-// --- CUSTOM DROPDOWN ---
 function CustomSettingsDropdown({ value, options, onChange }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const selected = options.find((o: any) => o.id == value) || options[0];
@@ -138,7 +134,6 @@ function CustomSettingsDropdown({ value, options, onChange }: any) {
   );
 }
 
-// --- MAIN COMPONENT: SETTINGS ---
 export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   const { t } = useLexicon();
   const { currentTheme } = useTheme();
@@ -163,7 +158,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     localStorage.setItem("sanctuary_mature_transmissions", newVal.toString());
   };
 
-  // 🚀 CRASH PREVENTION: Default the rules if App.tsx forgets to pass them!
   const rules = anarchyRules || { highlander: true, family: true, dependencies: true, intercept: true };
   const toggleRule = (key: string) => {
     if (setAnarchyRules) setAnarchyRules({ ...rules, [key]: !rules[key as keyof typeof rules] });
@@ -179,7 +173,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   useEffect(() => { refreshConfig(); },[]);
 
   const updateConfig = async (key: string, val: any) => {
-    // Force parse to int if it's a number-based setting to prevent Tauri serialization errors
+
     const parsedVal = (key === 'engine_agency_level' || key === 'backup_preference' || key === 'backup_retention_cycles') ? parseInt(val) : val;
     const newConfig = { ...config, [key]: parsedVal };
     setConfig(newConfig);
@@ -231,7 +225,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       <HotSwapPanel />
       <div className="h-px w-full" style={{ backgroundColor: `${currentTheme.text}10` }} />
 
-      {/* SYSTEM COORDINATES (The Scootch Fix) */}
       <section className="space-y-6">
         <div className="flex justify-between items-end px-1">
           <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_sys_coords")}</h2>
@@ -268,7 +261,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         </div>
       </section>
 
-      {/* SANCTUARY ENGINE */}
       <section className="space-y-6">
         <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_engine")}</h2>
         <div className="group">
@@ -285,7 +277,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         </div>
       </section>
 
-      {/* TIME CAPSULE */}
       <section className="space-y-6">
         <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_capsule")}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -316,7 +307,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         </div>
       </section>
 
-      {/* THE ANARCHY PROTOCOLS */}
       <div className="h-px w-full my-4" style={{ backgroundColor: `${currentTheme.text}10` }} />
         
       <section className="space-y-6">
@@ -328,8 +318,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         </div>
         
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          
-          {/* Highlander Toggle */}
+
           <div onClick={() => toggleRule('highlander')} className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 group ${!rules.highlander ? 'theme-panel-danger theme-border-danger shadow-lg' : 'theme-glass-inner border-white/5 hover:border-white/20'}`}>
             <div className={`w-12 h-7 rounded-full flex items-center p-1 transition-colors ${!rules.highlander ? 'theme-bg-danger' : 'bg-white/10'}`}>
               <div className={`w-5 h-5 bg-white rounded-full transition-transform ${!rules.highlander ? 'translate-x-5 shadow-[-2px_0_5px_rgba(0,0,0,0.5)]' : 'translate-x-0'}`} />
@@ -340,7 +329,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
             </div>
           </div>
 
-          {/* Family Cohesion Toggle */}
           <div onClick={() => toggleRule('family')} className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 group ${!rules.family ? 'theme-panel-danger theme-border-danger shadow-lg' : 'theme-glass-inner border-white/5 hover:border-white/20'}`}>
             <div className={`w-12 h-7 rounded-full flex items-center p-1 transition-colors ${!rules.family ? 'theme-bg-danger' : 'bg-white/10'}`}>
               <div className={`w-5 h-5 bg-white rounded-full transition-transform ${!rules.family ? 'translate-x-5 shadow-[-2px_0_5px_rgba(0,0,0,0.5)]' : 'translate-x-0'}`} />
@@ -351,7 +339,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
             </div>
           </div>
 
-          {/* Dependencies Toggle */}
           <div onClick={() => toggleRule('dependencies')} className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 group ${!rules.dependencies ? 'theme-panel-danger theme-border-danger shadow-lg' : 'theme-glass-inner border-white/5 hover:border-white/20'}`}>
             <div className={`w-12 h-7 rounded-full flex items-center p-1 transition-colors ${!rules.dependencies ? 'theme-bg-danger' : 'bg-white/10'}`}>
               <div className={`w-5 h-5 bg-white rounded-full transition-transform ${!rules.dependencies ? 'translate-x-5 shadow-[-2px_0_5px_rgba(0,0,0,0.5)]' : 'translate-x-0'}`} />
@@ -362,7 +349,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
             </div>
           </div>
 
-          {/* Conflict Intercept Toggle */}
           <div onClick={() => toggleRule('intercept')} className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 group ${!rules.intercept ? 'theme-panel-danger theme-border-danger shadow-lg' : 'theme-glass-inner border-white/5 hover:border-white/20'}`}>
             <div className={`w-12 h-7 rounded-full flex items-center p-1 transition-colors ${!rules.intercept ? 'theme-bg-danger' : 'bg-white/10'}`}>
               <div className={`w-5 h-5 bg-white rounded-full transition-transform ${!rules.intercept ? 'translate-x-5 shadow-[-2px_0_5px_rgba(0,0,0,0.5)]' : 'translate-x-0'}`} />
@@ -376,7 +362,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         </div>
       </section> 
 
-      {/* COMPLIANCE */}
       <section className="space-y-6 pt-6 border-t border-white/5">
         <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_compliance")}</h2>
         <div className="flex items-center justify-between p-6 rounded-[2rem] theme-glass-inner border border-white/5 hover:border-white/20 transition-all cursor-pointer group" onClick={toggleMature}>
@@ -390,7 +375,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         </div>
       </section>
 
-      {/* SECURITY */}
       <section className="space-y-6 pt-6 border-t border-white/5">
         <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_security")}</h2>
         <button onClick={() => { setShowMalwareOverride(true); setMalwareToggleActive(false); setOverrideInput(''); }} className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl border bg-transparent theme-text-danger theme-border-danger hover:theme-bg-danger hover:text-[var(--bg)]">
@@ -398,7 +382,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         </button>
       </section>
 
-      {/* MALWARE OVERRIDE MODAL */}
       {showMalwareOverride && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--bg)]/10 backdrop-blur-3xl p-8 animate-in fade-in duration-300">
           <div className="w-full max-w-xl theme-glass-panel border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-[3rem] p-10 flex flex-col gap-8 text-center" onClick={e => e.stopPropagation()}>
@@ -407,8 +390,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
               <h2 className="text-2xl font-black theme-text-danger uppercase tracking-tighter">{t("settings_malware_title")}</h2>
               <p className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest">{t("settings_malware_subtitle")}</p>
             </div>
-            
-            {/* THE TOGGLE */}
+
             <div className="flex items-center justify-between p-6 rounded-[2rem] bg-[var(--bg)]/40 border border-[var(--text)]/5 shadow-inner cursor-pointer hover:bg-[var(--bg)]/60 transition-all" onClick={() => setMalwareToggleActive(!malwareToggleActive)}>
                <div className="flex flex-col gap-1 text-left">
                  <span className="text-sm font-black uppercase tracking-widest theme-text-danger">{t("settings_malware_disable")}</span>
@@ -419,7 +401,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
                </div>
             </div>
 
-            {/* EXPANDED EXPLANATION & CONFIRMATION */}
             {malwareToggleActive ? (
               <div className="flex flex-col gap-8 animate-in slide-in-from-top-4 fade-in duration-300">
                 <div className="p-6 bg-black/5 border border-white/5 rounded-[2rem] text-center shadow-inner">
@@ -445,7 +426,6 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
           </div>
         </div>
       )}
-
 
     </div>
   );

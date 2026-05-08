@@ -118,7 +118,6 @@ export function StatTile({ label, value, icon, color, onClick }: any) {
   );
 }
 
-
 export function CustomDropdown({ value, options, onChange }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const selected = options.find((o: any) => String(o.id) === String(value)) || options[0];

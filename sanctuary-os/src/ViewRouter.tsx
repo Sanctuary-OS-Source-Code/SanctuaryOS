@@ -16,9 +16,6 @@ import Blueprints from "./Blueprints";
 export function ViewRouter({ props }: any) {
   const view = useStore(state => state.view);
 
-  // Extract all the required props from the parent (or use store inside child components)
-  // Eventually, these props should be removed as components subscribe directly to the Zustand store.
-
   return (
     <div className="flex-1 w-full h-full p-8 relative z-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
       {view === "dashboard" && (

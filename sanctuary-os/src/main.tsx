@@ -8,14 +8,13 @@ window.confirm = (msg) => {
   return true;
 };
 import { LexiconProvider } from "./LexiconContext"; 
-import { ThemeProvider } from "./ThemeContext"; // <-- 1. Import
-import AuthWrapper from "./AuthWrapper"; // <-- Import the Wrapper
-
+import { ThemeProvider } from "./ThemeContext";
+import AuthWrapper from "./AuthWrapper";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <LexiconProvider> 
-      <ThemeProvider> {/* <-- 2. Wrap */}
+      <ThemeProvider> 
                 <AuthWrapper> 
 
       <App />

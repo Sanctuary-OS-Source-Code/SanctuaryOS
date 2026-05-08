@@ -14,7 +14,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
   const kids = mod.flavors || [];
   const isCCSet = mod.isCCSet;
 
-  // Find equipped mods that would cascade-remove when this mod is deselected
   const getCasualties = (targetName: string): string[] => {
     const target = (modList || []).find((m: any) => m.name === targetName);
     if (!target || !target.dbId) return [];
@@ -48,7 +47,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
     const deepDeps: any[] = [];
     findDeep(target.dbId, new Set<string>(), deepDeps);
     
-    if (deepDeps.length === 0) return []; // no cascade
+    if (deepDeps.length === 0) return [];
     
     const cleanTarget = (target.displayName || (target.name || "").split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '');
     const cleanDeps = deepDeps.map((d: any) => (d.displayName || (d.name || "").split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, ''));
@@ -56,7 +55,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
     return [cleanTarget, ...cleanDeps];
   };
 
-  // Intercept toggle: show yeet alert if deselecting would cascade-remove others
   const safeToggle = (targetName: string) => {
     const isCurrentlyEquipped = activeMods.includes(targetName);
     const doToggle = () => {
@@ -164,7 +162,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
           className="relative w-full max-w-6xl h-[92vh] theme-glass-panel border-0 rounded-[3.5rem] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex overflow-hidden"
           
         >
-          {/* LEFT SIDE: IMAGE (FULL HEIGHT) */}
+          
           <div className="w-1/3 h-full relative bg-black border-r border-white/5 shrink-0">
               <img
                 src={metaInputs.image || mod.image_url || mod.imageUrl || 'https://forums.ea.com/t5/s/tghpe58374/images/bS0xMzI3ODY1MS1RNkFpREk?revision=1&image-dimensions=2000x2000&constrain-image=true'}
@@ -180,9 +178,8 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
               )}
             </div>
 
-          {/* RIGHT SIDE: EVERYTHING ELSE */}
           <div className="flex-1 h-full flex flex-col overflow-hidden">
-            {/* TOP HEADER BAR */}
+            
             <div className="w-full p-8 border-b border-white/5 bg-black/40 flex justify-between items-center shrink-0">
               <div className="flex-1 min-w-0">
                  {editMode ? (
@@ -203,13 +200,11 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 >✕</button>
               </div>
             </div>
-            
-            {/* RIGHT SIDE: CONTENT */}
+
             <div className="flex-1 p-12 overflow-y-auto custom-scrollbar flex flex-col gap-8 pb-32">
 
-              {/* PRIMARY INFO BLOCK */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 border-b border-white/5 pb-10">
-                {/* MASON */}
+                
                 <div className="flex flex-col gap-2">
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_architect")}</p>
                   <div className="flex items-center justify-center px-2 h-10 theme-glass-inner rounded-xl w-full">
@@ -226,7 +221,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   </div>
                 </div>
 
-                {/* VERSION */}
                 <div className="flex flex-col gap-2">
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_revision")}</p>
                   <div className="flex items-center justify-center px-2 h-10 theme-glass-inner rounded-xl w-full">
@@ -234,7 +228,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   </div>
                 </div>
 
-                {/* STATUS */}
                 <div className="flex flex-col gap-2">
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_status_label")}</p>
                   <div className="flex items-center justify-center gap-2 px-2 h-10 theme-glass-inner rounded-xl w-full">
@@ -249,7 +242,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   </div>
                 </div>
 
-                {/* COMPLIANCE TIER */}
                 <div className="flex flex-col gap-2">
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">Compliance Tier</p>
                   <div className="flex items-center justify-center gap-2 px-2 h-10 theme-glass-inner rounded-xl w-full">
@@ -266,7 +258,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   </div>
                 </div>
 
-                {/* SIGNATURE TYPE */}
                 <div className="flex flex-col gap-2">
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_signature_type")}</p>
                   <div className="flex items-center justify-center px-2 h-10 theme-glass-inner rounded-xl w-full">
@@ -287,7 +278,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 )}
               </div>
 
-              {/* ACTION BUTTONS */}
               <div className="flex items-center gap-4">
                 {mod.status?.includes('QUARANTINED') ? (
                   <button onClick={() => { if (onSecureShred) onSecureShred(mod.name); onClose(); }} className="flex-1 py-5 theme-bg-danger text-[var(--bg)] font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(var(--danger-rgb),0.5)]">
@@ -313,7 +303,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 )}
               </div>
 
-              {/* DESCRIPTION */}
               <div className="flex flex-col gap-4">
                 <p className="text-[9px] font-black theme-text-accent uppercase tracking-[0.3em] opacity-40 px-1">Log Manifest</p>
                 {editMode ? (
@@ -325,7 +314,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 )}
               </div>
 
-              {/* SUB-ARTIFACTS (KIDS) */}
               {kids.length > 0 && (
                 <div className="flex flex-col gap-6">
                   <div className="flex justify-between items-center px-1">
@@ -369,7 +357,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 </div>
               )}
 
-              {/* PROTOCOLS (DEPENDENCIES, TWINS, ETC) */}
               {(requirements.length > 0 || twins.length > 0 || conflicts.length > 0) && (
                 <div className="flex flex-col gap-6">
                   <h3 className="text-[10px] font-black theme-text-warning uppercase tracking-[0.2em] px-1">Network Protocols</h3>
@@ -406,13 +393,11 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 </div>
               )}
 
-
             </div>
           </div>
         </div>
       </div>
 
-      {/* SUB-ARTIFACT DETAIL POPUP */}
       {selectedKid && (
         <div className="fixed inset-0 z-[6000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in zoom-in-95 duration-200 p-8" onClick={() => setSelectedKid(null)}>
           <div

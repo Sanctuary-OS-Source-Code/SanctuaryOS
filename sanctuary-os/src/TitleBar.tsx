@@ -8,8 +8,7 @@ export function TitleBar() {
       >
         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-50">Sanctuary OS</span>
       </div>
-      
-      {/* Explicit dragging handle using Tauri's core HTML attribute and JS fallback */}
+
       <div 
         data-tauri-drag-region
         onMouseDown={async () => { try { await getCurrentWebviewWindow().startDragging(); } catch(e) { console.error(e); } }}
