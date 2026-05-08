@@ -10,7 +10,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest]
+        include:
+          - platform: windows-latest
+            args: ""
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +24,9 @@ jobs:
           node-version: 20
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
+      - name: install rust targets for macos
+        if: matrix.platform == 'macos-latest'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
       - name: install dependencies
         run: npm install
         working-directory: ./sanctuary-os
@@ -36,3 +43,4 @@ jobs:
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: true
+          args: ${{ matrix.args }}
