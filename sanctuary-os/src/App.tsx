@@ -466,23 +466,24 @@ function App() {
     };
     bootDLCProtocol();
   }, []);
+  const detectGameVersion = async () => {
+    if (!isConfigured) return;
+    try {
+      const config: any = await invoke("get_saved_coordinates");
+      if (!config.live_path) return;
+      
+      const rawRipped = await invoke<string>("rip_game_version", {
+        livePath: config.live_path,
+      });
+      const cleanVersion = rawRipped.replace(/[^0-9.]/g, "");
+      setSelectedVersion(cleanVersion);
+      setStatus(`${t("status_standing_by")} |  v${cleanVersion}`);
+    } catch (err) {
+      console.warn("Version detection failed:", err);
+    }
+  };
+
   useEffect(() => {
-    const detectGameVersion = async () => {
-      if (!isConfigured) return;
-      try {
-        const config: any = await invoke("get_saved_coordinates");
-        if (!config.live_path) return;
-        
-        const rawRipped = await invoke<string>("rip_game_version", {
-          livePath: config.live_path,
-        });
-        const cleanVersion = rawRipped.replace(/[^0-9.]/g, "");
-        setSelectedVersion(cleanVersion);
-        setStatus(`${t("status_standing_by")} |  v${cleanVersion}`);
-      } catch (err) {
-        console.warn("Version detection failed:", err);
-      }
-    };
     detectGameVersion();
   }, [isConfigured]);
   useEffect(() => {
@@ -926,6 +927,7 @@ function App() {
             backupName: filename,
           });
           setStatus(msg as string);
+          await detectGameVersion();
         } catch (err) {
           setStatus(`${t("status_restore_failure")}${err}`);
         } finally {
