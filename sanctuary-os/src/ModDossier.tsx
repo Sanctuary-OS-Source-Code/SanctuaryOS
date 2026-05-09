@@ -251,7 +251,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         if (!mod.dbId) return;
                         const { error } = await supabase.from('mods').update({ compliance_tier: 0 }).eq('id', mod.dbId);
                         if (!error) { alert('Compliance Tier cleared. Mod is now CLEAN.'); onClose(); }
-                      }} className="ml-auto w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/50 hover:text-white" title="Clear Flag">✕</button>
+                      }} className="ml-auto w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/50 hover:text-white">✕</button>
                     )}
                   </div>
                 </div>

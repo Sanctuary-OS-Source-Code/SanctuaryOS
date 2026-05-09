@@ -75,7 +75,6 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
           <button
             onClick={fetchMarketplace}
             className="w-12 h-12 rounded-2xl theme-glass-inner flex items-center justify-center text-[var(--text)] hover:theme-bg-accent transition-all shadow-md shrink-0"
-            title="Refresh Marketplace"
           >
             {t("ui_icon_refresh") || "⟳"}
           </button>
@@ -97,7 +96,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 </div>
                 
                 <div>
-                  <h3 className="text-lg font-black text-[var(--text)] truncate" title={mod.name}>{mod.name}</h3>
+                  <h3 className="text-lg font-black text-[var(--text)] truncate">{mod.name}</h3>
                   <p className="text-[10px] font-bold theme-text-accent uppercase tracking-widest">{mod.master_author || t("market_unknown_creator")}</p>
                 </div>
 

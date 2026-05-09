@@ -2653,7 +2653,7 @@ function App() {
           />
           <NavButton
             active={false}
-            onClick={() => openUrl("https://discord.gg/3f82BTtTm")}
+            onClick={() => openUrl("https://discord.gg/kTJb9q3GDW")}
             icon={"💬"}
             label={"Discord"}
           />

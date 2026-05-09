@@ -429,7 +429,7 @@ function ComplianceOversight() {
                     <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded w-fit ${td.color} bg-white/5 border border-white/10`}>
                       {td.label}
                     </span>
-                    <h3 className="text-sm font-black text-[var(--text)] uppercase truncate mt-2" title={mod.name}>{mod.name}</h3>
+                    <h3 className="text-sm font-black text-[var(--text)] uppercase truncate mt-2">{mod.name}</h3>
                     <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase truncate">{mod.master_author || 'UNKNOWN MASON'}</p>
                   </div>
                   

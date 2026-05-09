@@ -410,7 +410,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                   {Array.isArray(activeMaster.mod_versions) && activeMaster.mod_versions.length > 0 ? (
                     activeMaster.mod_versions.map((ver: any) => (
                       <div key={ver.id} className={`flex justify-between items-center bg-white/5 border ${ver.version_label === activeMaster.latest_version ? 'border-green-500/50' : 'border-white/5'} px-4 py-2 rounded-lg hover:border-white/20 transition-colors`}>
-                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 truncate w-1/4" title={String(ver.dna_hash || '')}>{String(ver.dna_hash || '')}</span>
+                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 truncate w-1/4">{String(ver.dna_hash || '')}</span>
                         <input
                           value={String(ver.version_label || '')}
                           onChange={(e) => {
@@ -1184,7 +1184,7 @@ function ScoutQueue() {
                   <span className="px-2 py-0.5 theme-panel-accent border rounded text-[9px] font-black uppercase tracking-widest">
                     {sub.suggested_type || t("scout_unknown")}
                   </span>
-                  <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 truncate max-w-[200px]" title={sub.dna_hash}>{t("scout_dna")}{sub.dna_hash}</span>
+                  <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 truncate max-w-[200px]">{t("scout_dna")}{sub.dna_hash}</span>
                 </div>
                 <h4 className="text-lg font-black text-[var(--text)] uppercase tracking-tight">{sub.suggested_name || t("scout_unnamed")}</h4>
                 <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("scout_author")}<span className="text-[var(--text)]">{sub.suggested_author || t("scout_unknown")}</span></p>

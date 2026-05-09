@@ -92,28 +92,24 @@ export default function Blueprints({
                 <button 
                   onClick={() => { if(setActivePlaySetIndex) setActivePlaySetIndex(idx); if(setIsBlueprintModalOpen) setIsBlueprintModalOpen(true); }} 
                   className="py-3 bg-black/40 border border-white/5 text-[var(--text)] rounded-xl hover:bg-white/10 transition-all flex items-center justify-center text-sm"
-                  title="Edit Blueprint"
                 >
                   {t("ui_icon_map")}
                 </button>
                 <button 
                   onClick={() => uploadBlueprintToCloud && uploadBlueprintToCloud(set.name)} 
                   className="py-3 bg-black/40 border border-white/5 text-[var(--text)] rounded-xl hover:bg-white/10 transition-all flex items-center justify-center text-sm"
-                  title="Link"
                 >
                   {t("ui_icon_link")}
                 </button>
                 <button 
                   onClick={() => exportPlaySet && exportPlaySet(set.name)} 
                   className="py-3 bg-black/40 border border-white/5 text-[var(--text)] rounded-xl hover:bg-white/10 transition-all flex items-center justify-center text-sm"
-                  title="Export"
                 >
                   {t("ui_icon_export")}
                 </button>
                 <button 
                   onClick={() => deletePlaySet && deletePlaySet(set.name)} 
                   className="py-3 bg-[var(--danger)] border border-[var(--danger)] text-white bg-opacity-20 hover:bg-opacity-40 transition-all flex items-center justify-center text-sm rounded-xl"
-                  title="Delete"
                 >
                   {t("ui_icon_trash")}
                 </button>

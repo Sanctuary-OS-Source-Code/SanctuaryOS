@@ -258,14 +258,14 @@ export const DbpfScout = () => {
                     )}
                     <div className="flex flex-col md:flex-row items-stretch gap-4">
                       <div className="flex-1 theme-glass-inner !shadow-none border border-white/5 p-5 rounded-2xl flex flex-col justify-between group hover:theme-border-danger transition-colors">
-                        <span className="text-xs font-bold text-[var(--text)] truncate mb-4" title={c.modA}>{formatDisplayName(c.modA)}</span>
+                        <span className="text-xs font-bold text-[var(--text)] truncate mb-4">{formatDisplayName(c.modA)}</span>
                         <button onClick={() => vaultSingleScript(c.modA)} className="w-full py-3 theme-panel-danger theme-btn-danger border text-[10px] font-black tracking-widest rounded-xl">{t("radar_tier4_btn")}</button>
                       </div>
                       <div className="flex items-center justify-center py-2 md:py-0">
                         <span className="text-xs font-black theme-text-danger opacity-50 uppercase tracking-widest px-4">VS</span>
                       </div>
                       <div className="flex-1 theme-glass-inner !shadow-none border border-white/5 p-5 rounded-2xl flex flex-col justify-between group hover:theme-border-danger transition-colors">
-                        <span className="text-xs font-bold text-[var(--text)] truncate mb-4" title={c.modB}>{formatDisplayName(c.modB)}</span>
+                        <span className="text-xs font-bold text-[var(--text)] truncate mb-4">{formatDisplayName(c.modB)}</span>
                         <button onClick={() => vaultSingleScript(c.modB)} className="w-full py-3 theme-panel-danger theme-btn-danger border text-[10px] font-black tracking-widest rounded-xl">{t("radar_tier4_btn")}</button>
                       </div>
                     </div>
@@ -303,13 +303,13 @@ export const DbpfScout = () => {
 
                       {!isResolving ? (
                         <div className="flex flex-col gap-2 font-mono text-xs text-[var(--subtext)] opacity-80 theme-glass-inner p-4 rounded-xl">
-                          <p className="truncate" title={c.modA}>{c.modA}</p>
+                          <p className="truncate">{c.modA}</p>
                           <div className="flex items-center gap-4 my-1 opacity-50">
                             <div className="h-px theme-bg-warning flex-1"></div>
                             <span className="text-[9px] font-black uppercase tracking-widest theme-text-warning">VS</span>
                             <div className="h-px theme-bg-warning flex-1"></div>
                           </div>
-                          <p className="truncate" title={c.modB}>{c.modB}</p>
+                          <p className="truncate">{c.modB}</p>
                         </div>
                       ) : (
                         <div className="theme-panel-success border p-8 rounded-2xl animate-in zoom-in-95 mt-4">
@@ -364,11 +364,11 @@ export const DbpfScout = () => {
                 {cloneConflicts.map((c: any) => (
                   <div key={c.mod_pair} className="grid grid-cols-[1fr_auto_1fr] gap-4 theme-glass-inner !shadow-none p-4 rounded-2xl border border-white/5 items-center hover:theme-border-accent transition-colors">
                     <div onClick={() => toggleTarget(c.modA)} className={`cursor-pointer p-4 rounded-xl border transition-all flex items-center ${selectedForVault.includes(c.modA) ? 'theme-panel-danger theme-border-danger shadow-inner' : 'bg-white/5 border-transparent text-[var(--subtext)] opacity-80 hover:bg-white/10'}`}>
-                      <p className="text-[11px] font-mono truncate" title={c.modA}>{c.modA.split('/').pop()}</p>
+                      <p className="text-[11px] font-mono truncate">{c.modA.split('/').pop()}</p>
                     </div>
                     <span className="text-[9px] font-black text-gray-600 px-2 uppercase tracking-widest">VS</span>
                     <div onClick={() => toggleTarget(c.modB)} className={`cursor-pointer p-4 rounded-xl border transition-all flex items-center ${selectedForVault.includes(c.modB) ? 'theme-panel-danger theme-border-danger shadow-inner' : 'bg-white/5 border-transparent text-[var(--subtext)] opacity-80 hover:bg-white/10'}`}>
-                      <p className="text-[11px] font-mono truncate" title={c.modB}>{c.modB.split('/').pop()}</p>
+                      <p className="text-[11px] font-mono truncate">{c.modB.split('/').pop()}</p>
                     </div>
                   </div>
                 ))}
@@ -393,9 +393,9 @@ export const DbpfScout = () => {
                 {softConflicts.map((c: any) => (
                   <div key={c.mod_pair} className="flex justify-between items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5 hover:bg-white/10 transition-colors w-full">
                     <div className="flex items-center gap-3 flex-1 min-w-0 text-[10px] font-mono text-[var(--subtext)] opacity-80">
-                      <span className="truncate flex-1 text-right" title={c.modA}>{c.modA.split('/').pop()}</span>
+                      <span className="truncate flex-1 text-right">{c.modA.split('/').pop()}</span>
                       <span className="theme-text-accent opacity-50 font-black shrink-0">VS</span>
-                      <span className="truncate flex-1 text-left" title={c.modB}>{c.modB.split('/').pop()}</span>
+                      <span className="truncate flex-1 text-left">{c.modB.split('/').pop()}</span>
                     </div>
                     <button onClick={(e) => { e.preventDefault(); ignoreConflict(c.mod_pair); }} className="shrink-0 px-4 py-2 theme-glass-inner !shadow-none text-[9px] font-black text-[var(--subtext)] opacity-60 rounded-lg border border-white/10 hover:text-[var(--text)] hover:border-white/30 transition-all">
                       IGNORE

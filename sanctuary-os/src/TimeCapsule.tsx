@@ -47,8 +47,8 @@ export default function TimeCapsule({
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner">{icon}</div>
                   <div className="flex flex-col overflow-hidden max-w-[calc(100%-4rem)]">
-                    <h3 className="text-xl font-black text-[var(--text)] tracking-tighter uppercase leading-none mb-1 truncate" title={title}>{title}</h3>
-                    <p className="text-[9px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 truncate" title={backupName}>
+                    <h3 className="text-xl font-black text-[var(--text)] tracking-tighter uppercase leading-none mb-1 truncate">{title}</h3>
+                    <p className="text-[9px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 truncate">
                       {sig ? `${sig.version} • ${sig.timestamp !== "0" ? new Date(Number(sig.timestamp)*1000).toLocaleDateString() : ""}` : backupName.replace(".tar.zst", "")}
                     </p>
                   </div>

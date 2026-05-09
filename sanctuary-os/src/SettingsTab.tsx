@@ -223,9 +223,23 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
   return (
     <div className="p-8 w-full h-full overflow-y-auto space-y-12 pb-32 custom-scrollbar" style={{ color: currentTheme.text }}>
-      <header className="flex flex-col gap-1 pt-2">
-        <h1 className="text-4xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_title")}</h1>
-        <p className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: currentTheme.subtext }}>{t("settings_subtitle")}</p>
+      <header className="flex w-full justify-between items-start mb-10 shrink-0">
+        <div className="flex flex-col gap-3 items-start text-left flex-1">
+          <h1 className="text-4xl font-black tracking-tighter uppercase leading-tight m-0 text-left w-full text-[var(--text)]">
+            {t("settings_title")}
+          </h1>
+          <p className="font-black tracking-[0.4em] text-[10px] uppercase opacity-70 m-0 mt-1 text-left w-full text-[var(--subtext)] drop-shadow-sm">
+            {t("settings_subtitle")}
+          </p>
+        </div>
+        <div className="flex items-center gap-4 shrink-0 pl-6 min-h-[3rem]">
+          <button onClick={async () => {
+            await supabase.auth.signOut();
+            window.location.reload();
+          }} className="px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg border bg-white/5 hover:bg-white/10 hover:text-[var(--text)] text-[var(--subtext)] border-white/10 shrink-0">
+            LOG OUT
+          </button>
+        </div>
       </header>
 
       <HotSwapPanel />
@@ -381,20 +395,10 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         </div>
       </section>
 
-      <section className="space-y-6 pt-6 border-t border-white/5">
+      <section className="space-y-6 pt-32 mt-32 border-t border-white/5 opacity-50 hover:opacity-100 transition-opacity duration-700">
         <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_security")}</h2>
         <button onClick={() => { setShowMalwareOverride(true); setMalwareToggleActive(false); setOverrideInput(''); }} className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl border bg-transparent theme-text-danger theme-border-danger hover:theme-bg-danger hover:text-[var(--bg)]">
           {t("settings_malware_btn")}
-        </button>
-      </section>
-
-      <section className="space-y-6 pt-6 border-t border-white/5">
-        <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">Session Management</h2>
-        <button onClick={async () => {
-          await supabase.auth.signOut();
-          window.location.reload();
-        }} className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl border bg-transparent theme-text-warning border-white/10 hover:bg-white/10 hover:text-[var(--text)]">
-          LOG OUT (GUEST TEST)
         </button>
       </section>
 

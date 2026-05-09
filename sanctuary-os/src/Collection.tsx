@@ -111,7 +111,6 @@ export default function Collection(props: any) {
                     <button
                       onClick={() => runRadarSweep(false)}
                       className="w-12 h-12 rounded-2xl theme-glass-inner flex items-center justify-center text-[var(--text)] hover:theme-bg-accent transition-all shadow-md shrink-0"
-                      title="Refresh Collection"
                     >
                       {t("ui_icon_refresh") || "⟳"}
                     </button>
@@ -898,7 +897,6 @@ export default function Collection(props: any) {
                       >
                         <span
                           className="text-xs font-mono text-[var(--subtext)] opacity-80 truncate mb-4"
-                          title={filename}
                         >
                           {filename}
                         </span>

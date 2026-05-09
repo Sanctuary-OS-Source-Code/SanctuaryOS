@@ -158,10 +158,13 @@ const parsePostContent = (post: any) => {
               <span className="text-sm font-black theme-text-accent">{followerCount}</span>
             </div>
             {mason.patreon_url && (
-              <button onClick={() => openUrl(mason.patreon_url)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/5 transition-all text-lg" title="Patreon">{t("ui_icon_patreon")}</button>
+              <button onClick={() => openUrl(mason.patreon_url)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/5 transition-all text-lg">{t("ui_icon_patreon")}</button>
             )}
             {mason.website_url && (
-              <button onClick={() => openUrl(mason.website_url)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/5 transition-all text-lg" title="Website">{t("ui_icon_web")}</button>
+              <button onClick={() => openUrl(mason.website_url)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/5 transition-all text-lg">{t("ui_icon_web")}</button>
+            )}
+            {mason.discord_url && (
+              <button onClick={() => openUrl(mason.discord_url)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/5 transition-all text-lg">💬</button>
             )}
           </div>
         </div>
