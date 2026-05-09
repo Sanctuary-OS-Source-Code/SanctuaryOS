@@ -5,6 +5,7 @@ import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { useTheme } from "./ThemeContext";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
+import { ViewHeader } from "./shared";
 
 export const HotSwapPanel = () => {
   const { currentTheme, activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, updateActiveTheme, createNewTheme, importTheme, deleteTheme } = useTheme();
@@ -116,7 +117,7 @@ function CustomSettingsDropdown({ value, options, onChange }: any) {
   const selected = options.find((o: any) => o.id == value) || options[0];
 
   return (
-    <div className="relative w-full">
+    <div className={`relative w-full ${isOpen ? 'z-50' : 'z-10'}`}>
       <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 rounded-2xl border border-white/10 theme-glass-inner outline-none transition-all shadow-inner flex justify-between items-center text-xs font-black uppercase tracking-widest text-[var(--text)] focus:theme-border-accent group">
         <span>{selected?.label}</span>
         <span className="text-[var(--subtext)] opacity-60 text-[10px] group-hover:text-[var(--text)] transition-colors">{isOpen ? '▲' : '▼'}</span>
@@ -223,24 +224,14 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
   return (
     <div className="p-8 w-full h-full overflow-y-auto space-y-12 pb-32 custom-scrollbar" style={{ color: currentTheme.text }}>
-      <header className="flex w-full justify-between items-start mb-10 shrink-0">
-        <div className="flex flex-col gap-3 items-start text-left flex-1">
-          <h1 className="text-4xl font-black tracking-tighter uppercase leading-tight m-0 text-left w-full text-[var(--text)]">
-            {t("settings_title")}
-          </h1>
-          <p className="font-black tracking-[0.4em] text-[10px] uppercase opacity-70 m-0 mt-1 text-left w-full text-[var(--subtext)] drop-shadow-sm">
-            {t("settings_subtitle")}
-          </p>
-        </div>
-        <div className="flex items-center gap-4 shrink-0 pl-6 min-h-[3rem]">
+      <ViewHeader title={t("settings_title")} subtitle={t("settings_subtitle")}>
           <button onClick={async () => {
             await supabase.auth.signOut();
             window.location.reload();
-          }} className="px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg border bg-white/5 hover:bg-white/10 hover:text-[var(--text)] text-[var(--subtext)] border-white/10 shrink-0">
-            LOG OUT
+          }} className="px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md border bg-white/5 hover:bg-white/10 hover:text-[var(--text)] text-[var(--subtext)] border-white/10 shrink-0 flex items-center gap-2">
+            {t("ui_icon_logout")} LOG OUT
           </button>
-        </div>
-      </header>
+      </ViewHeader>
 
       <HotSwapPanel />
       <div className="h-px w-full" style={{ backgroundColor: `${currentTheme.text}10` }} />

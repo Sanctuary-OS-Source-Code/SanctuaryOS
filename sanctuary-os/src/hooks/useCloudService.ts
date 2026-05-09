@@ -56,7 +56,13 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       const parsed = { sanctuary_profile: true, name: data.name, mods: data.artifacts };
       const missing: any[] = [];
       parsed.mods.forEach((m: any) => {
-        const exists = modList.some(local => local.hash === m.hash || local.name === m.name);
+        const exists = modList.some((local: any) => {
+          if (local.hash && m.hash && local.hash === m.hash) return true;
+          if (local.name === m.name) return true;
+          const mBase = local.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+          const targetBase = typeof m === 'string' ? m.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '') : (m.name || '').split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+          return mBase && targetBase && mBase === targetBase;
+        });
         if (!exists) missing.push(m);
       });
       setPendingImportSet(parsed);

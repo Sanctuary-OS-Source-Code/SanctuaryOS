@@ -420,7 +420,7 @@ export function AppModals(props: any) {
                      <button
                        onClick={async () => {
                          try {
-                           await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "replace", sourceAction: match.source_action });
+                           await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "replace" });
                            if (dnaMatchQueue.length === 1) runRadarSweep(true);
                          } catch (e: any) { setStatus(`Error replacing file: ${e}`); }
                          setDnaMatchQueue((prev: any[]) => prev.filter((_: any, i: number) => i !== index));
@@ -433,7 +433,7 @@ export function AppModals(props: any) {
                        onClick={async () => {
                          try {
                            ignoredHashesRef.current.add(match.hash);
-                           await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "ignore", sourceAction: match.source_action });
+                           await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "ignore" });
                            if (dnaMatchQueue.length === 1 && match.source_action === "radar_sweep") runRadarSweep(true);
                          } catch (e: any) { console.error("Error ignoring:", e); }
                          setDnaMatchQueue((prev: any[]) => prev.filter((_: any, i: number) => i !== index));
@@ -451,13 +451,14 @@ export function AppModals(props: any) {
               <div className="flex gap-3 w-full mt-2 pt-4 border-t border-white/10 shrink-0">
                 <button
                   onClick={async () => {
-                    for (const match of dnaMatchQueue) {
+                    const queueCopy = [...dnaMatchQueue];
+                    setDnaMatchQueue([]);
+                    for (const match of queueCopy) {
                       try {
-                        await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "replace", sourceAction: match.source_action });
+                        await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "replace" });
                       } catch(e) {}
                     }
-                    if (dnaMatchQueue.length > 0) runRadarSweep(true);
-                    setDnaMatchQueue([]);
+                    if (queueCopy.length > 0) runRadarSweep(true);
                   }}
                   className="flex-1 py-4 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all hover:scale-105 shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]"
                 >
@@ -465,14 +466,15 @@ export function AppModals(props: any) {
                 </button>
                 <button
                   onClick={async () => {
-                    for (const match of dnaMatchQueue) {
+                    const queueCopy = [...dnaMatchQueue];
+                    setDnaMatchQueue([]);
+                    for (const match of queueCopy) {
                       try {
                         ignoredHashesRef.current.add(match.hash);
-                        await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "ignore", sourceAction: match.source_action });
+                        await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "ignore" });
                       } catch(e) {}
                     }
-                    if (dnaMatchQueue.length > 0) runRadarSweep(true);
-                    setDnaMatchQueue([]);
+                    if (queueCopy.length > 0) runRadarSweep(true);
                   }}
                   className="flex-1 py-4 theme-glass-inner text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl border border-white/5 transition-all hover:bg-white/5 shadow-sm"
                 >

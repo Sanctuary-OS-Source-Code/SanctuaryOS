@@ -108,7 +108,7 @@ function App() {
           await relaunch();
         }
       } catch (e) {
-        console.error("Update check failed", e);
+        // console.error("Update check failed", e);
       }
     }
     checkForUpdates();
@@ -498,23 +498,24 @@ function App() {
     };
     bootDLCProtocol();
   }, []);
+  const detectGameVersion = async () => {
+    if (!isConfigured) return;
+    try {
+      const config: any = await invoke("get_saved_coordinates");
+      if (!config.live_path) return;
+      
+      const rawRipped = await invoke<string>("rip_game_version", {
+        livePath: config.live_path,
+      });
+      const cleanVersion = rawRipped.replace(/[^0-9.]/g, "");
+      setSelectedVersion(cleanVersion);
+      setStatus(`${t("status_standing_by")} |  v${cleanVersion}`);
+    } catch (err) {
+      console.warn("Version detection failed:", err);
+    }
+  };
+
   useEffect(() => {
-    const detectGameVersion = async () => {
-      if (!isConfigured) return;
-      try {
-        const config: any = await invoke("get_saved_coordinates");
-        if (!config.live_path) return;
-        
-        const rawRipped = await invoke<string>("rip_game_version", {
-          livePath: config.live_path,
-        });
-        const cleanVersion = rawRipped.replace(/[^0-9.]/g, "");
-        setSelectedVersion(cleanVersion);
-        setStatus(`${t("status_standing_by")} |  v${cleanVersion}`);
-      } catch (err) {
-        console.warn("Version detection failed:", err);
-      }
-    };
     detectGameVersion();
   }, [isConfigured]);
   useEffect(() => {
@@ -912,9 +913,21 @@ function App() {
     );
     try {
       const config: any = await invoke("get_saved_coordinates");
-      const deployPayload = targetSet.mods.map((modName: string) => {
-        const modObj = modList.find((m: any) => m.name === modName);
-        return { path: modName, allow_write: modObj?.allow_write || false };
+      let deployPayload: any[] = [];
+      targetSet.mods.forEach((modName: string) => {
+        const modObj = modList.find((m: any) => {
+          if (m.name === modName) return true;
+          const mBase = m.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+          const targetBase = modName.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+          return mBase && targetBase && mBase === targetBase;
+        });
+        if (modObj && modObj.isVirtual && modObj.flavors) {
+           modObj.flavors.forEach((f: any) => {
+             deployPayload.push({ path: f.name, allow_write: modObj.allow_write || false });
+           });
+        } else {
+           deployPayload.push({ path: modObj ? modObj.name : modName, allow_write: modObj?.allow_write || false });
+        }
       });
       const msg = await invoke("deploy_playset_bulk", {
         mods: deployPayload,
@@ -963,6 +976,7 @@ function App() {
           setStatus(`${t("status_restore_failure")}${err}`);
         } finally {
           setIsRestoring(false);
+          detectGameVersion();
         }
       },
     });
@@ -1171,42 +1185,55 @@ function App() {
           }
         }
       }
+      const cloudMap = new Map();
+      allCloudData.forEach(c => cloudMap.set(String(c.dna_hash), c));
+      const setRelMap = new Map();
+      setMembership.forEach(sm => setRelMap.set(String(sm.mod_id), sm));
+      const flavorMap = new Map();
+      flavorData.forEach(f => flavorMap.set(String(f.mod_hash), f));
+      
+      const parentRelMap = new Map();
+      const childRelMap = new Map();
+      allRels.forEach(r => {
+         const cid = String(r.child_id);
+         const pid = String(r.parent_id);
+         if (!parentRelMap.has(cid)) parentRelMap.set(cid, []);
+         parentRelMap.get(cid).push(r);
+         if (!childRelMap.has(pid)) childRelMap.set(pid, []);
+         childRelMap.get(pid).push(r);
+      });
+      
+      const depsMap = new Map();
+      allDeps.forEach(d => {
+         const cid = String(d.child_id);
+         if (!depsMap.has(cid)) depsMap.set(cid, []);
+         depsMap.get(cid).push(d);
+      });
+
       const physicalMods = localMods.map((mod) => {
-        const cloudMatch = allCloudData.find(
-          (c) => String(c.dna_hash) === String(mod.hash),
-        );
+        const cloudMatch = cloudMap.get(String(mod.hash));
         const dbMod = getDbMod(cloudMatch);
         const dbId = dbMod?.id ? String(dbMod.id) : null;
-        const mySetRel = setMembership.find(
-          (sm) => String(sm.mod_id) === String(dbId),
-        );
-        const myParentRels = allRels.filter(
-          (r) => String(r.child_id) === String(dbId),
-        );
-        const twinRel = myParentRels.find(
-          (r) => r.relationship_type === "twin",
-        );
-        const betaRel = myParentRels.find(
-          (r) => r.relationship_type === "beta",
-        );
-        const addonRel = myParentRels.find(
-          (r) => r.relationship_type === "addon",
-        );
-        const myFlavor = flavorData.find(
-          (f: any) => String(f.mod_hash) === String(mod.hash),
-        );
-        const myChildRels = allRels.filter(
-          (r) => String(r.parent_id) === String(dbId),
-        );
+        
+        const mySetRel = dbId ? setRelMap.get(dbId) : undefined;
+        const myFlavor = flavorMap.get(String(mod.hash));
+        
+        const myParentRels = dbId ? (parentRelMap.get(dbId) || []) : [];
+        const myChildRels = dbId ? (childRelMap.get(dbId) || []) : [];
+        
+        const twinRel = myParentRels.find((r: any) => r.relationship_type === "twin");
+        const betaRel = myParentRels.find((r: any) => r.relationship_type === "beta");
+        const addonRel = myParentRels.find((r: any) => r.relationship_type === "addon");
+        
         const invisibleRivalIds = myChildRels
-          .filter((r) => r.relationship_type === "rival")
-          .map((r) => String(r.child_id));
-        const myDeps = allDeps
-          .filter((d) => String(d.child_id) === String(dbId))
-          .map((d) => ({
+          .filter((r: any) => r.relationship_type === "rival")
+          .map((r: any) => String(r.child_id));
+          
+        const myDeps = dbId ? (depsMap.get(dbId) || []).map((d: any) => ({
             id: String(d.parent_id),
             name: parentNameMap[String(d.parent_id)]?.name || String(d.parent_id)
-          }));
+        })) : [];
+
         const isDlcMissing = (dbMod?.requiredDLC || []).some(
           (dlc: string) => !ownedDLC.includes(dlc) || maskedDLC.includes(dlc),
         );
@@ -1216,22 +1243,17 @@ function App() {
           myBossId = String(addonRel.parent_id);
           myRelType = "addon";
         } else if (twinRel) {
-          myBossId =
-            String(twinRel.parent_id) < String(twinRel.child_id)
-              ? String(twinRel.parent_id)
-              : String(twinRel.child_id);
+          myBossId = String(twinRel.parent_id) < String(twinRel.child_id) ? String(twinRel.parent_id) : String(twinRel.child_id);
           myRelType = "twin";
         } else if (betaRel) {
-          myBossId =
-            String(betaRel.parent_id) < String(betaRel.child_id)
-              ? String(betaRel.parent_id)
-              : String(betaRel.child_id);
+          myBossId = String(betaRel.parent_id) < String(betaRel.child_id) ? String(betaRel.parent_id) : String(betaRel.child_id);
           myRelType = "beta";
         } else if (myFlavor) {
           myBossId = String(myFlavor.group_id);
         }
         return {
           ...mod,
+          physical_path: mod.name,
           dbId,
           setId: mySetRel ? String(mySetRel.set_id) : null,
           flavorGroupId: myFlavor ? String(myFlavor.group_id) : null,
@@ -1252,23 +1274,23 @@ function App() {
           relationshipType: myRelType,
           invisibleRivals:
             invisibleRivalIds.length > 0 ? invisibleRivalIds : undefined,
-          requirements: myDeps.length > 0 || myParentRels.some(r => r.relationship_type === "addon")
+          requirements: myDeps.length > 0 || myParentRels.some((r: any) => r.relationship_type === "addon")
             ? [
                 ...myDeps,
-                ...myParentRels.filter((r) => r.relationship_type === "addon").map((r) => ({
+                ...myParentRels.filter((r: any) => r.relationship_type === "addon").map((r: any) => ({
                   id: String(r.parent_id),
                   name: parentNameMap[String(r.parent_id)]?.name || String(r.parent_id)
                 }))
               ]
             : undefined,
           twins:
-            myParentRels.some((r) => r.relationship_type === "twin") || myChildRels.some((r) => r.relationship_type === "twin")
+            myParentRels.some((r: any) => r.relationship_type === "twin") || myChildRels.some((r: any) => r.relationship_type === "twin")
               ? [
-                  ...myParentRels.filter((r) => r.relationship_type === "twin").map((r) => ({
+                  ...myParentRels.filter((r: any) => r.relationship_type === "twin").map((r: any) => ({
                     id: String(r.parent_id),
                     name: parentNameMap[String(r.parent_id)]?.name || String(r.parent_id)
                   })),
-                  ...myChildRels.filter((r) => r.relationship_type === "twin").map((r) => ({
+                  ...myChildRels.filter((r: any) => r.relationship_type === "twin").map((r: any) => ({
                     id: String(r.child_id),
                     name: parentNameMap[String(r.child_id)]?.name || String(r.child_id)
                   })),
@@ -1525,9 +1547,13 @@ function App() {
       const missing: any[] = [];
       const availableMods: string[] = [];
       parsed.mods.forEach((importedMod: any) => {
-        const found = modList.find(
-          (m) => m.hash === importedMod.hash || m.name === importedMod.name,
-        );
+        const found = modList.find((m: any) => {
+          if (m.hash && importedMod.hash && m.hash === importedMod.hash) return true;
+          if (m.name === importedMod.name) return true;
+          const mBase = m.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+          const targetBase = typeof importedMod === 'string' ? importedMod.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '') : (importedMod.name || importedMod.path || '').split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+          return mBase && targetBase && mBase === targetBase;
+        });
         if (found) availableMods.push(found.name);
         else missing.push(importedMod);
       });
@@ -2185,13 +2211,13 @@ function App() {
         fetchVault();
       }
       setStatus(t("status_injecting"));
-      await invoke("move_to_lab", { filename: activeLabMod.name });
+      await invoke("move_to_lab", { filename: activeLabMod.physical_path || activeLabMod.name });
       const config: any = await invoke("get_saved_coordinates");
       const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
       setStatus(t("status_purging_logs"));
       await invoke("clear_old_logs", { docsPath: dPath });
       setStatus(t("status_igniting"));
-      await invoke("launch_game", { livePath: config.live_path });
+      await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
       setTestErrorFound(false);
       setTestLogSnippet("");
       const interval = setInterval(async () => {
@@ -2289,7 +2315,13 @@ function App() {
       }
       if (shelterActive) {
         setStatus(t("status_restoring_bunker_full"));
-        await invoke("repopulate_from_shelter");
+        const lastSet = localStorage.getItem("sanctuary_active_set");
+        if (lastSet) {
+          await equipPlaySet(lastSet);
+        } else {
+          const config: any = await invoke("get_saved_coordinates");
+          await invoke("deploy_playset_bulk", { mods: [], modsPath: config.mods_path, vaultPath: config.vault_path });
+        }
         setShelterActive(false);
       }
       setLabQueue((prev) => prev.filter((m) => m.hash !== activeLabMod.hash));
@@ -2313,25 +2345,53 @@ function App() {
   const fetchLabAssociated = async (mod: ModData) => {
     setIsLoadingAssociated(true);
     try {
-      const { data: modInDb } = await supabase
-        .from("mods")
-        .select("id")
-        .eq("name", mod.name)
-        .maybeSingle();
-      if (modInDb) {
-        const { data: deps } = await supabase
-          .from("mod_dependencies")
-          .select("parent_id")
-          .eq("child_id", modInDb.id);
-        const { data: twins } = await supabase
-          .from("mod_relationships")
-          .select("child_id")
-          .eq("parent_id", modInDb.id)
-          .eq("relationship_type", "twin");
-        const relatedIds = [
-          ...(deps?.map((d) => String(d.parent_id)) || []),
-          ...(twins?.map((t) => String(t.child_id)) || []),
-        ];
+      let modId = mod.dbId;
+      if (!modId) {
+        const { data: verData } = await supabase
+          .from("mod_versions")
+          .select("mod_id")
+          .eq("dna_hash", mod.hash)
+          .single();
+        modId = verData?.mod_id;
+      }
+      if (!modId) {
+        const cleanMod = (mod.name || "").split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+        const { data: modInDb } = await supabase
+          .from("mods")
+          .select("id")
+          .ilike("name", cleanMod || "")
+          .maybeSingle();
+        modId = modInDb?.id;
+      }
+        
+      if (modId) {
+        const { data: modInDb } = await supabase
+          .from("mods")
+          .select("id")
+          .eq("id", modId)
+          .single();
+          
+        if (modInDb) {
+          const { data: deps } = await supabase
+            .from("mod_dependencies")
+            .select("parent_id")
+            .eq("child_id", modInDb.id);
+          const { data: twins } = await supabase
+            .from("mod_relationships")
+            .select("child_id")
+            .eq("parent_id", modInDb.id)
+            .eq("relationship_type", "twin");
+          const { data: addonParents } = await supabase
+            .from("mod_relationships")
+            .select("parent_id")
+            .eq("child_id", modInDb.id)
+            .eq("relationship_type", "addon");
+            
+          const relatedIds = [
+            ...(deps?.map((d) => String(d.parent_id)) || []),
+            ...(twins?.map((t) => String(t.child_id)) || []),
+            ...(addonParents?.map((a) => String(a.parent_id)) || []),
+          ];
         if (relatedIds.length > 0) {
           const { data: relatedMods } = await supabase
             .from("mods")
@@ -2344,6 +2404,9 @@ function App() {
       } else {
         setAssociatedMods([]);
       }
+    } else {
+      setAssociatedMods([]);
+    }
     } catch (err) {
       console.error("Lab Association Failed:", err);
     }
@@ -2369,21 +2432,99 @@ function App() {
     setIsLoadingAssociated(false);
   };
   const runProvingRun = async () => {
-    if (!activeLabMod || !conflictTarget) return;
+    if (!activeLabMod) return;
     try {
       setStatus(t("status_proving_run"));
+      
+      let depPaths: string[] = [];
+      let modAId = activeLabMod.dbId;
+      if (!modAId) {
+        const { data: verA } = await supabase.from("mod_versions").select("mod_id").eq("dna_hash", activeLabMod.hash).maybeSingle();
+        modAId = verA?.mod_id;
+      }
+      if (!modAId) {
+        const cleanModA = (activeLabMod.name || "").split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+        const { data: modA } = await supabase.from("mods").select("id").ilike("name", cleanModA || "").maybeSingle();
+        modAId = modA?.id;
+      }
+
+      let modBId = conflictTarget?.dbId;
+      if (conflictTarget && !modBId) {
+        const { data: verB } = await supabase.from("mod_versions").select("mod_id").eq("dna_hash", conflictTarget.hash).maybeSingle();
+        modBId = verB?.mod_id;
+      }
+      if (conflictTarget && !modBId) {
+        const cleanModB = (conflictTarget.name || "").split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+        const { data: modB } = await supabase.from("mods").select("id").ilike("name", cleanModB || "").maybeSingle();
+        modBId = modB?.id;
+      }
+      const ids = [modAId, modBId].filter(Boolean);
+      
+      if (ids.length > 0) {
+        const orQuery = ids.map(id => `child_id.eq.${id}`).join(',');
+        const { data: depLinks } = await supabase.from('mod_dependencies').select('parent_id, child_id').or(orQuery);
+        const { data: addonLinks } = await supabase.from('mod_relationships').select('parent_id').or(orQuery).eq('relationship_type', 'addon');
+        
+        let allIds = new Set<string>();
+        if (depLinks) depLinks.forEach((l: any) => allIds.add(l.parent_id));
+        if (addonLinks) addonLinks.forEach((l: any) => allIds.add(l.parent_id));
+        
+        if (allIds.size > 0) {
+          const { data: depMods } = await supabase.from('mods').select('name').in('id', Array.from(allIds));
+          if (depMods) depPaths = depMods.map((m: any) => m.name);
+        }
+      }
+      
       const config: any = await invoke("get_saved_coordinates");
       await invoke("evacuate_to_shelter");
-      const deployMods = [
-        { path: activeLabMod.name, allow_write: true },
-        { path: conflictTarget.name, allow_write: true },
-      ];
+      
+      const rawDeploySet = new Set([
+        ...(activeLabMod.isVirtual && activeLabMod.flavors ? activeLabMod.flavors.map((f:any) => f.name) : [activeLabMod.name]),
+        ...(conflictTarget ? (conflictTarget.isVirtual && conflictTarget.flavors ? conflictTarget.flavors.map((f:any) => f.name) : [conflictTarget.name]) : []),
+        ...depPaths,
+        ...associatedMods.map((m: any) => m.name)
+      ]);
+      
+      const deployMods = Array.from(rawDeploySet).map((modName: string) => {
+        const modObj = modList.find((m: any) => {
+          if (m.isVirtual) return false;
+          if (m.name === modName || m.displayName === modName) return true;
+          const mBase = m.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '').toLowerCase();
+          const targetBase = modName.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '').toLowerCase();
+          return mBase && targetBase && mBase === targetBase;
+        });
+        return { path: modObj ? modObj.name : modName, allow_write: true };
+      });
+      
       await invoke("deploy_playset_bulk", {
         mods: deployMods,
-        mods_path: config.mods_path,
-        vault_path: config.vault_path,
+        modsPath: config.mods_path,
+        vaultPath: config.vault_path,
       });
-      await executeHotSwap(); 
+
+      setShelterActive(true);
+      fetchVault();
+
+      const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+      setStatus(t("status_purging_logs"));
+      await invoke("clear_old_logs", { docsPath: dPath });
+      
+      setStatus(t("status_igniting"));
+      await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
+      
+      setTestErrorFound(false);
+      setTestLogSnippet("");
+      const interval = setInterval(async () => {
+        const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
+        if (res !== "Clean") {
+          setTestErrorFound(true);
+          setTestLogSnippet(res);
+          setStatus(`${t("status_fatal_error")} ${res.substring(0, 50)}...`);
+          clearInterval(interval);
+          setLogWatcher(null);
+        }
+      }, 5000);
+      setLogWatcher(interval as any); 
     } catch (err) {
       setStatus(`${t("status_lab_error")}${err}`);
     }
@@ -2526,14 +2667,13 @@ function App() {
     >
       <TitleBar />
       <ToastProvider />
-      <nav className="w-64 h-full flex flex-col bg-black/20 backdrop-blur-xl border-r border-white/10 shadow-2xl relative z-20">
+      <nav className="w-64 shrink-0 h-full flex flex-col bg-black/20 backdrop-blur-xl border-r border-white/10 shadow-2xl relative z-20">
         <div className="p-6 flex items-center gap-3 border-b border-white/5">
-          <div
-            className="w-10 h-10 rounded-xl theme-bg-accent shadow-lg flex items-center justify-center font-bold text-xl"
-            style={{ color: "var(--bg)" }}
-          >
-            {t("ui_icon_logo")}
-          </div>
+          <img 
+            src="/icon.png" 
+            alt="Sanctuary OS" 
+            className="w-10 h-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.15)] hover:scale-110 hover:drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all duration-300"
+          />
           <div>
             <h1 className="text-xl font-bold tracking-wider uppercase text-left">
               {t("sidebar_app_title")}
@@ -2767,6 +2907,8 @@ function App() {
           {view === "lab" && (
             <ErrorBoundary moduleName="Solder Lab">
               <Lab
+                executeHotSwap={runProvingRun}
+                shelterActive={shelterActive}
                 labSearchQuery={labSearchQuery}
                 setLabSearchQuery={setLabSearchQuery}
                 labVerificationQueue={labVerificationQueue}
@@ -2816,7 +2958,7 @@ function App() {
           {view === "ArchitectHub" &&
             ["architect", "wayfinder", "admin"].includes(userRole) && (
               <ErrorBoundary moduleName="Architect Hub">
-                <ArchitectHub userRole={userRole} />
+                <ArchitectHub userRole={userRole} equipPlaySet={equipPlaySet} modList={modList} />
               </ErrorBoundary>
             )}
           {view === "SeniorArchitect" &&

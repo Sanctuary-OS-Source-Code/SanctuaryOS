@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { ViewHeader } from "./shared";
 import { useLexicon } from "./LexiconContext";
+import { invoke } from "@tauri-apps/api/core";
 
-export default function ArchitectHub({ userRole }: { userRole?: string }) {
+export default function ArchitectHub({ userRole, equipPlaySet, modList }: { userRole?: string, equipPlaySet?: (s: string) => Promise<void>, modList?: any[] }) {
   const { t } = useLexicon();
   const [activeTab, setActiveTab] = useState("command_center");
 
@@ -34,7 +35,7 @@ export default function ArchitectHub({ userRole }: { userRole?: string }) {
         {activeTab === "cc_registry" && <CCRegistry />}
         {activeTab === "cc_sets" && <CCSetForge />}
         {activeTab === "queue" && <ScoutQueue />}
-        {activeTab === "lab" && <ProvingGrounds />}
+        {activeTab === "lab" && <ProvingGrounds modList={modList || []} />}
         {activeTab === "matrix" && <ConflictMatrix />}
       </div>
     </div>
@@ -631,8 +632,8 @@ function CustomMasonDropdown({ value, options, onChange }: { value: string, opti
   const filtered = options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()));
 
   return (
-    <div className="relative w-full">
-      <div className="relative">
+    <div className={`relative w-full ${isOpen ? 'z-[6000]' : ''}`}>
+      <div className={`relative ${isOpen ? 'z-[6000]' : ''}`}>
         <input 
           type="text"
           value={isOpen ? query : (selected ? selected.name : "")}
@@ -1075,7 +1076,7 @@ function CCSetForge() {
                 </div>
               </div>
               
-              <div className="relative">
+              <div className={`relative ${assetSearch.length >= 2 && availableAssets.length > 0 ? 'z-[6000]' : ''}`}>
                 <div className="flex items-center gap-3 theme-glass-inner px-5 py-3 rounded-2xl focus-within:theme-border-accent">
                   <span className={isSearching ? "animate-spin theme-text-accent" : "theme-text-accent"}>{t("registry_icon_search")}</span>
                   <input placeholder={t("forge_search_assets")} value={assetSearch} onChange={e => setAssetSearch(e.target.value)} className="bg-transparent border-none outline-none text-[var(--text)] text-sm font-bold w-full" />
@@ -1223,7 +1224,7 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
   const selected = options.find(o => o.id === value) || options[0];
 
   return (
-    <div className="relative w-full md:w-48 shrink-0">
+    <div className={`relative w-full md:w-48 shrink-0 ${isOpen ? 'z-[6000]' : ''}`}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -1391,13 +1392,23 @@ function ConflictMatrix() {
   );
 }
 
-function ProvingGrounds() {
+function ProvingGrounds({ modList }: { modList: any[] }) {
   const { t } = useLexicon();
   const [primaryMod, setPrimaryMod] = useState<any | null>(null);
   const [secondaryMod, setSecondaryMod] = useState<any | null>(null);
   const [allMods, setAllMods] = useState<any[]>([]);
-  const [conflicts, setConflicts] = useState<any[]>([]);
+  
+  // Test states
   const [isLoading, setIsLoading] = useState(false);
+  const [testRun, setTestRun] = useState(false);
+  const [testPassed, setTestPassed] = useState(true);
+  const [testLog, setTestLog] = useState("");
+  const [logWatcher, setLogWatcher] = useState<any>(null);
+
+  // Resolution states
+  const [severity, setSeverity] = useState(4);
+  const [resolution, setResolution] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchMods = async () => {
@@ -1405,79 +1416,275 @@ function ProvingGrounds() {
       if (data) setAllMods(data);
     };
     fetchMods();
-  }, []);
+    return () => { if (logWatcher) clearInterval(logWatcher); };
+  }, [logWatcher]);
 
   const runSimulation = async () => {
       if (!primaryMod || !secondaryMod) return;
       setIsLoading(true);
-      const { data } = await supabase.from('logical_conflicts').select('*')
-        .or(`and(mod_a.eq."${primaryMod.name}",mod_b.eq."${secondaryMod.name}"),and(mod_a.eq."${secondaryMod.name}",mod_b.eq."${primaryMod.name}")`);
-      setConflicts(data || []);
-      setIsLoading(false);
-    };
+      setTestRun(false);
+      setTestLog("");
+      
+      try {
+        let depPaths: string[] = [];
+        let modAId = primaryMod.id;
+        if (!modAId) {
+          const cleanModA = (primaryMod.name || "").split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+          const { data: modA } = await supabase.from("mods").select("id").ilike("name", cleanModA || "").maybeSingle();
+          modAId = modA?.id;
+        }
 
-    return (
-      <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-50">
-          <div className="theme-glass-inner rounded-[2rem] p-8 flex flex-col gap-6 shadow-inner relative z-50">
-            <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">{t("lab_primary_mod")}</h3>
-            <ModSearchDropdown 
-              value={primaryMod?.name || ""} 
-              onChange={(val) => {
-                  const found = allMods.find(m => m.name === val);
-                  if (found) setPrimaryMod(found);
-                  else setPrimaryMod({ name: val });
-              }} 
-              placeholder={t("lab_select_primary")} 
-              mods={allMods} 
-            />
-          </div>
-          <div className="theme-glass-inner rounded-[2rem] p-8 flex flex-col gap-6 shadow-inner relative z-40">
-            <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">{t("lab_secondary_mod")}</h3>
-            <ModSearchDropdown 
-              value={secondaryMod?.name || ""} 
-              onChange={(val) => {
-                  const found = allMods.find(m => m.name === val);
-                  if (found) setSecondaryMod(found);
-                  else setSecondaryMod({ name: val });
-              }} 
-              placeholder={t("lab_select_secondary")} 
-              mods={allMods} 
-            />
-          </div>
-        </div>
+        let modBId = secondaryMod.id;
+        if (!modBId) {
+          const cleanModB = (secondaryMod.name || "").split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+          const { data: modB } = await supabase.from("mods").select("id").ilike("name", cleanModB || "").maybeSingle();
+          modBId = modB?.id;
+        }
 
-        <div className="flex-1 theme-glass-panel rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden flex flex-col z-10">
-          <div className="absolute top-[-50px] left-[-50px] w-96 h-96 theme-bg-accent opacity-5 blur-[120px] rounded-full pointer-events-none" />
+        const ids = [modAId, modBId].filter(Boolean);
+        
+        if (ids.length > 0) {
+          const orQuery = ids.map(id => `child_id.eq.${id}`).join(',');
+          const orParentQuery = ids.map(id => `parent_id.eq.${id}`).join(',');
           
-          {primaryMod && secondaryMod ? (
-            <div className="flex-1 flex flex-col gap-8 relative z-10">
-              <div className="flex justify-between items-center border-b border-white/10 pb-6">
-                <h2 className="text-2xl font-black text-[var(--text)] uppercase tracking-tighter">{t("lab_simulation_report")}</h2>
-              <button 
-                onClick={runSimulation} 
-                disabled={isLoading}
-                className="px-8 py-3 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg"
-              >
-                {isLoading ? t("lab_simulating") : t("lab_run_simulation")}
-              </button>
+          const { data: depLinks } = await supabase
+            .from('mod_dependencies')
+            .select('parent_id, child_id')
+            .or(orQuery);
+            
+          const { data: twinLinks } = await supabase
+            .from('mod_relationships')
+            .select('child_id')
+            .or(orParentQuery)
+            .eq('relationship_type', 'twin');
+
+          const { data: addonLinks } = await supabase
+            .from('mod_relationships')
+            .select('parent_id')
+            .or(orQuery)
+            .eq('relationship_type', 'addon');
+
+          let allIds = new Set<string>();
+          if (depLinks) depLinks.forEach((l: any) => allIds.add(l.parent_id));
+          if (twinLinks) twinLinks.forEach((l: any) => allIds.add(l.child_id));
+          if (addonLinks) addonLinks.forEach((l: any) => allIds.add(l.parent_id));
+
+          if (allIds.size > 0) {
+            const { data: depMods } = await supabase.from('mods').select('name').in('id', Array.from(allIds));
+            if (depMods) depPaths = depMods.map((m: any) => m.name);
+          }
+        }
+
+
+
+        const config: any = await invoke("get_saved_coordinates");
+        await invoke("evacuate_to_shelter");
+        
+        const rawDeploySet = new Set([
+          primaryMod.physical_path || primaryMod.name,
+          secondaryMod.physical_path || secondaryMod.name,
+          ...depPaths
+        ]);
+        
+        const deployMods = Array.from(rawDeploySet).map((modName: string) => {
+          const modObj = (modList || []).find((m: any) => {
+            if (m.isVirtual) return false;
+            if (m.name === modName || m.displayName === modName) return true;
+            const mBase = m.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '').toLowerCase();
+            const targetBase = modName.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '').toLowerCase();
+            return mBase && targetBase && mBase === targetBase;
+          });
+          return { path: modObj ? modObj.name : modName, allow_write: true };
+        });
+        
+        await invoke("deploy_playset_bulk", {
+          mods: deployMods,
+          modsPath: config.mods_path,
+          vaultPath: config.vault_path
+        });
+        
+        const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+        await invoke("clear_old_logs", { docsPath: dPath });
+        await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
+        
+        const interval = setInterval(async () => {
+          const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
+          if (res !== "Clean") {
+            setTestPassed(false);
+            setTestLog(res);
+            setTestRun(true);
+            setIsLoading(false);
+            clearInterval(interval);
+            setLogWatcher(null);
+          }
+        }, 5000);
+        setLogWatcher(interval);
+      } catch (err) {
+        console.error(err);
+        setIsLoading(false);
+      }
+  };
+
+  const concludeTest = async (passed: boolean) => {
+      if (logWatcher) clearInterval(logWatcher);
+      setTestPassed(passed);
+      setTestRun(true);
+      setIsLoading(false);
+      const lastSet = localStorage.getItem("sanctuary_active_set");
+      if (lastSet) {
+        const config: any = await invoke("get_saved_coordinates");
+        const playsetsStr = localStorage.getItem("sanctuary_playsets");
+        if (playsetsStr) {
+          const sets = JSON.parse(playsetsStr);
+          const activeSet = sets.find((s: any) => s.name === lastSet);
+          if (activeSet) {
+            let deployMods: any[] = [];
+            activeSet.mods.forEach((modName: string) => {
+              const modObj = modList.find((m: any) => m.name === modName || m.displayName === modName);
+              if (modObj && modObj.isVirtual && modObj.flavors) {
+                 modObj.flavors.forEach((f: any) => deployMods.push({ path: f.name, allow_write: true }));
+              } else {
+                 deployMods.push({ path: modObj ? modObj.name : modName, allow_write: true });
+              }
+            });
+            await invoke("deploy_playset_bulk", {
+              mods: deployMods,
+              modsPath: config.mods_path,
+              vaultPath: config.vault_path,
+            });
+            return;
+          }
+        }
+      }
+      await invoke("evacuate_to_shelter");
+  };
+
+  const submitToNexus = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsSubmitting(true);
+      await supabase.from('logical_conflicts').insert([{
+        mod_a: primaryMod.name,
+        mod_b: secondaryMod.name,
+        severity_rank: severity,
+        resolution_note: resolution
+      }]);
+      setIsSubmitting(false);
+      setTestRun(false);
+      setTestLog("");
+      setResolution("");
+  };
+
+  return (
+    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-50">
+        <div className="theme-glass-inner rounded-[2rem] p-8 flex flex-col gap-6 shadow-inner relative z-50">
+          <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">{t("lab_primary_mod")}</h3>
+          <ModSearchDropdown 
+            value={primaryMod?.name || ""} 
+            onChange={(val) => {
+                const found = allMods.find(m => m.name === val);
+                if (found) setPrimaryMod(found);
+                else setPrimaryMod({ name: val });
+            }} 
+            placeholder={t("lab_select_primary")} 
+            mods={allMods} 
+          />
+        </div>
+        <div className="theme-glass-inner rounded-[2rem] p-8 flex flex-col gap-6 shadow-inner relative z-40">
+          <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">{t("lab_secondary_mod")}</h3>
+          <ModSearchDropdown 
+            value={secondaryMod?.name || ""} 
+            onChange={(val) => {
+                const found = allMods.find(m => m.name === val);
+                if (found) setSecondaryMod(found);
+                else setSecondaryMod({ name: val });
+            }} 
+            placeholder={t("lab_select_secondary")} 
+            mods={allMods} 
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 theme-glass-panel rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden flex flex-col z-10">
+        <div className="absolute top-[-50px] left-[-50px] w-96 h-96 theme-bg-accent opacity-5 blur-[120px] rounded-full pointer-events-none" />
+        
+        {primaryMod && secondaryMod ? (
+          <div className="flex-1 flex flex-col gap-8 relative z-10">
+            <div className="flex justify-between items-center border-b border-white/10 pb-6">
+              <h2 className="text-2xl font-black text-[var(--text)] uppercase tracking-tighter">{t("lab_simulation_report")}</h2>
+              <div className="flex gap-4">
+                {isLoading && (
+                  <>
+                    <button 
+                      onClick={() => concludeTest(true)} 
+                      className="px-8 py-3 bg-white/10 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/20 hover:theme-text-success transition-all shadow-lg"
+                    >
+                      Conclude & Pass
+                    </button>
+                    <button 
+                      onClick={() => concludeTest(false)} 
+                      className="px-8 py-3 bg-white/10 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/20 hover:theme-text-danger transition-all shadow-lg"
+                    >
+                      Conclude & Fail
+                    </button>
+                  </>
+                )}
+                <button 
+                  onClick={runSimulation} 
+                  disabled={isLoading}
+                  className="px-8 py-3 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg"
+                >
+                  {isLoading ? t("lab_simulating") : t("lab_run_simulation")}
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6">
-              {conflicts.length > 0 ? (
-                conflicts.map((c, i) => (
-                  <div key={i} className="bg-rose-500/10 border border-rose-500/20 p-6 rounded-2xl flex flex-col gap-3 animate-in slide-in-from-right-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black theme-text-danger uppercase tracking-widest">{t("lab_conflict_detected")}</span>
-                      <span className="px-3 py-1 theme-panel-danger border rounded text-[9px] font-black uppercase">{t("lab_severity")}{c.severity_rank}</span>
+              {testRun ? (
+                <div className="flex flex-col gap-6 h-full">
+                  {testPassed ? (
+                    <div className="flex flex-col items-center justify-center p-8 bg-green-500/10 border border-green-500/20 rounded-2xl gap-4">
+                      <span className="text-4xl text-green-500">✓</span>
+                      <h3 className="text-xl font-black text-green-500 uppercase tracking-widest">Simulation Passed</h3>
+                      <p className="text-[10px] text-green-500/80 uppercase tracking-widest">No exceptions were caught during the test run.</p>
                     </div>
-                    <p className="text-sm font-bold text-[var(--text)]">{c.resolution_note || t("lab_no_resolution")}</p>
-                  </div>
-                ))
+                  ) : (
+                    <div className="flex flex-col gap-6">
+                      <div className="bg-rose-500/10 border border-rose-500/20 p-6 rounded-2xl flex flex-col gap-3 animate-in slide-in-from-right-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-black theme-text-danger uppercase tracking-widest">{t("lab_conflict_detected")}</span>
+                          <span className="px-3 py-1 theme-panel-danger border rounded text-[9px] font-black uppercase">FAILED</span>
+                        </div>
+                        <div className="bg-black/40 p-4 rounded-xl font-mono text-[9px] text-rose-300/80 whitespace-pre-wrap max-h-48 overflow-y-auto custom-scrollbar">
+                          {testLog}
+                        </div>
+                      </div>
+                      
+                      <div className="theme-glass-inner p-6 rounded-2xl flex flex-col gap-4">
+                        <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">Add To Nexus</h3>
+                        <form onSubmit={submitToNexus} className="flex flex-col gap-4">
+                          <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">Resolution Suggestion</label>
+                            <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder="e.g. Load Mod A after Mod B" className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono focus:outline-none focus:theme-border-accent" />
+                          </div>
+                          <div className="flex items-end gap-4">
+                            <div className="flex flex-col gap-2 flex-1">
+                              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">Severity (4 = Fatal, 3 = Minor)</label>
+                              <CustomTierDropdown value={severity} onChange={(val) => setSeverity(val)} />
+                            </div>
+                            <button type="submit" disabled={isSubmitting} className="px-8 py-3 theme-bg-success text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg disabled:opacity-50 h-[46px]">
+                              {isSubmitting ? "Saving..." : "Save Conflict Rule"}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : !isLoading ? (
                 <div className="h-full flex flex-col items-center justify-center opacity-40">
-                  <span className="text-6xl mb-4 grayscale"></span>
-                  <p className="text-sm font-black text-[var(--text)] uppercase tracking-widest">{t("lab_no_known_conflicts")}</p>
+                  <span className="text-6xl mb-4 grayscale">🧪</span>
+                  <p className="text-sm font-black text-[var(--text)] uppercase tracking-widest">AWAITING SIMULATION DEPLOYMENT...</p>
                 </div>
               ) : (
                 <div className="h-full flex items-center justify-center">
@@ -1581,7 +1788,7 @@ function CustomStatusDropdown({ value, onChange }: { value: string, onChange: (v
   const selected = options.find(o => o.id === value) || options[4];
 
   return (
-    <div className="relative w-full">
+    <div className={`relative w-full ${isOpen ? 'z-[6000]' : ''}`}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -1622,7 +1829,7 @@ function CustomComplianceDropdown({ value, onChange }: { value: number, onChange
   ];
   const selected = options.find(o => o.id === value) || options[0];
   return (
-    <div className="relative w-full">
+    <div className={`relative w-full ${isOpen ? 'z-[6000]' : ''}`}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -1666,7 +1873,7 @@ function CustomClassificationDropdown({ value, onChange }: { value: string, onCh
   const selected = options.find(o => o.id === value) || options[0];
 
   return (
-    <div className="relative w-full">
+    <div className={`relative w-full ${isOpen ? 'z-[6000]' : ''}`}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -1782,9 +1989,9 @@ function DLCSearchDropdown({ onSelect, currentDLC =[] }: { onSelect: (pack: stri
   );
 
   return (
-    <div className="relative w-full">
+    <div className={`relative w-full ${isOpen ? 'z-[6000]' : ''}`}>
       <div className="flex gap-2">
-        <div className="relative flex-1">
+        <div className={`relative flex-1 ${isOpen ? 'z-[6000]' : ''}`}>
           <input
             value={query}
             onChange={e => { setQuery(e.target.value); setIsOpen(true); }}

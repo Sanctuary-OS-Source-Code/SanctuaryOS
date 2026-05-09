@@ -1,6 +1,7 @@
 import { useState } from "react";
 export interface ModData {
   name: string;
+  physical_path?: string;
   hash: string;
   id?: string;
   status: string;
@@ -124,18 +125,21 @@ export function CustomDropdown({ value, options, onChange }: any) {
 
   return (
     <div className="relative w-full">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 rounded-2xl border border-white/10 theme-glass-inner outline-none transition-all shadow-inner flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-[var(--text)] focus:theme-border-accent group hover:bg-white/5">
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 rounded-2xl border border-white/10 theme-glass-inner outline-none transition-all shadow-inner flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-[var(--text)] focus:theme-border-accent group hover:bg-white/5 relative z-[10]">
         <span>{selected?.label || "Select..."}</span>
         <span className="text-[var(--subtext)] opacity-60 text-[10px] group-hover:text-[var(--text)] transition-colors">{isOpen ? '▲' : '▼'}</span>
       </button>
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--sidebar)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[999] animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto custom-scrollbar">
-          {options.map((opt: any) => (
-            <button key={opt.id} onClick={() => { onChange(opt.id); setIsOpen(false); }} className="w-full text-left px-5 py-4 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-white/5 text-[var(--text)] border-b border-white/5 last:border-0 flex items-center hover:theme-text-accent">
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full left-0 right-0 mt-2 bg-black/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-[9999] animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto custom-scrollbar">
+            {options.map((opt: any) => (
+              <button key={opt.id} onClick={() => { onChange(opt.id); setIsOpen(false); }} className="w-full text-left px-5 py-4 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-white/10 text-[var(--text)] border-b border-white/5 last:border-0 flex items-center hover:theme-text-accent">
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

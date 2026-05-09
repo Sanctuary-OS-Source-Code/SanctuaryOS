@@ -329,10 +329,10 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         <div
                           key={kid.hash || kid.name}
                           onClick={() => setSelectedKid(kid)}
-                          className={`group flex items-center justify-between p-5 rounded-2xl border transition-all cursor-pointer hover:scale-[1.02] hover:shadow-xl ${
+                          className={`group relative flex flex-col items-start p-5 rounded-2xl border transition-all cursor-pointer hover:scale-[1.02] hover:shadow-xl ${
                             isEquipped ? 'bg-white/5 border-white/20' : 'bg-black/40 border-white/5 hover:border-white/10'
                           }`}>
-                          <div className="flex flex-col min-w-0 pr-4">
+                          <div className="flex flex-col min-w-0 pr-14 mb-1">
                             <span className="text-[11px] font-bold text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors">
                               {(kid.displayName || kid.name.split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '')}
                             </span>
@@ -342,11 +342,11 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                           </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); safeToggle(kid.name); }}
-                            className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center font-black transition-all hover:scale-110 active:scale-90 border ${
-                              isEquipped ? 'theme-panel-success theme-btn-success' : 'bg-white/5 text-[var(--text)]/40 border-white/10'
+                            className={`absolute top-3 right-3 w-8 h-8 shrink-0 rounded-lg flex items-center justify-center font-black transition-all hover:scale-110 active:scale-90 border ${
+                              isEquipped ? 'theme-panel-danger theme-btn-danger' : 'bg-white/5 text-[var(--text)]/40 border-white/10 hover:text-[var(--text)]'
                             }`}
                           >
-                            <span className="mt-[-2px]">{isEquipped ? '✓' : '+'}</span>
+                            <span className="mt-[-2px]">{isEquipped ? '✕' : '+'}</span>
                           </button>
                         </div>
                       );
@@ -403,12 +403,12 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
             onClick={(e) => e.stopPropagation()}
           >
             
+            <button onClick={() => setSelectedKid(null)} className="absolute top-6 right-6 z-50 w-10 h-10 bg-black/40 backdrop-blur-md hover:theme-bg-danger text-white/70 hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-white/10">✕</button>
             <div className="h-40 relative bg-black border-b border-white/10 shrink-0">
               <img src={selectedKid.image_url || selectedKid.imageUrl || mod.image_url || mod.imageUrl || 'https://forums.ea.com/t5/s/tghpe58374/images/bS0xMzI3ODY1MS1RNkFpREk?revision=1&image-dimensions=2000x2000&constrain-image=true'} className="w-full h-full object-cover opacity-80" alt={t("dossier_sub_cover_alt")} />
               <div className="absolute inset-0 bg-gradient-to-t from-transparent to-black/20" />
             </div>
             <div className="px-8 pt-6 pb-2 relative">
-              <button onClick={() => setSelectedKid(null)} className="absolute top-6 right-6 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--subtext)] hover:text-[var(--text)] rounded-full flex items-center justify-center transition-all shadow-xl">✕</button>
               <h3 className="text-2xl font-black text-[var(--text)] uppercase truncate">{(selectedKid.displayName || selectedKid.name.split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '')}</h3>
               <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{selectedKid.version || t("dossier_vlocal")} &bull; {selectedKid.author || mod.author || t("dossier_unknown")}</p>
             </div>
@@ -437,13 +437,13 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
             className="relative w-full max-w-xl theme-glass-panel rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
+            <button onClick={() => setShowFlagModal(false)} className="absolute top-6 right-6 z-50 w-10 h-10 bg-black/40 backdrop-blur-md hover:theme-bg-danger text-white/70 hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-white/10">✕</button>
             <div className="h-40 relative bg-black border-b border-white/10 shrink-0">
               <img src={mod.image_url || mod.imageUrl || 'https://forums.ea.com/t5/s/tghpe58374/images/bS0xMzI3ODY1MS1RNkFpREk?revision=1&image-dimensions=2000x2000&constrain-image=true'} className="w-full h-full object-cover opacity-80 grayscale mix-blend-luminosity" alt="Flag Content" />
               <div className="absolute inset-0 bg-gradient-to-t from-red-900/40 to-black/20" />
             </div>
             
             <div className="px-8 pt-6 pb-2 relative">
-              <button onClick={() => setShowFlagModal(false)} className="absolute top-6 right-6 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--subtext)] hover:text-[var(--text)] rounded-full flex items-center justify-center transition-all shadow-xl">✕</button>
               <h3 className="text-2xl font-black text-[var(--text)] uppercase truncate">{t("dossier_flag_title")}</h3>
               <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("dossier_flag_desc")}</p>
             </div>

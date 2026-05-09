@@ -446,7 +446,7 @@ function CustomClassificationDropdown({ value, onChange }: any) {
   const options =[{ id: 'Script', label: t("class_dd_script") }, { id: 'BuildBuy', label: t("class_dd_buildbuy") }, { id: 'CAS', label: t("class_dd_cas") }, { id: 'Animation', label: t("class_dd_animation") }];
   const selected = options.find(o => o.id === value) || options[0];
   return (
-    <div className="relative w-full">
+    <div className={`relative w-full ${isOpen ? 'z-50' : 'z-10'}`}>
       <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full theme-glass-inner rounded-xl px-5 py-3 text-sm font-black uppercase tracking-widest focus:outline-none flex justify-between items-center transition-all text-[var(--text)]">
         {selected.label} <span className="text-[var(--subtext)] opacity-60 text-[10px]">{isOpen ? '▲' : '▼'}</span>
       </button>
@@ -567,7 +567,8 @@ function MasonSettings({ profile, onUpdate }: { profile: any, onUpdate: (p: any)
     bio: profile.bio || "",
     avatar_url: profile.avatar_url || "",
     patreon_url: profile.patreon_url || "",
-    website_url: profile.website_url || ""
+    website_url: profile.website_url || "",
+    discord_url: profile.discord_url || ""
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -609,6 +610,11 @@ function MasonSettings({ profile, onUpdate }: { profile: any, onUpdate: (p: any)
            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">Personal Website</label>
            <input value={formData.website_url} onChange={e => setFormData({...formData, website_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono focus:outline-none focus:theme-border-accent" />
          </div>
+        </div>
+
+       <div className="flex flex-col gap-2">
+         <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">Discord URL</label>
+         <input value={formData.discord_url} onChange={e => setFormData({...formData, discord_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono focus:outline-none focus:theme-border-accent" />
        </div>
        
        <button onClick={handleSave} disabled={isSaving} className="mt-4 w-full py-4 rounded-xl theme-bg-accent text-[var(--bg)] font-black text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg">
@@ -783,7 +789,7 @@ function MasonStatusDropdown({ value, onChange }: { value: string, onChange: (va
   const selected = options.find(o => o.id === value) || options.find(o => o.id === 'unverified') || options[0];
 
   return (
-    <div className="relative w-full">
+    <div className={`relative w-full ${isOpen ? 'z-50' : 'z-10'}`}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
