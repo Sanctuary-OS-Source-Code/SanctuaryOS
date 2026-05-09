@@ -2681,7 +2681,7 @@ function App() {
     >
       <TitleBar />
       <ToastProvider />
-      <nav className="w-64 shrink-0 h-full flex flex-col bg-black/20 backdrop-blur-xl border-r border-white/10 shadow-2xl relative z-20">
+      <nav className="min-w-[256px] w-[256px] flex-shrink-0 h-full flex flex-col bg-black/20 backdrop-blur-xl border-r border-white/10 shadow-2xl relative z-20">
         <div className="p-6 flex items-center gap-3 border-b border-white/5">
           <img 
             src="/icon.png" 
