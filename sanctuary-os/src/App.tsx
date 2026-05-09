@@ -103,9 +103,23 @@ function App() {
       try {
         const update = await check();
         if (update) {
-          console.log(`Installing update: ${update.version}`);
-          await update.downloadAndInstall();
-          await relaunch();
+          setConfirmDialog({
+            message: `Sanctuary OS ${update.version} is available!\n\nWould you like to download and install this update now?`,
+            confirmText: "UPDATE",
+            action: async () => {
+              setConfirmDialog(null);
+              setStatus("DOWNLOADING UPDATE...");
+              try {
+                await update.downloadAndInstall();
+                setStatus("RESTARTING...");
+                await relaunch();
+              } catch (e) {
+                setStatus("UPDATE FAILED: " + e);
+              }
+            },
+            cancelText: "SKIP",
+            cancelAction: () => setConfirmDialog(null)
+          });
         }
       } catch (e) {
         // console.error("Update check failed", e);
