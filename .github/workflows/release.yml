@@ -41,7 +41,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Sanctuary OS ${{ github.ref_name }}'
           releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
-          prerelease: true
+          releaseDraft: false
+          prerelease: false
           includeUpdaterJson: true
           args: ${{ matrix.args }}
