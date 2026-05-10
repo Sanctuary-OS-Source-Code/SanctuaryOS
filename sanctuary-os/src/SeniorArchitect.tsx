@@ -351,6 +351,51 @@ function ComplianceOversight() {
   const [mods, setMods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterTier, setFilterTier] = useState<number | null>(null);
+  
+  const [showManualFlagModal, setShowManualFlagModal] = useState(false);
+  const [manualSearchQuery, setManualSearchQuery] = useState("");
+  const [manualSearchResults, setManualSearchResults] = useState<any[]>([]);
+  const [manualSelectedMod, setManualSelectedMod] = useState<any>(null);
+  const [manualTier, setManualTier] = useState<number>(3);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!manualSearchQuery.trim() || manualSelectedMod) {
+      setManualSearchResults([]);
+      return;
+    }
+    const delayDebounceFn = setTimeout(async () => {
+      const { data } = await supabase
+        .from('mods')
+        .select('id, name, master_author, compliance_tier')
+        .ilike('name', `%${manualSearchQuery.trim()}%`)
+        .limit(10);
+      if (data) setManualSearchResults(data);
+    }, 300);
+    return () => clearTimeout(delayDebounceFn);
+  }, [manualSearchQuery, manualSelectedMod]);
+
+  const handleManualFlag = async () => {
+    if (!manualSelectedMod) {
+      alert("Please select a mod from the registry.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('mods').update({ compliance_tier: manualTier }).eq('id', manualSelectedMod.id);
+      if (error) throw error;
+      
+      alert("Mod flagged manually successfully.");
+      setShowManualFlagModal(false);
+      setManualSelectedMod(null);
+      setManualSearchQuery("");
+      fetchMods();
+    } catch (err: any) {
+      alert("Failed to manual flag: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const fetchMods = async () => {
     setLoading(true);
@@ -409,6 +454,9 @@ function ComplianceOversight() {
               {tier === null ? 'ALL ALERTS' : getTierDetails(tier).label}
             </button>
           ))}
+          <button onClick={() => setShowManualFlagModal(true)} className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border bg-red-900/20 text-red-400 border-red-500/20 hover:bg-red-900/40 hover:border-red-500/50 flex items-center gap-2">
+            + MANUAL FLAG
+          </button>
         </div>
       </div>
 
@@ -452,6 +500,99 @@ function ComplianceOversight() {
           </div>
         )}
       </div>
+
+      {showManualFlagModal && (
+        <div className="fixed inset-0 z-[6000] flex items-center justify-center bg-[var(--bg)]/80 backdrop-blur-2xl animate-in zoom-in-95 duration-200 p-8" onClick={() => setShowManualFlagModal(false)}>
+          <div className="relative w-full max-w-lg theme-glass-panel rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden border border-white/10" onClick={(e) => e.stopPropagation()}>
+            <div className="p-8 pb-4 border-b border-white/5">
+              <h3 className="text-2xl font-black text-[var(--text)] uppercase tracking-tighter">Manual Threat Flag</h3>
+              <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">Direct insertion into Global Registry</p>
+            </div>
+            <div className="p-8 flex flex-col gap-6">
+              <div className="flex flex-col gap-2 relative">
+                <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Search Global Registry</label>
+                <input 
+                  value={manualSelectedMod ? manualSelectedMod.name : manualSearchQuery} 
+                  onChange={e => setManualSearchQuery(e.target.value)} 
+                  readOnly={!!manualSelectedMod}
+                  className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-xs font-black text-[var(--text)] uppercase focus:outline-none focus:theme-border-accent" 
+                  placeholder="Type to search registry..." 
+                />
+                {manualSelectedMod && (
+                  <button onClick={() => { setManualSelectedMod(null); setManualSearchQuery(""); }} className="absolute right-4 top-9 text-[var(--danger)] font-black text-[10px]">✕ CLEAR</button>
+                )}
+                {manualSearchResults.length > 0 && !manualSelectedMod && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-black/90 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
+                    {manualSearchResults.map(m => (
+                      <button key={m.id} onClick={() => setManualSelectedMod(m)} className="w-full text-left px-4 py-3 hover:bg-white/10 border-b border-white/5 last:border-0 flex flex-col group transition-all">
+                        <span className="text-[11px] font-black uppercase text-[var(--text)] group-hover:theme-text-accent truncate">{m.name}</span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">{m.master_author || 'Unknown'}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-2 relative z-40">
+                <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Compliance Tier</label>
+                <CustomComplianceSelect value={manualTier} onChange={setManualTier} />
+              </div>
+              <div className="flex gap-4 mt-4 relative z-0">
+                <button onClick={() => setShowManualFlagModal(false)} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-colors">CANCEL</button>
+                <button onClick={handleManualFlag} disabled={isSubmitting} className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-colors disabled:opacity-50">
+                  {isSubmitting ? "TRANSMITTING..." : "INSERT RECORD"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CustomComplianceSelect({ value, onChange }: { value: number, onChange: (val: number) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const options = [
+    { value: 3, label: 'MALWARE (Tier 3)', color: 'text-red-500', glow: 'bg-red-500/10' },
+    { value: 2, label: 'EXPLICIT (Tier 2)', color: 'theme-text-danger', glow: 'theme-bg-danger' },
+    { value: 1, label: 'NSFW 18+ (Tier 1)', color: 'theme-text-warning', glow: 'theme-bg-warning' },
+  ];
+  
+  const selected = options.find(o => o.value === value) || options[0];
+
+  return (
+    <div className="relative w-full">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-black/20 border border-white/10 hover:border-white/30 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-between"
+      >
+        <div className={`flex items-center gap-3 ${selected.color}`}>
+          <div className={`w-2 h-2 rounded-full ${selected.glow.replace('bg-', 'bg-').replace('/10', '')}`} style={{ boxShadow: '0 0 10px currentColor' }} />
+          {selected.label}
+        </div>
+        <span className={`opacity-50 text-[10px] transition-transform ${isOpen ? 'rotate-180' : ''}`}>▼</span>
+      </button>
+      
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--bg)] border border-white/10 rounded-xl overflow-hidden z-50 shadow-2xl flex flex-col backdrop-blur-3xl animate-in fade-in slide-in-from-top-2 p-1">
+            {options.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                className={`w-full text-left px-4 py-3 text-xs font-black uppercase tracking-widest flex items-center gap-3 rounded-lg transition-all ${
+                  value === opt.value ? 'bg-white/10' : 'hover:bg-white/5'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${opt.glow.replace('bg-', 'bg-').replace('/10', '')} ${opt.color}`} style={{ boxShadow: '0 0 10px currentColor' }} />
+                <span className={opt.color}>{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -37,7 +37,7 @@ export default function Lab({
                 value={labSearchQuery}
                 onChange={(e) => setLabSearchQuery(e.target.value)}
                 placeholder="Filter DNA signatures..." 
-                className="w-full bg-white/5 border border-white/10 rounded-full py-3 pl-10 pr-4 text-xs font-bold text-white outline-none focus:border-white/30 transition-all"
+                className="w-full bg-white/5 border border-white/10 rounded-full py-3 pl-10 pr-4 text-xs font-bold text-[var(--text)] outline-none focus:border-white/30 transition-all"
               />
             </div>
 
@@ -45,14 +45,14 @@ export default function Lab({
               {filteredMods.map((mod: any, idx: number) => (
                 <div key={`${mod.hash}-${idx}`} className="flex justify-between items-center p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all group">
                   <div className="flex flex-col gap-1 truncate pr-4">
-                    <span className="text-[10px] font-black text-white uppercase truncate">{mod.displayName || mod.name.replace(/_/g, ' ')}</span>
+                    <span className="text-[10px] font-black text-[var(--text)] uppercase truncate">{mod.displayName || mod.name.replace(/_/g, ' ')}</span>
                     <span className="text-[8px] font-bold text-[var(--subtext)] opacity-80 uppercase flex items-center gap-1">
                       <span className="text-[var(--warning)]">{t("ui_icon_collection")}</span> {mod.category || "COLLECTION"}
                     </span>
                   </div>
                   <button 
                     onClick={() => setActiveLabMod(mod)}
-                    className={`px-4 py-2 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all shadow-md shrink-0 border ${activeLabMod?.hash === mod.hash ? 'theme-bg-accent text-[var(--bg)] theme-border-accent' : 'bg-white/10 border-white/10 text-[var(--subtext)] group-hover:text-[var(--text)]'}`}
+                    className={`px-4 py-2 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all shadow-md shrink-0 border ${activeLabMod?.hash === mod.hash ? 'theme-bg-accent text-[var(--text)] theme-border-accent' : 'bg-white/10 border-white/10 text-[var(--text)] group-hover:text-[var(--text)]'}`}
                   >
                     {t("lab_stage")}
                   </button>

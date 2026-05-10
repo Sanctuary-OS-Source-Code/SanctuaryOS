@@ -31,14 +31,11 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
 
       if (error) throw error;
 
-      const matureEnabled = localStorage.getItem("sanctuary_mature_transmissions") === "true";
-      
       const ownedSet = new Set(ownedHashes);
       const unownedMods = (data ||[]).filter(mod => {
         if (ownedSet.has(mod.dna_hash)) return false;
-        if (!matureEnabled && mod.compliance_tier > 0) return false;
-        // Also always hide explicit (2) and malware (3) from marketplace
-        if (mod.compliance_tier > 1) return false;
+        // Always hide NSFW (1), explicit (2) and malware (3) from marketplace
+        if (mod.compliance_tier > 0) return false;
         return true;
       });
 

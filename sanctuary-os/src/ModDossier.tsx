@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
+import { useStore } from "./store";
 
 export default function ModDossier({ mod, modList, activePlaySet, onToggleInActiveSet, onShowYeetAlert, onClose, metaInputs, setMetaInputs, onSaveMetadata, onOpenMasonProfile, editMode, setEditMode, onSendToLab, onSecureShred, isCorrecting, setIsCorrecting }: any) {
   const [selectedKid, setSelectedKid] = useState<any | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
   const { t } = useLexicon();
+  const session = useStore((state) => state.session);
+  const userRole = useStore((state: any) => state.userRole);
   if (!mod) return null;
 
   const activeMods = activePlaySet?.mods || [];
@@ -114,9 +117,14 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       alert("Cannot flag local-only mods.");
       return;
     }
+    
+    if (!session) {
+      alert("Guest Mode Active: Uploads and global flags are disabled.");
+      return;
+    }
 
     let payload: any = {};
-    if (reason === 'adult') payload = { status: 'blacklisted' };
+    if (reason === 'adult') payload = { compliance_tier: 2 };
     else if (reason === 'NSFW') payload = { compliance_tier: 1 };
     else payload = { status: 'unverified' };
 
@@ -131,6 +139,10 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
   };
 
   const handleSubmitToVault = async () => {
+    if (!session) {
+      alert("Guest Mode Active: Uploads and global flags are disabled.");
+      return;
+    }
     setIsSaving(true);
     const { error } = await supabase.from('scout_suggestions').insert([{
       dna_hash: mod.hash,
@@ -178,8 +190,8 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
           <div className="flex-1 h-full flex flex-col overflow-hidden">
             
-            <div className="w-full p-8 border-b border-white/5 bg-black/40 flex justify-between items-center shrink-0">
-              <div className="flex-1 min-w-0">
+            <div className="w-full p-8 border-b border-white/5 bg-black/40 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 shrink-0">
+              <div className="flex-1 min-w-0 w-full">
                  {editMode ? (
                     <input value={metaInputs.name} onChange={e => setMetaInputs.name(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-2xl font-black text-[var(--text)] uppercase focus:outline-none focus:theme-border-accent" />
                   ) : (
@@ -188,10 +200,32 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     </h2>
                   )}
               </div>
-              <div className="flex items-center gap-4 shrink-0">
-                <button onClick={() => setShowFlagModal(true)} className="h-14 px-6 bg-red-900/20 hover:bg-red-900/40 text-red-400 font-black text-[10px] tracking-widest uppercase rounded-2xl border border-red-500/20 hover:border-red-500/50 transition-all flex items-center justify-center">
-                  ⚑ FLAG
-                </button>
+              <div className="flex flex-wrap xl:flex-nowrap items-center gap-4 shrink-0 w-full xl:w-auto">
+                <div className="flex flex-wrap gap-4 flex-1">
+                  {mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
+                    <button onClick={() => { onClose(); onSendToLab(); }} className="flex-1 min-w-[200px] h-14 bg-white/5 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-white/10 hover:border-transparent transition-all flex items-center justify-center gap-2">
+                      <span className="text-base">🧪</span> SEND TO LAB
+                    </button>
+                  )}
+                  {session && <button onClick={() => setEditMode(true)} className="flex-1 min-w-[200px] h-14 bg-white/5 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-white/10 hover:border-transparent transition-all flex items-center justify-center gap-2">
+                    {t("dossier_btn_edit")}
+                  </button>}
+                  {session && (userRole === 'architect' || userRole === 'senior_architect') && <button onClick={() => setIsCorrecting(true)} className="flex-1 min-w-[200px] h-14 bg-white/5 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-white/10 hover:border-transparent transition-all flex items-center justify-center gap-2">
+                    {t("dossier_btn_correct")}
+                  </button>}
+                  {userRole === 'senior_architect' && mod.compliance_tier === 3 && (
+                    <button onClick={() => { onClose(); onSecureShred(mod.name); }} className="flex-1 min-w-[200px] h-14 bg-red-600 hover:bg-red-500 text-white font-black text-[10px] tracking-widest uppercase rounded-2xl border border-red-500 hover:border-transparent transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.6)]">
+                      SECURE SHRED
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 shrink-0">
+                  {mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
+                    <button onClick={() => setShowFlagModal(true)} className="h-14 px-6 bg-red-900/20 hover:bg-red-900/40 text-red-400 font-black text-[10px] tracking-widest uppercase rounded-2xl border border-red-500/20 hover:border-red-500/50 transition-all flex items-center justify-center">
+                      <span className="text-base mr-2">🚩</span> FLAG
+                    </button>
+                  )}
+                </div>
                 <button
                   onClick={onClose}
                   className="w-14 h-14 bg-white/5 hover:theme-bg-danger text-[var(--subtext)] opacity-80 hover:text-[var(--text)] rounded-2xl flex items-center justify-center transition-all border border-white/10 hover:theme-border-danger shadow-xl text-xl shrink-0"
@@ -234,6 +268,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       {(() => {
                         const raw = (mod.status || "");
                         const cleaned = raw.replace(/[\[\]]/g, "");
+                        if (cleaned.toLowerCase() === 'broken') return t("status_broken");
                         return cleaned.includes("status_") ? t(cleaned) : (mod.status || t("status_local_only"));
                       })()}
                     </span>
@@ -244,7 +279,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">Compliance Tier</p>
                   <div className="flex items-center justify-center gap-2 px-2 h-10 theme-glass-inner rounded-xl w-full">
                     <span className={`text-[10px] font-black uppercase tracking-widest truncate ${mod.compliance_tier === 1 ? 'theme-text-warning' : 'text-[var(--text)] opacity-50'}`}>
-                      {mod.compliance_tier === 1 ? "NSFW" : "CLEAN"}
+                      {mod.compliance_tier === 1 ? "NSFW" : (mod.compliance_tier === 2 ? "ADULT" : "CLEAN")}
                     </span>
                     {mod.compliance_tier === 1 && (
                       <button onClick={async () => {
@@ -286,7 +321,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     <button onClick={handleSave} disabled={isSaving} className="flex-1 py-5 theme-glass-panel hover:bg-white/10 border border-white/10 hover:theme-border-accent text-[var(--text)] font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl">
                       {isSaving ? "SAVING..." : t("dossier_btn_save_local")}
                     </button>
-                    {isCorrecting && (
+                    {isCorrecting && session && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
                       <button onClick={handleSubmitToVault} disabled={isSaving} className="flex-1 py-5 theme-bg-success text-[var(--bg)] font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl">
                         {isSaving ? "SUBMITTING..." : "SUBMIT CORRECTIONS"}
                       </button>

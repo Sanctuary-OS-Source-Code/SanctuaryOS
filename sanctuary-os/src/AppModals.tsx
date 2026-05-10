@@ -8,7 +8,7 @@ import { invoke } from "@tauri-apps/api/core";
 export function AppModals(props: any) {
   const { t } = useLexicon();
   const {
-    snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, executeSnapshot, playSets, activePlaySetIndex,
+    snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, executeSnapshot, playSets, activePlaySetIndex, toggleInActiveSet,
     bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods,
     renameModal, setRenameModal, executeRename,
     renameTarget, setRenameTarget, nameInput, setNameInput, confirmRename,
@@ -26,11 +26,75 @@ export function AppModals(props: any) {
     showDefconAlert, setShowDefconAlert, triggerFullEngineBackup, triggerPrePatchSnapshot,
     yeetConfirmPending, setYeetConfirmPending,
     dnaMatchQueue, setDnaMatchQueue, ignoredHashesRef, setStatus,
-    scoutQueue, setScoutQueue, onOpenScoutDossier
+    scoutQueue, setScoutQueue, onOpenScoutDossier,
+    malwareAlert, setMalwareAlert
   } = props;
+
+  const handleSecureShred = async (m: any) => {
+    try {
+      await invoke("purge_quarantined_file", {
+        filename: m.name.split(/[\\/]/).pop() || m.name,
+      });
+      setStatus(`${t("ui_icon_success")} ${t("status_file_shredded")}`);
+      setMalwareAlert(malwareAlert.filter((x: any) => x.hash !== m.hash));
+      runRadarSweep();
+    } catch (err: any) {
+      setStatus(`Error: ${err}`);
+    }
+  };
 
   return (
     <>
+      {malwareAlert && malwareAlert.length > 0 && (
+        <div className="fixed inset-0 z-[10000] bg-[var(--bg)]/80 backdrop-blur-3xl flex items-center justify-center p-8 animate-in fade-in zoom-in duration-500">
+          <div className="theme-glass-panel border-4 border-red-600 p-10 rounded-[3rem] w-full max-w-3xl shadow-[0_0_100px_rgba(220,38,38,0.5)] flex flex-col gap-6 relative overflow-hidden" style={{ color: 'var(--text)' }}>
+            <div className="absolute inset-0 bg-red-600/5 animate-pulse pointer-events-none" />
+            
+            <div className="flex items-start gap-6 relative z-10">
+              <div className="w-24 h-24 rounded-full bg-red-600/20 border-2 border-red-500 flex items-center justify-center text-5xl shrink-0 animate-bounce">
+                ☣️
+              </div>
+              <div className="flex flex-col gap-2 pt-2">
+                <h2 className="text-4xl font-black uppercase tracking-tighter text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)] leading-none">
+                  CRITICAL: MALWARE DETECTED
+                </h2>
+                <p className="text-xs font-bold uppercase tracking-widest text-red-400 opacity-80">
+                  Sanctuary OS has quarantined dangerous artifacts.
+                </p>
+              </div>
+            </div>
+
+            <div className="relative z-10 bg-black/40 p-6 rounded-2xl border border-red-500/20 max-h-[30vh] overflow-y-auto custom-scrollbar flex flex-col gap-3">
+              <p className="text-sm font-medium text-[var(--text)]/80 leading-relaxed">
+                Known malware signatures have been detected on your local system. To protect your files and ensure systemic integrity, the OS requires an immediate <strong>SECURE SHRED</strong>. This action will permanently overwrite the malicious data multiple times, making it unrecoverable by specialized software.
+              </p>
+              
+              <div className="flex flex-col gap-2 mt-4">
+                {malwareAlert.map((m: any) => (
+                  <div key={m.hash} className="flex items-center justify-between p-4 bg-red-950/30 rounded-xl border border-red-500/30">
+                    <div className="flex flex-col truncate pr-4">
+                      <span className="text-sm font-black text-red-400 truncate uppercase">{m.displayName || m.name}</span>
+                      <span className="text-[9px] font-mono opacity-60 truncate">Hash: {m.hash}</span>
+                    </div>
+                    <button 
+                      onClick={() => handleSecureShred(m)} 
+                      className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.6)] hover:scale-105 active:scale-95 shrink-0"
+                    >
+                      SECURE SHRED
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="relative z-10 flex justify-center mt-4">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500/50 animate-pulse">
+                ACTION REQUIRED TO PROCEED
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
       {snapshotModal && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-200">
             <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-accent rounded-[2rem] p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
@@ -268,10 +332,25 @@ export function AppModals(props: any) {
             <h2 className="text-2xl font-black uppercase tracking-widest flex items-center gap-3"><span className="text-3xl">{t("ui_icon_warning")}</span> {t("status_broken")} {t("status_broken_detected")}</h2>
             <p className="opacity-80 font-bold text-sm">{t("broken_modal_desc")}</p>
             <div className="bg-black/20 p-4 rounded-xl max-h-[40vh] overflow-y-auto custom-scrollbar flex flex-col gap-2">
-              {modList.filter((m: any) => m?.status === t("status_broken")).map((m: any) => (
-                <div key={m.hash} className="p-3 bg-white/5 rounded-lg border border-white/10 text-xs font-mono">{m.name}</div>
-              ))}
-              {modList.filter((m: any) => m?.status === t("status_broken")).length === 0 && (
+              {modList.filter((m: any) => typeof m?.status === 'string' && m.status.toLowerCase() === 'broken' && m.compliance_tier !== 1 && m.compliance_tier !== 2).map((m: any) => {
+                const isInActive = playSets[activePlaySetIndex]?.mods.includes(m.name);
+                return (
+                  <div key={m.hash} className="p-3 bg-white/5 rounded-lg border border-white/10 text-xs font-mono flex items-center justify-between">
+                    <span className="truncate">{m.name}</span>
+                    {isInActive ? (
+                        <button onClick={() => toggleInActiveSet && toggleInActiveSet(m.name)} className="px-4 py-2 theme-bg-danger text-[var(--bg)] font-black text-[9px] uppercase tracking-widest rounded-lg transition-all hover:scale-105 shadow-[0_0_15px_rgba(var(--danger-rgb),0.4)] shrink-0 ml-4 flex flex-col items-center leading-none gap-1">
+                          <span>REMOVE FROM BLUEPRINT</span>
+                          <span className="text-[7px] opacity-70">UNTIL UPDATE IS VERIFIED</span>
+                        </button>
+                    ) : (
+                        <div className="px-4 py-2 text-[var(--subtext)] font-black text-[9px] uppercase tracking-widest rounded-lg border border-white/5 opacity-50 shrink-0 ml-4 flex flex-col items-center leading-none gap-1">
+                          <span>AWAITING UPDATE</span>
+                        </div>
+                    )}
+                  </div>
+                );
+              })}
+              {modList.filter((m: any) => typeof m?.status === 'string' && m.status.toLowerCase() === 'broken' && m.compliance_tier !== 1 && m.compliance_tier !== 2).length === 0 && (
                 <div className="text-[var(--text)] text-center opacity-50 p-4 italic">{t("broken_modal_empty")}</div>
               )}
             </div>
@@ -379,7 +458,7 @@ export function AppModals(props: any) {
           </div>
         </div>
       </div>
-    )}<div className="fixed bottom-0 left-64 right-0 h-10 bg-[var(--bg)]/40 backdrop-blur-2xl border-t border-white/5 flex items-center px-6 z-50 font-mono text-[10px] tracking-widest uppercase shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
+    )}<div className="fixed bottom-0 left-[288px] right-0 h-10 bg-[var(--bg)]/40 backdrop-blur-2xl border-t border-white/5 flex items-center px-6 z-50 font-mono text-[10px] tracking-widest uppercase shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-3 w-full">
           <div className="w-2 h-2 rounded-full theme-bg-accent animate-pulse"></div>
           <span className="theme-text-accent opacity-50">{t("sys_log")} </span>

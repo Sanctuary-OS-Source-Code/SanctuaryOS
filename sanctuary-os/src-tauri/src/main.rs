@@ -632,15 +632,19 @@ fn purge_from_shelter(file_path: String) -> Result<String, String> {
 #[tauri::command]
 async fn scan_installed_dlc(live_path: String) -> Result<Vec<String>, String> {
     let mut installed_packs = Vec::new();
-    let base_path = std::path::Path::new(&live_path);
+    let mut base_path = std::path::PathBuf::from(&live_path);
 
-    let root = if base_path.ends_with("Bin") || base_path.ends_with("bin") {
+    if base_path.is_file() {
+        base_path.pop();
+    }
+
+    let root = if base_path.ends_with("Bin") || base_path.ends_with("bin") || base_path.ends_with("Bin_LE") || base_path.ends_with("bin_le") {
         base_path
             .parent()
             .and_then(|p| p.parent())
-            .unwrap_or(base_path)
+            .unwrap_or(base_path.as_path())
     } else {
-        base_path
+        base_path.as_path()
     };
 
     if let Ok(entries) = std::fs::read_dir(root) {

@@ -15,7 +15,7 @@ export default function Collection(props: any) {
     setMetaAuthorInput, setMetaVersionInput, setActiveDossier, setDrawerConfirmHash, 
     quarantineList, restoreMod, purgeMod, ownedDLC, maskedDLC, setMetaDescInput, 
     setMetaImageInput, setMetaAllowWriteInput, expandedFolder, setExpandedFolder, 
-    drawerConfirmHash, modList
+    drawerConfirmHash, modList, anarchyRules
   } = props;
   const { t } = useLexicon();
   
@@ -439,11 +439,14 @@ export default function Collection(props: any) {
                           (m: any) =>
                             String(m.flavorGroupId) ===
                               String(mod.flavorGroupId) &&
-                            m.name !== mod.name &&
+                        m.name !== mod.name &&
                             activeSetMods.includes(m.name),
                         );
                         casualties = getDeepCasualties(rivals);
                       }
+                    }
+                    if (anarchyRules?.intercept === false) {
+                      casualties = [];
                     }
 
                     const missingReqs: any[] = [];
@@ -511,6 +514,7 @@ export default function Collection(props: any) {
                       mod.flavors.forEach(checkModDeps);
                     }
 
+                    const tier3List: any[] = [];
                     return (
                       <div key={mainKey} className="contents">
                         <ModCard
@@ -518,7 +522,9 @@ export default function Collection(props: any) {
                           ownedDLC={ownedDLC}
                           maskedDLC={maskedDLC}
                           isInActiveSet={isEquipped}
-                          casualtyList={casualties.join(", ")}
+                          casualtyList={casualties}
+                          anarchyRules={anarchyRules}
+                          tier3List={tier3List}
                           missingDeps={missingReqs}
                           onToggleSet={(e: any, excludeBroken?: boolean) => {
                             e.stopPropagation();
@@ -624,6 +630,9 @@ export default function Collection(props: any) {
                                     ]).filter(
                                       (c: any) => c.name !== flavor.name,
                                     );
+                                  }
+                                  if (anarchyRules?.intercept === false) {
+                                    drawerCasualties = [];
                                   }
                                   const missingPacks = flavor.requiredDLC?.filter((p: string) => !ownedDLC.includes(p) || maskedDLC.includes(p)) || [];
                                   const hasMissingDeps = flavor.missingReqs && flavor.missingReqs.length > 0;
@@ -770,19 +779,23 @@ export default function Collection(props: any) {
                                         </div>
                                       ) : (
                                         <>
-                                          <div className="flex flex-col overflow-hidden pr-2 text-left">
-                                            <span className="text-[11px] text-[var(--text)] truncate font-bold uppercase group-hover/flavor:theme-text-accent transition-colors">
-                                              {(
-                                                flavor.displayName ||
-                                                flavor.name.split("/").pop() ||
-                                                ""
-                                              )
-                                                .replace(/_/g, " ")
-                                                .replace(
-                                                  /\.package$|\.ts4script$/i,
-                                                  "",
-                                                )}
-                                            </span>
+                                          <div className="flex flex-col overflow-hidden pr-2 text-left gap-1">
+                                            <div className="flex items-center gap-2">
+                                              {flavor.relationshipType === 'beta' && <span className="theme-bg-danger text-[var(--bg)] px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest">{t("badge_beta") || "BETA"}</span>}
+                                              {(!flavor.relationshipType || flavor.relationshipType === 'core') && <span className="theme-bg-success text-[var(--bg)] px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest">{t("badge_stable") || "STABLE"}</span>}
+                                              <span className="text-[11px] text-[var(--text)] truncate font-bold uppercase group-hover/flavor:theme-text-accent transition-colors">
+                                                {(
+                                                  flavor.displayName ||
+                                                  flavor.name.split("/").pop() ||
+                                                  ""
+                                                )
+                                                  .replace(/_/g, " ")
+                                                  .replace(
+                                                    /\.package$|\.ts4script$/i,
+                                                    "",
+                                                  )}
+                                              </span>
+                                            </div>
                                             {flavor.version &&
                                               flavor.version !== "v.Local" && (
                                                 <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 tracking-tighter">

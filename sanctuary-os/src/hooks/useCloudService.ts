@@ -5,27 +5,41 @@ import { useLexicon } from "../LexiconContext";
 
 export function useCloudService(activeMasonProfileId: string | null, tier2Hashes: string[]) {
   const { t } = useLexicon();
-  const { playSets, setPlaySets, setStatus, modList } = useStore();
+  const { playSets, setPlaySets, setStatus, modList, session } = useStore();
   const { 
     setSyncCode, setPendingImportSet, setMissingImportMods, setIngestProgress 
   } = useModalStore();
 
   async function uploadBlueprintToCloud(setName: string) {
+    if (!session) {
+      alert("Guest Mode Active: Uploads are disabled.");
+      return;
+    }
     const targetSet = playSets.find((s) => s.name === setName);
     if (!targetSet) return;
     const code = Math.random().toString(36).substr(2, 6).toUpperCase();
+    const blockedMods: string[] = [];
+
     const blueprintData = {
       name: targetSet.name,
       mods: targetSet.mods.map((modName: string) => {
         const mod = modList.find(m => m.name === modName);
-        return { name: modName, hash: mod?.hash || "", url: mod?.url || "", author: mod?.author || "Unknown" };
+        return { name: modName, hash: mod?.hash || "", url: mod?.url || "", author: mod?.author || "Unknown", compliance_tier: mod?.compliance_tier || 0 };
       }).filter((m: any) => {
+        if (m.compliance_tier === 1 || m.compliance_tier === 2) {
+          blockedMods.push(m.name);
+          return false;
+        }
         const lower = m.name.toLowerCase();
         if (lower.includes("customchallenge_")) return true;
         return !lower.includes("merged") && !lower.includes("simmatticly") && !lower.includes("batch fix") && !lower.includes("batch_fix");
-      })
+      }).map((m: any) => ({ name: m.name, hash: m.hash, url: m.url, author: m.author }))
     };
     
+    if (blockedMods.length > 0) {
+      alert(`${t("ui_integrity_protocol")}\n\n${blockedMods.join('\n')}`);
+    }
+
     const hasTier2 = blueprintData.mods.some((m: any) => tier2Hashes.includes(m.hash));
     if (hasTier2) {
       alert(t("status_explicit_signature"));
@@ -78,6 +92,10 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
   }
 
   async function massIngestToCloud() {
+    if (!session) {
+      alert("Guest Mode Active: Uploads are disabled.");
+      return;
+    }
     const rawGhosts = modList.filter((m) => m && !m.isSynced);
     const ghosts = Array.from(
       new Map(

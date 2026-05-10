@@ -34,11 +34,31 @@ export interface ModData {
   setId?: string | null; 
   isCCSet?: boolean;
   allow_write?: boolean; 
-
+  compliance_tier?: number;
 }
 
 export const formatDisplayName = (name: string) => {
   return name.replace(/\.(package|ts4script)$/i, "").replace(/_/g, " ");
+};
+
+const DLC_MAP: Record<string, string> = {
+  "EP01": "Get to Work", "EP02": "Get Together", "EP03": "City Living", "EP04": "Cats & Dogs",
+  "EP05": "Seasons", "EP06": "Get Famous", "EP07": "Island Living", "EP08": "Discover University",
+  "EP09": "Eco Lifestyle", "EP10": "Snowy Escape", "EP11": "Cottage Living", "EP12": "High School Years",
+  "EP13": "Growing Together", "EP14": "Horse Ranch", "EP15": "For Rent", "EP16": "Lovestruck", "EP17": "Life and Death",
+  "GP01": "Outdoor Retreat", "GP02": "Spa Day", "GP03": "Dine Out", "GP04": "Vampires",
+  "GP05": "Parenthood", "GP06": "Jungle Adventure", "GP07": "StrangerVille", "GP08": "Realm of Magic",
+  "GP09": "Star Wars: Journey to Batuu", "GP10": "Dream Home Decorator", "GP11": "My Wedding Stories", "GP12": "Werewolves",
+  "SP01": "Luxury Party Stuff", "SP02": "Perfect Patio Stuff", "SP03": "Cool Kitchen Stuff", "SP04": "Spooky Stuff",
+  "SP05": "Movie Hangout Stuff", "SP06": "Romantic Garden Stuff", "SP07": "Kids Room Stuff", "SP08": "Backyard Stuff",
+  "SP09": "Vintage Glamour Stuff", "SP10": "Bowling Night Stuff", "SP11": "Fitness Stuff", "SP12": "Toddler Stuff",
+  "SP13": "Laundry Day Stuff", "SP14": "My First Pet Stuff", "SP15": "Moschino Stuff", "SP16": "Tiny Living Stuff",
+  "SP17": "Nifty Knitting Stuff", "SP18": "Paranormal Stuff", "SP46": "Home Chef Hustle Stuff", "SP49": "Crystal Creations Stuff"
+};
+
+export const mapDlcCode = (code: string) => {
+  const baseCode = code.split(' ')[0].toUpperCase();
+  return DLC_MAP[baseCode] || code;
 };
 
 export function ViewHeader({ title, subtitle, children }: any) {

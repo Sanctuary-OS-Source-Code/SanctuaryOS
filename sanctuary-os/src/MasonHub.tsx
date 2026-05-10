@@ -4,6 +4,8 @@ import { supabase } from "./supabase";
 import { ViewHeader } from "./shared";
 import { useLexicon } from "./LexiconContext";
 
+const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = []; let from = 0; const step = 999; while (true) { const { data, error } = await queryFn().range(from, from + step); if (error || !data || data.length === 0) break; allData = [...allData, ...data]; if (data.length <= step) break; from += step + 1; } return { data: allData, error: null }; };
+
 export default function MasonHub() {
   const { t } = useLexicon();
   const [activeTab, setActiveTab] = useState("registry");
@@ -235,7 +237,7 @@ function MasonRegistry({ masonId }: { masonId: string }) {
   const fetchData = async () => {
     const { data } = await supabase.from('mods').select('*, mod_versions(id, dna_hash, version_label, game_version)').eq('mason_id', masonId).order('name');
     if (data) setMyMods(data);
-    const { data: cMods } = await supabase.from('mods').select('id, name, master_author, mason_id');
+    const { data: cMods } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author, mason_id'));
     if (cMods) setCloudMods(cMods);
   };
 
@@ -272,7 +274,7 @@ function MasonRegistry({ masonId }: { masonId: string }) {
       if (modalMode === 'dependency') await supabase.from('mod_dependencies').upsert({ parent_id: targetId, child_id: activeMod.id }, { onConflict: 'parent_id, child_id' });
       else {
         await supabase.from('mod_relationships').upsert({ parent_id: activeMod.id, child_id: targetId, relationship_type: modalMode }, { onConflict: 'parent_id, child_id' });
-        if (modalMode === 'twin' || modalMode === 'rival' || modalMode === 'beta') await supabase.from('mod_relationships').upsert({ parent_id: targetId, child_id: activeMod.id, relationship_type: modalMode }, { onConflict: 'parent_id, child_id' });
+        if (modalMode === 'twin' || modalMode === 'rival') await supabase.from('mod_relationships').upsert({ parent_id: targetId, child_id: activeMod.id, relationship_type: modalMode }, { onConflict: 'parent_id, child_id' });
       }
       setModalMode(null);
       fetchProtocols(activeMod.id);
@@ -285,7 +287,7 @@ function MasonRegistry({ masonId }: { masonId: string }) {
       if (type === 'dependency') await supabase.from('mod_dependencies').delete().match({ parent_id: targetId, child_id: activeMod.id });
       else {
         await supabase.from('mod_relationships').delete().match({ parent_id: activeMod.id, child_id: targetId, relationship_type: type });
-        if (type === 'twin' || type === 'rival' || type === 'beta') await supabase.from('mod_relationships').delete().match({ parent_id: targetId, child_id: activeMod.id, relationship_type: type });
+        if (type === 'twin' || type === 'rival') await supabase.from('mod_relationships').delete().match({ parent_id: targetId, child_id: activeMod.id, relationship_type: type });
       }
       fetchProtocols(activeMod.id);
     } catch (error) { console.error("Remove Link Error:", error); }
@@ -637,13 +639,13 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
         <div className="p-6 border-b border-white/10">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-black uppercase tracking-widest theme-text-accent">Select Artifact</h3>
-            <button onClick={onClose} className="text-[var(--text)]/50 hover:text-[var(--text)] font-black">✕</button>
+            <button onClick={onClose} className="text-[var(--text)]/50 hover:text-[var(--text)] font-black">?</button>
           </div>
           <input autoFocus placeholder="Search Global Catalog..." value={query} onChange={(e) => setQuery(e.target.value)} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent" />
         </div>
         <div className="p-4 flex flex-col gap-2 max-h-96 overflow-y-auto custom-scrollbar">
           {results.length > 0 ? results.map((mod:any) => (
-            <button key={mod.id} onClick={() => { onSelect(mod.id); onClose(); setQuery(""); }} className="flex justify-between items-center px-4 py-3 theme-glass-inner border border-white/5 hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group">
+            <button key={mod.id} onClick={() => { onSelect(mod.id); }} className="flex justify-between items-center px-4 py-3 theme-glass-inner border border-white/5 hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group">
               <div className="flex flex-col">
                 <span className="text-xs font-black text-[var(--text)] uppercase truncate">{mod.name}</span>
                 <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{mod.master_author || "Unknown Architect"}</span>

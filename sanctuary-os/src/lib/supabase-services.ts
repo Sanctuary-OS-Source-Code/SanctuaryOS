@@ -2,8 +2,8 @@ import { supabase } from "../supabase";
 
 export const supabaseServices = {
   getGlobalSecurity: () => supabase.from('global_security').select('*'),
-  getModVersions: (hashes: string[]) => supabase.from("mod_versions").select('dna_hash, version_label, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, master_author, allow_write, mason_id, masons(name))').in("dna_hash", hashes),
-  getModVersionsFallback: (hashes: string[]) => supabase.from("mod_versions").select('dna_hash, version_label, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, master_author, mason_id, masons(name))').in("dna_hash", hashes),
+  getModVersions: (hashes: string[]) => supabase.from("mod_versions").select('dna_hash, version_label, mods (id, name, status, compliance_tier, requiredDLC, category_override, sub_type, image_url, master_author, allow_write, mason_id, masons(name))').in("dna_hash", hashes),
+  getModVersionsFallback: (hashes: string[]) => supabase.from("mod_versions").select('dna_hash, version_label, mods (id, name, status, compliance_tier, requiredDLC, category_override, sub_type, image_url, master_author, mason_id, masons(name))').in("dna_hash", hashes),
   getCcSetMembers: () => supabase.from('cc_set_members').select('set_id, mod_id'),
   getCcSets: () => supabase.from('cc_sets').select('*'),
   getFlavorGroupMembers: (hashes: string[]) => supabase.from('flavor_group_members').select('group_id, mod_hash').in('mod_hash', hashes),

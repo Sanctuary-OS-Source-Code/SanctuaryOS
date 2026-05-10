@@ -4,6 +4,8 @@ import { ViewHeader } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 
+const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = []; let from = 0; const step = 999; while (true) { const { data, error } = await queryFn().range(from, from + step); if (error || !data || data.length === 0) break; allData = [...allData, ...data]; if (data.length <= step) break; from += step + 1; } return { data: allData, error: null }; };
+
 export default function ArchitectHub({ userRole, equipPlaySet, modList }: { userRole?: string, equipPlaySet?: (s: string) => Promise<void>, modList?: any[] }) {
   const { t } = useLexicon();
   const [activeTab, setActiveTab] = useState("command_center");
@@ -93,7 +95,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
 
   const fetchGlobalCatalog = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase.from('mods').select('*, mod_versions(id, dna_hash, version_label, game_version)').order('name', { ascending: true });
+    const { data, error } = await fetchAllPaginated(() => supabase.from('mods').select('*, mod_versions(id, dna_hash, version_label, game_version)').order('name', { ascending: true }));
     if (!error && data) setCloudMods(data);
     const { data: mData } = await supabase.from('masons').select('id, name').order('name');
     if (mData) setMasonsList(mData);
@@ -138,7 +140,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
 
     const { data: modData } = await supabase.from('mods').select('name').eq('id', modId).single();
     if (modData && modData.name) {
-      const { data: confLinks } = await supabase.from('logical_conflicts').select('*').or(`mod_a.eq."${modData.name}",mod_b.eq."${modData.name}"`);
+      const { data: confLinks } = await supabase.from('logical_conflicts').select('*').or(`mod_a_id.eq.${modId},mod_b_id.eq.${modId},mod_a.eq."${modData.name}",mod_b.eq."${modData.name}"`);
       setActiveConflicts(confLinks || []);
     } else setActiveConflicts([]);
   };
@@ -160,7 +162,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
   const handleAddConflict = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeMaster || !conflictEnemy) return;
-    await supabase.from('logical_conflicts').insert([{ mod_a: activeMaster.name, mod_b: conflictEnemy, severity_rank: conflictSeverity, resolution_note: conflictResolution }]);
+    await supabase.from('logical_conflicts').insert([{ mod_a_id: activeMaster.id, mod_b_id: conflictEnemy, severity_rank: conflictSeverity, resolution_note: conflictResolution }]);
     setConflictEnemy(""); setConflictResolution(""); setConflictSeverity(4);
     fetchProtocols(activeMaster.id);
   };
@@ -232,8 +234,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
         ]);
       } else if (modalMode === 'beta') {
         await supabase.from('mod_relationships').upsert([
-          { parent_id: activeMaster.id, child_id: targetId, relationship_type: 'beta' },
-          { parent_id: targetId, child_id: activeMaster.id, relationship_type: 'beta' }
+          { parent_id: activeMaster.id, child_id: targetId, relationship_type: 'beta' }
         ]);
       } else if (modalMode === 'bind_hash') {
 
@@ -263,7 +264,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
         await supabase.from('mod_dependencies').delete().match({ parent_id: targetId, child_id: activeMaster.id });
       } else {
         await supabase.from('mod_relationships').delete().match({ parent_id: activeMaster.id, child_id: targetId, relationship_type: type });
-        if (type === 'twin' || type === 'rival' || type === 'beta') {
+        if (type === 'twin' || type === 'rival') {
           await supabase.from('mod_relationships').delete().match({ parent_id: targetId, child_id: activeMaster.id, relationship_type: type });
         }
       }
@@ -544,10 +545,16 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                  </form>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mt-2">
-                   {activeConflicts.map(c => (
+                   {activeConflicts.map(c => {
+                        const isModA = c.mod_a_id === activeMaster.id || c.mod_a === activeMaster.name;
+                        const enemyId = isModA ? c.mod_b_id : c.mod_a_id;
+                        const enemyLegacyName = isModA ? c.mod_b : c.mod_a;
+                        const enemyData = cloudMods.find(m => m.id === enemyId);
+                        const enemyDisplayName = enemyData ? enemyData.name : enemyLegacyName;
+                        return (
                         <div key={c.id} className="flex flex-col gap-2 theme-panel-danger border px-4 py-3 rounded-xl hover:border-red-500/50 transition-colors group">
                           <div className="flex justify-between items-center">
-                            <span className="text-[11px] font-bold theme-text-danger uppercase truncate">{c.mod_a === activeMaster.name ? c.mod_b : c.mod_a}</span>
+                            <span className="text-[11px] font-bold theme-text-danger uppercase truncate">{enemyDisplayName}</span>
                             <div className="flex items-center gap-3">
                               <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded-md text-[9px] font-black uppercase shadow-sm">T{c.severity_rank}</span>
                               <button type="button" onClick={() => handleDeleteConflict(c.id)} className="theme-text-danger opacity-50 group-hover:opacity-100 hover:!opacity-80 text-[12px] font-black transition-opacity">X</button>
@@ -559,7 +566,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                             </div>
                           )}
                         </div>
-                   ))}
+                   )})}
                  </div>
               </div>
             </div>
@@ -687,11 +694,11 @@ function CCRegistry() {
 
   const fetchGlobalCatalog = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await fetchAllPaginated(() => supabase
       .from('mods')
       .select('*')
       .in('category_override', ['CAS', 'BuildBuy'])
-      .order('name', { ascending: true });
+      .order('name', { ascending: true }));
     
     if (!error && data) setCloudMods(data);
     
@@ -982,7 +989,7 @@ function CCSetForge() {
   const[isSearching, setIsSearching] = useState(false);
 
   const fetchSets = async () => {
-    const { data } = await supabase.from('cc_sets').select('*').order('name', { ascending: true });
+    const { data } = await fetchAllPaginated(() => supabase.from('cc_sets').select('*').order('name', { ascending: true }));
     if (data) setSets(data);
   };
 
@@ -1270,7 +1277,7 @@ function ConflictMatrix() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const fetchMods = async () => {
-    const { data } = await supabase.from('mods').select('id, name, master_author').order('name');
+    const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author').order('name'));
     if (data) setAllMods(data);
   };
 
@@ -1289,7 +1296,7 @@ function ConflictMatrix() {
   const handleAddGhost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modA || !modB) return;
-    const { error } = await supabase.from('logical_conflicts').insert([{ mod_a: modA, mod_b: modB, severity_rank: severity, resolution_note: note }]);
+    const { error } = await supabase.from('logical_conflicts').insert([{ mod_a_id: modA, mod_b_id: modB, severity_rank: severity, resolution_note: note }]);
     if (!error) { setModA(""); setModB(""); setNote(""); fetchGhosts(); }
   };
 
@@ -1355,17 +1362,21 @@ function ConflictMatrix() {
               <span className="theme-text-accent font-black uppercase tracking-widest text-xs animate-pulse">{t("nexus_syncing")}</span>
             </div>
           ) : (
-            ghosts.filter(g => 
-              (g.mod_a || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
-              (g.mod_b || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+            ghosts.map(g => {
+              const nameA = g.mod_a_id ? allMods.find(m => m.id === g.mod_a_id)?.name || g.mod_a : g.mod_a;
+              const nameB = g.mod_b_id ? allMods.find(m => m.id === g.mod_b_id)?.name || g.mod_b : g.mod_b;
+              return { ...g, nameA, nameB };
+            }).filter(g => 
+              (g.nameA || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+              (g.nameB || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
               (g.resolution_note || "").toLowerCase().includes(searchTerm.toLowerCase())
             ).map((g) => (
             <div key={g.id} className={`theme-glass-inner rounded-2xl overflow-hidden flex flex-col group hover:bg-black/60 transition-colors ${g.severity_rank === 4 ? 'border-l-4 theme-border-danger' : 'border-l-4 theme-border-warning'}`}>
               <div className="flex justify-between items-center px-6 py-4 bg-white/5 border-b border-white/5">
                 <div className="flex gap-3 items-center font-black text-sm tracking-tight truncate">
-                  <span className="text-[var(--text)] truncate">{g.mod_a}</span>
+                  <span className="text-[var(--text)] truncate">{g.nameA}</span>
                   <span className="theme-text-danger text-[10px]">{t("nexus_vs")}</span>
-                  <span className="text-[var(--text)] truncate">{g.mod_b}</span>
+                  <span className="text-[var(--text)] truncate">{g.nameB}</span>
                 </div>
                 <div className={`px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest shrink-0 ${g.severity_rank === 4 ? 'theme-panel-danger border' : 'theme-panel-warning border'}`}>
                   {t("nexus_rank")}{g.severity_rank}
@@ -1412,7 +1423,7 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
 
   useEffect(() => {
     const fetchMods = async () => {
-      const { data } = await supabase.from('mods').select('id, name, master_author').order('name');
+      const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author').order('name'));
       if (data) setAllMods(data);
     };
     fetchMods();
@@ -1563,8 +1574,8 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
       e.preventDefault();
       setIsSubmitting(true);
       await supabase.from('logical_conflicts').insert([{
-        mod_a: primaryMod.name,
-        mod_b: secondaryMod.name,
+        mod_a_id: primaryMod.id,
+        mod_b_id: secondaryMod.id,
         severity_rank: severity,
         resolution_note: resolution
       }]);
@@ -1580,11 +1591,10 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
         <div className="theme-glass-inner rounded-[2rem] p-8 flex flex-col gap-6 shadow-inner relative z-50">
           <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">{t("lab_primary_mod")}</h3>
           <ModSearchDropdown 
-            value={primaryMod?.name || ""} 
+            value={primaryMod?.id || ""} 
             onChange={(val) => {
-                const found = allMods.find(m => m.name === val);
+                const found = allMods.find(m => m.id === val);
                 if (found) setPrimaryMod(found);
-                else setPrimaryMod({ name: val });
             }} 
             placeholder={t("lab_select_primary")} 
             mods={allMods} 
@@ -1593,11 +1603,10 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
         <div className="theme-glass-inner rounded-[2rem] p-8 flex flex-col gap-6 shadow-inner relative z-40">
           <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">{t("lab_secondary_mod")}</h3>
           <ModSearchDropdown 
-            value={secondaryMod?.name || ""} 
+            value={secondaryMod?.id || ""} 
             onChange={(val) => {
-                const found = allMods.find(m => m.name === val);
+                const found = allMods.find(m => m.id === val);
                 if (found) setSecondaryMod(found);
-                else setSecondaryMod({ name: val });
             }} 
             placeholder={t("lab_select_secondary")} 
             mods={allMods} 
@@ -1716,10 +1725,10 @@ function ModSearchDropdown({
   mods: any[] 
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState(value);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
-    setQuery(value);
+    if (!value) setQuery("");
   }, [value]);
 
   const filtered = mods.filter(m => 
@@ -1734,7 +1743,6 @@ function ModSearchDropdown({
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
-          onChange(e.target.value);
           setIsOpen(true);
         }}
         onFocus={() => setIsOpen(true)}
@@ -1752,7 +1760,7 @@ function ModSearchDropdown({
                   type="button"
                   onClick={() => {
                     setQuery(m.name);
-                    onChange(m.name);
+                    onChange(m.id);
                     setIsOpen(false);
                   }}
                   className="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white/5 last:border-none flex flex-col transition-colors group"
@@ -1781,11 +1789,10 @@ function CustomStatusDropdown({ value, onChange }: { value: string, onChange: (v
     { id: 'verified', label: t("status_dd_verified"), color: 'theme-text-success', glow: 'theme-bg-success' },
     { id: 'under_review', label: t("status_dd_review"), color: 'theme-text-warning', glow: 'theme-bg-warning' },
     { id: 'broken', label: t("status_dd_broken"), color: 'theme-text-danger', glow: 'theme-bg-danger' },
-    { id: 'blacklisted', label: "Blacklisted", color: 'theme-text-danger', glow: 'theme-bg-danger' },
     { id: 'unverified', label: t("status_dd_unverified"), color: 'text-[var(--subtext)] opacity-80', glow: 'bg-white/10' },
   ];
 
-  const selected = options.find(o => o.id === value) || options[4];
+  const selected = options.find(o => o.id === value) || options[3];
 
   return (
     <div className={`relative w-full ${isOpen ? 'z-[6000]' : ''}`}>
@@ -1825,7 +1832,6 @@ function CustomComplianceDropdown({ value, onChange }: { value: number, onChange
     { id: 0, label: 'CLEAN / SAFE', color: 'theme-text-success', glow: 'theme-bg-success' },
     { id: 1, label: 'NSFW (18+)', color: 'theme-text-warning', glow: 'theme-bg-warning' },
     { id: 2, label: 'EXPLICIT', color: 'theme-text-danger', glow: 'theme-bg-danger' },
-    { id: 3, label: 'MALWARE', color: 'text-red-600', glow: 'bg-red-600 animate-pulse' },
   ];
   const selected = options.find(o => o.id === value) || options[0];
   return (
@@ -1932,7 +1938,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
             <h3 className="text-sm font-black uppercase tracking-widest theme-text-accent">
               {getTitle()}
             </h3>
-            <button onClick={onClose} className="text-[var(--text)]/50 hover:text-[var(--text)] font-black"></button>
+            <button onClick={onClose} className="text-[var(--text)]/50 hover:text-[var(--text)] font-black">?</button>
           </div>
           <input
             autoFocus
@@ -1948,7 +1954,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
           {results.length > 0 ? results.map(mod => (
             <button
               key={mod.id}
-              onClick={() => { onSelect(mod.id); onClose(); setQuery(""); }}
+              onClick={() => { onSelect(mod.id); }}
               className="flex justify-between items-center px-4 py-3 theme-glass-inner border border-white/5 hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group"
             >
               <div className="flex flex-col">
@@ -2101,7 +2107,7 @@ function CommandCenter({ onNavigate }: any = {}) {
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-500">
       
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
         <button onClick={() => onNavigate && onNavigate('registry', 'unverified')} className="theme-glass-inner p-6 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
           <span className="text-4xl font-black text-[var(--text)] group-hover:theme-text-success transition-colors">{stats.unverified}</span>
           <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("status_dd_unverified")}</span>
@@ -2117,10 +2123,6 @@ function CommandCenter({ onNavigate }: any = {}) {
         <button onClick={() => onNavigate && onNavigate('registry', 'explicit')} className="theme-glass-inner p-6 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
           <span className="text-4xl font-black theme-text-danger group-hover:scale-110 origin-left transition-transform">{stats.explicit}</span>
           <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">Explicit Reported</span>
-        </button>
-        <button onClick={() => onNavigate && onNavigate('registry', 'malware')} className="theme-glass-inner p-6 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-red-600/10 transition-all text-left group border border-transparent hover:border-red-500/30">
-          <span className="text-4xl font-black text-red-500 group-hover:scale-110 origin-left transition-transform">{stats.malware}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">Malware Reported</span>
         </button>
         <button onClick={() => onNavigate && onNavigate('queue')} className="theme-glass-inner p-6 rounded-3xl flex flex-col gap-2 hover:scale-[1.02] hover:bg-white/5 transition-all text-left group">
           <span className="text-4xl font-black theme-text-accent group-hover:scale-110 origin-left transition-transform">{stats.scoutQueue}</span>

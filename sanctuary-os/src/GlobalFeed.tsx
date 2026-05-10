@@ -49,12 +49,10 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
   }, [activeTab]);
 
   const filteredPosts = posts.filter(p => {
-    const matureEnabled = localStorage.getItem("sanctuary_mature_transmissions") === "true";
     const masonTier = p.masons?.compliance_tier || 0;
     
     // Global filter rules
-    if (masonTier > 1) return false; // Explicit/Malware always blocked in global feed
-    if (!matureEnabled && masonTier > 0) return false;
+    if (masonTier > 0) return false; // NSFW/Explicit/Malware always blocked in global feed
 
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
