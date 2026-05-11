@@ -1,12 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
 import { useStore } from "./store";
+import { GameVersionMultiSelect } from "./shared";
 
-export default function ModDossier({ mod, modList, activePlaySet, onToggleInActiveSet, onShowYeetAlert, onClose, metaInputs, setMetaInputs, onSaveMetadata, onOpenMasonProfile, editMode, setEditMode, onSendToLab, onSecureShred, isCorrecting, setIsCorrecting }: any) {
+export default function ModDossier({ mod, modList, activePlaySet, onToggleInActiveSet, onShowYeetAlert, onClose, metaInputs, setMetaInputs, onSaveMetadata, onOpenMasonProfile, editMode, setEditMode, onSendToLab, onSecureShred, isCorrecting, setIsCorrecting, onSyncToNetwork }: any) {
   const [selectedKid, setSelectedKid] = useState<any | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
+  
+  const [localCreatedAt, setLocalCreatedAt] = useState<string | null>(mod?.created_at || null);
+  const [localUpdatedAt, setLocalUpdatedAt] = useState<string | null>(mod?.updated_at || null);
+  const [localCategory, setLocalCategory] = useState<string>(mod?.category_override || mod?.type || "");
+  const [localCompatibleVersions, setLocalCompatibleVersions] = useState<string[]>(mod?.compatible_versions || []);
+
+  useEffect(() => {
+    if (mod) {
+      setLocalCreatedAt(mod.created_at || null);
+      setLocalUpdatedAt(mod.updated_at || null);
+      setLocalCategory(mod.category_override || mod.type || "");
+      setLocalCompatibleVersions(mod.compatible_versions || []);
+    }
+  }, [mod]);
+
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
   const userRole = useStore((state: any) => state.userRole);
@@ -99,6 +115,14 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
   const handleSave = async () => {
     setIsSaving(true);
+    if (mod.dbId) {
+      await supabase.from('mods').update({
+        created_at: localCreatedAt,
+        updated_at: localUpdatedAt,
+        category_override: localCategory,
+        compatible_versions: localCompatibleVersions
+      }).eq('id', mod.dbId);
+    }
     await onSaveMetadata();
     setIsSaving(false);
     setEditMode(false);
@@ -190,53 +214,67 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
           <div className="flex-1 h-full flex flex-col overflow-hidden">
             
-            <div className="w-full p-8 border-b border-white/5 bg-black/40 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 shrink-0">
-              <div className="flex-1 min-w-0 w-full">
+            <button
+              onClick={onClose}
+              className="absolute top-6 right-6 z-50 w-12 h-12 bg-black/40 hover:theme-bg-danger text-[var(--subtext)] opacity-80 hover:text-[var(--text)] rounded-full flex items-center justify-center transition-all border border-white/10 hover:theme-border-danger shadow-xl text-xl backdrop-blur-md"
+            >✕</button>
+
+            <div className="w-full p-8 pr-24 border-b border-white/5 bg-black/40 flex flex-col xl:flex-row flex-wrap justify-between items-start xl:items-center gap-6 shrink-0">
+              <div className="flex-1 min-w-[280px]">
                  {editMode ? (
                     <input value={metaInputs.name} onChange={e => setMetaInputs.name(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-2xl font-black text-[var(--text)] uppercase focus:outline-none focus:theme-border-accent" />
                   ) : (
-                    <h2 className="text-4xl font-black text-[var(--text)] tracking-tighter uppercase leading-tight drop-shadow-lg break-words pr-4">
+                    <h2 className="text-4xl font-black text-[var(--text)] tracking-tighter uppercase leading-tight drop-shadow-lg pr-4">
                       {(mod.displayName || mod.name.split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '')}
                     </h2>
                   )}
               </div>
-              <div className="flex flex-wrap xl:flex-nowrap items-center gap-4 shrink-0 w-full xl:w-auto">
-                <div className="flex flex-wrap gap-4 flex-1">
-                  {mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
-                    <button onClick={() => { onClose(); onSendToLab(); }} className="flex-1 min-w-[200px] h-14 bg-white/5 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-white/10 hover:border-transparent transition-all flex items-center justify-center gap-2">
-                      <span className="text-base">🧪</span> SEND TO LAB
+              <div className="flex flex-row items-center justify-end gap-3 shrink-0 mt-4 xl:mt-0">
+                {editMode ? (
+                  <>
+                    <button onClick={handleSave} disabled={isSaving} className="px-6 py-4 theme-glass-inner hover:theme-bg-accent text-[var(--text)] hover:text-[var(--bg)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-white/10 hover:border-transparent transition-all shadow-xl">
+                      {isSaving ? t("dossier_btn_saving") || "SAVING..." : t("dossier_btn_save_local")}
                     </button>
-                  )}
-                  {session && <button onClick={() => setEditMode(true)} className="flex-1 min-w-[200px] h-14 bg-white/5 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-white/10 hover:border-transparent transition-all flex items-center justify-center gap-2">
-                    {t("dossier_btn_edit")}
-                  </button>}
-                  {session && (userRole === 'architect' || userRole === 'senior_architect') && <button onClick={() => setIsCorrecting(true)} className="flex-1 min-w-[200px] h-14 bg-white/5 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-white/10 hover:border-transparent transition-all flex items-center justify-center gap-2">
-                    {t("dossier_btn_correct")}
-                  </button>}
-                  {userRole === 'senior_architect' && mod.compliance_tier === 3 && (
-                    <button onClick={() => { onClose(); onSecureShred(mod.name); }} className="flex-1 min-w-[200px] h-14 bg-red-600 hover:bg-red-500 text-white font-black text-[10px] tracking-widest uppercase rounded-2xl border border-red-500 hover:border-transparent transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.6)]">
-                      SECURE SHRED
+                    {isCorrecting && session && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
+                      <button onClick={handleSubmitToVault} disabled={isSaving} className="px-6 py-4 theme-bg-success hover:bg-emerald-500 text-[var(--bg)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-transparent transition-all shadow-xl">
+                        {isSaving ? t("dossier_btn_submitting") || "SUBMITTING..." : t("dossier_btn_submit_corrections")}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {mod.hash?.startsWith('dev_sandbox_') && (
+                      <button onClick={() => { if (onSyncToNetwork) onSyncToNetwork(mod); else setEditMode(true); }} className="px-6 py-4 theme-bg-success hover:bg-emerald-500 text-[var(--bg)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-transparent transition-all shadow-lg flex items-center justify-center gap-2">
+                        {t("dossier_btn_sync_network")}
+                      </button>
+                    )}
+                    {mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
+                      <button onClick={() => { onClose(); onSendToLab(); }} className="px-6 py-4 bg-white/5 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-white/10 hover:border-transparent transition-all flex items-center justify-center gap-2">
+                        {t("dossier_btn_send_to_lab")}
+                      </button>
+                    )}
+                    <button onClick={() => setEditMode(true)} className="px-6 py-4 bg-white/5 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-white/10 hover:border-transparent transition-all flex items-center justify-center gap-2">
+                      {isCorrecting ? t("dossier_btn_submit_corrections") : t("dossier_btn_edit")}
                     </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-4 shrink-0">
-                  {mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
-                    <button onClick={() => setShowFlagModal(true)} className="h-14 px-6 bg-red-900/20 hover:bg-red-900/40 text-red-400 font-black text-[10px] tracking-widest uppercase rounded-2xl border border-red-500/20 hover:border-red-500/50 transition-all flex items-center justify-center">
-                      <span className="text-base mr-2">🚩</span> FLAG
-                    </button>
-                  )}
-                </div>
-                <button
-                  onClick={onClose}
-                  className="w-14 h-14 bg-white/5 hover:theme-bg-danger text-[var(--subtext)] opacity-80 hover:text-[var(--text)] rounded-2xl flex items-center justify-center transition-all border border-white/10 hover:theme-border-danger shadow-xl text-xl shrink-0"
-                >✕</button>
+                    {userRole === 'senior_architect' && mod.compliance_tier === 3 && (
+                      <button onClick={() => { onClose(); onSecureShred(mod.name); }} className="px-6 py-4 bg-red-600 hover:bg-red-500 text-white font-black text-[10px] tracking-widest uppercase rounded-2xl border border-red-500 hover:border-transparent transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.6)]">
+                        {t("dossier_btn_secure_shred")}
+                      </button>
+                    )}
+                  </>
+                )}
+                {!editMode && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
+                  <button onClick={() => setShowFlagModal(true)} className="px-6 py-4 bg-red-900/20 hover:bg-red-900/40 text-red-400 font-black text-[10px] tracking-widest uppercase rounded-2xl border border-red-500/20 hover:border-red-500/50 transition-all flex items-center justify-center gap-2">
+                    {t("dossier_btn_flag")}
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="flex-1 p-12 overflow-y-auto custom-scrollbar flex flex-col gap-8 pb-32">
+            <div className="flex-1 p-12 pt-8 overflow-y-auto custom-scrollbar flex flex-col gap-8 pb-32">
 
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 border-b border-white/5 pb-10">
-                
+                {/* Row 1 */}
                 <div className="flex flex-col gap-2">
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_architect")}</p>
                   <div className="flex items-center justify-center px-2 h-10 theme-glass-inner rounded-xl w-full">
@@ -256,19 +294,46 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 <div className="flex flex-col gap-2">
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_revision")}</p>
                   <div className="flex items-center justify-center px-2 h-10 theme-glass-inner rounded-xl w-full">
-                    <span className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest truncate">{mod.version || t("dossier_vlocal")}</span>
+                    {editMode ? (
+                      <input value={metaInputs.version || ""} onChange={e => setMetaInputs.version && setMetaInputs.version(e.target.value)} className="w-full bg-transparent border-none text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none placeholder:opacity-30" placeholder={t("dossier_vlocal")} />
+                    ) : (
+                      <span className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest truncate">{mod.version || t("dossier_vlocal")}</span>
+                    )}
                   </div>
                 </div>
 
+                <div className="theme-glass-inner p-2 rounded-xl border border-white/5 flex flex-col justify-center">
+                  <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_label_uploaded")}</p>
+                  {editMode ? (
+                    <input type="date" value={localCreatedAt ? new Date(localCreatedAt).toISOString().slice(0, 10) : ""} onChange={e => setLocalCreatedAt(e.target.value ? new Date(e.target.value).toISOString() : null)} className="w-full bg-transparent border-none text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none mt-1 custom-date-input" />
+                  ) : (
+                    <p className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest text-center mt-1">
+                      {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("dossier_unknown")}
+                    </p>
+                  )}
+                </div>
+
+                <div className="theme-glass-inner p-2 rounded-xl border border-white/5 flex flex-col justify-center">
+                  <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_label_last_updated")}</p>
+                  {editMode ? (
+                    <input type="date" value={localUpdatedAt ? new Date(localUpdatedAt).toISOString().slice(0, 10) : ""} onChange={e => setLocalUpdatedAt(e.target.value ? new Date(e.target.value).toISOString() : null)} className="w-full bg-transparent border-none text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none mt-1 custom-date-input" />
+                  ) : (
+                    <p className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest text-center mt-1">
+                      {mod.updated_at ? new Date(mod.updated_at).toLocaleDateString() : t("dossier_unknown")}
+                    </p>
+                  )}
+                </div>
+
+                {/* Row 2 */}
                 <div className="flex flex-col gap-2">
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_status_label")}</p>
                   <div className="flex items-center justify-center gap-2 px-2 h-10 theme-glass-inner rounded-xl w-full">
                     <div className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ backgroundColor: mod.color || '#9ca3af' }} />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] truncate">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] truncate" title={mod.status_reason || undefined}>
                       {(() => {
                         const raw = (mod.status || "");
                         const cleaned = raw.replace(/[\[\]]/g, "");
-                        if (cleaned.toLowerCase() === 'broken') return t("status_broken");
+                        if (cleaned.toLowerCase() === 'broken') return mod.status_reason ? `BROKEN: ${mod.status_reason}` : t("status_broken");
                         return cleaned.includes("status_") ? t(cleaned) : (mod.status || t("status_local_only"));
                       })()}
                     </span>
@@ -276,27 +341,44 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">Compliance Tier</p>
+                  <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_label_game_version")}</p>
+                  <div className="flex items-center justify-center px-2 min-h-[40px] py-1 theme-glass-inner rounded-xl w-full">
+                    {editMode ? (
+                      <GameVersionMultiSelect selectedVersions={localCompatibleVersions || []} onChange={v => setLocalCompatibleVersions(v)} />
+                    ) : (
+                      <span className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest truncate" title={mod.compatible_versions?.join(", ")}>
+                        {mod.compatible_versions && mod.compatible_versions.length > 0 ? mod.compatible_versions[0] + (mod.compatible_versions.length > 1 ? " +" : "") : "ANY"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_label_compliance")}</p>
                   <div className="flex items-center justify-center gap-2 px-2 h-10 theme-glass-inner rounded-xl w-full">
                     <span className={`text-[10px] font-black uppercase tracking-widest truncate ${mod.compliance_tier === 1 ? 'theme-text-warning' : 'text-[var(--text)] opacity-50'}`}>
-                      {mod.compliance_tier === 1 ? "NSFW" : (mod.compliance_tier === 2 ? "ADULT" : "CLEAN")}
+                      {mod.compliance_tier === 1 ? t("tier_nsfw") : (mod.compliance_tier === 2 ? t("tier_adult") : t("tier_clean"))}
                     </span>
                     {mod.compliance_tier === 1 && (
                       <button onClick={async () => {
                         if (!mod.dbId) return;
                         const { error } = await supabase.from('mods').update({ compliance_tier: 0 }).eq('id', mod.dbId);
-                        if (!error) { alert('Compliance Tier cleared. Mod is now CLEAN.'); onClose(); }
+                        if (!error) { alert(t("dossier_alert_compliance_cleared")); onClose(); }
                       }} className="ml-auto w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/50 hover:text-white">✕</button>
                     )}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_signature_type")}</p>
+                  <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_label_mod_category")}</p>
                   <div className="flex items-center justify-center px-2 h-10 theme-glass-inner rounded-xl w-full">
-                    <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] truncate">
-                      {isCCSet ? t("dossier_cc_set") : mod.isFlavorFolder ? t("dossier_exclusive") : (mod.isParent ? t("dossier_folder") : (mod.category_override || mod.type || "FILE"))}
-                    </span>
+                    {editMode && !isCCSet && !mod.isFlavorFolder && !mod.isParent ? (
+                      <input value={localCategory || ""} onChange={e => setLocalCategory(e.target.value)} className="w-full bg-transparent border-none text-center text-[10px] font-black text-[var(--text)] uppercase focus:outline-none placeholder:opacity-30" placeholder={mod.type || "FILE"} />
+                    ) : (
+                      <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] truncate">
+                        {isCCSet ? t("dossier_cc_set") : mod.isFlavorFolder ? t("dossier_exclusive") : (mod.isParent ? t("dossier_folder") : (mod.category_override || mod.type || "FILE"))}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -311,30 +393,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 )}
               </div>
 
-              <div className="flex items-center gap-4">
-                {mod.status?.includes('QUARANTINED') ? (
-                  <button onClick={() => { if (onSecureShred) onSecureShred(mod.name); onClose(); }} className="flex-1 py-5 theme-bg-danger text-[var(--bg)] font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(var(--danger-rgb),0.5)]">
-                    SECURE SHRED
-                  </button>
-                ) : editMode ? (
-                  <div className="flex w-full gap-4">
-                    <button onClick={handleSave} disabled={isSaving} className="flex-1 py-5 theme-glass-panel hover:bg-white/10 border border-white/10 hover:theme-border-accent text-[var(--text)] font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl">
-                      {isSaving ? "SAVING..." : t("dossier_btn_save_local")}
-                    </button>
-                    {isCorrecting && session && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
-                      <button onClick={handleSubmitToVault} disabled={isSaving} className="flex-1 py-5 theme-bg-success text-[var(--bg)] font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl">
-                        {isSaving ? "SUBMITTING..." : "SUBMIT CORRECTIONS"}
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <button onClick={() => setEditMode(true)} className="flex-1 py-5 theme-glass-panel hover:bg-white/10 hover:theme-border-accent text-[var(--text)] font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl">
-                      EDIT OVERRIDES
-                    </button>
-                  </>
-                )}
-              </div>
 
               <div className="flex flex-col gap-4">
                 <p className="text-[9px] font-black theme-text-accent uppercase tracking-[0.3em] opacity-40 px-1">Log Manifest</p>

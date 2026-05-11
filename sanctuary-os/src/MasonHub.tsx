@@ -1,16 +1,21 @@
 import { showToast } from './Toast';
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { ViewHeader } from "./shared";
+import { ViewHeader, GameVersionMultiSelect, CustomDropdown, StatTile } from "./shared";
+import ProtocolVisualizer from "./ProtocolVisualizer";
 import { useLexicon } from "./LexiconContext";
 
 const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = []; let from = 0; const step = 999; while (true) { const { data, error } = await queryFn().range(from, from + step); if (error || !data || data.length === 0) break; allData = [...allData, ...data]; if (data.length <= step) break; from += step + 1; } return { data: allData, error: null }; };
 
-export default function MasonHub() {
+export default function MasonHub({ sandboxMod, clearSandboxMod }: { sandboxMod?: any, clearSandboxMod?: () => void }) {
   const { t } = useLexicon();
   const [activeTab, setActiveTab] = useState("registry");
   const [masonProfile, setMasonProfile] = useState<any>(null);
   const[loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (sandboxMod) setActiveTab("sandbox");
+  }, [sandboxMod]);
 
   useEffect(() => {
     async function fetchMasonProfile() {
@@ -41,14 +46,18 @@ export default function MasonHub() {
       <div className="flex flex-wrap theme-glass-inner p-1.5 rounded-2xl w-fit mb-2">
         <TabButton id="registry" label={t("mason_tab_registry")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="cc_sets" label={t("mason_tab_cc")} activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="protocols" label="Protocols" activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="posts" label={t("mason_tab_posts")} activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="sandbox" label={t("mason_tab_sandbox")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="settings" label="Settings" activeTab={activeTab} setTab={setActiveTab} />
       </div>
 
       <div className="flex-1 w-full overflow-y-auto custom-scrollbar pr-4 pb-48">
         {activeTab === "registry" && <MasonRegistry masonId={masonProfile.id} />}
         {activeTab === "cc_sets" && <MasonCCSetBuilder masonId={masonProfile.id} masonName={masonProfile.name} />}
+        {activeTab === "protocols" && <ProtocolVisualizer masonId={masonProfile.id} isArchitect={false} />}
         {activeTab === "posts" && <MasonPostsEditor masonId={masonProfile.id} />} 
+        {activeTab === "sandbox" && <MasonSandbox masonId={masonProfile.id} initialSandboxMod={sandboxMod} onClear={clearSandboxMod} />}
         {activeTab === "settings" && <MasonSettings profile={masonProfile} onUpdate={setMasonProfile} />}
       </div>
     </div>
@@ -227,6 +236,7 @@ function MasonRegistry({ masonId }: { masonId: string }) {
   const[conflicts, setConflicts] = useState<any[]>([]);
   const [protocols, setProtocols] = useState<any[]>([]);
   const [modalMode, setModalMode] = useState<string | null>(null);
+  const [visualizerOpen, setVisualizerOpen] = useState(false);
   const [cloudMods, setCloudMods] = useState<any[]>([]);
   const[isCommitting, setIsCommitting] = useState(false);
   
@@ -306,6 +316,9 @@ function MasonRegistry({ masonId }: { masonId: string }) {
         category_override: activeMod.category_override,
         sub_type: activeMod.sub_type,
         status: activeMod.status,
+        created_at: activeMod.created_at,
+        updated_at: activeMod.updated_at,
+        compatible_versions: activeMod.compatible_versions
       }).eq('id', activeMod.id);
       fetchData();
       showToast(t("mason_saved_success"), 'success');
@@ -380,10 +393,29 @@ function MasonRegistry({ masonId }: { masonId: string }) {
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">Condition Protocol</label>
                 <MasonStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({...activeMod, status: newStatus})} />
               </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">UPLOADED DATE</label>
+                <input type="date" value={activeMod.created_at ? new Date(activeMod.created_at).toISOString().slice(0, 10) : ""} onChange={e => setActiveMod({...activeMod, created_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent custom-date-input" />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">LAST UPDATED</label>
+                <input type="date" value={activeMod.updated_at ? new Date(activeMod.updated_at).toISOString().slice(0, 10) : ""} onChange={e => setActiveMod({...activeMod, updated_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent custom-date-input" />
+              </div>
+
+              <div className="flex flex-col gap-2 col-span-full">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">GAME VERSIONS</label>
+                <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v) => setActiveMod({...activeMod, compatible_versions: v})} />
+              </div>
+
             </div>
 
             <div className="mt-8 pt-8 border-t border-white/10 space-y-6">
-              <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter flex items-center gap-3"><span className="text-2xl">🧬</span> Protocols</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter flex items-center gap-3"><span className="text-2xl">🧬</span> Protocols</h3>
+                <button onClick={() => setVisualizerOpen(true)} className="px-6 py-3 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95">OPEN VISUAL EDITOR</button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  {['dependency', 'addon', 'twin', 'rival', 'beta'].map(mode => {
                     const linked = protocols.filter(p => p.type === mode);
@@ -438,6 +470,7 @@ function MasonRegistry({ masonId }: { masonId: string }) {
         )}
       </div>
       <ProtocolSearchModal isOpen={!!modalMode} onClose={() => setModalMode(null)} onSelect={handleAddProtocol} cloudMods={cloudMods} mode={modalMode || ''} />
+
     </div>
   );
 }
@@ -821,6 +854,130 @@ function MasonStatusDropdown({ value, onChange }: { value: string, onChange: (va
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function MasonSandbox({ masonId, initialSandboxMod, onClear }: { masonId: string, initialSandboxMod: any, onClear: any }) {
+  const { t } = useLexicon();
+  const [activeMod, setActiveMod] = useState<any>(initialSandboxMod || null);
+  const [isCommitting, setIsCommitting] = useState(false);
+
+  useEffect(() => {
+    if (initialSandboxMod) setActiveMod(initialSandboxMod);
+  }, [initialSandboxMod]);
+
+  const handleSyncToNetwork = async () => {
+    if (!activeMod || !activeMod.hash) {
+      showToast("No valid sandbox mod selected or missing hash.", "error");
+      return;
+    }
+    setIsCommitting(true);
+    try {
+      const { data: newMod, error: insertError } = await supabase.from('mods').insert([{
+        name: activeMod.name || "Unknown Sandbox Mod",
+        mason_id: masonId,
+        description: activeMod.description || "",
+        image_url: activeMod.image_url || null,
+        url: activeMod.url || null,
+        allow_write: activeMod.allow_write || false,
+        category_override: activeMod.category_override || activeMod.type || null,
+        sub_type: activeMod.sub_type || null,
+        status: activeMod.status || 'unverified',
+        created_at: activeMod.created_at || new Date().toISOString(),
+        updated_at: activeMod.updated_at || new Date().toISOString(),
+        compatible_versions: activeMod.compatible_versions || []
+      }]).select().single();
+      
+      if (insertError) throw insertError;
+      
+      const { error: versionError } = await supabase.from("mod_versions").upsert([
+        {
+          mod_id: newMod.id,
+          dna_hash: activeMod.hash,
+          version_label: "v1.0",
+          game_version: activeMod.compatible_versions ? activeMod.compatible_versions[0] : null
+        }
+      ], { onConflict: "dna_hash" });
+      
+      if (versionError) throw versionError;
+
+      showToast("Mod synced to network successfully!", "success");
+      if (onClear) onClear();
+    } catch (err: any) {
+      showToast(`Error syncing to network: ${err.message}`, 'error');
+    }
+    setIsCommitting(false);
+  };
+
+  if (!initialSandboxMod) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center h-[500px]">
+        <span className="text-6xl mb-4 grayscale">{t("ui_icon_collection")}</span>
+        <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.3em]">{t("sandbox_no_mod")}</span>
+        <p className="text-[10px] mt-2 font-bold max-w-md">{t("sandbox_no_mod_desc")}</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="w-full xl:w-2/3 mx-auto theme-glass-panel rounded-[2rem] shadow-2xl p-10 flex flex-col gap-8 relative z-10">
+      <div className="flex justify-between items-start border-b border-white/10 pb-6 shrink-0 gap-6">
+        <div className="flex-1 min-w-0">
+          <input value={activeMod.name || ""} onChange={e => setActiveMod({...activeMod, name: e.target.value})} className="text-3xl font-black text-[var(--text)] uppercase tracking-tighter mb-1 w-full bg-transparent border-b border-white/20 focus:border-white focus:outline-none transition-all" placeholder="MOD NAME" />
+          <p className="text-[10px] font-mono theme-text-accent tracking-[0.2em] uppercase truncate mt-2">{t("sandbox_locked_hash")} {activeMod.hash}</p>
+        </div>
+        <button onClick={handleSyncToNetwork} disabled={isCommitting} className="shrink-0 px-6 py-3 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg theme-bg-success text-[var(--bg)] hover:opacity-90 hover:scale-105 active:scale-95">
+          {isCommitting ? t("sandbox_btn_syncing") : t("sandbox_btn_sync")}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="flex flex-col gap-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
+          <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(val: string) => setActiveMod({...activeMod, category_override: val})} />
+        </div>
+        
+        <div className="flex flex-col gap-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">Sub Classification</label>
+          <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} placeholder="e.g. Trait, Career, Bed" className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono focus:outline-none focus:theme-border-accent" />
+        </div>
+        
+        <div className="flex flex-col gap-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+          <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono focus:outline-none focus:theme-border-accent" />
+        </div>
+
+        <div className="flex flex-col gap-2 xl:col-span-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc")}</label>
+          <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono h-24 resize-none focus:outline-none focus:theme-border-accent" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image")}</label>
+          <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono focus:outline-none focus:theme-border-accent" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">Condition Protocol</label>
+          <MasonStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({...activeMod, status: newStatus})} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">UPLOADED DATE</label>
+          <input type="date" value={activeMod.created_at ? new Date(activeMod.created_at).toISOString().slice(0, 10) : ""} onChange={e => setActiveMod({...activeMod, created_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent custom-date-input" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">LAST UPDATED</label>
+          <input type="date" value={activeMod.updated_at ? new Date(activeMod.updated_at).toISOString().slice(0, 10) : ""} onChange={e => setActiveMod({...activeMod, updated_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent custom-date-input" />
+        </div>
+
+        <div className="flex flex-col gap-2 col-span-full">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">GAME VERSIONS</label>
+          <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v) => setActiveMod({...activeMod, compatible_versions: v})} />
+        </div>
+      </div>
     </div>
   );
 }

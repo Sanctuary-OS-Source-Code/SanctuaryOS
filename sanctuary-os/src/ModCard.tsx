@@ -195,7 +195,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
 
         <div 
           className="absolute top-4 left-4 z-30 bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2 pointer-events-auto cursor-help"
-          title={isSelfBroken ? t("status_broken_hover") : undefined}
+          title={mod.status_reason || (isSelfBroken ? t("status_broken_hover") : undefined)}
         >
           <div className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_rgba(255,255,255,0.5)]" style={{ backgroundColor: mod.color || '#666' }} />
           <span className="text-[8px] font-black uppercase text-[var(--text)]/80 tracking-widest">

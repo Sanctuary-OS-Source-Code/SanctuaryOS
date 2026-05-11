@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 export interface ModData {
   name: string;
   physical_path?: string;
   hash: string;
   id?: string;
   status: string;
+  status_reason?: string;
+  updated_at?: string;
+  created_at?: string;
+  compatible_versions?: string[];
   color: string;
   displayName?: string;
   author?: string;
@@ -41,7 +45,7 @@ export const formatDisplayName = (name: string) => {
   return name.replace(/\.(package|ts4script)$/i, "").replace(/_/g, " ");
 };
 
-const DLC_MAP: Record<string, string> = {
+export const DLC_MAP: Record<string, string> = {
   "EP01": "Get to Work", "EP02": "Get Together", "EP03": "City Living", "EP04": "Cats & Dogs",
   "EP05": "Seasons", "EP06": "Get Famous", "EP07": "Island Living", "EP08": "Discover University",
   "EP09": "Eco Lifestyle", "EP10": "Snowy Escape", "EP11": "Cottage Living", "EP12": "High School Years",
@@ -82,7 +86,7 @@ export function ViewHeader({ title, subtitle, children }: any) {
 export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem, onClear }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const results = modList.filter((m: any) => 
+  const results = (modList || []).filter((m: any) => 
     !query || 
     m.name.toLowerCase().includes(query.toLowerCase()) || 
     m.displayName?.toLowerCase().includes(query.toLowerCase())
@@ -164,3 +168,56 @@ export function CustomDropdown({ value, options, onChange }: any) {
     </div>
   );
 }
+
+import { supabase } from "./supabase";
+
+export function GameVersionMultiSelect({ selectedVersions, onChange }: { selectedVersions: string[], onChange: (v: string[]) => void }) {
+  const [query, setQuery] = useState("");
+  const [versions, setVersions] = useState<any[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    async function fetchVersions() {
+      const { data } = await supabase.from('game_versions').select('version').order('version', { ascending: false });
+      if (data) setVersions(data);
+    }
+    fetchVersions();
+  }, []);
+
+  const toggleVersion = (v: string) => {
+    if (selectedVersions.includes(v)) onChange(selectedVersions.filter(ver => ver !== v));
+    else onChange([...selectedVersions, v]);
+  };
+
+  const filtered = versions.filter(v => v.version && v.version.includes(query)).slice(0, 10);
+
+  return (
+    <div className={`relative w-full ${isOpen ? 'z-50' : 'z-10'}`}>
+      <div className="flex flex-wrap gap-1 mb-2">
+        {selectedVersions.map(v => (
+          <span key={v} className="px-2 py-1 bg-white/10 rounded-lg text-[9px] font-mono flex items-center gap-1">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300">?</button></span>
+        ))}
+      </div>
+      <input placeholder="Search versions..." value={query} onChange={e => { setQuery(e.target.value); setIsOpen(true); }} onFocus={() => setIsOpen(true)} className="w-full bg-transparent border-b border-white/20 text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none focus:border-white transition-all placeholder:opacity-30 pb-1" />
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full mt-1 left-0 right-0 bg-[var(--sidebar)] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto custom-scrollbar">
+            {filtered.map(v => (
+              <button key={v.version} type="button" onClick={() => { toggleVersion(v.version); setQuery(""); }} className="w-full text-left px-4 py-2 hover:bg-white/10 text-[10px] font-mono flex justify-between">
+                <span>{v.version}</span>
+                {selectedVersions.includes(v.version) && <span className="text-emerald-400">?</span>}
+              </button>
+            ))}
+            {query && !versions.some(v => v.version === query) && (
+              <button type="button" onClick={() => { toggleVersion(query); setQuery(""); }} className="w-full text-left px-4 py-2 hover:bg-white/10 text-[10px] font-mono text-emerald-400">
+                + Add "{query}"
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+

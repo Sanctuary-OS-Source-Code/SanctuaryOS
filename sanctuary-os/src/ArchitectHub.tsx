@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { ViewHeader } from "./shared";
+import { ViewHeader, GameVersionMultiSelect, CustomDropdown } from "./shared";
+import ProtocolVisualizer from "./ProtocolVisualizer";
 import { useLexicon } from "./LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -24,6 +25,7 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList }: { user
       <div className="flex flex-wrap theme-glass-inner p-1.5 rounded-2xl w-fit mb-2">
         <TabButton id="command_center" label="Command Screen" activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="registry" label={t("hub_tab_registry")} activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="protocols" label="Protocol Orchestrator" activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="cc_registry" label={t("hub_tab_cc_assets")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="cc_sets" label={t("hub_tab_cc_sets")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="queue" label={t("hub_tab_queue")} activeTab={activeTab} setTab={setActiveTab} />
@@ -34,6 +36,7 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList }: { user
       <div className="flex-1 w-full overflow-y-auto custom-scrollbar pr-4 pb-48">
         {activeTab === "command_center" && <CommandCenter onNavigate={handleNavigate} />}
         {activeTab === "registry" && <DNARegistry initialSearch={registrySearch} onClearSearch={() => setRegistrySearch("")} />}
+        {activeTab === "protocols" && <ProtocolVisualizer isArchitect={true} />}
         {activeTab === "cc_registry" && <CCRegistry />}
         {activeTab === "cc_sets" && <CCSetForge />}
         {activeTab === "queue" && <ScoutQueue />}
@@ -65,6 +68,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
   const[cloudMods, setCloudMods] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [activeMaster, setActiveMaster] = useState<any | null>(null);
+  const [visualizerOpen, setVisualizerOpen] = useState(false);
 
   useEffect(() => {
     if (initialSearch) {
@@ -188,7 +192,10 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
         requiredDLC: activeMaster.requiredDLC,
         latest_version: activeMaster.latest_version,
         allow_write: activeMaster.allow_write,
-        compliance_tier: activeMaster.compliance_tier || 0
+        compliance_tier: activeMaster.compliance_tier || 0,
+        created_at: activeMaster.created_at,
+        updated_at: activeMaster.updated_at,
+        compatible_versions: activeMaster.compatible_versions
       }).eq('id', activeMaster.id);
       if (error) throw error;
       setCommitSuccess(true);
@@ -400,6 +407,21 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                 <CustomComplianceDropdown value={activeMaster.compliance_tier || 0} onChange={(newTier: number) => setActiveMaster({...activeMaster, compliance_tier: newTier})} />
               </div>
 
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">UPLOADED DATE</label>
+                <input type="datetime-local" value={activeMaster.created_at ? new Date(activeMaster.created_at).toISOString().slice(0, 16) : ""} onChange={e => setActiveMaster({...activeMaster, created_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent [color-scheme:dark]" style={{ colorScheme: 'dark' }} />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">LAST UPDATED</label>
+                <input type="datetime-local" value={activeMaster.updated_at ? new Date(activeMaster.updated_at).toISOString().slice(0, 16) : ""} onChange={e => setActiveMaster({...activeMaster, updated_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent [color-scheme:dark]" style={{ colorScheme: 'dark' }} />
+              </div>
+
+              <div className="flex flex-col gap-2 col-span-full">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">GAME VERSIONS</label>
+                <GameVersionMultiSelect selectedVersions={activeMaster.compatible_versions || []} onChange={v => setActiveMaster({...activeMaster, compatible_versions: v})} />
+              </div>
+
               </div>
             </div>
 
@@ -455,10 +477,13 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
               </div>
 
               <div className="flex flex-col gap-4">
-                <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
-                  {t("registry_title_protocols")}
-                </h3>
-                <div className="theme-glass-inner rounded-2xl p-4 flex flex-col gap-4 h-full">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
+                      {t("registry_title_protocols")}
+                    </h3>
+                    <button onClick={() => setVisualizerOpen(true)} className="px-4 py-2 theme-bg-accent text-[var(--bg)] font-black text-[9px] uppercase tracking-widest rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95">OPEN VISUAL EDITOR</button>
+                  </div>
+                  <div className="theme-glass-inner rounded-2xl p-4 flex flex-col gap-4 h-full">
                   <div className="flex flex-col gap-2">
                     <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("registry_req_masters")}</span>
                     {Array.isArray(activeDependencies) && activeDependencies.length > 0 ? activeDependencies.map(dep => (
@@ -587,6 +612,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
         onClose={() => setModalMode(null)}
         onSelect={handleAddProtocol}
       />
+
 
       {isMasonModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -734,7 +760,10 @@ function CCRegistry() {
         image_url: activeMaster.image_url,
         url: activeMaster.url,
         status: activeMaster.status,
-        requiredDLC: activeMaster.requiredDLC
+        requiredDLC: activeMaster.requiredDLC,
+        created_at: activeMaster.created_at,
+        updated_at: activeMaster.updated_at,
+        compatible_versions: activeMaster.compatible_versions
       }).eq('id', activeMaster.id);
       if (error) throw error;
       setCommitSuccess(true);
@@ -883,6 +912,21 @@ function CCRegistry() {
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">SAFETY RATING</label>
                 <CustomComplianceDropdown value={activeMaster.compliance_tier || 0} onChange={(newTier: number) => setActiveMaster({...activeMaster, compliance_tier: newTier})} />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">UPLOADED DATE</label>
+                <input type="datetime-local" value={activeMaster.created_at ? new Date(activeMaster.created_at).toISOString().slice(0, 16) : ""} onChange={e => setActiveMaster({...activeMaster, created_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent [color-scheme:dark]" style={{ colorScheme: 'dark' }} />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">LAST UPDATED</label>
+                <input type="datetime-local" value={activeMaster.updated_at ? new Date(activeMaster.updated_at).toISOString().slice(0, 16) : ""} onChange={e => setActiveMaster({...activeMaster, updated_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent [color-scheme:dark]" style={{ colorScheme: 'dark' }} />
+              </div>
+
+              <div className="flex flex-col gap-2 col-span-full">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">GAME VERSIONS</label>
+                <GameVersionMultiSelect selectedVersions={activeMaster.compatible_versions || []} onChange={v => setActiveMaster({...activeMaster, compatible_versions: v})} />
               </div>
 
               <div className="flex flex-col gap-2">

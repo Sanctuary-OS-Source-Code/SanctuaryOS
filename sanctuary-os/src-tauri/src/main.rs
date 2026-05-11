@@ -136,6 +136,12 @@ fn walk_packages(dir: &Path, files: &mut Vec<PathBuf>) {
         for entry in entries.flatten() {
             let p = entry.path();
             if p.is_dir() {
+                if let Some(name) = p.file_name() {
+                    let name_str = name.to_string_lossy().to_lowercase();
+                    if name_str == "sandbox" || name_str == "dev" {
+                        continue;
+                    }
+                }
                 walk_packages(&p, files);
             } else if let Some(ext) = p.extension().and_then(|s| s.to_str()) {
                 let ext_lower = ext.to_lowercase();
@@ -970,6 +976,46 @@ fn scan_bunker(
     if cache_updated {
         save_cache(&vault_path, &cache);
     }
+    Ok(results)
+}
+
+#[tauri::command]
+fn scan_sandbox(vault_path: String) -> Result<Vec<ModData>, String> {
+    let vault_dir = PathBuf::from(&vault_path);
+    let dev_lane = if vault_dir.ends_with("Mods") {
+        vault_dir.parent().unwrap_or(&vault_dir).join("Dev").join("Sandbox")
+    } else {
+        vault_dir.join("Dev").join("Sandbox")
+    };
+
+    if !dev_lane.exists() {
+        let _ = fs::create_dir_all(&dev_lane);
+        return Ok(vec![]);
+    }
+
+    let mut paths = Vec::new();
+    walk_packages(&dev_lane, &mut paths);
+
+    let mut results = Vec::new();
+    for path in paths {
+        let rel = path
+            .strip_prefix(&dev_lane)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .to_string();
+
+        let is_script = path.extension().map_or(false, |ext| ext == "ts4script");
+        let hash = format!("dev_sandbox_{}", path.file_name().unwrap_or_default().to_string_lossy());
+
+        results.push(ModData {
+            name: rel.replace("\\", "/"),
+            hash,
+            status: "🧪 SANDBOX".to_string(),
+            color: "var(--accent)".to_string(),
+            is_script,
+        });
+    }
+
     Ok(results)
 }
 
@@ -2264,6 +2310,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             scan_bunker,
+            scan_sandbox,
             get_saved_coordinates,
             save_coordinates,
             sanitize_vault,

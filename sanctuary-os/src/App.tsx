@@ -220,6 +220,7 @@ function App() {
   const [activeDossier, setActiveDossier] = useState<ModData | null>(null);
   const [labQueue, setLabQueue] = useState<ModData[]>([]);
   const [activeLabMod, setActiveLabMod] = useState<ModData | null>(null);
+  const [activeSandboxMod, setActiveSandboxMod] = useState<ModData | null>(null);
   const [testErrorFound, setTestErrorFound] = useState(false);
   const [logWatcher, setLogWatcher] = useState<any>(null);
   const [testLogSnippet, setTestLogSnippet] = useState<string>("");
@@ -1123,13 +1124,23 @@ function App() {
         vaultPath: config.vault_path,
         shelterActive: true,
       });
-      if (!rawLocalMods || rawLocalMods.length === 0) {
+
+      let sandboxMods: any[] = [];
+      try {
+        sandboxMods = await invoke<any[]>("scan_sandbox", { vaultPath: config.vault_path });
+      } catch (e) {
+        console.error("Failed to scan sandbox:", e);
+      }
+
+      const allLocalMods = [...rawLocalMods, ...sandboxMods];
+
+      if (!allLocalMods || allLocalMods.length === 0) {
         setModList([]);
         setIsScanning(false);
         return;
       }
       const uniqueMap = new Map();
-      rawLocalMods.forEach((m) => {
+      allLocalMods.forEach((m) => {
         if (m.hash) uniqueMap.set(m.hash, m);
         else uniqueMap.set(m.name, m);
       });
@@ -3125,7 +3136,7 @@ function App() {
             </ErrorBoundary>
           )}
           {view === "MasonHub" &&
-            ["mason", "wayfinder", "admin"].includes(userRole) && <MasonHub />}
+            ["mason", "wayfinder", "admin"].includes(userRole) && <MasonHub sandboxMod={activeSandboxMod} clearSandboxMod={() => setActiveSandboxMod(null)} />}
           {view === "ArchitectHub" &&
             ["architect", "wayfinder", "admin"].includes(userRole) && (
               <ErrorBoundary moduleName="Architect Hub">
@@ -3208,6 +3219,11 @@ function App() {
             allow_write: setMetaAllowWriteInput,
           }}
           onSendToLab={sendToLabQueue}
+          onSyncToNetwork={(mod: any) => {
+            setActiveDossier(null);
+            setActiveSandboxMod(mod);
+            setView("MasonHub");
+          }}
           onDesignateTwin={designateTwin}
           onEstablishBond={establishBond}
           onRegisterConflict={registerConflict}
