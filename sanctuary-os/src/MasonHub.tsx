@@ -1,8 +1,9 @@
 import { showToast } from './Toast';
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { ViewHeader, GameVersionMultiSelect, CustomDropdown, StatTile } from "./shared";
+import { ViewHeader, GameVersionMultiSelect, CustomDropdown, StatTile, ModSearchDropdown } from "./shared";
 import ProtocolVisualizer from "./ProtocolVisualizer";
+import ModStructureBuilder from "./ModStructureBuilder";
 import { useLexicon } from "./LexiconContext";
 
 const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = []; let from = 0; const step = 999; while (true) { const { data, error } = await queryFn().range(from, from + step); if (error || !data || data.length === 0) break; allData = [...allData, ...data]; if (data.length <= step) break; from += step + 1; } return { data: allData, error: null }; };
@@ -318,7 +319,8 @@ function MasonRegistry({ masonId }: { masonId: string }) {
         status: activeMod.status,
         created_at: activeMod.created_at,
         updated_at: activeMod.updated_at,
-        compatible_versions: activeMod.compatible_versions
+        compatible_versions: activeMod.compatible_versions,
+        folder_structure: activeMod.folder_structure || []
       }).eq('id', activeMod.id);
       fetchData();
       showToast(t("mason_saved_success"), 'success');
@@ -407,6 +409,10 @@ function MasonRegistry({ masonId }: { masonId: string }) {
               <div className="flex flex-col gap-2 col-span-full">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">GAME VERSIONS</label>
                 <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v) => setActiveMod({...activeMod, compatible_versions: v})} />
+              </div>
+              
+              <div className="col-span-full pt-4">
+                <ModStructureBuilder structure={activeMod.folder_structure || []} onChange={(newStructure) => setActiveMod({...activeMod, folder_structure: newStructure})} />
               </div>
 
             </div>
@@ -737,76 +743,6 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
   );
 }
 
-function ModSearchDropdown({ 
-  value, 
-  onChange, 
-  placeholder, 
-  mods 
-}: { 
-  value: string, 
-  onChange: (val: string) => void, 
-  placeholder: string, 
-  mods: any[] 
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState(value);
-
-  useEffect(() => {
-    setQuery(value);
-  }, [value]);
-
-  const filtered = mods.filter((m:any) => 
-    (m.name || '').toLowerCase().includes(query.toLowerCase()) || 
-    (m.master_author || '').toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 10);
-
-  return (
-    <div className="relative flex-1 w-full">
-      <input
-        required
-        placeholder={placeholder}
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          onChange(e.target.value);
-          setIsOpen(true);
-        }}
-        onFocus={() => setIsOpen(true)}
-        className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all font-mono placeholder:text-[var(--text)]/20"
-      />
-      
-      {isOpen && query.length > 0 && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--sidebar)] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 max-h-64 overflow-y-auto custom-scrollbar">
-            {filtered.length > 0 ? (
-              filtered.map((m:any) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => {
-                    setQuery(m.name);
-                    onChange(m.name);
-                    setIsOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white/5 last:border-none flex flex-col transition-colors group"
-                >
-                  <span className="text-xs font-black text-[var(--text)] uppercase group-hover:theme-text-accent transition-colors">{m.name}</span>
-                  <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{m.master_author || 'Unknown'}</span>
-                </button>
-              ))
-            ) : (
-              <div className="px-4 py-3 text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-                No direct match - custom entry allowed
-              </div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 function MasonStatusDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const [isOpen, setIsOpen] = useState(false);
@@ -886,7 +822,8 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear }: { masonId: string
         status: activeMod.status || 'unverified',
         created_at: activeMod.created_at || new Date().toISOString(),
         updated_at: activeMod.updated_at || new Date().toISOString(),
-        compatible_versions: activeMod.compatible_versions || []
+        compatible_versions: activeMod.compatible_versions || [],
+        folder_structure: activeMod.folder_structure || []
       }]).select().single();
       
       if (insertError) throw insertError;

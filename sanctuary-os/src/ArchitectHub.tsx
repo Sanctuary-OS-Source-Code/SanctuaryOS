@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { ViewHeader, GameVersionMultiSelect, CustomDropdown } from "./shared";
 import ProtocolVisualizer from "./ProtocolVisualizer";
+import ModStructureBuilder from "./ModStructureBuilder";
 import { useLexicon } from "./LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -195,7 +196,8 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
         compliance_tier: activeMaster.compliance_tier || 0,
         created_at: activeMaster.created_at,
         updated_at: activeMaster.updated_at,
-        compatible_versions: activeMaster.compatible_versions
+        compatible_versions: activeMaster.compatible_versions,
+        folder_structure: activeMaster.folder_structure || []
       }).eq('id', activeMaster.id);
       if (error) throw error;
       setCommitSuccess(true);
