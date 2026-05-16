@@ -1,6 +1,8 @@
 import { useLexicon } from "./LexiconContext";
 
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { open } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 export function MissingImportsAlert({ missingImportMods, setMissingImportMods, pendingImportSet, setPendingImportSet, finalizeImport, setIsDropzoneOpen }: any) {
   const { t } = useLexicon();
   return (
@@ -25,6 +27,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
                         <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{mod.author || t("registry_unknown_architect")}</span>
                       </div>
                       <div className="flex items-center gap-2">
+                        <button onClick={async () => { const selected = await open({ multiple: true, filters: [{ name: "Mod Artifacts", extensions: ["package", "ts4script", "zip", "rar"] }] }); if (selected && selected.length > 0) { const paths = Array.isArray(selected) ? selected : [selected]; for (let p of paths) { await invoke("ingest_dropped_file", { path: p, forceReplace: false }); } const next = missingImportMods.filter((m: any) => m.name !== mod.name); if (next.length === 0) { finalizeImport(pendingImportSet); setMissingImportMods(null); } else { setMissingImportMods(next); } } }} className="shrink-0 px-4 py-2 bg-white/10 hover:theme-bg-success hover:text-[var(--bg)] rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 text-[var(--text)]">Inject Locally</button>
                         <button 
                           onClick={() => {
                             const next = missingImportMods.filter((m: any) => m.name !== mod.name);

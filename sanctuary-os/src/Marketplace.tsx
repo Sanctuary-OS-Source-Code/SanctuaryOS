@@ -61,7 +61,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
         <div className="flex gap-2 items-center">
           <input 
             type="text" 
-            placeholder="Search Mods or Masons..." 
+            placeholder={t("market_search_placeholder")} 
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);

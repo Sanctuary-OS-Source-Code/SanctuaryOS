@@ -7,13 +7,17 @@ export default function TimeCapsule({
 }: any) {
   const { t } = useLexicon();
   
+  const totalWorldSize = backupList?.reduce((acc: number, b: any) => acc + (b.name?.toLowerCase().includes('world') ? (b.size_mb || 0) : 0), 0) || 0;
+  const totalEngineSize = backupList?.reduce((acc: number, b: any) => acc + (b.name?.toLowerCase().includes('engine') ? (b.size_mb || 0) : 0), 0) || 0;
+  const totalSpace = totalWorldSize + totalEngineSize;
+  
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full">
       <ViewHeader title={t("backups_title")} subtitle={t("backups_subtitle")}>
         <div className="flex gap-4 items-center ml-auto shrink-0">
           <div className="flex flex-col bg-black/10 border border-white/5 rounded-2xl px-4 py-2 min-w-[160px] justify-center items-center">
             <span className="text-[7px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest leading-none mb-1">{t("backups_target_patch")}</span>
-            <span className="text-[10px] font-black text-[var(--text)] tracking-widest uppercase">{selectedVersion || "1.123.66.1020"} Detected</span>
+            <span className="text-[10px] font-black text-[var(--text)] tracking-widest uppercase">{selectedVersion || "Latest"} Detected</span>
           </div>
           
           <button 
@@ -34,9 +38,37 @@ export default function TimeCapsule({
         </div>
       </ViewHeader>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+      <div className="flex gap-4 items-center">
+        <div className="flex gap-4">
+           <div className="theme-glass-inner px-4 py-2 rounded-xl flex gap-3 items-center shadow-sm">
+             <span className="text-[14px] opacity-60">{t("ui_icon_world")}</span>
+             <div className="flex flex-col">
+               <span className="text-[7px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("backups_world_space")}</span>
+               <span className="text-[10px] font-mono text-[var(--text)] font-black">{totalWorldSize.toFixed(1)} MB</span>
+             </div>
+           </div>
+           <div className="theme-glass-inner px-4 py-2 rounded-xl flex gap-3 items-center shadow-sm">
+             <span className="text-[14px] opacity-60">{t("ui_icon_engine")}</span>
+             <div className="flex flex-col">
+               <span className="text-[7px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("backups_engine_space")}</span>
+               <span className="text-[10px] font-mono text-[var(--text)] font-black">{totalEngineSize.toFixed(1)} MB</span>
+             </div>
+           </div>
+        </div>
+        <div className="ml-auto theme-glass-panel border border-white/5 px-6 py-2 rounded-xl flex gap-3 items-center shadow-md">
+           <span className="text-[14px] opacity-60">{t("ui_icon_save")}</span>
+           <div className="flex flex-col">
+             <span className="text-[7px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("backups_total_space")}</span>
+             <span className="text-[10px] font-mono theme-text-accent font-black">{(totalSpace / 1024).toFixed(2)} GB</span>
+           </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
         {backupList?.length > 0 ? (
-          backupList.map((backupName: string) => {
+          backupList.map((backup: any) => {
+            const backupName = typeof backup === 'string' ? backup : backup.name;
+            const sizeMb = typeof backup === 'string' ? 0 : backup.size_mb;
             const sig = getBackupSignature ? getBackupSignature(backupName) : null;
             const isEngine = sig ? sig.isEngine : backupName.toLowerCase().includes("engine");
             const title = sig?.alias || (isEngine ? t("backups_engine_full") : t("backups_world_state"));
@@ -51,6 +83,7 @@ export default function TimeCapsule({
                     <p className="text-[9px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 truncate">
                       {sig ? `${sig.version} • ${sig.timestamp !== "0" ? new Date(Number(sig.timestamp)*1000).toLocaleDateString() : ""}` : backupName.replace(".tar.zst", "")}
                     </p>
+                    {sizeMb > 0 && <span className="text-[9px] font-mono text-[var(--text)] opacity-40 mt-1">{sizeMb.toFixed(1)} MB</span>}
                   </div>
                 </div>
                 <div className="flex gap-2 mt-auto">

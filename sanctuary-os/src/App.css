@@ -259,3 +259,9 @@ input[type="date"].custom-date-input::-webkit-calendar-picker-indicator {
 input[type="date"].custom-date-input::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
 }
+
+input[type="date"].custom-date-input { color-scheme: dark; }
+
+
+:root { color-scheme: dark; }
+

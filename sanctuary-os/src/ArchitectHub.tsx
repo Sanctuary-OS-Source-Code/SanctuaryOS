@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { ViewHeader, GameVersionMultiSelect, CustomDropdown } from "./shared";
+import { ViewHeader, GameVersionMultiSelect, CustomDropdown, formatDisplayName } from "./shared";
 import ProtocolVisualizer from "./ProtocolVisualizer";
 import ModStructureBuilder from "./ModStructureBuilder";
 import { useLexicon } from "./LexiconContext";
@@ -36,11 +36,11 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList }: { user
 
       <div className="flex-1 w-full overflow-y-auto custom-scrollbar pr-4 pb-48">
         {activeTab === "command_center" && <CommandCenter onNavigate={handleNavigate} />}
-        {activeTab === "registry" && <DNARegistry initialSearch={registrySearch} onClearSearch={() => setRegistrySearch("")} />}
+        {activeTab === "registry" && <DNARegistry initialSearch={registrySearch} onClearSearch={() => setRegistrySearch("")} modList={modList} />}
         {activeTab === "protocols" && <ProtocolVisualizer isArchitect={true} />}
         {activeTab === "cc_registry" && <CCRegistry />}
         {activeTab === "cc_sets" && <CCSetForge />}
-        {activeTab === "queue" && <ScoutQueue />}
+        {activeTab === "queue" && <ScoutQueue modList={modList || []} />}
         {activeTab === "lab" && <ProvingGrounds modList={modList || []} />}
         {activeTab === "matrix" && <ConflictMatrix />}
       </div>
@@ -64,7 +64,7 @@ function TabButton({ id, label, activeTab, setTab }: any) {
   );
 }
 
-function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
+function DNARegistry({ initialSearch = "", onClearSearch, modList }: any = {}) {
   const { t } = useLexicon();
   const[cloudMods, setCloudMods] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
@@ -92,7 +92,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
   const [conflictEnemy, setConflictEnemy] = useState("");
   const [conflictSeverity, setConflictSeverity] = useState(4);
   const [conflictResolution, setConflictResolution] = useState("");
-  const [modalMode, setModalMode] = useState<'dependency' | 'addon' | 'twin' | 'rival' | 'beta' | 'bind_hash' | null>(null);
+  const [modalMode, setModalMode] = useState<'dependency' | 'addon' | 'twin' | 'rival' | 'beta' | 'bind_hash' | 'flavor' | 'set_item' | null>(null);
 
   const[isMasonModalOpen, setIsMasonModalOpen] = useState(false);
   const [newMasonName, setNewMasonName] = useState("");
@@ -186,6 +186,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
         name: activeMaster.name,
         mason_id: activeMaster.mason_id,
         category_override: activeMaster.category_override,
+        sub_type: activeMaster.sub_type,
         description: activeMaster.description,
         image_url: activeMaster.image_url,
         url: activeMaster.url,
@@ -197,6 +198,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
         created_at: activeMaster.created_at,
         updated_at: activeMaster.updated_at,
         compatible_versions: activeMaster.compatible_versions,
+        family_slug: activeMaster.family_slug,
         folder_structure: activeMaster.folder_structure || []
       }).eq('id', activeMaster.id);
       if (error) throw error;
@@ -227,6 +229,15 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
   const handleAddProtocol = async (targetId: string) => {
     if (!activeMaster || !modalMode) return;
     try {
+      let familySlug = activeMaster.family_slug;
+      if (['twin', 'addon', 'flavor', 'set_item'].includes(modalMode)) {
+        if (!familySlug) {
+          familySlug = activeMaster.id;
+          await supabase.from('mods').update({ family_slug: familySlug }).eq('id', activeMaster.id);
+          setActiveMaster((prev: any) => prev ? { ...prev, family_slug: familySlug } : null);
+        }
+        await supabase.from('mods').update({ family_slug: familySlug }).eq('id', targetId);
+      }
       if (modalMode === 'dependency') {
         await supabase.from('mod_dependencies').upsert({ parent_id: targetId, child_id: activeMaster.id });
       } else if (modalMode === 'addon') {
@@ -244,6 +255,14 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
       } else if (modalMode === 'beta') {
         await supabase.from('mod_relationships').upsert([
           { parent_id: activeMaster.id, child_id: targetId, relationship_type: 'beta' }
+        ]);
+      } else if (modalMode === 'flavor') {
+        await supabase.from('mod_relationships').upsert([
+          { parent_id: activeMaster.id, child_id: targetId, relationship_type: 'flavor' }
+        ]);
+      } else if (modalMode === 'set_item') {
+        await supabase.from('mod_relationships').upsert([
+          { parent_id: activeMaster.id, child_id: targetId, relationship_type: 'set_item' }
         ]);
       } else if (modalMode === 'bind_hash') {
 
@@ -263,10 +282,12 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
         }
       }
       fetchProtocols(activeMaster.id);
+      setModalMode(null);
+      window.dispatchEvent(new Event("refreshVault"));
     } catch (error) { console.error("Protocol Link Failed:", error); }
   };
 
-  const handleRemoveProtocol = async (targetId: string, type: 'dependency' | 'addon' | 'twin' | 'rival' | 'beta') => {
+  const handleRemoveProtocol = async (targetId: string, type: 'dependency' | 'addon' | 'twin' | 'rival' | 'beta' | 'flavor' | 'set_item') => {
     if (!activeMaster) return;
     try {
       if (type === 'dependency') {
@@ -278,6 +299,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
         }
       }
       fetchProtocols(activeMaster.id);
+      window.dispatchEvent(new Event("refreshVault"));
     } catch (error) { console.error("Remove Link Failed:", error); }
   };
 
@@ -313,7 +335,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
             <div className="flex flex-col gap-2">
               {Array.isArray(filteredMods) && filteredMods.map(mod => (
                 <button key={mod.id} onClick={() => handleSelectMaster(mod)} className={`text-left px-5 py-4 rounded-xl border transition-all flex flex-col gap-1 ${activeMaster?.id === mod.id ? 'theme-panel-accent theme-border-accent shadow-lg' : 'theme-glass-inner hover:theme-panel-accent text-[var(--subtext)] opacity-80 hover:text-gray-200'}`}>
-                  <span className="font-black text-xs uppercase tracking-tight truncate w-full">{String(mod.name || '')}</span>
+                  <span className="font-black text-xs uppercase tracking-tight truncate w-full">{formatDisplayName(String(mod.name || ''))}</span>
                   <div className="flex justify-between items-center w-full">
                     <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate">{String(masonsList.find(m => m.id === mod.mason_id)?.name || mod.master_author || t("registry_unknown_architect"))}</span>
                     <span className={`text-[8px] font-black tracking-widest px-2 py-0.5 rounded uppercase ${mod.status === 'verified' ? 'theme-panel-success' : mod.status === 'under_review' ? 'theme-panel-warning' : 'theme-panel-danger'}`}>
@@ -372,7 +394,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">SUB-CATEGORY</label>
-                  <input value={activeMaster.sub_category || ""} onChange={e => setActiveMaster({...activeMaster, sub_category: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="e.g. Tuning, Object, CAS" />
+                  <input value={activeMaster.sub_type || ""} onChange={e => setActiveMaster({...activeMaster, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="e.g. Tuning, Object, CAS" />
                 </div>
               </div>
 
@@ -387,11 +409,13 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                 <input value={activeMaster.image_url || ""} onChange={e => setActiveMaster({...activeMaster, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono focus:outline-none focus:theme-border-accent" placeholder="https://..." />
               </div>
 
-              <div className="flex flex-col gap-2">
+
+
+              <div className="flex flex-col gap-2 col-span-full md:col-span-1 xl:col-span-2">
                 <label className="text-[9px] font-black theme-text-success uppercase tracking-widest ml-2 flex items-center gap-1">
-                  {t("registry_label_version")}
+                  {t("registry_label_version")} (Comma Separated)
                 </label>
-                <input value={activeMaster.latest_version || ""} onChange={e => setActiveMaster({ ...activeMaster, latest_version: e.target.value })} placeholder={t("registry_placeholder_version")} className="theme-glass-inner rounded-xl px-5 py-3 theme-text-success text-sm font-bold focus:outline-none focus:theme-border-success" />
+                <input value={activeMaster.latest_version || ""} onChange={e => setActiveMaster({ ...activeMaster, latest_version: e.target.value })} placeholder="e.g. 1.0, 1.1, 1.2" className="theme-glass-inner rounded-xl px-5 py-3 theme-text-success text-sm font-bold focus:outline-none focus:theme-border-success" />
               </div>
 
               <div className="flex flex-col gap-2 col-span-full md:col-span-1 xl:col-span-2">
@@ -436,7 +460,9 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                   {Array.isArray(activeMaster.mod_versions) && activeMaster.mod_versions.length > 0 ? (
                     activeMaster.mod_versions.map((ver: any) => (
                       <div key={ver.id} className={`flex justify-between items-center bg-white/5 border ${ver.version_label === activeMaster.latest_version ? 'border-green-500/50' : 'border-white/5'} px-4 py-2 rounded-lg hover:border-white/20 transition-colors`}>
-                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 truncate w-1/4">{String(ver.dna_hash || '')}</span>
+                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 truncate w-1/4" title={String(ver.dna_hash || '')}>
+                          {modList?.find((m: any) => m.hash === ver.dna_hash)?.name.split(/[\\/]/).pop() || String(ver.dna_hash || '')}
+                        </span>
                         <input
                           value={String(ver.version_label || '')}
                           onChange={(e) => {
@@ -461,9 +487,17 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
                             </button>
                           )}
                           <button onClick={async () => {
+                            const { data: newMod } = await supabase.from('mods').insert([{ name: `Isolated Hash: ${ver.dna_hash}`, status: 'unverified' }]).select().single();
+                            if (newMod) {
+                              await supabase.from('mod_versions').update({ mod_id: newMod.id }).eq('id', ver.id);
+                              setActiveMaster({ ...activeMaster, mod_versions: activeMaster.mod_versions.filter((v: any) => v.id !== ver.id) });
+                              fetchGlobalCatalog();
+                            }
+                          }} className="theme-text-info hover:theme-panel-info px-2 py-1 rounded text-[9px] font-black transition-colors" title="Split into a new independent Artifact">ISOLATE</button>
+                          <button onClick={async () => {
                             await supabase.from('mod_versions').delete().eq('id', ver.id);
                             setActiveMaster({ ...activeMaster, mod_versions: activeMaster.mod_versions.filter((v: any) => v.id !== ver.id) });
-                          }} className="theme-text-danger hover:theme-panel-danger px-2 py-1 rounded text-[9px] font-black transition-colors">{t("registry_btn_sever")}</button>
+                          }} className="theme-text-danger hover:theme-panel-danger px-2 py-1 rounded text-[9px] font-black transition-colors" title="Delete this hash completely">{t("registry_btn_sever")}</button>
                         </div>
                       </div>
                     ))
@@ -479,79 +513,7 @@ function DNARegistry({ initialSearch = "", onClearSearch }: any = {}) {
               </div>
 
               <div className="flex flex-col gap-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
-                      {t("registry_title_protocols")}
-                    </h3>
-                    <button onClick={() => setVisualizerOpen(true)} className="px-4 py-2 theme-bg-accent text-[var(--bg)] font-black text-[9px] uppercase tracking-widest rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95">OPEN VISUAL EDITOR</button>
-                  </div>
-                  <div className="theme-glass-inner rounded-2xl p-4 flex flex-col gap-4 h-full">
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("registry_req_masters")}</span>
-                    {Array.isArray(activeDependencies) && activeDependencies.length > 0 ? activeDependencies.map(dep => (
-                      <div key={dep.id} className="flex justify-between items-center theme-panel-warning border px-3 py-2 rounded-lg">
-                        <span className="text-[10px] font-bold theme-text-warning uppercase truncate">{String(dep.name || '')}</span>
-                        <button onClick={() => handleRemoveProtocol(dep.id, 'dependency')} className="theme-text-danger hover:opacity-80 text-[10px] font-black">X</button>
-                      </div>
-                    )) : <span className="text-[10px] text-gray-600 font-bold tracking-widest uppercase p-2 text-center block">{t("registry_none_linked")}</span>}
-                    <button onClick={() => setModalMode('dependency')} className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[9px] font-black text-[var(--text)]/50 uppercase tracking-widest transition-all border border-white/5">{t("registry_btn_require")}</button>
-                  </div>
 
-                  <div className="flex flex-col gap-2 pt-4 border-t border-white/5">
-                    <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("registry_req_dlc")}</span>
-                    <div className="flex flex-wrap gap-2 mb-1">
-                      {Array.isArray(activeMaster.requiredDLC) && activeMaster.requiredDLC.length > 0 ? activeMaster.requiredDLC.map((pack: string) => (
-                        <div key={pack} className="flex items-center gap-1 theme-panel-success border px-2 py-1 rounded text-[9px] font-bold theme-text-success uppercase animate-in zoom-in-95">
-                          {String(pack)} <button onClick={() => removeDLC(pack)} className="ml-1 theme-text-danger hover:opacity-80 font-black">X</button>
-                        </div>
-                      )) : (
-                        <span className="text-[10px] text-gray-600 font-bold tracking-widest uppercase py-1">{t("registry_base_game")}</span>
-                      )}
-                    </div>
-                    <DLCSearchDropdown
-                      currentDLC={activeMaster.requiredDLC ||[]}
-                      onSelect={(pack: string) => {
-                        const current = activeMaster.requiredDLC || [];
-                        setActiveMaster({ ...activeMaster, requiredDLC: [...current, pack] });
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2 pt-4 border-t border-white/5 mt-auto">
-                    <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("registry_rel_bonds")}</span>
-                    {Array.isArray(activeAddons) && activeAddons.map(addon => (
-                      <div key={addon.id} className="flex justify-between items-center px-3 py-1.5 theme-panel-success border rounded-md">
-                        <span className="text-[9px] font-bold theme-text-success uppercase truncate">{t("registry_bond_addon")}{String(addon.name || '')}</span>
-                        <button onClick={() => handleRemoveProtocol(addon.id, 'addon')} className="theme-text-danger text-[10px] font-black hover:opacity-80">X</button>
-                      </div>
-                    ))}
-                    {Array.isArray(activeTwins) && activeTwins.map(twin => (
-                      <div key={twin.id} className="flex justify-between items-center px-3 py-1.5 theme-panel-accent border rounded-md">
-                        <span className="text-[9px] font-bold theme-text-accent uppercase truncate">{t("registry_bond_twin")}{String(twin.name || '')}</span>
-                        <button onClick={() => handleRemoveProtocol(twin.id, 'twin')} className="theme-text-danger text-[10px] font-black hover:opacity-80">X</button>
-                      </div>
-                    ))}
-                    {Array.isArray(activeRivals) && activeRivals.map(rival => (
-                      <div key={rival.id} className="flex justify-between items-center px-3 py-1.5 theme-panel-warning border rounded-md">
-                        <span className="text-[9px] font-bold theme-text-warning uppercase truncate">{t("registry_bond_rival")}{String(rival.name || '')}</span>
-                        <button onClick={() => handleRemoveProtocol(rival.id, 'rival')} className="theme-text-danger text-[10px] font-black hover:opacity-80">X</button>
-                      </div>
-                    ))}
-                    {Array.isArray(activeBetas) && activeBetas.map(beta => (
-                      <div key={beta.id} className="flex justify-between items-center px-3 py-1.5 theme-panel-success border rounded-md">
-                        <span className="text-[9px] font-bold theme-text-success uppercase truncate">Beta Protocol: {String(beta.name || '')}</span>
-                        <button onClick={() => handleRemoveProtocol(beta.id, 'beta')} className="theme-text-danger text-[10px] font-black hover:opacity-80">X</button>
-                      </div>
-                    ))}
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      <button onClick={() => setModalMode('addon')} className="py-2 bg-white/5 hover:theme-panel-success rounded-lg text-[9px] font-black theme-text-success uppercase tracking-widest transition-all border border-transparent hover:theme-border-success">{t("registry_btn_addon")}</button>
-                      <button onClick={() => setModalMode('twin')} className="py-2 bg-white/5 hover:theme-panel-accent rounded-lg text-[9px] font-black theme-text-accent uppercase tracking-widest transition-all border border-transparent hover:theme-border-accent">{t("registry_btn_twin")}</button>
-                      <button onClick={() => setModalMode('rival')} className="py-2 bg-white/5 hover:theme-panel-warning rounded-lg text-[9px] font-black theme-text-warning uppercase tracking-widest transition-all border border-transparent hover:theme-border-warning">{t("registry_btn_rival")}</button>
-                      <button onClick={() => setModalMode('beta')} className="py-2 bg-white/5 hover:theme-panel-success rounded-lg text-[9px] font-black theme-text-success uppercase tracking-widest transition-all border border-transparent hover:theme-border-success">+ Beta</button>
-                    </div>
-                  </div>
-
-                  </div>
                 </div>
               </div>
 
@@ -1176,13 +1138,33 @@ function CCSetForge() {
   );
 }
 
-function ScoutQueue() {
+function ScoutQueue({ modList = [] }: { modList?: any[] }) {
   const { t } = useLexicon();
-  const[submissions, setSubmissions] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [masonsList, setMasonsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeScout, setActiveScout] = useState<any | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const [editForm, setEditForm] = useState({
+    name: "",
+    mason_id: "",
+    category_override: "",
+    sub_type: "",
+    description: "",
+    image_url: "",
+    latest_version: "",
+    url: "",
+    compliance_tier: 0,
+    compatible_versions: [] as string[],
+    hash_version: ""
+  });
 
   const fetchSubmissions = async () => {
     setLoading(true);
+    const { data: mData } = await supabase.from('masons').select('*').order('name');
+    if (mData) setMasonsList(mData);
+
     const { data, error } = await supabase
       .from('scout_suggestions')
       .select('*')
@@ -1194,72 +1176,213 @@ function ScoutQueue() {
 
   useEffect(() => { fetchSubmissions(); },[]);
 
-  const handleAction = async (id: string, action: 'approved' | 'rejected', data?: any) => {
-    if (action === 'approved' && data) {
-      const { data: modData } = await supabase.from('mods').upsert({
-        name: data.suggested_name,
-        master_author: data.suggested_author,
-        category_override: data.category_override,
-        url: data.suggested_url,
+  useEffect(() => {
+    if (activeScout) {
+      const possibleMason = masonsList.find(m => m.name === activeScout.suggested_author || m.id === activeScout.suggested_mason_id);
+      setEditForm({
+        name: (activeScout.suggested_name || "").replace(/_/g, " "),
+        mason_id: possibleMason ? possibleMason.id : "",
+        category_override: activeScout.suggested_type || "Script",
+        sub_type: activeScout.suggested_sub_type || "",
+        description: "",
+        image_url: "",
+        latest_version: "",
+        url: activeScout.suggested_url || "",
+        compliance_tier: 0,
+        compatible_versions: [],
+        hash_version: activeScout.suggested_version || "v.Scout"
+      });
+    } else {
+      setEditForm({
+        name: "",
+        mason_id: "",
+        category_override: "",
+        sub_type: "",
+        description: "",
+        image_url: "",
+        latest_version: "",
+        url: "",
+        compliance_tier: 0,
+        compatible_versions: [],
+        hash_version: ""
+      });
+    }
+  }, [activeScout, masonsList]);
+
+  const handleAction = async (action: 'approved' | 'rejected') => {
+    if (!activeScout) return;
+    setIsProcessing(true);
+    
+    if (action === 'approved') {
+      const { data: modData } = await supabase.from('mods').insert({
+        name: editForm.name,
+        mason_id: editForm.mason_id || null,
+        category_override: editForm.category_override,
+        sub_type: editForm.sub_type,
+        description: editForm.description,
+        image_url: editForm.image_url,
+        latest_version: editForm.latest_version,
+        url: editForm.url,
+        compliance_tier: editForm.compliance_tier,
+        compatible_versions: editForm.compatible_versions,
         status: 'verified'
-      }, { onConflict: 'name' }).select().single();
+      }).select().single();
       
       if (modData) {
         await supabase.from('mod_versions').upsert({
           mod_id: modData.id,
-          dna_hash: data.dna_hash,
-          version_label: 'v.Scout'
+          dna_hash: activeScout.dna_hash,
+          version_label: editForm.hash_version
         }, { onConflict: 'dna_hash' });
       }
     }
-    await supabase.from('scout_suggestions').update({ status: action }).eq('id', id);
-    fetchSubmissions();
+    
+    await supabase.from('scout_suggestions').update({ status: action }).eq('id', activeScout.id);
+    setActiveScout(null);
+    await fetchSubmissions();
+    setIsProcessing(false);
   };
 
   return (
-    <div className="flex flex-col gap-6 h-full">
-      <div className="theme-glass-inner p-6 rounded-3xl shrink-0">
-        <h3 className="text-sm font-black theme-text-accent uppercase tracking-[0.2em]">{t("scout_incoming")}</h3>
-        <p className="text-[10px] text-[var(--subtext)] opacity-60 uppercase font-bold tracking-widest mt-1">{t("scout_reviewing")}</p>
+    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-250px)]">
+      <div className="w-full lg:w-1/3 flex flex-col gap-4 h-full">
+         <div className="flex-1 theme-glass-panel rounded-[2rem] overflow-y-auto custom-scrollbar p-4 shadow-2xl flex flex-col gap-2">
+            {loading ? (
+              <div className="p-4 text-center text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest animate-pulse">{t("scout_intercepting")}</div>
+            ) : submissions.length === 0 ? (
+              <div className="p-4 text-center text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("scout_quiet")}</div>
+            ) : (
+              submissions.map(sub => (
+                <button 
+                  key={sub.id} 
+                  onClick={() => setActiveScout(sub)} 
+                  className={`text-left px-5 py-4 rounded-xl border transition-all flex flex-col gap-1 ${activeScout?.id === sub.id ? 'theme-panel-accent theme-border-accent shadow-lg' : 'theme-glass-inner border-white/5 hover:theme-panel-accent hover:bg-opacity-10 text-[var(--subtext)] opacity-80 hover:text-gray-200'}`}
+                >
+                  <div className="flex justify-between items-center w-full">
+                    <span className="font-black text-xs uppercase tracking-tight truncate">{sub.suggested_name || t("scout_unnamed")}</span>
+                    {modList && modList.some((m: any) => m.hash === sub.dna_hash) && (
+                      <div className="w-2 h-2 rounded-full theme-bg-success shadow-[0_0_8px_var(--success)] flex-shrink-0 ml-2" title={t("scout_in_vault")} />
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center w-full mt-1">
+                    <span className="text-[9px] font-mono opacity-60 truncate">{sub.suggested_version || sub.dna_hash}</span>
+                    <span className="text-[9px] font-mono opacity-40 whitespace-nowrap ml-2">{new Date(sub.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                  </div>
+                </button>
+              ))
+            )}
+         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
-        {loading ? (
-          <div className="h-full flex items-center justify-center theme-text-accent animate-pulse font-black text-xs uppercase tracking-widest">{t("scout_intercepting")}</div>
-        ) : submissions.length === 0 ? (
-          <div className="p-12 border-2 border-dashed border-white/5 rounded-3xl text-center opacity-30">
-            <span className="text-[var(--subtext)] opacity-60 font-black uppercase tracking-widest text-xs">{t("scout_quiet")}</span>
-          </div>
-        ) : (
-          submissions.map(sub => (
-            <div key={sub.id} className="theme-glass-panel rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center gap-6 animate-in slide-in-from-right-4">
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-3">
-                  <span className="px-2 py-0.5 theme-panel-accent border rounded text-[9px] font-black uppercase tracking-widest">
-                    {sub.suggested_type || t("scout_unknown")}
-                  </span>
-                  <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 truncate max-w-[200px]">{t("scout_dna")}{sub.dna_hash}</span>
+      <div className="w-full lg:w-2/3 h-full theme-glass-panel border-0 rounded-[2.5rem] p-8 overflow-y-auto custom-scrollbar shadow-2xl relative">
+          {activeScout ? (
+            <div className="flex flex-col gap-8 h-full">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-2xl font-black text-[var(--text)] uppercase tracking-tighter">{t("scout_reviewing")}</h3>
+                  <div className="flex items-center gap-3 mt-2">
+                    <p className="text-[10px] font-mono theme-text-accent tracking-[0.2em] uppercase truncate">HASH: {activeScout.dna_hash}</p>
+                    {modList && modList.some((m: any) => m.hash === activeScout.dna_hash) ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md theme-bg-success bg-opacity-20 theme-text-success text-[9px] font-bold uppercase tracking-widest"><div className="w-1.5 h-1.5 rounded-full theme-bg-success" /> {t("scout_in_vault")}</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 text-[var(--subtext)] text-[9px] font-bold uppercase tracking-widest opacity-60"><div className="w-1.5 h-1.5 rounded-full bg-[var(--subtext)] opacity-40" /> {t("scout_missing_vault")}</span>
+                    )}
+                  </div>
                 </div>
-                <h4 className="text-lg font-black text-[var(--text)] uppercase tracking-tight">{sub.suggested_name || t("scout_unnamed")}</h4>
-                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("scout_author")}<span className="text-[var(--text)]">{sub.suggested_author || t("scout_unknown")}</span></p>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleAction('rejected')} 
+                    disabled={isProcessing}
+                    className="px-6 py-3 border theme-border-danger theme-text-danger rounded-xl font-black text-[10px] uppercase tracking-widest hover:theme-panel-danger transition-all disabled:opacity-50"
+                  >
+                    {t("scout_discard")}
+                  </button>
+                  <button 
+                    onClick={() => handleAction('approved')} 
+                    disabled={isProcessing}
+                    className="px-6 py-3 theme-bg-success text-[var(--bg)] rounded-xl font-black text-[10px] uppercase tracking-widest hover:opacity-90 shadow-lg transition-all disabled:opacity-50"
+                  >
+                    {isProcessing ? t("mason_saving") : t("scout_approve")}
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => handleAction(sub.id, 'rejected')}
-                  className="px-6 py-3 border theme-border-danger theme-text-danger rounded-xl font-black text-[10px] uppercase tracking-widest hover:theme-panel-danger transition-all"
-                >
-                  {t("scout_discard")}
-                </button>
-                <button
-                  onClick={() => handleAction(sub.id, 'approved', sub)}
-                  className="px-6 py-3 theme-bg-success text-[var(--bg)] rounded-xl font-black text-[10px] uppercase tracking-widest hover:opacity-90 shadow-lg transition-all"
-                >
-                  {t("scout_approve")}
-                </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">Mod Name</label>
+                  <input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason")}</label>
+                  <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id) => setEditForm({...editForm, mason_id: id})} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
+                  <CustomClassificationDropdown value={editForm.category_override} onChange={(newType: string) => setEditForm({...editForm, category_override: newType})} />
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">SUB-CATEGORY</label>
+                  <input value={editForm.sub_type} onChange={e => setEditForm({...editForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="e.g. Tuning, Object, CAS" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="flex flex-col gap-2 col-span-full">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc")}</label>
+                  <textarea value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono h-24 resize-none focus:outline-none focus:theme-border-accent" />
+                </div>
+
+                <div className="flex flex-col gap-2 col-span-full md:col-span-1 xl:col-span-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image")}</label>
+                  <input value={editForm.image_url} onChange={e => setEditForm({...editForm, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono focus:outline-none focus:theme-border-accent" placeholder="https://..." />
+                </div>
+
+                <div className="flex flex-col gap-2 col-span-full md:col-span-1 xl:col-span-2">
+                  <label className="text-[9px] font-black theme-text-success uppercase tracking-widest ml-2 flex items-center gap-1">
+                    {t("registry_label_version")} (Comma Separated)
+                  </label>
+                  <input value={editForm.latest_version} onChange={e => setEditForm({ ...editForm, latest_version: e.target.value })} placeholder="e.g. 1.0, 1.1, 1.2" className="theme-glass-inner rounded-xl px-5 py-3 theme-text-success text-sm font-bold focus:outline-none focus:theme-border-success" />
+                </div>
+
+                <div className="flex flex-col gap-2 col-span-full md:col-span-1 xl:col-span-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">HASH VERSION LABEL</label>
+                  <input value={editForm.hash_version} onChange={e => setEditForm({ ...editForm, hash_version: e.target.value })} placeholder="e.g. 1.0.1" className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                </div>
+
+                <div className="flex flex-col gap-2 col-span-full md:col-span-1 xl:col-span-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                  <input value={editForm.url} onChange={e => setEditForm({...editForm, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 theme-text-accent text-sm font-mono focus:outline-none focus:theme-border-accent" />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">SAFETY RATING</label>
+                  <CustomComplianceDropdown value={editForm.compliance_tier} onChange={(newTier: number) => setEditForm({...editForm, compliance_tier: newTier})} />
+                </div>
+
+                <div className="flex flex-col gap-2 col-span-full">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">GAME VERSIONS</label>
+                  <GameVersionMultiSelect 
+                    selectedVersions={Array.isArray(editForm.compatible_versions) ? editForm.compatible_versions : []} 
+                    onChange={v => setEditForm({...editForm, compatible_versions: v})} 
+                  />
+                </div>
+              </div>
+
+              <div className="mt-auto pt-6 border-t border-white/5 text-[9px] text-[var(--subtext)] opacity-40 uppercase tracking-widest">
+                Original suggestion submitted by User ID: {activeScout.submitter_id || "Unknown"}
               </div>
             </div>
-          ))
-        )}
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center opacity-30 h-full">
+              <span className="text-8xl mb-6 grayscale">{t("forge_icon_idle")}</span>
+              <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.5em]">SELECT SUBMISSION</span>
+            </div>
+          )}
       </div>
     </div>
   );
@@ -1323,7 +1446,7 @@ function ConflictMatrix() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const fetchMods = async () => {
-    const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author').order('name'));
+    const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author, original_filename, mod_type, latest_version').order('name'));
     if (data) setAllMods(data);
   };
 
@@ -1469,7 +1592,7 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
 
   useEffect(() => {
     const fetchMods = async () => {
-      const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author').order('name'));
+      const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author, original_filename, mod_type, latest_version').order('name'));
       if (data) setAllMods(data);
     };
     fetchMods();
@@ -2003,11 +2126,25 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
               onClick={() => { onSelect(mod.id); }}
               className="flex justify-between items-center px-4 py-3 theme-glass-inner border border-white/5 hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group"
             >
-              <div className="flex flex-col">
+              <div className="flex flex-col max-w-[80%]">
                 <span className="text-xs font-black text-[var(--text)] uppercase truncate">{mod.name}</span>
-                <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{mod.master_author || t("registry_unknown_architect")}</span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate">{mod.master_author || t("registry_unknown_architect")}</span>
+                  {(mod.original_filename || mod.mod_type) && (
+                    <>
+                      <span className="text-[var(--subtext)] opacity-40">•</span>
+                      <span className="text-[9px] font-mono theme-text-accent tracking-tighter truncate max-w-[200px]" title={mod.original_filename || mod.mod_type}>{mod.original_filename || mod.mod_type}</span>
+                    </>
+                  )}
+                  {(mod.latest_version || mod.version) && (
+                    <>
+                      <span className="text-[var(--subtext)] opacity-40">•</span>
+                      <span className="text-[9px] font-bold text-[var(--text)] uppercase tracking-widest">{mod.latest_version || mod.version}</span>
+                    </>
+                  )}
+                </div>
               </div>
-              <span className="theme-text-accent opacity-0 group-hover:opacity-100 transition-opacity font-black">{t("modal_btn_link")}</span>
+              <span className="theme-text-accent opacity-0 group-hover:opacity-100 transition-opacity font-black text-[10px] uppercase tracking-widest">{t("modal_btn_link")}</span>
             </button>
           )) : (
             <div className="text-center p-8 text-[var(--subtext)] opacity-60 font-bold text-xs uppercase tracking-widest">{t("modal_no_matches")}</div>

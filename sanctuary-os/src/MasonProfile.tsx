@@ -147,7 +147,7 @@ const parsePostContent = (post: any) => {
             <h1 className="text-4xl font-black text-[var(--text)] uppercase tracking-tighter truncate">{mason.name}</h1>
             {mason.is_verified && <span className="theme-bg-success text-[var(--bg)] px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest">{t("status_verified")}</span>}
           </div>
-          <p className="text-sm font-medium text-[var(--subtext)] opacity-80 max-w-2xl leading-relaxed mb-6">{mason.bio || "No biography provided."}</p>
+          <p className="text-sm font-medium text-[var(--subtext)] opacity-80 max-w-2xl leading-relaxed mb-6">{mason.bio || t("profile_no_bio")}</p>
           
           <div className="flex flex-wrap items-center gap-4 pb-2">
             <button onClick={toggleFollow} className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${isFollowing ? 'theme-btn-standard' : 'theme-bg-accent text-[var(--bg)] hover:scale-105 active:scale-95'}`}>
@@ -164,7 +164,7 @@ const parsePostContent = (post: any) => {
               <button onClick={() => openUrl(mason.website_url)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/5 transition-all text-lg">{t("ui_icon_web")}</button>
             )}
             {mason.discord_url && (
-              <button onClick={() => openUrl(mason.discord_url)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/5 transition-all text-lg">💬</button>
+              <button onClick={() => openUrl(mason.discord_url)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/5 transition-all text-lg">{t("ui_icon_chat")}</button>
             )}
           </div>
         </div>
@@ -197,7 +197,7 @@ const parsePostContent = (post: any) => {
                <span>{t("ui_icon_collection")}</span> {t("profile_tab_artifacts")}
              </h3>
              <div className="flex gap-2">
-                <input value={modSearch} onChange={e => setModSearch(e.target.value)} placeholder="Search..." className="theme-glass-inner rounded-xl px-4 py-2 text-[var(--text)] text-[10px] font-bold focus:outline-none focus:theme-border-accent w-40" />
+                <input value={modSearch} onChange={e => setModSearch(e.target.value)} placeholder={t("ui_search_placeholder")} className="theme-glass-inner rounded-xl px-4 py-2 text-[var(--text)] text-[10px] font-bold focus:outline-none focus:theme-border-accent w-40" />
                 <CustomCategoryDropdown value={modCategory} onChange={setModCategory} />
              </div>
           </div>
@@ -232,7 +232,7 @@ const parsePostContent = (post: any) => {
                  <p className="text-sm font-medium text-gray-300 leading-relaxed whitespace-pre-wrap">{parsed.content}</p>
               </div>
               <div className="p-6 theme-glass-inner border-t border-white/5 flex justify-end">
-                 <button onClick={() => setSelectedPost(null)} className="px-8 py-3 bg-white/10 hover:bg-white/20 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all">{t("mason_btn_close_post") || "Close Transmission"}</button>
+                 <button onClick={() => setSelectedPost(null)} className="px-8 py-3 bg-white/10 hover:bg-white/20 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all">{t("mason_btn_close_post")}</button>
               </div>
            </div>
         </div>

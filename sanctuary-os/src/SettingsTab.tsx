@@ -181,7 +181,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
   const updateConfig = async (key: string, val: any) => {
 
-    const parsedVal = (key === 'engine_agency_level' || key === 'backup_preference' || key === 'backup_retention_cycles') ? parseInt(val) : val;
+    const parsedVal = (key === 'engine_agency_level' || key === 'backup_preference' || key === 'defcon_backup_target' || key === 'engine_retention_cycles' || key === 'world_retention_cycles') ? parseInt(val) : val;
     const newConfig = { ...config, [key]: parsedVal };
     setConfig(newConfig);
     try {
@@ -190,8 +190,10 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         modsPath: newConfig.mods_path || "",
         vaultPath: newConfig.vault_path || "",
         engineAgencyLevel: newConfig.engine_agency_level != null ? parseInt(newConfig.engine_agency_level) : null,
+        defconBackupTarget: newConfig.defcon_backup_target != null ? parseInt(newConfig.defcon_backup_target) : null,
         backupPreference: newConfig.backup_preference != null ? parseInt(newConfig.backup_preference) : null,
-        backupRetentionCycles: newConfig.backup_retention_cycles != null ? parseInt(newConfig.backup_retention_cycles) : null
+        engineRetentionCycles: newConfig.engine_retention_cycles != null ? parseInt(newConfig.engine_retention_cycles) : null,
+        worldRetentionCycles: newConfig.world_retention_cycles != null ? parseInt(newConfig.world_retention_cycles) : null
       });
     } catch (err) { console.error(err); }
   };
@@ -205,8 +207,10 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
           modsPath: rustKey === 'mods_path' ? selected : config.mods_path,
           vaultPath: rustKey === 'vault_path' ? selected : config.vault_path,
           engineAgencyLevel: config.engine_agency_level != null ? parseInt(config.engine_agency_level) : null,
+          defconBackupTarget: config.defcon_backup_target != null ? parseInt(config.defcon_backup_target) : null,
           backupPreference: config.backup_preference != null ? parseInt(config.backup_preference) : null,
-          backupRetentionCycles: config.backup_retention_cycles != null ? parseInt(config.backup_retention_cycles) : null
+          engineRetentionCycles: config.engine_retention_cycles != null ? parseInt(config.engine_retention_cycles) : null,
+          worldRetentionCycles: config.world_retention_cycles != null ? parseInt(config.world_retention_cycles) : null
         };
         await invoke("save_coordinates", payload);
         await refreshConfig();
@@ -247,7 +251,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
               if (detected.vault_path) updateConfig('vault_path', detected.vault_path);
             } catch (err) { alert(err); }
           }} className="px-6 py-3 text-xs font-black rounded-xl border transition-all" style={{ backgroundColor: `${currentTheme.accent}15`, borderColor: `${currentTheme.accent}30`, color: currentTheme.accent }}>
-            <span className="text-sm mr-2">📡</span> AUTO-DETECT
+            <span className="text-sm mr-2">{t("ui_icon_radar")}</span> AUTO-DETECT
           </button>
         </div>
         <div className="grid gap-6">
@@ -273,16 +277,16 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       </section>
 
       <section className="space-y-6">
-        <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_engine")}</h2>
+        <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">Mod Updates</h2>
         <div className="group">
-          <label className="block text-[9px] font-black uppercase tracking-widest mb-2 ml-1 text-[var(--subtext)] opacity-60 transition-colors">{t("settings_conflict_res")}</label>
+          <label className="block text-[9px] font-black uppercase tracking-widest mb-2 ml-1 text-[var(--subtext)] opacity-60 transition-colors">Update Behavior</label>
           <CustomSettingsDropdown 
             value={config.engine_agency_level || 1} 
             onChange={(val: any) => updateConfig('engine_agency_level', val)}
             options={[
-              { id: 1, label: t("settings_autopilot") },
-              { id: 2, label: t("settings_copilot") },
-              { id: 3, label: t("settings_devmode") }
+              { id: 1, label: "Auto Replace on Update" },
+              { id: 2, label: "Prompt Me First" },
+              { id: 3, label: "Keep All Versions" }
             ]} 
           />
         </div>
@@ -304,13 +308,39 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
             />
           </div>
           <div className="group">
-            <label className="block text-[9px] font-black uppercase tracking-widest mb-2 ml-1 text-[var(--subtext)] opacity-60">{t("settings_retention")}</label>
+            <label className="block text-[9px] font-black uppercase tracking-widest mb-2 ml-1 text-[var(--subtext)] opacity-60">{t("settings_defcon_target")}</label>
             <CustomSettingsDropdown 
-              value={config.backup_retention_cycles || 1} 
-              onChange={(val: any) => updateConfig('backup_retention_cycles', val)}
+              value={config.defcon_backup_target || 0} 
+              onChange={(val: any) => updateConfig('defcon_backup_target', val)}
               options={[
-                { id: 1, label: t("settings_keep_1") },
-                { id: 2, label: t("settings_keep_2") },
+                { id: 0, label: t("settings_target_both") },
+                { id: 1, label: t("settings_target_world") },
+                { id: 2, label: t("settings_target_engine") }
+              ]} 
+            />
+          </div>
+          <div className="group">
+            <label className="block text-[9px] font-black uppercase tracking-widest mb-2 ml-1 text-[var(--subtext)] opacity-60">{t("settings_engine_retention")}</label>
+            <CustomSettingsDropdown 
+              value={config.engine_retention_cycles || 5} 
+              onChange={(val: any) => updateConfig('engine_retention_cycles', val)}
+              options={[
+                { id: 3, label: t("settings_keep_3") },
+                { id: 5, label: t("settings_keep_5") },
+                { id: 10, label: t("settings_keep_10") },
+                { id: 999, label: t("settings_keep_all") }
+              ]} 
+            />
+          </div>
+          <div className="group">
+            <label className="block text-[9px] font-black uppercase tracking-widest mb-2 ml-1 text-[var(--subtext)] opacity-60">{t("settings_world_retention")}</label>
+            <CustomSettingsDropdown 
+              value={config.world_retention_cycles || 5} 
+              onChange={(val: any) => updateConfig('world_retention_cycles', val)}
+              options={[
+                { id: 3, label: t("settings_keep_3") },
+                { id: 5, label: t("settings_keep_5") },
+                { id: 10, label: t("settings_keep_10") },
                 { id: 999, label: t("settings_keep_all") }
               ]} 
             />
@@ -386,7 +416,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         </div>
       </section>
 
-      <section className="space-y-6 pt-32 mt-32 border-t border-white/5 opacity-50 hover:opacity-100 transition-opacity duration-700">
+      <section className="space-y-6 pt-20 mt-1000 border-t border-white/5 opacity-50 hover:opacity-100 transition-opacity duration-700">
         <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_security")}</h2>
         <button onClick={() => { setShowMalwareOverride(true); setMalwareToggleActive(false); setOverrideInput(''); }} className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl border bg-transparent theme-text-danger theme-border-danger hover:theme-bg-danger hover:text-[var(--bg)]">
           {t("settings_malware_btn")}

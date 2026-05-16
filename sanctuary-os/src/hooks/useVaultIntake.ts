@@ -35,9 +35,9 @@ export function useVaultIntake(handleDroppedFiles: (paths: string[]) => void) {
   useEffect(() => {
     let unlisten: any;
     tauriBridge.listenToDnaMatch((payload: any) => {
-      if (ignoredHashesRef.current.has(payload.hash)) return;
+      if (payload.hash && ignoredHashesRef.current.has(payload.hash)) return;
       setDnaMatchQueue((prev: any[]) => {
-        if (prev.some(m => m.hash === payload.hash)) return prev;
+        if (prev.some(m => (m.hash && m.hash === payload.hash) || m.path === payload.path)) return prev;
         return [...prev, payload];
       });
     }).then((handler: any) => { unlisten = handler; });

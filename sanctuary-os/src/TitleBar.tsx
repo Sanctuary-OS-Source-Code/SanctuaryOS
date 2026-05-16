@@ -1,12 +1,14 @@
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { useLexicon } from './LexiconContext';
 
 export function TitleBar() {
+  const { t } = useLexicon();
   return (
     <div className="h-10 select-none flex justify-between items-center fixed top-0 left-0 right-0 z-[99999] bg-black/40 backdrop-blur-md border-b border-white/5">
       <div 
         className="flex items-center gap-3 pl-4 pointer-events-none w-48 h-full"
       >
-        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-50">Sanctuary OS</span>
+        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-50">{t("app_title")}</span>
       </div>
 
       <div 

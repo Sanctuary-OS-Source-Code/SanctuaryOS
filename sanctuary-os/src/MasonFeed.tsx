@@ -37,7 +37,7 @@ export default function MasonFeed({ onOpenMasonProfile }: { onOpenMasonProfile?:
         <span></span>
         {t("mason_feed_title") || "COMM-LINK FEED"}
       </h3>
-      <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {loading ? (
           <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
         ) : posts.length === 0 ? (

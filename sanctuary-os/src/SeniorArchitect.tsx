@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
-import { ViewHeader } from './shared';
+import { ViewHeader, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown } from './shared';
 
 function TabButton({ id, label, activeTab, setTab }: any) {
   const active = activeTab === id;
@@ -32,6 +32,9 @@ export default function SeniorArchitect() {
         <TabButton id="identities" label={t("sa_tab_identities") || "Identity Matrix"} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="linker" label={t("sa_tab_linker") || "Mason Linker"} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="compliance" label={t("sa_tab_compliance") || "Compliance"} activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="mass_update" label="Mass Update" activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="game_versions" label="Game Versions" activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="audit_logs" label={t("sa_tab_audit") || "Audit Logs"} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="defcon" label={t("sa_tab_defcon") || "DEFCON Override"} activeTab={activeTab} setTab={setActiveTab} />
       </div>
 
@@ -40,6 +43,9 @@ export default function SeniorArchitect() {
         {activeTab === "identities" && <IdentityMatrix />}
         {activeTab === "linker" && <MasonLinker />}
         {activeTab === "compliance" && <ComplianceOversight />}
+        {activeTab === "mass_update" && <MassUpdateOversight />}
+        {activeTab === "game_versions" && <GameVersionsRegistry />}
+        {activeTab === "audit_logs" && <AuditLogViewer />}
         {activeTab === "defcon" && <DefconPanel />}
       </div>
     </div>
@@ -98,21 +104,20 @@ function DefconPanel() {
         }`}
       >
         {defconLevel === 1 ? (t("hub_defcon_stand_down") || "STAND DOWN") : (t("hub_defcon_initiate") || "INITIATE LOCKDOWN")}
-      </button>
-
-      {showDefconConfirmModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--bg)]/10 backdrop-blur-3xl animate-in fade-in duration-300 p-8">
-          <div className="w-full max-w-md theme-glass-panel border border-white/10 rounded-[3rem] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col items-center gap-6 text-center">
-            <span className="text-6xl animate-bounce drop-shadow-md">{t("ui_icon_warning") || "⚠️"}</span>
-            <div className="flex flex-col gap-1 min-w-0 flex-1">
+      </button>      {showDefconConfirmModal && (
+        <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/60 backdrop-blur-md animate-in fade-in duration-300 p-8">
+          <div className="w-full max-w-md theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[3rem] p-10 shadow-[0_0_100px_rgba(0,0,0,0.3)] flex flex-col items-center gap-6 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 theme-bg-danger shadow-[0_0_20px_var(--danger)]" />
+            <span className="text-6xl animate-bounce drop-shadow-md relative z-10">{t("ui_icon_warning") || "⚠️"}</span>
+            <div className="flex flex-col gap-1 min-w-0 flex-1 relative z-10">
               <h2 className="text-xl font-black theme-text-danger uppercase tracking-tighter">{t("hub_defcon_confirm_title") || "CONFIRM PROTOCOL"}</h2>
-              <p className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest">
+              <p className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest leading-relaxed opacity-80 mt-2">
                 {defconLevel === 1 
                   ? (t("hub_defcon_confirm_stand_down") || "Are you sure you want to stand down?")
                   : (t("hub_defcon_confirm_execute") || "Are you sure you want to execute lockdown?")}
               </p>
             </div>
-            <div className="flex gap-3 w-full mt-2">
+            <div className="flex gap-3 w-full mt-2 relative z-10">
               <button 
                 onClick={() => { triggerDefcon(); setShowDefconConfirmModal(false); }}
                 className="flex-1 py-4 theme-bg-danger text-[var(--bg)] rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 shadow-[0_0_15px_rgba(var(--danger-rgb),0.4)] transition-all"
@@ -121,7 +126,7 @@ function DefconPanel() {
               </button>
               <button 
                 onClick={() => setShowDefconConfirmModal(false)}
-                className="flex-1 py-4 theme-glass-inner border border-white/5 rounded-xl font-black text-[10px] uppercase tracking-widest text-[var(--text)] hover:bg-white/5 transition-all shadow-sm"
+                className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl font-black text-[10px] uppercase tracking-widest text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all shadow-sm"
               >
                 {t("hub_btn_abort") || "ABORT"}
               </button>
@@ -140,7 +145,7 @@ function CustomRoleSelect({ value, onChange, roles, isBlacklisted }: any) {
     <div className="relative">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`theme-glass-panel border rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-widest focus:outline-none transition-all flex items-center justify-between gap-3 min-w-[150px] shadow-sm ${
+        className={`theme-glass-inner border rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest focus:outline-none transition-all flex items-center justify-between gap-3 min-w-[150px] shadow-sm hover:border-white/30 hover:bg-white/5 ${
           isBlacklisted 
             ? 'text-red-500 bg-red-500/10 border-red-500/30 hover:bg-red-500/20' 
             : 'text-[var(--text)] border-white/10 hover:border-white/30 hover:bg-white/5'
@@ -153,7 +158,7 @@ function CustomRoleSelect({ value, onChange, roles, isBlacklisted }: any) {
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full right-0 mt-2 min-w-[150px] theme-glass-panel border border-white/10 rounded-xl overflow-hidden z-50 shadow-2xl flex flex-col backdrop-blur-3xl animate-in fade-in slide-in-from-top-2 p-1">
+          <div className="absolute top-full right-0 mt-2 min-w-[150px] bg-black/95 backdrop-blur-3xl border border-white/10 rounded-xl overflow-hidden z-[9999] shadow-2xl flex flex-col animate-in fade-in slide-in-from-top-2 p-1">
             {roles.map((r: string) => (
               <button
                 key={r}
@@ -191,11 +196,27 @@ function IdentityMatrix() {
   useEffect(() => { fetchData(); }, []);
 
   const handleUpdateRole = async (profileId: string, newRole: string) => {
+    const reason = window.prompt("Reason for this role change:", "Routine Access Update");
+    if (!reason) return;
+    
     setStatus("UPDATING ROLE...");
     const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', profileId);
     if (error) {
       setStatus("FAILED: " + error.message);
     } else {
+      const userRes = await supabase.auth.getUser();
+      const myId = userRes.data.user?.id;
+      
+      const targetProfile = profiles.find((p: any) => p.id === profileId);
+      
+      await supabase.from('audit_logs').insert({
+         action: `Updated role to ${newRole}`,
+         target_table: 'profiles',
+         target_name: targetProfile?.username || profileId,
+         actor_id: myId,
+         reason: reason
+      });
+      
       setStatus(`ROLE UPDATED`);
       fetchData();
     }
@@ -565,7 +586,7 @@ function CustomComplianceSelect({ value, onChange }: { value: number, onChange: 
     <div className="relative w-full">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-black/20 border border-white/10 hover:border-white/30 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-between"
+        className="w-full theme-glass-inner border border-white/10 hover:border-white/30 hover:bg-white/5 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-between shadow-sm"
       >
         <div className={`flex items-center gap-3 ${selected.color}`}>
           <div className={`w-2 h-2 rounded-full ${selected.glow.replace('bg-', 'bg-').replace('/10', '')}`} style={{ boxShadow: '0 0 10px currentColor' }} />
@@ -577,12 +598,12 @@ function CustomComplianceSelect({ value, onChange }: { value: number, onChange: 
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--bg)] border border-white/10 rounded-xl overflow-hidden z-50 shadow-2xl flex flex-col backdrop-blur-3xl animate-in fade-in slide-in-from-top-2 p-1">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-black/95 backdrop-blur-3xl border border-white/10 rounded-xl overflow-hidden z-[9999] shadow-2xl flex flex-col animate-in fade-in slide-in-from-top-2 p-1 max-h-60 overflow-y-auto custom-scrollbar">
             {options.map(opt => (
               <button
                 key={opt.value}
                 onClick={() => { onChange(opt.value); setIsOpen(false); }}
-                className={`w-full text-left px-4 py-3 text-xs font-black uppercase tracking-widest flex items-center gap-3 rounded-lg transition-all ${
+                className={`w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest flex items-center gap-3 rounded-lg transition-all ${
                   value === opt.value ? 'bg-white/10' : 'hover:bg-white/5'
                 }`}
               >
@@ -764,6 +785,425 @@ function WayfinderComms() {
           {editingCommId ? 'Update' : 'Send'}
         </button>
       </div>
+    </div>
+  );
+}
+
+const fetchAllPaginated = async (queryFn: () => any) => { 
+  let allData: any[] = []; 
+  let from = 0; 
+  const step = 999; 
+  while (true) { 
+    const { data, error } = await queryFn().range(from, from + step); 
+    if (error || !data || data.length === 0) break; 
+    allData = [...allData, ...data]; 
+    if (data.length <= step) break; 
+    from += step + 1; 
+  } 
+  return { data: allData, error: null }; 
+};
+
+function MassUpdateOversight() {
+  const { t } = useLexicon();
+  const [mods, setMods] = useState<any[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Filters
+  const [filterCategory, setFilterCategory] = useState<string>("");
+  const [filterGameVersions, setFilterGameVersions] = useState<string[]>([]);
+
+  // Mass fields
+  const [massStatus, setMassStatus] = useState<string>("");
+  const [massGameVersions, setMassGameVersions] = useState<string[]>([]);
+  const [massCategory, setMassCategory] = useState<string>("");
+  const [massSubCategory, setMassSubCategory] = useState<string>("");
+  const [massCompliance, setMassCompliance] = useState<string>("");
+  const [massConflictId, setMassConflictId] = useState<any>(null);
+
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const loadData = async () => {
+    setLoading(true);
+    const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, status, category_override, sub_type, compliance_tier, compatible_versions, master_author').order('name'));
+    if (data) setMods(data);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleToggle = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const executeMassUpdate = async () => {
+    if (selectedIds.size === 0) return;
+    setIsUpdating(true);
+    
+    const updates: any = {};
+    if (massStatus) updates.status = massStatus;
+    if (massCategory) updates.category_override = massCategory;
+    if (massSubCategory) updates.sub_type = massSubCategory;
+    if (massCompliance) updates.compliance_tier = parseInt(massCompliance);
+    if (massGameVersions.length > 0) updates.compatible_versions = massGameVersions;
+    
+    try {
+      for (const id of Array.from(selectedIds)) {
+        let modUpdates = { ...updates };
+        if (massConflictId) {
+           const mod = mods.find(m => m.id === id);
+           if (mod) {
+              await supabase.from('logical_conflicts').insert([{ mod_a_id: id, mod_b_id: massConflictId.id, mod_a: mod.name, mod_b: massConflictId.name, severity_rank: 4 }]);
+           }
+        }
+        
+        if (Object.keys(modUpdates).length > 0) {
+          await supabase.from('mods').update(modUpdates).eq('id', id);
+        }
+      }
+      
+      // Reset mass fields & reload
+      setMassStatus(""); setMassCategory(""); setMassSubCategory(""); setMassCompliance(""); setMassGameVersions([]); setMassConflictId(null);
+      setSelectedIds(new Set());
+      await loadData();
+      alert("Mass update completed successfully.");
+    } catch (e) {
+      console.error(e);
+      alert("Mass update failed.");
+    }
+    setIsUpdating(false);
+  };
+
+  const filteredMods = mods.filter(m => {
+    if (showOnlySelected && !selectedIds.has(m.id)) return false;
+    if (filterCategory && m.category_override !== filterCategory) return false;
+    if (filterGameVersions.length > 0) {
+      if (!m.compatible_versions || m.compatible_versions.length === 0) return false;
+      const hasMatch = filterGameVersions.some(v => m.compatible_versions.includes(v));
+      if (!hasMatch) return false;
+    }
+    if (searchQuery && !m.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+
+  const handleSelectAllFiltered = () => {
+    const next = new Set(selectedIds);
+    let allSelected = true;
+    for (const m of filteredMods) {
+      if (!next.has(m.id)) allSelected = false;
+    }
+    if (allSelected) {
+      filteredMods.forEach(m => next.delete(m.id));
+    } else {
+      filteredMods.forEach(m => next.add(m.id));
+    }
+    setSelectedIds(next);
+  };
+
+  return (
+    <div className="flex flex-col xl:flex-row gap-6 animate-in fade-in h-full w-full max-w-7xl mx-auto">
+      
+      {/* LEFT PANEL: SELECTION & SEARCH */}
+      <div className="flex-1 min-w-0 theme-glass-panel rounded-3xl p-8 flex flex-col h-[950px] border border-white/5">
+        <h2 className="text-2xl font-black uppercase italic tracking-tighter text-[var(--text)] mb-2">{t("mass_update_title")}</h2>
+        <p className="text-xs font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-6">{t("mass_update_desc")}</p>
+        
+        <div className="flex flex-col gap-4 mb-4">
+          <div className="flex gap-4">
+            <input 
+              type="text" 
+              placeholder="Search artifacts..." 
+              value={searchQuery} 
+              onChange={e => setSearchQuery(e.target.value)} 
+              className="flex-1 theme-glass-inner border border-white/10 rounded-xl px-4 py-3 text-[var(--text)] text-xs font-black uppercase focus:outline-none focus:theme-border-accent shadow-sm" 
+            />
+            <div className="w-48 z-40 shrink-0">
+              <CustomDropdown 
+                value={filterCategory} 
+                onChange={setFilterCategory} 
+                options={[
+                  { id: "", label: "ALL CATEGORIES" },
+                  { id: "Script", label: "SCRIPT" },
+                  { id: "Core", label: "CORE" },
+                  { id: "Tuning", label: "TUNING" },
+                  { id: "CC", label: "CUSTOM CONTENT" }
+                ]}
+              />
+            </div>
+          </div>
+          <div className="flex gap-4 items-stretch">
+            <div className="flex-1 z-30 theme-glass-inner p-1 border border-transparent rounded-2xl shadow-sm">
+               <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} />
+            </div>
+            <button 
+              onClick={() => setShowOnlySelected(!showOnlySelected)} 
+              className={"px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm shrink-0 " + (showOnlySelected ? "theme-bg-accent text-[var(--bg)] border-transparent" : "theme-glass-inner border-white/10 text-[var(--text)]")}
+            >
+              {showOnlySelected ? "Showing Selected" : "Show Selected Only"}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center px-4 mb-2">
+          <span className="text-[10px] font-black theme-text-accent uppercase">{selectedIds.size} Artifacts Selected</span>
+          <button onClick={handleSelectAllFiltered} className="text-[10px] font-black text-[var(--subtext)] hover:text-[var(--text)] uppercase transition-colors">
+            Toggle All Visible
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-2">
+          {loading ? (
+             <div className="py-20 text-center font-black opacity-50 uppercase tracking-widest animate-pulse">Loading Registry...</div>
+          ) : filteredMods.map(m => (
+            <div 
+              key={m.id} 
+              onClick={() => handleToggle(m.id)}
+              className={"p-4 rounded-2xl cursor-pointer border transition-all flex items-center justify-between gap-4 " + (selectedIds.has(m.id) ? "theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-lg scale-[1.01]" : "border-white/5 bg-white/5 hover:bg-white/10")}
+            >
+              <div className="flex items-center gap-4 min-w-0">
+                <div className={"w-5 h-5 rounded-md border flex items-center justify-center shrink-0 " + (selectedIds.has(m.id) ? "theme-bg-accent theme-border-accent text-[var(--bg)]" : "border-white/20 bg-transparent")}>
+                  {selectedIds.has(m.id) && <span className="text-[10px]">?</span>}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-black uppercase text-[var(--text)] break-words leading-tight pr-2">{m.name}</span>
+                  <span className="text-[9px] font-bold uppercase text-[var(--subtext)] opacity-60 mt-1">{m.master_author ? `${m.master_author} | ` : ""}Status: {m.status || "UNVERIFIED"} | Tier: {m.compliance_tier}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+          {!loading && filteredMods.length === 0 && (
+             <div className="py-20 text-center font-black opacity-50 uppercase tracking-widest">No artifacts found.</div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT PANEL: BATCH ACTIONS */}
+      <div className="w-full xl:w-96 flex flex-col gap-6 shrink-0 h-[950px]">
+        <div className="theme-glass-panel rounded-3xl p-6 border border-white/5 flex flex-col gap-6 shadow-inner flex-1">
+           <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest border-b border-white/10 pb-4">{t("mass_update_apply")}</h3>
+
+           <div className="flex flex-col gap-2 z-50">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">{t("mass_status_protocol")}</label>
+              <CustomDropdown 
+                value={massStatus} 
+                onChange={setMassStatus} 
+                options={[
+                  { id: "", label: "-- LEAVE UNCHANGED --" },
+                  { id: "verified", label: "VERIFIED" },
+                  { id: "unverified", label: "UNVERIFIED" },
+                  { id: "deprecated", label: "DEPRECATED" },
+                  { id: "quarantined", label: "QUARANTINED" }
+                ]}
+              />
+           </div>
+
+           <div className="flex flex-col gap-2 z-40">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">{t("mass_compliance_tier")}</label>
+              <CustomDropdown 
+                value={massCompliance} 
+                onChange={setMassCompliance} 
+                options={[
+                  { id: "", label: "-- LEAVE UNCHANGED --" },
+                  { id: "0", label: "CLEAN (TIER 0)" },
+                  { id: "1", label: "NSFW 18+ (TIER 1)" },
+                  { id: "2", label: "EXPLICIT (TIER 2)" },
+                  { id: "3", label: "MALWARE (TIER 3)" }
+                ]}
+              />
+           </div>
+
+           <div className="flex flex-col gap-2 z-30">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">{t("mass_category_override")}</label>
+              <CustomDropdown 
+                value={massCategory} 
+                onChange={setMassCategory} 
+                options={[
+                  { id: "", label: "-- LEAVE UNCHANGED --" },
+                  { id: "Script", label: "SCRIPT" },
+                  { id: "Core", label: "CORE" },
+                  { id: "Tuning", label: "TUNING" },
+                  { id: "CC", label: "CUSTOM CONTENT" }
+                ]}
+              />
+           </div>
+
+           <div className="flex flex-col gap-2 z-20">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">Game Versions (Replaces existing)</label>
+              <div className="theme-glass-inner p-1 rounded-2xl border border-transparent hover:border-white/10 transition-colors shadow-sm">
+                 <GameVersionMultiSelect selectedVersions={massGameVersions} onChange={setMassGameVersions} />
+              </div>
+           </div>
+
+           <div className="flex flex-col gap-2 z-10">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">{t("mass_assign_conflict")}</label>
+              <ModSearchDropdown 
+                placeholder="Select Artifact to Conflict..." 
+                selectedItem={massConflictId} 
+                onSelect={setMassConflictId} 
+                onClear={() => setMassConflictId(null)} 
+                modList={mods} 
+              />
+           </div>
+        </div>
+
+        <button 
+          disabled={isUpdating || selectedIds.size === 0 || (!massStatus && !massCompliance && !massCategory && massGameVersions.length === 0 && !massConflictId)}
+          onClick={executeMassUpdate}
+          className="w-full py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl border theme-bg-accent text-[var(--bg)] border-transparent hover:scale-105 active:scale-95 disabled:opacity-30 disabled:scale-100"
+        >
+          {isUpdating ? "EXECUTING BATCH..." : "EXECUTE MASS UPDATE"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GameVersionsRegistry() {
+  const [versions, setVersions] = useState<any[]>([]);
+  const [newVersion, setNewVersion] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+
+  const fetchVersions = async () => {
+    const { data } = await supabase.from('game_versions').select('*').order('version', { ascending: false });
+    if (data) setVersions(data);
+  };
+
+  useEffect(() => { fetchVersions(); }, []);
+
+  const handleAdd = async () => {
+    if (!newVersion) return;
+    const reason = window.prompt("Reason for adding this version:", "Routine Patch Update");
+    if (!reason) return;
+
+    setIsAdding(true);
+    await supabase.from('game_versions').insert([{ version: newVersion, display_name: `Update ${newVersion}` }]);
+    
+    const userRes = await supabase.auth.getUser();
+    await supabase.from('audit_logs').insert({
+       action: `Added version ${newVersion}`,
+       target_table: 'game_versions',
+       target_name: newVersion,
+       actor_id: userRes.data.user?.id,
+       reason: reason
+    });
+    
+    setNewVersion("");
+    setIsAdding(false);
+    fetchVersions();
+  };
+
+  const handleDelete = async (version: string) => {
+    const reason = window.prompt(`Reason for deleting version ${version}:`, "Deprecated or invalid");
+    if (!reason) return;
+
+    await supabase.from('game_versions').delete().eq('version', version);
+    
+    const userRes = await supabase.auth.getUser();
+    await supabase.from('audit_logs').insert({
+       action: `Deleted version ${version}`,
+       target_table: 'game_versions',
+       target_name: version,
+       actor_id: userRes.data.user?.id,
+       reason: reason
+    });
+    
+    fetchVersions();
+  };
+
+  return (
+    <div className="flex flex-col gap-6 animate-in fade-in max-w-4xl mx-auto h-full w-full">
+      <div className="theme-glass-panel rounded-3xl p-8 border border-white/5 flex flex-col gap-6 shadow-inner">
+        <div>
+           <h2 className="text-2xl font-black uppercase italic tracking-tighter text-[var(--text)] mb-2">Game Versions Registry</h2>
+           <p className="text-xs font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">Manage known game versions globally for all users.</p>
+        </div>
+
+        <div className="flex gap-4">
+           <input 
+             value={newVersion} 
+             onChange={e => setNewVersion(e.target.value)} 
+             placeholder="e.g. 1.124.54.1030" 
+             className="flex-1 theme-glass-inner border border-white/10 rounded-xl px-4 py-3 text-[var(--text)] text-xs font-black uppercase tracking-widest focus:theme-border-accent outline-none shadow-sm placeholder:opacity-30" 
+           />
+           <button 
+             onClick={handleAdd} 
+             disabled={isAdding || !newVersion} 
+             className="px-8 py-3 rounded-xl theme-bg-accent text-[var(--bg)] font-black text-xs uppercase tracking-widest disabled:opacity-50 hover:scale-105 active:scale-95 transition-all shadow-lg"
+           >
+             {isAdding ? "ADDING..." : "+ ADD TO DATABASE"}
+           </button>
+        </div>
+      </div>
+
+      <div className="theme-glass-panel rounded-3xl p-8 border border-white/5 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 shadow-inner">
+         <h3 className="text-sm font-black uppercase tracking-widest mb-4 opacity-60">Registered Versions</h3>
+         {versions.map(v => (
+            <div key={v.version} className="flex justify-between items-center p-4 rounded-xl theme-glass-inner border border-white/5 group hover:border-white/20 transition-all shadow-sm">
+               <span className="text-sm font-mono font-black text-[var(--text)]">{v.version}</span>
+               <button onClick={() => handleDelete(v.version)} className="text-[10px] font-black theme-text-danger opacity-0 group-hover:opacity-100 transition-opacity hover:underline uppercase tracking-widest p-2">
+                 DELETE
+               </button>
+            </div>
+         ))}
+      </div>
+    </div>
+  );
+}
+
+function AuditLogViewer() {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select(`
+          *,
+          actor:profiles!actor_id(username, role)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      
+      if (data) setLogs(data);
+      setLoading(false);
+    };
+    fetchLogs();
+  }, []);
+
+  if (loading) return <div className="p-12 text-center animate-pulse theme-text-accent font-black tracking-widest uppercase">Fetching Records...</div>;
+
+  return (
+    <div className="flex flex-col gap-6 animate-in fade-in h-full pb-12 w-full max-w-5xl mx-auto">
+       <div className="theme-glass-inner rounded-[2.5rem] p-8 flex flex-col h-[700px]">
+         <h2 className="text-2xl font-black uppercase italic tracking-tighter text-[var(--text)] mb-2">Architect Audit Logs</h2>
+         <p className="text-xs font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-6">Database Mutation Records & Access Tracking</p>
+         
+         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-2">
+           {logs.map((log: any) => (
+             <div key={log.id} className="p-5 rounded-2xl border transition-all bg-white/5 border-white/5 hover:border-white/20 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-black uppercase text-[var(--text)]">{log.action}</span>
+                  <span className="text-[10px] font-bold opacity-50">{new Date(log.created_at).toLocaleString()}</span>
+                </div>
+                <div className="flex flex-wrap gap-4 text-[10px] font-bold uppercase tracking-widest opacity-70">
+                  <span>TARGET: {log.target_table} <span className="opacity-50">/</span> {log.target_name || log.target_id || 'UNKNOWN'}</span>
+                  <span>ACTOR: {log.actor?.username || log.actor_id} <span className="theme-text-accent px-2 py-0.5 bg-black/40 rounded-md ml-2">{log.actor?.role}</span></span>
+                </div>
+                <div className="mt-2 pt-2 border-t border-white/10">
+                  <span className="text-[9px] font-black uppercase theme-text-warning tracking-widest opacity-80">REASON:</span>
+                  <p className="text-xs font-medium text-[var(--subtext)] mt-1">{log.reason}</p>
+                </div>
+             </div>
+           ))}
+         </div>
+       </div>
     </div>
   );
 }

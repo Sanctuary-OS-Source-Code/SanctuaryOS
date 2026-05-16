@@ -4,7 +4,7 @@ export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending,  }
   const { t } = useLexicon();
   
   return (
-    <div className="fixed inset-0 z-[9990] flex items-center justify-center bg-[var(--bg)]/10 backdrop-blur-3xl animate-in fade-in duration-200 p-8">
+    <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/10 backdrop-blur-3xl animate-in fade-in duration-200 p-8">
           <div className="theme-glass-panel border border-white/10 w-full max-w-md rounded-[2.5rem] p-10 flex flex-col items-center gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center">
             <span className="text-6xl animate-pulse drop-shadow-md">{t("ui_icon_warning")}</span>
             <div className="flex flex-col gap-1 min-w-0 flex-1">

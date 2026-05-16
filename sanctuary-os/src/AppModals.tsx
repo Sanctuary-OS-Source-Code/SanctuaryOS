@@ -27,7 +27,7 @@ export function AppModals(props: any) {
     yeetConfirmPending, setYeetConfirmPending,
     dnaMatchQueue, setDnaMatchQueue, ignoredHashesRef, setStatus,
     scoutQueue, setScoutQueue, onOpenScoutDossier,
-    malwareAlert, setMalwareAlert
+    malwareAlert, setMalwareAlert, setPlaySets
   } = props;
 
   const handleSecureShred = async (m: any) => {
@@ -96,7 +96,7 @@ export function AppModals(props: any) {
         </div>
       )}
       {snapshotModal && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-200">
             <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-accent rounded-[2rem] p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
               <div>
                 <h2 className="text-2xl font-black uppercase theme-text-accent tracking-tighter mb-1">{t("modal_snapshot_title")}</h2>
@@ -126,7 +126,7 @@ export function AppModals(props: any) {
             </div>
           </div>
         )}{bulkModal && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-200">
             <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-accent rounded-[2rem] p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
               <div>
                 <h2 className="text-2xl font-black uppercase theme-text-accent tracking-tighter mb-1">{t("modal_bulk_title")}</h2>
@@ -156,7 +156,7 @@ export function AppModals(props: any) {
             </div>
           </div>
         )}{renameModal && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-200">
             <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-accent rounded-[2rem] p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
               <div>
                 <h2 className="text-2xl font-black uppercase theme-text-accent tracking-tighter mb-1">{t("modal_rename_title")}</h2>
@@ -201,7 +201,7 @@ export function AppModals(props: any) {
             </div>
           </div>
         )}{localFolderModal && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-200">
             <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-success rounded-[2rem] p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
               <div>
                 <h2 className="text-2xl font-black uppercase theme-text-success tracking-tighter mb-1">{t("modal_local_folder_title")}</h2>
@@ -241,15 +241,15 @@ export function AppModals(props: any) {
         )}{confirmDialog && (
           <div className="fixed inset-0 z-[4000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl">
             {confirmDialog.isDefcon ? (
-              <div className="w-full max-w-2xl bg-red-950/40 border border-red-500/50 rounded-[3rem] p-12 text-center flex flex-col items-center gap-8 shadow-[0_0_150px_rgba(255,0,0,0.4)] animate-in zoom-in-95 duration-200">
+              <div className="w-full max-w-2xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-[3rem] p-12 text-center flex flex-col items-center gap-8 shadow-[0_0_150px_rgba(var(--danger-rgb),0.2)] animate-in zoom-in-95 duration-200">
                  <span className="text-8xl animate-bounce"></span>
                  <div className="flex flex-col gap-2">
-                    <h2 className="text-4xl font-black text-red-500 tracking-tighter uppercase">{confirmDialog.title || "GLOBAL ALERT"}</h2>
-                    <h3 className="text-xl font-bold text-red-300 uppercase tracking-widest whitespace-pre-line leading-relaxed">{confirmDialog.message}</h3>
+                    <h2 className="text-4xl font-black theme-text-danger tracking-tighter uppercase">{confirmDialog.title || "GLOBAL ALERT"}</h2>
+                    <h3 className="text-[10px] font-bold text-[var(--text)] opacity-80 uppercase tracking-widest whitespace-pre-line leading-relaxed">{confirmDialog.message}</h3>
                  </div>
                  <div className="flex gap-4 w-full mt-4">
-                    <button onClick={() => { confirmDialog.action(); setConfirmDialog(null); }} className="flex-1 py-4 bg-red-500 hover:bg-red-400 text-black border-none rounded-xl font-black text-sm uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(255,0,0,0.5)]">{confirmDialog.confirmText || t("modal_btn_proceed")}</button>
-                    <button onClick={() => { if (confirmDialog.cancelAction) confirmDialog.cancelAction(); else setConfirmDialog(null); }} className="flex-1 py-4 bg-transparent text-red-300 border border-red-500/30 hover:bg-red-500/10 rounded-xl font-black text-sm uppercase tracking-widest transition-all">{confirmDialog.cancelText || t("playsets_btn_cancel")}</button>
+                    <button onClick={() => { confirmDialog.action(); setConfirmDialog(null); }} className="flex-1 py-4 theme-bg-danger hover:opacity-80 text-[var(--bg)] border-none rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(var(--danger-rgb),0.5)]">{confirmDialog.confirmText || t("modal_btn_proceed")}</button>
+                    <button onClick={() => { if (confirmDialog.cancelAction) confirmDialog.cancelAction(); else setConfirmDialog(null); }} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">{confirmDialog.cancelText || t("playsets_btn_cancel")}</button>
                  </div>
               </div>
             ) : (
@@ -276,7 +276,7 @@ export function AppModals(props: any) {
           <button onClick={() => setLocalFolderModal(true)} disabled={selectedMods.length === 0} className="text-[10px] font-black theme-text-success uppercase tracking-widest hover:scale-105 transition-transform disabled:opacity-50">{t("vault_btn_group_folder")}</button>
         </div>
       )}{(isDropzoneOpen || isDragging) && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--bg)]/60 backdrop-blur-2xl p-10 animate-in fade-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/60 backdrop-blur-2xl p-10 animate-in fade-in zoom-in-95 duration-300">
            <div 
              className={`w-full max-w-4xl h-full max-h-[600px] border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center relative transition-all group ${dropzoneState === 'received' ? 'border-emerald-500/50 bg-emerald-500/5 shadow-[0_0_100px_rgba(16,185,129,0.1)]' : (isDragging ? 'bg-white/10 border-[var(--accent)] shadow-[0_0_100px_rgba(37,99,235,0.2)] scale-[1.02]' : 'bg-white/5 border-white/20 hover:border-[var(--accent)] hover:shadow-[0_0_100px_rgba(37,99,235,0.1)]')}`}
            >
@@ -327,7 +327,7 @@ export function AppModals(props: any) {
            </div>
         </div>
       )}{showBrokenModal && (
-        <div className="fixed inset-0 bg-[var(--bg)]/40 backdrop-blur-2xl z-50 flex items-center justify-center p-8 animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-[var(--bg)]/40 backdrop-blur-2xl z-[15000] flex items-center justify-center p-8 animate-in fade-in duration-300">
           <div className="theme-glass-panel border-2 theme-border-warning p-8 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col gap-6" style={{ color: 'var(--text)' }}>
             <h2 className="text-2xl font-black uppercase tracking-widest flex items-center gap-3"><span className="text-3xl">{t("ui_icon_warning")}</span> {t("status_broken")} {t("status_broken_detected")}</h2>
             <p className="opacity-80 font-bold text-sm">{t("broken_modal_desc")}</p>
@@ -360,7 +360,7 @@ export function AppModals(props: any) {
           </div>
         </div>
       )}{showQuarantineModal && (
-        <div className="fixed inset-0 bg-[var(--bg)]/40 backdrop-blur-2xl z-50 flex items-center justify-center p-8 animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-[var(--bg)]/40 backdrop-blur-2xl z-[15000] flex items-center justify-center p-8 animate-in fade-in duration-300">
           <div className="theme-glass-panel border-2 theme-border-danger p-8 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col gap-6" style={{ color: 'var(--text)' }}>
             <h2 className="text-2xl font-black uppercase tracking-widest flex items-center gap-3"><span className="text-3xl">{t("ui_icon_broken")}</span> Quarantine Zone</h2>
             <p className="opacity-80 font-bold text-sm">{t("quarantine_modal_desc")}</p>
@@ -389,7 +389,7 @@ export function AppModals(props: any) {
         <div className="mt-12 px-6 py-2 border border-white/10 rounded-full bg-white/5 text-[10px] text-[var(--text)]/40 uppercase tracking-tighter">{t("overlay_sealing_warn")}</div>
       </div>
     )}{isRestoring && (
-      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-300">
+      <div className="fixed inset-0 z-[15000] flex flex-col items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-300">
         <div className="relative w-24 h-24 mb-8">
           <div className="absolute inset-0 border-4 theme-border-accent opacity-20 rounded-full"></div>
           <div className="absolute inset-0 border-4 border-t-[var(--accent)] rounded-full animate-spin"></div>
@@ -400,7 +400,7 @@ export function AppModals(props: any) {
         <div className="mt-12 px-6 py-2 border border-white/10 rounded-full bg-white/5 text-[10px] text-[var(--text)]/40 uppercase tracking-tighter">Large archives may take a few minutes to restore.</div>
       </div>
     )}{ingestProgress?.active && (
-      <div className="fixed bottom-8 right-8 z-[9000] w-96 theme-glass-panel border border-white/10 p-6 rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-none overflow-hidden">
+      <div className="fixed bottom-8 right-8 z-[15000] w-96 theme-glass-panel border border-white/10 p-6 rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 theme-bg-accent opacity-5 blur-[80px]" />
         <div className="relative z-10 flex flex-col gap-6">
           <div className="flex items-center gap-5">
@@ -430,7 +430,7 @@ export function AppModals(props: any) {
         </div>
       </div>
     )}{isScanning && (
-      <div className="fixed bottom-8 right-8 z-[9999] w-96 bg-[var(--bg)]/90 backdrop-blur-md border border-white/10 p-6 rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-none overflow-hidden">
+      <div className="fixed bottom-8 right-8 z-[15000] w-96 bg-[var(--bg)]/90 backdrop-blur-md border border-white/10 p-6 rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 theme-bg-accent opacity-5 blur-[80px]" />
         <div className="relative z-10 flex flex-col gap-6">
           <div className="flex items-center gap-5">
@@ -473,7 +473,7 @@ export function AppModals(props: any) {
             yeetConfirmPending={yeetConfirmPending} setYeetConfirmPending={setYeetConfirmPending}   
           />
         )}{dnaMatchQueue.length > 0 && (
-        <div className="fixed inset-0 z-[9990] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-3xl animate-in fade-in duration-200 p-8">
+        <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-3xl animate-in fade-in duration-200 p-8">
           <div className="theme-glass-panel border border-white/10 w-full max-w-2xl rounded-[2.5rem] p-10 flex flex-col items-center gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center max-h-[85vh]">
             <span className="text-6xl animate-pulse drop-shadow-md">{t("ui_icon_dna")}</span>
             <div className="flex flex-col gap-1 min-w-0 flex-1 w-full">
@@ -488,12 +488,12 @@ export function AppModals(props: any) {
                 <div key={index} className="w-full bg-[var(--bg)]/40 border border-[var(--text)]/5 rounded-2xl p-4 flex flex-col gap-3 shadow-inner text-left">
                    <div className="flex flex-col gap-1">
                      <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("overlay_dna_incoming")}</span>
-                     <span className="text-xs font-black text-[var(--text)] truncate">{match.path?.split(/[\\/]/).pop()}</span>
+                     <span className="text-xs font-black text-[var(--text)] truncate">{match.path?.split(/[\\/]/).pop()?.replace('.tmp_sanctuary_conflict', '')}</span>
                    </div>
                    <div className="w-full h-px bg-white/5 my-0.5" />
                    <div className="flex flex-col gap-1">
                      <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("overlay_dna_existing")}</span>
-                     <span className="text-xs font-black theme-text-accent truncate">{match.existing_name || 'Unknown'}</span>
+                     <span className="text-xs font-black theme-text-accent truncate">{match.existing_name ? match.existing_name.split(/[\\/]/).pop() : 'Unknown'}</span>
                    </div>
                    <div className="flex gap-2 w-full mt-1">
                      <button
@@ -511,7 +511,7 @@ export function AppModals(props: any) {
                      <button
                        onClick={async () => {
                          try {
-                           ignoredHashesRef.current.add(match.hash);
+                           ignoredHashesRef.current.add(match.hash || match.path);
                            await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "ignore" });
                            if (dnaMatchQueue.length === 1 && match.source_action === "radar_sweep") runRadarSweep(true);
                          } catch (e: any) { console.error("Error ignoring:", e); }
@@ -535,6 +535,18 @@ export function AppModals(props: any) {
                     for (const match of queueCopy) {
                       try {
                         await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "replace" });
+                        if (match.existing_name) {
+                          const oldName = match.existing_name.split(/[/\\]/).pop();
+                          const newName = match.path.split(/[/\\]/).pop();
+                          if (oldName && newName && oldName !== newName && setPlaySets) {
+                            setPlaySets((prev: any) => prev.map((s: any, idx: number) => {
+                              if (idx === activePlaySetIndex) {
+                                return { ...s, mods: s.mods.filter((m: string) => m !== oldName) };
+                              }
+                              return s;
+                            }));
+                          }
+                        }
                       } catch(e) {}
                     }
                     if (queueCopy.length > 0) runRadarSweep(true);
@@ -542,6 +554,21 @@ export function AppModals(props: any) {
                   className="flex-1 py-4 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all hover:scale-105 shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]"
                 >
                   {t("modal_btn_replace_all")}
+                </button>
+                <button
+                  onClick={async () => {
+                    const queueCopy = [...dnaMatchQueue];
+                    setDnaMatchQueue([]);
+                    for (const match of queueCopy) {
+                      try {
+                        await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "keep_both" });
+                      } catch(e) {}
+                    }
+                    if (queueCopy.length > 0) runRadarSweep(true);
+                  }}
+                  className="flex-1 py-4 theme-bg-success text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all hover:opacity-90 shadow-[0_0_15px_rgba(var(--success-rgb),0.4)]"
+                >
+                  {t("modal_btn_keep_all_both") || "KEEP ALL VERSIONS"}
                 </button>
                 <button
                   onClick={async () => {
@@ -566,9 +593,9 @@ export function AppModals(props: any) {
       )}
 
       {scoutQueue && scoutQueue.length > 0 && (
-        <div className="fixed inset-0 z-[9990] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-3xl animate-in fade-in duration-200 p-8">
+        <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-3xl animate-in fade-in duration-200 p-8">
           <div className="theme-glass-panel border border-white/10 w-full max-w-2xl rounded-[2.5rem] p-10 flex flex-col items-center gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center max-h-[85vh]">
-            <span className="text-6xl animate-pulse drop-shadow-md">📡</span>
+            <span className="text-6xl animate-pulse drop-shadow-md">{t("ui_icon_radar")}</span>
             <div className="flex flex-col gap-1 min-w-0 flex-1 w-full">
               <h2 className="text-xl font-black theme-text-accent uppercase tracking-tighter">UNIDENTIFIED ARTIFACTS</h2>
               <p className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest">

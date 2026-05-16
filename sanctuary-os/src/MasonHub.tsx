@@ -3,12 +3,16 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { ViewHeader, GameVersionMultiSelect, CustomDropdown, StatTile, ModSearchDropdown } from "./shared";
 import ProtocolVisualizer from "./ProtocolVisualizer";
+import StructureVisualizer from "./StructureVisualizer";
 import ModStructureBuilder from "./ModStructureBuilder";
+import MasonIDE from "./MasonIDE";
 import { useLexicon } from "./LexiconContext";
+import { open } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 
 const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = []; let from = 0; const step = 999; while (true) { const { data, error } = await queryFn().range(from, from + step); if (error || !data || data.length === 0) break; allData = [...allData, ...data]; if (data.length <= step) break; from += step + 1; } return { data: allData, error: null }; };
 
-export default function MasonHub({ sandboxMod, clearSandboxMod }: { sandboxMod?: any, clearSandboxMod?: () => void }) {
+export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath }: { sandboxMod?: any, clearSandboxMod?: () => void, vaultPath?: string }) {
   const { t } = useLexicon();
   const [activeTab, setActiveTab] = useState("registry");
   const [masonProfile, setMasonProfile] = useState<any>(null);
@@ -41,24 +45,28 @@ export default function MasonHub({ sandboxMod, clearSandboxMod }: { sandboxMod?:
   );
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full w-full">
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48">
       <ViewHeader title={`${masonProfile.name}'s ${t("mason_workshop")}`} subtitle={t("mason_subtitle")} />
       
       <div className="flex flex-wrap theme-glass-inner p-1.5 rounded-2xl w-fit mb-2">
         <TabButton id="registry" label={t("mason_tab_registry")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="cc_sets" label={t("mason_tab_cc")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="protocols" label="Protocols" activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="structure" label="Structures" activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="posts" label={t("mason_tab_posts")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="sandbox" label={t("mason_tab_sandbox")} activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="ide" label="Solder IDE" activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="settings" label="Settings" activeTab={activeTab} setTab={setActiveTab} />
       </div>
 
-      <div className="flex-1 w-full overflow-y-auto custom-scrollbar pr-4 pb-48">
+      <div className="w-full pr-4">
         {activeTab === "registry" && <MasonRegistry masonId={masonProfile.id} />}
         {activeTab === "cc_sets" && <MasonCCSetBuilder masonId={masonProfile.id} masonName={masonProfile.name} />}
         {activeTab === "protocols" && <ProtocolVisualizer masonId={masonProfile.id} isArchitect={false} />}
+        {activeTab === "structure" && <StructureVisualizer masonId={masonProfile.id} isArchitect={false} />}
         {activeTab === "posts" && <MasonPostsEditor masonId={masonProfile.id} />} 
-        {activeTab === "sandbox" && <MasonSandbox masonId={masonProfile.id} initialSandboxMod={sandboxMod} onClear={clearSandboxMod} />}
+        {activeTab === "sandbox" && <MasonSandbox masonId={masonProfile.id} initialSandboxMod={sandboxMod} onClear={clearSandboxMod} vaultPath={vaultPath} />}
+        {activeTab === "ide" && <MasonIDE vaultPath={vaultPath} />}
         {activeTab === "settings" && <MasonSettings profile={masonProfile} onUpdate={setMasonProfile} />}
       </div>
     </div>
@@ -231,6 +239,7 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
 }
 
 function MasonRegistry({ masonId }: { masonId: string }) {
+  const safeDate = (d: any) => { try { if (!d) return ""; const parsed = new Date(d); if (isNaN(parsed.getTime())) return ""; return parsed.toISOString().slice(0, 10); } catch { return ""; } };
   const { t } = useLexicon();
   const [myMods, setMyMods] = useState<any[]>([]);
   const [activeMod, setActiveMod] = useState<any | null>(null);
@@ -260,7 +269,7 @@ function MasonRegistry({ masonId }: { masonId: string }) {
     if (relLinks) {
        relLinks.forEach(r => {
          if (r.child_id === modId) combined.push({ id: r.parent_id, type: r.relationship_type });
-         if (r.parent_id === modId && (r.relationship_type === 'twin' || r.relationship_type === 'rival' || r.relationship_type === 'beta')) combined.push({ id: r.child_id, type: r.relationship_type });
+         if (r.parent_id === modId && (r.relationship_type === 'twin' || r.relationship_type === 'rival' || r.relationship_type === 'beta' || r.relationship_type === 'addon' || r.relationship_type === 'flavor' || r.relationship_type === 'set_item')) combined.push({ id: r.child_id, type: r.relationship_type });
        });
     }
     setProtocols(combined);
@@ -282,6 +291,15 @@ function MasonRegistry({ masonId }: { masonId: string }) {
   const handleAddProtocol = async (targetId: string) => {
     if (!activeMod || !modalMode) return;
     try {
+      let familySlug = activeMod.family_slug;
+      if (['twin', 'addon', 'flavor', 'set_item'].includes(modalMode)) {
+        if (!familySlug) {
+          familySlug = activeMod.id;
+          await supabase.from('mods').update({ family_slug: familySlug }).eq('id', activeMod.id);
+          setActiveMod((prev: any) => prev ? { ...prev, family_slug: familySlug } : null);
+        }
+        await supabase.from('mods').update({ family_slug: familySlug }).eq('id', targetId);
+      }
       if (modalMode === 'dependency') await supabase.from('mod_dependencies').upsert({ parent_id: targetId, child_id: activeMod.id }, { onConflict: 'parent_id, child_id' });
       else {
         await supabase.from('mod_relationships').upsert({ parent_id: activeMod.id, child_id: targetId, relationship_type: modalMode }, { onConflict: 'parent_id, child_id' });
@@ -320,6 +338,7 @@ function MasonRegistry({ masonId }: { masonId: string }) {
         created_at: activeMod.created_at,
         updated_at: activeMod.updated_at,
         compatible_versions: activeMod.compatible_versions,
+        family_slug: activeMod.family_slug,
         folder_structure: activeMod.folder_structure || []
       }).eq('id', activeMod.id);
       fetchData();
@@ -398,32 +417,28 @@ function MasonRegistry({ masonId }: { masonId: string }) {
 
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">UPLOADED DATE</label>
-                <input type="date" value={activeMod.created_at ? new Date(activeMod.created_at).toISOString().slice(0, 10) : ""} onChange={e => setActiveMod({...activeMod, created_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent custom-date-input" />
+                <input type="date" value={safeDate(activeMod.created_at)} onChange={e => setActiveMod({...activeMod, created_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent custom-date-input" style={{ colorScheme: 'dark' }} />
               </div>
 
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">LAST UPDATED</label>
-                <input type="date" value={activeMod.updated_at ? new Date(activeMod.updated_at).toISOString().slice(0, 10) : ""} onChange={e => setActiveMod({...activeMod, updated_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent custom-date-input" />
+                <input type="date" value={safeDate(activeMod.updated_at)} onChange={e => setActiveMod({...activeMod, updated_at: e.target.value ? new Date(e.target.value).toISOString() : null})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent custom-date-input" style={{ colorScheme: 'dark' }} />
               </div>
 
               <div className="flex flex-col gap-2 col-span-full">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">GAME VERSIONS</label>
                 <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v) => setActiveMod({...activeMod, compatible_versions: v})} />
               </div>
-              
-              <div className="col-span-full pt-4">
-                <ModStructureBuilder structure={activeMod.folder_structure || []} onChange={(newStructure) => setActiveMod({...activeMod, folder_structure: newStructure})} />
-              </div>
 
             </div>
 
             <div className="mt-8 pt-8 border-t border-white/10 space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter flex items-center gap-3"><span className="text-2xl">🧬</span> Protocols</h3>
+                <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter flex items-center gap-3"><span className="text-2xl">{t("ui_icon_dna")}</span> Protocols</h3>
                 <button onClick={() => setVisualizerOpen(true)} className="px-6 py-3 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95">OPEN VISUAL EDITOR</button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 {['dependency', 'addon', 'twin', 'rival', 'beta'].map(mode => {
+                 {['dependency', 'addon', 'twin', 'rival', 'beta', 'flavor', 'set_item'].map(mode => {
                     const linked = protocols.filter(p => p.type === mode);
                     return (
                       <div key={mode} className="theme-glass-inner rounded-2xl p-4 flex flex-col gap-4">
@@ -475,7 +490,7 @@ function MasonRegistry({ masonId }: { masonId: string }) {
           </div>
         )}
       </div>
-      <ProtocolSearchModal isOpen={!!modalMode} onClose={() => setModalMode(null)} onSelect={handleAddProtocol} cloudMods={cloudMods} mode={modalMode || ''} />
+      <ProtocolSearchModal isOpen={!!modalMode} onClose={() => setModalMode(null)} onSelect={handleAddProtocol} cloudMods={modalMode === 'dependency' ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)} mode={modalMode || ''} />
 
     </div>
   );
@@ -794,14 +809,46 @@ function MasonStatusDropdown({ value, onChange }: { value: string, onChange: (va
   );
 }
 
-function MasonSandbox({ masonId, initialSandboxMod, onClear }: { masonId: string, initialSandboxMod: any, onClear: any }) {
+function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { masonId: string, initialSandboxMod: any, onClear: any, vaultPath?: string }) {
   const { t } = useLexicon();
   const [activeMod, setActiveMod] = useState<any>(initialSandboxMod || null);
   const [isCommitting, setIsCommitting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     if (initialSandboxMod) setActiveMod(initialSandboxMod);
   }, [initialSandboxMod]);
+
+  const handleImportToSandbox = async () => {
+    if (!vaultPath) {
+      showToast("Vault Path not configured.", "error");
+      return;
+    }
+    
+    try {
+      setIsImporting(true);
+      const selected = await open({
+        multiple: true,
+        filters: [{ name: "Artifacts & Configs", extensions: ["package", "ts4script", "zip", "txt", "js", "ts", "xml", "json", "cfg", "ini", "html", "css"] }]
+      });
+      
+      if (!selected || (Array.isArray(selected) && selected.length === 0)) {
+        setIsImporting(false);
+        return;
+      }
+      
+      const files = Array.isArray(selected) ? selected : [selected];
+      
+      const importedCount = await invoke<number>("import_to_sandbox", { files, vaultPath });
+      
+      showToast(`Imported ${importedCount} file(s) to Sandbox! Run a Radar Sweep to sync.`, "success");
+    } catch (err: any) {
+      console.error(err);
+      showToast(`Failed to import to Sandbox: ${err.message || String(err)}`, "error");
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const handleSyncToNetwork = async () => {
     if (!activeMod || !activeMod.hash) {
@@ -852,7 +899,14 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear }: { masonId: string
       <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center h-[500px]">
         <span className="text-6xl mb-4 grayscale">{t("ui_icon_collection")}</span>
         <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.3em]">{t("sandbox_no_mod")}</span>
-        <p className="text-[10px] mt-2 font-bold max-w-md">{t("sandbox_no_mod_desc")}</p>
+        <p className="text-[10px] mt-2 font-bold max-w-md mb-6">{t("sandbox_no_mod_desc")}</p>
+        <button 
+          onClick={handleImportToSandbox}
+          disabled={isImporting}
+          className="px-6 py-3 rounded-xl border border-white/20 theme-bg-accent text-[var(--bg)] font-black uppercase text-[10px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
+        >
+          {isImporting ? "IMPORTING..." : "IMPORT TO SANDBOX"}
+        </button>
       </div>
     );
   }

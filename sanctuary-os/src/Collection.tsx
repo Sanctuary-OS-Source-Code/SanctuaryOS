@@ -1,9 +1,9 @@
 import React from 'react';
-import { ViewHeader, CustomDropdown } from './shared';
+import { ViewHeader, CustomDropdown, formatDisplayName, isVersionMatch, getHighestVersion, mapDlcCode } from './shared';
 import { useLexicon } from './LexiconContext';
 import { invoke } from '@tauri-apps/api/core';
 import { ModCard } from './ModCard';
-
+import { useStore } from './store';
 export default function Collection(props: any) {
   const { 
     isBulkMode, setIsBulkMode, selectedMods, setSelectedMods, setConfirmDialog, 
@@ -18,8 +18,11 @@ export default function Collection(props: any) {
     drawerConfirmHash, modList, anarchyRules
   } = props;
   const { t } = useLexicon();
+  const selectedVersion = useStore((state) => state.selectedVersion);
   
+  const [archiveVersionFilter, setArchiveVersionFilter] = React.useState<string>("");
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [hideGhostCards, setHideGhostCards] = React.useState(false);
   const itemsPerPage = 50;
 
   React.useEffect(() => {
@@ -27,6 +30,88 @@ export default function Collection(props: any) {
   }, [equipFilter, activeCategory, activeSubType, searchQuery, filterStatus, isBulkMode]);
 
   const finalVisibleMods = visibleMods.filter((mod: any) => {
+    let modGameVersions: string[] = [];
+    if (mod.isVirtual) {
+       modGameVersions = Array.from(new Set((mod.flavors || []).flatMap((f: any) => {
+         const v = f.compatible_versions;
+         if (!v) return [];
+         if (typeof v === 'string') return v.split(',').map((s: string) => s.trim()).filter(Boolean);
+         return Array.isArray(v) ? v : [];
+       }))).filter(Boolean) as string[];
+    } else {
+       const v = mod.compatible_versions;
+       if (typeof v === 'string') {
+         modGameVersions = v.split(',').map((s: string) => s.trim()).filter(Boolean);
+       } else {
+         modGameVersions = Array.isArray(v) ? v : [];
+       }
+    }
+
+    let isCompatibleWithOS = true;
+    if (selectedVersion && selectedVersion !== "") {
+      isCompatibleWithOS = isVersionMatch(modGameVersions, selectedVersion);
+    }
+
+    if (equipFilter === "ARCHIVES") {
+      if (isCompatibleWithOS) return false;
+      if (archiveVersionFilter && archiveVersionFilter !== "") {
+        let highestArchiveVer = "0.0.0";
+        if (mod.isVirtual) {
+          const allVers = (mod.flavors || []).flatMap((f: any) => {
+            const v = f.compatible_versions;
+            return typeof v === 'string' ? v.split(',').map((s:string) => s.trim()) : (v || []);
+          });
+          highestArchiveVer = getHighestVersion(allVers);
+        } else {
+          highestArchiveVer = getHighestVersion(modGameVersions);
+        }
+        
+        const isCompatibleWithArchive = isVersionMatch([highestArchiveVer], archiveVersionFilter);
+        if (!isCompatibleWithArchive) return false;
+      }
+    } else {
+      if (!isCompatibleWithOS) return false;
+    }
+
+    if (equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") {
+      const activeSetMods = playSets[activePlaySetIndex]?.mods || [];
+      const isEquipped = mod.isParent
+        ? (() => {
+            const anchor = mod.dbId || mod.familyId;
+            if (mod.isFlavorFolder) {
+              return (mod.flavors || []).some((f: any) =>
+                activeSetMods.includes(f.name),
+              );
+            }
+            if (anchor) {
+              return displayModList.some(
+                (m: any) =>
+                  !m.isVirtual &&
+                  m.name &&
+                  (String(m.familyId) === String(anchor) ||
+                    String(m.dbId) === String(anchor) ||
+                    String(m.setId) === String(anchor)) &&
+                  activeSetMods.includes(m.name),
+              );
+            }
+            return (mod.flavors || []).some((f: any) =>
+              activeSetMods.includes(f.name),
+            );
+          })()
+        : activeSetMods.includes(mod.name);
+
+      if (equipFilter === "EQUIPPED" && !isEquipped) return false;
+      if (equipFilter === "UNEQUIPPED") {
+        if (mod.isParent) {
+          // For virtual folders on UNEQUIPPED tab, show them if ANY flavor is NOT equipped
+          const allEquipped = mod.flavors?.every((f: any) => activeSetMods.includes(f.name));
+          if (allEquipped) return false;
+        } else {
+          if (isEquipped) return false;
+        }
+      }
+    }
+
     if (mod.isVirtual) return true;
     const folderExists = displayModList.some(
       (v: any) =>
@@ -41,7 +126,7 @@ export default function Collection(props: any) {
   const paginatedMods = finalVisibleMods.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   
   return (
-    <>
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 relative">
             <div className="flex flex-col gap-8 animate-in fade-in duration-700">
               <ViewHeader
                 title={t("vault_title")}
@@ -50,11 +135,16 @@ export default function Collection(props: any) {
                 <div className="flex flex-col gap-3 items-end">
                   
                   <div className="flex gap-4 items-center">
-                    {isBulkMode && selectedMods.length > 0 && (
+                    {(isBulkMode && selectedMods.length > 0) || (equipFilter === "ARCHIVES") ? (
                       <button
                         onClick={() => {
+                          const isMassPurge = equipFilter === "ARCHIVES" && (!isBulkMode || selectedMods.length === 0);
+                          const targetFiles = isMassPurge ? visibleMods.map((m: any) => m.name) : selectedMods;
+                          if (targetFiles.length === 0) return;
                           setConfirmDialog({
-                            message: `${t("confirm_purge_artifacts_prefix")}${selectedMods.length}${t("confirm_purge_artifacts_suffix")}`,
+                            message: isMassPurge 
+                              ? `${t("confirm_mass_purge_archive") || "Are you sure you want to purge ALL archive mods?"} (${targetFiles.length} items)`
+                              : `${t("confirm_purge_artifacts_prefix")}${targetFiles.length}${t("confirm_purge_artifacts_suffix")}`,
                             action: async () => {
                               setConfirmDialog(null);
                               setStatus(t("status_purging_artifacts"));
@@ -64,7 +154,7 @@ export default function Collection(props: any) {
                                 );
                                 const msg = await invoke("purge_vault_artifacts", {
                                   vaultPath: config.vault_path,
-                                  filenames: selectedMods,
+                                  filenames: targetFiles,
                                 });
                                 setStatus(`${t("ui_icon_success")} ${msg}`);
                                 setIsBulkMode(false);
@@ -80,7 +170,7 @@ export default function Collection(props: any) {
                       >
                         {t("vault_btn_purge_artifacts")}
                       </button>
-                    )}
+                    ) : null}
                     <button
                       onClick={() => setIsDropzoneOpen(true)}
                       className="w-[220px] h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all theme-btn-standard shadow-md flex items-center justify-center gap-2 shrink-0"
@@ -162,7 +252,7 @@ export default function Collection(props: any) {
                       >
                         <span className="flex h-full items-center justify-center gap-2">
                           {equipFilter === "EQUIPPED" && (
-                            <div className="w-1.5 h-1.5 rounded-full theme-bg-success animate-pulse" />
+                            <span className="theme-text-success text-sm animate-pulse">{t("ui_icon_success")}</span>
                           )}
                           {t("vault_filter_equipped")}
                         </span>
@@ -177,12 +267,27 @@ export default function Collection(props: any) {
                       >
                         <span className="flex h-full items-center justify-center gap-2">
                           {equipFilter === "UNEQUIPPED" && (
-                            <div className="w-1.5 h-1.5 rounded-full theme-bg-danger animate-pulse" />
+                            <span className="theme-text-danger text-sm animate-pulse">{t("ui_icon_broken")}</span>
                           )}
                           {t("vault_filter_unequipped")}
                         </span>
                         {equipFilter === "UNEQUIPPED" && (
                           <div className="absolute bottom-0 left-[-1px] right-[-1px] h-[2px] theme-bg-danger shadow-[0_0_10px_var(--danger)]" />
+                        )}
+                      </button>
+                      <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-2 mb-2.5" />
+                      <button
+                        onClick={() => setEquipFilter("ARCHIVES")}
+                        className={`relative h-full px-6 text-[10px] font-black uppercase tracking-widest transition-all bg-transparent ${equipFilter === "ARCHIVES" ? "border-t border-l border-r border-[color-mix(in_srgb,var(--text)_15%,transparent)] rounded-t-xl text-[var(--text)]" : "text-[var(--subtext)] opacity-60 hover:text-[var(--text)]"}`}
+                      >
+                        <span className="flex h-full items-center justify-center gap-2">
+                          {equipFilter === "ARCHIVES" && (
+                            <div className="w-1.5 h-1.5 rounded-full theme-bg-accent animate-pulse" />
+                          )}
+                          {t("vault_filter_archives")}
+                        </span>
+                        {equipFilter === "ARCHIVES" && (
+                          <div className="absolute bottom-0 left-[-1px] right-[-1px] h-[2px] theme-bg-accent shadow-[0_0_10px_var(--accent)]" />
                         )}
                       </button>
                     </div>
@@ -222,6 +327,73 @@ export default function Collection(props: any) {
                     <h3 className="text-[var(--text)] font-black uppercase tracking-widest text-sm flex items-center gap-2">
                       {t("vault_filter_matrix")}
                     </h3>
+                    
+                    {equipFilter === "ARCHIVES" && (
+                      <div className="flex items-center gap-4">
+                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">
+                          {t("vault_filter_archive_version") || "ARCHIVE VERSION"}
+                        </span>
+                        <div className="w-[180px]">
+                          {(() => {
+                            const archiveOptionsRaw = Array.from(new Set(displayModList.flatMap((m: any) => {
+                              const getVersions = (target: any) => {
+                                const v = target.compatible_versions;
+                                return typeof v === 'string' ? v.split(',').map((s:string) => s.trim()) : (v || []);
+                              };
+                              let versions: string[] = [];
+                              if (m.isVirtual) {
+                                versions = (m.flavors || []).flatMap((f: any) => getVersions(f));
+                              } else {
+                                versions = getVersions(m);
+                              }
+                              
+                              if (selectedVersion && selectedVersion !== "") {
+                                 if (isVersionMatch(versions, selectedVersion)) return [];
+                              }
+                              const highest = getHighestVersion(versions);
+                              return [highest];
+                            }).filter(Boolean)));
+                            
+                            const archiveOptions = (archiveOptionsRaw as string[])
+                              .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }))
+                              .map(v => ({ id: v, label: v === "Unknown" ? t("status_unknown") : v }));
+                              
+                            const activeVal = archiveVersionFilter && archiveOptions.some(o => o.id === archiveVersionFilter) 
+                              ? archiveVersionFilter 
+                              : (archiveOptions[0]?.id || "");
+
+                            // Auto-update filter if it's empty but we have options
+                            if (!archiveVersionFilter && activeVal) {
+                               setTimeout(() => setArchiveVersionFilter(activeVal), 0);
+                            }
+
+                            return (
+                              <CustomDropdown
+                                options={archiveOptions}
+                                value={activeVal}
+                                onChange={(val: any) => {
+                                  const newVal = Array.isArray(val) ? val[0] : val;
+                                  setArchiveVersionFilter(newVal || "");
+                                }}
+                                placeholder={t("vault_filter_archive_version")}
+                                multiSelect={false}
+                              />
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                    {(equipFilter === "ALL" || equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") && (
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => setHideGhostCards(!hideGhostCards)}
+                          className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${hideGhostCards ? 'theme-bg-accent text-[var(--bg)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] border-transparent' : 'bg-transparent text-[var(--subtext)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${hideGhostCards ? 'bg-[var(--bg)]' : 'bg-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`} />
+                          {t("vault_btn_hide_ghosts") || "ONLY SHOW ELIGIBLE"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col gap-6 pt-2">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -470,6 +642,7 @@ export default function Collection(props: any) {
                          }
                       }
 
+
                       if (m.requirements) {
                         m.requirements.forEach((req: any) => {
                           const reqId = typeof req === 'string' ? req : req.id || req.dbId;
@@ -513,12 +686,16 @@ export default function Collection(props: any) {
                     if (mod.isVirtual && mod.flavors) {
                       mod.flavors.forEach(checkModDeps);
                     }
-
+                    
                     const tier3List: any[] = [];
+                    
+                    let renderedMod = mod;
+
                     return (
                       <div key={mainKey} className="contents">
                         <ModCard
-                          mod={mod}
+                          mod={renderedMod}
+                          gameVersion={selectedVersion}
                           ownedDLC={ownedDLC}
                           maskedDLC={maskedDLC}
                           isInActiveSet={isEquipped}
@@ -548,6 +725,7 @@ export default function Collection(props: any) {
                             )
                           }
                           isBulkMode={isBulkMode}
+                          hideIneligible={hideGhostCards}
                           isSelected={selectedMods.includes(mod.name)}
                           onToggleSelect={() =>
                             setSelectedMods((prev: string[]) =>
@@ -558,15 +736,16 @@ export default function Collection(props: any) {
                           }
                         />
                         {mod.isParent && expandedFolder === mainKey && (
-                          <div className="col-span-full theme-bg-accent bg-opacity-5 border-2 border-dashed theme-border-accent rounded-[3rem] p-8 my-4">
+                          <div className="col-span-full theme-glass-panel rounded-[3rem] p-8 my-4">
                             <h3 className="text-xl font-black text-[var(--text)] uppercase mb-6">
                               {t("vault_folder_prefix")}{" "}
                               <span className="theme-text-accent">
-                                {mod.displayName}
+                                {renderedMod.displayName}
                               </span>
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {mod.flavors.map(
+                              {(renderedMod.flavors || [])
+                                .map(
                                 (flavor: any, subIdx: number) => {
                                   const isFlavorEquipped =
                                     activeSetMods.includes(flavor.name);
@@ -616,7 +795,7 @@ export default function Collection(props: any) {
                                   let drawerCasualties: any[] = [];
                                   if (!isFlavorEquipped) {
                                     const rivals = mod.isFlavorFolder
-                                      ? mod.flavors.filter(
+                                      ? (renderedMod.flavors || []).filter(
                                           (f: any) =>
                                             f.name !== flavor.name &&
                                             activeSetMods.includes(f.name),
@@ -636,7 +815,10 @@ export default function Collection(props: any) {
                                   }
                                   const missingPacks = flavor.requiredDLC?.filter((p: string) => !ownedDLC.includes(p) || maskedDLC.includes(p)) || [];
                                   const hasMissingDeps = flavor.missingReqs && flavor.missingReqs.length > 0;
-                                  const isFlavorGhosted = missingPacks.length > 0 || hasMissingDeps;
+                                  
+                                  const flavorVersionMismatch = (flavor.compatible_versions && flavor.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(flavor.compatible_versions, selectedVersion)) || (renderedMod.compatible_versions && renderedMod.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(renderedMod.compatible_versions, selectedVersion));
+                                  const flavorGhostReason = flavor.ghostReason || (flavorVersionMismatch ? "VERSION_MISMATCH" : null) || (renderedMod.ghostReason === "VERSION_MISMATCH" ? "VERSION_MISMATCH" : null);
+                                  const isFlavorGhosted = missingPacks.length > 0 || hasMissingDeps || flavor.isGhosted || flavorGhostReason === "VERSION_MISMATCH";
                                   
                                   if (flavor.displayName?.toUpperCase().includes("MC ") || flavor.name?.toUpperCase().includes("MC")) {
                                     console.log("DRAWER FLAVOR RENDER:", flavor.name || flavor.displayName, "ghosted:", isFlavorGhosted, "missingReqs:", flavor.missingReqs, "reqs:", flavor.requirements);
@@ -649,15 +831,12 @@ export default function Collection(props: any) {
                                       className={`p-3 border rounded-xl relative flex transition-all cursor-pointer min-h-[56px] group/flavorshadow ${isConfirming ? "bg-transparent border-transparent flex-col items-stretch p-0" : isFlavorGhosted ? "bg-red-950/20 border-[var(--danger)]/30 hover:border-[var(--danger)]/50 opacity-50 grayscale" : "bg-black/40 border-white/5 hover:theme-border-accent"} ${isConfirming ? "" : "items-center justify-between"}`}
                                       onClick={() => {
                                         if (!isConfirming) {
-                                          setMetaNameInput(
-                                            flavor.displayName || flavor.name,
-                                          );
-                                          setMetaAuthorInput(
-                                            flavor.author || mod.author || "",
-                                          );
-                                          setMetaVersionInput(
-                                            flavor.version || "v.Local",
-                                          );
+                                          setMetaNameInput(flavor.displayName || flavor.name);
+                                          setMetaAuthorInput(flavor.author || mod.author || "");
+                                          setMetaVersionInput(flavor.version || mod.version || "");
+                                          setMetaDescInput(flavor.description || mod.description || "");
+                                          setMetaImageInput(flavor.image_url || flavor.imageUrl || mod.image_url || mod.imageUrl || "");
+                                          setMetaAllowWriteInput(flavor.allow_write || mod.allow_write || false);
                                           setActiveDossier(flavor);
                                         }
                                       }}
@@ -665,7 +844,7 @@ export default function Collection(props: any) {
                                       {isFlavorGhosted && !isConfirming && (
                                           <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-[70] hidden group-hover/flavorshadow:flex bg-black/90 backdrop-blur-md border border-[var(--danger)] px-3 py-1.5 rounded-lg shadow-[0_0_15px_rgba(var(--danger-rgb),0.5)] items-center justify-center whitespace-nowrap text-[9px] font-black theme-text-danger max-w-[250px] pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-2">
                                             <div className="truncate">
-                                              {hasMissingDeps ? `MISSING ARTIFACT: ${flavor.missingReqs.map((d: any) => String(typeof d === 'string' ? d : (d.id || d.name || '')).split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "")).join(", ")}` : `MISSING DLC: ${missingPacks.join(", ")}`}
+                                              {hasMissingDeps ? `MISSING ARTIFACT: ${flavor.missingReqs.map((d: any) => String(typeof d === 'string' ? d : (d.id || d.name || '')).split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "")).join(", ")}` : flavorGhostReason === "VERSION_MISMATCH" ? t("vault_unsupported_version") : `MISSING DLC: ${missingPacks.map((p: string) => mapDlcCode(p)).join(", ")}`}
                                             </div>
                                           </div>
                                         )}
@@ -850,9 +1029,11 @@ export default function Collection(props: any) {
                                               }}
                                               className={`w-7 h-7 flex items-center justify-center font-black rounded-lg transition-all ${isFlavorEquipped ? "theme-bg-success text-[var(--bg)] shadow-lg" : "bg-white/10 text-[var(--text)]/40 hover:bg-white/20"}`}
                                             >
-                                              {isFlavorEquipped
+                                              {isFlavorGhosted && !isFlavorEquipped
+                                                ? (flavorGhostReason === "VERSION_MISMATCH" ? "⏳" : hasMissingDeps ? "🧩" : "🛑")
+                                                : isFlavorEquipped
                                                 ? t("ui_icon_check")
-                                                : t("ui_icon_plus")}
+                                                : t("ui_icon_import")}
                                             </button>
                                           </div>
                                         </>
@@ -933,6 +1114,6 @@ export default function Collection(props: any) {
                 </div>
               )}
             </div>
-    </>
+            </div>
   );
 }

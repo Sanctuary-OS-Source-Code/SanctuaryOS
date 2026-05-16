@@ -1,4 +1,26 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+
+export const deriveHumanReadableVersion = (path: string | undefined | null, fallbackHash: string | undefined | null) => {
+    if (!path) return fallbackHash ? `v.DNA-${fallbackHash.substring(0, 7).toUpperCase()}` : "v.Unknown";
+    
+    const tsMatch = path.match(/[/\\]v\.(\d{10})[/\\]/i) || path.match(/^v\.(\d{10})$/i) || path.match(/[/\\]v\.(\d{10})$/i);
+    let extractedVersion = "";
+
+    if (tsMatch) {
+        const d = new Date(parseInt(tsMatch[1]) * 1000);
+        extractedVersion = `v.${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}-${d.getHours().toString().padStart(2,'0')}${d.getMinutes().toString().padStart(2,'0')}`;
+    } else {
+        const parts = path.split(/[/\\]/);
+        extractedVersion = parts.length > 1 ? parts[parts.length - 2] : parts[0].replace(/\.(package|ts4script)$/i, '');
+    }
+
+    if (!extractedVersion.match(/v\.|202\d|\d+\.\d+/i) && fallbackHash) {
+        return `${extractedVersion} (DNA-${fallbackHash.substring(0, 5).toUpperCase()})`;
+    }
+
+    return extractedVersion;
+};
 export interface ModData {
   name: string;
   physical_path?: string;
@@ -39,10 +61,18 @@ export interface ModData {
   isCCSet?: boolean;
   allow_write?: boolean; 
   compliance_tier?: number;
+  mtime?: number;
 }
 
 export const formatDisplayName = (name: string) => {
-  return name.replace(/\.(package|ts4script)$/i, "").replace(/_/g, " ");
+  if (!name) return "Unknown Artifact";
+  const match = String(name).match(/\.(package|ts4script)$/i);
+  let baseName = String(name).replace(/\.(package|ts4script)$/i, "").replace(/_/g, " ");
+  if (match) {
+    const ext = match[1].toLowerCase() === 'ts4script' ? 'SCRIPT' : 'PACKAGE';
+    baseName += ` [${ext}]`;
+  }
+  return baseName;
 };
 
 export const DLC_MAP: Record<string, string> = {
@@ -61,8 +91,46 @@ export const DLC_MAP: Record<string, string> = {
 };
 
 export const mapDlcCode = (code: string) => {
-  const baseCode = code.split(' ')[0].toUpperCase();
+  let baseCode = code.split(' ')[0].toUpperCase();
+  baseCode = baseCode.replace(/^([A-Z]+)(\d)$/, '$10$2');
   return DLC_MAP[baseCode] || code;
+};
+
+export const isVersionMatch = (reqs: string[] | string, userVer: string) => {
+  if (!reqs || reqs.length === 0) return true;
+  if (typeof reqs === 'string') {
+    if (reqs.includes('ALL') || reqs.includes('ANY') || reqs.includes('Unknown') || reqs.includes('UNKNOWN')) return true;
+  } else {
+    if (reqs.includes('ALL') || reqs.includes('ANY') || reqs.includes('Unknown') || reqs.includes('UNKNOWN')) return true;
+  }
+  if (!userVer) return true;
+  const userVerArray = typeof userVer === 'string' ? userVer.split(',').map(s => s.replace(/^V\.?/i, '').trim()) : [userVer];
+  const reqArray = typeof reqs === 'string' ? reqs.split(',').map(s => s.trim()) : reqs;
+
+  return reqArray.some(req => {
+    if (!req) return false;
+    const cleanReq = req.replace(/^V\.?/i, '').trim();
+    if (cleanReq.toLowerCase() === 'unknown' || cleanReq.toLowerCase() === 'any' || cleanReq.toLowerCase() === 'all') return true;
+    return userVerArray.some(uv => uv === cleanReq || uv.startsWith(cleanReq + "."));
+  });
+};
+
+export const getHighestVersion = (reqs: string[] | string) => {
+    if (!reqs || reqs.length === 0) return "Unknown";
+    if (reqs.includes("ALL")) return "ALL";
+    const reqArray = typeof reqs === 'string' ? reqs.split(',').map(s => s.trim()) : reqs;
+    const flatReqs = reqArray.flatMap(r => r.split(',').map(s => s.trim()));
+    const sorted = [...flatReqs].sort((a, b) => {
+        const partsA = a.split('.').map(Number);
+        const partsB = b.split('.').map(Number);
+        for(let i=0; i<Math.max(partsA.length, partsB.length); i++) {
+            const valA = partsA[i] || 0;
+            const valB = partsB[i] || 0;
+            if (valA !== valB) return valB - valA;
+        }
+        return 0;
+    });
+    return sorted[0];
 };
 
 export function ViewHeader({ title, subtitle, children }: any) {
@@ -86,11 +154,12 @@ export function ViewHeader({ title, subtitle, children }: any) {
 export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem, onClear }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const results = (modList || []).filter((m: any) => 
+  const rawResults = (modList || []).filter((m: any) => 
     !query || 
     m.name.toLowerCase().includes(query.toLowerCase()) || 
     m.displayName?.toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 10);
+  );
+  const results = Array.from(new Map(rawResults.map((m: any) => [m.id || m.name, m])).values()).slice(0, 10);
   return (
     <div className={`relative w-full ${isOpen ? 'z-[6000]' : ''}`}>
       <div className="relative">
@@ -115,14 +184,16 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
       </div>
       {isOpen && !selectedItem && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--bg)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-2xl z-[6000] overflow-hidden max-h-60 overflow-y-auto custom-scrollbar">
-          {results.map((m: any) => (
+          {results.map((m: any, idx: number) => (
             <button
-              key={m.hash || m.name}
+              key={`${m.hash || m.name}-${idx}`}
               onClick={() => { onSelect(m); setQuery(""); setIsOpen(false); }}
               className="w-full text-left px-5 py-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col gap-0.5"
             >
               <span className="text-[11px] font-black text-[var(--text)] uppercase">{m.displayName || m.name.split('/').pop()}</span>
-              <span className="text-[8px] font-mono text-[var(--subtext)] opacity-60">{m.author || 'UNKNOWN'}</span>
+              <span className="text-[8px] font-mono text-[var(--subtext)] opacity-60">
+                {m.version_label ? `Version(s): ${m.version_label}` : (m.master_author || m.author || (m.created_at ? `Created: ${new Date(m.created_at).toLocaleDateString()}` : `ID: ${m.id?.substring(0,8).toUpperCase()}`))}
+              </span>
             </button>
           ))}
           {results.length === 0 && <div className="p-5 text-center text-[10px] text-[var(--subtext)] font-bold uppercase">No Signatures Found</div>}
@@ -143,27 +214,56 @@ export function StatTile({ label, value, icon, color, onClick }: any) {
   );
 }
 
-export function CustomDropdown({ value, options, onChange }: any) {
+export function CustomDropdown({ value, selectedValues = [], options, onChange, placeholder, multiSelect }: any) {
   const [isOpen, setIsOpen] = useState(false);
-  const selected = options.find((o: any) => String(o.id) === String(value)) || options[0];
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  
+  const getSelectedLabel = () => {
+     if (multiSelect) {
+         if (selectedValues.length === 0) return placeholder || "Select...";
+         if (selectedValues.length === 1) return options.find((o:any) => String(o.id) === String(selectedValues[0]))?.label || selectedValues[0];
+         return `${selectedValues.length} Selected`;
+     }
+     const selected = options.find((o: any) => String(o.id) === String(value)) || options.find((o: any) => selectedValues.includes(o.id));
+     return selected?.label || placeholder || "Select...";
+  };
+
+  const handleSelect = (id: string) => {
+     if (multiSelect) {
+         const newVals = selectedValues.includes(id) ? selectedValues.filter((v:any) => v !== id) : [...selectedValues, id];
+         onChange(newVals);
+     } else {
+         onChange([id]);
+         setIsOpen(false);
+     }
+  };
 
   return (
     <div className="relative w-full">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 rounded-2xl border border-white/10 theme-glass-inner outline-none transition-all shadow-inner flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-[var(--text)] focus:theme-border-accent group hover:bg-white/5 relative z-[10]">
-        <span>{selected?.label || "Select..."}</span>
-        <span className="text-[var(--subtext)] opacity-60 text-[10px] group-hover:text-[var(--text)] transition-colors">{isOpen ? '▲' : '▼'}</span>
+      <button ref={btnRef} onClick={() => setIsOpen(!isOpen)} className="w-full p-3 rounded-xl border border-white/10 bg-black/20 outline-none transition-all shadow-inner flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-[var(--text)] focus:theme-border-accent group hover:bg-white/5 relative z-[10]">
+        <span className="truncate pr-4">{getSelectedLabel()}</span>
+        <span className="text-[var(--subtext)] opacity-60 text-[10px] group-hover:text-[var(--text)] transition-colors shrink-0">{isOpen ? '▲' : '▼'}</span>
       </button>
-      {isOpen && (
+      {isOpen && createPortal(
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full left-0 right-0 mt-2 bg-black/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-[9999] animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto custom-scrollbar">
-            {options.map((opt: any) => (
-              <button key={opt.id} onClick={() => { onChange(opt.id); setIsOpen(false); }} className="w-full text-left px-5 py-4 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-white/10 text-[var(--text)] border-b border-white/5 last:border-0 flex items-center hover:theme-text-accent">
-                {opt.label}
-              </button>
-            ))}
+          <div className="fixed mt-2 bg-black/95 backdrop-blur-3xl border border-white/10 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-[9999] animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto custom-scrollbar" style={{
+            top: btnRef.current?.getBoundingClientRect().bottom,
+            left: btnRef.current?.getBoundingClientRect().left,
+            width: btnRef.current?.getBoundingClientRect().width,
+          }}>
+            {options.map((opt: any) => {
+              const isSelected = multiSelect ? selectedValues.includes(opt.id) : String(opt.id) === String(value);
+              return (
+                <button key={opt.id} onClick={() => handleSelect(opt.id)} className={`w-full text-left px-4 py-3 text-[9px] font-black uppercase tracking-widest transition-all hover:bg-white/10 border-b border-white/5 last:border-0 flex items-center justify-between ${isSelected ? 'theme-text-accent bg-white/5' : 'text-[var(--text)]'}`}>
+                  <span className="truncate">{opt.label}</span>
+                  {isSelected && <span className="text-[12px] shrink-0 ml-2">✓</span>}
+                </button>
+              );
+            })}
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
@@ -191,18 +291,24 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
 
   const filtered = versions.filter(v => v.version && v.version.includes(query)).slice(0, 10);
 
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
   return (
-    <div className={`relative w-full ${isOpen ? 'z-50' : 'z-10'}`}>
+    <div className="relative w-full" ref={containerRef}>
       <div className="flex flex-wrap gap-1 mb-2">
         {selectedVersions.map(v => (
           <span key={v} className="px-2 py-1 bg-white/10 rounded-lg text-[9px] font-mono flex items-center gap-1">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300">?</button></span>
         ))}
       </div>
       <input placeholder="Search versions..." value={query} onChange={e => { setQuery(e.target.value); setIsOpen(true); }} onFocus={() => setIsOpen(true)} className="w-full bg-transparent border-b border-white/20 text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none focus:border-white transition-all placeholder:opacity-30 pb-1" />
-      {isOpen && (
+      {isOpen && createPortal(
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full mt-1 left-0 right-0 bg-[var(--sidebar)] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto custom-scrollbar">
+          <div className="fixed inset-0 z-[9998]" onClick={() => setIsOpen(false)} />
+          <div className="fixed mt-1 bg-[var(--sidebar)] border border-white/10 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] z-[9999] max-h-48 overflow-y-auto custom-scrollbar" style={{
+            top: containerRef.current?.getBoundingClientRect().bottom,
+            left: containerRef.current?.getBoundingClientRect().left,
+            width: containerRef.current?.getBoundingClientRect().width,
+          }}>
             {filtered.map(v => (
               <button key={v.version} type="button" onClick={() => { toggleVersion(v.version); setQuery(""); }} className="w-full text-left px-4 py-2 hover:bg-white/10 text-[10px] font-mono flex justify-between">
                 <span>{v.version}</span>
@@ -215,7 +321,8 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
               </button>
             )}
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );

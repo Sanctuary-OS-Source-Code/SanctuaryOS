@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
 import { useStore } from "./store";
-import { GameVersionMultiSelect } from "./shared";
+import { GameVersionMultiSelect, deriveHumanReadableVersion } from "./shared";
 
 export default function ModDossier({ mod, modList, activePlaySet, onToggleInActiveSet, onShowYeetAlert, onClose, metaInputs, setMetaInputs, onSaveMetadata, onOpenMasonProfile, editMode, setEditMode, onSendToLab, onSecureShred, isCorrecting, setIsCorrecting, onSyncToNetwork }: any) {
   const [selectedKid, setSelectedKid] = useState<any | null>(null);
@@ -34,41 +34,76 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
   const getCasualties = (targetName: string): string[] => {
     const target = (modList || []).find((m: any) => m.name === targetName);
-    if (!target || !target.dbId) return [];
+    if (!target) return [];
     
-    const findDeep = (modId: string, currentSet: Set<string>, result: any[]) => {
-      const currentMod = (modList || []).find((m:any) => String(m.dbId) === String(modId));
-      if (!currentMod) return;
-      const deps = (modList || []).filter((m: any) => 
-        !m.isVirtual && 
-        (m.requirements?.some((r: any) => {
-          const reqId = typeof r === 'string' ? r : r.id || r.dbId;
-          const reqName = typeof r === 'string' ? r : r.name;
-          const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "").toUpperCase();
-          const isReqNumeric = !isNaN(Number(reqName));
-          return (reqId && String(currentMod.dbId) === String(reqId)) ||
-                 (reqId && currentMod.hash === reqId) ||
-                 (!isReqNumeric && reqBaseName && currentMod.displayName && (currentMod.displayName.toUpperCase().includes(reqBaseName) || currentMod.displayName.toUpperCase().replace(/_/g, " ").includes(reqBaseName.replace(/_/g, " "))));
-        }) ||
-        (String(m.familyId) === String(currentMod.familyId || modId) && m.relationshipType === 'addon' && currentMod.relationshipType !== 'addon')) &&
-        activeMods.includes(m.name)
-      );
-      for (const d of deps) {
-        if (!currentSet.has(d.name)) {
-          currentSet.add(d.name);
-          result.push(d);
-          if (d.dbId) findDeep(d.dbId, currentSet, result);
+    let toDelete = new Set<string>();
+    
+    const initialMods = target.isVirtual && target.flavors ? target.flavors : [target];
+    
+    initialMods.forEach((mod: any) => {
+        toDelete.add(mod.name);
+        
+        const familyAnchor = mod.familyId || mod.dbId;
+        const isMaster = mod.dbId && String(mod.dbId) === String(familyAnchor);
+        if (
+          mod.isVirtual ||
+          (isMaster ||
+            mod.relationshipType === "twin" ||
+            mod.relationshipType === "core" ||
+            mod.relationshipType === "beta")
+        ) {
+          (modList || [])
+            .filter(
+              (m: any) =>
+                (String(m.familyId) === String(familyAnchor) ||
+                  String(m.dbId) === String(familyAnchor) ||
+                  String(m.setId) === String(mod.dbId)) &&
+                m.name &&
+                !m.isVirtual
+            )
+            .forEach((m: any) => toDelete.add(m.name));
         }
-      }
-    };
+    });
+
+    let keepChecking = true;
+    while (keepChecking) {
+        keepChecking = false;
+        (modList || []).forEach((m: any) => {
+            if (!m.isVirtual && activeMods.includes(m.name) && !toDelete.has(m.name)) {
+                const isDependent = m.requirements?.some((r: any) => {
+                    const reqId = typeof r === 'string' ? r : r.id || r.dbId;
+                    const reqName = typeof r === 'string' ? r : r.name;
+                    const isReqNumeric = !isNaN(Number(reqName));
+                    const reqBaseName = String(reqName).split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "").toUpperCase();
+                    
+                    return Array.from(toDelete).some(delName => {
+                        const delMod = modList.find((ml: any) => ml.name === delName);
+                        if (!delMod) return false;
+                        return (reqId && String(delMod.dbId) === String(reqId)) ||
+                               (reqId && delMod.hash === reqId) ||
+                               (!isReqNumeric && reqBaseName && delMod.displayName && (delMod.displayName.toUpperCase().includes(reqBaseName) || delMod.displayName.toUpperCase().replace(/_/g, " ").includes(reqBaseName.replace(/_/g, " "))));
+                    });
+                });
+                
+                if (isDependent) {
+                    toDelete.add(m.name);
+                    keepChecking = true;
+                }
+            }
+        });
+    }
+
+    toDelete.delete(target.name);
     
-    const deepDeps: any[] = [];
-    findDeep(target.dbId, new Set<string>(), deepDeps);
-    
-    if (deepDeps.length === 0) return [];
+    if (toDelete.size === 0) return [];
     
     const cleanTarget = (target.displayName || (target.name || "").split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '');
-    const cleanDeps = deepDeps.map((d: any) => (d.displayName || (d.name || "").split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, ''));
+    
+    const cleanDeps = Array.from(toDelete).map(delName => {
+        const d = modList.find((m: any) => m.name === delName);
+        if (!d) return delName;
+        return (d.displayName || (d.name || "").split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '');
+    });
     
     return [cleanTarget, ...cleanDeps];
   };
@@ -99,7 +134,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       let allDeps: any[] = [];
       kids.forEach((k: any) => {
         if (activeMods.includes(k.name)) {
-          allDeps.push((k.displayName || k.name.split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, ''));
+          allDeps.push((k.displayName || (k.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, ''));
           const c = getCasualties(k.name);
           if (c.length > 0) allDeps.push(...c);
         }
@@ -167,12 +202,32 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       alert("Guest Mode Active: Uploads and global flags are disabled.");
       return;
     }
+
+    let bondedHash = metaInputs.lineage || null;
+    if (bondedHash) {
+      const parentMod = (modList || []).find((m: any) => 
+        (m.displayName || (m.name || '').split(/[\\/]/).pop() || m.name) === bondedHash
+      );
+      if (parentMod && parentMod.hash) {
+        bondedHash = parentMod.hash;
+      }
+    }
+
     setIsSaving(true);
     const { error } = await supabase.from('scout_suggestions').insert([{
       dna_hash: mod.hash,
       suggested_name: metaInputs.name,
       suggested_author: metaInputs.author,
       suggested_url: metaInputs.url,
+      suggested_type: localCategory || mod.type || "FILE",
+      suggested_bonded_to: bondedHash,
+      suggested_version: metaInputs.version || deriveHumanReadableVersion(mod.name, mod.hash),
+      suggested_sub_type: (mod.name || "").toLowerCase().endsWith('.package') ? 'Package' : ((mod.name || "").toLowerCase().endsWith('.ts4script') ? 'ts4Script' : null),
+      suggested_game_versions: localCompatibleVersions.length > 0 ? localCompatibleVersions : null,
+      submitter_id: session.user.id,
+      description: metaInputs.desc || null,
+      image_url: metaInputs.image || null,
+      compliance_tier: mod.compliance_tier || 0,
       status: 'pending'
     }]);
     
@@ -191,7 +246,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
   return (
     <>
-      <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-300 p-8">
+      <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in fade-in duration-300 p-8">
         <div
           className="relative w-full max-w-6xl h-[92vh] theme-glass-panel border-0 rounded-[3.5rem] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex overflow-hidden"
           
@@ -206,7 +261,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
               <div className="absolute inset-0 shadow-[inset_-25px_0_50px_rgba(0,0,0,0.6)] pointer-events-none" />
               {editMode && (
                 <div className="absolute bottom-8 left-8 right-8">
-                  <label className="text-[9px] font-black text-[var(--text)] uppercase tracking-widest drop-shadow-md">Cover Image URL</label>
+                  <label className="text-[9px] font-black text-[var(--text)] uppercase tracking-widest drop-shadow-md">{t("dossier_cover_image_url")}</label>
                   <input value={metaInputs.image} onChange={e => setMetaInputs.image(e.target.value)} className="w-full mt-1 bg-black/60 backdrop-blur-md border border-white/20 rounded-xl px-4 py-3 text-[var(--text)] text-xs font-mono focus:outline-none focus:border-white transition-all shadow-lg" placeholder="https://..." />
                 </div>
               )}
@@ -224,9 +279,16 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                  {editMode ? (
                     <input value={metaInputs.name} onChange={e => setMetaInputs.name(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-2xl font-black text-[var(--text)] uppercase focus:outline-none focus:theme-border-accent" />
                   ) : (
-                    <h2 className="text-4xl font-black text-[var(--text)] tracking-tighter uppercase leading-tight drop-shadow-lg pr-4">
-                      {(mod.displayName || mod.name.split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '')}
-                    </h2>
+                    <div className="flex flex-col items-start gap-2">
+                      <h2 className="text-4xl font-black text-[var(--text)] tracking-tighter uppercase leading-tight drop-shadow-lg pr-4">
+                        {(mod.displayName || (mod.name || '').split(/[/\\]/).pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '')}
+                      </h2>
+                      {mod.name?.includes('.') && (
+                        <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[9px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-[0.2em] shadow-sm">
+                          .{(mod.name || '').split('.').pop()?.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
                   )}
               </div>
               <div className="flex flex-row items-center justify-end gap-3 shrink-0 mt-4 xl:mt-0">
@@ -243,7 +305,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   </>
                 ) : (
                   <>
-                    {mod.hash?.startsWith('dev_sandbox_') && (
+                    {(!mod.isSynced || mod.hash?.startsWith('dev_sandbox_')) && (
                       <button onClick={() => { if (onSyncToNetwork) onSyncToNetwork(mod); else setEditMode(true); }} className="px-6 py-4 theme-bg-success hover:bg-emerald-500 text-[var(--bg)] font-black text-[10px] tracking-widest uppercase rounded-2xl border border-transparent transition-all shadow-lg flex items-center justify-center gap-2">
                         {t("dossier_btn_sync_network")}
                       </button>
@@ -273,7 +335,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
             <div className="flex-1 p-12 pt-8 overflow-y-auto custom-scrollbar flex flex-col gap-8 pb-32">
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 border-b border-white/5 pb-10">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 border-b border-white/5 pb-10 relative z-20">
                 {/* Row 1 */}
                 <div className="flex flex-col gap-2">
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_architect")}</p>
@@ -295,33 +357,37 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_revision")}</p>
                   <div className="flex items-center justify-center px-2 h-10 theme-glass-inner rounded-xl w-full">
                     {editMode ? (
-                      <input value={metaInputs.version || ""} onChange={e => setMetaInputs.version && setMetaInputs.version(e.target.value)} className="w-full bg-transparent border-none text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none placeholder:opacity-30" placeholder={t("dossier_vlocal")} />
+                      <input value={metaInputs.version || ""} onChange={e => setMetaInputs.version(e.target.value)} className="w-full bg-transparent border-none text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none placeholder:opacity-30" placeholder={t("dossier_vlocal")} />
                     ) : (
                       <span className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest truncate">{mod.version || t("dossier_vlocal")}</span>
                     )}
                   </div>
                 </div>
 
-                <div className="theme-glass-inner p-2 rounded-xl border border-white/5 flex flex-col justify-center">
+                <div className="flex flex-col gap-2">
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_label_uploaded")}</p>
-                  {editMode ? (
-                    <input type="date" value={localCreatedAt ? new Date(localCreatedAt).toISOString().slice(0, 10) : ""} onChange={e => setLocalCreatedAt(e.target.value ? new Date(e.target.value).toISOString() : null)} className="w-full bg-transparent border-none text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none mt-1 custom-date-input" />
-                  ) : (
-                    <p className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest text-center mt-1">
-                      {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("dossier_unknown")}
-                    </p>
-                  )}
+                  <div className="flex items-center justify-center px-2 h-10 theme-glass-inner rounded-xl w-full">
+                    {editMode ? (
+                      <input type="date" value={localCreatedAt ? new Date(localCreatedAt).toISOString().slice(0, 10) : ""} onChange={e => setLocalCreatedAt(e.target.value ? new Date(e.target.value).toISOString() : null)} className="w-full bg-transparent border-none text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none custom-date-input" />
+                    ) : (
+                      <span className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest truncate">
+                        {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("dossier_unknown")}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="theme-glass-inner p-2 rounded-xl border border-white/5 flex flex-col justify-center">
+                <div className="flex flex-col gap-2">
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_label_last_updated")}</p>
-                  {editMode ? (
-                    <input type="date" value={localUpdatedAt ? new Date(localUpdatedAt).toISOString().slice(0, 10) : ""} onChange={e => setLocalUpdatedAt(e.target.value ? new Date(e.target.value).toISOString() : null)} className="w-full bg-transparent border-none text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none mt-1 custom-date-input" />
-                  ) : (
-                    <p className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest text-center mt-1">
-                      {mod.updated_at ? new Date(mod.updated_at).toLocaleDateString() : t("dossier_unknown")}
-                    </p>
-                  )}
+                  <div className="flex items-center justify-center px-2 h-10 theme-glass-inner rounded-xl w-full">
+                    {editMode ? (
+                      <input type="date" value={localUpdatedAt ? new Date(localUpdatedAt).toISOString().slice(0, 10) : ""} onChange={e => setLocalUpdatedAt(e.target.value ? new Date(e.target.value).toISOString() : null)} className="w-full bg-transparent border-none text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none custom-date-input" />
+                    ) : (
+                      <span className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest truncate">
+                        {mod.updated_at ? new Date(mod.updated_at).toLocaleDateString() : t("dossier_unknown")}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Row 2 */}
@@ -346,8 +412,8 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     {editMode ? (
                       <GameVersionMultiSelect selectedVersions={localCompatibleVersions || []} onChange={v => setLocalCompatibleVersions(v)} />
                     ) : (
-                      <span className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest truncate" title={mod.compatible_versions?.join(", ")}>
-                        {mod.compatible_versions && mod.compatible_versions.length > 0 ? mod.compatible_versions[0] + (mod.compatible_versions.length > 1 ? " +" : "") : "ANY"}
+                      <span className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest truncate" title={Array.isArray(mod.compatible_versions) ? mod.compatible_versions.join(", ") : mod.compatible_versions}>
+                        {Array.isArray(mod.compatible_versions) ? (mod.compatible_versions.length > 0 ? mod.compatible_versions[0] + (mod.compatible_versions.length > 1 ? " +" : "") : "ANY") : (mod.compatible_versions || "ANY")}
                       </span>
                     )}
                   </div>
@@ -376,7 +442,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       <input value={localCategory || ""} onChange={e => setLocalCategory(e.target.value)} className="w-full bg-transparent border-none text-center text-[10px] font-black text-[var(--text)] uppercase focus:outline-none placeholder:opacity-30" placeholder={mod.type || "FILE"} />
                     ) : (
                       <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] truncate">
-                        {isCCSet ? t("dossier_cc_set") : mod.isFlavorFolder ? t("dossier_exclusive") : (mod.isParent ? t("dossier_folder") : (mod.category_override || mod.type || "FILE"))}
+                        {isCCSet ? t("dossier_cc_set") : mod.isFlavorFolder ? t("dossier_exclusive") : (mod.isParent ? t("dossier_folder") : (mod.category_override || mod.type || "UNCATEGORIZED"))}
                       </span>
                     )}
                   </div>
@@ -387,15 +453,15 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 {editMode ? (
                   <input value={metaInputs.url} onChange={e => setMetaInputs.url(e.target.value)} className="px-5 py-3 theme-glass-panel rounded-xl text-[10px] font-black text-[var(--text)] focus:outline-none focus:theme-border-accent w-full max-w-lg shadow-xl" placeholder="External URL..." />
                 ) : (
-                  <a href={mod.url || `https://www.google.com/search?q=${encodeURIComponent(mod.displayName || mod.name.split('/').pop() || "")}`} target="_blank" rel="noopener noreferrer" className="px-8 py-3 theme-bg-accent text-[var(--bg)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-3">
-                    {mod.url ? "DOWNLOAD ASSET" : "SEARCH WEB"} <span className="text-sm">{mod.url ? "📥" : "🔍"}</span>
+                  <a href={mod.url || `https://www.google.com/search?q=${encodeURIComponent(mod.displayName || (mod.name || '').split('/').pop() || "")}`} target="_blank" rel="noopener noreferrer" className="px-8 py-3 theme-bg-accent text-[var(--bg)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-3">
+                    {mod.url ? t("dossier_btn_download") : t("dossier_btn_search_web")} <span className="text-sm">{mod.url ? t("ui_icon_import") : t("ui_icon_search")}</span>
                   </a>
                 )}
               </div>
 
 
               <div className="flex flex-col gap-4">
-                <p className="text-[9px] font-black theme-text-accent uppercase tracking-[0.3em] opacity-40 px-1">Log Manifest</p>
+                <p className="text-[9px] font-black theme-text-accent uppercase tracking-[0.3em] opacity-40 px-1">{t("dossier_log_manifest")}</p>
                 {editMode ? (
                   <textarea value={metaInputs.desc} onChange={e => setMetaInputs.desc(e.target.value)} className="text-sm text-[var(--text)] font-mono bg-black/40 p-8 rounded-[2rem] border border-white/10 shadow-inner h-40 resize-none focus:outline-none focus:theme-border-accent" placeholder="Local Description..." />
                 ) : (
@@ -427,7 +493,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                           }`}>
                           <div className="flex flex-col min-w-0 pr-14 mb-1">
                             <span className="text-[11px] font-bold text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors">
-                              {(kid.displayName || kid.name.split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '')}
+                              {(kid.displayName || (kid.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '')}
                             </span>
                             <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 mt-1 uppercase tracking-widest">
                               {kid.version || t("dossier_vlocal")}
@@ -439,7 +505,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                               isEquipped ? 'theme-panel-danger theme-btn-danger' : 'bg-white/5 text-[var(--text)]/40 border-white/10 hover:text-[var(--text)]'
                             }`}
                           >
-                            <span className="mt-[-2px]">{isEquipped ? '✕' : '+'}</span>
+                            <span className="mt-[-2px]">{isEquipped ? t("ui_icon_close") : t("ui_icon_plus")}</span>
                           </button>
                         </div>
                       );
@@ -490,19 +556,19 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       </div>
 
       {selectedKid && (
-        <div className="fixed inset-0 z-[6000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in zoom-in-95 duration-200 p-8" onClick={() => setSelectedKid(null)}>
+        <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in zoom-in-95 duration-200 p-8" onClick={() => setSelectedKid(null)}>
           <div
             className="relative w-full max-w-xl theme-glass-panel rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             
-            <button onClick={() => setSelectedKid(null)} className="absolute top-6 right-6 z-50 w-10 h-10 bg-black/40 backdrop-blur-md hover:theme-bg-danger text-white/70 hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-white/10">✕</button>
+            <button onClick={() => setSelectedKid(null)} className="absolute top-6 right-6 z-50 w-10 h-10 bg-black/40 backdrop-blur-md hover:theme-bg-danger text-white/70 hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-white/10">{t("ui_icon_close")}</button>
             <div className="h-40 relative bg-black border-b border-white/10 shrink-0">
               <img src={selectedKid.image_url || selectedKid.imageUrl || mod.image_url || mod.imageUrl || 'https://forums.ea.com/t5/s/tghpe58374/images/bS0xMzI3ODY1MS1RNkFpREk?revision=1&image-dimensions=2000x2000&constrain-image=true'} className="w-full h-full object-cover opacity-80" alt={t("dossier_sub_cover_alt")} />
               <div className="absolute inset-0 bg-gradient-to-t from-transparent to-black/20" />
             </div>
             <div className="px-8 pt-6 pb-2 relative">
-              <h3 className="text-2xl font-black text-[var(--text)] uppercase truncate">{(selectedKid.displayName || selectedKid.name.split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '')}</h3>
+              <h3 className="text-2xl font-black text-[var(--text)] uppercase truncate">{(selectedKid.displayName || (selectedKid.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '')}</h3>
               <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{selectedKid.version || t("dossier_vlocal")} &bull; {selectedKid.author || mod.author || t("dossier_unknown")}</p>
             </div>
             <div className="p-8 flex flex-col gap-6">
@@ -525,12 +591,12 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       )}
       
       {showFlagModal && (
-        <div className="fixed inset-0 z-[6000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in zoom-in-95 duration-200 p-8" onClick={() => setShowFlagModal(false)}>
+        <div className="fixed inset-0 z-[11000] flex items-center justify-center bg-[var(--bg)]/40 backdrop-blur-2xl animate-in zoom-in-95 duration-200 p-8" onClick={() => setShowFlagModal(false)}>
           <div
             className="relative w-full max-w-xl theme-glass-panel rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <button onClick={() => setShowFlagModal(false)} className="absolute top-6 right-6 z-50 w-10 h-10 bg-black/40 backdrop-blur-md hover:theme-bg-danger text-white/70 hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-white/10">✕</button>
+            <button onClick={() => setShowFlagModal(false)} className="absolute top-6 right-6 z-50 w-10 h-10 bg-black/40 backdrop-blur-md hover:theme-bg-danger text-white/70 hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-white/10">{t("ui_icon_close")}</button>
             <div className="h-40 relative bg-black border-b border-white/10 shrink-0">
               <img src={mod.image_url || mod.imageUrl || 'https://forums.ea.com/t5/s/tghpe58374/images/bS0xMzI3ODY1MS1RNkFpREk?revision=1&image-dimensions=2000x2000&constrain-image=true'} className="w-full h-full object-cover opacity-80 grayscale mix-blend-luminosity" alt="Flag Content" />
               <div className="absolute inset-0 bg-gradient-to-t from-red-900/40 to-black/20" />

@@ -19,8 +19,10 @@ pub struct SolderConfig {
     pub mods_path: String,
     pub vault_path: String,
     pub engine_agency_level: Option<u32>,
+    pub defcon_backup_target: Option<u32>,
     pub backup_preference: Option<u32>,
-    pub backup_retention_cycles: Option<u32>,
+    pub engine_retention_cycles: Option<u32>,
+    pub world_retention_cycles: Option<u32>,
 }
 
 #[derive(serde::Deserialize)]
@@ -36,6 +38,7 @@ pub struct ModData {
     status: String,
     color: String,
     is_script: bool,
+    mtime: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -273,8 +276,10 @@ fn get_saved_coordinates() -> SolderConfig {
                 mods_path: v["mods_path"].as_str().unwrap_or("").to_string(),
                 vault_path: v["vault_path"].as_str().unwrap_or("").to_string(),
                 engine_agency_level: v["engine_agency_level"].as_u64().map(|n| n as u32),
+                defcon_backup_target: v["defcon_backup_target"].as_u64().map(|n| n as u32),
                 backup_preference: v["backup_preference"].as_u64().map(|n| n as u32),
-                backup_retention_cycles: v["backup_retention_cycles"].as_u64().map(|n| n as u32),
+                engine_retention_cycles: v["engine_retention_cycles"].as_u64().map(|n| n as u32),
+                world_retention_cycles: v["world_retention_cycles"].as_u64().map(|n| n as u32),
             };
         }
     }
@@ -287,16 +292,20 @@ fn save_coordinates(
     mods_path: String,
     vault_path: String,
     engine_agency_level: Option<u32>,
+    defcon_backup_target: Option<u32>,
     backup_preference: Option<u32>,
-    backup_retention_cycles: Option<u32>,
+    engine_retention_cycles: Option<u32>,
+    world_retention_cycles: Option<u32>,
 ) -> Result<String, String> {
     let json = serde_json::to_string_pretty(&SolderConfig {
         live_path,
         mods_path,
         vault_path,
         engine_agency_level,
+        defcon_backup_target,
         backup_preference,
-        backup_retention_cycles,
+        engine_retention_cycles,
+        world_retention_cycles,
     })
     .map_err(|e| e.to_string())?;
     fs::write(get_config_path(), json).map_err(|e| e.to_string())?;
@@ -954,6 +963,7 @@ fn scan_bunker(
                 status: "☣️ QUARANTINED".to_string(),
                 color: "var(--danger)".to_string(),
                 is_script: path.extension().map_or(false, |ext| ext == "ts4script"),
+                mtime,
             });
             continue;
         }
@@ -970,6 +980,7 @@ fn scan_bunker(
             status: status_string,
             color: "var(--text-sub)".to_string(),
             is_script,
+            mtime,
         });
     }
 
@@ -1006,6 +1017,13 @@ fn scan_sandbox(vault_path: String) -> Result<Vec<ModData>, String> {
 
         let is_script = path.extension().map_or(false, |ext| ext == "ts4script");
         let hash = format!("dev_sandbox_{}", path.file_name().unwrap_or_default().to_string_lossy());
+        
+        let mtime = fs::metadata(&path)
+            .and_then(|m| m.modified())
+            .unwrap_or(SystemTime::UNIX_EPOCH)
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
 
         results.push(ModData {
             name: rel.replace("\\", "/"),
@@ -1013,6 +1031,7 @@ fn scan_sandbox(vault_path: String) -> Result<Vec<ModData>, String> {
             status: "🧪 SANDBOX".to_string(),
             color: "var(--accent)".to_string(),
             is_script,
+            mtime,
         });
     }
 
@@ -1272,23 +1291,37 @@ fn find_backup(vault_path: &str, file_name: &str) -> Option<PathBuf> {
     None
 }
 
+#[derive(Serialize)]
+struct BackupInfo {
+    name: String,
+    size_mb: f64,
+}
+
 #[tauri::command]
-fn get_backups(vault_path: String) -> Result<Vec<String>, String> {
+fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> {
     let mut files = vec![];
     let base = PathBuf::from(&vault_path).join("Backups");
     for sub in &["World", "Engine", "Mods"] {
-        if let Ok(entries) = fs::read_dir(base.join(sub)) {
+        if let Ok(entries) = std::fs::read_dir(base.join(sub)) {
             for e in entries.flatten() {
-                if e.path().extension() == Some("zst".as_ref()) {
-                    files.push(e.file_name().to_string_lossy().into_owned());
+                if e.path().extension() == Some(std::ffi::OsStr::new("zst")) {
+                    let size = e.metadata().map(|m| m.len() as f64 / 1_048_576.0).unwrap_or(0.0);
+                    files.push(BackupInfo {
+                        name: e.file_name().to_string_lossy().into_owned(),
+                        size_mb: size,
+                    });
                 }
             }
         }
     }
-    if let Ok(entries) = fs::read_dir(&base) {
+    if let Ok(entries) = std::fs::read_dir(&base) {
         for e in entries.flatten() {
-            if e.path().is_file() && e.path().extension() == Some("zst".as_ref()) {
-                files.push(e.file_name().to_string_lossy().into_owned());
+            if e.path().is_file() && e.path().extension() == Some(std::ffi::OsStr::new("zst")) {
+                let size = e.metadata().map(|m| m.len() as f64 / 1_048_576.0).unwrap_or(0.0);
+                files.push(BackupInfo {
+                    name: e.file_name().to_string_lossy().into_owned(),
+                    size_mb: size,
+                });
             }
         }
     }
@@ -1380,6 +1413,7 @@ async fn backup_universe(
             ("Saves", sims_docs_path.join("Saves")),
             ("Tray", sims_docs_path.join("Tray")),
             ("Options.ini", sims_docs_path.join("Options.ini")),
+            ("UserSetting.ini", sims_docs_path.join("UserSetting.ini")),
         ];
 
         let mut files_to_backup = Vec::new();
@@ -1436,10 +1470,39 @@ async fn backup_universe(
                 action: "World Archive Complete!".into(),
             },
         );
+
+        if let Some(cycles) = config.world_retention_cycles {
+            enforce_retention_policy(&config.vault_path, "World", cycles);
+        }
+
         Ok(backup_name)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+fn enforce_retention_policy(vault_path: &str, category: &str, keep_count: u32) {
+    if keep_count >= 999 { return; }
+    let target_dir = PathBuf::from(vault_path).join("Backups").join(category);
+    if let Ok(entries) = std::fs::read_dir(&target_dir) {
+        let mut backups: Vec<PathBuf> = entries
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.is_file() && (p.extension() == Some(std::ffi::OsStr::new("zst")) || p.extension() == Some(std::ffi::OsStr::new("tar"))))
+            .collect();
+            
+        backups.sort_by(|a, b| {
+            let m_a = a.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
+            let m_b = b.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
+            m_b.cmp(&m_a)
+        });
+
+        if backups.len() > keep_count as usize {
+            for old_backup in backups.iter().skip(keep_count as usize) {
+                let _ = std::fs::remove_file(old_backup);
+            }
+        }
+    }
 }
 
 #[tauri::command]
@@ -1531,9 +1594,14 @@ async fn backup_engine_full(
             BackupProgress {
                 current: total,
                 total,
-                action: "Engine Vault Sealed!".into(),
+                action: "Engine Archive Complete!".into(),
             },
         );
+
+        if let Some(cycles) = config.engine_retention_cycles {
+            enforce_retention_policy(&config.vault_path, "Engine", cycles);
+        }
+
         Ok(format!("Secured: {}", backup_name))
     })
     .await
@@ -1557,7 +1625,10 @@ async fn restore_game_data(
                 .unwrap()
                 .to_path_buf()
         } else {
-            PathBuf::from(docs_path)
+            let p = PathBuf::from(docs_path);
+            let _ = std::fs::remove_dir_all(p.join("Saves"));
+            let _ = std::fs::remove_dir_all(p.join("Tray"));
+            p
         };
         let tar_file = std::fs::File::open(arc).map_err(|e| e.to_string())?;
         let mut archive =
@@ -1963,7 +2034,7 @@ fn restore_quarantined_file(filename: String) -> String {
 }
 
 #[tauri::command]
-fn purge_quarantined_file(filename: String) -> String {
+fn purge_quarantined_file(filename: String) -> Result<String, String> {
     let config = get_saved_coordinates();
 
     let paths_to_check = vec![
@@ -1977,6 +2048,12 @@ fn purge_quarantined_file(filename: String) -> String {
 
     for q_path in paths_to_check {
         if q_path.exists() {
+            if let Ok(mut perms) = q_path.metadata().map(|m| m.permissions()) {
+                if perms.readonly() {
+                    perms.set_readonly(false);
+                    let _ = std::fs::set_permissions(&q_path, perms);
+                }
+            }
             if let Ok(mut f) = fs::OpenOptions::new().write(true).open(&q_path) {
                 if let Ok(meta) = f.metadata() {
                     let zeros = vec![0u8; 1024 * 1024];
@@ -1992,12 +2069,14 @@ fn purge_quarantined_file(filename: String) -> String {
                     let _ = f.sync_all();
                 }
             }
-            let _ = fs::remove_file(q_path);
-            return "Purged".into();
+            if let Err(e) = fs::remove_file(&q_path) {
+                return Err(format!("Error removing file: {}", e));
+            }
+            return Ok("Purged".into());
         }
     }
 
-    "Error: File missing".into()
+    Err("Error: File missing".into())
 }
 
 #[tauri::command]
@@ -2119,23 +2198,111 @@ fn ingest_dropped_file(
     std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
     let target = target_dir.join(file_name);
 
-    if source.is_dir() {
+    if !force_replace && target.exists() {
+        let _ = app.emit("dna_match_detected", serde_json::json!({ 
+            "path": path, 
+            "hash": "", 
+            "existing_name": target.to_string_lossy().to_string(), 
+            "source_action": "ingest_dropped_file", 
+            "reason": "NAME_MATCH" 
+        }));
+        return Err("DNA_MATCH".into());
+    }
 
+    if source.is_dir() {
         let _ = deploy_air_gap(source, &target);
+        return Ok(serde_json::to_string(&vec![file_name.to_string_lossy().to_string()]).unwrap_or_default());
     } else {
         let ext = source
             .extension()
             .and_then(|s| s.to_str())
             .unwrap_or("")
             .to_lowercase();
-        if ext == "package" || ext == "ts4script" || ext == "zip" || ext == "7z" || ext == "rar" || ext == "dat" || ext == "cfg" || ext == "ini" || ext == "json" {
+        
+        if ext == "zip" {
+            let file = std::fs::File::open(source).map_err(|e| e.to_string())?;
+            let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+            let mut extracted_files = Vec::new();
+            let target_base = Path::new(&config.vault_path).join("Mods");
+            let active_base = if !config.mods_path.is_empty() { Some(Path::new(&config.mods_path).to_path_buf()) } else { None };
+            
+            for i in 0..archive.len() {
+                if let Ok(mut zf) = archive.by_index(i) {
+                    if zf.is_file() {
+                        let name = zf.name().to_string();
+                        let p = Path::new(&name);
+                        let zf_ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+                        if zf_ext == "package" || zf_ext == "ts4script" {
+                            if let Some(zf_file_name) = p.file_name() {
+                                let file_name_str = zf_file_name.to_string_lossy().to_string();
+                                let mut file_target = target_base.clone();
+                                if let Some(stem) = p.file_stem() {
+                                    file_target = file_target.join(stem);
+                                }
+                                let _ = std::fs::create_dir_all(&file_target);
+                                let final_path = file_target.join(zf_file_name);
+                                
+                                let mut extract_target = final_path.clone();
+                                let mut needs_resolution = false;
+
+                                if !force_replace && final_path.exists() {
+                                    needs_resolution = true;
+                                    let mut new_name = final_path.file_name().unwrap().to_os_string();
+                                    new_name.push(".tmp_sanctuary_conflict");
+                                    extract_target = final_path.with_file_name(new_name);
+                                }
+
+                                if let Ok(mut out_file) = std::fs::File::create(&extract_target) {
+                                    let _ = std::io::copy(&mut zf, &mut out_file);
+                                    extracted_files.push(file_name_str.clone());
+                                    
+                                    if needs_resolution {
+                                        let _ = app.emit("dna_match_detected", serde_json::json!({
+                                            "path": extract_target.to_string_lossy().to_string(), 
+                                            "hash": "", 
+                                            "existing_name": final_path.to_string_lossy().to_string(), 
+                                            "source_action": "ingest_dropped_file", 
+                                            "reason": "ZIP_NAME_MATCH" 
+                                        }));
+                                    } else {
+                                        if let Some(ref active_mods) = active_base {
+                                            if active_mods.exists() {
+                                                let mut active_target = active_mods.clone();
+                                                if let Some(stem) = p.file_stem() {
+                                                    active_target = active_target.join(stem);
+                                                }
+                                                let _ = std::fs::create_dir_all(&active_target);
+                                                let _ = std::fs::copy(&extract_target, active_target.join(zf_file_name));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return Ok(serde_json::to_string(&extracted_files).unwrap_or_else(|_| "[]".to_string()));
+        } else if ext == "package" || ext == "ts4script" || ext == "7z" || ext == "rar" || ext == "dat" || ext == "cfg" || ext == "ini" || ext == "json" {
             std::fs::copy(source, &target).map_err(|e| e.to_string())?;
+            if !config.mods_path.is_empty() {
+                let active_mods_dir = Path::new(&config.mods_path);
+                if active_mods_dir.exists() {
+                    let mut active_target = active_mods_dir.to_path_buf();
+                    if source.is_file() && (ext == "package" || ext == "ts4script") {
+                        if let Some(stem) = source.file_stem() {
+                            active_target = active_target.join(stem);
+                        }
+                    }
+                    let _ = std::fs::create_dir_all(&active_target);
+                    let _ = std::fs::copy(source, active_target.join(file_name));
+                }
+            }
+            return Ok(serde_json::to_string(&vec![file_name.to_string_lossy().to_string()]).unwrap_or_default());
         } else {
             return Err("UNSUPPORTED_ARTIFACT_TYPE".into());
         }
     }
-
-    Ok("Ingested".into())
 }
 
 #[tauri::command]
@@ -2154,20 +2321,63 @@ fn resolve_dna_match(
         if source.exists() && s_canon != e_canon {
             if let Some(parent) = existing.parent() {
                 let _ = std::fs::create_dir_all(parent);
-            }
-            if std::fs::copy(source, existing).is_ok() {
-                let now = filetime::FileTime::now();
-                let _ = filetime::set_file_times(existing, now, now);
-                let _ = std::fs::remove_file(source); // <--- delete source after replacing
-            } else {
-                return Err("FAILED_TO_COPY".into());
+                let new_target = parent.join(existing.file_name().unwrap_or_default());
+                if std::fs::copy(source, &new_target).is_ok() {
+                    let now = filetime::FileTime::now();
+                    let _ = filetime::set_file_times(&new_target, now, now);
+                    if e_canon != new_target.canonicalize().unwrap_or_else(|_| new_target.to_path_buf()) {
+                        let _ = std::fs::remove_file(existing);
+                    }
+                    
+                    let config = get_saved_coordinates();
+                    if !config.mods_path.is_empty() {
+                        let active_mods_dir = std::path::Path::new(&config.mods_path);
+                        if active_mods_dir.exists() {
+                            let mut active_target = active_mods_dir.to_path_buf();
+                            if let Some(ext) = new_target.extension().and_then(|e| e.to_str()) {
+                                let ext = ext.to_lowercase();
+                                if ext == "package" || ext == "ts4script" {
+                                    if let Some(stem) = new_target.file_stem() {
+                                        active_target = active_target.join(stem);
+                                    }
+                                }
+                            }
+                            let _ = std::fs::create_dir_all(&active_target);
+                            if let Some(file_name) = new_target.file_name() {
+                                let _ = std::fs::copy(&new_target, active_target.join(file_name));
+                            }
+                            if let Some(old_file_name) = existing.file_name() {
+                                if old_file_name != new_target.file_name().unwrap_or_default() {
+                                    let mut old_active_target = active_mods_dir.to_path_buf();
+                                    if let Some(ext) = existing.extension().and_then(|e| e.to_str()) {
+                                        let ext = ext.to_lowercase();
+                                        if ext == "package" || ext == "ts4script" {
+                                            if let Some(stem) = existing.file_stem() {
+                                                old_active_target = old_active_target.join(stem);
+                                            }
+                                        }
+                                    }
+                                    let _ = std::fs::remove_file(old_active_target.join(old_file_name));
+                                }
+                            }
+                        }
+                    }
+                    
+                    if let Some(ext) = source.extension() {
+                        if ext.to_string_lossy() == "tmp_sanctuary_conflict" {
+                            let _ = std::fs::remove_file(source);
+                        }
+                    }
+                } else {
+                    return Err("FAILED_TO_COPY".into());
+                }
             }
         }
     } else if action == "discard" || action == "ignore" {
-        let s_canon = source.canonicalize().unwrap_or_else(|_| source.to_path_buf());
-        let e_canon = existing.canonicalize().unwrap_or_else(|_| existing.to_path_buf());
-        if source.exists() && s_canon != e_canon {
-            let _ = std::fs::remove_file(source); // <--- always delete source if discarding
+        if let Some(ext) = source.extension() {
+            if ext.to_string_lossy() == "tmp_sanctuary_conflict" {
+                let _ = std::fs::remove_file(source);
+            }
         }
     }
 
@@ -2297,6 +2507,76 @@ async fn move_mod_to_priority_folder(vault_path: String, mod_name: String, targe
     Ok("Moved successfully".into())
 }
 
+#[tauri::command]
+fn import_to_sandbox(files: Vec<String>, vault_path: String) -> Result<usize, String> {
+    if vault_path.is_empty() {
+        return Err("VAULT_NOT_CONFIGURED".into());
+    }
+
+    let vault_dir = PathBuf::from(&vault_path);
+    let dev_lane = if vault_dir.ends_with("Mods") {
+        vault_dir.parent().unwrap_or(&vault_dir).join("Dev").join("Sandbox")
+    } else {
+        vault_dir.join("Dev").join("Sandbox")
+    };
+
+    if !dev_lane.exists() {
+        let _ = fs::create_dir_all(&dev_lane);
+    }
+
+    let mut imported = 0;
+    for file in files {
+        let source = PathBuf::from(&file);
+        if let Some(name) = source.file_name() {
+            let dest = dev_lane.join(name);
+            if fs::copy(&source, &dest).is_ok() {
+                imported += 1;
+            }
+        }
+    }
+    
+    Ok(imported)
+}
+
+#[tauri::command]
+fn get_sandbox_files(vault_path: String) -> Result<Vec<String>, String> {
+    if vault_path.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let vault_dir = PathBuf::from(&vault_path);
+    let dev_lane = if vault_dir.ends_with("Mods") {
+        vault_dir.parent().unwrap_or(&vault_dir).join("Dev").join("Sandbox")
+    } else {
+        vault_dir.join("Dev").join("Sandbox")
+    };
+
+    let mut files = Vec::new();
+    if let Ok(entries) = fs::read_dir(&dev_lane) {
+        for entry in entries.flatten() {
+            if let Ok(file_type) = entry.file_type() {
+                if file_type.is_file() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        if name.ends_with(".js") || name.ends_with(".ts") || name.ends_with(".json") || name.ends_with(".xml") || name.ends_with(".html") || name.ends_with(".css") || name.ends_with(".txt") || name.ends_with(".cfg") || name.ends_with(".ini") {
+                            files.push(name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    files.sort_unstable();
+    Ok(files)
+}
+
+#[tauri::command]
+async fn ping_ea_store_version() -> Result<String, String> {
+    // Simulated ping to EA Store / Steam DB for the most recent game version.
+    // In production, this would hit an API wrapper that scrapes EA's patch notes.
+    Ok("1.124.54.1030".to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
@@ -2311,6 +2591,11 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             scan_bunker,
             scan_sandbox,
+            import_to_sandbox,
+            delete_local_file,
+            get_sandbox_files,
+            delete_local_file,
+            ping_ea_store_version,
             get_saved_coordinates,
             save_coordinates,
             sanitize_vault,
@@ -2365,4 +2650,19 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[tauri::command]
+fn delete_local_file(path: String) -> Result<String, String> {
+    let p = std::path::Path::new(&path);
+    if p.exists() {
+        if p.is_dir() {
+            std::fs::remove_dir_all(p).map_err(|e| e.to_string())?;
+        } else {
+            std::fs::remove_file(p).map_err(|e| e.to_string())?;
+        }
+        Ok("Deleted".into())
+    } else {
+        Err("File not found".into())
+    }
 }

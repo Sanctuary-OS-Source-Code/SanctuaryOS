@@ -6,7 +6,7 @@ import { useLexicon } from "./LexiconContext";
 
 const isCloneConflict = (modA: string, modB: string) => {
   if (!modA || !modB) return false;
-  const clean = (s: string) => s.toLowerCase().replace(/(_hq|_nonhq|_v\d+|_alt|_remake|remake|\.package|\.ts4script)/g, '').replace(/[^a-z0-9]/g, '');
+  const clean = (s: string) => (s.split(/[\\/]/).pop() || s).toLowerCase().replace(/(_hq|_nonhq|_v\d+|_alt|_remake|remake|\.package|\.ts4script)/g, '').replace(/[^a-z0-9]/g, '');
   return clean(modA) === clean(modB);
 };
 
@@ -75,18 +75,43 @@ export const DbpfScout = () => {
         const [modA, modB] = c.mod_pair.split(/\s+⚔️\s+/);
         const enrichedConflict = { ...c, modA, modB };
 
-        if (c.severity_rank === 4) { fatal.push(enrichedConflict); actionableClashes++; }
+        if (isCloneConflict(modA, modB)) { clone.push(enrichedConflict); actionableClashes++; }
+        else if (c.severity_rank === 4) { fatal.push(enrichedConflict); actionableClashes++; }
         else if (c.severity_rank === 3) { tuning.push(enrichedConflict); actionableClashes++; }
-        else if (isCloneConflict(modA, modB)) { clone.push(enrichedConflict); actionableClashes++; }
         else { soft.push(enrichedConflict); }
       });
 
       if (report.installed_mods) {
+        // Detect clones missed by Rust DBPF parser (like .ts4script files)
+        const nameGroups: Record<string, string[]> = {};
+        const cleanForGroup = (s: string) => (s.split(/[\\/]/).pop() || s).toLowerCase().replace(/(_hq|_nonhq|_v\d+|_alt|_remake|remake|\.package|\.ts4script)/g, '').replace(/[^a-z0-9]/g, '');
+        report.installed_mods.forEach((m: string) => {
+          const c = cleanForGroup(m);
+          if (!nameGroups[c]) nameGroups[c] = [];
+          nameGroups[c].push(m);
+        });
+        Object.values(nameGroups).forEach(group => {
+          if (group.length > 1) {
+            for (let i = 0; i < group.length; i++) {
+              for (let j = i + 1; j < group.length; j++) {
+                const modA = group[i];
+                const modB = group[j];
+                const pairKey = `${modA}  ⚔️  ${modB}`;
+                const pairKeyRev = `${modB}  ⚔️  ${modA}`;
+                if (!ignoredPairs.includes(pairKey) && !ignoredPairs.includes(pairKeyRev) && !clone.some((c: any) => c.mod_pair === pairKey || c.mod_pair === pairKeyRev)) {
+                  actionableClashes++;
+                  clone.push({ mod_pair: pairKey, modA, modB, is_ghost: false, severity_rank: 4, shared_assets: 0 });
+                }
+              }
+            }
+          }
+        });
+
         const { data: hitList, error: dbError } = await supabase.from('logical_conflicts').select('*');
         if (hitList && !dbError) {
           hitList.forEach((hit: any) => {
-            const actualA = report.installed_mods.find((m: string) => m.toLowerCase().includes(hit.mod_a.toLowerCase()));
-            const actualB = report.installed_mods.find((m: string) => m.toLowerCase().includes(hit.mod_b.toLowerCase()));
+            const actualA = report.installed_mods.find((m: string) => m && hit.mod_a && m.toLowerCase().includes(hit.mod_a.toLowerCase()));
+            const actualB = report.installed_mods.find((m: string) => m && hit.mod_b && m.toLowerCase().includes(hit.mod_b.toLowerCase()));
 
             if (actualA && actualB) {
               const ghostPair = `${actualA} 👻 ${actualB}`;
@@ -217,7 +242,7 @@ export const DbpfScout = () => {
               onClick={runRadar}
               className="w-[220px] h-12 theme-btn-standard font-black text-[10px] rounded-2xl shadow-lg transition-all uppercase tracking-widest active:scale-95 flex items-center justify-center gap-3 shrink-0"
             >
-              <span className={loading ? "animate-spin" : "animate-pulse"}>📡</span>
+              <span className={loading ? "animate-spin" : "animate-pulse"}>{t("ui_icon_radar")}</span>
               {loading ? t("radar_btn_scanning") : t("radar_btn_sweep")}
             </button>
           </div>
@@ -335,7 +360,7 @@ export const DbpfScout = () => {
             <section className="theme-panel-danger border p-10 rounded-[2.5rem] shadow-xl space-y-8" style={{ color: "var(--text)" }}>
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b theme-border-accent pb-6">
                 <div className="flex flex-col gap-1">
-                  <h2 className="text-2xl font-black theme-text-danger uppercase tracking-tighter italic flex items-center gap-3"><span className="text-3xl">🧬</span> Duplicate Clones</h2>
+                  <h2 className="text-2xl font-black theme-text-danger uppercase tracking-tighter italic flex items-center gap-3"><span className="text-3xl">{t("ui_icon_dna")}</span> Duplicate Clones</h2>
                   <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest ml-11">Identical asset signatures. Purge redundant files.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">

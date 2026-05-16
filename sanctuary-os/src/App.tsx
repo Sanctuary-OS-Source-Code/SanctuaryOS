@@ -24,7 +24,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import ArchitectHub from "./ArchitectHub";
 import GlobalFeed from "./GlobalFeed";
 import Settings from "./SettingsTab";
-import { ModData, ViewHeader } from "./shared";
+import { ModData, ViewHeader, deriveHumanReadableVersion, isVersionMatch } from "./shared";
 import { ModCard } from "./ModCard";
 import ModDossier from "./ModDossier";
 import BlueprintArchitect from "./BlueprintArchitect";
@@ -547,8 +547,11 @@ function App() {
   }, [view]);
   useEffect(() => {
     const unlisten = listen("vault_changed", () => fetchBackups());
+    const handleRefresh = () => runRadarSweep(true);
+    window.addEventListener("refreshVault", handleRefresh);
     return () => {
       unlisten.then((f) => f());
+      window.removeEventListener("refreshVault", handleRefresh);
     };
   }, []);
   useEffect(() => {
@@ -680,14 +683,14 @@ function App() {
         return false;
       };
 
-      const targetMod = modList.find((m) => m.name === targetName);
+      const targetMod = displayModList.find((m) => m.name === targetName) || modList.find((m) => m.name === targetName);
       if (!targetMod) return prevSets;
       const kids = targetMod.isVirtual
         ? modList.filter(
             (m) =>
               (String(m.familyId) === String(targetMod.dbId) ||
                 String(m.setId) === String(targetMod.dbId)) &&
-              !m.isVirtual,
+              !m.isVirtual
           )
         : [];
       const isActuallyFlavorFolder =
@@ -765,6 +768,11 @@ function App() {
               m.name &&
               !m.isVirtual
             ) {
+              const objV = modObj.version;
+              const mV = m.version;
+              const sharesVersion = !objV || !mV || objV === "v.Local" || mV === "v.Local" || objV === mV;
+              if (!sharesVersion) return;
+
               const isRival =
                 m.flavorGroupId &&
                 String(m.flavorGroupId) === String(modObj.flavorGroupId) &&
@@ -1177,7 +1185,7 @@ function App() {
         let { data, error } = await supabase
           .from("mod_versions")
           .select(
-            "dna_hash, version_label, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, master_author, allow_write, compliance_tier, mason_id, masons(name))",
+            "dna_hash, version_label, game_version, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, master_author, allow_write, compliance_tier, mason_id, masons(name))",
           )
           .in("dna_hash", chunk);
         if (error) {
@@ -1187,7 +1195,7 @@ function App() {
           const fallback = await supabase
             .from("mod_versions")
             .select(
-              "dna_hash, version_label, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, master_author, mason_id, masons(name))",
+              "dna_hash, version_label, game_version, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, master_author, mason_id, masons(name))",
             )
             .in("dna_hash", chunk);
           data = fallback.data as any;
@@ -1332,6 +1340,94 @@ function App() {
          depsMap.get(cid).push(d);
       });
 
+      const dirMap = new Map();
+      const bossVersionMap = new Map();
+      
+      localMods.forEach(m => {
+        const cm = cloudMap.get(String(m.hash));
+        const dbM = getDbMod(cm);
+        const f = flavorMap.get(String(m.hash));
+        
+        const dbId = dbM?.id ? String(dbM.id) : null;
+        const myParentRels = dbId ? (parentRelMap.get(dbId) || []) : [];
+        const myChildRels = dbId ? (childRelMap.get(dbId) || []) : [];
+        
+        const twinRel = myParentRels.find((r: any) => r.relationship_type === "twin");
+        const addonRel = myParentRels.find((r: any) => r.relationship_type === "addon");
+        const childTwinRel = myChildRels.find((r: any) => r.relationship_type === "twin");
+        
+        let bId = dbId || (f ? String(f.group_id) : null);
+        if (addonRel) {
+            bId = String(addonRel.parent_id);
+        } else if (twinRel) {
+            bId = String(twinRel.parent_id) < String(twinRel.child_id) ? String(twinRel.parent_id) : String(twinRel.child_id);
+        } else if (childTwinRel) {
+            bId = String(childTwinRel.parent_id) < String(childTwinRel.child_id) ? String(childTwinRel.parent_id) : String(childTwinRel.child_id);
+        }
+
+        // NEW: The "Bossception" Root Tracer (Loop 1)
+        let isTracingBoss1 = true;
+        let safetyTraceCount1 = 0;
+        
+        while (isTracingBoss1 && bId && safetyTraceCount1 < 5) {
+            const nextLevelRels = parentRelMap.get(bId) || [];
+            const nextAddonRel = nextLevelRels.find((r: any) => r.relationship_type === "addon");
+            const nextTwinRel = nextLevelRels.find((r: any) => r.relationship_type === "twin");
+            
+            let upperBossId = null;
+            if (nextAddonRel) {
+                upperBossId = String(nextAddonRel.parent_id);
+            } else if (nextTwinRel) {
+                upperBossId = String(nextTwinRel.parent_id) < String(nextTwinRel.child_id) ? String(nextTwinRel.parent_id) : String(nextTwinRel.child_id);
+            }
+
+            if (upperBossId && upperBossId !== bId) {
+                bId = upperBossId; // Climb one rung up the ladder
+                safetyTraceCount1++;
+            } else {
+                isTracingBoss1 = false; // We hit the absolute Core
+            }
+        }
+
+        // Build bossVersionMap to resolve specific versions for a Boss Family globally
+        if (bId && cm && cm.version_label && !cm.version_label.includes(',')) {
+           const existing = bossVersionMap.get(bId);
+           if (!existing || cm.version_label.localeCompare(existing, undefined, { numeric: true, sensitivity: 'base' }) > 0) {
+               bossVersionMap.set(bId, cm.version_label);
+           }
+        }
+
+        // Keep dirMap purely for unpublished configuration files that need a Boss
+        if (bId || cm) {
+            const dir = m.name.substring(0, Math.max(m.name.lastIndexOf("\\"), m.name.lastIndexOf("/")));
+            if (dir && dir.length > 0) {
+                const existing = dirMap.get(dir);
+                const isTwinGroup = myParentRels.some((r: any) => r.relationship_type === "twin") || myChildRels.some((r: any) => r.relationship_type === "twin");
+                
+                if (!existing || bId === dbId) {
+                    let shouldSet = true;
+                    if (existing && existing.bossId === bId) {
+                        if (!existing.isTwinGroup && isTwinGroup) {
+                            existing.isTwinGroup = true; // Mutate existing immediately to upgrade directory status
+                        }
+                        // NEW RULE: If the directory already secured a version label, and this file has NONE, DO NOT overwrite!
+                        if (existing.cloudMatch?.version_label && !cm?.version_label) {
+                            shouldSet = false;
+                        } 
+                        else if (existing.cloudMatch?.version_label && cm?.version_label && cm.version_label.localeCompare(existing.cloudMatch.version_label, undefined, { numeric: true, sensitivity: 'base' }) >= 0) {
+                            shouldSet = false; // Keep the LOWER version of the same Boss
+                        }
+                    } else if (existing && existing.isTwinGroup && !isTwinGroup) {
+                        shouldSet = false; // Never overwrite a Twin Group Boss with a Standalone Boss!
+                    }
+                    if (shouldSet) {
+                        dirMap.set(dir, { bossId: bId, cloudMatch: cm, dbMod: dbM, isTwinGroup: existing?.isTwinGroup || isTwinGroup });
+                    }
+                }
+            }
+        }
+      });
+
       const physicalMods = localMods.map((mod) => {
         const cloudMatch = cloudMap.get(String(mod.hash));
         const dbMod = getDbMod(cloudMatch);
@@ -1346,6 +1442,7 @@ function App() {
         const twinRel = myParentRels.find((r: any) => r.relationship_type === "twin");
         const betaRel = myParentRels.find((r: any) => r.relationship_type === "beta");
         const addonRel = myParentRels.find((r: any) => r.relationship_type === "addon");
+        const setItemRel = myParentRels.find((r: any) => r.relationship_type === "set_item");
         
         const childTwinRel = myChildRels.find((r: any) => r.relationship_type === "twin");
         const childBetaRel = myChildRels.find((r: any) => r.relationship_type === "beta");
@@ -1372,36 +1469,134 @@ function App() {
         if (addonRel) {
           myBossId = String(addonRel.parent_id);
           myRelType = "addon";
+        } else if (setItemRel) {
+          myBossId = String(setItemRel.parent_id);
+          myRelType = "set_item";
         } else if (twinRel) {
           myBossId = String(twinRel.parent_id) < String(twinRel.child_id) ? String(twinRel.parent_id) : String(twinRel.child_id);
           myRelType = "twin";
         } else if (betaRel) {
           myBossId = String(betaRel.parent_id) < String(betaRel.child_id) ? String(betaRel.parent_id) : String(betaRel.child_id);
           myRelType = "beta";
+        } else if (childTwinRel) {
+          myBossId = String(childTwinRel.parent_id) < String(childTwinRel.child_id) ? String(childTwinRel.parent_id) : String(childTwinRel.child_id);
+          myRelType = "twin";
+        } else if (childBetaRel) {
+          myBossId = String(childBetaRel.parent_id) < String(childBetaRel.child_id) ? String(childBetaRel.parent_id) : String(childBetaRel.child_id);
+          myRelType = "beta";
         } else if (myFlavor) {
           myBossId = String(myFlavor.group_id);
         }
+
+        // NEW: The "Bossception" Root Tracer (Loop 2)
+        // If an addon is linked to a Master Addon (Nested Relationships), trace up the tree to find the Ultimate Core Boss.
+        let isTracingBoss2 = true;
+        let safetyTraceCount2 = 0;
+        
+        while (isTracingBoss2 && myBossId && safetyTraceCount2 < 5) {
+            const nextLevelRels = parentRelMap.get(myBossId) || [];
+            const nextAddonRel = nextLevelRels.find((r: any) => r.relationship_type === "addon");
+            const nextTwinRel = nextLevelRels.find((r: any) => r.relationship_type === "twin");
+            
+            let upperBossId = null;
+            if (nextAddonRel) {
+                upperBossId = String(nextAddonRel.parent_id);
+            } else if (nextTwinRel) {
+                upperBossId = String(nextTwinRel.parent_id) < String(nextTwinRel.child_id) ? String(nextTwinRel.parent_id) : String(nextTwinRel.child_id);
+            }
+
+            if (upperBossId && upperBossId !== myBossId) {
+                myBossId = upperBossId; // Climb one rung up the ladder
+                safetyTraceCount2++;
+            } else {
+                isTracingBoss2 = false; // We hit the absolute Core
+            }
+        }
+        
+        const originalDir = mod.name.substring(0, Math.max(mod.name.lastIndexOf("\\"), mod.name.lastIndexOf("/")));
+        let dirData = null;
+        let currentDir = originalDir;
+
+        while (currentDir && currentDir.length > 0) {
+             const data = dirMap.get(currentDir);
+             if (data) {
+                 dirData = data;
+                 break;
+             }
+             const lastSlash = Math.max(currentDir.lastIndexOf("\\"), currentDir.lastIndexOf("/"));
+             if (lastSlash > 0) {
+                 currentDir = currentDir.substring(0, lastSlash);
+             } else {
+                 break;
+             }
+        }
+        
+        const hasOwnTwins = myParentRels.some((r: any) => r.relationship_type === "twin") || 
+                            myChildRels.some((r: any) => r.relationship_type === "twin");
+                            
+        // Group unidentified standalone mods in the closest parent directory under the Directory Boss.
+        // Explicitly block verified mods (which have a dbId/myBossId) from being absorbed against their will.
+        if (!myBossId && !hasOwnTwins && dirData && dirData.bossId) {
+            myBossId = dirData.bossId;
+        }
+        
+        let effectiveCloudMatch = cloudMatch;
+        let effectiveDbMod = dbMod;
+        
+        // Only override metadata for UNPUBLISHED files (e.g. config files) from dirData
+        if (!dbId && dirData && myBossId === dirData.bossId) {
+            effectiveCloudMatch = dirData.cloudMatch;
+            effectiveDbMod = dirData.dbMod || dbMod;
+        }
+
+        let unifiedVersion = null;
+
+        // FALLBACK: If it still has no version (or wasn't an orphan), fall back to dirMap/global map
+        if (!unifiedVersion && myBossId) {
+            const isDirBossValid = dirData && (dirData.bossId === myBossId || myParentRels.some((r: any) => String(r.parent_id) === String(dirData.bossId)));
+            if (isDirBossValid && dirData.cloudMatch?.version_label) {
+                unifiedVersion = dirData.cloudMatch.version_label;
+            } else if (!effectiveCloudMatch?.version_label) {
+                unifiedVersion = bossVersionMap.get(myBossId);
+            }
+        }
+
+        let finalVersion = effectiveCloudMatch?.version_label || "v.Local";
+        if (unifiedVersion) {
+            finalVersion = unifiedVersion; // Strictly force all files to match the local boss version
+        }
+
+        const compVerRaw = effectiveCloudMatch?.game_version || effectiveDbMod?.compatible_versions || [];
+        const compVerArray = Array.isArray(compVerRaw) ? compVerRaw : (typeof compVerRaw === 'string' ? compVerRaw.split(',').map((s: string) => s.trim()) : []);
+        let isVersionMismatch = false;
+        if (selectedVersion && compVerArray.length > 0) {
+            isVersionMismatch = !compVerArray.some((v: string) => v === selectedVersion);
+        }
+
         return {
           ...mod,
           physical_path: mod.name,
           dbId,
+          hasChildren: myChildRels.length > 0,
           setId: mySetRel ? String(mySetRel.set_id) : null,
           flavorGroupId: myFlavor ? String(myFlavor.group_id) : null,
           flavorGroupName: myFlavor
             ? flavorGroupNames[String(myFlavor.group_id)]
             : null,
           requiredDLC: rawDLC,
-          category_override: dbMod?.category_override,
-          sub_type: dbMod?.sub_type,
-          image_url: dbMod?.image_url,
+          category_override: effectiveDbMod?.category_override,
+          sub_type: effectiveDbMod?.sub_type,
+          image_url: effectiveDbMod?.image_url,
           author:
-            (Array.isArray(dbMod?.masons)
-              ? dbMod.masons[0]?.name
-              : dbMod?.masons?.name) ||
-            dbMod?.master_author ||
+            (Array.isArray(effectiveDbMod?.masons)
+              ? effectiveDbMod.masons[0]?.name
+              : effectiveDbMod?.masons?.name) ||
+            effectiveDbMod?.master_author ||
             mod.author,
-          version: cloudMatch?.version_label || "v.Local",
-          familyId: myBossId,
+          version: finalVersion,
+          compatible_versions: effectiveCloudMatch?.game_version || effectiveDbMod?.compatible_versions || [],
+          familyId: `${myBossId || dbId || "v.Local"}@${finalVersion}`,
+          baseFamilyId: myBossId,
           relationshipType: myRelType,
           invisibleRivals:
             invisibleRivalIds.length > 0 ? invisibleRivalIds : undefined,
@@ -1427,11 +1622,16 @@ function App() {
                   })),
                 ]
               : undefined,
-          displayName: mod.name
-            .split(/[\\/]/)
-            .pop()
-            ?.replace(/\.(package|ts4script)$/i, "")
-            .toUpperCase(),
+          displayName: (() => {
+            const rawName = mod.name.split(/[\\/]/).pop() || "";
+            const match = rawName.match(/\.(package|ts4script)$/i);
+            let base = rawName.replace(/\.(package|ts4script)$/i, "").replace(/_/g, " ");
+            if (match) {
+              const ext = match[1].toLowerCase() === 'ts4script' ? 'SCRIPT' : 'PACKAGE';
+              base += ` [${ext}]`;
+            }
+            return base.toUpperCase();
+          })(),
           allow_write: dbMod?.allow_write || false,
           compliance_tier: dbMod?.compliance_tier || 0,
           mason_id: dbMod?.mason_id || null,
@@ -1444,8 +1644,8 @@ function App() {
             : mod.status?.includes("EXPLICIT LOCAL") ? "🚫 EXPLICIT LOCAL" : t("status_local_only"),
           isSynced: !!dbMod,
           isVirtual: false,
-          isGhosted: isDlcMissing,
-          ghostReason: isDlcMissing ? "MISSING_DLC" : null,
+          isGhosted: isDlcMissing || isVersionMismatch,
+          ghostReason: isDlcMissing ? "MISSING_DLC" : (isVersionMismatch ? "VERSION_MISMATCH" : null),
         };
       });
 
@@ -1477,25 +1677,27 @@ function App() {
             flavors: setMembers,
           });
       });
-      const uniqueFamilyIds = [
+      const uniqueFamilyGroups = [
         ...new Set(physicalMods.map((m) => m.familyId).filter(Boolean)),
       ];
-      uniqueFamilyIds.forEach((fId) => {
+      uniqueFamilyGroups.forEach((fId) => {
         const familyMembers = physicalMods.filter(
-          (m) => String(m.familyId) === String(fId),
+          (m) => String(m.familyId) === String(fId)
         );
-        if (familyMembers.length > 1) {
-          const isFlavorFolder = !!flavorGroupNames[String(fId)] && !parentNameMap[String(fId)];
-          const isTwinGroup = familyMembers.some(
-            (m) =>
-              m.relationshipType === "twin" || m.relationshipType === "beta",
-          );
-          const pData = parentNameMap[String(fId)] || {
-            name: isFlavorFolder
-              ? flavorGroupNames[String(fId)]
-              : familyMembers[0].displayName,
-            author: familyMembers[0].author,
-          };
+        const baseFId = fId.split('@')[0];
+        const isFlavorFolder = !!flavorGroupNames[String(baseFId)] && !parentNameMap[String(baseFId)];
+        
+        if (familyMembers.length <= 1 && !isFlavorFolder) return;
+        
+        const isTwinGroup = familyMembers.some(
+          (m) => m.relationshipType === "twin" || m.relationshipType === "beta"
+        );
+        const pData = parentNameMap[String(baseFId)] || {
+          name: isFlavorFolder
+            ? flavorGroupNames[String(baseFId)]
+            : familyMembers[0].displayName,
+          author: familyMembers[0].author,
+        };
           const safeName = pData.name || t("status_unknown_folder");
           const isAllVerified = familyMembers.every((m) => m.status === t("status_verified"));
           const isAnyBroken = familyMembers.some((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
@@ -1512,10 +1714,10 @@ function App() {
             folderStatus = t("status_verified");
           }
 
-          const myParentRels = allRels.filter((r) => String(r.child_id) === String(fId));
-          const myChildRels = allRels.filter((r) => String(r.parent_id) === String(fId));
+          const myParentRels = allRels.filter((r) => String(r.child_id) === String(baseFId));
+          const myChildRels = allRels.filter((r) => String(r.parent_id) === String(baseFId));
           const folderDeps = [
-            ...allDeps.filter((d) => String(d.child_id) === String(fId)).map((d) => ({
+            ...allDeps.filter((d) => String(d.child_id) === String(baseFId)).map((d) => ({
               id: String(d.parent_id),
               name: parentNameMap[String(d.parent_id)]?.name || String(d.parent_id)
             })),
@@ -1542,6 +1744,7 @@ function App() {
             hash: "virtual_" + fId,
             name: "FOLDER_" + fId,
             dbId: String(fId),
+            baseFamilyId: String(baseFId),
             displayName: safeName.toUpperCase(),
             author: pData.author,
             status: folderStatus,
@@ -1558,7 +1761,6 @@ function App() {
               return 0;
             }),
           });
-        }
       });
       const localOvr = JSON.parse(
         localStorage.getItem("sanctuary_local_overrides") || "{}",
@@ -2124,25 +2326,38 @@ function App() {
       if (searchError) throw searchError;
       let targetModId = existingVer?.mod_id;
       if (!targetModId) {
-        const { data: modData, error: modError } = await supabase
+        const cleanName = mod.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+        const searchPattern = (cleanName || mod.name).replace(/[_ ]/g, '%');
+        const { data: existingMods } = await supabase
           .from("mods")
-          .insert([
-            {
-              name: mod.name,
-              status: "under_review",
-              description: "System Discovered Artifact",
-            },
-          ])
-          .select()
-          .single();
-        if (modError) throw modError;
-        targetModId = modData.id;
+          .select("id")
+          .ilike("name", searchPattern)
+          .limit(1);
+        const existingMod = existingMods?.[0];
+
+        if (existingMod) {
+          targetModId = existingMod.id;
+        } else {
+          const { data: modData, error: modError } = await supabase
+            .from("mods")
+            .insert([
+              {
+                name: cleanName || mod.name,
+                status: "under_review",
+                description: "System Discovered Artifact",
+              },
+            ])
+            .select()
+            .single();
+          if (modError) throw modError;
+          targetModId = modData.id;
+        }
         const { error: verError } = await supabase
           .from("mod_versions")
           .insert([
             {
               mod_id: targetModId,
-              version_label: "v.System",
+              version_label: deriveHumanReadableVersion(mod.name, mod.hash),
               game_version: selectedVersion,
               dna_hash: mod.hash,
             },
@@ -2744,6 +2959,7 @@ function App() {
       const isActuallyEquipped = activeSetMods.includes(m.name);
       const matchesEquip =
         equipFilter === "ALL" ||
+        equipFilter === "ARCHIVES" ||
         (equipFilter === "EQUIPPED" && isActuallyEquipped) ||
         (equipFilter === "UNEQUIPPED" && !isActuallyEquipped);
       const modType = (m.category_override || m.type || "NONE").toUpperCase();
@@ -2782,7 +2998,7 @@ function App() {
     }
     return checkMatch(mod);
   });
-  const visibleMods = filteredMods.slice(0, 100);
+  const visibleMods = filteredMods;
   if (!isConfigured) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-[var(--bg)] font-sans relative overflow-hidden">
@@ -3136,7 +3352,7 @@ function App() {
             </ErrorBoundary>
           )}
           {view === "MasonHub" &&
-            ["mason", "wayfinder", "admin"].includes(userRole) && <MasonHub sandboxMod={activeSandboxMod} clearSandboxMod={() => setActiveSandboxMod(null)} />}
+            ["mason", "wayfinder", "admin"].includes(userRole) && <MasonHub sandboxMod={activeSandboxMod} clearSandboxMod={() => setActiveSandboxMod(null)} vaultPath={vaultPath} />}
           {view === "ArchitectHub" &&
             ["architect", "wayfinder", "admin"].includes(userRole) && (
               <ErrorBoundary moduleName="Architect Hub">
@@ -3170,6 +3386,7 @@ function App() {
         </div>
       </main>
       {activeDossier && (
+        <ErrorBoundary moduleName="ModDossier">
         <ModDossier
           mod={activeDossier}
           modList={modList}
@@ -3246,6 +3463,7 @@ function App() {
             }
           }}
         />
+        </ErrorBoundary>
       )}
       <BlueprintArchitect
         isOpen={isBlueprintModalOpen}

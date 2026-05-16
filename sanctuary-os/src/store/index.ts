@@ -31,8 +31,8 @@ interface GlobalState {
   setShelterContents: (list: string[]) => void;
   shelterActive: boolean;
   setShelterActive: (active: boolean) => void;
-  backupList: string[];
-  setBackupList: (list: string[]) => void;
+  backupList: any[];
+  setBackupList: (list: any[]) => void;
   anarchyRules: { highlander: boolean, family: boolean, dependencies: boolean, intercept: boolean };
   setAnarchyRules: (rules: any) => void;
   ownedDLC: string[];
@@ -53,6 +53,8 @@ interface GlobalState {
   setShowDefconAlert: (show: boolean) => void;
   backupProgress: any;
   setBackupProgress: (progress: any) => void;
+  hideIneligible: boolean;
+  setHideIneligible: (hide: boolean) => void;
 }
 
 export const useStore = create<GlobalState>((set) => ({
@@ -94,7 +96,7 @@ export const useStore = create<GlobalState>((set) => ({
   setOwnedDLC: (ownedDLC) => set({ ownedDLC }),
   maskedDLC: [],
   setMaskedDLC: (maskedDLC) => set({ maskedDLC }),
-  selectedVersion: '1.123.66',
+  selectedVersion: '',
   setSelectedVersion: (selectedVersion) => set({ selectedVersion }),
   networkUpdates: { broken: [], obsolete: [], updated: [] },
   setNetworkUpdates: (networkUpdates) => set({ networkUpdates }),
@@ -107,5 +109,7 @@ export const useStore = create<GlobalState>((set) => ({
   showDefconAlert: false,
   setShowDefconAlert: (showDefconAlert) => set({ showDefconAlert }),
   backupProgress: null,
-  setBackupProgress: (backupProgress) => set({ backupProgress })
+  setBackupProgress: (backupProgress) => set({ backupProgress }),
+  hideIneligible: false,
+  setHideIneligible: (hideIneligible) => set({ hideIneligible })
 }));

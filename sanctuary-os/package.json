@@ -1,7 +1,7 @@
 {
   "name": "sanctuary-os",
   "private": true,
-  "version": "0.1.11",
+  "version": "0.1.20",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "@supabase/supabase-js": "^2.103.3",
     "@tailwindcss/postcss": "^4.2.4",
     "@tauri-apps/api": "^2",
