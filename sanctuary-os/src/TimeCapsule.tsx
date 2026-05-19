@@ -17,7 +17,7 @@ export default function TimeCapsule({
         <div className="flex gap-4 items-center ml-auto shrink-0">
           <div className="flex flex-col bg-black/10 border border-white/5 rounded-2xl px-4 py-2 min-w-[160px] justify-center items-center">
             <span className="text-[7px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest leading-none mb-1">{t("backups_target_patch")}</span>
-            <span className="text-[10px] font-black text-[var(--text)] tracking-widest uppercase">{selectedVersion || "Latest"} Detected</span>
+            <span className="text-[10px] font-black text-[var(--text)] tracking-widest uppercase">{selectedVersion || "Latest"} {t("timecapsule_detected")}</span>
           </div>
           
           <button 
@@ -102,7 +102,7 @@ export default function TimeCapsule({
           })
         ) : (
           <div className="col-span-full flex items-center justify-center h-48 bg-white/5 backdrop-blur-md border border-white/10 rounded-[2.5rem] shadow-xl">
-            <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60">No Backups Found</span>
+            <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60">{t("timecapsule_no_backups")}</span>
           </div>
         )}
       </div>

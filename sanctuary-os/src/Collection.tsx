@@ -860,17 +860,17 @@ export default function Collection(props: any) {
                                               <div className="flex items-center gap-2 mb-3 shrink-0">
                                                 <div className="flex flex-col">
                                                   <span className="text-[10px] font-black theme-text-danger uppercase tracking-widest">
-                                                    MISSING DEPENDENCIES
+                                                    {t("collection_missing_deps")}
                                                   </span>
                                                   <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-tighter">
-                                                    PROCEED WITH CAUTION
+                                                    {t("collection_proceed_caution")}
                                                   </span>
                                                 </div>
                                               </div>
                                               <div className="flex-1 flex flex-col gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1 mb-4">
                                                 {hasMissingDeps ? (
                                                   <>
-                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">Missing Artifacts:</p>
+                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("collection_missing_artifacts")}</p>
                                                     {flavor.missingReqs.map((req: any) => {
                                                       const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
                                                       const reqUrl = typeof req === 'string' ? null : req.url;
@@ -891,7 +891,7 @@ export default function Collection(props: any) {
                                                   </>
                                                 ) : (
                                                   <>
-                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">Missing DLC Packs:</p>
+                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("collection_missing_dlc")}</p>
                                                     {missingPacks.map((p: string) => (
                                                       <div key={p} className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex items-center gap-2 mb-1">
                                                         {p}

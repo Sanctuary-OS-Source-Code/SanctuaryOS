@@ -3106,12 +3106,12 @@ function App() {
             icon={t("ui_icon_playsets")}
             label={t("playsets_title")}
           />
-          <NavButton
-            active={view === "global_feed"}
-            onClick={() => setView("global_feed")}
-            icon={"📡"}
-            label={"COMM-LINK"}
-          />
+            <NavButton
+              active={view === "global_feed"}
+              onClick={() => setView("global_feed")}
+              icon={t("ui_icon_broadcast")}
+              label={t("sidebar_commlink")}
+            />
           <NavButton
             active={view === "DbpfScout"}
             onClick={() => setView("DbpfScout")}
@@ -3164,8 +3164,8 @@ function App() {
               <NavButton
                 active={view === "SeniorArchitect"}
                 onClick={() => setView("SeniorArchitect")}
-                icon={"👁️"}
-                label={"Oversight"}
+                icon={t("ui_icon_eye")}
+                label={t("sidebar_oversight")}
               />
             </div>
           )}
@@ -3176,8 +3176,8 @@ function App() {
                   localStorage.setItem("sanctuary_show_login", "true");
                   window.location.reload();
                 }}
-                icon={"🔑"}
-                label={"SIGN IN / SIGN UP"}
+                icon={t("ui_icon_key")}
+                label={t("sidebar_signin")}
               />
             </div>
           )}
@@ -3192,8 +3192,8 @@ function App() {
           <NavButton
             active={false}
             onClick={() => openUrl("https://discord.gg/kTJb9q3GDW")}
-            icon={"💬"}
-            label={"Discord"}
+            icon={t("ui_icon_chat")}
+            label={t("sidebar_discord")}
           />
           <button
             onClick={handleQuickLaunch}

@@ -222,9 +222,9 @@ export const DbpfScout = () => {
                 value={scanScope}
                 onChange={setScanScope}
                 options={[
-                  { id: "vault", label: "Entire Vault" },
-                  { id: "active", label: "Equipped Only" },
-                  ...playSets.map((s: any) => ({ id: s.name, label: `Blueprint: ${s.name}` }))
+                  { id: "vault", label: t("scout_scope_vault") },
+                  { id: "active", label: t("scout_scope_active") },
+                  ...playSets.map((s: any) => ({ id: s.name, label: `${t("scout_scope_blueprint")}: ${s.name}` }))
                 ]}
               />
 
@@ -278,7 +278,7 @@ export const DbpfScout = () => {
                   <div key={c.mod_pair} className="theme-panel-danger border p-8 rounded-[2rem] space-y-6 animate-in slide-in-from-bottom-4 shadow-xl">
                     {c.is_ghost && (
                       <div className="px-5 py-3 theme-panel-warning border rounded-xl text-[11px] font-black tracking-wide flex items-center gap-3">
-                        <span className="text-lg">👻</span> LOGICAL CLASH: {c.resolution_note}
+                        <span className="text-lg">👻</span> {t("scout_logical_clash")} {c.resolution_note}
                       </div>
                     )}
                     <div className="flex flex-col md:flex-row items-stretch gap-4">
@@ -314,12 +314,12 @@ export const DbpfScout = () => {
                     <div key={c.mod_pair} className="theme-panel-warning p-8 rounded-[2rem] transition-all shadow-lg border" style={{ color: "var(--text)" }}>
                       {c.is_ghost && (
                         <div className="mb-6 px-5 py-3 theme-panel-accent border rounded-xl text-[11px] font-black tracking-wide flex items-center gap-3">
-                          <span className="text-lg">💡</span> ADVICE: {c.resolution_note}
+                          <span className="text-lg">💡</span> {t("scout_advice")} {c.resolution_note}
                         </div>
                       )}
                       
                       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                        <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-80" style={{ color: "var(--text)" }}>Signature Conflict</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-80" style={{ color: "var(--text)" }}>{t("scout_signature_conflict")}</span>
                         <div className="flex w-full md:w-auto gap-3">
                           <button onClick={() => ignoreConflict(c.mod_pair)} className="flex-1 md:flex-none px-6 py-2.5 theme-btn-standard text-[10px] font-black tracking-widest rounded-xl px-6 py-2.5 transition-all">{t("radar_tier3_ignore")}</button>
                           <button onClick={() => setResolvingScript(isResolving ? null : c.mod_pair)} className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${isResolving ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.4)]' : 'theme-btn-standard border'}`}>{isResolving ? t("radar_tier3_cancel") : t("radar_tier3_resolve")}</button>
@@ -338,7 +338,7 @@ export const DbpfScout = () => {
                         </div>
                       ) : (
                         <div className="theme-panel-success border p-8 rounded-2xl animate-in zoom-in-95 mt-4">
-                          <p className="text-center text-[11px] font-black theme-text-success uppercase tracking-widest mb-6">Select the Artifact to Lead the Load Order</p>
+                          <p className="text-center text-[11px] font-black theme-text-success uppercase tracking-widest mb-6">{t("scout_select_artifact")}</p>
                           <div className="flex flex-col md:flex-row gap-4">
                             <button onClick={() => applyOverride(c.modA, c.mod_pair)} className="flex-1 p-5 theme-glass-inner !shadow-none theme-border-success border theme-text-success font-bold rounded-xl theme-btn-success transition-all truncate group flex items-center justify-center gap-3">
                               <span className="text-xl group-hover:scale-125 transition-transform">👑</span> {formatDisplayName(c.modA)}
@@ -360,13 +360,13 @@ export const DbpfScout = () => {
             <section className="theme-panel-danger border p-10 rounded-[2.5rem] shadow-xl space-y-8" style={{ color: "var(--text)" }}>
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b theme-border-accent pb-6">
                 <div className="flex flex-col gap-1">
-                  <h2 className="text-2xl font-black theme-text-danger uppercase tracking-tighter italic flex items-center gap-3"><span className="text-3xl">{t("ui_icon_dna")}</span> Duplicate Clones</h2>
-                  <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest ml-11">Identical asset signatures. Purge redundant files.</p>
+                  <h2 className="text-2xl font-black theme-text-danger uppercase tracking-tighter italic flex items-center gap-3"><span className="text-3xl">{t("ui_icon_dna")}</span> {t("scout_duplicate_clones")}</h2>
+                  <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest ml-11">{t("scout_identical_assets")}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => targetPattern(/nonhq/i)} className="px-5 py-2.5 theme-btn-standard text-[10px] font-black tracking-widest rounded-xl">+ TARGET NON-HQ</button>
-                  <button onClick={() => targetPattern(/hq/i)} className="px-5 py-2.5 theme-btn-standard text-[10px] font-black tracking-widest rounded-xl">+ TARGET HQ</button>
-                  <button onClick={() => setSelectedForVault([])} className="px-5 py-2.5 theme-btn-standard text-[10px] font-black tracking-widest rounded-xl px-6 py-2.5 transition-all">CLEAR SELECTION</button>
+                  <button onClick={() => targetPattern(/nonhq/i)} className="px-5 py-2.5 theme-btn-standard text-[10px] font-black tracking-widest rounded-xl">{t("scout_btn_target_nonhq")}</button>
+                  <button onClick={() => targetPattern(/hq/i)} className="px-5 py-2.5 theme-btn-standard text-[10px] font-black tracking-widest rounded-xl">{t("scout_btn_target_hq")}</button>
+                  <button onClick={() => setSelectedForVault([])} className="px-5 py-2.5 theme-btn-standard text-[10px] font-black tracking-widest rounded-xl px-6 py-2.5 transition-all">{t("scout_btn_clear_selection")}</button>
                 </div>
               </div>
 
@@ -374,12 +374,12 @@ export const DbpfScout = () => {
                 <div className="animate-in slide-in-from-top-2">
                   {!confirmMassVault ? (
                     <button onClick={() => setConfirmMassVault(true)} className="w-full py-6 theme-bg-danger text-[var(--text)] text-sm tracking-widest font-black rounded-2xl shadow-xl hover:opacity-90 hover:scale-[1.01] transition-all flex items-center justify-center gap-3">
-                      <span className="text-2xl">🔥</span> SECURE {selectedForVault.length} TARGETS IN QUARANTINE
+                      <span className="text-2xl">🔥</span> {t("scout_secure_quarantine").replace("{count}", String(selectedForVault.length))}
                     </button>
                   ) : (
                     <div className="flex flex-col md:flex-row gap-4 p-4 theme-panel-danger border rounded-2xl">
-                      <button onClick={executeMassVault} className="flex-1 py-4 theme-bg-success text-[var(--bg)] text-xs tracking-widest font-black rounded-xl hover:opacity-90 transition-colors shadow-lg">CONFIRM PURGE</button>
-                      <button onClick={() => setConfirmMassVault(false)} className="flex-1 py-4 theme-glass-inner !shadow-none text-gray-300 text-xs tracking-widest font-black rounded-xl border border-white/10 hover:text-[var(--text)] transition-colors">CANCEL</button>
+                      <button onClick={executeMassVault} className="flex-1 py-4 theme-bg-success text-[var(--bg)] text-xs tracking-widest font-black rounded-xl hover:opacity-90 transition-colors shadow-lg">{t("scout_confirm_purge")}</button>
+                      <button onClick={() => setConfirmMassVault(false)} className="flex-1 py-4 theme-glass-inner !shadow-none text-gray-300 text-xs tracking-widest font-black rounded-xl border border-white/10 hover:text-[var(--text)] transition-colors">{t("ui_btn_cancel")}</button>
                     </div>
                   )}
                 </div>
@@ -406,9 +406,9 @@ export const DbpfScout = () => {
               <summary className="flex justify-between items-center list-none outline-none">
                 <div className="flex flex-col gap-1">
                   <h3 className="text-sm font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest group-open:text-[var(--text)] transition-colors flex items-center gap-3">
-                    <span className="text-xl">ℹ️</span> Minor Overlaps ({softConflicts.length})
+                    <span className="text-xl">ℹ️</span> {t("scout_minor_overlaps").replace("{count}", String(softConflicts.length))}
                   </h3>
-                  <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest ml-9">Usually safe textures or low-impact overrides</p>
+                  <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest ml-9">{t("scout_safe_textures")}</p>
                 </div>
                 <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[var(--subtext)] opacity-60 group-open:rotate-180 transition-transform shrink-0">
                   ▼
@@ -423,7 +423,7 @@ export const DbpfScout = () => {
                       <span className="truncate flex-1 text-left">{c.modB.split('/').pop()}</span>
                     </div>
                     <button onClick={(e) => { e.preventDefault(); ignoreConflict(c.mod_pair); }} className="shrink-0 px-4 py-2 theme-glass-inner !shadow-none text-[9px] font-black text-[var(--subtext)] opacity-60 rounded-lg border border-white/10 hover:text-[var(--text)] hover:border-white/30 transition-all">
-                      IGNORE
+                      {t("scout_btn_ignore")}
                     </button>
                   </div>
                 ))}
@@ -463,7 +463,7 @@ export const DbpfScout = () => {
         <div className="theme-panel-danger border p-8 rounded-3xl flex items-start gap-4">
           <span className="text-3xl">⚠️</span>
           <div>
-            <h3 className="theme-text-danger font-black uppercase tracking-widest mb-1 text-sm">Radar Malfunction</h3>
+            <h3 className="theme-text-danger font-black uppercase tracking-widest mb-1 text-sm">{t("scout_radar_malfunction")}</h3>
             <p className="theme-text-danger opacity-80 font-mono text-xs">{error}</p>
           </div>
         </div>

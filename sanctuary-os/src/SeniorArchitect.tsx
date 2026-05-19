@@ -32,8 +32,8 @@ export default function SeniorArchitect() {
         <TabButton id="identities" label={t("sa_tab_identities") || "Identity Matrix"} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="linker" label={t("sa_tab_linker") || "Mason Linker"} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="compliance" label={t("sa_tab_compliance") || "Compliance"} activeTab={activeTab} setTab={setActiveTab} />
-        <TabButton id="mass_update" label="Mass Update" activeTab={activeTab} setTab={setActiveTab} />
-        <TabButton id="game_versions" label="Game Versions" activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="mass_update" label={t("sa_tab_mass_update")} activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="game_versions" label={t("sa_tab_game_versions")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="audit_logs" label={t("sa_tab_audit") || "Audit Logs"} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="defcon" label={t("sa_tab_defcon") || "DEFCON Override"} activeTab={activeTab} setTab={setActiveTab} />
       </div>
@@ -67,7 +67,7 @@ function DefconPanel() {
 
   const triggerDefcon = async () => {
     const newLevel = defconLevel === 1 ? 5 : 1;
-    const msg = newLevel === 1 ? 'Emergency Patch Detected' : 'System Normal';
+    const msg = newLevel === 1 ? t("sa_defcon_msg_emergency") : t("sa_defcon_msg_normal");
     
     setDefconLevel(newLevel);
     
@@ -241,7 +241,7 @@ function IdentityMatrix() {
                  <div className="flex flex-col">
                    <p className={`text-sm font-black uppercase truncate flex items-center gap-2 ${p.role === 'blacklisted' ? 'text-red-500' : 'text-[var(--text)]'}`}>
                      {p.role === 'blacklisted' && <span className="animate-pulse">⚠️</span>}
-                     {p.username || 'UNKNOWN'}
+                     {p.username || t("sa_identities_unknown")}
                    </p>
                    <p className="text-[10px] font-bold uppercase opacity-60 mt-1">ID: {p.id.substring(0,8)}</p>
                  </div>
@@ -328,8 +328,8 @@ function MasonLinker() {
                <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-2">
                  {filteredProles.map(p => (
                     <div key={p.id} onClick={() => setSelectedProle(p)} className={`p-4 rounded-xl cursor-pointer border transition-all flex flex-col gap-1 ${selectedProle?.id === p.id ? 'theme-bg-accent text-black border-transparent shadow-lg scale-[1.02]' : 'bg-white/5 border-white/5 hover:bg-white/10 text-[var(--text)]'}`}>
-                       <p className="text-sm font-black uppercase truncate">{p.username || 'UNKNOWN'}</p>
-                       <p className="text-[10px] font-bold uppercase opacity-60">ROLE: {p.role || 'CITIZEN'}</p>
+                       <p className="text-sm font-black uppercase truncate">{p.username || t("sa_identities_unknown")}</p>
+                       <p className="text-[10px] font-bold uppercase opacity-60">{t("sa_identities_role_label")} {p.role || t("sa_identities_role_citizen")}</p>
                     </div>
                  ))}
                </div>
@@ -446,10 +446,10 @@ function ComplianceOversight() {
 
   const getTierDetails = (tier: number) => {
     switch(tier) {
-      case 1: return { label: 'NSFW (18+)', color: 'theme-text-warning', bg: 'theme-bg-warning' };
-      case 2: return { label: 'EXPLICIT', color: 'theme-text-danger', bg: 'theme-bg-danger' };
-      case 3: return { label: 'MALWARE', color: 'text-red-600', bg: 'bg-red-600' };
-      default: return { label: 'CLEAN', color: 'theme-text-success', bg: 'theme-bg-success' };
+      case 1: return { label: t("sa_rating_nsfw"), color: 'theme-text-warning', bg: 'theme-bg-warning' };
+      case 2: return { label: t("sa_rating_explicit"), color: 'theme-text-danger', bg: 'theme-bg-danger' };
+      case 3: return { label: t("sa_rating_malware"), color: 'text-red-600', bg: 'bg-red-600' };
+      default: return { label: t("sa_rating_clean"), color: 'theme-text-success', bg: 'theme-bg-success' };
     }
   };
 

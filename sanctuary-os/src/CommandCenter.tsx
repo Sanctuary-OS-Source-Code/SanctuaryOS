@@ -35,25 +35,25 @@ export default function CommandCenter({
           <div className="flex items-center gap-4 mb-4">
             <span className="w-10 h-10 rounded-full theme-bg-warning text-[var(--bg)] flex items-center justify-center font-black text-xl shadow-[0_0_15px_rgba(var(--warning-rgb),0.5)] animate-pulse">!</span>
             <div>
-              <h3 className="text-xl font-black uppercase text-[var(--warning)] tracking-widest">Citizen Action Suggested</h3>
-              <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80">Attention required for active blueprint parameters</p>
+              <h3 className="text-xl font-black uppercase text-[var(--warning)] tracking-widest">{t("cmd_action_suggested")}</h3>
+              <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80">{t("cmd_attention_required")}</p>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
             <div onClick={() => { if(setView) setView("playsets"); }} className={`cursor-pointer bg-black/40 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center gap-2 ${activeBrokenCount > 0 ? 'hover:border-red-500/50 transition-colors' : 'opacity-30'}`}>
               <span className="text-2xl opacity-80 theme-text-danger">{t("ui_icon_broken") || "⚠️"}</span>
               <span className="text-xl font-black text-[var(--text)]">{activeBrokenCount}</span>
-              <span className="text-[9px] uppercase font-bold text-[var(--subtext)] tracking-widest text-center">Incompatible / Broken</span>
+              <span className="text-[9px] uppercase font-bold text-[var(--subtext)] tracking-widest text-center">{t("cmd_incompatible_broken")}</span>
             </div>
             <div onClick={() => setShowUpdatesModal(true)} className={`cursor-pointer bg-black/40 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center gap-2 ${(networkUpdates?.updated?.length || 0) > 0 ? 'hover:theme-border-warning transition-colors' : 'opacity-30'}`}>
               <span className="text-2xl opacity-80 theme-text-warning">{t("ui_icon_refresh") || "🔄"}</span>
               <span className="text-xl font-black text-[var(--text)]">{networkUpdates?.updated?.length || 0}</span>
-              <span className="text-[9px] uppercase font-bold text-[var(--subtext)] tracking-widest text-center">Updates Available</span>
+              <span className="text-[9px] uppercase font-bold text-[var(--subtext)] tracking-widest text-center">{t("cmd_updates_available")}</span>
             </div>
             <div onClick={() => { if(setView) setView("playsets"); }} className="cursor-pointer bg-black/40 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:theme-border-info transition-colors">
               <span className="text-2xl theme-text-info">{t("ui_icon_conflict") || "⚔️"}</span>
-              <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest text-center mt-2">Scan Now</span>
-              <span className="text-[9px] uppercase font-bold text-[var(--subtext)] tracking-widest text-center">Load Order Conflicts</span>
+              <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest text-center mt-2">{t("cmd_scan_now")}</span>
+              <span className="text-[9px] uppercase font-bold text-[var(--subtext)] tracking-widest text-center">{t("cmd_load_order_conflicts")}</span>
             </div>
           </div>
         </div>
@@ -75,7 +75,7 @@ export default function CommandCenter({
       {showUpdatesModal && (
         <div className="fixed inset-0 z-[9999] bg-[var(--bg)]/40 backdrop-blur-2xl flex items-center justify-center p-8 animate-in fade-in duration-300">
           <div className="theme-glass-panel border-2 theme-border-warning p-8 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col gap-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-2xl font-black uppercase tracking-widest flex items-center gap-3"><span className="text-3xl">{t("ui_icon_refresh") || "🔄"}</span> UPDATES AVAILABLE</h2>
+            <h2 className="text-2xl font-black uppercase tracking-widest flex items-center gap-3"><span className="text-3xl">{t("ui_icon_refresh") || "🔄"}</span> {t("cmd_updates_modal_title")}</h2>
             <div className="bg-black/20 p-4 rounded-xl max-h-[40vh] overflow-y-auto custom-scrollbar flex flex-col gap-2">
               {networkUpdates?.updated && networkUpdates.updated.length > 0 ? networkUpdates.updated.map((update: any) => (
                   <div key={update.hash || update.name} className="theme-glass-inner p-4 rounded-xl flex items-center justify-between border border-white/5">
@@ -89,7 +89,7 @@ export default function CommandCenter({
               )}
             </div>
             <div className="flex justify-end gap-4 mt-4">
-              <button onClick={() => setShowUpdatesModal(false)} className="px-8 h-12 theme-btn-standard text-[var(--text)] font-black text-xs tracking-widest rounded-2xl transition-colors">CLOSE</button>
+              <button onClick={() => setShowUpdatesModal(false)} className="px-8 h-12 theme-btn-standard text-[var(--text)] font-black text-xs tracking-widest rounded-2xl transition-colors">{t("ui_btn_close")}</button>
             </div>
           </div>
         </div>

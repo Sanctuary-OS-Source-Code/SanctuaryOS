@@ -56,17 +56,17 @@ export function AppModals(props: any) {
               </div>
               <div className="flex flex-col gap-2 pt-2">
                 <h2 className="text-4xl font-black uppercase tracking-tighter text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)] leading-none">
-                  CRITICAL: MALWARE DETECTED
+                  {t("malware_alert_title")}
                 </h2>
                 <p className="text-xs font-bold uppercase tracking-widest text-red-400 opacity-80">
-                  Sanctuary OS has quarantined dangerous artifacts.
+                  {t("malware_alert_subtitle")}
                 </p>
               </div>
             </div>
 
             <div className="relative z-10 bg-black/40 p-6 rounded-2xl border border-red-500/20 max-h-[30vh] overflow-y-auto custom-scrollbar flex flex-col gap-3">
               <p className="text-sm font-medium text-[var(--text)]/80 leading-relaxed">
-                Known malware signatures have been detected on your local system. To protect your files and ensure systemic integrity, the OS requires an immediate <strong>SECURE SHRED</strong>. This action will permanently overwrite the malicious data multiple times, making it unrecoverable by specialized software.
+                {t("malware_alert_description")}
               </p>
               
               <div className="flex flex-col gap-2 mt-4">
@@ -74,13 +74,13 @@ export function AppModals(props: any) {
                   <div key={m.hash} className="flex items-center justify-between p-4 bg-red-950/30 rounded-xl border border-red-500/30">
                     <div className="flex flex-col truncate pr-4">
                       <span className="text-sm font-black text-red-400 truncate uppercase">{m.displayName || m.name}</span>
-                      <span className="text-[9px] font-mono opacity-60 truncate">Hash: {m.hash}</span>
+                      <span className="text-[9px] font-mono opacity-60 truncate">{t("malware_alert_hash_label")} {m.hash}</span>
                     </div>
                     <button 
                       onClick={() => handleSecureShred(m)} 
                       className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.6)] hover:scale-105 active:scale-95 shrink-0"
                     >
-                      SECURE SHRED
+                      {t("malware_alert_btn_shred")}
                     </button>
                   </div>
                 ))}
@@ -89,7 +89,7 @@ export function AppModals(props: any) {
             
             <div className="relative z-10 flex justify-center mt-4">
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500/50 animate-pulse">
-                ACTION REQUIRED TO PROCEED
+                {t("malware_alert_action_required")}
               </span>
             </div>
           </div>

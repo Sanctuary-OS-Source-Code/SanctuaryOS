@@ -63,16 +63,16 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-6 shrink-0 relative z-50">
           <div>
             <h2 className="text-2xl font-black uppercase text-[var(--text)] tracking-tighter flex items-center gap-3">
-              <span className="text-3xl grayscale">📁</span> Structure Builder
+              <span className="text-3xl grayscale">📁</span> {t("structure_title")}
             </h2>
             <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] mt-1">
-              Visual File & Folder Deployment
+              {t("structure_subtitle")}
             </p>
           </div>
           
           <div className="w-full md:w-96 theme-glass-inner p-2 rounded-2xl flex flex-col gap-2">
             <ModSearchDropdown 
-              placeholder="Select Artifact to Manage..."
+              placeholder={t("structure_select_artifact")}
               selectedItem={targetMod}
               onSelect={(mod: any) => setTargetMod(mod)}
               onClear={() => setTargetMod(null)}

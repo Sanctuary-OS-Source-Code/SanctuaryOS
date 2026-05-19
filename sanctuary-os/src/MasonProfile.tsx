@@ -4,13 +4,14 @@ import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 
 function CustomCategoryDropdown({ value, onChange }: any) {
+  const { t } = useLexicon();
   const [isOpen, setIsOpen] = useState(false);
   const options = [
-    { id: "ALL", label: "All Classes", icon: "📁" },
-    { id: "Script", label: "Script", icon: "📜" },
-    { id: "BuildBuy", label: "Build/Buy", icon: "🛋️" },
-    { id: "CAS", label: "CAS", icon: "👕" },
-    { id: "Animation", label: "Animation", icon: "🎬" }
+    { id: "ALL", label: t("profile_all_classes"), icon: t("ui_icon_folder") },
+    { id: "Script", label: t("profile_script"), icon: t("ui_icon_scroll") },
+    { id: "BuildBuy", label: t("profile_buildbuy"), icon: t("ui_icon_couch") },
+    { id: "CAS", label: t("profile_cas"), icon: t("ui_icon_shirt") },
+    { id: "Animation", label: t("profile_animation"), icon: t("ui_icon_clapper") }
   ];
   const selected = options.find(o => o.id === value) || options[0];
 
@@ -106,8 +107,8 @@ export default function MasonProfile({ masonId, initialPostId, onModClick }: { m
     }
   };
 
-  if (loading) return <div className="p-12 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">Accessing Profile...</div>;
-  if (!mason) return <div className="p-12 text-center text-[var(--subtext)] opacity-60 font-black tracking-widest uppercase">Mason not found.</div>;
+  if (loading) return <div className="p-12 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">{t("profile_accessing")}</div>;
+  if (!mason) return <div className="p-12 text-center text-[var(--subtext)] opacity-60 font-black tracking-widest uppercase">{t("profile_not_found")}</div>;
 
   const filteredMods = mods.filter(m => {
      if (modCategory !== "ALL" && m.category_override !== modCategory) return false;

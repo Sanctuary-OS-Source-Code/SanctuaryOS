@@ -51,12 +51,12 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath }: { s
       <div className="flex flex-wrap theme-glass-inner p-1.5 rounded-2xl w-fit mb-2">
         <TabButton id="registry" label={t("mason_tab_registry")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="cc_sets" label={t("mason_tab_cc")} activeTab={activeTab} setTab={setActiveTab} />
-        <TabButton id="protocols" label="Protocols" activeTab={activeTab} setTab={setActiveTab} />
-        <TabButton id="structure" label="Structures" activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="protocols" label={t("masonhub_protocols_tab")} activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="structure" label={t("masonhub_structures_tab")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="posts" label={t("mason_tab_posts")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="sandbox" label={t("mason_tab_sandbox")} activeTab={activeTab} setTab={setActiveTab} />
-        <TabButton id="ide" label="Solder IDE" activeTab={activeTab} setTab={setActiveTab} />
-        <TabButton id="settings" label="Settings" activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="ide" label={t("masonhub_ide_tab")} activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="settings" label={t("masonhub_settings_tab")} activeTab={activeTab} setTab={setActiveTab} />
       </div>
 
       <div className="w-full pr-4">
@@ -217,8 +217,8 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
                 </div>
                 <div className="flex-1 theme-glass-inner rounded-2xl p-3 overflow-y-auto custom-scrollbar flex flex-col gap-2">
                   {members.map(mem => (
-                    <div key={mem.id} className="flex justify-between items-center bg-white/5 border border-white/5 p-3 rounded-xl hover:border-white/20 transition-all group">
-                      <span className="text-[10px] font-bold text-[var(--text)] uppercase truncate flex-1 pr-2">{mem.mods?.name || "Unknown"}</span>
+                     <div key={mem.id} className="flex justify-between items-center bg-white/5 border border-white/5 p-3 rounded-xl hover:border-white/20 transition-all group">
+                      <span className="text-[10px] font-bold text-[var(--text)] uppercase truncate flex-1 pr-2">{mem.mods?.name || t("masonhub_unknown_mod")}</span>
                       <button onClick={() => handleRemoveMod(mem.id)} className="px-3 py-1.5 theme-panel-danger theme-text-danger rounded-lg text-[9px] font-black uppercase transition-all hover:opacity-80 opacity-0 group-hover:opacity-100">{t("mason_cc_btn_remove")}</button>
                     </div>
                   ))}
@@ -391,8 +391,8 @@ function MasonRegistry({ masonId }: { masonId: string }) {
               </div>
               
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">Sub Classification</label>
-                <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} placeholder="e.g. Trait, Career, Bed" className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono focus:outline-none focus:theme-border-accent" />
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_sub_classification")}</label>
+                <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} placeholder={t("masonhub_sub_classification_placeholder")} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono focus:outline-none focus:theme-border-accent" />
               </div>
               
               <div className="flex flex-col gap-2">
@@ -449,10 +449,10 @@ function MasonRegistry({ masonId }: { masonId: string }) {
                          <div className="flex flex-col gap-2 flex-1 overflow-y-auto custom-scrollbar max-h-32">
                            {linked.length > 0 ? linked.map(l => (
                              <div key={l.id} className="flex justify-between items-center bg-white/5 px-3 py-2 rounded-xl border border-white/5">
-                                <span className="text-[10px] font-bold text-[var(--text)] truncate">{cloudMods.find(c => c.id === l.id)?.name || "Unknown"}</span>
+                                <span className="text-[10px] font-bold text-[var(--text)] truncate">{cloudMods.find(c => c.id === l.id)?.name || t("masonhub_unknown_mod")}</span>
                                 <button onClick={() => handleRemoveProtocol(l.id, mode)} className="theme-text-danger hover:opacity-80 text-[10px] font-black">✕</button>
                              </div>
-                           )) : <span className="text-[10px] text-gray-600 font-bold tracking-widest uppercase p-2 text-center">None Linked</span>}
+                           )) : <span className="text-[10px] text-gray-600 font-bold tracking-widest uppercase p-2 text-center">{t("masonhub_none_linked")}</span>}
                          </div>
                       </div>
                     );
@@ -575,10 +575,10 @@ function MasonPostsEditor({ masonId }: { masonId: string }) {
         <div className="theme-glass-panel border border-white/10 rounded-2xl p-6 shadow-inner shrink-0">
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <input required value={title} onChange={e => setTitle(e.target.value)} placeholder={t("mason_post_title")} className="theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent" />
-            <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Header Image URL (Optional)" className="theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent" />
+            <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("masonhub_header_image_placeholder")} className="theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent" />
             <textarea required value={content} onChange={e => setContent(e.target.value)} placeholder={t("mason_post_content")} className="theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-xs font-mono h-40 resize-none focus:outline-none focus:theme-border-accent" />
             <button type="submit" disabled={isSubmitting} className="w-full py-3 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:scale-105 transition-all disabled:opacity-50">
-              {editingPostId ? "UPDATE TRANSMISSION" : t("mason_btn_post")}
+              {editingPostId ? t("masonhub_update_transmission") : t("mason_btn_post")}
             </button>
           </form>
         </div>
@@ -618,6 +618,7 @@ function MasonPostsEditor({ masonId }: { masonId: string }) {
 }
 
 function MasonSettings({ profile, onUpdate }: { profile: any, onUpdate: (p: any) => void }) {
+  const { t } = useLexicon();
   const [formData, setFormData] = useState({
     name: profile.name || "",
     bio: profile.bio || "",
@@ -674,7 +675,7 @@ function MasonSettings({ profile, onUpdate }: { profile: any, onUpdate: (p: any)
        </div>
        
        <button onClick={handleSave} disabled={isSaving} className="mt-4 w-full py-4 rounded-xl theme-bg-accent text-[var(--bg)] font-black text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg">
-         {isSaving ? "Saving..." : "Save Configuration"}
+         {isSaving ? t("masonhub_saving_settings") : t("masonhub_save_configuration")}
        </button>
     </div>
   );

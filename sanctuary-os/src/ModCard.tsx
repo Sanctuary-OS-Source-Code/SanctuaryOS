@@ -100,7 +100,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
                 {confirmMode === 'dlc' ? (isGameVersionMismatch ? t("vault_unsupported_version") : hasMissingDeps ? t("modcard_missing_artifacts") : t("modcard_missing_dlc")) : confirmMode === 'casualty' ? t("modcard_yeet_cascade") : confirmMode === 'broken' ? t("modcard_broken_artifacts") : t("modcard_tier3_conflict")}
               </span>
               <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-tighter">
-                {confirmMode === 'dlc' ? "Protocol Override Required" : confirmMode === 'casualty' ? t("modcard_override_exclusive") : confirmMode === 'broken' ? t("modcard_review_before") : t("modcard_manual_resolution")}
+                {confirmMode === 'dlc' ? t("modcard_protocol_override") : confirmMode === 'casualty' ? t("modcard_override_exclusive") : confirmMode === 'broken' ? t("modcard_review_before") : t("modcard_manual_resolution")}
               </span>
             </div>
           </div>
@@ -110,7 +110,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
               <>
                 {isGameVersionMismatch && (
                   <>
-                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">REQUIRED PATCH(ES):</p>
+                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_required_patches")}</p>
                     <div className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex items-center gap-2 mb-2 shrink-0">
                       {getHighestVersion(requiredVersions || [])}
                     </div>
@@ -168,7 +168,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
               </>
             ) : (
               <>
-                <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">Conflicts with:</p>
+                <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_conflicts_with")}</p>
                 {tier3List.map((c: any) => (
                   <div key={c.name || c} className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold text-[var(--text)]/80 truncate flex flex-col items-start gap-0.5 shrink-0">
                     <span className="flex items-center gap-2">{formatDisplayName(c.name || c)}</span>
@@ -237,19 +237,19 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
           <div className="absolute top-full left-0 mt-2 hidden group-hover/badge:flex flex-col gap-2 bg-black/90 backdrop-blur-xl border border-white/10 px-4 py-3 rounded-2xl shadow-2xl z-[80] w-max animate-in fade-in slide-in-from-top-2 pointer-events-none">
             <div className="flex flex-col">
                <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-60 tracking-[0.2em]">{t("dossier_revision")}</span>
-               <span className="text-[10px] font-mono font-black text-[var(--text)] uppercase">{mod.latest_version || mod.version || "UNKNOWN"}</span>
+               <span className="text-[10px] font-mono font-black text-[var(--text)] uppercase">{mod.latest_version || mod.version || t("modcard_unknown")}</span>
             </div>
             <div className="flex flex-col">
                <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-60 tracking-[0.2em]">{t("dossier_label_game_version")}</span>
-               <span className="text-[9px] font-black text-[var(--text)] uppercase">{mod.compatible_versions && mod.compatible_versions.length > 0 ? getHighestVersion(mod.compatible_versions) : "ALL"}</span>
+               <span className="text-[9px] font-black text-[var(--text)] uppercase">{mod.compatible_versions && mod.compatible_versions.length > 0 ? getHighestVersion(mod.compatible_versions) : t("modcard_all")}</span>
             </div>
             <div className="flex flex-col">
                <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-60 tracking-[0.2em]">{t("dossier_label_last_updated")}</span>
-               <span className="text-[9px] font-black text-[var(--text)] uppercase">{mod.updated_at ? new Date(mod.updated_at).toLocaleDateString() : "UNKNOWN"}</span>
+               <span className="text-[9px] font-black text-[var(--text)] uppercase">{mod.updated_at ? new Date(mod.updated_at).toLocaleDateString() : t("modcard_unknown")}</span>
             </div>
             {mod.status_reason && (
                <div className="flex flex-col mt-1 pt-2 border-t border-white/10">
-                 <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-60 tracking-[0.2em]">DIRECTIVE NOTE</span>
+                 <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-60 tracking-[0.2em]">{t("modcard_directive_note")}</span>
                  <span className="text-[9px] font-black theme-text-danger uppercase max-w-[150px] whitespace-normal leading-tight">{mod.status_reason}</span>
                </div>
             )}
@@ -296,7 +296,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
               <svg className="w-3 h-3 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
               </svg>
-              <span>{mod.flavors?.length || 0} ITEMS</span>
+              <span>{mod.flavors?.length || 0} {t("modcard_items")}</span>
               <svg className={`w-2 h-2 ml-1 opacity-60 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>

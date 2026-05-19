@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 
-export const deriveHumanReadableVersion = (path: string | undefined | null, fallbackHash: string | undefined | null) => {
-    if (!path) return fallbackHash ? `v.DNA-${fallbackHash.substring(0, 7).toUpperCase()}` : "v.Unknown";
+export const deriveHumanReadableVersion = (path: string | undefined | null, fallbackHash: string | undefined | null, t?: (key: string) => string) => {
+    if (!path) return fallbackHash ? `v.DNA-${fallbackHash.substring(0, 7).toUpperCase()}` : (t?.("shared_version_unknown") || "v.Unknown");
     
     const tsMatch = path.match(/[/\\]v\.(\d{10})[/\\]/i) || path.match(/^v\.(\d{10})$/i) || path.match(/[/\\]v\.(\d{10})$/i);
     let extractedVersion = "";
@@ -64,8 +64,8 @@ export interface ModData {
   mtime?: number;
 }
 
-export const formatDisplayName = (name: string) => {
-  if (!name) return "Unknown Artifact";
+export const formatDisplayName = (name: string, t?: (key: string) => string) => {
+  if (!name) return t?.("shared_unknown_artifact") || "Unknown Artifact";
   const match = String(name).match(/\.(package|ts4script)$/i);
   let baseName = String(name).replace(/\.(package|ts4script)$/i, "").replace(/_/g, " ");
   if (match) {
@@ -285,8 +285,17 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
   }, []);
 
   const toggleVersion = (v: string) => {
-    if (selectedVersions.includes(v)) onChange(selectedVersions.filter(ver => ver !== v));
-    else onChange([...selectedVersions, v]);
+    console.log('toggleVersion called with:', v);
+    console.log('Current selectedVersions:', selectedVersions);
+    if (selectedVersions.includes(v)) {
+      const newVersions = selectedVersions.filter(ver => ver !== v);
+      console.log('Removing version, new array:', newVersions);
+      onChange(newVersions);
+    } else {
+      const newVersions = [...selectedVersions, v];
+      console.log('Adding version, new array:', newVersions);
+      onChange(newVersions);
+    }
   };
 
   const filtered = versions.filter(v => v.version && v.version.includes(query)).slice(0, 10);
@@ -297,31 +306,57 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
     <div className="relative w-full" ref={containerRef}>
       <div className="flex flex-wrap gap-1 mb-2">
         {selectedVersions.map(v => (
-          <span key={v} className="px-2 py-1 bg-white/10 rounded-lg text-[9px] font-mono flex items-center gap-1">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300">?</button></span>
+          <span key={v} className="px-2 py-1 bg-white/10 rounded-lg text-[9px] font-mono flex items-center gap-1">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300">✕</button></span>
         ))}
       </div>
-      <input placeholder="Search versions..." value={query} onChange={e => { setQuery(e.target.value); setIsOpen(true); }} onFocus={() => setIsOpen(true)} className="w-full bg-transparent border-b border-white/20 text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none focus:border-white transition-all placeholder:opacity-30 pb-1" />
+      <input 
+        placeholder="Search versions..." 
+        value={query} 
+        onChange={e => { setQuery(e.target.value); setIsOpen(true); }} 
+        onFocus={() => setIsOpen(true)}
+        onBlur={(e) => {
+          // Delay closing to allow button clicks to register
+          setTimeout(() => setIsOpen(false), 200);
+        }}
+        className="w-full bg-transparent border-b border-white/20 text-center text-[10px] font-mono text-[var(--text)] uppercase focus:outline-none focus:border-white transition-all placeholder:opacity-30 pb-1" 
+      />
       {isOpen && createPortal(
-        <>
-          <div className="fixed inset-0 z-[9998]" onClick={() => setIsOpen(false)} />
-          <div className="fixed mt-1 bg-[var(--sidebar)] border border-white/10 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] z-[9999] max-h-48 overflow-y-auto custom-scrollbar" style={{
-            top: containerRef.current?.getBoundingClientRect().bottom,
-            left: containerRef.current?.getBoundingClientRect().left,
-            width: containerRef.current?.getBoundingClientRect().width,
-          }}>
-            {filtered.map(v => (
-              <button key={v.version} type="button" onClick={() => { toggleVersion(v.version); setQuery(""); }} className="w-full text-left px-4 py-2 hover:bg-white/10 text-[10px] font-mono flex justify-between">
-                <span>{v.version}</span>
-                {selectedVersions.includes(v.version) && <span className="text-emerald-400">?</span>}
-              </button>
-            ))}
-            {query && !versions.some(v => v.version === query) && (
-              <button type="button" onClick={() => { toggleVersion(query); setQuery(""); }} className="w-full text-left px-4 py-2 hover:bg-white/10 text-[10px] font-mono text-emerald-400">
-                + Add "{query}"
-              </button>
-            )}
-          </div>
-        </>,
+        <div className="fixed mt-1 bg-[var(--sidebar)] border border-white/10 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] z-[99999] max-h-48 overflow-y-auto custom-scrollbar" style={{
+          top: containerRef.current?.getBoundingClientRect().bottom,
+          left: containerRef.current?.getBoundingClientRect().left,
+          width: containerRef.current?.getBoundingClientRect().width,
+        }}>
+          {filtered.map(v => (
+            <button 
+              key={v.version} 
+              type="button" 
+              onClick={() => { 
+                console.log('Version clicked:', v.version);
+                toggleVersion(v.version); 
+                setQuery(""); 
+                setIsOpen(false);
+              }} 
+              className="w-full text-left px-4 py-2 hover:bg-white/10 text-[10px] font-mono flex justify-between cursor-pointer"
+            >
+              <span>{v.version}</span>
+              {selectedVersions.includes(v.version) && <span className="text-emerald-400">✓</span>}
+            </button>
+          ))}
+          {query && !versions.some(v => v.version === query) && (
+            <button 
+              type="button" 
+              onClick={() => { 
+                console.log('Custom version added:', query);
+                toggleVersion(query); 
+                setQuery(""); 
+                setIsOpen(false);
+              }} 
+              className="w-full text-left px-4 py-2 hover:bg-white/10 text-[10px] font-mono text-emerald-400 cursor-pointer"
+            >
+              + Add "{query}"
+            </button>
+          )}
+        </div>,
         document.body
       )}
     </div>

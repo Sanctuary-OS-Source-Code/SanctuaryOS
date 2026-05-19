@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import { ViewHeader, GameVersionMultiSelect, CustomDropdown, formatDisplayName } from "./shared";
 import ProtocolVisualizer from "./ProtocolVisualizer";
 import ModStructureBuilder from "./ModStructureBuilder";
+import StructureVisualizer from "./StructureVisualizer";
 import { useLexicon } from "./LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -24,11 +25,12 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList }: { user
       <ViewHeader title={t("hub_title")} subtitle={t("hub_subtitle")} />
 
       <div className="flex flex-wrap theme-glass-inner p-1.5 rounded-2xl w-fit mb-2">
-        <TabButton id="command_center" label="Command Screen" activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="command_center" label={t("hub_tab_command_screen")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="registry" label={t("hub_tab_registry")} activeTab={activeTab} setTab={setActiveTab} />
-        <TabButton id="protocols" label="Protocol Orchestrator" activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="protocols" label={t("hub_tab_protocols")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="cc_registry" label={t("hub_tab_cc_assets")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="cc_sets" label={t("hub_tab_cc_sets")} activeTab={activeTab} setTab={setActiveTab} />
+        <TabButton id="structure" label={t("hub_tab_structure")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="queue" label={t("hub_tab_queue")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="matrix" label={t("hub_tab_matrix")} activeTab={activeTab} setTab={setActiveTab} />
         <TabButton id="lab" label={t("hub_tab_lab")} activeTab={activeTab} setTab={setActiveTab} />
@@ -40,6 +42,7 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList }: { user
         {activeTab === "protocols" && <ProtocolVisualizer isArchitect={true} />}
         {activeTab === "cc_registry" && <CCRegistry />}
         {activeTab === "cc_sets" && <CCSetForge />}
+        {activeTab === "structure" && <StructureVisualizer isArchitect={true} />}
         {activeTab === "queue" && <ScoutQueue modList={modList || []} />}
         {activeTab === "lab" && <ProvingGrounds modList={modList || []} />}
         {activeTab === "matrix" && <ConflictMatrix />}
@@ -658,7 +661,7 @@ function CustomMasonDropdown({ value, options, onChange }: { value: string, opti
             ))}
             {filtered.length === 0 && (
               <div className="w-full text-center px-5 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-                No Masons Found
+                {t("dropdown_no_masons")}
               </div>
             )}
           </div>
@@ -1822,7 +1825,7 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
                 <div className="flex flex-col gap-6 h-full">
                   {testPassed ? (
                     <div className="flex flex-col items-center justify-center p-8 bg-green-500/10 border border-green-500/20 rounded-2xl gap-4">
-                      <span className="text-4xl text-green-500">✓</span>
+                      <span className="text-4xl text-green-500">{t("emote_checkmark")}</span>
                       <h3 className="text-xl font-black text-green-500 uppercase tracking-widest">Simulation Passed</h3>
                       <p className="text-[10px] text-green-500/80 uppercase tracking-widest">No exceptions were caught during the test run.</p>
                     </div>
@@ -2331,9 +2334,9 @@ function CommandCenter({ onNavigate }: any = {}) {
                      <span className="text-[9px] font-mono theme-text-accent">{msg.sender_id?.substring(0,8)}</span>
                      <div className="flex gap-2 items-center">
                        {currentUserId === msg.sender_id && (
-                          <div className="flex gap-2 mr-2">
-                            <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[10px] hover:theme-text-accent transition-colors hover:scale-110">✏️</button>
-                            <button onClick={() => deleteComm(msg.id)} className="text-[10px] hover:theme-text-danger transition-colors hover:scale-110">✕</button>
+                           <div className="flex gap-2 mr-2">
+                            <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[10px] hover:theme-text-accent transition-colors hover:scale-110">{t("emote_edit")}</button>
+                            <button onClick={() => deleteComm(msg.id)} className="text-[10px] hover:theme-text-danger transition-colors hover:scale-110">{t("emote_close")}</button>
                           </div>
                        )}
                        <span className="text-[9px] font-mono text-gray-400">{new Date(msg.created_at).toLocaleTimeString()}</span>

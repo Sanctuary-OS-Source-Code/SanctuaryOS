@@ -137,7 +137,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                     <div className="flex items-center gap-3">
                       <span className="text-xl opacity-80 theme-text-accent">{t("ui_icon_mason")}</span>
                       <div className="flex flex-col">
-                        <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-60">Architect</span>
+                        <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-60">{t("feed_label_architect")}</span>
                         <span 
                           onClick={(e) => { e.stopPropagation(); onOpenMasonProfile?.(p.mason_id); }} 
                           className="text-xs font-black text-[var(--text)] uppercase tracking-widest hover:underline hover:theme-text-accent transition-all cursor-pointer"

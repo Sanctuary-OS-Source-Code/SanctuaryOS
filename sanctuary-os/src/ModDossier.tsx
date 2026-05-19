@@ -341,7 +341,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em] text-center">{t("dossier_architect")}</p>
                   <div className="flex items-center justify-center px-2 h-10 theme-glass-inner rounded-xl w-full">
                     {editMode ? (
-                      <input value={metaInputs.author} onChange={e => setMetaInputs.author(e.target.value)} className="w-full bg-transparent border-none text-center text-[10px] font-black text-[var(--text)] uppercase focus:outline-none placeholder:opacity-30" placeholder="Author Name..." />
+                      <input value={metaInputs.author} onChange={e => setMetaInputs.author(e.target.value)} className="w-full bg-transparent border-none text-center text-[10px] font-black text-[var(--text)] uppercase focus:outline-none placeholder:opacity-30" placeholder={t("dossier_author_placeholder")} />
                     ) : (
                       <button
                         onClick={() => { if (mod.mason_id && onOpenMasonProfile) { onOpenMasonProfile(mod.mason_id); onClose(); } }}
@@ -413,7 +413,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       <GameVersionMultiSelect selectedVersions={localCompatibleVersions || []} onChange={v => setLocalCompatibleVersions(v)} />
                     ) : (
                       <span className="text-[10px] font-mono text-[var(--text)] uppercase tracking-widest truncate" title={Array.isArray(mod.compatible_versions) ? mod.compatible_versions.join(", ") : mod.compatible_versions}>
-                        {Array.isArray(mod.compatible_versions) ? (mod.compatible_versions.length > 0 ? mod.compatible_versions[0] + (mod.compatible_versions.length > 1 ? " +" : "") : "ANY") : (mod.compatible_versions || "ANY")}
+                        {Array.isArray(mod.compatible_versions) ? (mod.compatible_versions.length > 0 ? mod.compatible_versions[0] + (mod.compatible_versions.length > 1 ? " +" : "") : t("dossier_any")) : (mod.compatible_versions || t("dossier_any"))}
                       </span>
                     )}
                   </div>
@@ -442,7 +442,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       <input value={localCategory || ""} onChange={e => setLocalCategory(e.target.value)} className="w-full bg-transparent border-none text-center text-[10px] font-black text-[var(--text)] uppercase focus:outline-none placeholder:opacity-30" placeholder={mod.type || "FILE"} />
                     ) : (
                       <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] truncate">
-                        {isCCSet ? t("dossier_cc_set") : mod.isFlavorFolder ? t("dossier_exclusive") : (mod.isParent ? t("dossier_folder") : (mod.category_override || mod.type || "UNCATEGORIZED"))}
+                        {isCCSet ? t("dossier_cc_set") : mod.isFlavorFolder ? t("dossier_exclusive") : (mod.isParent ? t("dossier_folder") : (mod.category_override || mod.type || t("dossier_uncategorized")))}
                       </span>
                     )}
                   </div>
@@ -451,7 +451,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
               <div className="flex justify-end mb-4 relative z-10">
                 {editMode ? (
-                  <input value={metaInputs.url} onChange={e => setMetaInputs.url(e.target.value)} className="px-5 py-3 theme-glass-panel rounded-xl text-[10px] font-black text-[var(--text)] focus:outline-none focus:theme-border-accent w-full max-w-lg shadow-xl" placeholder="External URL..." />
+                  <input value={metaInputs.url} onChange={e => setMetaInputs.url(e.target.value)} className="px-5 py-3 theme-glass-panel rounded-xl text-[10px] font-black text-[var(--text)] focus:outline-none focus:theme-border-accent w-full max-w-lg shadow-xl" placeholder={t("dossier_external_url_placeholder")} />
                 ) : (
                   <a href={mod.url || `https://www.google.com/search?q=${encodeURIComponent(mod.displayName || (mod.name || '').split('/').pop() || "")}`} target="_blank" rel="noopener noreferrer" className="px-8 py-3 theme-bg-accent text-[var(--bg)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-3">
                     {mod.url ? t("dossier_btn_download") : t("dossier_btn_search_web")} <span className="text-sm">{mod.url ? t("ui_icon_import") : t("ui_icon_search")}</span>
@@ -463,7 +463,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
               <div className="flex flex-col gap-4">
                 <p className="text-[9px] font-black theme-text-accent uppercase tracking-[0.3em] opacity-40 px-1">{t("dossier_log_manifest")}</p>
                 {editMode ? (
-                  <textarea value={metaInputs.desc} onChange={e => setMetaInputs.desc(e.target.value)} className="text-sm text-[var(--text)] font-mono bg-black/40 p-8 rounded-[2rem] border border-white/10 shadow-inner h-40 resize-none focus:outline-none focus:theme-border-accent" placeholder="Local Description..." />
+                  <textarea value={metaInputs.desc} onChange={e => setMetaInputs.desc(e.target.value)} className="text-sm text-[var(--text)] font-mono bg-black/40 p-8 rounded-[2rem] border border-white/10 shadow-inner h-40 resize-none focus:outline-none focus:theme-border-accent" placeholder={t("dossier_local_desc_placeholder")} />
                 ) : (
                   <div className="text-sm text-[var(--subtext)] opacity-80 leading-relaxed font-medium bg-black/40 p-8 rounded-[2rem] border border-white/5 shadow-inner min-h-[100px]">
                     {mod.description || t("dossier_no_desc_manifest")}
@@ -516,7 +516,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
               {(requirements.length > 0 || twins.length > 0 || conflicts.length > 0) && (
                 <div className="flex flex-col gap-6">
-                  <h3 className="text-[10px] font-black theme-text-warning uppercase tracking-[0.2em] px-1">Network Protocols</h3>
+                  <h3 className="text-[10px] font-black theme-text-warning uppercase tracking-[0.2em] px-1">{t("dossier_network_protocols")}</h3>
                   <div className="space-y-3">
                     {requirements.map((req: any, i: number) => {
                       const reqId = typeof req === 'string' ? req : req.id || req.dbId;
@@ -528,7 +528,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                               <div className="w-1.5 h-1.5 rounded-full theme-bg-danger" style={{ boxShadow: '0 0 8px var(--danger)' }} />
                               <span className="text-xs font-bold text-[var(--text)] uppercase tracking-tight">{displayName}</span>
                           </div>
-                          <span className="text-[8px] font-black theme-text-danger uppercase tracking-widest opacity-60">Requirement: Essential</span>
+                          <span className="text-[8px] font-black theme-text-danger uppercase tracking-widest opacity-60">{t("dossier_requirement_essential")}</span>
                         </div>
                       );
                     })}
@@ -542,7 +542,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                               <div className="w-1.5 h-1.5 rounded-full theme-bg-accent" style={{ boxShadow: '0 0 8px var(--accent)' }} />
                               <span className="text-xs font-bold text-[var(--text)] uppercase tracking-tight">{displayName}</span>
                           </div>
-                          <span className="text-[8px] font-black theme-text-accent uppercase tracking-widest opacity-60">Identity Twin: Logic Split</span>
+                          <span className="text-[8px] font-black theme-text-accent uppercase tracking-widest opacity-60">{t("dossier_identity_twin")}</span>
                         </div>
                       );
                     })}
@@ -598,7 +598,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
           >
             <button onClick={() => setShowFlagModal(false)} className="absolute top-6 right-6 z-50 w-10 h-10 bg-black/40 backdrop-blur-md hover:theme-bg-danger text-white/70 hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-white/10">{t("ui_icon_close")}</button>
             <div className="h-40 relative bg-black border-b border-white/10 shrink-0">
-              <img src={mod.image_url || mod.imageUrl || 'https://forums.ea.com/t5/s/tghpe58374/images/bS0xMzI3ODY1MS1RNkFpREk?revision=1&image-dimensions=2000x2000&constrain-image=true'} className="w-full h-full object-cover opacity-80 grayscale mix-blend-luminosity" alt="Flag Content" />
+              <img src={mod.image_url || mod.imageUrl || 'https://forums.ea.com/t5/s/tghpe58374/images/bS0xMzI3ODY1MS1RNkFpREk?revision=1&image-dimensions=2000x2000&constrain-image=true'} className="w-full h-full object-cover opacity-80 grayscale mix-blend-luminosity" alt={t("dossier_flag_content_alt")} />
               <div className="absolute inset-0 bg-gradient-to-t from-red-900/40 to-black/20" />
             </div>
             

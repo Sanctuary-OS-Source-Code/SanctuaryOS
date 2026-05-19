@@ -86,28 +86,35 @@ export const HotSwapPanel = () => {
         </div>
       </section>
 
-      <section className="pt-10 border-t space-y-6" style={{ borderColor: `${currentTheme.text}10` }}>
-        <div className="flex justify-between items-center px-1">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-80">{t("settings_lexicon_protocol")}</p>
-            <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">Persona Registry</h2>
-          </div>
-          <button onClick={handleImportLexicon} className="px-6 py-3 text-xs font-black rounded-xl border transition-all" style={{ backgroundColor: `${currentTheme.accent}15`, borderColor: `${currentTheme.accent}30`, color: currentTheme.accent }}>{t("settings_btn_import_persona")}</button>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {['en-sanctuary', 'en-default'].map(langId => (
-            <div key={langId} onClick={() => setActiveLang(langId)} className={`theme-glass-inner p-5 rounded-2xl border transition-all cursor-pointer ${activeLang === langId ? 'theme-border-accent shadow-xl' : 'border-white/5 hover:border-white/20'}`}>
-              <p className="text-[10px] font-black uppercase truncate" style={{ color: activeLang === langId ? currentTheme.text : currentTheme.subtext }}>{langId === 'en-sanctuary' ? 'Sanctuary OS' : 'Standard Manager'}</p>
-            </div>
-          ))}
-          {Object.entries(registry || {}).map(([code, _dict]: any) => (
-            <div key={code} onClick={() => setActiveLang(code)} className={`theme-glass-inner p-5 rounded-2xl border transition-all cursor-pointer relative group ${activeLang === code ? 'theme-border-accent shadow-xl' : 'border-white/5 hover:border-white/20'}`}>
-              <p className="text-[10px] font-black uppercase truncate" style={{ color: activeLang === code ? currentTheme.text : currentTheme.subtext }}>{code}</p>
-              <button onClick={(e) => { e.stopPropagation(); deleteLexicon(code); }} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 theme-text-danger transition-opacity">{t("ui_icon_trash")}</button>
-            </div>
-          ))}
-        </div>
-      </section>
+<section className="pt-10 border-t space-y-6" style={{ borderColor: `${currentTheme.text}10` }}>
+  <div className="flex justify-between items-center px-1">
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-80">{t("settings_lexicon_protocol")}</p>
+      <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_persona_registry")}</h2>
+    </div>
+    <button onClick={handleImportLexicon} className="px-6 py-3 text-xs font-black rounded-xl border transition-all" style={{ backgroundColor: `${currentTheme.accent}15`, borderColor: `${currentTheme.accent}30`, color: currentTheme.accent }}>{t("settings_btn_import_persona")}</button>
+  </div>
+
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    {/* 1. Added 'de-default' to the array below */}
+    {['en-sanctuary', 'en-default', 'de-default'].map(langId => (
+      <div key={langId} onClick={() => setActiveLang(langId)} className={`theme-glass-inner p-5 rounded-2xl border transition-all cursor-pointer ${activeLang === langId ? 'theme-border-accent shadow-xl' : 'border-white/5 hover:border-white/20'}`}>
+        <p className="text-[10px] font-black uppercase truncate" style={{ color: activeLang === langId ? currentTheme.text : currentTheme.subtext }}>
+          {/* 2. Added a conditional label check for German below */}
+          {langId === 'en-sanctuary' ? 'Sanctuary OS' : langId === 'en-default' ? 'Standard Manager' : 'German Standard'}
+        </p>
+      </div>
+    ))}
+
+    {Object.entries(registry || {}).map(([code, _dict]: any) => (
+      <div key={code} onClick={() => setActiveLang(code)} className={`theme-glass-inner p-5 rounded-2xl border transition-all cursor-pointer relative group ${activeLang === code ? 'theme-border-accent shadow-xl' : 'border-white/5 hover:border-white/20'}`}>
+        <p className="text-[10px] font-black uppercase truncate" style={{ color: activeLang === code ? currentTheme.text : currentTheme.subtext }}>{code}</p>
+        <button onClick={(e) => { e.stopPropagation(); deleteLexicon(code); }} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 theme-text-danger transition-opacity">{t("ui_icon_trash")}</button>
+      </div>
+    ))}
+  </div>
+</section>
+
     </div>
   );
 };
@@ -233,7 +240,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
             await supabase.auth.signOut();
             window.location.reload();
           }} className="px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md border bg-white/5 hover:bg-white/10 hover:text-[var(--text)] text-[var(--subtext)] border-white/10 shrink-0 flex items-center gap-2">
-            {t("ui_icon_logout")} LOG OUT
+            {t("ui_icon_logout")} {t("settings_btn_logout")}
           </button>
       </ViewHeader>
 
@@ -251,7 +258,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
               if (detected.vault_path) updateConfig('vault_path', detected.vault_path);
             } catch (err) { alert(err); }
           }} className="px-6 py-3 text-xs font-black rounded-xl border transition-all" style={{ backgroundColor: `${currentTheme.accent}15`, borderColor: `${currentTheme.accent}30`, color: currentTheme.accent }}>
-            <span className="text-sm mr-2">{t("ui_icon_radar")}</span> AUTO-DETECT
+            <span className="text-sm mr-2">{t("ui_icon_radar")}</span> {t("settings_auto_detect")}
           </button>
         </div>
         <div className="grid gap-6">
@@ -265,7 +272,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
                     readOnly value={dir.value || ""} 
                     style={{ paddingLeft: isHovered ? '4.5rem' : '1.25rem' }}
                     className={`w-full py-5 pr-32 rounded-2xl border theme-glass-inner font-mono text-xs shadow-inner transition-all duration-500 pointer-events-none ${isHovered ? 'theme-border-accent' : 'border-white/10'}`} 
-                    placeholder="NOT SET" 
+                    placeholder={t("settings_path_not_set")}
                   />
                   <div className="absolute right-4 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all duration-300" style={{ backgroundColor: `${currentTheme.accent}20`, color: currentTheme.accent }}>{t("modal_btn_rename")}</div>
                   <div className="absolute left-[-2.5rem] text-xl opacity-0 group-hover:opacity-100 group-hover:left-5 transition-all duration-500">{dir.icon}</div>
@@ -277,16 +284,16 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       </section>
 
       <section className="space-y-6">
-        <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">Mod Updates</h2>
+        <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--text)]">{t("settings_mod_updates")}</h2>
         <div className="group">
-          <label className="block text-[9px] font-black uppercase tracking-widest mb-2 ml-1 text-[var(--subtext)] opacity-60 transition-colors">Update Behavior</label>
+          <label className="block text-[9px] font-black uppercase tracking-widest mb-2 ml-1 text-[var(--subtext)] opacity-60 transition-colors">{t("settings_update_behavior")}</label>
           <CustomSettingsDropdown 
             value={config.engine_agency_level || 1} 
             onChange={(val: any) => updateConfig('engine_agency_level', val)}
             options={[
-              { id: 1, label: "Auto Replace on Update" },
-              { id: 2, label: "Prompt Me First" },
-              { id: 3, label: "Keep All Versions" }
+              { id: 1, label: t("settings_auto_replace") },
+              { id: 2, label: t("settings_prompt_first") },
+              { id: 3, label: t("settings_keep_all_versions") }
             ]} 
           />
         </div>

@@ -25,10 +25,59 @@ pub struct SolderConfig {
     pub world_retention_cycles: Option<u32>,
 }
 
+#[derive(serde::Deserialize, Debug)]
+pub struct StructureNode {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub node_type: String,
+    #[serde(rename = "assignedModName")]
+    pub assigned_mod_name: Option<String>,
+    pub children: Option<Vec<StructureNode>>,
+}
+
+fn process_structure_nodes(nodes: &[StructureNode], current_target_dir: &std::path::Path, vault_mods_lane: &std::path::Path, folders_to_check: &[&str]) {
+    for node in nodes {
+        if node.node_type == "folder" {
+            let next_target_dir = current_target_dir.join(&node.name);
+            let _ = std::fs::create_dir_all(&next_target_dir);
+            if let Some(children) = &node.children {
+                process_structure_nodes(children, &next_target_dir, vault_mods_lane, folders_to_check);
+            }
+        } else if node.node_type == "file" {
+            if let Some(mod_name) = &node.assigned_mod_name {
+                let mut source = vault_mods_lane.join(mod_name);
+                let mut found = false;
+                for f in folders_to_check {
+                    let base_test = if f.is_empty() { vault_mods_lane.join(mod_name) } else { vault_mods_lane.join(f).join(mod_name) };
+                    if base_test.exists() { source = base_test; found = true; break; }
+                    else if base_test.with_extension("package").exists() { source = base_test.with_extension("package"); found = true; break; }
+                    else if base_test.with_extension("ts4script").exists() { source = base_test.with_extension("ts4script"); found = true; break; }
+                }
+                if found {
+                    let mut final_name = node.name.clone();
+                    if final_name == "*.package" {
+                        final_name = source.file_name().unwrap_or_default().to_string_lossy().into_owned();
+                    }
+                    let target_path = current_target_dir.join(final_name);
+                    if source.is_dir() {
+                        let _ = deploy_junction(&source, &target_path);
+                    } else {
+                        let _ = create_symlink_file(&source, &target_path)
+                            .or_else(|_| std::fs::hard_link(&source, &target_path))
+                            .or_else(|_| std::fs::copy(&source, &target_path).map(|_| ()));
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[derive(serde::Deserialize)]
 pub struct DeployMod {
     pub path: String,
     pub allow_write: bool,
+    pub folder_structure: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -421,6 +470,14 @@ async fn deploy_playset_bulk(
 
         let mut count = 0;
         for m in mods {
+            if let Some(structure_val) = &m.folder_structure {
+                if let Ok(nodes) = serde_json::from_value::<Vec<StructureNode>>(structure_val.clone()) {
+                    let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
+                    process_structure_nodes(&nodes, &mods_dir, &vault_mods_lane, &folders_to_check);
+                    continue;
+                }
+            }
+
             let mut source = vault_mods_lane.join(&m.path);
             let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
             let mut found = false;
@@ -1787,6 +1844,7 @@ async fn repopulate_from_shelter() -> Result<String, String> {
         .map(|name| DeployMod {
             path: name,
             allow_write: false,
+            folder_structure: None,
         })
         .collect();
 
@@ -2646,7 +2704,9 @@ fn main() {
             purge_vault_artifacts,
             initialize_airgap_watch,
             mark_explicitly_local,
-            move_mod_to_priority_folder
+            move_mod_to_priority_folder,
+            update_mod_game_version,
+            update_mod_history_entry
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -2665,4 +2725,20 @@ fn delete_local_file(path: String) -> Result<String, String> {
     } else {
         Err("File not found".into())
     }
+}
+
+#[tauri::command]
+async fn update_mod_game_version(mod_id: String, game_version: String) -> Result<(), String> {
+    // Update game version in Supabase
+    // This is a placeholder - implement your actual Supabase update logic here
+    println!("Updating mod {} to game version {}", mod_id, game_version);
+    Ok(())
+}
+
+#[tauri::command]
+async fn update_mod_history_entry(history_id: String, label: String, game_version: String) -> Result<(), String> {
+    // Update mod version history entry in Supabase
+    // This is a placeholder - implement your actual Supabase update logic here
+    println!("Updating history entry {} with label: {}, game_version: {}", history_id, label, game_version);
+    Ok(())
 }

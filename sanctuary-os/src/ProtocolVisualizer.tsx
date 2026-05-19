@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { ModSearchDropdown, DLC_MAP, formatDisplayName, CustomDropdown, GameVersionMultiSelect } from "./shared";
+import ModLineageTree from "./ModLineageTree";
 
 const DLC_MASTER_LIST = Object.entries(DLC_MAP).map(([code, name]) => ({ id: code, name }));
 
@@ -39,10 +41,27 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
   // Selection Modal
   const [showLinkModal, setShowLinkModal] = useState<{type: string, title: string} | null>(null);
   const [modalSearch, setModalSearch] = useState("");
+  const [allModsForDependencies, setAllModsForDependencies] = useState<any[]>([]);
+  const [showFlavorGroupModal, setShowFlavorGroupModal] = useState(false);
+  const [newFlavorGroupName, setNewFlavorGroupName] = useState('');
 
   const fetchData = async () => {
-    const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author, image_url, status, mason_id, requiredDLC, latest_version, sub_type').order('name'));
-    if (data) setCloudMods(data);
+    let modsQuery = supabase.from('mods').select('*');
+    
+    // Only apply filter if not an architect
+    if (!isArchitect && masonId) {
+      modsQuery = modsQuery.eq('mason_id', masonId);
+    }
+    
+    // Wrap in lambda for TypeScript compatibility
+    const { data } = await fetchAllPaginated(() => modsQuery.order('name'));
+    console.log("Supabase Raw Return (isArchitect=" + isArchitect + "):", data);
+    if (data && data.length > 0) {
+      setCloudMods(data);
+    } else {
+      console.warn("No mods returned from database");
+      setCloudMods([]);
+    }
     
     const { data: groups } = await supabase.from('flavor_groups').select('*').order('name');
     if (groups) setAllFlavorGroups(groups);
@@ -53,7 +72,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
 
   useEffect(() => {
     fetchData();
-  }, [masonId, isArchitect]);
+  }, [isArchitect]);
 
   const loadLinks = async () => {
     if (!targetMod) {
@@ -152,11 +171,19 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
   };
 
   const handleCreateFlavorGroup = async () => {
-    const name = prompt("Enter new Flavor Group Name:");
-    if (!name) return;
-    const { data } = await supabase.from('flavor_groups').insert({ name }).select().single();
+    if (!newFlavorGroupName.trim()) return;
+    
+    const { data, error } = await supabase.from('flavor_groups').insert({ name: newFlavorGroupName.trim() }).select().single();
+    
+    if (error) {
+      alert(`Failed to create flavor group: ${error.message}`);
+      return;
+    }
+    
     if (data) {
       setAllFlavorGroups([...allFlavorGroups, data]);
+      setShowFlavorGroupModal(false);
+      setNewFlavorGroupName('');
       handleJoinFlavorGroup(data.id);
     }
   };
@@ -188,16 +215,23 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
           <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-wider mt-1">{desc}</p>
         </div>
         <button 
-          onClick={() => setShowLinkModal({ type, title: `Link ${title}` })}
+          onClick={async () => {
+            // For dependencies, fetch ALL mods (unfiltered)
+            if (type === 'dependency') {
+              const { data } = await supabase.from('mods').select('id, name, master_author, latest_version, sub_type').order('name');
+              if (data) setAllModsForDependencies(data);
+            }
+            setShowLinkModal({ type, title: `Link ${title}` });
+          }}
           className="theme-bg-accent text-[var(--bg)] px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:scale-105 transition-all"
         >
-          + Add Link
+          {t("pv_btn_add_link")}
         </button>
       </div>
 
       <div className="flex flex-col gap-2">
         {items.length === 0 ? (
-          <div className="py-6 text-center text-[10px] font-black uppercase tracking-widest opacity-30">No links established</div>
+          <div className="py-6 text-center text-[10px] font-black uppercase tracking-widest opacity-30">{t("pv_no_links")}</div>
         ) : items.map(item => (
           <div key={item.id} className="flex justify-between items-center bg-[var(--text)]/5 border border-[var(--text)]/10 rounded-xl p-3">
             <div className="flex items-center gap-4">
@@ -212,7 +246,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
               </div>
             </div>
             <button onClick={() => handleRemoveLink(item.id, type)} className="theme-panel-danger theme-text-danger px-4 py-1.5 rounded-lg text-[9px] font-black uppercase">
-              Remove
+              {t("pv_btn_remove")}
             </button>
           </div>
         ))}
@@ -227,20 +261,20 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-[var(--text)]/10 pb-6 shrink-0">
         <div>
           <h2 className="text-2xl font-black uppercase text-[var(--text)] tracking-tighter flex items-center gap-3">
-            {t("ui_icon_dna")} Protocol Ochestrator
+            {t("ui_icon_dna")} {t("pv_title")}
           </h2>
           <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-[0.2em] mt-1">
-            Build folders, set versions, and manage dependencies easily
+            {t("pv_subtitle")}
           </p>
         </div>
         
         <div className="w-full md:w-96 theme-glass-inner p-2 rounded-2xl flex flex-col gap-2 z-10 relative">
           <ModSearchDropdown 
-            placeholder="Select Artifact to Manage..."
+            placeholder={t("pv_placeholder_select")}
             selectedItem={targetMod}
             onSelect={(mod: any) => setTargetMod(mod)}
             onClear={() => setTargetMod(null)}
-            modList={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)} 
+            modList={cloudMods} 
           />
         </div>
       </div>
@@ -248,8 +282,8 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
       {!targetMod ? (
          <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center">
            <span className="text-6xl mb-4 grayscale">{t("ui_icon_dna")}</span>
-           <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.3em]">SELECT AN ARTIFACT</span>
-           <p className="text-[10px] mt-2 font-bold max-w-md">Select an artifact from the dropdown to visually construct its folders and dependencies.</p>
+           <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.3em]">{t("pv_empty_title")}</span>
+           <p className="text-[10px] mt-2 font-bold max-w-md">{t("pv_empty_desc")}</p>
          </div>
       ) : (
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6 pr-2">
@@ -263,63 +297,26 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
               <span className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
                  {targetMod.sub_type || 'Package'}
               </span>
-              
-              <div className="flex flex-col gap-2 mt-2 border-t border-[var(--text)]/10 pt-2">
-                 <h3 className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest">Version Releases</h3>
-                 {targetVersions.length === 0 ? (
-                    <span className="text-[10px] font-bold text-red-500 uppercase">No version hashes synced to this artifact.</span>
-                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {targetVersions.map(v => (
-                         <div key={v.dna_hash} className="flex flex-col gap-1 bg-black/20 p-2 rounded-xl border border-[var(--text)]/10">
-                            <span className="text-[8px] font-bold uppercase text-[var(--subtext)] break-all opacity-50">{v.dna_hash}</span>
-                            <div className="flex gap-2 items-center">
-                              <span className="text-[9px] font-black uppercase w-8">Ver:</span>
-                              <input 
-                                value={v.version_label || ""} 
-                                onChange={e => {
-                                  const newVers = [...targetVersions];
-                                  const idx = newVers.findIndex(tv => tv.dna_hash === v.dna_hash);
-                                  if (idx !== -1) newVers[idx].version_label = e.target.value;
-                                  setTargetVersions(newVers);
-                                }}
-                                onBlur={e => handleSetVersionData(v.dna_hash, 'version_label', e.target.value)}
-                                className="bg-black/20 border border-[var(--text)]/20 rounded px-2 py-1 text-[10px] w-full text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-                                placeholder="Version Label"
-                              />
-                            </div>
-                            <div className="flex gap-2 items-start mt-1">
-                              <span className="text-[9px] font-black uppercase w-[80px] mt-2 shrink-0">Game Version:</span>
-                              <div className="flex-1">
-                                 <GameVersionMultiSelect
-                                   selectedVersions={typeof v.game_version === 'string' ? v.game_version.split(',').map((s:string) => s.trim()).filter(Boolean) : (Array.isArray(v.game_version) ? v.game_version : [])}
-                                   onChange={(newVals: string[]) => handleSetVersionData(v.dna_hash, 'game_version', newVals.join(', '))}
-                                 />
-                              </div>
-                            </div>
-                         </div>
-                      ))}
-                    </div>
-                 )}
-              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {renderSection("Folder Grouping", "Mods linked here will be installed together in the same physical folder. (Twins & Addons)", twinsAndAddons, "twin", [{label: "Twin Link", value: "twin"}, {label: "Addon Link", value: "addon"}])}
+            {renderSection(t("pv_section_folder_title"), t("pv_section_folder_desc"), twinsAndAddons, "twin", [{label: t("pv_link_twin"), value: "twin"}, {label: t("pv_link_addon"), value: "addon"}])}
             
-            {renderSection("Alternative Versions", "Different versions of this mod (e.g. 18+ vs SFW). Only one can be equipped at a time.", alternatives, "flavor", [{label: "Flavor Link", value: "flavor"}, {label: "Beta Link", value: "beta"}])}
+            <ModLineageTree targetMod={targetMod} cloudMods={cloudMods} onRefresh={loadLinks} />
+            
+            {renderSection(t("pv_section_alternatives_title"), t("pv_section_alternatives_desc"), alternatives, "flavor", [{label: t("pv_link_flavor"), value: "flavor"}, {label: t("pv_link_beta"), value: "beta"}])}
 
             <div className="theme-glass-inner rounded-3xl p-6 border border-[var(--text)]/10 flex flex-col gap-4">
               <div className="border-b border-[var(--text)]/10 pb-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text)]">Flavor Group / Exclusive Folder</h3>
-                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-wider mt-1">Bind this mod to a Flavor Group. Flavor folders only allow one mod to be active at a time.</p>
+                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text)]">{t("pv_section_flavor_title")}</h3>
+                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-wider mt-1">{t("pv_section_flavor_desc")}</p>
               </div>
               <div className="flex items-center gap-4">
                 {activeFlavorGroup ? (
                    <div className="flex items-center gap-3 bg-[var(--accent)]/10 border border-[var(--accent)]/30 px-4 py-2 rounded-xl">
                       <span className="text-xs font-black uppercase text-[var(--accent)]">{activeFlavorGroup.name}</span>
-                      <button onClick={() => setActiveFlavorGroup(null)} className="text-[9px] font-black uppercase text-[var(--text)]/50 hover:text-red-500">Unlink</button>
+                      <button onClick={() => setActiveFlavorGroup(null)} className="text-[9px] font-black uppercase text-[var(--text)]/50 hover:text-red-500">{t("pv_flavor_unlink")}</button>
                    </div>
                 ) : (
                   <>
@@ -328,22 +325,22 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                          options={allFlavorGroups.map(g => ({ id: g.id, label: g.name }))}
                          selectedValues={[]}
                          onChange={(vals: string[]) => { if(vals[0]) handleJoinFlavorGroup(vals[0]); }}
-                         placeholder="-- Select Flavor Group --"
+                         placeholder={t("pv_flavor_select")}
                          multiSelect={false}
                        />
                     </div>
-                    <button onClick={handleCreateFlavorGroup} className="text-[10px] font-black uppercase theme-text-accent hover:underline">Or Create New</button>
+                    <button onClick={() => setShowFlavorGroupModal(true)} className="text-[10px] font-black uppercase theme-text-accent hover:underline">{t("pv_flavor_create")}</button>
                   </>
                 )}
               </div>
             </div>
 
-            {renderSection("Required Mods", "Other user mods required for this to function correctly.", dependencies, "dependency", [{label: "Required Link", value: "dependency"}])}
+            {renderSection(t("pv_section_deps_title"), t("pv_section_deps_desc"), dependencies, "dependency", [{label: t("pv_link_required"), value: "dependency"}])}
 
             <div className="theme-glass-inner rounded-3xl p-6 border border-[var(--text)]/10 flex flex-col gap-4">
               <div className="border-b border-[var(--text)]/10 pb-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text)]">Required Game DLC</h3>
-                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-wider mt-1">Official Game Packs required to use this artifact.</p>
+                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text)]">{t("pv_section_dlc_title")}</h3>
+                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-wider mt-1">{t("pv_section_dlc_desc")}</p>
               </div>
               <div className="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
                 {DLC_MASTER_LIST.map(dlc => {
@@ -365,6 +362,50 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
         </div>
       )}
 
+      {/* Flavor Group Creation Modal */}
+      {showFlavorGroupModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-8 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-[400px] bg-[#1a1c23] rounded-3xl shadow-2xl border border-[var(--text)]/20 flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-[var(--text)]/10 flex justify-between items-center bg-black/40">
+              <h3 className="text-sm font-black uppercase tracking-widest text-white">{t("pv_modal_create_group_title")}</h3>
+              <button onClick={() => { setShowFlavorGroupModal(false); setNewFlavorGroupName(''); }} className="text-xs font-black text-white opacity-50 hover:opacity-100">✕</button>
+            </div>
+            
+            <div className="p-6 flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("pv_modal_group_name_label")}</label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={newFlavorGroupName}
+                  onChange={(e) => setNewFlavorGroupName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateFlavorGroup()}
+                  placeholder={t("pv_modal_group_name_placeholder")}
+                  className="w-full bg-black/40 border border-[var(--text)]/20 px-4 py-3 rounded-xl text-xs font-bold text-white outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => { setShowFlavorGroupModal(false); setNewFlavorGroupName(''); }}
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                >
+                  {t("pv_modal_btn_cancel")}
+                </button>
+                <button
+                  onClick={handleCreateFlavorGroup}
+                  disabled={!newFlavorGroupName.trim()}
+                  className="flex-1 py-3 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {t("pv_modal_btn_create")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Unified Link Modal */}
       {showLinkModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-8 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
@@ -377,38 +418,38 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
               <input 
                 value={modalSearch} 
                 onChange={e => setModalSearch(e.target.value)} 
-                placeholder="Search artifacts..." 
+                placeholder={t("pv_modal_search_placeholder")}
                 className="w-full bg-black/40 border border-[var(--text)]/20 px-4 py-3 rounded-xl text-xs font-bold text-white outline-none focus:border-[var(--accent)]"
               />
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2 bg-[#1a1c23]">
-              {cloudMods.filter(m => 
+              {(showLinkModal.type === 'dependency' ? allModsForDependencies : cloudMods).filter(m => 
                 m.id !== targetMod?.id && 
-                (showLinkModal.type === 'dependency' || m.mason_id === masonId) &&
+                (showLinkModal.type === 'dependency' || !masonId || m.mason_id === masonId) &&
                 (!modalSearch || m.name.toLowerCase().includes(modalSearch.toLowerCase()))
               ).slice(0, 50).map(mod => (
                 <div key={mod.id} className="flex justify-between items-center bg-white/5 border border-white/10 hover:border-[var(--accent)]/50 p-3 rounded-xl transition-colors">
                   <div className="flex flex-col flex-1 min-w-0 overflow-hidden pr-4">
                     <span className="text-[11px] font-black uppercase text-white truncate">{mod.name}</span>
-                    <span className="text-[9px] font-bold text-white/60">{mod.latest_version ? `v${mod.latest_version}` : 'No version'}</span>
+                    <span className="text-[9px] font-bold text-white/60">{mod.latest_version ? `v${mod.latest_version}` : t("pv_modal_no_version")}</span>
                   </div>
                   {showLinkModal.type === 'twin' ? (
                      <div className="flex gap-2 shrink-0">
-                       <button onClick={() => handleAddLink(mod.id, 'twin')} className="px-3 py-1.5 theme-bg-accent text-[var(--bg)] rounded-lg text-[9px] font-black uppercase">Twin</button>
-                       <button onClick={() => handleAddLink(mod.id, 'addon')} className="px-3 py-1.5 bg-black/40 text-white border border-white/20 rounded-lg text-[9px] font-black uppercase hover:border-[var(--accent)]">Addon</button>
+                       <button onClick={() => handleAddLink(mod.id, 'twin')} className="px-3 py-1.5 theme-bg-accent text-[var(--bg)] rounded-lg text-[9px] font-black uppercase">{t("pv_modal_btn_twin")}</button>
+                       <button onClick={() => handleAddLink(mod.id, 'addon')} className="px-3 py-1.5 bg-black/40 text-white border border-white/20 rounded-lg text-[9px] font-black uppercase hover:border-[var(--accent)]">{t("pv_modal_btn_addon")}</button>
                      </div>
                   ) : showLinkModal.type === 'flavor' ? (
                      <div className="flex gap-2 shrink-0">
-                       <button onClick={() => handleAddLink(mod.id, 'flavor')} className="px-3 py-1.5 theme-bg-accent text-[var(--bg)] rounded-lg text-[9px] font-black uppercase">Flavor</button>
-                       <button onClick={() => handleAddLink(mod.id, 'beta')} className="px-3 py-1.5 bg-black/40 text-white border border-white/20 rounded-lg text-[9px] font-black uppercase hover:border-[var(--accent)]">Beta</button>
+                       <button onClick={() => handleAddLink(mod.id, 'flavor')} className="px-3 py-1.5 theme-bg-accent text-[var(--bg)] rounded-lg text-[9px] font-black uppercase">{t("pv_modal_btn_flavor")}</button>
+                       <button onClick={() => handleAddLink(mod.id, 'beta')} className="px-3 py-1.5 bg-black/40 text-white border border-white/20 rounded-lg text-[9px] font-black uppercase hover:border-[var(--accent)]">{t("pv_modal_btn_beta")}</button>
                      </div>
                   ) : (
-                    <button onClick={() => handleAddLink(mod.id, showLinkModal.type)} className="px-3 py-1.5 theme-bg-accent text-[var(--bg)] rounded-lg text-[9px] font-black uppercase shrink-0">Link</button>
+                    <button onClick={() => handleAddLink(mod.id, showLinkModal.type)} className="px-3 py-1.5 theme-bg-accent text-[var(--bg)] rounded-lg text-[9px] font-black uppercase shrink-0">{t("pv_modal_btn_link")}</button>
                   )}
                 </div>
               ))}
               {cloudMods.filter(m => m.id !== targetMod?.id && (!modalSearch || m.name.toLowerCase().includes(modalSearch.toLowerCase()))).length === 0 && (
-                <div className="text-center p-8 text-[10px] font-bold text-white/50 uppercase">No artifacts found</div>
+                <div className="text-center p-8 text-[10px] font-bold text-white/50 uppercase">{t("pv_modal_no_artifacts")}</div>
               )}
             </div>
           </div>

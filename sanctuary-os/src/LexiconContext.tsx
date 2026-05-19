@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import enSanctuary from './lexicons/en-sanctuary.json';
 import enDefault from './lexicons/en-default.json';
+import deDefault from './lexicons/de-default.json';
 
 const LexiconContext = createContext<any>(null);
 
@@ -15,13 +16,16 @@ export const LexiconProvider = ({ children }: any) => {
         setDictionary(registry[activeLang]);
       } else if (activeLang === 'en-default') {
         setDictionary(enDefault);
-      } else {
+      } else if (activeLang === 'de-default') { // <-- Changed 'else' to 'else if'
+        setDictionary(deDefault);
+      } else { // <-- This is now your fallback default case
         setDictionary(enSanctuary);
       }
     };
     loadLang();
     localStorage.setItem("sanctuary_lang", activeLang);
   }, [activeLang, registry]);
+
 
   const t = (key: string) => dictionary[key] || `[${key}]`;
 
