@@ -1,0 +1,5 @@
+node_modules/
+sanctuary-os/node_modules/
+dist/
+dist-ssr/
+.DS_Store
