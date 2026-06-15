@@ -1,0 +1,527 @@
+import { useState, useMemo } from "react";
+import { formatDisplayName, ViewHeader, CustomDropdown, mapDlcCode, isVersionMatch, SidePanel, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass } from "./shared";
+import { useStore } from "./store";
+import { useLexicon } from "./LexiconContext";
+import { tauriBridge } from "./lib/tauri-bridge";
+
+
+export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, toggleInActiveSet, allow_write, vaultPath, onRefreshMods, renamePlaySet }: any) {
+  const { t } = useLexicon();
+  const { ownedDLC, maskedDLC, selectedVersion, playSets, activePlaySetIndex, setPlaySets } = useStore();
+  const [ignoredConflicts, setIgnoredConflicts] = useState<Set<string>>(new Set());
+  const [ignoredBroken, setIgnoredBroken] = useState<Set<string>>(new Set());
+
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newNameInput, setNewNameInput] = useState("");
+
+  const activeMods = useMemo(() => {
+    const safeMods = Array.isArray(playSet?.mods) ? playSet.mods : [];
+    const safeList = Array.isArray(modList) ? modList : [];
+    return safeMods.map((modName: string) => {
+      const exactMatch = safeList.find((m: any) => m.name === modName);
+      if (exactMatch) return { ...exactMatch, _originalSetName: modName };
+      
+      const fallbackMatch = safeList.find((m: any) => {
+        const mBase = m.name?.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+        const targetBase = typeof modName === 'string' ? modName.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '') : '';
+        const mExt = m.name?.split('.').pop()?.toLowerCase();
+        const targetExt = typeof modName === 'string' ? modName.split('.').pop()?.toLowerCase() : '';
+        return mBase && targetBase && mBase === targetBase && mExt === targetExt;
+      });
+      if (fallbackMatch) return { ...fallbackMatch, _originalSetName: modName };
+      
+      return { name: modName, isFallback: true, _originalSetName: modName };
+    });
+  }, [playSet?.mods, modList]);
+
+  const renderSubtitle = () => {
+    if (isEditingName) {
+      return (
+        <span className="flex items-center gap-2">
+          {t("bp_subtitle")}
+          <input
+            autoFocus
+            type="text"
+            className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded px-3 py-1 outline-none text-[var(--text)] font-black uppercase text-[10px] w-64"
+            value={newNameInput}
+            onChange={(e) => setNewNameInput(e.target.value)}
+            onKeyDown={(e) => {
+               if (e.key === 'Enter') {
+                 if (renamePlaySet) renamePlaySet(playSet.name, newNameInput);
+                 setIsEditingName(false);
+               } else if (e.key === 'Escape') {
+                 setIsEditingName(false);
+               }
+            }}
+            onBlur={() => {
+              if (renamePlaySet && newNameInput.trim() !== "" && newNameInput !== playSet.name) {
+                renamePlaySet(playSet.name, newNameInput);
+              }
+              setIsEditingName(false);
+            }}
+          />
+        </span>
+      );
+    }
+    return (
+      <span 
+        className="flex items-center gap-2 group cursor-pointer hover:text-[var(--text)] transition-colors" 
+        onClick={() => { setIsEditingName(true); setNewNameInput(playSet.name); }}
+      >
+        {t("bp_subtitle")} {playSet.name} ({activeMods.length} {t("modcard_artifacts")})
+        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[14px] ml-1">{t("ui_icon_edit") || "✎"}</span>
+      </span>
+    );
+  };
+
+  const activeConflicts = useMemo(() => {
+    const conflicts: any[] = [];
+    activeMods.forEach((mod: any) => {
+      if (mod.conflicts && Array.isArray(mod.conflicts)) {
+        mod.conflicts.forEach((c: any) => {
+          const enemyActive = activeMods.find((em: any) => {
+            if (em.isFallback) return false;
+            if (c.enemy_id && String(em.dbId) === String(c.enemy_id)) return true;
+            if (c.enemy_name) {
+               const targetClean = String(c.enemy_name).toUpperCase();
+               const cleanN = String(em.name || '').toUpperCase();
+               const cleanDisp = String(em.displayName || '').toUpperCase();
+               if (cleanN.includes(targetClean) || cleanDisp.includes(targetClean)) return true;
+            }
+            return false;
+          });
+
+          if (enemyActive && mod.name && enemyActive.name && mod.name !== enemyActive.name) {
+            const pairId = [mod.name, enemyActive.name].sort().join("::");
+            if (!conflicts.find(ac => ac.pairId === pairId)) {
+              conflicts.push({ pairId, modA: mod, modB: enemyActive, conflict: c });
+            }
+          }
+        });
+      }
+    });
+
+    try {
+      const stored = localStorage.getItem("sanctuary_local_conflicts");
+      if (stored) {
+        const localConflicts = JSON.parse(stored);
+        localConflicts.forEach((lc: any) => {
+          const modAMatch = activeMods.find((em: any) => {
+             if (em.isFallback) return false;
+             const cleanN = String(em.name || '').toUpperCase();
+             const cleanDisp = String(em.displayName || '').toUpperCase();
+             const targetClean = String(lc.modA).toUpperCase();
+             return cleanN.includes(targetClean) || cleanDisp.includes(targetClean) || targetClean.includes(cleanN);
+          });
+          const modBMatch = activeMods.find((em: any) => {
+             if (em.isFallback) return false;
+             const cleanN = String(em.name || '').toUpperCase();
+             const cleanDisp = String(em.displayName || '').toUpperCase();
+             const targetClean = String(lc.modB).toUpperCase();
+             return cleanN.includes(targetClean) || cleanDisp.includes(targetClean) || targetClean.includes(cleanN);
+          });
+
+          if (modAMatch && modBMatch && modAMatch.name !== modBMatch.name) {
+            const pairId = [modAMatch.name, modBMatch.name].sort().join("::");
+            if (!conflicts.find((ac: any) => ac.pairId === pairId)) {
+              conflicts.push({ pairId, modA: modAMatch, modB: modBMatch, conflict: { severity_rank: lc.severity_rank, resolution_note: lc.resolution_note || "Local Scan Detects Tuning Overlap" } });
+            }
+          }
+        });
+      }
+    } catch(e) {}
+
+    return conflicts;
+  }, [activeMods]);
+
+  const brokenMods = useMemo(() => {
+    return activeMods.map((mod: any) => {
+      if (mod.isFallback) return null;
+
+      let reason = null;
+
+      if ((typeof mod.status === 'string' && mod.status.toLowerCase() === 'broken') || mod.compliance_tier === 3 || mod.compliance_tier === 4) {
+        reason = t("bp_status_broken_noncompliant") || "BROKEN / NON-COMPLIANT";
+      } else {
+        if (mod.compatible_versions && selectedVersion && !isVersionMatch(mod.compatible_versions, selectedVersion)) {
+           reason = t("bp_status_version_mismatch");
+        } else if (mod.requiredDLC) {
+           let rawDLC: string[] = [];
+           if (typeof mod.requiredDLC === 'string') {
+             rawDLC = mod.requiredDLC.split(',').map((s: string) => s.trim());
+           } else if (Array.isArray(mod.requiredDLC)) {
+             rawDLC = [...mod.requiredDLC];
+           }
+           const activeDLC = ownedDLC.filter((d: string) => !maskedDLC.includes(d));
+           const missing = rawDLC.filter(req => {
+               const cleanReq = req.toUpperCase().trim();
+               if (cleanReq === 'BASE') return false;
+               return !activeDLC.some((owned: string) => owned.toUpperCase() === cleanReq);
+           });
+           if (missing.length > 0) {
+              const missingNames = missing.map(m => mapDlcCode(m)).join(", ");
+              reason = `${t("bp_status_missing_dlc")}${missingNames}`;
+           }
+        }
+      }
+
+      if (reason) {
+        return { ...mod, _alert_reason: reason };
+      }
+      return null;
+    }).filter(Boolean);
+  }, [activeMods, selectedVersion, ownedDLC, maskedDLC, t]);
+
+  const setBlueprintLoadOrder = (targetName: string, prefix: string) => {
+    if (!playSets) return;
+    const currentSet = playSets[activePlaySetIndex];
+    if (!currentSet) return;
+    const newMods = [...currentSet.mods];
+    
+    const index = newMods.findIndex((m: string) => m === targetName || m.endsWith(`/${targetName}`) || m.endsWith(`\\${targetName}`));
+    if (index !== -1) {
+      newMods[index] = prefix ? `${prefix}/${targetName}` : targetName;
+    } else {
+      newMods.push(prefix ? `${prefix}/${targetName}` : targetName);
+    }
+    
+    const newSets = [...playSets];
+    newSets[activePlaySetIndex] = { ...currentSet, mods: newMods };
+    setPlaySets(newSets);
+    localStorage.setItem("sanctuary_playsets", JSON.stringify(newSets));
+    window.dispatchEvent(new Event("storage"));
+  };
+
+  const getPriorityDrop = (modData: any) => {
+    if (!modData || modData.isFallback || !allow_write) return null;
+    let currentPriority = "";
+    if (modData.path) {
+      const firstPart = modData.path.split(/[/\\]/)[0];
+      if (["!Sanctuary", "!Sanctuary2", "!Sanctuary3"].includes(firstPart)) {
+        currentPriority = firstPart;
+      }
+    }
+    return (
+      <div className="w-full mt-3">
+        <CustomDropdown disableTint={true}
+          value={currentPriority}
+          onChange={async (newPrio: string) => {
+            try {
+              await tauriBridge.moveModToPriorityFolder(vaultPath, modData.name, newPrio);
+              if (onRefreshMods) onRefreshMods();
+            } catch (e) {
+              console.error("Failed to move mod priority", e);
+            }
+          }}
+          options={[
+            { id: "", label: t("bp_priority_default") },
+            { id: "!Sanctuary", label: t("bp_priority_sanctuary") },
+            { id: "!Sanctuary2", label: t("bp_priority_sanctuary2") },
+            { id: "!Sanctuary3", label: t("bp_priority_sanctuary3") }
+          ]}
+        />
+      </div>
+    );
+  };
+
+  if (!playSet) return null;
+
+  return (
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("bp_title")}
+      subtitle={renderSubtitle()}
+      icon={t("ui_icon_warning") || "warning"}
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[950px]"
+      noScroll={true}
+      noPadding={true}
+      footer={
+        <div className="flex justify-end gap-4 w-full">
+          <button onClick={onClose} className={standardButtonClass}>
+            {t("shared_cancel") || "Cancel"}
+          </button>
+          <button onClick={onClose} className={standardAccentGlassButtonClass}>
+            <span className="material-symbols-outlined !text-[14px]">{allow_write ? "done_all" : "logout"}</span>
+            {allow_write ? t("bp_btn_finalize") : t("bp_btn_exit_preview")}
+          </button>
+        </div>
+      }
+    >
+      <div className="flex-1 min-h-0 flex gap-8 p-8 pb-12 w-full">
+        {/* LEFT SIDE: LOAD ORDER CONFLICTS */}
+        <div className="flex-1 flex flex-col relative group rounded-[3rem] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] min-h-0">
+          <div className="absolute inset-0 theme-glass-panel opacity-100" />
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5" />
+          
+          <div className="relative z-10 flex flex-col flex-1 min-h-0">
+            <div className="p-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-between">
+              <h3 className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest">{t("bp_load_order_conflicts")}</h3>
+              <span className="text-amber-400 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-amber-500/30 px-4 py-1.5 rounded-full text-[10px] font-black shadow-inner flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                {t("bp_conflicts_detected").replace("{0}", String(activeConflicts.length))}
+              </span>
+            </div>
+            
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-6">
+              {activeConflicts.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4">
+                  <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_shield") || "shield"}</span>
+                  <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("bp_no_conflicts_detected")}</p>
+                </div>
+              ) : (
+                activeConflicts.map((ac) => {
+                  const isIgnored = ignoredConflicts.has(ac.pairId);
+                  const isTier4 = ac.conflict.severity_rank === 4;
+                  
+                  const borderClass = isTier4 ? "border-red-500/30" : "border-amber-500/30";
+                  const bgClass = isTier4 ? "bg-red-500/5 hover:bg-red-500/10" : "bg-amber-500/5 hover:bg-amber-500/10";
+                  const shadowClass = isTier4 ? "hover:shadow-[0_0_30px_rgba(239,68,68,0.2)]" : "hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]";
+                  const textClass = isTier4 ? "text-red-500" : "text-amber-500";
+                  const iconName = isTier4 ? (t("ui_icon_crisis") || "crisis_alert") : (t("ui_icon_tune") || "tune");
+
+                  return (
+                    <div 
+                      key={ac.pairId} 
+                      className={`relative group shrink-0 w-full rounded-[2rem] overflow-hidden transition-all duration-500 border ${
+                        isIgnored 
+                          ? 'opacity-50 grayscale border-white/5 bg-black/40' 
+                          : `${borderClass} ${bgClass} shadow-lg ${shadowClass} hover:scale-[1.02]`
+                      }`}
+                    >
+                      <div className="relative p-5 z-10 flex flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className={`material-symbols-outlined !text-2xl ${textClass}`}>{iconName}</span>
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${textClass}`}>
+                              {isTier4 ? t("bp_fatal_override_clash") : t("bp_data_override_conflict")}
+                            </span>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              const newSet = new Set(ignoredConflicts);
+                              if (isIgnored) newSet.delete(ac.pairId);
+                              else newSet.add(ac.pairId);
+                              setIgnoredConflicts(newSet);
+                            }}
+                            className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95"
+                          >
+                            {isIgnored ? t("bp_restore_conflict") : t("bp_ignore_conflict")}
+                          </button>
+                        </div>
+                        
+                        <div className="flex flex-col gap-4 items-stretch">
+                          {/* Mod A */}
+                          <div className="theme-glass-inner rounded-2xl p-4 border border-white/5 flex flex-col transition-all shadow-inner relative overflow-hidden group/card hover:border-white/10">
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                            <div className="relative z-10 flex flex-col">
+                              <span className="text-xs font-black text-[var(--text)] uppercase break-words mb-1">
+                                {formatDisplayName(ac.modA.name)}
+                              </span>
+                              <span className="text-[10px] font-mono text-cyan-400 mb-1 tracking-widest opacity-80">{ac.modA.version || "v.Local"}</span>
+                              <div className="mt-1">
+                                {ac.conflict.severity_rank === 4 ? (
+                                  allow_write && (
+                                    <button 
+                                      onClick={() => toggleInActiveSet(ac.modA._originalSetName || ac.modA.name, true, true)}
+                                      className="mt-2 w-full py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_delete") || "delete"}</span>
+                                      {t("bp_yeet_artifact")}
+                                    </button>
+                                  )
+                                ) : ac.conflict.severity_rank === 3 ? (
+                                  allow_write && (
+                                    <button 
+                                      onClick={() => setBlueprintLoadOrder(ac.modA._originalSetName || ac.modA.name, "Sanctuary")}
+                                      className="mt-2 w-full py-2 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)] text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_check_circle") || "check_circle"}</span>
+                                      {t("bp_select_winning_artifact") || "SELECT WINNER OF ARTIFACT"}
+                                    </button>
+                                  )
+                                ) : (
+                                  <>
+                                    {getPriorityDrop(ac.modA)}
+                                    {allow_write && (
+                                      <button 
+                                        onClick={() => toggleInActiveSet(ac.modA._originalSetName || ac.modA.name, true, true)}
+                                        className="mt-2 w-full py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                      >
+                                        <span className="material-symbols-outlined !text-sm">{t("ui_icon_delete") || "delete"}</span>
+                                        {t("bp_yeet_artifact")}
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Mod B */}
+                          <div className="theme-glass-inner rounded-2xl p-4 border border-white/5 flex flex-col transition-all shadow-inner relative overflow-hidden group/card hover:border-white/10">
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                            <div className="relative z-10 flex flex-col">
+                              <span className="text-xs font-black text-[var(--text)] uppercase break-words mb-1">
+                                {formatDisplayName(ac.modB.name)}
+                              </span>
+                              <span className="text-[10px] font-mono text-cyan-400 mb-1 tracking-widest opacity-80">{ac.modB.version || "v.Local"}</span>
+                              <div className="mt-1">
+                                {ac.conflict.severity_rank === 4 ? (
+                                  allow_write && (
+                                    <button 
+                                      onClick={() => toggleInActiveSet(ac.modB._originalSetName || ac.modB.name, true, true)}
+                                      className="mt-2 w-full py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_delete") || "delete"}</span>
+                                      {t("bp_yeet_artifact")}
+                                    </button>
+                                  )
+                                ) : ac.conflict.severity_rank === 3 ? (
+                                  allow_write && (
+                                    <button 
+                                      onClick={() => setBlueprintLoadOrder(ac.modB._originalSetName || ac.modB.name, "Sanctuary")}
+                                      className="mt-2 w-full py-2 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)] text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_check_circle") || "check_circle"}</span>
+                                      {t("bp_select_winning_artifact") || "SELECT WINNER OF ARTIFACT"}
+                                    </button>
+                                  )
+                                ) : (
+                                  <>
+                                    {getPriorityDrop(ac.modB)}
+                                    {allow_write && (
+                                      <button 
+                                        onClick={() => toggleInActiveSet(ac.modB._originalSetName || ac.modB.name, true, true)}
+                                        className="mt-2 w-full py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                      >
+                                        <span className="material-symbols-outlined !text-sm">{t("ui_icon_delete") || "delete"}</span>
+                                        {t("bp_yeet_artifact")}
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {ac.conflict.resolution_note && (
+                          <div className="p-4 theme-glass-inner rounded-xl border-l-2 border-l-amber-500 text-xs font-bold text-amber-500/80">
+                            " {ac.conflict.resolution_note} "
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* RIGHT SIDE: BROKEN/COMPATIBILITY ALERTS */}
+        <div className="flex-1 flex flex-col relative group rounded-[3rem] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] min-h-0">
+          <div className="absolute inset-0 theme-glass-panel opacity-100" />
+          <div className="absolute inset-0 bg-gradient-to-br from-rose-500 via-transparent to-transparent opacity-5" />
+          
+          <div className="relative z-10 flex flex-col flex-1 min-h-0">
+            <div className="p-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-between">
+              <h3 className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest">{t("bp_compatibility_scanner")}</h3>
+              <span className="text-rose-400 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-rose-500/30 px-4 py-1.5 rounded-full text-[10px] font-black shadow-inner flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                {t("bp_alerts_detected").replace("{0}", String(brokenMods.length))}
+              </span>
+            </div>
+            
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-4">
+              {brokenMods.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4">
+                  <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_success") || "check_circle"}</span>
+                  <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("bp_no_broken_mods_detected")}</p>
+                </div>
+              ) : (
+                <>
+                  {allow_write && (
+                    <div className="mb-8 p-8 theme-glass-panel border-l-4 border-l-rose-500 border-rose-500/30 rounded-[2rem] flex flex-col gap-6 shadow-[0_0_40px_rgba(244,63,94,0.1)] relative overflow-hidden shrink-0">
+                      <div className="absolute inset-0 bg-gradient-to-r from-rose-500/10 to-transparent pointer-events-none" />
+                      <div className="flex items-center gap-6 relative z-10">
+                        <div className="w-16 h-16 rounded-2xl theme-glass-panel border border-rose-500/50 flex items-center justify-center shrink-0 shadow-[inset_0_0_20px_rgba(239,68,68,0.1),0_0_30px_rgba(239,68,68,0.3)]">
+                          <span className="material-symbols-outlined !text-4xl text-rose-500 animate-pulse">{t("ui_icon_warning") || "warning"}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <h4 className="text-xl font-black text-rose-500 uppercase tracking-widest">{t("bp_compromised_artifacts")}</h4>
+                          <p className="text-xs font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("bp_compromised_desc").replace("{0}", String(brokenMods.length))}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => {
+                        brokenMods.forEach((m: any) => toggleInActiveSet(m._originalSetName || m.name, true, true));
+                      }} className={`w-full py-4 ${standardDangerButtonClass} rounded-xl text-[11px] font-black uppercase tracking-widest relative z-10 shrink-0 flex items-center justify-center gap-2`}>
+                        <span className="material-symbols-outlined !text-lg">{t("ui_icon_delete_sweep") || "delete_sweep"}</span>
+                        {t("bp_purge_compromised").replace("{0}", String(brokenMods.length))}
+                      </button>
+                    </div>
+                  )}
+
+                  {brokenMods.map((mod: any) => {
+                    const isIgnored = ignoredBroken.has(mod.name);
+                    return (
+                      <div 
+                        key={mod.name} 
+                        className={`relative shrink-0 group w-full rounded-[2rem] overflow-hidden transition-all duration-500 border flex items-center ${
+                          isIgnored 
+                            ? 'opacity-50 grayscale border-white/5 bg-black/40' 
+                            : 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10 shadow-lg hover:shadow-[0_0_30px_rgba(244,63,94,0.2)] hover:scale-[1.02]'
+                        }`}
+                      >
+                        <div className="relative p-6 z-10 flex items-center gap-5 w-full">
+                          <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${
+                            isIgnored ? 'border-white/10 bg-black/50' : 'border-rose-500/50 bg-rose-500/10 shadow-[0_0_20px_rgba(244,63,94,0.2)]'
+                          }`}>
+                            <span className={`material-symbols-outlined !text-[24px] ${isIgnored ? 'text-[var(--text)] opacity-30' : 'text-rose-400'}`}>warning</span>
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="text-xs font-black text-[var(--text)] uppercase break-words">
+                                {formatDisplayName(mod.name)}
+                              </span>
+                              <button 
+                                onClick={() => {
+                                  const newSet = new Set(ignoredBroken);
+                                  if (isIgnored) newSet.delete(mod.name);
+                                  else newSet.add(mod.name);
+                                  setIgnoredBroken(newSet);
+                                }}
+                                className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 shrink-0 ml-4"
+                              >
+                                {isIgnored ? t("bp_restore_alert") : t("bp_ignore_alert")}
+                              </button>
+                            </div>
+                            <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest block mt-1">
+                              {mod._alert_reason}
+                            </span>
+                          </div>
+                          
+                          {allow_write && !isIgnored && (
+                            <button 
+                              onClick={() => toggleInActiveSet(mod._originalSetName || mod.name, true, true)}
+                              className="shrink-0 w-10 h-10 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 font-black transition-all hover:bg-red-500 hover:text-white active:scale-95 flex items-center justify-center"
+                            >
+                              <span className="material-symbols-outlined !text-lg">{t("ui_icon_close") || "close"}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </SidePanel>
+  );
+}

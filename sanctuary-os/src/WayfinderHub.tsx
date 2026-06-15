@@ -1,0 +1,502 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabase';
+import { useLexicon } from './LexiconContext';
+import { useStore } from './store';
+import { ViewHeader, HubTabButton, SidePanel } from './shared';
+import ArchitectSupportTickets from './ArchitectSupportTickets';
+
+export function DashboardStatTile({ icon, number, label, colorClass, onClick }: any) {
+  return (
+    <div onClick={onClick} className={`flex-1 flex flex-col justify-center items-start gap-1 p-6 rounded-3xl border border-white/10 backdrop-blur-md ${colorClass} transition-all cursor-pointer shadow-lg relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl`}>
+       <div className="absolute inset-0 bg-current opacity-0 group-hover:opacity-[0.15] transition-opacity duration-300" />
+       <div className="flex items-center gap-3 w-full relative z-10">
+           <span className="text-3xl opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-110 transition-all drop-shadow-md">{icon}</span>
+           <span className={`text-4xl lg:text-5xl font-black drop-shadow-lg tracking-tighter`}>{number}</span>
+       </div>
+       <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-[var(--subtext)] opacity-60 mt-2">{label}</span>
+    </div>
+  );
+}
+import GlobalFeed from './GlobalFeed';
+import MasonBugReports from './MasonBugReports';
+import SASupportSettings from './SASupportSettings';
+import { AuditLogViewer, DefconSidePanel, ComplianceOversight, MasonLinker } from './SeniorArchitect';
+import MasonPostViewer from './MasonPostViewer';
+import SystemBroadcastsFeed from './SystemBroadcastsFeed';
+import { IdentityMatrix } from './IdentityMatrix';
+import { WayfinderPostsEditor } from './WayfinderPostsEditor';
+import { MarketplaceReportsViewer, FileVerificationSidePanel } from './ArchitectHub';
+import ComplianceManualFlagSidePanel from './ComplianceManualFlagSidePanel';
+
+export default function WayfinderHub() {
+  const { t } = useLexicon();
+  const { session } = useStore();
+  const [activeTab, setActiveTab] = useState("command_center");
+  const [complianceFilter, setComplianceFilter] = useState("ALL");
+  const [showManualFlagModal, setShowManualFlagModal] = useState(false);
+  const [initialManualFlagQuery, setInitialManualFlagQuery] = useState("");
+  const [defconOpen, setDefconOpen] = useState(false);
+  const [isVerifyPanelOpen, setIsVerifyPanelOpen] = useState(false);
+  const [verifyPanelInitialHash, setVerifyPanelInitialHash] = useState("");
+  const [defconLevel, setDefconLevel] = useState(5);
+
+  useEffect(() => {
+    supabase.from('global_network_status').select('defcon_level').single().then(({data}) => {
+      if (data) setDefconLevel(data.defcon_level);
+    });
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
+      <ViewHeader title={t("wf_hub_title")} subtitle={t("wf_hub_subtitle")} icon={t("ui_icon_terminal") || "terminal"} iconColorClass="text-indigo-400 border-indigo-500/30">
+        <div className="flex items-center gap-4">
+           {/* Verify Hash Button */}
+           <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
+             <button 
+               onClick={() => setIsVerifyPanelOpen(true)}
+               className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
+             >
+               <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_verified") || "verified"}</span>
+               <span className="text-[10px] font-black uppercase tracking-widest">{t("architect_btn_verify_hash") || "VERIFY HASH"}</span>
+             </button>
+           </div>
+           
+          {/* Defcon Button */}
+           <div className={`flex items-center rounded-2xl p-1 shadow-inner transition-all duration-700 ${
+             defconLevel === 1 
+               ? 'bg-red-500/10 border border-red-500/50 hover:bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.3)] animate-pulse' 
+               : 'theme-glass-panel border border-white/10 hover:border-[var(--accent)]/50'
+           }`}>
+             <button 
+               onClick={() => setDefconOpen(true)}
+               className={`h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shrink-0 font-black uppercase tracking-widest ${
+                 defconLevel === 1
+                   ? 'text-red-400 hover:text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                   : 'text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+               }`}
+             >
+               <span className={`material-symbols-outlined !text-[24px] ${defconLevel === 1 ? 'animate-bounce' : 'opacity-70'}`}>
+                 {defconLevel === 1 ? 'warning' : 'security'}
+               </span>
+               <span className="text-[10px]">{t("sa_defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>
+             </button>
+           </div>
+        </div>
+      </ViewHeader>
+
+      <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
+        <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner">
+           <HubTabButton id="command_center" icon={t("ui_icon_pc") || "desktop_windows"} label={t("wf_tab_command") || "COMMAND SCREEN"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="wayfinder_comms" icon={t("ui_icon_satellite_alt") || "satellite_alt"} label={t("wf_tab_dispatch") || "DISPATCH"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="identities" icon={t("ui_icon_group") || "group"} label={t("sa_tab_identities") || "IDENTITY MATRIX"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="linker" icon={t("ui_icon_link") || "link"} label={t("sa_tab_linker") || "MASON VERIFICATION"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="compliance" icon={t("ui_icon_policy") || "policy"} label={t("sa_tab_compliance") || "COMPLIANCE"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="reports" icon={t("ui_icon_report") || "flag"} label={t("mason_stat_bugs") || "REPORTS"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="sanctuary_tickets" icon={t("ui_icon_local_activity") || "local_activity"} label={t("wf_tab_tickets") || "SANCTUARY TICKETS"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="support_settings" icon={t("ui_icon_support_agent") || "support_agent"} label={t("wf_tab_support") || "SUPPORT SETTINGS"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="audit_logs" icon={t("ui_icon_history") || "history"} label={t("sa_tab_audit") || "AUDIT LOGS"} activeTab={activeTab} setTab={setActiveTab} />
+        </div>
+      </div>
+
+      <div className="w-full flex-1 flex flex-col min-h-0">
+        {activeTab === "command_center" && <WayfinderCommandScreen setTab={setActiveTab} setComplianceFilter={setComplianceFilter} />}
+        {activeTab === "wayfinder_comms" && <WayfinderPostsEditor authorId={session?.user?.id || ""} authorProfileId={session?.user?.id || ""} />}
+        {activeTab === "identities" && <IdentityMatrix isWayfinder={true} />}
+        {activeTab === "linker" && <MasonLinker />}
+        {activeTab === "compliance" && <ComplianceOversight initialFilter={complianceFilter} setInitialFilter={setComplianceFilter} onOpenManualFlag={(query: string) => { setInitialManualFlagQuery(query); setShowManualFlagModal(true); }} />}
+        {activeTab === "reports" && <MarketplaceReportsViewer onOpenDossier={(report: any) => {}} />}
+        {activeTab === "sanctuary_tickets" && <ArchitectSupportTickets userRole="wayfinder" />}
+        {activeTab === "support_settings" && <SASupportSettings />}
+        {activeTab === "audit_logs" && <AuditLogViewer />}
+        {activeTab !== "command_center" && activeTab !== "wayfinder_comms" && activeTab !== "identities" && activeTab !== "linker" && activeTab !== "compliance" && activeTab !== "reports" && activeTab !== "sanctuary_tickets" && activeTab !== "support_settings" && activeTab !== "audit_logs" && (
+           <div className="p-12 text-center text-[var(--subtext)] opacity-50 font-black uppercase tracking-widest text-xs">
+              {t("wf_under_construction")}
+           </div>
+        )}
+      </div>
+
+      <DefconSidePanel isOpen={defconOpen} onClose={() => setDefconOpen(false)} />
+      <FileVerificationSidePanel 
+        isOpen={isVerifyPanelOpen} 
+        onClose={() => setIsVerifyPanelOpen(false)} 
+        isSeniorArchitect={true} 
+        initialHash={verifyPanelInitialHash}
+        onManualFlag={(hash: string) => {
+           setInitialManualFlagQuery(hash);
+           setShowManualFlagModal(true);
+        }}
+      />
+      <ComplianceManualFlagSidePanel 
+        isOpen={showManualFlagModal}
+        onClose={() => setShowManualFlagModal(false)}
+        initialQuery={initialManualFlagQuery}
+      />
+    </div>
+  );
+}
+
+function ServerHealthSidePanel({ isOpen, onClose, stats }: any) {
+  const { t } = useLexicon();
+  if (!isOpen) return null;
+
+  return (
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("wf_health_title") || "SERVER HEALTH"}
+      subtitle={t("wf_health_subtitle") || "DIAGNOSTICS & TELEMETRY"}
+      icon="dns"
+    >
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-scrollbar">
+        <div className="flex flex-col gap-4">
+          <div className="theme-glass-panel border border-white/5 rounded-2xl p-6 flex items-center justify-between">
+             <div className="flex flex-col gap-1">
+               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70">CORE NODE STATUS</span>
+               <span className={`text-xl font-black tracking-widest ${stats.networkStatus === 'ONLINE' ? 'text-emerald-400' : 'text-yellow-400'}`}>{stats.networkStatus === 'ONLINE' ? (t("wf_stat_server_nominal") || "NOMINAL") : (t("wf_stat_server_degraded") || "DEGRADED")}</span>
+             </div>
+             <span className="material-symbols-outlined !text-4xl opacity-20">memory</span>
+          </div>
+
+          <div className="theme-glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-4">
+             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 flex items-center gap-2">
+               <span className="material-symbols-outlined !text-[14px]">speed</span> SYSTEM LOAD
+             </span>
+             <div className="flex flex-col gap-2">
+               <div className="flex justify-between text-xs font-bold text-[var(--text)]">
+                 <span>CPU USAGE</span>
+                 <span className="text-[var(--accent)]">42%</span>
+               </div>
+               <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
+                 <div className="h-full bg-[var(--accent)] w-[42%] shadow-[0_0_10px_rgba(var(--accent-rgb),0.8)]"></div>
+               </div>
+             </div>
+             <div className="flex flex-col gap-2 mt-2">
+               <div className="flex justify-between text-xs font-bold text-[var(--text)]">
+                 <span>MEMORY ALLOCATION</span>
+                 <span className="text-orange-400">78%</span>
+               </div>
+               <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
+                 <div className="h-full bg-orange-400 w-[78%] shadow-[0_0_10px_rgba(251,146,60,0.8)]"></div>
+               </div>
+             </div>
+          </div>
+
+          <div className="theme-glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-4">
+             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 flex items-center gap-2">
+               <span className="material-symbols-outlined !text-[14px]">router</span> NETWORK DIAGNOSTICS
+             </span>
+             <div className="grid grid-cols-2 gap-4">
+               <div className="flex flex-col gap-1">
+                 <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">LATENCY</span>
+                 <span className="text-lg font-black text-[var(--text)]">{stats.networkLatency || '--'} ms</span>
+               </div>
+               <div className="flex flex-col gap-1">
+                 <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">CONNECTIONS</span>
+                 <span className="text-lg font-black text-blue-400">1,204</span>
+               </div>
+               <div className="flex flex-col gap-1 col-span-2 mt-2">
+                 <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">DATABASE SYNC</span>
+                 <span className="text-sm font-black text-emerald-400 flex items-center gap-2">
+                   <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.8)] animate-pulse"></span>
+                   SYNCHRONIZED
+                 </span>
+               </div>
+             </div>
+          </div>
+        </div>
+      </div>
+    </SidePanel>
+  );
+}
+
+function WayfinderCommandScreen({ setTab, setComplianceFilter }: any) {
+  const { t } = useLexicon();
+  const { session } = useStore();
+  const [defconOpen, setDefconOpen] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
+  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+  const [viewingPost, setViewingPost] = useState<any>(null);
+  const [stats, setStats] = useState({ 
+    defconLevel: 5,
+    supportQueue: 0,
+    flaggedQueue: 0,
+    reportQueue: 0,
+    quarantined: 0,
+    networkLatency: null as number | null,
+    networkStatus: "CONNECTING...",
+    citizens: 0,
+    masons: 0,
+    architects: 0,
+    seniorArchitects: 0,
+    blacklisted: 0
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      // Network Status Ping
+      const startTime = performance.now();
+      let netLatency = null;
+      let netStatus = "OFFLINE";
+      try {
+        await supabase.from('global_network_status').select('id').limit(1);
+        netLatency = Math.round(performance.now() - startTime);
+        netStatus = "ONLINE";
+      } catch (e) {
+        netStatus = "ERROR";
+      }
+
+      // DEFCON Level
+      const { data: defconData } = await supabase.from('global_network_status').select('defcon_level').single();
+
+      // Wayfinder Support Queue
+      const { data: ticketsDataRaw } = await supabase.from('sanctuary_tickets')
+        .select('*')
+        .in('status', ['open', 'new', 'pending', 'escalated', 'investigating']);
+
+      const { data: catData } = await supabase.from('sanctuary_support_categories').select('*');
+      
+      let wayfinderTickets = 0;
+      if (ticketsDataRaw && catData) {
+        wayfinderTickets = ticketsDataRaw.filter((t: any) => {
+            const cat = catData.find((c: any) => c.category_id === t.category_id);
+            if (!cat) return false;
+            
+            const escalationPath = cat.escalation_path || 'standard';
+            let baseDest = cat.default_routing || 'mod_author';
+
+            const isTargeted = baseDest === 'wayfinder';
+            const logs = t.metadata?.action_log || [];
+            const isEscalatedFromOversight = t.status?.toUpperCase() === 'ESCALATED' && 
+                logs.some((l: any) => l.action === 'ESCALATED' && (l.architect === 'Senior Architect' || l.architect === 'Mason'));
+            return isTargeted || isEscalatedFromOversight;
+        }).length;
+      }
+
+      // 30 days ago
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const isoDate = thirtyDaysAgo.toISOString();
+
+      // Flagged Queue (mods with compliance tier 1-3, updated in last 30 days)
+      const { count: flaggedQueueCount } = await supabase.from('mods')
+        .select('*', { count: 'exact', head: true })
+        .in('compliance_tier', [1, 2, 3])
+        .gte('created_at', isoDate); 
+
+      // Report Queue (marketplace_reports pending, last 30 days)
+      const { count: reportQueueCount } = await supabase.from('marketplace_reports')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .gte('created_at', isoDate);
+
+      // Quarantined (mods with compliance tier 3)
+      const { count: quarantinedCount } = await supabase.from('mods')
+        .select('*', { count: 'exact', head: true })
+        .eq('compliance_tier', 3);
+
+      // Hub Metrics
+      const { count: citizensCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'citizen');
+      const { count: masonsCount } = await supabase.from('masons').select('*', { count: 'exact', head: true });
+      const { count: architectsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'architect');
+      const { count: seniorArchitectsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'senior_architect');
+      const { count: blacklistedCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_banned', true);
+
+      // LATEST DISPATCH Broadcasts
+      const { data: broadcastsData } = await supabase.from('system_broadcasts')
+        .select('*')
+        .in('target_audience', ['All', 'all', 'Wayfinders', 'wayfinders', 'WAYFINDERS'])
+        .order('created_at', { ascending: false })
+        .limit(3);
+      if (broadcastsData) setBroadcasts(broadcastsData);
+
+      setStats({
+        defconLevel: defconData?.defcon_level || 5,
+        supportQueue: wayfinderTickets,
+        flaggedQueue: flaggedQueueCount || 0,
+        reportQueue: reportQueueCount || 0,
+        quarantined: quarantinedCount || 0,
+        networkLatency: netLatency,
+        networkStatus: netStatus,
+        citizens: citizensCount || 0,
+        masons: masonsCount || 0,
+        architects: architectsCount || 0,
+        seniorArchitects: seniorArchitectsCount || 0,
+        blacklisted: blacklistedCount || 0
+      });
+    };
+    fetchStats();
+  }, []);
+
+  const getDefconColor = (level: number) => {
+    if (level === 5) return "border-green-500/30 text-green-500 hover:border-green-500 bg-green-500/10 hover:bg-green-500/20";
+    if (level === 4) return "border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20";
+    if (level === 3) return "border-yellow-500/30 text-yellow-500 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20";
+    if (level === 2) return "border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20";
+    return "border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20";
+  };
+
+  const getNetworkColor = (status: string, latency: number | null) => {
+    if (status !== 'ONLINE') return "border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20";
+    if (latency && latency > 500) return "border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20";
+    if (latency && latency > 150) return "border-yellow-500/30 text-yellow-500 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20";
+    return "border-green-500/30 text-green-500 hover:border-green-500 bg-green-500/10 hover:bg-green-500/20";
+  };
+
+  const getNetworkIcon = (status: string, latency: number | null) => {
+    if (status !== 'ONLINE') return t("ui_icon_wifi_0") || "wifi_off";
+    if (latency && latency > 500) return t("ui_icon_wifi_1") || "network_wifi_1_bar";
+    if (latency && latency > 150) return t("ui_icon_wifi_2") || "network_wifi_2_bar";
+    if (latency && latency > 50) return t("ui_icon_wifi_3") || "network_wifi_3_bar";
+    return t("ui_icon_wifi_4") || "wifi";
+  };
+
+  return (
+    <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32 mt-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full">
+          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_warning") || "warning"}</span>} number={stats.defconLevel} label={t("sa_defcon_global") || "GLOBAL DEFCON"} colorClass={getDefconColor(stats.defconLevel)} onClick={() => setDefconOpen(true)} />
+          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">dns</span>} number={stats.networkLatency ? `${stats.networkLatency}` : "---"} label={stats.networkStatus === "ONLINE" ? (t("wf_stat_server_nominal") || "NOMINAL") : (t("wf_stat_server_degraded") || "DEGRADED")} colorClass={stats.networkStatus === "ONLINE" ? "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" : "border-yellow-500/30 text-yellow-500 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20"} onClick={() => setHealthOpen(true)} />
+          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity") || "local_activity"}</span>} number={stats.supportQueue} label={t("wf_stat_support_queue") || "SUPPORT QUEUE"} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("sanctuary_tickets")} />
+          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_flag") || "flag"}</span>} number={stats.flaggedQueue} label={t("wf_stat_flagged") || "FLAGGED QUEUE"} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => { if(setComplianceFilter) setComplianceFilter('flagged'); setTab("compliance"); }} />
+          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_report") || "flag"}</span>} number={stats.reportQueue} label={t("wf_stat_report_queue") || "REPORT QUEUE"} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => setTab("reports")} />
+          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_malware_skull") || "bug_report"}</span>} number={stats.quarantined} label={t("wf_stat_quarantined") || "QUARANTINED"} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { if(setComplianceFilter) setComplianceFilter('quarantined'); setTab("compliance"); }} />
+        </div>
+
+      <div className="flex flex-col lg:flex-row gap-8 w-full">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wf_comms_title") || "LATEST DISPATCH"}</h2>
+          <div className="flex flex-col gap-8 w-full mb-8">
+             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
+                {broadcasts.length > 0 ? broadcasts.map((post, index) => {
+                  const isFeatured = index === 0;
+                  return (
+                  <div key={post.id} onClick={() => setViewingPost({ ...post, content: post.message || post.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className={`group cursor-pointer w-full theme-glass-panel rounded-[2rem] overflow-hidden hover:scale-[1.01] transition-all shadow-xl hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.3)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 flex flex-col ${isFeatured ? 'xl:flex-row xl:col-span-2 min-h-[16rem] xl:min-h-[18rem]' : 'min-h-[10rem]'}`}>
+                    {isFeatured && (
+                      <div className="w-full relative overflow-hidden bg-[var(--bg)] border-b xl:w-1/2 xl:border-b-0 xl:border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center">
+                         <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent" />
+                         <span className="material-symbols-outlined !text-6xl grayscale opacity-30 drop-shadow-lg group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 group-hover:grayscale-0">{t("ui_icon_satellite") || "satellite_alt"}</span>
+                      </div>
+                    )}
+                    <div className="flex-1 p-8 flex flex-col min-w-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--bg)_40%,transparent)] to-transparent relative z-10">
+                       <div className="flex items-center gap-2 mb-4 shrink-0 flex-wrap">
+                         <span className="px-3 py-1 bg-[var(--accent)]/20 text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg">{post.category || t("wayfinder_update") || "UPDATE"}</span>
+                         <span className="px-3 py-1 theme-glass-inner text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg">{t("wayfinder_system") || "SYSTEM"}</span>
+                       </div>
+                       <h3 className="text-xl font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors mb-4 leading-normal line-clamp-2">{post.title}</h3>
+                       {isFeatured && <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 mb-6 line-clamp-3">{post.message || post.content}</p>}
+                       <div className="mt-auto flex items-center justify-between pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
+                          <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("ui_icon_calendar_today") || "calendar_today"}</span> {new Date(post.created_at).toLocaleDateString()}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more") || "READ MORE"} <span className="material-symbols-outlined !text-lg">{t('arrow_forward') || 'arrow_forward'}</span></span>
+                        </div>
+                     </div>
+                  </div>
+                  );
+                }) : (
+                  <div className="w-full xl:col-span-2 theme-glass-panel rounded-[2rem] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                    {t("system_no_broadcasts") || "NO RECENT BROADCASTS"}
+                  </div>
+                )}
+             </div>
+          </div>
+
+          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("hub_metrics") || "HUB METRICS"}</h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
+             <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-[var(--accent)]/30 transition-all text-center h-32">
+                <span className="text-3xl font-black theme-text-accent">{stats.citizens}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_citizens") || "CITIZENS"}</span>
+             </div>
+             <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-[var(--accent)]/30 transition-all text-center h-32">
+                <span className="text-3xl font-black theme-text-accent">{stats.masons}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_masons") || "MASONS"}</span>
+             </div>
+             <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-purple-500/30 transition-all text-center h-32">
+                <span className="text-3xl font-black text-purple-400">{stats.architects}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-purple-300/70 leading-tight">{t("hub_stat_architects") || "ARCHITECTS"}</span>
+             </div>
+             <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-indigo-500/30 transition-all text-center h-32">
+                <span className="text-3xl font-black text-indigo-400">{stats.seniorArchitects}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-indigo-300/70 leading-tight">{t("hub_stat_senior_architects") || "SENIOR ARCHITECTS"}</span>
+             </div>
+             <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-red-500/30 transition-all text-center h-32">
+                <span className="text-3xl font-black text-red-500">{stats.blacklisted}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-red-400/70 leading-tight">{t("hub_stat_blacklisted") || "BLACKLISTED"}</span>
+             </div>
+          </div>
+        </div>
+
+        <div className="w-[380px] shrink-0 flex flex-col">
+           <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6">{t("wf_quick_links") || "QUICK LINKS"}</h2>
+           <div className="flex flex-col gap-4">
+             <button onClick={() => setTab("linker")} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[1.5rem] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
+               <div className="flex items-center gap-5 h-full">
+                 <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_link") || "link"}</span>
+                 </div>
+                 <div className="flex flex-col gap-1 flex-1 min-w-0">
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_mason_linker") || "MASON VERIFICATION"}</h3>
+                   <span className="text-[8px] uppercase font-bold text-emerald-400 opacity-80 group-hover:text-emerald-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> {t("sa_link_linker_sub") || "MANAGE LINKAGES"}</span>
+                 </div>
+               </div>
+             </button>
+
+             <button onClick={() => setTab("compliance")} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[1.5rem] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
+               <div className="flex items-center gap-5 h-full">
+                 <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_policy") || "policy"}</span>
+                 </div>
+                 <div className="flex flex-col gap-1 flex-1 min-w-0">
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_comp_title") || "COMPLIANCE"}</h3>
+                   <span className="text-[8px] uppercase font-bold text-orange-400 opacity-80 group-hover:text-orange-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.8)]"></span> {t("sa_link_compliance_sub") || "ENFORCE POLICIES"}</span>
+                 </div>
+               </div>
+             </button>
+
+             <button onClick={() => setTab("sanctuary_tickets")} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[1.5rem] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
+               <div className="flex items-center gap-5 h-full">
+                 <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_local_activity") || "local_activity"}</span>
+                 </div>
+                 <div className="flex flex-col gap-1 flex-1 min-w-0">
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_support") || "SANCTUARY TICKETS"}</h3>
+                   <span className="text-[8px] uppercase font-bold text-purple-400 opacity-80 group-hover:text-purple-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></span> {t("wf_link_tickets_sub") || "HANDLE TICKETS"}</span>
+                 </div>
+               </div>
+             </button>
+             
+             <button onClick={() => setTab("support_settings")} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[1.5rem] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
+               <div className="flex items-center gap-5 h-full">
+                 <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_support_agent") || "support_agent"}</span>
+                 </div>
+                 <div className="flex flex-col gap-1 flex-1 min-w-0">
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_title_support_settings") || "SUPPORT SETTINGS"}</h3>
+                   <span className="text-[8px] uppercase font-bold text-amber-400 opacity-80 group-hover:text-amber-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> {t("wf_link_support_sub") || "CONFIGURE SUPPORT"}</span>
+                 </div>
+               </div>
+             </button>
+             
+             <button onClick={() => setTab("audit_logs")} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[1.5rem] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
+               <div className="flex items-center gap-5 h-full">
+                 <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_history") || "history"}</span>
+                 </div>
+                 <div className="flex flex-col gap-1 flex-1 min-w-0">
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_audit_logs") || "AUDIT LOGS"}</h3>
+                   <span className="text-[8px] uppercase font-bold text-blue-400 opacity-80 group-hover:text-blue-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]"></span> {t("sa_link_audit_sub") || "VIEW SYSTEM LOGS"}</span>
+                 </div>
+               </div>
+             </button>
+           </div>
+        </div>
+      </div>
+        <ServerHealthSidePanel isOpen={healthOpen} onClose={() => setHealthOpen(false)} stats={stats} />
+      <DefconSidePanel isOpen={defconOpen} onClose={() => setDefconOpen(false)} />
+      {viewingPost && (
+        <MasonPostViewer 
+          post={viewingPost} 
+          onClose={() => setViewingPost(null)} 
+          userId="system" 
+        />
+      )}
+    </div>
+  );
+}
