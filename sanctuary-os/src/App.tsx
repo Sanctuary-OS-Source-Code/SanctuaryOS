@@ -43,6 +43,7 @@ import Lab from "./Lab";
 import TimeCapsule from "./TimeCapsule";
 import SeniorArchitect from "./SeniorArchitect";
 import WayfinderHub from "./WayfinderHub";
+import { UpdateSidePanel } from "./UpdateSidePanel";
 
 const setupBtnStyle: React.CSSProperties = {
   padding: "12px",
@@ -132,23 +133,7 @@ function App() {
       try {
         const update = await check();
         if (update) {
-          setConfirmDialog({
-            message: `Sanctuary OS ${update.version} is available!\n\nWould you like to download and install this update now?`,
-            confirmText: "UPDATE",
-            action: async () => {
-              setConfirmDialog(null);
-              setStatus(t("status_downloading_update") || "DOWNLOADING UPDATE...");
-              try {
-                await update.downloadAndInstall();
-                setStatus(t("status_restarting") || "RESTARTING...");
-                await relaunch();
-              } catch (e) {
-                setStatus("UPDATE FAILED: " + e);
-              }
-            },
-            cancelText: "SKIP",
-            cancelAction: () => setConfirmDialog(null)
-          });
+          setUpdatePayload(update);
         }
       } catch (e) {
         // console.error("Update check failed", e);
@@ -553,6 +538,7 @@ function App() {
     setDnaMatchQueue,
     scoutQueue,
     setScoutQueue,
+    setUpdatePayload
   } = useModalStore();
 
   const {
@@ -1622,6 +1608,7 @@ function App() {
                 
                 if (!existing || bId === dbId) {
                     let shouldSet = true;
+                    let nextBossId: string | null = bId;
                     if (existing && existing.bossId === bId) {
                         if (!existing.isTwinGroup && isTwinGroup) {
                             existing.isTwinGroup = true; // Mutate existing immediately to upgrade directory status
@@ -1633,11 +1620,15 @@ function App() {
                         else if (existing.cloudMatch?.version_label && cm?.version_label && cm.version_label.localeCompare(existing.cloudMatch.version_label, undefined, { numeric: true, sensitivity: 'base' }) >= 0) {
                             shouldSet = false; // Keep the LOWER version of the same Boss
                         }
+                    } else if (existing && existing.bossId !== bId) {
+                        // Multiple different bosses in this directory means it is a MIXED directory.
+                        // It should not act as a catch-all Directory Boss for unidentified files.
+                        nextBossId = null;
                     } else if (existing && existing.isTwinGroup && !isTwinGroup) {
                         shouldSet = false; // Never overwrite a Twin Group Boss with a Standalone Boss!
                     }
                     if (shouldSet) {
-                        dirMap.set(dir, { bossId: bId, cloudMatch: cm, dbMod: dbM, isTwinGroup: existing?.isTwinGroup || isTwinGroup });
+                        dirMap.set(dir, { bossId: nextBossId, cloudMatch: cm, dbMod: dbM, isTwinGroup: existing?.isTwinGroup || isTwinGroup });
                     }
                 }
             }
@@ -1815,8 +1806,8 @@ function App() {
             mod.author,
           version: finalVersion,
           compatible_versions: effectiveCloudMatch?.game_version || effectiveDbMod?.compatible_versions || [],
-          familyId: `${myBossId || dbId || "v.Local"}@${finalVersion}`,
-          baseFamilyId: myBossId,
+          familyId: myBossId || dbId ? `${myBossId || dbId}@${finalVersion}` : `local_${mod.hash}`,
+          baseFamilyId: myBossId || dbId ? myBossId : `local_${mod.hash}`,
           relationshipType: myRelType,
           invisibleRivals:
             invisibleRivalIds.length > 0 ? invisibleRivalIds : undefined,

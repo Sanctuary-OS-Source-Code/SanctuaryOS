@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { GameVersionMultiSelect, SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass } from "./shared";
+import { GameVersionMultiSelect, SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, ModSearchDropdown } from "./shared";
 
 interface ModLineageTreeProps {
   targetMod: any;
@@ -16,16 +16,19 @@ function EditableVersionRow({
   version, 
   index, 
   totalCount, 
-  onUpdate 
+  onUpdate,
+  cloudMods
 }: { 
   version: any; 
   index: number; 
   totalCount: number; 
   onUpdate: () => void;
+  cloudMods: any[];
 }) {
   const { t } = useLexicon();
   const [editingLabel, setEditingLabel] = useState(version.version_label || '');
   const [editingGameVersion, setEditingGameVersion] = useState(version.game_version || '');
+  const [isReassigning, setIsReassigning] = useState(false);
 
   useEffect(() => {
     setEditingLabel(version.version_label || '');
@@ -62,6 +65,36 @@ function EditableVersionRow({
       onUpdate(); // Refresh parent data
     } catch (err) {
       console.error('Failed to update game version:', err);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (confirm(t("lineage_confirm_delete") || "Are you sure you want to delete this version?")) {
+      try {
+        const { error } = await supabase.from('mod_versions').delete().eq('dna_hash', version.dna_hash);
+        if (error) {
+          alert(`Failed to delete: ${error.message}`);
+        } else {
+          onUpdate();
+        }
+      } catch (err) {
+        console.error('Delete error', err);
+      }
+    }
+  };
+
+  const handleReassign = async (mod: any) => {
+    if (!mod) return;
+    try {
+      const { error } = await supabase.from('mod_versions').update({ mod_id: mod.id }).eq('dna_hash', version.dna_hash);
+      if (error) {
+         alert(`Failed to reassign: ${error.message}`);
+      } else {
+         setIsReassigning(false);
+         onUpdate();
+      }
+    } catch (err) {
+      console.error('Reassign error', err);
     }
   };
 
@@ -133,11 +166,43 @@ function EditableVersionRow({
           />
         </div>
 
-        <div className="mt-2 flex items-center gap-2">
-           <span className="material-symbols-outlined !text-[12px] opacity-40 text-[var(--subtext)]">{t("ui_icon_fingerprint") || "fingerprint"}</span>
-           <span className="text-[9px] font-bold text-[var(--subtext)] opacity-50 truncate tracking-widest font-mono">
-             {version.dna_hash}
-           </span>
+        <div className="mt-2 flex flex-wrap items-center gap-4 justify-between">
+          <div className="flex items-center gap-2">
+             <span className="material-symbols-outlined !text-[12px] opacity-40 text-[var(--subtext)]">{t("ui_icon_fingerprint") || "fingerprint"}</span>
+             <span className="text-[9px] font-bold text-[var(--subtext)] opacity-50 truncate tracking-widest font-mono">
+               {version.dna_hash}
+             </span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {isReassigning ? (
+              <div className="flex items-center gap-2 bg-black/20 p-2 rounded-xl z-[9999] relative">
+                 <div className="w-48">
+                    <ModSearchDropdown
+                      modList={cloudMods || []}
+                      onSelect={handleReassign}
+                      selectedItem={null}
+                      onClear={() => {}}
+                      placeholder={t("lineage_reassign_ph") || "Select artifact..."}
+                    />
+                 </div>
+                 <button onClick={() => setIsReassigning(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-[var(--subtext)] shrink-0">
+                   <span className="material-symbols-outlined !text-[16px]">close</span>
+                 </button>
+              </div>
+            ) : (
+              <>
+                <button onClick={() => setIsReassigning(true)} className="px-3 py-1.5 rounded-lg border border-[var(--accent)]/30 text-[var(--accent)] text-[9px] font-black uppercase hover:bg-[var(--accent)]/10 transition-colors flex items-center gap-1">
+                  <span className="material-symbols-outlined !text-[12px]">move_up</span>
+                  {t("lineage_btn_reassign") || "Reassign"}
+                </button>
+                <button onClick={handleDelete} className="px-3 py-1.5 rounded-lg border border-[var(--danger)]/30 text-[var(--danger)] text-[9px] font-black uppercase hover:bg-[var(--danger)]/10 transition-colors flex items-center gap-1">
+                  <span className="material-symbols-outlined !text-[12px]">delete</span>
+                  {t("lineage_btn_delete") || "Delete"}
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -254,6 +319,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
               index={index}
               totalCount={versionHistory.length}
               onUpdate={fetchVersionHistory}
+              cloudMods={cloudMods}
             />
           ))}
         </div>

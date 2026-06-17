@@ -69,6 +69,8 @@ interface ModalState {
   setIsDropzoneOpen: (val: boolean) => void;
   confirmDialog: any;
   setConfirmDialog: (val: any) => void;
+  updatePayload: any;
+  setUpdatePayload: (val: any) => void;
 }
 
 export const useModalStore = create<ModalState>((set) => ({
@@ -142,4 +144,6 @@ export const useModalStore = create<ModalState>((set) => ({
   setIsDropzoneOpen: (isDropzoneOpen) => set({ isDropzoneOpen }),
   confirmDialog: null,
   setConfirmDialog: (confirmDialog) => set({ confirmDialog }),
+  updatePayload: null,
+  setUpdatePayload: (updatePayload) => set({ updatePayload }),
 }));

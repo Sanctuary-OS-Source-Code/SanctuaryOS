@@ -893,10 +893,11 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
         name: activeMod.name,
         category_override: activeMod.category_override,
         sub_type: activeMod.sub_type,
-          file_extension: activeMod.file_extension,
+        file_extension: activeMod.file_extension,
         status: activeMod.status,
         url: activeMod.url,
         image_url: activeMod.image_url,
+        latest_version: activeMod.latest_version,
         description: activeMod.description,
         compatible_versions: activeMod.compatible_versions,
         family_slug: activeMod.family_slug,
@@ -1538,6 +1539,7 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [submissions, setSubmissions] = useState<any[]>([]);
     const [masonsList, setMasonsList] = useState<any[]>([]);
+    const [cloudModsList, setCloudModsList] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeScout, setActiveScout] = useState<any | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -1580,7 +1582,10 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
       setLoading(true);
       const { data: mData } = await supabase.from('masons').select('*').order('name');
       if (mData) setMasonsList(mData);
-  
+
+      const { data: cData } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author, latest_version, url, mason_id, category_override, compliance_tier, compatible_versions, file_extension').order('name'));
+      if (cData) setCloudModsList(cData);
+
       const { data, error } = await supabase
         .from('scout_suggestions')
         .select('*')
@@ -1619,25 +1624,20 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
     }, [activeScout, masonsList]);
   
     useEffect(() => {
-      if (lineageId && modList) {
-         const existing = modList.find(m => m.id === lineageId);
+      if (lineageId && cloudModsList) {
+         const existing = cloudModsList.find(m => m.id === lineageId);
          if (existing) {
             setEditForm(prev => ({
               ...prev,
-              name: existing.name || "",
-              mason_id: existing.mason_id || "",
-              category_override: existing.category_override || "Script",
-              sub_type: existing.sub_type || "",
-                file_extension: existing.file_extension || "",
-              description: existing.description || "",
-              image_url: existing.image_url || "",
-              url: existing.url || "",
-              compliance_tier: existing.compliance_tier || 0,
-              compatible_versions: existing.compatible_versions || []
+              name: existing.name || prev.name,
+              mason_id: existing.mason_id || prev.mason_id,
+              category_override: existing.category_override || prev.category_override,
+              compliance_tier: existing.compliance_tier || prev.compliance_tier,
+              compatible_versions: existing.compatible_versions || prev.compatible_versions
             }));
          }
       }
-    }, [lineageId, modList]);
+    }, [lineageId, cloudModsList]);
   
     const handleAction = async (action: 'approved' | 'rejected') => {
       if (!activeScout) return;
@@ -1772,9 +1772,9 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
                       {t("scout_label_lineage")}
                     </label>
                     <ModSearchDropdown 
-                      modList={modList || []} 
+                      modList={cloudModsList || []} 
                       onSelect={(m: any) => setLineageId(m.id)} 
-                      selectedItem={modList?.find((m: any) => m.id === lineageId)} 
+                      selectedItem={cloudModsList?.find((m: any) => m.id === lineageId)} 
                       onClear={() => setLineageId("")}
                       placeholder={t("scout_ph_link_lineage")}
                     />
@@ -2280,7 +2280,7 @@ function ConflictMatrix({ modList = [] }: { modList?: any[] }) {
             <button onClick={() => setTierFilter(null)} className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === null ? 'bg-white/10 text-white' : 'opacity-50 hover:opacity-100 hover:bg-white/5'}`}>{t("hub_ql_all") || "ALL"}</button>
             {[4, 3, 2, 1].map(tier => (
               <button key={tier} onClick={() => setTierFilter(tier)} className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === tier ? 'bg-white/10 text-white shadow-sm' : 'opacity-50 hover:opacity-100 hover:bg-white/5'}`}>
-                T{tier}
+                {(t("hub_filter_sev") || "SEV ") + tier}
               </button>
             ))}
           </div>

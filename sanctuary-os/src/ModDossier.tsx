@@ -258,7 +258,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
   return createPortal(
     <>
       {/* Main Sidebar */}
-      <div className="fixed top-0 right-0 bottom-10 z-[51000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-500 transition-all" style={{ left: "var(--sidebar-width, 288px)" }} onClick={onClose} />
+      <div className="fixed top-0 right-0 bottom-10 z-[51000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-500 transition-all" style={{ left: "var(--sidebar-width, 300px)" }} onClick={onClose} />
       <div className="fixed top-0 right-0 bottom-10 w-[900px] max-w-[100vw] theme-glass-panel border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex flex-col z-[51001] animate-in slide-in-from-right duration-500 !border-y-0 !border-r-0 backdrop-blur-2xl">
         
         <button

@@ -241,7 +241,14 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
                 onClick={() => { onSelect(m); setQuery(""); setIsOpen(false); }}
                 className="w-full text-left px-5 py-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col gap-0.5"
               >
-                <span className="text-[11px] font-black text-[var(--text)] uppercase">{m.displayName || m.name.split('/').pop()}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-black text-[var(--text)] uppercase">{m.displayName || m.name.split('/').pop()}</span>
+                  {m.file_extension && (
+                    <span className="px-1.5 py-0.5 rounded bg-[var(--text)]/10 text-[8px] font-mono opacity-80 uppercase border border-[var(--text)]/20">
+                      {m.file_extension}
+                    </span>
+                  )}
+                </div>
                 <span className="text-[8px] font-mono text-[var(--subtext)] opacity-60">
                   {m.version_label ? `Version(s): ${m.version_label}` : (m.master_author || m.author || (m.created_at ? `Created: ${new Date(m.created_at).toLocaleDateString()}` : `ID: ${m.id?.substring(0,8).toUpperCase()}`))}
                 </span>
