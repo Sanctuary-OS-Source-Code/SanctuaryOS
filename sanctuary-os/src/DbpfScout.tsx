@@ -64,6 +64,7 @@ export const DbpfScout = () => {
   const [activeConflictRes, setActiveConflictRes] = useState<any>(null);
 
   const runRadar = async () => {
+    setIsSidePanelOpen(false);
     setLoading(true);
     setError(null);
     setHasScanned(false);
@@ -415,6 +416,27 @@ export const DbpfScout = () => {
                 <span className="material-symbols-outlined !text-xl animate-pulse">{t("ui_icon_radar") || "radar"}</span>
                 <span className="text-xs font-black uppercase tracking-widest">{t("radar_btn_sweep") || "SWEEP ACTIVE LIBRARY"}</span>
               </button>
+            </div>
+          )}
+
+          {loading && (
+            <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
+              <div className="w-56 h-56 rounded-full border border-[var(--accent)]/30 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] shadow-[0_0_50px_color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center relative group">
+                 <div className="absolute inset-0 rounded-full border-[2px] border-dashed border-[var(--accent)] opacity-80 animate-[spin_3s_linear_infinite]" />
+                 <div className="absolute inset-4 rounded-full border-[4px] border-solid border-transparent border-t-[var(--accent)] opacity-60 animate-[spin_1s_linear_infinite_reverse]" />
+                 <div className="absolute inset-8 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-40 animate-[spin_5s_linear_infinite]" />
+                 <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] animate-pulse drop-shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_80%,transparent)]">
+                   {t("ui_icon_radar") || "radar"}
+                 </span>
+              </div>
+              <div className="space-y-4 max-w-xl relative z-10">
+                <h2 className="text-4xl font-black text-[var(--accent)] uppercase tracking-tighter drop-shadow-lg animate-pulse">
+                   {t("radar_scanning_title") || "SCANNING PROTOCOLS..."}
+                </h2>
+                <p className="text-sm font-medium leading-relaxed text-[var(--subtext)] opacity-80">
+                   {t("radar_scanning_desc") || "Please stand by. Analyzing target blueprint for duplicate assets and logical conflicts."}
+                </p>
+              </div>
             </div>
           )}
 

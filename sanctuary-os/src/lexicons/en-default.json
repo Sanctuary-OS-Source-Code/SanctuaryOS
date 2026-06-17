@@ -42,6 +42,8 @@
   "radar_conflict_details": "CONFLICT DETAILS",
   "radar_landing_title": "SYSTEM STANDBY",
   "radar_landing_desc": "Deploy the Conflict Radar to scan your active load order for fatal structural clashes, tuning data overlaps, and duplicate asset clones. Neutralize threats before they destabilize your environment.",
+  "radar_scanning_title": "SCANNING PROTOCOLS...",
+  "radar_scanning_desc": "Please stand by. Analyzing target blueprint for duplicate assets and logical conflicts.",
   "scout_reset_ignored": "Reset Ignored ({count})",
   "scout_confirm_purge": "CONFIRM DELETE",
   "scout_secure_quarantine": "MOVE {count} TARGETS TO QUARANTINE",
@@ -151,6 +153,8 @@
   "settings_color_danger": "Danger",
   "settings_show_images": "Show Asset Images",
   "settings_show_images_desc": "Display cover images on mod cards and dossiers.",
+  "settings_discord_presence_desc": "Display your active Blueprint on Discord",
+  "cmd_critical_action": "CRITICAL ACTION REQUIRED: Artifact is broken or missing dependencies.",
   "alert_import_failed": "Import Failed:",
   "alert_lexicon_failed": "Language Import Failed:",
   "alert_export_failed": "Export Failed:",
@@ -2778,5 +2782,10 @@
   "update_panel_notes": "RELEASE NOTES",
   "update_panel_no_notes": "NO RELEASE NOTES PROVIDED",
   "update_panel_installing": "INSTALLING UPDATE...",
-  "update_panel_install": "DOWNLOAD & INSTALL"
+  "update_panel_install": "DOWNLOAD & INSTALL",
+  "radar_updates_avail": "UPDATES AVAILABLE",
+  "cmd_update_suggested": "SYSTEM UPDATES AVAILABLE",
+  "cmd_critical_action_short": "CRITICAL ACTION REQUIRED",
+  "cmd_action_incompatibilities": "INCOMPATIBILITIES MAY AFFECT THIS DEPLOYMENT",
+  "cmd_action_fatal": "FATAL CONFLICTS REQUIRE RESOLUTION BEFORE DEPLOYMENT"
 }

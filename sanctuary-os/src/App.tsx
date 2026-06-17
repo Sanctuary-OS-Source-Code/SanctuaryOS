@@ -740,7 +740,7 @@ function App() {
   }, []);
 
 
-  const toggleInActiveSet = (targetName: string, excludeBroken: boolean = true, forceRemove: boolean = false) => {
+  const toggleInActiveSet = (targetName: string, excludeBroken: boolean = true, forceRemove: boolean = false, forceActive: boolean = false) => {
     setPlaySets((prevSets) => {
       const currentSet = prevSets[activePlaySetIndex];
       if (!currentSet) return prevSets;
@@ -846,6 +846,7 @@ function App() {
         ? !kids.some((k) => newMods.has(k.name))
         : !newMods.has(targetName);
       if (forceRemove) isEquipping = false;
+      if (forceActive) isEquipping = true;
       const deepDelete = (nameToDelete: string) => {
         if (!newMods.has(nameToDelete)) return;
         newMods.delete(nameToDelete);
@@ -891,7 +892,7 @@ function App() {
           Array.from(newMods as Set<string>).forEach((mName: string) => {
              const m = byName.get(mName);
              if (m && m.name !== modObj.name) {
-                 const isFlavorRival = m.flavorGroupId && String(m.flavorGroupId) === String(modObj.flavorGroupId);
+                 const isFlavorRival = m.flavorGroupId && String(m.flavorGroupId) === String(modObj.flavorGroupId) && m.relationshipType !== "twin" && modObj.relationshipType !== "twin";
                  const isBetaRival = modObj.relationshipType !== 'beta' && m.relationshipType === 'beta' && (String(m.familyId) === String(modObj.familyId) || String(m.dbId) === String(modObj.familyId || modObj.dbId));
                  
                  if (isFlavorRival || isBetaRival) {
@@ -923,7 +924,10 @@ function App() {
       
       const addWithFamily = (modObj: any) => {
         if (!modObj || !modObj.name) return;
-        if (excludeBroken && (modObj.status === t("status_broken") || modObj.status?.includes("BROKEN") || checkGhosted(modObj))) return;
+        if (excludeBroken && (modObj.status === t("status_broken") || modObj.status?.includes("BROKEN") || checkGhosted(modObj))) {
+          setStatus(t("cmd_critical_action") || "CRITICAL ACTION REQUIRED: Artifact is broken or missing dependencies.");
+          return;
+        }
         
         newMods.add(modObj.name);
         applyConflicts(modObj);

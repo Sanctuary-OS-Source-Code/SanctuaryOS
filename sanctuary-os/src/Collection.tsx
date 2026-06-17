@@ -670,7 +670,7 @@ export default function Collection(props: any) {
                                     return !(missingPacks.length > 0 || hasMissingDeps || f.isGhosted || isGameVersionMismatch);
                                   });
                                   flavorsToEquip.forEach((f: any) => {
-                                    toggleInActiveSet(f.name, false);
+                                    toggleInActiveSet(f.name, false, false, true);
                                   });
                                 }}
                                 className="h-10 px-4 rounded-xl theme-glass-inner flex items-center justify-center gap-2 text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:scale-105"

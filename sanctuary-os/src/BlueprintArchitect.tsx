@@ -170,6 +170,22 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
               reason = `${t("bp_status_missing_dlc")}${missingNames}`;
            }
         }
+        
+        if (!reason && mod.dependencies) {
+           let rawDeps: string[] = [];
+           if (typeof mod.dependencies === 'string') {
+             rawDeps = mod.dependencies.split(',').map((s: string) => s.trim());
+           } else if (Array.isArray(mod.dependencies)) {
+             rawDeps = [...mod.dependencies];
+           }
+           if (rawDeps.length > 0) {
+              const activeModNames = activeMods.map((m: any) => (m._originalSetName || m.name)?.toLowerCase());
+              const missing = rawDeps.filter((req: string) => !activeModNames.includes(req.toLowerCase()));
+              if (missing.length > 0) {
+                 reason = `${t("vault_missing_deps") || "MISSING DEPENDENCIES"}: ${missing.join(", ")}`;
+              }
+           }
+        }
       }
 
       if (reason) {
@@ -284,13 +300,37 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5" />
           
           <div className="relative z-10 flex flex-col flex-1 min-h-0">
-            <div className="p-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-between">
-              <h3 className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest">{t("bp_load_order_conflicts")}</h3>
-              <span className="text-amber-400 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-amber-500/30 px-4 py-1.5 rounded-full text-[10px] font-black shadow-inner flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                {t("bp_conflicts_detected").replace("{0}", String(activeConflicts.length))}
-              </span>
-            </div>
+            {(() => {
+              const tier4Count = activeConflicts.filter(c => c.conflict.severity_rank === 4).length;
+              const tier3Count = activeConflicts.length - tier4Count;
+              return (
+                <div className="px-8 py-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-between">
+                  <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">
+                    {t("bp_load_order_conflicts")}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {tier4Count > 0 && (
+                      <span className="text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                        {tier4Count} {t("panel_stat_tier4") || "FATAL"}
+                      </span>
+                    )}
+                    {tier3Count > 0 && (
+                      <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                        {tier3Count} {t("panel_stat_tier3") || "OVERRIDE"}
+                      </span>
+                    )}
+                    {activeConflicts.length === 0 && (
+                      <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+                        {t("bp_no_conflicts_detected") || "0 Detected"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
             
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-6">
               {activeConflicts.length === 0 ? (
@@ -313,24 +353,36 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                   const shadowClass = isTier4 ? "hover:shadow-[0_0_30px_rgba(239,68,68,0.2)]" : "hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]";
                   const textClass = isTier4 ? "text-red-500" : "text-amber-500";
                   const iconName = isTier4 ? (t("ui_icon_crisis") || "crisis_alert") : (t("ui_icon_tune") || "tune");
-
                   return (
                     <div 
                       key={ac.pairId} 
-                      className={`relative group shrink-0 w-full rounded-[2rem] overflow-hidden transition-all duration-500 border ${
+                      className={`theme-glass-panel rounded-[2rem] border transition-all duration-500 relative overflow-hidden group/alert shrink-0 ${
                         isIgnored 
                           ? 'opacity-50 grayscale border-white/5 bg-black/40' 
-                          : `${borderClass} ${bgClass} shadow-lg ${shadowClass} hover:scale-[1.02]`
+                          : `${borderClass} ${bgClass} shadow-lg ${shadowClass}`
                       }`}
                     >
-                      <div className="relative p-5 z-10 flex flex-col gap-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <span className={`material-symbols-outlined !text-2xl ${textClass}`}>{iconName}</span>
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${textClass}`}>
-                              {isTier4 ? t("bp_fatal_override_clash") : t("bp_data_override_conflict")}
-                            </span>
+                      <div className={`absolute inset-0 transition-opacity duration-500 ${isIgnored ? 'opacity-0' : `bg-gradient-to-br ${isTier4 ? 'from-red-500/10' : 'from-amber-500/10'} to-transparent opacity-100`}`} />
+                      
+                      <div className="relative p-6 z-10 flex flex-col gap-5 w-full">
+                        {/* HEADER */}
+                        <div className="flex justify-between items-start w-full">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${
+                              isIgnored ? 'border-white/10 bg-black/50' : `${isTier4 ? 'border-red-500/50 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.2)]' : 'border-amber-500/50 bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.2)]'}`
+                            }`}>
+                              <span className={`material-symbols-outlined !text-[24px] ${isIgnored ? 'text-[var(--text)] opacity-30' : textClass}`}>{iconName}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className={`text-xs font-black uppercase tracking-widest ${textClass}`}>
+                                {isTier4 ? t("bp_fatal_override_clash") : t("bp_data_override_conflict")}
+                              </span>
+                              <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">
+                                {ac.conflict.resolution_note || "Local Scan Detects Tuning Overlap"}
+                              </span>
+                            </div>
                           </div>
+                          
                           <button 
                             onClick={() => {
                               const newSet = new Set(ignoredConflicts);
@@ -338,46 +390,44 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                               else newSet.add(ac.pairId);
                               setIgnoredConflicts(newSet);
                             }}
-                            className={`text-[9px] font-black px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 flex items-center gap-2 ${
-                                isIgnored 
-                                  ? 'bg-white/10 text-white hover:bg-white/20' 
-                                  : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)]'
-                              }`}
+                            className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 shrink-0 ml-4 flex items-center gap-2"
                           >
-                            <span className="material-symbols-outlined !text-[14px]">{isIgnored ? "visibility" : "visibility_off"}</span>
+                            <span className="material-symbols-outlined !text-[12px]">{isIgnored ? "visibility" : "visibility_off"}</span>
                             {isIgnored ? t("bp_restore_alert") : t("bp_ignore_alert")}
                           </button>
                         </div>
                         
-                        <div className={`grid grid-cols-2 gap-4 ${isIgnored ? 'opacity-30' : ''}`}>
+                        {/* CONFLICTING ARTIFACTS LIST */}
+                        <div className={`flex flex-col gap-3 w-full mt-2 ${isIgnored ? 'opacity-30' : ''}`}>
                           {/* Mod A */}
-                          <div className={`theme-glass-inner rounded-2xl p-4 border border-white/5 flex flex-col transition-all shadow-inner relative overflow-hidden group/card hover:border-white/10 ${isWinnerA && !isTier4 ? 'ring-2 ring-[var(--success)]/50 bg-[var(--success)]/5' : ''}`}>
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
-                            <div className="relative z-10 flex flex-col">
-                              <span className="text-xs font-black text-[var(--text)] uppercase break-words mb-1">
-                                {formatDisplayName(ac.modA.name)}
-                              </span>
-                              <span className="text-[10px] font-mono text-cyan-400 mb-1 tracking-widest opacity-80">{ac.modA.version || "v.Local"}</span>
-                              <div className="mt-1">
+                          <div className={`flex-1 flex flex-col p-4 rounded-[1.25rem] border transition-all shadow-inner relative overflow-hidden group/card hover:border-white/20 ${isWinnerA && !isTier4 ? 'border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                             
+                             <div className="flex flex-col gap-1.5 relative z-10 w-full mb-3">
+                               <span className={`text-[11px] font-black uppercase leading-tight ${isWinnerA && !isTier4 ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>{formatDisplayName(ac.modA.name)}</span>
+                               <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded-md border border-cyan-400/20 w-fit">{ac.modA.version || "v.Local"}</span>
+                             </div>
+                             
+                             <div className="relative z-10 flex items-center gap-2 w-full mt-auto">
                                 {ac.conflict.severity_rank === 4 ? (
                                   allow_write && (
                                     <button 
                                       onClick={() => toggleInActiveSet(ac.modA._originalSetName || ac.modA.name, true, true)}
-                                      className="mt-2 w-full py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                      className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                     >
-                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_delete") || "delete"}</span>
+                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete") || "delete"}</span>
                                       {t("bp_yeet_artifact")}
                                     </button>
                                   )
                                 ) : ac.conflict.severity_rank === 3 ? (
                                   isWinnerA ? (
-                                    <div className="mt-2 w-full py-2 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
-                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_star") || "star"}</span>
+                                    <div className="w-full py-2.5 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
+                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_star") || "star"}</span>
                                       {t("bp_winning_artifact")}
                                     </div>
                                   ) : isWinnerB ? (
-                                    <div className="mt-2 w-full py-2 rounded-xl bg-white/5 border border-white/10 text-white/40 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-                                      <span className="material-symbols-outlined !text-sm">block</span>
+                                    <div className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">block</span>
                                       {t("bp_overridden_by_winner")}
                                     </div>
                                   ) : (
@@ -387,96 +437,89 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                           { name: ac.modA._originalSetName || ac.modA.name, prefix: "Sanctuary" },
                                           { name: ac.modB._originalSetName || ac.modB.name, prefix: "" }
                                         ])}
-                                        className="mt-2 w-full py-2 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)] text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                        className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                       >
-                                        <span className="material-symbols-outlined !text-sm">{t("ui_icon_check_circle") || "check_circle"}</span>
+                                        <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check_circle") || "check_circle"}</span>
                                         {t("bp_select_winning_artifact")}
                                       </button>
                                     )
                                   )
                                 ) : (
-                                  <>
-                                    {getPriorityDrop(ac.modA)}
+                                  <div className="w-full flex gap-2">
+                                    <div className="flex-1">{getPriorityDrop(ac.modA)}</div>
                                     {allow_write && (
                                       <button 
                                         onClick={() => toggleInActiveSet(ac.modA._originalSetName || ac.modA.name, true, true)}
-                                        className="mt-2 w-full py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                        className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center"
+                                        title={t("bp_yeet_artifact")}
                                       >
-                                        <span className="material-symbols-outlined !text-sm">{t("ui_icon_delete") || "delete"}</span>
-                                        {t("bp_yeet_artifact")}
+                                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete") || "delete"}</span>
                                       </button>
                                     )}
-                                  </>
+                                  </div>
                                 )}
-                              </div>
-                            </div>
+                             </div>
                           </div>
                           
                           {/* Mod B */}
-                          <div className={`theme-glass-inner rounded-2xl p-4 border border-white/5 flex flex-col transition-all shadow-inner relative overflow-hidden group/card hover:border-white/10 ${isWinnerB && !isTier4 ? 'ring-2 ring-[var(--success)]/50 bg-[var(--success)]/5' : ''}`}>
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
-                            <div className="relative z-10 flex flex-col">
-                              <span className="text-xs font-black text-[var(--text)] uppercase break-words mb-1">
-                                {formatDisplayName(ac.modB.name)}
-                              </span>
-                              <span className="text-[10px] font-mono text-cyan-400 mb-1 tracking-widest opacity-80">{ac.modB.version || "v.Local"}</span>
-                              <div className="mt-1">
+                          <div className={`flex-1 flex flex-col p-4 rounded-[1.25rem] border transition-all shadow-inner relative overflow-hidden group/card hover:border-white/20 ${isWinnerB && !isTier4 ? 'border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                             
+                             <div className="flex flex-col gap-1.5 relative z-10 w-full mb-3">
+                               <span className={`text-[11px] font-black uppercase leading-tight ${isWinnerB && !isTier4 ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>{formatDisplayName(ac.modB.name)}</span>
+                               <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded-md border border-cyan-400/20 w-fit">{ac.modB.version || "v.Local"}</span>
+                             </div>
+                             
+                             <div className="relative z-10 flex items-center gap-2 w-full mt-auto">
                                 {ac.conflict.severity_rank === 4 ? (
                                   allow_write && (
                                     <button 
                                       onClick={() => toggleInActiveSet(ac.modB._originalSetName || ac.modB.name, true, true)}
-                                      className="mt-2 w-full py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                      className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                     >
-                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_delete") || "delete"}</span>
+                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete") || "delete"}</span>
                                       {t("bp_yeet_artifact")}
                                     </button>
                                   )
                                 ) : ac.conflict.severity_rank === 3 ? (
                                   isWinnerB ? (
-                                    <div className="mt-2 w-full py-2 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
-                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_star") || "star"}</span>
+                                    <div className="w-full py-2.5 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
+                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_star") || "star"}</span>
                                       {t("bp_winning_artifact")}
                                     </div>
                                   ) : isWinnerA ? (
-                                    <div className="mt-2 w-full py-2 rounded-xl bg-white/5 border border-white/10 text-white/40 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-                                      <span className="material-symbols-outlined !text-sm">block</span>
+                                    <div className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">block</span>
                                       {t("bp_overridden_by_winner")}
                                     </div>
                                   ) : (
                                     allow_write && (
                                       <button 
                                         onClick={() => setBlueprintLoadOrder([{ name: ac.modB._originalSetName || ac.modB.name, prefix: "Sanctuary" }, { name: ac.modA._originalSetName || ac.modA.name, prefix: "" }])}
-                                        className="mt-2 w-full py-2 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)] text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                        className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                       >
-                                        <span className="material-symbols-outlined !text-sm">{t("ui_icon_check_circle") || "check_circle"}</span>
-                                        {t("bp_select_winning_artifact") || "SELECT WINNER OF ARTIFACT"}
+                                        <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check_circle") || "check_circle"}</span>
+                                        {t("bp_select_winning_artifact")}
                                       </button>
                                     )
                                   )
                                 ) : (
-                                  <>
-                                    {getPriorityDrop(ac.modB)}
+                                  <div className="w-full flex gap-2">
+                                    <div className="flex-1">{getPriorityDrop(ac.modB)}</div>
                                     {allow_write && (
                                       <button 
                                         onClick={() => toggleInActiveSet(ac.modB._originalSetName || ac.modB.name, true, true)}
-                                        className="mt-2 w-full py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                        className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center"
+                                        title={t("bp_yeet_artifact")}
                                       >
-                                        <span className="material-symbols-outlined !text-sm">{t("ui_icon_delete") || "delete"}</span>
-                                        {t("bp_yeet_artifact")}
+                                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete") || "delete"}</span>
                                       </button>
                                     )}
-                                  </>
+                                  </div>
                                 )}
-                              </div>
-                            </div>
+                             </div>
                           </div>
                         </div>
-                        
-                        {ac.conflict.resolution_note && (
-                          <div className="p-4 theme-glass-inner rounded-xl border-l-2 border-l-amber-500 text-xs font-bold text-amber-500/80">
-                            " {ac.conflict.resolution_note} "
-                          </div>
-                        )}
                       </div>
                     </div>
                   );
@@ -489,15 +532,22 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
         {/* RIGHT SIDE: BROKEN/COMPATIBILITY ALERTS */}
         <div className="flex-1 flex flex-col relative group rounded-[3rem] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] min-h-0">
           <div className="absolute inset-0 theme-glass-panel opacity-100" />
-          <div className="absolute inset-0 bg-gradient-to-br from-rose-500 via-transparent to-transparent opacity-5" />
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5" />
           
           <div className="relative z-10 flex flex-col flex-1 min-h-0">
-            <div className="p-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-between">
-              <h3 className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest">{t("bp_compatibility_scanner")}</h3>
-              <span className="text-rose-400 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-rose-500/30 px-4 py-1.5 rounded-full text-[10px] font-black shadow-inner flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-                {t("bp_alerts_detected").replace("{0}", String(brokenMods.length))}
-              </span>
+            <div className="px-8 py-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-between">
+              <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("bp_compatibility_scanner")}</h3>
+              {brokenMods.length > 0 ? (
+                <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  {brokenMods.length} {t("modcard_artifacts")}
+                </span>
+              ) : (
+                <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+                  0 {t("modcard_artifacts")}
+                </span>
+              )}
             </div>
             
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-4">
@@ -509,22 +559,22 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
               ) : (
                 <>
                   {allow_write && (
-                    <div className="mb-8 p-8 theme-glass-panel border-l-4 border-l-rose-500 border-rose-500/30 rounded-[2rem] flex flex-col gap-6 shadow-[0_0_40px_rgba(244,63,94,0.1)] relative overflow-hidden shrink-0">
-                      <div className="absolute inset-0 bg-gradient-to-r from-rose-500/10 to-transparent pointer-events-none" />
+                    <div className="mb-8 p-8 theme-glass-panel border-l-4 border-l-amber-500 border-amber-500/30 rounded-[2rem] flex flex-col gap-6 shadow-[0_0_40px_rgba(245,158,11,0.1)] relative overflow-hidden shrink-0">
+                      <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-transparent pointer-events-none" />
                       <div className="flex items-center gap-6 relative z-10">
-                        <div className="w-16 h-16 rounded-2xl theme-glass-panel border border-rose-500/50 flex items-center justify-center shrink-0 shadow-[inset_0_0_20px_rgba(239,68,68,0.1),0_0_30px_rgba(239,68,68,0.3)]">
-                          <span className="material-symbols-outlined !text-4xl text-rose-500 animate-pulse">{t("ui_icon_warning") || "warning"}</span>
+                        <div className="w-16 h-16 rounded-2xl theme-glass-panel border border-amber-500/50 flex items-center justify-center shrink-0 shadow-[inset_0_0_20px_rgba(245,158,11,0.1),0_0_30px_rgba(245,158,11,0.3)]">
+                          <span className="material-symbols-outlined !text-4xl text-amber-500 animate-pulse">{t("ui_icon_warning") || "warning"}</span>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <h4 className="text-xl font-black text-rose-500 uppercase tracking-widest">{t("bp_compromised_artifacts")}</h4>
+                          <h4 className="text-xl font-black text-amber-500 uppercase tracking-widest">{t("bp_compromised_artifacts")}</h4>
                           <p className="text-xs font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("bp_compromised_desc").replace("{0}", String(brokenMods.length))}</p>
                         </div>
                       </div>
                       <button onClick={() => {
                         brokenMods.forEach((m: any) => toggleInActiveSet(m._originalSetName || m.name, true, true));
-                      }} className={`w-full py-4 ${standardDangerButtonClass} rounded-xl text-[11px] font-black uppercase tracking-widest relative z-10 shrink-0 flex items-center justify-center gap-2`}>
+                      }} className={`w-full py-4 rounded-xl bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 border border-amber-500/50 hover:border-amber-500 text-[11px] font-black uppercase tracking-widest relative z-10 shrink-0 flex items-center justify-center gap-2 transition-all active:scale-95`}>
                         <span className="material-symbols-outlined !text-lg">{t("ui_icon_delete_sweep") || "delete_sweep"}</span>
-                        {t("bp_purge_compromised").replace("{0}", String(brokenMods.length))}
+                        {t("bp_purge_compromised")?.replace("{0}", String(brokenMods.length)) || `YEET ${brokenMods.length} ARTIFACTS`}
                       </button>
                     </div>
                   )}
@@ -537,21 +587,26 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                         className={`relative shrink-0 group w-full rounded-[2rem] overflow-hidden transition-all duration-500 border flex items-center ${
                           isIgnored 
                             ? 'opacity-50 grayscale border-white/5 bg-black/40' 
-                            : 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10 shadow-lg hover:shadow-[0_0_30px_rgba(244,63,94,0.2)] hover:scale-[1.02]'
+                            : 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 shadow-lg hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]'
                         }`}
                       >
                         <div className="relative p-6 z-10 flex items-center gap-5 w-full">
                           <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${
-                            isIgnored ? 'border-white/10 bg-black/50' : 'border-rose-500/50 bg-rose-500/10 shadow-[0_0_20px_rgba(244,63,94,0.2)]'
+                            isIgnored ? 'border-white/10 bg-black/50' : 'border-amber-500/50 bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.2)]'
                           }`}>
-                            <span className={`material-symbols-outlined !text-[24px] ${isIgnored ? 'text-[var(--text)] opacity-30' : 'text-rose-400'}`}>warning</span>
+                            <span className={`material-symbols-outlined !text-[24px] ${isIgnored ? 'text-[var(--text)] opacity-30' : 'text-amber-400'}`}>warning</span>
                           </div>
                           
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start mb-1">
-                              <span className="text-xs font-black text-[var(--text)] uppercase break-words">
-                                {formatDisplayName(mod.name)}
-                              </span>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-xs font-black text-[var(--text)] uppercase break-words">
+                                  {formatDisplayName(mod.name)}
+                                </span>
+                                <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded-md border border-cyan-400/20 w-fit">
+                                  {mod.version || "v.Local"}
+                                </span>
+                              </div>
                               <button 
                                 onClick={() => {
                                   const newSet = new Set(ignoredBroken);
@@ -572,7 +627,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                           {allow_write && !isIgnored && (
                             <button 
                               onClick={() => toggleInActiveSet(mod._originalSetName || mod.name, true, true)}
-                              className="shrink-0 w-10 h-10 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 font-black transition-all hover:bg-red-500 hover:text-white active:scale-95 flex items-center justify-center"
+                              className="shrink-0 w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-black transition-all hover:bg-amber-500/30 hover:border-amber-500/60 hover:text-amber-200 hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] backdrop-blur-md active:scale-95 flex items-center justify-center"
                             >
                               <span className="material-symbols-outlined !text-lg">{t("ui_icon_close") || "close"}</span>
                             </button>

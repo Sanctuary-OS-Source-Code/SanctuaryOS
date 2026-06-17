@@ -52,22 +52,36 @@ export default function CommandRadarSweepPanel({
   let radarState = "optimal";
   if (tier4Count > 0) {
     radarState = "critical";
-  } else if (tier3Count > 0 || incompatibleCount > 0 || updatesCount > 0) {
+  } else if (tier3Count > 0 || incompatibleCount > 0) {
     radarState = "warning";
+  } else if (updatesCount > 0) {
+    radarState = "update";
   }
 
-  const colorCls = radarState === "critical" ? "red" : radarState === "warning" ? "amber" : "emerald";
+  const isUpdate = radarState === "update";
+  const colorCls = radarState === "critical" ? "red" : radarState === "warning" ? "amber" : radarState === "update" ? "blue" : "emerald";
+
+  const c_iconColor = isUpdate ? "text-[var(--accent)]" : `text-${colorCls}-500`;
+  const c_panelBorder = isUpdate ? "border-[color-mix(in_srgb,var(--accent)_20%,transparent)]" : `border-${colorCls}-500/20`;
+  const c_bgGradient = isUpdate ? "from-[color-mix(in_srgb,var(--accent)_10%,transparent)]" : `from-${colorCls}-500/10`;
+  const c_ringBorder = isUpdate ? "border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" : `border-${colorCls}-500/30`;
+  const c_ringBg = isUpdate ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]" : `bg-${colorCls}-500/10`;
+  const c_ringShadow = isUpdate ? "shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)]" : `shadow-[0_0_30px_rgba(var(--${colorCls}-rgb),0.2)]`;
+  const c_ringIcon = isUpdate ? "text-[color-mix(in_srgb,var(--accent)_80%,transparent)]" : `text-${colorCls}-400`;
+  const c_titleText = isUpdate ? "text-[var(--accent)]" : `text-${colorCls}-500`;
+  const c_subText = isUpdate ? "text-[color-mix(in_srgb,var(--accent)_80%,transparent)]" : `text-${colorCls}-500/80`;
+  const c_btnClass = isUpdate
+    ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[color-mix(in_srgb,var(--accent)_80%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent)] hover:shadow-[0_0_25px_color-mix(in_srgb,var(--accent)_20%,transparent)]"
+    : `bg-${colorCls}-500/10 border-${colorCls}-500/30 text-${colorCls}-400 hover:bg-${colorCls}-500/20 hover:border-${colorCls}-500/50 shadow-[0_0_15px_rgba(var(--${colorCls}-rgb),0.1)] hover:shadow-[0_0_25px_rgba(var(--${colorCls}-rgb),0.2)]`;
 
   const topTitle = t("radar_sweep_complete") || "RADAR SWEEP COMPLETE";
   let subtext = t("radar_sys_stable") || "System Stable";
   if (radarState === "critical") {
     subtext = `${t("radar_crit_fail") || "critical failures detected."}`;
   } else if (radarState === "warning") {
-    if (updatesCount > 0 && tier3Count === 0 && incompatibleCount === 0) {
-      subtext = `${t("radar_updates_det") || "artifact updates detected."}`;
-    } else {
-      subtext = `${t("radar_sys_comp") || "system stability compromised."}`;
-    }
+    subtext = `${t("radar_sys_comp") || "system stability compromised."}`;
+  } else if (radarState === "update") {
+    subtext = `${t("radar_updates_det") || "artifact updates detected."}`;
   }
 
   const breakdownText = `${updatesCount} ${t("cmd_citizen_action_updates") || "updates"} • ${tier3Count + tier4Count} ${t("dashboard_stat_conflicts") || "conflict"} • ${incompatibleCount} ${t("cmd_citizen_action_incompatible") || "incompatible"}`;
@@ -85,23 +99,23 @@ export default function CommandRadarSweepPanel({
       title={t("dashboard_btn_radar") || "RADAR SWEEP"}
       subtitle={t("cmd_system_core") || "System Core & Sub-Systems"}
       icon={t("ui_icon_radar3") || "satellite_alt"}
-      iconColorClass={`text-${colorCls}-500`}
+      iconColorClass={c_iconColor}
       widthClass="w-[450px]"
     >
       <div className="flex-1 min-h-0 flex flex-col gap-6 w-full p-4 overflow-y-auto custom-scrollbar">
         
         {/* Main Status Card */}
-        <div className={`theme-glass-panel rounded-[2rem] p-8 py-10 relative overflow-hidden group border border-${colorCls}-500/20 shadow-xl flex flex-col justify-center shrink-0`}>
-          <div className={`absolute inset-0 bg-gradient-to-br from-${colorCls}-500/10 via-transparent to-transparent opacity-50`} />
+        <div className={`theme-glass-panel rounded-[2rem] p-8 py-10 relative overflow-hidden group border ${c_panelBorder} shadow-xl flex flex-col justify-center shrink-0`}>
+          <div className={`absolute inset-0 bg-gradient-to-br ${c_bgGradient} via-transparent to-transparent opacity-50`} />
           <div className="relative z-10 flex flex-col items-center text-center">
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center border border-${colorCls}-500/30 bg-${colorCls}-500/10 mb-6 shadow-[0_0_30px_rgba(var(--${colorCls}-rgb),0.2)] ${isScanning ? 'animate-pulse' : ''}`}>
-               <span className={`material-symbols-outlined !text-4xl text-${colorCls}-400 ${isScanning ? 'animate-spin' : ''}`}>{t("ui_icon_radar3") || "satellite_alt"}</span>
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center border ${c_ringBorder} ${c_ringBg} mb-6 ${c_ringShadow} ${isScanning ? 'animate-pulse' : ''}`}>
+               <span className={`material-symbols-outlined !text-4xl ${c_ringIcon} ${isScanning ? 'animate-spin' : ''}`}>{t("ui_icon_radar3") || "satellite_alt"}</span>
             </div>
-            <h3 className={`text-xl font-black uppercase tracking-tighter text-${colorCls}-500 mb-1 flex flex-col gap-1`}>
+            <h3 className={`text-xl font-black uppercase tracking-tighter ${c_titleText} mb-1 flex flex-col gap-1`}>
               {isScanning ? (t("cmd_scanning") || "SCANNING...") : topTitle}
               {!isScanning && <span className="text-sm opacity-80">{subtext}</span>}
             </h3>
-            <span className={`text-[10px] font-bold uppercase tracking-widest text-${colorCls}-500/80 mt-3`}>
+            <span className={`text-[10px] font-bold uppercase tracking-widest ${c_subText} mt-3`}>
               {breakdownText}
             </span>
             {radarState === "critical" ? (
@@ -149,7 +163,7 @@ export default function CommandRadarSweepPanel({
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("radar_domain_vault") || "Vault Integrity"}</h4>
             <div className="grid grid-cols-2 gap-3">
               <div className="theme-glass-inner p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 col-span-2">
-                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_architect") || "architect"}</span>
+                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_inventory") || "inventory"}</span>
                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("dashboard_stat_collection") || "TOTAL ARTIFACTS"}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">{relevantMods.length}</span>
               </div>
@@ -191,10 +205,10 @@ export default function CommandRadarSweepPanel({
           className={`mt-4 w-full p-5 rounded-2xl flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest transition-all border ${
             isScanning 
               ? 'bg-white/5 border-white/10 text-[var(--subtext)] opacity-50 cursor-not-allowed' 
-              : `bg-${colorCls}-500/10 border-${colorCls}-500/30 text-${colorCls}-400 hover:bg-${colorCls}-500/20 hover:border-${colorCls}-500/50 shadow-[0_0_15px_rgba(var(--${colorCls}-rgb),0.1)] hover:shadow-[0_0_25px_rgba(var(--${colorCls}-rgb),0.2)]`
+              : c_btnClass
           }`}
         >
-          <span className={`material-symbols-outlined !text-lg ${isScanning ? 'animate-spin' : ''}`}>{t("ui_icon_radar") || "sync"}</span>
+          <span className={`material-symbols-outlined !text-lg ${isScanning ? 'animate-spin' : ''}`}>{t("ui_icon_radar3") || "sync"}</span>
           {isScanning ? (t("cmd_scanning") || "SCANNING...") : (t("dashboard_btn_radar") || "INITIATE SWEEP")}
         </button>
 

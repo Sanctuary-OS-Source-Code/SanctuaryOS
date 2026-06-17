@@ -795,7 +795,7 @@ export function AppModals(props: any) {
         title={t("scout_queue_title")}
         subtitle={t("scout_queue_desc")}
         icon={t("ui_icon_radar")}
-        widthClass="w-[500px]"
+        widthClass="w-[550px]"
         footer={
           <div className="w-full">
             <button

@@ -32,8 +32,13 @@
     "targets": "all",
     "windows": {
       "nsis": {
+        "installerIcon": "icons/icon.ico",
         "sidebarImage": "icons/nsis/sidebar.bmp",
         "headerImage": "icons/nsis/header.bmp"
+      },
+      "wix": {
+        "bannerPath": "icons/wix_banner.bmp",
+        "dialogImagePath": "icons/wix_dialog.bmp"
       }
     },
     "icon": [
@@ -47,7 +52,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/latest"
+        "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE1RkY0NzgxM0UxM0VFQjcKUldTMzdoTStnVWYvcFVWUStUSnltUWFtT2FZaTBGT1JUSnV6MHNSSnBpRlBUTDdNckw3QzNmeXIK"
     }
