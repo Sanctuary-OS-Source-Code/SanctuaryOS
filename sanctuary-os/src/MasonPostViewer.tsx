@@ -6,6 +6,7 @@ import MarkdownRenderer from "./MarkdownRenderer";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import { SidePanel, standardButtonClass } from "./shared";
 import FlagContentSidePanel from "./FlagContentSidePanel";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onAssetClick, userId }: { post: any, onClose: () => void, onOpenMasonProfile?: (id: string) => void, onAssetClick?: (type: string, id: string) => void, userId: string | null }) {
   const { t } = useLexicon();
@@ -477,7 +478,13 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               )}
             </div>
             
-            <div className="mt-8 pt-8 border-t border-white/5 flex flex-wrap items-center justify-end gap-4">
+            <div className="mt-8 pt-8 border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
+               <div className="flex items-center gap-4">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50">{t("feed_creator_links") || "CREATOR LINKS"}</span>
+                 <button onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }} className="px-6 py-3 bg-transparent border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest rounded-xl hover:theme-border-accent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:-translate-y-1 hover:shadow-lg transition-all duration-300">{t("feed_btn_view_profile") || "VIEW PROFILE"}</button>
+                 {post.masons?.patreon_url && <button onClick={() => openUrl(post.masons.patreon_url)} className="px-6 py-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(244,63,94,0.3)] transition-all duration-300 flex items-center gap-2">{t("feed_btn_patreon") || "SUPPORT ON PATREON"}</button>}
+                 {post.masons?.discord_url && <button onClick={() => openUrl(post.masons.discord_url)} className="px-6 py-3 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-500/20 hover:border-indigo-500/60 hover:text-indigo-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all duration-300 flex items-center gap-2">{t("feed_btn_discord") || "JOIN DISCORD"}</button>}
+               </div>
                {userId && !isPostAuthor && (
                  <button onClick={() => setFlagTarget({id: post.id, type: 'post'})} className="px-5 py-3 ml-auto bg-[var(--danger)]/5 border border-[var(--danger)]/20 theme-text-danger text-[10px] font-black uppercase tracking-widest flex items-center gap-2 rounded-xl transition-all hover:bg-[var(--danger)]/15 hover:border-[var(--danger)]/50 hover:shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] hover:scale-105 backdrop-blur-md">
                    <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_flag") || "flag"}</span>

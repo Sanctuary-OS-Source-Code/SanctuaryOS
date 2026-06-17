@@ -65,38 +65,32 @@ export default function SeniorArchitect() {
          icon={t("ui_icon_shield") || "security"}
          iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
       >
-         <div className="flex items-center gap-4">
+         <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
            {/* Verify Hash Button */}
-           <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
-             <button 
-               onClick={() => setIsVerifyPanelOpen(true)}
-               className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
-             >
-               <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_verified") || "verified"}</span>
-               <span className="text-[10px] font-black uppercase tracking-widest">{t("architect_btn_verify_hash") || "VERIFY HASH"}</span>
-             </button>
-           </div>
+           <button 
+             onClick={() => setIsVerifyPanelOpen(true)}
+             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
+           >
+             <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_verified") || "verified"}</span>
+             <span className="text-[10px] font-black uppercase tracking-widest">{t("architect_btn_verify_hash") || "VERIFY HASH"}</span>
+           </button>
+           
+           <div className="w-px h-6 bg-white/10 mx-2" />
            
            {/* Defcon Button */}
-           <div className={`flex items-center rounded-2xl p-1 shadow-inner transition-all duration-700 ${
-             defconLevel === 1 
-               ? 'bg-red-500/10 border border-red-500/50 hover:bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.3)] animate-pulse' 
-               : 'theme-glass-panel border border-white/10 hover:border-[var(--accent)]/50'
-           }`}>
-             <button 
-               onClick={() => setDefconOpen(true)}
-               className={`h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shrink-0 font-black uppercase tracking-widest ${
-                 defconLevel === 1
-                   ? 'text-red-400 hover:text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]'
-                   : 'text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
-               }`}
-             >
-               <span className={`material-symbols-outlined !text-[24px] ${defconLevel === 1 ? 'animate-bounce' : 'opacity-70'}`}>
-                 {defconLevel === 1 ? 'warning' : 'security'}
-               </span>
-               <span className="text-[10px]">{t("sa_defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>
-             </button>
-           </div>
+           <button 
+             onClick={() => setDefconOpen(true)}
+             className={`h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shrink-0 font-black uppercase tracking-widest border border-transparent ${
+               defconLevel === 1
+                 ? 'text-red-400 hover:text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] bg-red-500/10 hover:bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.3)] animate-pulse'
+                 : 'text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50'
+             }`}
+           >
+             <span className={`material-symbols-outlined !text-[24px] ${defconLevel === 1 ? 'animate-bounce' : 'opacity-70'}`}>
+               {defconLevel === 1 ? 'warning' : 'security'}
+             </span>
+             <span className="text-[10px]">{t("sa_defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>
+           </button>
          </div>
       </ViewHeader>
       
@@ -493,9 +487,9 @@ export function MasonLinker() {
 
           <button 
             onClick={() => handleOpenPanel(null)}
-            className={`${standardAccentGlassButtonClass} !w-auto !px-6 shrink-0`}
+            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
           >
-            <span className="material-symbols-outlined !text-[18px] theme-text-accent">link</span>
+            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_add") || "add"}</span>
             {t("sa_btn_create_mason_naked") || "+ CREATE MASON"}
           </button>
         </div>
@@ -796,9 +790,9 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
 
           <button 
             onClick={() => onOpenManualFlag("")} 
-            className={`${standardDangerButtonClass} !w-auto !px-6 shrink-0`}
+            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group !w-auto"
           >
-            <span className="material-symbols-outlined !text-[18px] text-[var(--danger)]">flag</span>
+            <span className="material-symbols-outlined !text-[18px] group-hover:scale-110 transition-transform">flag</span>
             {t("sa_comp_btn_manual_flag")}
           </button>
         </div>
@@ -1882,9 +1876,10 @@ function GameManagementOversight() {
 
           <button 
              onClick={() => openPanel(activeTab === 'versions' ? 'add_version' : 'add_dlc')} 
-             className={`shrink-0 h-12 !py-0 px-6 ${standardAccentGlassButtonClass}`}
+             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
           >
-            {activeTab === 'versions' ? "+ REGISTER PATCH" : `+ REGISTER DLC`}
+            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add") || "add"}</span>
+            {activeTab === 'versions' ? "REGISTER PATCH" : `REGISTER DLC`}
           </button>
         </div>
       </div>
@@ -2474,7 +2469,7 @@ export function AuditLogViewer() {
          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
                {filteredLogs.map(log => (
-                 <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-between p-6 rounded-[2rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer hover:-translate-y-1.5" title={log.action}>
+                 <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-between p-6 rounded-[2rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer hover:-translate-y-1.5">
                     <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent)]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     
@@ -2487,7 +2482,7 @@ export function AuditLogViewer() {
                           <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1 truncate">{log.target_table.replace(/_/g, ' ')}</span>
                           <span className="text-xs font-black uppercase tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors line-clamp-2 drop-shadow-sm leading-tight">{log.action}</span>
                           {log.reason && (
-                             <span className="text-[9px] font-bold text-[var(--subtext)] truncate w-full opacity-50 mt-1" title={log.reason}>{log.reason}</span>
+                             <span className="text-[9px] font-bold text-[var(--subtext)] truncate w-full opacity-50 mt-1">{log.reason}</span>
                           )}
                         </div>
                       </div>
@@ -2496,7 +2491,7 @@ export function AuditLogViewer() {
                     <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
                        <div className="flex flex-col min-w-0 flex-1 pr-2">
                           <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("sa_audit_actor") || "ACTOR"}</span>
-                          <span className="text-[10px] font-bold text-[var(--text)] opacity-90 mt-1 flex items-center gap-1 truncate" title={log.actor?.username || log.actor_id}>
+                          <span className="text-[10px] font-bold text-[var(--text)] opacity-90 mt-1 flex items-center gap-1 truncate">
                             <span className="material-symbols-outlined !text-[12px] theme-text-accent shrink-0">person</span>
                             <span className="truncate">{log.actor?.username || log.actor_id.substring(0, 8)}</span>
                           </span>

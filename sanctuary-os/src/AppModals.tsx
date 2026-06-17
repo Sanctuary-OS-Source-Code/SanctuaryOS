@@ -579,7 +579,7 @@ export function AppModals(props: any) {
                </span>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => { clearStatusLog(); setIsLogExpanded(false); }} className="p-2 hover:bg-red-500/10 text-[var(--subtext)] hover:text-red-400 rounded-xl transition-all border border-transparent hover:border-red-500/20" title="Clear Log">
+              <button onClick={() => { clearStatusLog(); setIsLogExpanded(false); }} className="p-2 hover:bg-red-500/10 text-[var(--subtext)] hover:text-red-400 rounded-xl transition-all border border-transparent hover:border-red-500/20">
                 <span className="material-symbols-outlined !text-[16px]">delete_sweep</span>
               </button>
               <button onClick={() => setIsLogExpanded(false)} className="p-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">

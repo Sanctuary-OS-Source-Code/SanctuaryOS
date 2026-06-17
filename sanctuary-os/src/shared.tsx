@@ -268,6 +268,40 @@ export function StatTile({ label, value, icon, color, onClick }: any) {
   );
 }
 
+export function SidebarActionButton({ id, icon, label, subtext, active, onClick, danger, success, customColorClass, className }: any) {
+  return (
+    <button
+      onClick={() => onClick(id)}
+      className={`w-full px-5 py-4 h-auto min-h-[64px] flex items-center justify-start gap-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 shadow-sm backdrop-blur-[2px] border relative overflow-hidden group ${
+        customColorClass ? customColorClass :
+        active 
+          ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] scale-[1.02]' 
+          : danger
+          ? 'text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] opacity-90 hover:opacity-100 hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_25%,transparent)]'
+          : success
+          ? 'text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] opacity-90 hover:opacity-100 hover:shadow-[0_0_20px_color-mix(in_srgb,var(--success)_25%,transparent)]'
+          : 'text-[var(--text)] border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20 opacity-80 hover:opacity-100 hover:shadow-lg'
+      } ${className || ''}`}
+    >
+      <div className={`absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none ${
+        customColorClass ? '' :
+        active ? 'from-[color-mix(in_srgb,var(--accent)_20%,transparent)] to-transparent' :
+        danger ? 'from-[color-mix(in_srgb,var(--danger)_20%,transparent)] to-transparent' :
+        success ? 'from-[color-mix(in_srgb,var(--success)_20%,transparent)] to-transparent' :
+        'from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent'
+      }`} />
+      
+      {icon && <span className={`material-symbols-outlined !text-[20px] shrink-0 relative z-10 transition-transform duration-300 group-hover:scale-110 ${active ? 'opacity-100 drop-shadow-md' : 'opacity-80'}`}>{icon}</span>}
+      <div className="flex flex-col items-start gap-1 relative z-10 w-full pr-6 overflow-hidden">
+        <span className="tracking-[0.15em] truncate w-full text-left pt-0.5">{label}</span>
+        {subtext && <span className="text-[8px] font-bold opacity-60 normal-case tracking-normal whitespace-normal text-left leading-tight mt-0.5 w-full">{subtext}</span>}
+      </div>
+      
+      <span className={`material-symbols-outlined !text-[16px] shrink-0 absolute right-5 opacity-0 -translate-x-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 ${active ? 'opacity-100 translate-x-0' : ''}`}>chevron_right</span>
+    </button>
+  );
+}
+
 export function HubTabButton({ id, icon, label, activeTab, setTab }: any) {
     const isActive = activeTab === id;
     return (
@@ -530,10 +564,10 @@ export function CustomDatePicker({ value, onChange, placeholder }: { value: stri
 
 export function CustomComplianceDropdown({ value, onChange, includeTier3 }: { value: number, onChange: (val: number) => void, includeTier3?: boolean }) {
   const options = [
-    { id: 0, label: "Clean / Safe (Tier 0)", className: "text-[var(--text)]" },
-    { id: 1, label: "NSFW (Tier 1)", className: "text-amber-400" },
-    { id: 2, label: "Explicit (Tier 2)", className: "text-orange-500" },
-    ...(includeTier3 ? [{ id: 3, label: "Malware (Tier 3)", className: "theme-text-danger" }] : [])
+    { id: 0, label: "Clean / Safe (Tier 0)"},
+    { id: 1, label: "NSFW (Tier 1)" },
+    { id: 2, label: "Explicit (Tier 2)" },
+    ...(includeTier3 ? [{ id: 3, label: "Malware (Tier 3)" }] : [])
   ];
 
   return (
@@ -634,11 +668,15 @@ export function SidePanel({
 }) {
   const { t } = useLexicon();
   if (!isOpen) return null;
-  return (
+  return createPortal(
     <>
       <div className={`fixed top-0 right-0 bottom-10 ${backdropZ} bg-black/10 backdrop-blur-[2px] animate-in fade-in duration-500 transition-all`} style={{ left: "var(--sidebar-width, 288px)" }} onClick={onClose} />
-      <div className={`fixed top-0 right-0 bottom-10 ${widthClass} theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex flex-col ${panelZ} animate-in slide-in-from-right duration-500`} onClick={(e) => e.stopPropagation()}>
+      <div className={`fixed top-0 right-0 bottom-10 ${widthClass} theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] flex flex-col ${panelZ} animate-in slide-in-from-right duration-500`} onClick={(e) => e.stopPropagation()}>
         
+        {/* Subtle dynamic ambient glow in the background based on the iconColorClass text class */}
+        <div className={`absolute top-0 right-[-10%] w-[100%] h-[40%] bg-current opacity-[0.04] blur-[100px] rounded-full pointer-events-none ${iconColorClass?.split(' ')[0] || ''}`} />
+        <div className={`absolute bottom-[-10%] left-[-20%] w-[80%] h-[50%] bg-current opacity-[0.03] blur-[120px] rounded-full pointer-events-none ${iconColorClass?.split(' ')[0] || ''}`} />
+
         {ambientGlows && (
           <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-l-3xl">
             {ambientGlows}
@@ -647,32 +685,35 @@ export function SidePanel({
 
         {/* Header - Fixed */}
         {!hideHeader && (
-          <div className="pt-[60px] px-10 pb-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
+          <div className="pt-[50px] px-10 pb-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
             <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_3%,transparent)] to-transparent pointer-events-none" />
             
-            <button onClick={onClose} className="absolute top-[60px] right-10 z-50 w-10 h-10 rounded-full flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl">
-              <span className="material-symbols-outlined !text-[24px]">close</span>
+            <button onClick={onClose} className="absolute top-[50px] right-8 z-50 w-12 h-12 rounded-2xl flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
+              <span className="material-symbols-outlined !text-[22px] group-hover/closebtn:rotate-90 transition-transform duration-300">close</span>
             </button>
 
-            <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-14">
-              <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-start gap-5 min-w-0 w-full">
+            <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-16">
+              <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-6 min-w-0 w-full">
                 {icon && (
-                  <div className={`w-14 h-14 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden group ${iconColorClass ? '' : 'theme-text-accent'}`}>
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                    <span className={`material-symbols-outlined !text-3xl opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300 drop-shadow-md ${iconColorClass || ''}`}>
+                  <div className={`w-16 h-16 rounded-[1.25rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden group/iconbox ${iconColorClass ? '' : 'theme-text-accent'}`}>
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
+                    <span className={`material-symbols-outlined !text-[32px] opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
                       {icon}
                     </span>
                   </div>
                 )}
-                <div className="flex flex-col mt-0.5 min-w-0 w-full">
+                <div className="flex flex-col min-w-0 w-full justify-center">
                   {badgeText && (
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${iconColorClass || 'theme-text-accent'}`}><span className={`w-1.5 h-1.5 rounded-full animate-pulse ${iconColorClass ? 'bg-current' : 'theme-bg-accent'}`}></span> {badgeText}</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-current/10 border border-current/20 ${iconColorClass || 'theme-text-accent'}`}>
+                        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current shadow-[0_0_8px_currentColor]"></span> 
+                        {badgeText}
+                      </span>
                     </div>
                   )}
-                  <span className="leading-tight text-2xl tracking-tighter truncate w-full">{title}</span>
-                  {subtitle && <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 mt-1.5 uppercase tracking-[0.2em] break-words leading-snug">{subtitle}</span>}
+                  <span className="leading-tight text-3xl tracking-tighter truncate w-full drop-shadow-md">{title}</span>
+                  {subtitle && <span className="text-[10px] font-black text-[var(--subtext)] opacity-50 mt-1 uppercase tracking-[0.25em] truncate">{subtitle}</span>}
                 </div>
               </h2>
             </div>
@@ -692,6 +733,6 @@ export function SidePanel({
           </div>
         )}
       </div>
-    </>
+    </>, document.body
   );
 }

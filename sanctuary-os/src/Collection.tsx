@@ -1,11 +1,12 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ViewHeader, CustomDropdown, formatDisplayName, isVersionMatch, getHighestVersion, mapDlcCode, HubTabButton, standardButtonClass, standardDangerButtonClass, standardSuccessButtonClass } from './shared';
+import { ViewHeader, CustomDropdown, formatDisplayName, isVersionMatch, getHighestVersion, mapDlcCode, HubTabButton, standardButtonClass, standardDangerButtonClass, standardSuccessButtonClass, SidePanel, SidebarActionButton } from './shared';
 import { useLexicon } from './LexiconContext';
 import { invoke } from '@tauri-apps/api/core';
 import { ModCard } from './ModCard';
 import { useStore } from './store';
 export default function Collection(props: any) {
+  const [isSidePanelOpen, setIsSidePanelOpen] = React.useState(false);
   const { 
     isBulkMode, setIsBulkMode, selectedMods, setSelectedMods, setConfirmDialog, 
     setStatus, runRadarSweep, setIsDropzoneOpen, setLocalFolderModal, playSets, 
@@ -191,31 +192,13 @@ export default function Collection(props: any) {
                 iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
               >
                 <div className="flex flex-wrap gap-4 items-center justify-end">
-                  
-                  {/* Context Toolbar */}
-                  {playSets.length > 0 && (
-                    <div className="flex items-center bg-white/5 rounded-2xl p-1 border border-white/10 shadow-inner gap-1">
-                      <div className="px-4 hidden lg:block">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70">
-                          {t("vault_active_blueprint") || "ACTIVE BLUEPRINT"}
-                        </span>
-                      </div>
-                      <div className="w-[200px]">
-                        <CustomDropdown disableTint={true}
-                          value={props.activePlaySetIndex}
-                          options={playSets.map((set: any, idx: number) => ({ id: idx, label: set.name }))}
-                          onChange={(val: any) => props.setActivePlaySetIndex && props.setActivePlaySetIndex(Number(val))}
-                        />
-                      </div>
-                      <button
-                        onClick={() => equipPlaySet && equipPlaySet(playSets[props.activePlaySetIndex]?.name)}
-                        className="h-12 px-6 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-all flex items-center gap-2"
-                      >
-                        <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_success") || "check_circle"}</span> {t("playsets_btn_save") || "Save"}
-                      </button>
-                    </div>
-                  )}
 
+                  <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
+                    <button onClick={() => setIsSidePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
+                      <span className="material-symbols-outlined text-xl normal-case">tune</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_tools") || "TOOLS"}</span>
+                    </button>
+                  </div>
                 </div>
               </ViewHeader>
               
@@ -226,63 +209,6 @@ export default function Collection(props: any) {
                   <HubTabButton id="EQUIPPED" icon="check_circle" label={t("vault_filter_equipped")} activeTab={equipFilter} setTab={setEquipFilter} />
                   <HubTabButton id="UNEQUIPPED" icon="cancel" label={t("vault_filter_unequipped")} activeTab={equipFilter} setTab={setEquipFilter} />
                   <HubTabButton id="ARCHIVES" icon="archive" label={t("vault_filter_archives")} activeTab={equipFilter} setTab={setEquipFilter} />
-                </div>
-
-                {/* Assets Toolbar */}
-                <div className="flex items-center theme-glass-inner rounded-2xl p-1 border border-white/5 shadow-inner overflow-x-auto accent-scrollbar shrink-0 max-w-full">
-                  <button
-                    onClick={() => runRadarSweep(false)}
-                    className="w-12 h-12 rounded-xl flex items-center justify-center text-[var(--text)] hover:bg-white/10 transition-all shrink-0"
-                  >
-                    <span className="material-symbols-outlined !text-[18px] drop-shadow-md">{t("ui_icon_refresh") || "refresh"}</span>
-                  </button>
-                  
-                  <div className="w-px h-6 bg-white/10 mx-2 shrink-0" />
-
-                  <button
-                    onClick={() => {
-                      if (!isBulkMode) {
-                        setIsBulkMode(true);
-                      } else {
-                        setIsBulkMode(false);
-                      }
-                    }}
-                    className={`h-12 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shrink-0 backdrop-blur-md shadow-xl ${isBulkMode ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'theme-glass-panel text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
-                  >
-                    {isBulkMode
-                      ? <><span className="material-symbols-outlined !text-[18px] drop-shadow-md">{t("ui_icon_cancel") || "cancel"}</span> {t("vault_btn_cancel_selection") || "CANCEL"}</>
-                      : <><span className="material-symbols-outlined !text-[18px] drop-shadow-md">{t("ui_icon_check_circle") || "check_circle"}</span> {t("vault_btn_select_assets") || "SELECT"}</>}
-                  </button>
-
-                  {(() => {
-                    const isViewingFolder = equipFilter !== "ALL" && equipFilter !== "EQUIPPED" && equipFilter !== "UNEQUIPPED" && equipFilter !== "ARCHIVES" && equipFilter !== "TRASH" && !equipFilter.startsWith("vault_cat_") && !equipFilter.startsWith("vault_sub_");
-                    if (isBulkMode || equipFilter !== "ARCHIVES") return null;
-                    return (
-                    <>
-                      <div className="w-px h-6 bg-white/10 mx-2" />
-                      <button
-                        onClick={() => {
-                          const allFilesToPurge = new Set<string>();
-                          finalVisibleMods.forEach((mod: any) => {
-                            if (mod && mod.isVirtual && mod.flavors) {
-                              mod.flavors.forEach((f: any) => {
-                                if (f.name) allFilesToPurge.add(f.name);
-                              });
-                            } else if (mod && mod.name) {
-                              allFilesToPurge.add(mod.name);
-                            }
-                          });
-                          if (allFilesToPurge.size === 0) return;
-                          setPurgeTargetFiles(Array.from(allFilesToPurge));
-                        }}
-                        className="h-12 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] backdrop-blur-md"
-                      >
-                        <span className="material-symbols-outlined !text-[18px] drop-shadow-md">{t("ui_icon_delete_forever") || "delete_forever"}</span>
-                        {isViewingFolder ? t("vault_btn_empty_archives")?.replace("ARCHIVES", "FOLDER") || "EMPTY FOLDER" : t("vault_btn_empty_archives")}
-                      </button>
-                    </>
-                    );
-                  })()}
                 </div>
               </div>
 
@@ -400,16 +326,22 @@ export default function Collection(props: any) {
                   </div>
                 )}
 
-                {/* Hide Ghosts Toggle */}
-                {(equipFilter === "ALL" || equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") && (
-                  <button
-                    onClick={() => setHideGhostCards(!hideGhostCards)}
-                    className={`h-[42px] px-6 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 backdrop-blur-md shadow-xl ${hideGhostCards ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'theme-glass-panel text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
-                  >
-                    <span className={`w-2 h-2 rounded-full shadow-[0_0_5px_currentColor] ${hideGhostCards ? 'bg-[var(--accent)] animate-pulse' : 'bg-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`} />
-                    {t("vault_btn_hide_ghosts") || "ONLY SHOW ELIGIBLE"}
-                  </button>
-                )}
+                  {/* Hide Ghosts Toggle */}
+                  {(equipFilter === "ALL" || equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") && (
+                    <button
+                      onClick={() => setHideGhostCards(!hideGhostCards)}
+                      className={`h-[42px] px-5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border shadow-lg hover:scale-[1.02] active:scale-95 ${
+                        hideGhostCards 
+                          ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:shadow-[0_5px_20px_color-mix(in_srgb,var(--success)_20%,transparent)]' 
+                          : 'theme-glass-panel text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined !text-[18px]">
+                        {hideGhostCards ? "visibility_off" : "visibility"}
+                      </span>
+                      {t("vault_btn_hide_ghosts") || "ONLY SHOW ELIGIBLE"}
+                    </button>
+                  )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 pb-8">
                 {paginatedMods
@@ -1263,6 +1195,112 @@ export default function Collection(props: any) {
                   </div>
                 </>, document.body
               )}
+
+      <SidePanel
+        isOpen={isSidePanelOpen}
+        onClose={() => setIsSidePanelOpen(false)}
+        title={t("vault_tools_title") || "VAULT TOOLS"}
+        subtitle={t("vault_tools_subtitle") || "ACTIONS & FILTERS"}
+        icon="tune"
+        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+      >
+        <div className="flex flex-col gap-6">
+           {playSets && playSets.length > 0 && (
+             <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 shadow-lg relative overflow-hidden group/card">
+               <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
+               <div className="flex items-center gap-4 mb-6 relative z-10">
+                 <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--accent)]">
+                   <span className="material-symbols-outlined !text-[20px]">layers</span>
+                 </div>
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("vault_active_blueprint") || "ACTIVE BLUEPRINT"}</h3>
+               </div>
+               
+               <div className="flex gap-2 relative z-10">
+                 <div className="flex-1">
+                   <CustomDropdown
+                     disableTint={true}
+                     value={props.activePlaySetIndex}
+                     options={playSets.map((set: any, idx: number) => ({ id: idx, label: set.name }))}
+                     onChange={(val: any) => props.setActivePlaySetIndex && props.setActivePlaySetIndex(Number(val))}
+                   />
+                 </div>
+                 <button
+                   onClick={() => equipPlaySet && equipPlaySet(playSets[props.activePlaySetIndex]?.name)}
+                   className="h-14 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] text-[10px] font-black uppercase tracking-widest shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-2 shrink-0"
+                 >
+                   <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_success") || "check_circle"}</span> {t("playsets_btn_save") || "Save"}
+                 </button>
+               </div>
+             </div>
+           )}
+
+           <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 shadow-lg relative overflow-hidden group/card">
+             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
+             <div className="flex items-center gap-4 mb-6 relative z-10">
+               <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--text)]">
+                 <span className="material-symbols-outlined !text-[20px]">bolt</span>
+               </div>
+               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("vault_sidebar_actions") || "ACTIONS"}</h3>
+             </div>
+             
+             <div className="flex flex-col gap-3 relative z-10">
+               <SidebarActionButton id="REFRESH" icon="refresh" label={t("vault_btn_refresh")} onClick={() => { runRadarSweep(true); setIsSidePanelOpen(false); }} active={false} />
+               <SidebarActionButton 
+                 id="SELECT_ASSETS" 
+                 icon={isBulkMode ? "cancel" : "checklist"} 
+                 label={isBulkMode ? t("ui_btn_cancel") || "CANCEL" : t("vault_btn_select_assets") || "SELECT ASSETS"} 
+                 onClick={() => { setIsBulkMode(!isBulkMode); setIsSidePanelOpen(false); }} 
+                 active={isBulkMode} 
+                 danger={isBulkMode}
+               />
+               <SidebarActionButton 
+                 id="SELECT_ALL" 
+                 icon="library_add_check" 
+                 label={t("vault_btn_select_all")} 
+                 onClick={() => {
+                   if (!isBulkMode) setIsBulkMode(true);
+                   const allNames = finalVisibleMods.map((m: any) => m.name);
+                   if (allNames.length > 0) {
+                     const allSelected = allNames.every((n: string) => selectedMods.includes(n));
+                     if (allSelected) {
+                       setSelectedMods([]);
+                     } else {
+                       const newSelected = new Set([...selectedMods, ...allNames]);
+                       setSelectedMods(Array.from(newSelected));
+                     }
+                   }
+                   setIsSidePanelOpen(false);
+                 }} 
+                 active={false} 
+               />
+               {equipFilter === "ARCHIVES" && (
+                 <SidebarActionButton 
+                   id="PURGE_FOLDER" 
+                   icon="delete_sweep" 
+                   danger={true} 
+                   label={t("vault_btn_purge_folder")} 
+                   onClick={() => {
+                      const allFilesToPurge = new Set<string>();
+                      finalVisibleMods.forEach((mod: any) => {
+                        if (mod && mod.isVirtual && mod.flavors) {
+                          mod.flavors.forEach((f: any) => {
+                            if (f.name) allFilesToPurge.add(f.name);
+                          });
+                        } else if (mod && mod.name) {
+                          allFilesToPurge.add(mod.name);
+                        }
+                      });
+                      if (allFilesToPurge.size === 0) return;
+                      setPurgeTargetFiles(Array.from(allFilesToPurge));
+                      setIsSidePanelOpen(false);
+                   }} 
+                   active={false} 
+                 />
+               )}
+             </div>
+           </div>
+        </div>
+      </SidePanel>
             </div>
   );
 }

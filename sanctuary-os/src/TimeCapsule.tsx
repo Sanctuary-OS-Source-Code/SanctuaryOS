@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader } from "./shared";
+import { ViewHeader, SidePanel, SidebarActionButton } from "./shared";
 import { useModalStore } from "./store/modalStore";
 
 export default function TimeCapsule({
   selectedVersion, isBackingUp, triggerPrePatchSnapshot, triggerFullEngineBackup,
   restoreGameBackup, renameGameBackup, deleteBackup, backupList, getBackupSignature
 }: any) {
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const { t } = useLexicon();
   const [confirmRestoreBackup, setConfirmRestoreBackup] = useState<string | null>(null);
   const [confirmDeleteBackup, setConfirmDeleteBackup] = useState<string | null>(null);
@@ -148,50 +149,11 @@ export default function TimeCapsule({
     <div className="flex flex-col gap-8 animate-in fade-in duration-700 pb-12 w-full">
       <ViewHeader title={t("backups_title")} subtitle={t("backups_subtitle")} icon={t("ui_icon_history")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30">
         <div className="flex gap-4 items-center ml-auto shrink-0">
-          <div className="flex flex-col bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-4 py-2 min-w-[160px] justify-center items-center shadow-sm shadow-emerald-500/10">
-            <span className="text-[7px] font-black text-emerald-500 opacity-80 uppercase tracking-widest leading-none mb-1">{t("backups_target_patch")}</span>
-            <span className="text-[10px] font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(79,70,229,0.8)] animate-pulse" />
-              {selectedVersion || "Latest"}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <div className="relative h-12">
-              <button 
-                onClick={() => setConfirmSealWorld(true)} 
-                disabled={isBackingUp || confirmSealWorld}
-                className={`h-12 px-8 rounded-2xl bg-indigo-500/10 border border-indigo-500/50 hover:bg-indigo-500/20 hover:border-indigo-500/70 text-indigo-500 text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(79,70,229,0.2)] hover:shadow-[0_0_30px_rgba(79,70,229,0.4)] flex items-center justify-center shrink-0 gap-3 disabled:opacity-50 ${confirmSealWorld ? '!opacity-0 pointer-events-none translate-y-4' : 'opacity-100 translate-y-0'}`}
-              >
-                <span className="text-[16px] material-symbols-outlined">{t("ui_icon_globe")}</span> <span>{t("backups_btn_universe")}</span>
-              </button>
-              <div className={`absolute right-0 top-0 bottom-0 min-w-full w-max flex gap-2 transition-all duration-300 ${confirmSealWorld ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
-                 <button onClick={() => { setConfirmSealWorld(false); if(triggerPrePatchSnapshot) triggerPrePatchSnapshot(); }} className="flex-[2] h-full px-6 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-500 border border-indigo-500/50 transition-all text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-sm backdrop-blur-md">
-                    {t("confirm_seal_state")}
-                 </button>
-                 <button onClick={() => setConfirmSealWorld(false)} className="flex-[1] h-full px-4 text-[var(--text)] bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-sm backdrop-blur-md">
-                    {t("backups_btn_cancel")}
-                 </button>
-              </div>
-            </div>
-            
-            <div className="relative h-12">
-              <button 
-                onClick={() => setConfirmSealEngine(true)} 
-                disabled={isBackingUp || confirmSealEngine}
-                className={`h-12 px-8 rounded-2xl bg-rose-500/10 border border-rose-500/50 hover:bg-rose-500/20 hover:border-rose-500/70 text-rose-500 text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(225,29,72,0.2)] hover:shadow-[0_0_30px_rgba(225,29,72,0.4)] flex items-center justify-center shrink-0 gap-3 disabled:opacity-50 ${confirmSealEngine ? '!opacity-0 pointer-events-none translate-y-4' : 'opacity-100 translate-y-0'}`}
-              >
-                <span className="text-[16px] material-symbols-outlined">{t("ui_icon_engine")}</span> <span>{t("backups_btn_seal")}</span>
-              </button>
-              <div className={`absolute right-0 top-0 bottom-0 min-w-full w-max flex gap-2 transition-all duration-300 ${confirmSealEngine ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
-                 <button onClick={() => { setConfirmSealEngine(false); if(triggerFullEngineBackup) triggerFullEngineBackup(); }} className="flex-[2] h-full px-6 bg-rose-500/20 hover:bg-rose-500/30 text-rose-500 border border-rose-500/50 transition-all text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-sm backdrop-blur-md">
-                    {t("confirm_seal_engine")}
-                 </button>
-                 <button onClick={() => setConfirmSealEngine(false)} className="flex-[1] h-full px-4 text-[var(--text)] bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-sm backdrop-blur-md">
-                    {t("backups_btn_cancel")}
-                 </button>
-              </div>
-            </div>
+          <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
+            <button onClick={() => setIsSidePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
+              <span className="material-symbols-outlined text-xl normal-case">tune</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_operations") || "OPERATIONS"}</span>
+            </button>
           </div>
         </div>
       </ViewHeader>
@@ -321,6 +283,84 @@ export default function TimeCapsule({
         )}
       </div>
       
+      <SidePanel
+          isOpen={isSidePanelOpen}
+          onClose={() => setIsSidePanelOpen(false)}
+          title={t("backups_tools_title") || "CAPSULE TOOLS"}
+          subtitle={t("backups_tools_subtitle") || "OPERATIONS & SNAPSHOTS"}
+          icon="tune"
+          iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+        >
+          <div className="flex flex-col gap-6">
+             <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 shadow-lg relative overflow-hidden group/card">
+               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
+               <div className="flex items-center gap-4 mb-6 relative z-10">
+                 <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-emerald-500">
+                   <span className="material-symbols-outlined !text-[20px]">verified</span>
+                 </div>
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("backups_target_patch") || "DETECTED PATCH"}</h3>
+               </div>
+               
+               <div className="relative z-10">
+                 <div className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 rounded-2xl px-6 py-4 flex items-center justify-between shadow-inner">
+                   <span className="text-sm font-black tracking-widest text-[var(--text)] uppercase flex items-center gap-3">
+                     <span className="material-symbols-outlined !text-[18px] text-emerald-500">verified</span>
+                     {selectedVersion || "Latest"}
+                   </span>
+                 </div>
+               </div>
+             </div>
+  
+             <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 shadow-lg relative overflow-hidden group/card">
+               <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
+               <div className="flex items-center gap-4 mb-6 relative z-10">
+                 <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--accent)]">
+                   <span className="material-symbols-outlined !text-[20px]">bolt</span>
+                 </div>
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("backups_sidebar_actions") || "OPERATIONS"}</h3>
+               </div>
+               
+               <div className="relative z-10 flex flex-col gap-3">
+                  {!confirmSealWorld ? (
+                    <SidebarActionButton 
+                      icon="globe" 
+                      customColorClass="text-indigo-500 border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 hover:border-indigo-500/50 hover:shadow-[0_0_20px_rgba(99,102,241,0.25)]"
+                      label={t("backups_btn_seal_state") || "SEAL WORLD STATE"} 
+                      onClick={() => setConfirmSealWorld(true)} 
+                    />
+                  ) : (
+                    <div className="flex gap-2 h-16">
+                      <button onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setIsSidePanelOpen(false); setConfirmSealWorld(false); }} className="flex-[2] h-full rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 border border-indigo-500/30 font-black text-[10px] tracking-widest flex items-center justify-center gap-2">
+                         <span className="material-symbols-outlined !text-sm">check_circle</span> CONFIRM
+                      </button>
+                      <button onClick={() => setConfirmSealWorld(false)} className="flex-[1] h-full rounded-2xl bg-white/5 hover:bg-white/10 text-[var(--subtext)] hover:text-[var(--text)] border border-white/10 font-black text-[10px] tracking-widest flex items-center justify-center">
+                         CANCEL
+                      </button>
+                    </div>
+                  )}
+                  
+                  {!confirmSealEngine ? (
+                    <SidebarActionButton 
+                      id="SEAL_ENGINE" 
+                      icon="settings" 
+                      customColorClass="text-rose-500 border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 hover:border-rose-500/50 hover:shadow-[0_0_20px_rgba(244,63,94,0.25)]"
+                      label={t("backups_btn_seal_engine") || "SEAL ENGINE CORE"} 
+                      onClick={() => setConfirmSealEngine(true)} 
+                    />
+                  ) : (
+                    <div className="flex gap-2 h-16">
+                      <button onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setIsSidePanelOpen(false); setConfirmSealEngine(false); }} className="flex-[2] h-full rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 font-black text-[10px] tracking-widest flex items-center justify-center gap-2">
+                         <span className="material-symbols-outlined !text-sm">warning</span> CONFIRM
+                      </button>
+                      <button onClick={() => setConfirmSealEngine(false)} className="flex-[1] h-full rounded-2xl bg-white/5 hover:bg-white/10 text-[var(--subtext)] hover:text-[var(--text)] border border-white/10 font-black text-[10px] tracking-widest flex items-center justify-center">
+                         CANCEL
+                      </button>
+                    </div>
+                  )}
+                </div>
+             </div>
+          </div>
+        </SidePanel>
     </div>
   );
 }

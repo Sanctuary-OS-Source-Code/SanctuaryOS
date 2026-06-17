@@ -101,8 +101,9 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
               <button 
                 onClick={saveStructure} 
                 disabled={isSaving}
-                className={`flex items-center gap-2 ${standardAccentGlassButtonClass}`}
+                className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group disabled:opacity-50 disabled:hover:scale-100"
               >
+                <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{isSaving ? 'sync' : 'save'}</span>
                 {isSaving ? t("btn_saving") : t("btn_save_structure")}
               </button>
            </div>

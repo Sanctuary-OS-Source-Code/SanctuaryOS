@@ -50,6 +50,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
   const marketTab = useStore(state => state.marketTab);
   const setMarketTab = useStore(state => state.setMarketTab);
   const selectedVersion = useStore(state => state.selectedVersion);
+  const showImages = useStore(state => state.showImages);
   const { importTheme, CORE_THEMES, customThemes } = useTheme();
   const [assetResults, setAssetResults] = useState<any[]>([]);
   const [selectedBlueprint, setSelectedBlueprint] = useState<any>(null);
@@ -454,7 +455,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
               category_override: "Exclusives",
               image_url: group.image_url || null,
               master_author: "Flavor Group",
-              description: `Collection of ${group.name} variants`,
+              description: null,
               created_at: group.created_at,
               isFlavorGroup: true,
               flavorGroupId: group.id,
@@ -493,7 +494,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
               category_override: "CC Set",
               image_url: set.image_url || null,
               master_author: set.creator_name || "Unknown Creator",
-              description: `Custom Content Set: ${set.name}`,
+              description: null,
               created_at: set.created_at,
               url: set.url || null,
               isCCSet: true,
@@ -517,7 +518,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
       // Deduplicate mods with the same name - merge their compatible versions
       const nameMap = new Map<string, any>();
       allItems.forEach(item => {
-        const name = item.name?.toLowerCase().trim();
+        const name = item.name?.toLowerCase().replace(/[^a-z0-9]/g, '');
         if (!name) return;
         
         const existing = nameMap.get(name);
@@ -713,41 +714,45 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
         icon={t("ui_icon_hub") || "hub"} 
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" 
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
           <button
             onClick={marketTab === 'MODS' ? fetchMarketplace : fetchMarketplaceAssets}
-            className={standardButtonClass}
-            title="Refresh Nexus"
+            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
           >
-            <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_refresh") || "refresh"}</span>
-            {t("ui_btn_refresh") || "REFRESH"}
+            <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_refresh") || "refresh"}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_refresh") || "REFRESH"}</span>
           </button>
           
           {marketTab !== 'MODS' && marketTab !== 'BLUEPRINTS' && (
-            <button
-              onClick={handleUploadAsset}
-              className={standardAccentGlassButtonClass}
-            >
-              <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_upload") || "upload"}</span>
-              {t("market_btn_upload") || "UPLOAD"}
-            </button>
+            <>
+              <div className="w-px h-6 bg-white/10 mx-2" />
+              <button
+                onClick={handleUploadAsset}
+                className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
+              >
+                <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_upload") || "upload"}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">{t("market_btn_upload") || "UPLOAD"}</span>
+              </button>
+            </>
           )}
         </div>
       </ViewHeader>
 
       <div className="flex flex-col">
         {/* TAB NAVIGATION */}
-        <div className="flex gap-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2 mb-6 animate-in slide-in-from-top-4 duration-500">
-          {['MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS'].map((tab) => (
-            <HubTabButton
-              key={tab}
-              id={tab}
-              activeTab={marketTab}
-              setTab={setMarketTab}
-              label={t(`market_tab_${tab.toLowerCase()}`) || tab}
-              icon={tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : "palette"}
-            />
-          ))}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mb-8">
+          <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner shrink-0">
+            {['MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS'].map((tab) => (
+              <HubTabButton 
+                key={tab} 
+                id={tab} 
+                activeTab={marketTab}
+                setTab={setMarketTab}
+                label={t(`market_tab_${tab.toLowerCase()}`) || tab}
+                icon={tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : "palette"}
+              />
+            ))}
+          </div>
         </div>
 
       {marketTab === 'MODS' ? (
@@ -848,11 +853,12 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
               >
                 {/* Image Header */}
                 <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
-                  {mod.image_url ? (
+                  {(showImages !== false && mod.image_url) ? (
                     <img 
                       src={mod.image_url} 
                       alt={mod.name}
                       className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   ) : (
                     <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>
@@ -870,15 +876,21 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                   </div>
                   
                   <div className="absolute top-4 right-4 flex gap-2 z-30">
-                    {(mod.isVirtual || mod.isParent || mod.familyCount > 1) && (
-                      <span className="text-[8px] font-black px-3 py-1.5 theme-bg-accent text-[var(--bg)] rounded-xl shadow-lg uppercase tracking-widest backdrop-blur-[3px]">
-                        {mod.familyCount || (mod.flavors?.length || 0)} VARIANTS
-                      </span>
-                    )}
                     <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
                       {mod.category_override || "MOD"}
                     </span>
                   </div>
+
+                  {(mod.isVirtual || mod.isParent || mod.familyCount > 1) && (
+                    <div className="absolute bottom-3 left-3 z-30 pointer-events-auto group/badge">
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-lg transition-all group-hover/badge:bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] drop-shadow-sm">layers</span>
+                        <span className="text-[9px] font-black text-[var(--text)] uppercase tracking-widest drop-shadow-sm">
+                          {mod.familyCount || (mod.flavors?.length || 0)} {t("market_variants") || "VARIANTS"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Content */}
@@ -1215,7 +1227,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                         alert(`${t("alert_import_failed") || "Error reading file:"} ${err.message || err}`);
                       }
                     }} className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest rounded-xl hover:scale-105 transition-all shadow-lg whitespace-nowrap ${standardAccentGlassButtonClass}`}>
-                      {uploadState.fileName ? (t("ui_btn_replace") || "REPLACE") : (t("playsets_btn_import") || "IMPORT")}
+                      {uploadState.fileName ? (t("ui_btn_replace") || "REPLACE") : (t("marketplace_btn_import") || "IMPORT")}
                     </button>
                   </div>
                 </div>

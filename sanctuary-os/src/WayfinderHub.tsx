@@ -49,38 +49,32 @@ export default function WayfinderHub() {
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader title={t("wf_hub_title")} subtitle={t("wf_hub_subtitle")} icon={t("ui_icon_terminal") || "terminal"} iconColorClass="text-indigo-400 border-indigo-500/30">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
            {/* Verify Hash Button */}
-           <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
-             <button 
-               onClick={() => setIsVerifyPanelOpen(true)}
-               className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
-             >
-               <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_verified") || "verified"}</span>
-               <span className="text-[10px] font-black uppercase tracking-widest">{t("architect_btn_verify_hash") || "VERIFY HASH"}</span>
-             </button>
-           </div>
+           <button 
+             onClick={() => setIsVerifyPanelOpen(true)}
+             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 border border-transparent text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50 font-black uppercase tracking-widest text-[10px] group"
+           >
+             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_verified") || "verified"}</span>
+             {t("wf_hub_verify") || "VERIFY HASH"}
+           </button>
+           
+           <div className="w-px h-6 bg-white/10 mx-2" />
            
           {/* Defcon Button */}
-           <div className={`flex items-center rounded-2xl p-1 shadow-inner transition-all duration-700 ${
-             defconLevel === 1 
-               ? 'bg-red-500/10 border border-red-500/50 hover:bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.3)] animate-pulse' 
-               : 'theme-glass-panel border border-white/10 hover:border-[var(--accent)]/50'
-           }`}>
-             <button 
-               onClick={() => setDefconOpen(true)}
-               className={`h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shrink-0 font-black uppercase tracking-widest ${
-                 defconLevel === 1
-                   ? 'text-red-400 hover:text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]'
-                   : 'text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
-               }`}
-             >
-               <span className={`material-symbols-outlined !text-[24px] ${defconLevel === 1 ? 'animate-bounce' : 'opacity-70'}`}>
-                 {defconLevel === 1 ? 'warning' : 'security'}
-               </span>
-               <span className="text-[10px]">{t("sa_defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>
-             </button>
-           </div>
+           <button 
+             onClick={() => setDefconOpen(true)}
+             className={`h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shrink-0 font-black uppercase tracking-widest border border-transparent ${
+               defconLevel === 1
+                 ? 'text-red-400 hover:text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] bg-red-500/10 hover:bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.3)] animate-pulse'
+                 : 'text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50'
+             }`}
+           >
+             <span className={`material-symbols-outlined !text-[24px] ${defconLevel === 1 ? 'animate-bounce' : 'opacity-70'}`}>
+               {defconLevel === 1 ? 'warning' : 'security'}
+             </span>
+             <span className="text-[10px]">{t("sa_defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>
+           </button>
         </div>
       </ViewHeader>
 

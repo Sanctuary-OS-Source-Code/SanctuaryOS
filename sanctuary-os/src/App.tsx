@@ -834,8 +834,18 @@ function App() {
         return false;
       };
 
-      const targetMod = byName.get(targetName) || displayModList.find((m) => m.name === targetName);
-      if (!targetMod) return prevSets;
+      const targetMod = byName.get(targetName) || displayModList.find((m: any) => m.name === targetName);
+      if (!targetMod) {
+         if (forceRemove && newMods.has(targetName)) {
+            newMods.delete(targetName);
+            const updatedSets = [...prevSets];
+            updatedSets[activePlaySetIndex] = { ...currentSet, mods: Array.from(newMods) };
+            localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+            window.dispatchEvent(new Event("storage"));
+            return updatedSets;
+         }
+         return prevSets;
+      }
       const kids = targetMod.isVirtual
         ? modList.filter(
             (m) =>
@@ -1085,6 +1095,7 @@ function App() {
         mods: Array.from(newMods),
       };
       localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+      window.dispatchEvent(new Event("storage"));
       return updatedSets;
     });
   };
@@ -3691,6 +3702,7 @@ function App() {
                 uploadBlueprintToCloud={uploadBlueprintToCloud}
                 syncBlueprintByCode={syncBlueprintByCode}
                 setView={setView}
+                setSnapshotModal={setSnapshotModal}
                 globalSearchQuery={globalSearchQuery}
                 setGlobalSearchQuery={setGlobalSearchQuery}
                 isSearchingCloud={isSearchingCloud}
@@ -3701,6 +3713,7 @@ function App() {
                 modList={modList}
                 activePlaySetIndex={activePlaySetIndex}
                 setActivePlaySetIndex={setActivePlaySetIndex}
+                toggleInActiveSet={toggleInActiveSet}
               />
             </ErrorBoundary>
           )}

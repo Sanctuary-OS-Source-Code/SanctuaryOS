@@ -71,11 +71,13 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("radar_btn_undo_winners") || "UNDO WINNERS"}
-      subtitle="Manage your actively enforced overrides"
+      title={t("radar_undo_title") || "REVERT OVERRIDES"}
+      subtitle={t("radar_undo_subtitle") || "MANAGE WINNERS"}
       icon="history"
-      iconColorClass="text-[var(--danger)]"
-      widthClass="w-[450px]"
+      iconColorClass="text-[var(--danger)] border-[var(--danger)]/30"
+      backdropZ="z-[50000]"
+      panelZ="z-[50001]"
+      widthClass="w-[525px]"
       footer={
         <div className="flex flex-col gap-3 w-full">
           <button 
@@ -120,8 +122,7 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
                 </div>
                 <button
                   onClick={() => undoOverride(file)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text)] opacity-50 hover:opacity-100 hover:bg-white/10 transition-all shrink-0"
-                  title="Undo Override"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text)] opacity-50 hover:opacity-100 hover:text-[var(--accent)] hover:scale-110 transition-all shrink-0"
                 >
                   <span className="material-symbols-outlined !text-lg">{t("ui_icon_undo") || "undo"}</span>
                 </button>

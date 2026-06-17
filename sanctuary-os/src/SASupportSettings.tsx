@@ -114,7 +114,7 @@ export default function SASupportSettings() {
                   ]}
                 />
             </div>
-            <button onClick={() => openEditor()} className={`shrink-0 h-12 !py-0 px-6 ${standardAccentGlassButtonClass}`}>
+            <button onClick={() => openEditor()} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
                <span className="material-symbols-outlined !text-[20px] group-hover:rotate-90 transition-transform duration-500">add</span>
                {t("sa_support_add_cat") || "ADD CATEGORY"}
             </button>
@@ -122,10 +122,14 @@ export default function SASupportSettings() {
       </div>
 
       <div className="flex flex-col gap-4">
-         <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[var(--accent)]" />
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--accent)]">{t("sa_support_active_cats") || "ACTIVE CATEGORIES"}</h3>
-         </div>
+           <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg theme-glass-panel border border-[color-mix(in_srgb,var(--text)_30%,transparent)] flex items-center justify-center shadow-md shrink-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70">category</span>
+              </div>
+              <h4 className="text-sm font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest drop-shadow-md">
+                {t("sa_support_active_cats") || "ACTIVE CATEGORIES"}
+              </h4>
+           </div>
          
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredCategories.map(cat => (

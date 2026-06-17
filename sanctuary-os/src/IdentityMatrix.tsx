@@ -247,8 +247,16 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
         <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("sa_identities_fetching")}</div>
       ) : (
         <>
-          <div className="flex flex-col gap-4">
-            <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("sa_active_citizens").replace("{count}", filteredProfiles.length.toString())}</h4>
+            <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-8 h-8 rounded-xl theme-glass-panel border border-[var(--accent)]/50 flex items-center justify-center shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.2)] relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/20 to-transparent"></div>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse shadow-[0_0_10px_rgba(var(--accent-rgb),0.5)]"></span>
+                  </div>
+                  <h4 className="text-sm font-black text-[var(--accent)] uppercase tracking-widest drop-shadow-md">
+                    {t("sa_active_citizens").replace("{count}", filteredProfiles.length.toString())}
+                  </h4>
+                </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
               {filteredProfiles.map((p: any) => (
                 <div 

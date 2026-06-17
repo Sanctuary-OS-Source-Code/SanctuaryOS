@@ -264,9 +264,9 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           </div>
           <button 
             onClick={() => openEditor()} 
-            className={standardAccentGlassButtonClass + " !h-12 !py-0 shrink-0 px-6"}
+            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
           >
-            <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_cell_tower") || "cell_tower"}</span> {t("mason_post_broadcast") || "BROADCAST TRANSMISSION"}
+            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_cell_tower") || "cell_tower"}</span> {t("mason_post_broadcast") || "BROADCAST TRANSMISSION"}
           </button>
         </div>     
       </div>

@@ -188,7 +188,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                   {node.shared ? "SHARED" : "SHARE"}
                 </button>
                 <button onClick={() => handleAddFolder(node.id)} className="px-4 py-2.5 rounded-xl bg-[var(--text)]/5 border border-white/5 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text)] hover:bg-[var(--text)]/10 hover:border-white/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-1">
-                  <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_create_new_folder") || "create_new_folder"}</span> DIR
+                  <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_create_new_folder") || "create_new_folder"}</span> DIRECTORY
                 </button>
                 <button onClick={() => handleAddFile(node.id)} className="px-4 py-2.5 rounded-xl bg-[var(--text)]/5 border border-white/5 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text)] hover:bg-[var(--text)]/10 hover:border-white/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-1">
                   <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_note_add") || "note_add"}</span> FILE
@@ -224,8 +224,9 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
           <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)]">Architecture Graph</span>
           <span className="text-[10px] text-[var(--subtext)] font-bold uppercase tracking-widest mt-1">Design your virtual file structure</span>
         </div>
-        <button onClick={() => handleAddFolder()} className={standardAccentGlassButtonClass}>
-          + ADD ROOT DIR
+        <button onClick={() => handleAddFolder()} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
+          <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">create_new_folder</span>
+          {t("structure_add_root") || "ADD ROOT DIR"}
         </button>
       </div>
 

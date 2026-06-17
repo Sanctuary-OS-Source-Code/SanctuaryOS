@@ -99,13 +99,21 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         subtitle={t("mason_feed_subtitle") || "LATEST NETWORK ACTIVITY"}
         icon={t("ui_icon_broadcast") || "broadcast"}
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
-      />
+      >
+        {/* Placeholder for future tools */}
+      </ViewHeader>
       <div className="flex flex-col gap-6 h-full w-full overflow-hidden p-2">
-      <div className="theme-glass-panel p-6 rounded-[2rem] shadow-xl border border-white/10 mb-8 animate-in slide-in-from-top-4 duration-500 flex flex-wrap gap-4 items-center relative z-20 mx-2 mt-2">
-        <div className="flex items-center gap-1 overflow-x-auto accent-scrollbar p-1 theme-glass-inner rounded-2xl border border-white/5 shadow-inner shrink-0">
+      
+      {/* Main Tabs */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mx-2 mt-2">
+        <div className="flex items-center gap-1 overflow-x-auto accent-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner shrink-0">
           <HubTabButton id="DISCOVER" icon="explore" label={t("feed_tab_discover") || "DISCOVER"} activeTab={activeTab} setTab={setActiveTab as any} />
           <HubTabButton id="FOLLOWING" icon="diversity_1" label={t("feed_tab_following") || "FOLLOWING"} activeTab={activeTab} setTab={setActiveTab as any} />
         </div>
+      </div>
+
+      {/* Filter Row */}
+      <div className="theme-glass-panel p-6 rounded-[2rem] shadow-xl border border-white/10 mb-8 animate-in slide-in-from-top-4 duration-500 flex flex-wrap gap-4 items-center relative z-20 mx-2">
         <div className="flex-1 min-w-[250px] relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--accent)] text-lg flex items-center justify-center">
             <span className="material-symbols-outlined !text-[20px] drop-shadow-md">{t("ui_icon_search") || "search"}</span>
@@ -138,6 +146,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                     index={index} 
                     onPostClick={handlePostClick} 
                     onToggleLike={handleToggleLike} 
+                    onOpenMasonProfile={onOpenMasonProfile}
                     isFeatured={isFeatured}
                     isCompact={isCompact}
                   />

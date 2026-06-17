@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass } from "./shared";
@@ -21,6 +22,7 @@ const fetchAllPaginated = async (queryFn: () => any) => {
 function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val: number) => void }) {
   const { t } = useLexicon();
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const options = [
     { id: 4, label: t("nexus_tier4") || "TIER 4", color: 'theme-text-danger', glow: 'theme-bg-danger', activeBg: 'bg-[var(--danger)]/10 border-[var(--danger)]/20' },
@@ -30,33 +32,51 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
   const selected = options.find(o => o.id === value) || options[0];
 
   return (
-    <div className={`relative w-full shrink-0 ${isOpen ? 'z-[6000]' : ''}`}>
+    <div className={`relative w-full shrink-0 ${isOpen ? 'z-[6000]' : ''}`} ref={containerRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full theme-glass-inner rounded-xl px-5 py-3 text-sm font-black uppercase tracking-widest focus:outline-none flex justify-between items-center transition-all ${selected.color}`}
+        className={`w-full h-12 theme-glass-inner rounded-xl px-5 text-[11px] font-black uppercase tracking-widest focus:outline-none flex justify-between items-center transition-all ${selected.color}`}
       >
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${selected.glow}`} />
           {selected.label}
         </div>
-        <span className="text-[10px] opacity-50 text-[var(--text)]">-</span>
+        <span className="transition-colors shrink-0 flex items-center justify-center text-[var(--subtext)] opacity-60"><span className="material-symbols-outlined !text-[20px]">{isOpen ? 'expand_less' : 'expand_more'}</span></span>
       </button>
       
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-full theme-glass-panel backdrop-blur-3xl bg-[color-mix(in_srgb,var(--bg)_95%,transparent)] border border-white/20 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.5)] z-[6000] max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-2 animate-in fade-in slide-in-from-top-2">
-          {options.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => { onChange(opt.id); setIsOpen(false); }}
-              className={`text-left px-4 py-3 rounded-lg border border-transparent text-sm font-black uppercase tracking-widest transition-all flex items-center gap-3 ${value === opt.id ? opt.activeBg + ' shadow-sm ' + opt.color : 'text-[var(--text)] hover:bg-white/5 opacity-70 hover:opacity-100'}`}
-            >
-              <div className={`w-2 h-2 rounded-full ${opt.glow} ${value === opt.id ? 'animate-pulse' : ''}`} />
-              {opt.label}
-            </button>
-          ))}
-        </div>
+      {isOpen && createPortal(
+        (() => {
+          const rect = containerRef.current?.getBoundingClientRect();
+          if (!rect) return null;
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const shouldDropUp = spaceBelow < 200;
+          
+          return (
+            <>
+              <div className="fixed inset-0 z-[50000]" onClick={() => setIsOpen(false)} />
+              <div className="fixed theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] z-[50001] overflow-hidden max-h-60 overflow-y-auto custom-scrollbar flex flex-col animate-in fade-in slide-in-from-top-2" style={{
+                top: shouldDropUp ? undefined : rect.bottom + 8,
+                bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
+                left: rect.left,
+                width: rect.width,
+              }}>
+                {options.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => { onChange(opt.id); setIsOpen(false); }}
+                    className={`w-full text-left px-5 py-4 transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center gap-3 ${value === opt.id ? opt.activeBg + ' ' + opt.color : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-70 hover:opacity-100'}`}
+                  >
+                    <div className={`w-2 h-2 rounded-full ${opt.glow} ${value === opt.id ? 'animate-pulse' : ''}`} />
+                    <span className="text-[11px] font-black uppercase tracking-widest">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          );
+        })(),
+        document.body
       )}
     </div>
   );
@@ -189,12 +209,12 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
             <button onClick={() => setTierFilter(null)} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === null ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>ALL</button>
             {[4, 3].map(tLevel => (
               <button key={tLevel} onClick={() => setTierFilter(tLevel)} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === tLevel ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>
-                T{tLevel}
+                S{tLevel}
               </button>
             ))}
           </div>
-          <button onClick={() => { setEditConflictId(null); setModA(null); setModB(null); setNote(""); setSeverity(4); setIsSidePanelOpen(true); }} className={standardAccentGlassButtonClass + " !h-12 !py-0 shrink-0"}>
-            <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_add") || "add"}</span> {t("nexus_forge_title") || "CREATE DIRECTIVE"}
+          <button onClick={() => { setEditConflictId(null); setModA(null); setModB(null); setNote(""); setSeverity(4); setIsSidePanelOpen(true); }} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
+            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add") || "add"}</span> {t("nexus_forge_title") || "CREATE DIRECTIVE"}
           </button>
         </div>
       </div>
@@ -239,7 +259,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                        </div>
                        <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 opacity-90">{t("matrix_pending_queue") || "Pending Architect Approval"}</span>
                      </div>
-                     <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank === 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>T{g.severity_rank}</span>
+                     <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank === 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>S{g.severity_rank}</span>
                   </div>
                 
                   <div className="flex flex-col gap-3 relative z-10">
@@ -337,7 +357,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                        <span className="material-symbols-outlined !text-[12px] opacity-50">gavel</span>
                        <span className="text-[9px] font-black uppercase tracking-widest opacity-50">{t("active_network_directives") || "Active Directive"}</span>
                      </div>
-                     <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank === 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>T{g.severity_rank}</span>
+                     <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank === 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>S{g.severity_rank}</span>
                   </div>
                 
                   <div className="flex flex-col gap-3 relative z-10">

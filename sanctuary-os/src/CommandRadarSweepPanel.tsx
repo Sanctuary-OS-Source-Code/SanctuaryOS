@@ -91,7 +91,7 @@ export default function CommandRadarSweepPanel({
       <div className="flex-1 min-h-0 flex flex-col gap-6 w-full p-4 overflow-y-auto custom-scrollbar">
         
         {/* Main Status Card */}
-        <div className={`theme-glass-panel rounded-[2rem] p-8 relative overflow-hidden group border border-${colorCls}-500/20 shadow-xl`}>
+        <div className={`theme-glass-panel rounded-[2rem] p-8 py-10 relative overflow-hidden group border border-${colorCls}-500/20 shadow-xl flex flex-col justify-center shrink-0`}>
           <div className={`absolute inset-0 bg-gradient-to-br from-${colorCls}-500/10 via-transparent to-transparent opacity-50`} />
           <div className="relative z-10 flex flex-col items-center text-center">
             <div className={`w-20 h-20 rounded-full flex items-center justify-center border border-${colorCls}-500/30 bg-${colorCls}-500/10 mb-6 shadow-[0_0_30px_rgba(var(--${colorCls}-rgb),0.2)] ${isScanning ? 'animate-pulse' : ''}`}>

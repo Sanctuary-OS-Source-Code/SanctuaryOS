@@ -131,7 +131,14 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
       }
     } catch(e) {}
 
-    return conflicts;
+    return conflicts.filter((ac: any) => {
+      if (ac.conflict.severity_rank !== 3) return true;
+      const prefixA = (ac.modA._originalSetName || ac.modA.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
+      const prefixB = (ac.modB._originalSetName || ac.modB.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
+      const isWinnerA = prefixA.toLowerCase() === "sanctuary";
+      const isWinnerB = prefixB.toLowerCase() === "sanctuary";
+      return !isWinnerA && !isWinnerB;
+    });
   }, [activeMods]);
 
   const brokenMods = useMemo(() => {
@@ -172,24 +179,45 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
     }).filter(Boolean);
   }, [activeMods, selectedVersion, ownedDLC, maskedDLC, t]);
 
-  const setBlueprintLoadOrder = (targetName: string, prefix: string) => {
-    if (!playSets) return;
-    const currentSet = playSets[activePlaySetIndex];
-    if (!currentSet) return;
-    const newMods = [...currentSet.mods];
-    
-    const index = newMods.findIndex((m: string) => m === targetName || m.endsWith(`/${targetName}`) || m.endsWith(`\\${targetName}`));
-    if (index !== -1) {
-      newMods[index] = prefix ? `${prefix}/${targetName}` : targetName;
-    } else {
-      newMods.push(prefix ? `${prefix}/${targetName}` : targetName);
+  const setBlueprintLoadOrder = (updates: string | {name: string, prefix: string}[], prefix?: string) => {
+    try {
+      setPlaySets((prevSets: any) => {
+        if (!prevSets) return prevSets;
+        const currentSet = prevSets[activePlaySetIndex];
+        if (!currentSet) return prevSets;
+        const newMods = [...currentSet.mods];
+        
+        const updateList = Array.isArray(updates) ? updates : [{ name: updates, prefix: prefix || "" }];
+
+        updateList.forEach(update => {
+          if (!update || !update.name) return;
+          const nameStr = String(update.name);
+          const baseName = nameStr.split(/[/\\]/).pop() || nameStr;
+          
+          let found = false;
+          for (let i = 0; i < newMods.length; i++) {
+             const mLow = String(newMods[i]).toLowerCase();
+             const bLow = baseName.toLowerCase();
+             const tLow = nameStr.toLowerCase();
+             if (mLow === bLow || mLow === tLow || mLow.endsWith(`/${bLow}`) || mLow.endsWith(`\\${bLow}`)) {
+               newMods[i] = update.prefix ? `${update.prefix}/${baseName}` : baseName;
+               found = true;
+             }
+          }
+          if (!found) {
+             newMods.push(update.prefix ? `${update.prefix}/${baseName}` : baseName);
+          }
+        });
+        
+        const newSets = [...prevSets];
+        newSets[activePlaySetIndex] = { ...currentSet, mods: newMods };
+        localStorage.setItem("sanctuary_playsets", JSON.stringify(newSets));
+        window.dispatchEvent(new Event("storage"));
+        return newSets;
+      });
+    } catch(e) {
+      console.error("setBlueprintLoadOrder error:", e);
     }
-    
-    const newSets = [...playSets];
-    newSets[activePlaySetIndex] = { ...currentSet, mods: newMods };
-    setPlaySets(newSets);
-    localStorage.setItem("sanctuary_playsets", JSON.stringify(newSets));
-    window.dispatchEvent(new Event("storage"));
   };
 
   const getPriorityDrop = (modData: any) => {
@@ -275,6 +303,11 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                   const isIgnored = ignoredConflicts.has(ac.pairId);
                   const isTier4 = ac.conflict.severity_rank === 4;
                   
+                  const prefixA = (ac.modA._originalSetName || ac.modA.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
+                  const prefixB = (ac.modB._originalSetName || ac.modB.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
+                  const isWinnerA = prefixA.toLowerCase() === "sanctuary";
+                  const isWinnerB = prefixB.toLowerCase() === "sanctuary";
+                  
                   const borderClass = isTier4 ? "border-red-500/30" : "border-amber-500/30";
                   const bgClass = isTier4 ? "bg-red-500/5 hover:bg-red-500/10" : "bg-amber-500/5 hover:bg-amber-500/10";
                   const shadowClass = isTier4 ? "hover:shadow-[0_0_30px_rgba(239,68,68,0.2)]" : "hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]";
@@ -305,15 +338,20 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                               else newSet.add(ac.pairId);
                               setIgnoredConflicts(newSet);
                             }}
-                            className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95"
+                            className={`text-[9px] font-black px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 flex items-center gap-2 ${
+                                isIgnored 
+                                  ? 'bg-white/10 text-white hover:bg-white/20' 
+                                  : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)]'
+                              }`}
                           >
-                            {isIgnored ? t("bp_restore_conflict") : t("bp_ignore_conflict")}
+                            <span className="material-symbols-outlined !text-[14px]">{isIgnored ? "visibility" : "visibility_off"}</span>
+                            {isIgnored ? t("bp_restore_alert") : t("bp_ignore_alert")}
                           </button>
                         </div>
                         
-                        <div className="flex flex-col gap-4 items-stretch">
+                        <div className={`grid grid-cols-2 gap-4 ${isIgnored ? 'opacity-30' : ''}`}>
                           {/* Mod A */}
-                          <div className="theme-glass-inner rounded-2xl p-4 border border-white/5 flex flex-col transition-all shadow-inner relative overflow-hidden group/card hover:border-white/10">
+                          <div className={`theme-glass-inner rounded-2xl p-4 border border-white/5 flex flex-col transition-all shadow-inner relative overflow-hidden group/card hover:border-white/10 ${isWinnerA && !isTier4 ? 'ring-2 ring-[var(--success)]/50 bg-[var(--success)]/5' : ''}`}>
                             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
                             <div className="relative z-10 flex flex-col">
                               <span className="text-xs font-black text-[var(--text)] uppercase break-words mb-1">
@@ -332,14 +370,29 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                     </button>
                                   )
                                 ) : ac.conflict.severity_rank === 3 ? (
-                                  allow_write && (
-                                    <button 
-                                      onClick={() => setBlueprintLoadOrder(ac.modA._originalSetName || ac.modA.name, "Sanctuary")}
-                                      className="mt-2 w-full py-2 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)] text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
-                                    >
-                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_check_circle") || "check_circle"}</span>
-                                      {t("bp_select_winning_artifact") || "SELECT WINNER OF ARTIFACT"}
-                                    </button>
+                                  isWinnerA ? (
+                                    <div className="mt-2 w-full py-2 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
+                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_star") || "star"}</span>
+                                      {t("bp_winning_artifact")}
+                                    </div>
+                                  ) : isWinnerB ? (
+                                    <div className="mt-2 w-full py-2 rounded-xl bg-white/5 border border-white/10 text-white/40 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                                      <span className="material-symbols-outlined !text-sm">block</span>
+                                      {t("bp_overridden_by_winner")}
+                                    </div>
+                                  ) : (
+                                    allow_write && (
+                                      <button 
+                                        onClick={() => setBlueprintLoadOrder([
+                                          { name: ac.modA._originalSetName || ac.modA.name, prefix: "Sanctuary" },
+                                          { name: ac.modB._originalSetName || ac.modB.name, prefix: "" }
+                                        ])}
+                                        className="mt-2 w-full py-2 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)] text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                      >
+                                        <span className="material-symbols-outlined !text-sm">{t("ui_icon_check_circle") || "check_circle"}</span>
+                                        {t("bp_select_winning_artifact")}
+                                      </button>
+                                    )
                                   )
                                 ) : (
                                   <>
@@ -360,7 +413,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                           </div>
                           
                           {/* Mod B */}
-                          <div className="theme-glass-inner rounded-2xl p-4 border border-white/5 flex flex-col transition-all shadow-inner relative overflow-hidden group/card hover:border-white/10">
+                          <div className={`theme-glass-inner rounded-2xl p-4 border border-white/5 flex flex-col transition-all shadow-inner relative overflow-hidden group/card hover:border-white/10 ${isWinnerB && !isTier4 ? 'ring-2 ring-[var(--success)]/50 bg-[var(--success)]/5' : ''}`}>
                             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
                             <div className="relative z-10 flex flex-col">
                               <span className="text-xs font-black text-[var(--text)] uppercase break-words mb-1">
@@ -379,14 +432,26 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                     </button>
                                   )
                                 ) : ac.conflict.severity_rank === 3 ? (
-                                  allow_write && (
-                                    <button 
-                                      onClick={() => setBlueprintLoadOrder(ac.modB._originalSetName || ac.modB.name, "Sanctuary")}
-                                      className="mt-2 w-full py-2 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)] text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
-                                    >
-                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_check_circle") || "check_circle"}</span>
-                                      {t("bp_select_winning_artifact") || "SELECT WINNER OF ARTIFACT"}
-                                    </button>
+                                  isWinnerB ? (
+                                    <div className="mt-2 w-full py-2 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
+                                      <span className="material-symbols-outlined !text-sm">{t("ui_icon_star") || "star"}</span>
+                                      {t("bp_winning_artifact")}
+                                    </div>
+                                  ) : isWinnerA ? (
+                                    <div className="mt-2 w-full py-2 rounded-xl bg-white/5 border border-white/10 text-white/40 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                                      <span className="material-symbols-outlined !text-sm">block</span>
+                                      {t("bp_overridden_by_winner")}
+                                    </div>
+                                  ) : (
+                                    allow_write && (
+                                      <button 
+                                        onClick={() => setBlueprintLoadOrder([{ name: ac.modB._originalSetName || ac.modB.name, prefix: "Sanctuary" }, { name: ac.modA._originalSetName || ac.modA.name, prefix: "" }])}
+                                        className="mt-2 w-full py-2 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)] text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                      >
+                                        <span className="material-symbols-outlined !text-sm">{t("ui_icon_check_circle") || "check_circle"}</span>
+                                        {t("bp_select_winning_artifact") || "SELECT WINNER OF ARTIFACT"}
+                                      </button>
+                                    )
                                   )
                                 ) : (
                                   <>
@@ -525,3 +590,4 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
     </SidePanel>
   );
 }
+

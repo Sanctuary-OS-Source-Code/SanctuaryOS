@@ -53,8 +53,8 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
 
   return createPortal(
     <>
-      <div className="fixed inset-0 z-[15000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" onClick={onClose} />
-      <div className="fixed top-0 right-0 bottom-10 w-full max-w-xl theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px]">
+      <div className="fixed inset-0 z-[52000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" onClick={onClose} />
+      <div className="fixed top-0 right-0 bottom-10 w-full max-w-xl theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[52001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px]">
         <button onClick={onClose} className="absolute top-12 right-6 z-50 w-10 h-10 bg-black/40 backdrop-blur-[3px] hover:theme-bg-danger text-white/70 hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close") || "close"}</span>
         </button>

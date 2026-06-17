@@ -1329,8 +1329,8 @@ function CCSetForge() {
           <div className="w-40 relative z-50 h-12">
              <CustomDropdown disableTint={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{id: "ALL", label: "ALL TIERS"}, {id: "0", label: "TIER 0"}, {id: "1", label: "TIER 1"}, {id: "2", label: "TIER 2"}]} />
           </div>
-          <button onClick={() => setIsForgePanelOpen(true)} className={standardAccentGlassButtonClass + " !h-12 !py-0 shrink-0 px-6"}>
-            <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_add") || "add"}</span> {t("forge_new_set") || "CREATE NEW SET"}
+          <button onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
+            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add") || "add"}</span> {t("forge_new_set") || "CREATE NEW SET"}
           </button>
         </div>
       </div>
@@ -1379,7 +1379,7 @@ function CCSetForge() {
               <div className="flex-1">
                 <CustomMasonDropdown value={setMasonId} options={masonsList} onChange={setSetMasonId} />
               </div>
-              <button onClick={() => setIsMasonPanelOpen(true)} className="bg-white/10 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center" title="Create Mason">
+              <button onClick={() => setIsMasonPanelOpen(true)} className="bg-white/10 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center">
                 <span className="material-symbols-outlined text-[18px]">person_add</span>
               </button>
             </div>

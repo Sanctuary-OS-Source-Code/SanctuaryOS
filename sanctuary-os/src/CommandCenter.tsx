@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLexicon } from "./LexiconContext";
 import { ViewHeader, isVersionMatch, SidePanel } from "./shared";
 import { useStore } from "./store";
@@ -111,24 +112,45 @@ export default function CommandCenter({
     );
   }, [networkUpdates, activeBlueprintMods]);
 
-  const setBlueprintLoadOrder = (targetName: string, prefix: string) => {
-    if (!playSets) return;
-    const currentSet = playSets[activePlaySetIndex];
-    if (!currentSet) return;
-    const newMods = [...currentSet.mods];
-    
-    const index = newMods.findIndex((m: string) => m === targetName || m.endsWith(`/${targetName}`) || m.endsWith(`\\${targetName}`));
-    if (index !== -1) {
-      newMods[index] = prefix ? `${prefix}/${targetName}` : targetName;
-    } else {
-      newMods.push(prefix ? `${prefix}/${targetName}` : targetName);
+  const setBlueprintLoadOrder = (updates: string | {name: string, prefix: string}[], prefix?: string) => {
+    try {
+      setPlaySets((prevSets: any) => {
+        if (!prevSets) return prevSets;
+        const currentSet = prevSets[activePlaySetIndex];
+        if (!currentSet) return prevSets;
+        const newMods = [...currentSet.mods];
+        
+        const updateList = Array.isArray(updates) ? updates : [{ name: updates, prefix: prefix || "" }];
+
+        updateList.forEach(update => {
+          if (!update || !update.name) return;
+          const nameStr = String(update.name);
+          const baseName = nameStr.split(/[/\\]/).pop() || nameStr;
+          
+          let found = false;
+          for (let i = 0; i < newMods.length; i++) {
+             const mLow = String(newMods[i]).toLowerCase();
+             const bLow = baseName.toLowerCase();
+             const tLow = nameStr.toLowerCase();
+             if (mLow === bLow || mLow === tLow || mLow.endsWith(`/${bLow}`) || mLow.endsWith(`\\${bLow}`)) {
+               newMods[i] = update.prefix ? `${update.prefix}/${baseName}` : baseName;
+               found = true;
+             }
+          }
+          if (!found) {
+             newMods.push(update.prefix ? `${update.prefix}/${baseName}` : baseName);
+          }
+        });
+        
+        const newSets = [...prevSets];
+        newSets[activePlaySetIndex] = { ...currentSet, mods: newMods };
+        localStorage.setItem("sanctuary_playsets", JSON.stringify(newSets));
+        window.dispatchEvent(new Event("storage"));
+        return newSets;
+      });
+    } catch(e) {
+      console.error("setBlueprintLoadOrder error:", e);
     }
-    
-    const newSets = [...playSets];
-    newSets[activePlaySetIndex] = { ...currentSet, mods: newMods };
-    setPlaySets(newSets);
-    localStorage.setItem("sanctuary_playsets", JSON.stringify(newSets));
-    window.dispatchEvent(new Event("storage"));
   };
 
   const activeBrokenCount = activeBlueprintMods.reduce((acc: number, m: any) => {
@@ -175,14 +197,14 @@ export default function CommandCenter({
              if (em.isFallback) return false;
              const cleanN = String(em.name || '').toUpperCase();
              const cleanDisp = String(em.displayName || '').toUpperCase();
-             const targetClean = String(lc.modA).toUpperCase();
+             const targetClean = String(lc.modA || lc.mod_a).toUpperCase();
              return cleanN.includes(targetClean) || cleanDisp.includes(targetClean) || targetClean.includes(cleanN);
           });
           const modBMatch = activeBlueprintMods.find((em: any) => {
              if (em.isFallback) return false;
              const cleanN = String(em.name || '').toUpperCase();
              const cleanDisp = String(em.displayName || '').toUpperCase();
-             const targetClean = String(lc.modB).toUpperCase();
+             const targetClean = String(lc.modB || lc.mod_b).toUpperCase();
              return cleanN.includes(targetClean) || cleanDisp.includes(targetClean) || targetClean.includes(cleanN);
           });
 
@@ -191,15 +213,24 @@ export default function CommandCenter({
             if (!conflicts.find((ac: any) => ac.pairId === pairId)) {
               conflicts.push({ pairId, modA: modAMatch, modB: modBMatch, conflict: { severity_rank: lc.severity_rank, resolution_note: lc.resolution_note || "Local Scan Detects Tuning Overlap" } });
             }
-          }
+           }
         });
       }
     } catch(e) {}
 
-    const tier4Count = conflicts.filter((c: any) => c.conflict.severity_rank === 4).length;
-    const tier3Count = conflicts.filter((c: any) => c.conflict.severity_rank !== 4).length;
+      const unresolvedConflicts = conflicts.filter((ac: any) => {
+        if (ac.conflict.severity_rank !== 3) return true;
+        const prefixA = (ac.modA._originalSetName || ac.modA.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
+        const prefixB = (ac.modB._originalSetName || ac.modB.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
+        const isWinnerA = prefixA.toLowerCase() === "sanctuary";
+        const isWinnerB = prefixB.toLowerCase() === "sanctuary";
+        return !isWinnerA && !isWinnerB;
+      });
 
-    return { total: conflicts.length, tier3: tier3Count, tier4: tier4Count };
+      const tier4Count = unresolvedConflicts.filter((c: any) => c.conflict.severity_rank === 4).length;
+      const tier3Count = unresolvedConflicts.filter((c: any) => c.conflict.severity_rank !== 4).length;
+  
+      return { total: unresolvedConflicts.length, tier3: tier3Count, tier4: tier4Count };
   }, [activeBlueprintMods]);
 
   const radarUpdatesCount = activeUpdates.length || 0;
@@ -320,7 +351,14 @@ export default function CommandCenter({
                <span className="material-symbols-outlined !text-sm">{t("ui_icon_warning") || "warning_amber"}</span> {activeBrokenCount} {t("cmd_citizen_action_incompatible") || "INCOMPATIBLE"}
              </button>
              <button onClick={() => { if(activeConflictCount.total > 0) setShowConflictsPanel(true); }} disabled={activeConflictCount.total === 0} className={`px-6 py-3 rounded-xl flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${activeConflictCount.total > 0 ? (activeConflictCount.tier4 > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_30%,transparent)]') : 'bg-white/5 border-white/10 text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
-               <span className="material-symbols-outlined !text-sm">{t("ui_icon_radar3") || "satellite_alt"}</span> {activeConflictCount.total} {t("cmd_citizen_action_conflicts") || "CONFLICTS"}
+               <span className="material-symbols-outlined !text-sm">{t("ui_icon_radar3") || "satellite_alt"}</span> 
+                {activeConflictCount.total > 0 ? (
+                  activeConflictCount.tier4 > 0 ? 
+                    `${activeConflictCount.tier4} ${t("hub_stat_tier4") || "TIER 4 CONFLICTS"}` : 
+                    `${activeConflictCount.tier3} ${t("hub_stat_tier3") || "TIER 3 CONFLICTS"}`
+                ) : (
+                  `${activeConflictCount.total} ${t("cmd_citizen_action_conflicts") || "CONFLICTS"}`
+                )}
              </button>
           </div>
         </div>
@@ -439,9 +477,9 @@ export default function CommandCenter({
                   </div>
                 </div>
                 <div className="flex justify-end mt-1">
-                  <a href={update.download_url || update.url || `https://www.google.com/search?q=Sims+4+${encodeURIComponent(update.displayName || (update.name || '').split('/').pop() || "")}`} target="_blank" rel="noopener noreferrer" className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.2)] flex items-center gap-2 theme-bg-accent/10 border theme-border-accent/30 theme-text-accent hover:theme-bg-accent/20 hover:theme-border-accent/50 backdrop-blur-md`}>
+                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openUrl(update.download_url || update.url || `https://www.google.com/search?q=Sims+4+${encodeURIComponent(update.displayName || (update.name || '').split('/').pop() || "")}`); }} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.2)] flex items-center gap-2 theme-bg-accent/10 border theme-border-accent/30 theme-text-accent hover:theme-bg-accent/20 hover:theme-border-accent/50 backdrop-blur-md`}>
                     {update.download_url || update.url ? (t("dossier_btn_download") || "DOWNLOAD") : (t("dossier_btn_search_web") || "SMART SEARCH")} <span className="material-symbols-outlined !text-[14px] opacity-70">{update.download_url || update.url ? (t("ui_icon_import") || "download") : (t("ui_icon_search") || "search")}</span>
-                  </a>
+                  </button>
                 </div>
               </div>
           )) : (

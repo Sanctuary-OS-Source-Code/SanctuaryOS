@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown } from "./shared";
+import { ViewHeader, CustomDropdown, SidebarActionButton, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, SidePanel } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import ConflictCard from "./ConflictCard";
@@ -21,6 +21,7 @@ const isCloneConflict = (modA: string, modB: string) => {
 };
 
 export const DbpfScout = () => {
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const { t } = useLexicon();
   const [loading, setLoading] = useState(false);
   const[error, setError] = useState<string | null>(null);
@@ -76,7 +77,8 @@ export const DbpfScout = () => {
       let targetPath = `${config.vault_path}/Mods`;
       let targetFiles: string[] | null = null;
 
-      const set = playSets.find(s => s.name === scanScope);
+      const scopeToUse = scanScope || (playSets.length > 0 ? playSets[0].name : "");
+      const set = playSets.find((s: any) => s.name === scopeToUse);
       if (set) {
         targetFiles = set.mods;
       }
@@ -236,7 +238,7 @@ export const DbpfScout = () => {
     setLoading(true);
     setConfirmMassVault(false);
     try {
-      const playSetIndex = playSets.findIndex((p: any) => p.name === scanScope);
+      const playSetIndex = playSets.findIndex((p: any) => p.name.toLowerCase() === scanScope.toLowerCase());
       if (playSetIndex !== -1) {
          const updatedSets = [...playSets];
          const currentSet = updatedSets[playSetIndex];
@@ -261,7 +263,7 @@ export const DbpfScout = () => {
   const vaultSingleScript = async (modName: string) => {
     try {
       if (activeConflictRes) {
-        const playSetIndex = playSets.findIndex((p: any) => p.name === scanScope);
+        const playSetIndex = playSets.findIndex((p: any) => p.name.toLowerCase() === scanScope.toLowerCase());
         if (playSetIndex !== -1) {
            const updatedSets = [...playSets];
            const currentSet = updatedSets[playSetIndex];
@@ -287,7 +289,7 @@ export const DbpfScout = () => {
   const applyOverride = async (winnerName: string, modPair: string) => {
     try {
       if (activeConflictRes) {
-        const playSetIndex = playSets.findIndex((p: any) => p.name === scanScope);
+        const playSetIndex = playSets.findIndex((p: any) => p.name.toLowerCase() === scanScope.toLowerCase());
         if (playSetIndex !== -1) {
            const updatedSets = [...playSets];
            const currentSet = updatedSets[playSetIndex];
@@ -323,21 +325,23 @@ export const DbpfScout = () => {
 
   const undoOverride = async (winnerName: string) => {
     try {
-      const playSetIndex = playSets.findIndex((p: any) => p.name === scanScope);
+      const playSetIndex = playSets.findIndex((p: any) => p.name.toLowerCase() === scanScope.toLowerCase());
       const cleanWinner = winnerName.replace(/\.(package|ts4script)$/i, "").toLowerCase();
       
       if (playSetIndex !== -1) {
          const updatedSets = [...playSets];
-         const currentSet = updatedSets[playSetIndex];
+         const currentSet = { ...updatedSets[playSetIndex] };
          currentSet.mods = currentSet.mods.map((m: string) => {
             const cleanM = m.replace(/\.(package|ts4script)$/i, "").toLowerCase();
-            if (m.startsWith("Sanctuary/") && (cleanM === `sanctuary/${cleanWinner}` || cleanM.endsWith(`/${cleanWinner}`))) {
-               return m.replace("Sanctuary/", "");
+            if (m.toLowerCase().startsWith("sanctuary") && (cleanM === `sanctuary/${cleanWinner}` || cleanM === `sanctuary\\${cleanWinner}` || cleanM.endsWith(`/${cleanWinner}`) || cleanM.endsWith(`\\${cleanWinner}`))) {
+               return m.replace(/^Sanctuary[/\\]/i, "");
             }
             return m;
          });
+         updatedSets[playSetIndex] = currentSet;
          setPlaySets(updatedSets);
          localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+         window.dispatchEvent(new Event("storage"));
       }
 
       const updatedIgnored = ignoredPairs.filter(pair => !pair.toLowerCase().includes(cleanWinner));
@@ -355,129 +359,64 @@ export const DbpfScout = () => {
 
   const clearAllOverrides = async () => {
     try {
-      const playSetIndex = playSets.findIndex((p: any) => p.name === scanScope);
+      const playSetIndex = playSets.findIndex((p: any) => p.name.toLowerCase() === scanScope.toLowerCase());
       if (playSetIndex !== -1) {
          const updatedSets = [...playSets];
-         const currentSet = updatedSets[playSetIndex];
-         currentSet.mods = currentSet.mods.map((m: string) => m.startsWith("Sanctuary/") ? m.replace("Sanctuary/", "") : m);
+         const currentSet = { ...updatedSets[playSetIndex] };
+         currentSet.mods = currentSet.mods.map((m: string) => m.replace(/^Sanctuary[/\\]/i, ""));
+         updatedSets[playSetIndex] = currentSet;
          setPlaySets(updatedSets);
          localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+         window.dispatchEvent(new Event("storage"));
       }
-      
-      resetIgnored();
-
-      alert("All overrides cleared from blueprint!");
-      await runRadar();
-    } catch (err) { alert(`Undo Error: ${err}`); }
+} catch (err) { alert(`Undo Error: ${err}`); }
   };
 
   return (
-    <div className={`relative flex flex-col overflow-x-hidden pr-2 ${hasScanned || loading || error ? 'pb-24' : ''} animate-in fade-in zoom-in-95 duration-500`}>
-      {/* Subtle Background Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 flex items-center justify-center">
-        <div className="absolute top-1/4 left-1/4 w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] blur-[150px] rounded-full" />
-        <div className="absolute bottom-1/4 right-1/4 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] blur-[150px] rounded-full" />
-      </div>
-
-        <div className="relative z-10">
-          <ViewHeader title={t("radar_title")} subtitle={t("radar_subtitle")} icon={t("ui_icon_radar") || "radar"} iconColorClass="text-amber-400 border-amber-500/30" />
-          
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-3 mb-10 w-full theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-3xl shadow-sm relative z-20">
-            {/* Left Side: Scope */}
-            <div className="flex items-center gap-4 pl-4 shrink-0">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text)] opacity-70 flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[18px] opacity-50">target</span>
-                {t("radar_target_scope") || "TARGET SCOPE"}
-              </span>
-              <div className="w-[240px]">
-                  <CustomDropdown disableTint={true}
-                    value={scanScope}
-                    onChange={(val: any) => setScanScope(Array.isArray(val) ? val[0] : val)}
-                    options={[
-                      ...playSets.map((s: any) => ({ id: s.name, label: s.name }))
-                    ]}
-                  />
-              </div>
-            </div>
-            
-            {/* Right Side: Action Buttons */}
-            <div className="flex flex-wrap items-center gap-3 pr-1 justify-end shrink-0 max-w-full">
-                <button
-                  onClick={runRadar}
-                  className="h-12 px-8 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-[0_0_30px_color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 gap-3"
-                >
-                  <span className={`material-symbols-outlined !text-[18px] opacity-80 ${loading ? "animate-spin" : ""}`}>{t("ui_icon_radar")}</span>
-                  <span>{loading ? t("radar_btn_scanning") : t("radar_btn_sweep")}</span>
-                </button>
-
-                {scanScope !== "" && (
-                  <button
-                    onClick={async () => {
-                    try {
-                      const set = playSets.find((s: any) => s.name === scanScope);
-                      if (!set) throw new Error("Blueprint not found");
-                      const config: any = await invoke("get_saved_coordinates");
-                      
-                      const deployPayload = set.mods.map((modPath: string) => ({
-                        path: modPath,
-                        allow_write: true,
-                        folder_structure: null
-                      }));
-                      
-                      await invoke("deploy_playset_bulk", {
-                         mods: deployPayload,
-                         modsPath: config.mods_path,
-                         vaultPath: config.vault_path
-                      });
-                      alert("Blueprint Redeployed!");
-                    } catch (e) {
-                      alert(`Redeploy failed: ${e}`);
-                    }
-                  }}
-                  className="h-12 px-8 rounded-2xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_70%,transparent)] text-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_color-mix(in_srgb,var(--success)_20%,transparent)] hover:shadow-[0_0_30px_color-mix(in_srgb,var(--success)_40%,transparent)] flex items-center justify-center shrink-0 gap-3"
-                >
-                  <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_check") || "check_circle"}</span>
-                  <span>{t("radar_btn_deploy") || "DEPLOY BLUEPRINT"}</span>
-                </button>
-                )}
-
-                <button
-                  onClick={() => setShowUndoPanel(true)}
-                  className="h-12 px-8 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_70%,transparent)] text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)] hover:shadow-[0_0_30px_color-mix(in_srgb,var(--danger)_40%,transparent)] flex items-center justify-center shrink-0 gap-3"
-                >
-                  <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_history") || "history"}</span> 
-                  <span>{t("radar_btn_undo_winners") || "UNDO WINNERS"}</span>
-                </button>
-            </div>
-          </div>
-
-      {!hasScanned && !loading && !error && (
-        <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
-          <div className="w-56 h-56 rounded-full border border-white/5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-[0_0_50px_color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center relative group cursor-pointer" onClick={runRadar}>
-            <div className="absolute inset-0 rounded-full border-[2px] border-dashed border-[var(--accent)] opacity-20 animate-[spin_20s_linear_infinite]" />
-            <div className="absolute inset-4 rounded-full border border-[var(--text)] opacity-10 animate-[spin_15s_linear_infinite_reverse]" />
-            <div className="absolute inset-10 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-10 animate-[spin_25s_linear_infinite]" />
-            <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 drop-shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_50%,transparent)]">
-              {t("ui_icon_radar") || "radar"}
-            </span>
-          </div>
-          <div className="space-y-4 max-w-xl relative z-10">
-            <h2 className="text-4xl font-black text-[var(--text)] uppercase tracking-tighter drop-shadow-lg">
-              {t("radar_landing_title") || "SYSTEM STANDBY"}
-            </h2>
-            <p className="text-sm font-medium leading-relaxed text-[var(--subtext)] opacity-80">
-              {t("radar_landing_desc") || "Deploy the Conflict Radar to scan your active load order for fatal structural clashes, tuning data overlaps, and duplicate asset clones. Neutralize threats before they destabilize your environment."}
-            </p>
-          </div>
-          <button
-            onClick={runRadar}
-            className="px-10 py-5 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-105 transition-all flex items-center gap-3 relative z-10"
-          >
-            <span className="material-symbols-outlined !text-xl animate-pulse">{t("ui_icon_radar") || "radar"}</span>
-            <span className="text-xs font-black uppercase tracking-widest">{t("radar_btn_sweep") || "SWEEP ACTIVE LIBRARY"}</span>
-          </button>
+    <div className={`flex flex-col h-full relative items-start animate-in fade-in zoom-in-95 duration-500 ${hasScanned || loading || error ? 'pb-24' : ''}`}>
+        {/* Subtle Background Elements */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 flex items-center justify-center">
+          <div className="absolute top-1/4 left-1/4 w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] blur-[150px] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] blur-[150px] rounded-full" />
         </div>
-      )}
+
+        <div className="relative z-10 flex flex-col gap-8 w-full h-full">
+          <ViewHeader title={t("radar_title")} subtitle={t("radar_subtitle")} icon={t("ui_icon_radar") || "radar"} iconColorClass="text-amber-400 border-amber-500/30">
+            <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
+              <button onClick={() => setIsSidePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
+                <span className="material-symbols-outlined text-xl normal-case">tune</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_operations") || "OPERATIONS"}</span>
+              </button>
+            </div>
+          </ViewHeader>
+          
+          {!hasScanned && !loading && !error && (
+            <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
+              <div className="w-56 h-56 rounded-full border border-white/5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-[0_0_50px_color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center relative group cursor-pointer" onClick={runRadar}>
+                <div className="absolute inset-0 rounded-full border-[2px] border-dashed border-[var(--accent)] opacity-20 animate-[spin_20s_linear_infinite]" />
+                <div className="absolute inset-4 rounded-full border border-[var(--text)] opacity-10 animate-[spin_15s_linear_infinite_reverse]" />
+                <div className="absolute inset-10 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-10 animate-[spin_25s_linear_infinite]" />
+                <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 drop-shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_50%,transparent)]">
+                  {t("ui_icon_radar") || "radar"}
+                </span>
+              </div>
+              <div className="space-y-4 max-w-xl relative z-10">
+                <h2 className="text-4xl font-black text-[var(--text)] uppercase tracking-tighter drop-shadow-lg">
+                  {t("radar_landing_title") || "SYSTEM STANDBY"}
+                </h2>
+                <p className="text-sm font-medium leading-relaxed text-[var(--subtext)] opacity-80">
+                  {t("radar_landing_desc") || "Deploy the Conflict Radar to scan your active load order for fatal structural clashes, tuning data overlaps, and duplicate asset clones. Neutralize threats before they destabilize your environment."}
+                </p>
+              </div>
+              <button
+                onClick={runRadar}
+                className="px-10 py-5 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-105 transition-all flex items-center gap-3 relative z-10"
+              >
+                <span className="material-symbols-outlined !text-xl animate-pulse">{t("ui_icon_radar") || "radar"}</span>
+                <span className="text-xs font-black uppercase tracking-widest">{t("radar_btn_sweep") || "SWEEP ACTIVE LIBRARY"}</span>
+              </button>
+            </div>
+          )}
 
       {stats.packages > 0 && !error && (
         <div className="space-y-12">
@@ -665,7 +604,7 @@ export const DbpfScout = () => {
           )}
 
           {softConflicts.length > 0 && (
-            <details className="group space-y-6 theme-glass-inner p-6 rounded-3xl border border-white/5 cursor-pointer">
+            <details className="group space-y-6 theme-glass-inner p-6 rounded-3xl border border-white/5 cursor-pointer mb-32">
               <summary className="flex flex-col gap-1 list-none outline-none">
                 <div className="flex justify-between items-center w-full">
                   <h3 className="text-sm font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest flex items-center gap-3 group-open:text-[var(--text)] transition-colors">
@@ -750,14 +689,61 @@ export const DbpfScout = () => {
       )}
 
       </div>
-        <UndoWinnersPanel 
-          isOpen={showUndoPanel} 
-          onClose={() => setShowUndoPanel(false)}
-          scanScope={scanScope}
-          onUndoComplete={runRadar}
-          onUndo={undoOverride}
-          onClearAll={clearAllOverrides}
-        />
+
+      <UndoWinnersPanel 
+        isOpen={showUndoPanel} 
+        onClose={() => setShowUndoPanel(false)}
+        scanScope={scanScope}
+        onUndoComplete={runRadar}
+        onUndo={undoOverride}
+        onClearAll={clearAllOverrides}
+      />
+
+      <SidePanel
+        isOpen={isSidePanelOpen}
+        onClose={() => setIsSidePanelOpen(false)}
+        title={t("radar_tools_title") || "RADAR TOOLS"}
+        subtitle={t("radar_tools_subtitle") || "OPERATIONS & SCOPE"}
+        icon="tune"
+        iconColorClass="text-amber-400 border-amber-500/30"
+      >
+        <div className="flex flex-col gap-6">
+           <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 shadow-lg relative group/card shrink-0 h-[240px]">
+             <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none rounded-3xl" />
+             <div className="flex items-center gap-4 mb-6 relative z-10">
+               <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-amber-400">
+                 <span className="material-symbols-outlined !text-[20px]">my_location</span>
+               </div>
+               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("scout_sidebar_scope") || "TARGET SCOPE"}</h3>
+             </div>
+             
+             <div className="relative z-10 flex flex-col gap-4">
+               <CustomDropdown
+                 disableTint={true}
+                 value={scanScope || (playSets.length > 0 ? playSets[0].name : "")}
+                 options={playSets.map((set: any) => ({ id: set.name, label: set.name }))}
+                 onChange={(val: any) => setScanScope(val[0])}
+               />
+               <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 text-center px-4 leading-relaxed tracking-wide">{t("scout_sidebar_scope_desc")}</p>
+             </div>
+           </div>
+           
+           <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 shadow-lg relative overflow-hidden group/card">
+             <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
+             <div className="flex items-center gap-4 mb-6 relative z-10">
+               <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-amber-400">
+                 <span className="material-symbols-outlined !text-[20px]">bolt</span>
+               </div>
+               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("scout_sidebar_actions") || "OPERATIONS"}</h3>
+             </div>
+             
+             <div className="relative z-10 flex flex-col gap-3">
+               <SidebarActionButton id="SWEEP" icon="track_changes" label={t("radar_btn_sweep")} onClick={runRadar} active={false} />
+               <SidebarActionButton id="UNDO" icon="undo" label={t("scout_sidebar_undo_winners")} onClick={() => setShowUndoPanel(true)} active={showUndoPanel} />
+             </div>
+           </div>
+        </div>
+      </SidePanel>
     </div>
   );
 };

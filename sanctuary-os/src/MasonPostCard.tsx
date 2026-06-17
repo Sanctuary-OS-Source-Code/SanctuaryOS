@@ -2,7 +2,7 @@ import React from "react";
 import { useLexicon } from "./LexiconContext";
 import { stripMarkdown } from "./shared";
 
-export default function MasonPostCard({ post, index, onPostClick, onToggleLike, isFeatured, isCompact }: any) {
+export default function MasonPostCard({ post, index, onPostClick, onToggleLike, onOpenMasonProfile, isFeatured, isCompact }: any) {
   const { t } = useLexicon();
 
   const parsePostContent = (p: any) => {
@@ -78,11 +78,19 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
 
         <div className={`mt-auto pt-4 border-t border-white/5 flex items-center justify-between flex-wrap gap-y-3 relative z-10 ${isCompact ? 'mt-4' : ''}`}>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-white/5 group-hover:theme-border-accent transition-colors shadow-sm">
+            <div 
+              className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-white/5 hover:theme-border-accent transition-colors shadow-sm cursor-pointer z-20"
+              onClick={(e) => { e.stopPropagation(); onOpenMasonProfile && onOpenMasonProfile(post.mason_id); }}
+            >
               <span className="text-xs font-black theme-text-accent">{post.masons?.name?.charAt(0) || '?'}</span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">{post.masons?.name || t("feed_unknown_architect")}</span>
+            <div className="flex flex-col z-20">
+              <span 
+                className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:theme-text-accent cursor-pointer transition-colors"
+                onClick={(e) => { e.stopPropagation(); onOpenMasonProfile && onOpenMasonProfile(post.mason_id); }}
+              >
+                {post.masons?.name || t("feed_unknown_architect")}
+              </span>
               <span className="text-[8px] font-mono text-[var(--subtext)] opacity-60">{new Date(post.created_at).toLocaleDateString()}</span>
             </div>
           </div>

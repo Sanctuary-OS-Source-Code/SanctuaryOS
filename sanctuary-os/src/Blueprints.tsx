@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, isVersionMatch } from "./shared";
+import { ViewHeader, isVersionMatch, SidePanel, SidebarActionButton } from "./shared";
 import BlueprintMatrix from "./BlueprintMatrix";
 import BlueprintArchitect from "./BlueprintArchitect";
 import { useStore } from "./store";
@@ -13,6 +13,7 @@ export default function Blueprints({
 }: any) {
   const { t } = useLexicon();
   const { ownedDLC, maskedDLC, selectedVersion, modList } = useStore();
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   
   const getBlueprintAlertCount = (set: any) => {
     if (!set || !set.mods || !Array.isArray(set.mods)) return 0;
@@ -144,55 +145,14 @@ export default function Blueprints({
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full">
       <ViewHeader title={t("playsets_title")} subtitle={t("playsets_subtitle")} icon={t("ui_icon_playsets") || "map"} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30">
-        <div className="flex flex-wrap gap-4 items-center justify-end">
-          
-          <div className="flex items-center theme-glass-inner rounded-2xl p-1 border border-white/5 shadow-inner">
-             <input 
-               type="text" 
-               placeholder={t("playsets_uplink_code") || "ENTER UPLINK CODE"} 
-               value={syncCode || ""} 
-               onChange={(e) => setSyncCode && setSyncCode(e.target.value)}
-               className="h-12 px-5 bg-transparent text-[var(--text)] font-bold text-sm outline-none placeholder-[var(--subtext)] w-48"
-             />
-             <div className="w-px h-6 bg-white/10 mx-2" />
-             <button 
-               onClick={() => syncCode && syncBlueprintByCode && syncBlueprintByCode(syncCode)}
-               className="h-12 px-6 rounded-xl theme-glass-inner text-[var(--accent)] hover:bg-white/10 text-[10px] font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:border-[var(--accent)]"
-             >
-                {t("playsets_btn_sync")}
-             </button>
+          <div className="flex flex-wrap gap-4 items-center justify-end">
+            <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner ml-auto shrink-0">
+              <button onClick={() => setIsSidePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
+                <span className="material-symbols-outlined text-xl normal-case">tune</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_tools") || "TOOLS"}</span>
+              </button>
+            </div>
           </div>
-
-          <div className="flex items-center theme-glass-inner rounded-2xl p-1 border border-white/5 shadow-inner">
-            <button 
-              onClick={importPlaySet} 
-              className="h-12 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-white/10 flex items-center justify-center gap-2 text-[var(--text)] shrink-0 group"
-            >
-              <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] group-hover:scale-110 transition-transform drop-shadow-md">{t("ui_icon_import") || "download"}</span> {t("playsets_btn_import")}
-            </button>
-            
-            <div className="w-px h-6 bg-white/10 mx-2" />
-            
-            <button 
-              onClick={() => {
-                 if (activeSetName) {
-                    const currentSet = playSets.find((s: any) => s.name === activeSetName);
-                    if (currentSet) {
-                       const newName = `${currentSet.name} Snapshot`;
-                       const updatedSets = [...playSets, { ...currentSet, name: newName }];
-                       if (setPlaySets) {
-                           setPlaySets(updatedSets);
-                           localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
-                       }
-                    }
-                 }
-              }} 
-              className="h-12 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-white/10 flex items-center justify-center gap-2 text-[var(--text)] shrink-0 group"
-            >
-              <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] group-hover:scale-110 transition-transform drop-shadow-md">{t("ui_icon_snapshot") || "camera"}</span> {t("playsets_btn_snapshot")}
-            </button>
-          </div>
-        </div>
       </ViewHeader>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -376,6 +336,81 @@ export default function Blueprints({
         renamePlaySet={renamePlaySet}
       />
 
+        <SidePanel
+          isOpen={isSidePanelOpen}
+          onClose={() => setIsSidePanelOpen(false)}
+          title={t("blueprint_tools_title") || "BLUEPRINT TOOLS"}
+          subtitle={t("blueprint_tools_subtitle") || "SYNC & MANAGEMENT"}
+          icon="tune"
+          iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+        >
+          <div className="flex flex-col gap-6">
+             <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 shadow-lg relative overflow-hidden group/card">
+               <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
+               <div className="flex items-center gap-4 mb-6 relative z-10">
+                 <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--accent)]">
+                   <span className="material-symbols-outlined !text-[20px]">cloud_sync</span>
+                 </div>
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("playsets_sidebar_uplink") || "UPLINK CODE"}</h3>
+               </div>
+               
+               <div className="relative z-10 flex flex-col gap-4">
+                 <div className="flex gap-2 items-center">
+                   <input 
+                     type="text" 
+                     value={syncCode || ""} 
+                     onChange={(e) => setSyncCode && setSyncCode(e.target.value)} 
+                     placeholder={t("playsets_sidebar_uplink_placeholder")} 
+                     className="flex-1 bg-black/20 border border-white/10 rounded-2xl px-6 h-14 text-sm font-black tracking-widest text-center text-[var(--accent)] placeholder:text-[var(--subtext)]/30 focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all shadow-inner outline-none" 
+                   />
+                   <button 
+                     onClick={() => syncCode && syncBlueprintByCode && syncBlueprintByCode(syncCode)} 
+                     disabled={isSearching}
+                     className="h-14 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shrink-0 border disabled:opacity-50 hover:scale-105 active:scale-95"
+                   >
+                     {isSearching ? (
+                       <span className="material-symbols-outlined !text-[18px] animate-spin">refresh</span>
+                     ) : (
+                       <span className="material-symbols-outlined !text-[18px]">cloud_download</span>
+                     )}
+                     {t("playsets_btn_sync")}
+                   </button>
+                 </div>
+                 <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 text-center px-4 leading-relaxed tracking-wide">{t("playsets_sidebar_uplink_desc")}</p>
+               </div>
+             </div>
+             
+             <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 shadow-lg relative overflow-hidden group/card">
+               <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
+               <div className="flex items-center gap-4 mb-6 relative z-10">
+                 <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--text)]">
+                   <span className="material-symbols-outlined !text-[20px]">bolt</span>
+                 </div>
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("playsets_sidebar_actions") || "ACTIONS"}</h3>
+               </div>
+               
+                <div className="relative z-10 flex flex-col gap-3">
+                  <SidebarActionButton id="IMPORT" icon="download" label={t("playsets_btn_import") || "IMPORT BLUEPRINT"} subtext={t("blueprint_import_desc") || "Import a Blueprint JSON to load an external Blueprint."} onClick={importPlaySet} active={false} />
+                  <SidebarActionButton id="SNAPSHOT" icon="camera" label={t("playsets_btn_snapshot") || "TAKE SNAPSHOT"} subtext={t("blueprint_snapshot_desc") || "Creates an editable copy of the currently deployed Blueprint."} onClick={() => {
+                    const activeSet = playSets[activePlaySetIndex];
+                    if (!activeSet) return;
+                    let copyIndex = 1;
+                    let newName = `${activeSet.name} - Snapshot ${copyIndex}`;
+                    while (playSets.some((s: any) => s.name.toLowerCase() === newName.toLowerCase())) {
+                      copyIndex++;
+                      newName = `${activeSet.name} - Snapshot ${copyIndex}`;
+                    }
+                    const updatedSets = [...playSets, { name: newName, mods: [...activeSet.mods] }];
+                    setPlaySets(updatedSets);
+                    localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+                    window.dispatchEvent(new Event("storage"));
+                    if (setActivePlaySetIndex) setActivePlaySetIndex(updatedSets.length - 1);
+                    setIsSidePanelOpen(false);
+                  }} active={false} />
+                </div>
+             </div>
+          </div>
+        </SidePanel>
     </div>
   );
 }
