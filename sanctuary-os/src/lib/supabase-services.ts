@@ -15,7 +15,7 @@ export const supabaseServices = {
   getModsById: (ids: string[]) => supabase.from("mods").select("id, name, master_author, image_url").in("id", ids),
   getModsBasic: () => supabase.from('mods').select('name, status, mod_versions(version_label)'),
   getSolderLabLogsPending: () => supabase.from('solder_lab_logs').select('*').eq('status', 'pending'),
-  getUserRole: (userId: string) => supabase.from('profiles').select('role').eq('id', userId).single(),
+  getUserRole: (userId: string) => supabase.from('profiles').select("role").eq('id', userId).single(),
   subscribeToDefcon: (callback: (payload: any) => void) => {
     return supabase.channel('global-defcon-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'global_network_status' }, callback)

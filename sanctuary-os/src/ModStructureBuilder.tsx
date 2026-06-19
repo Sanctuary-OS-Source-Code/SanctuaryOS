@@ -55,7 +55,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
   };
 
   const handleAddFile = (parentId: string) => {
-    const newFile: StructureNode = { id: generateId(), name: t("structure_new_file") || "New File", type: "file" };
+    const newFile: StructureNode = { id: generateId(), name: t("structure_new_file") || "*.package", type: "file" };
     const updateNode = (nodes: StructureNode[]): StructureNode[] => {
       return nodes.map(n => {
         if (n.id === parentId) {
@@ -168,7 +168,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                   placeholder={node.type === "folder" ? "Folder Name..." : "File Pattern..."}
                 />
               )}
-              {node.shared && <span className="text-[8px] font-black uppercase tracking-[0.3em] theme-text-success opacity-80 mt-1">SHARED VOLUME</span>}
+              {node.shared && <span className="text-[8px] font-black uppercase tracking-[0.3em] theme-text-success opacity-80 mt-1">{t("builder_shared_volume") || "SHARED VOLUME"}</span>}
             </div>
           </div>
 
@@ -221,12 +221,12 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
     <div className="flex flex-col gap-8 w-full p-2">
       <div className="flex justify-between items-center bg-black/20 p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
         <div className="flex flex-col">
-          <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)]">Architecture Graph</span>
-          <span className="text-[10px] text-[var(--subtext)] font-bold uppercase tracking-widest mt-1">Design your virtual file structure</span>
+          <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("builder_graph_title") || "Graph Builder"}</span>
+          <span className="text-[10px] text-[var(--subtext)] font-bold uppercase tracking-widest mt-1">{t("builder_graph_subtitle") || "Build Graph"}</span>
         </div>
         <button onClick={() => handleAddFolder()} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-          <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">create_new_folder</span>
-          {t("structure_add_root") || "ADD ROOT DIR"}
+          <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_create_new_folder") || "create_new_folder"}</span>
+          {t("structure_add_root") || "Add Root Directory"}
         </button>
       </div>
 
@@ -235,7 +235,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
           <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center py-20 w-full relative">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[var(--accent)] rounded-full blur-[120px] opacity-20 pointer-events-none" />
             <span className="material-symbols-outlined !text-6xl mb-4 text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_folder_off") || "folder_off"}</span>
-            <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] relative z-10">{t("structure_no_structure") || "NO STRUCTURE DEFINED"}</span>
+            <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] relative z-10">{t("structure_no_structure") || "No Structure Defined"}</span>
           </div>
         ) : (
           structure.map(node => renderNode(node, 0))

@@ -59,7 +59,7 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
       <div className="flex flex-col gap-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4">
         <div className="flex justify-between items-center">
           <div className="flex flex-col">
-            <h2 className="text-xl font-black uppercase tracking-widest">{t("ticket_your_tickets") || "Your Tickets"}</h2>
+            <h2 className="text-xl font-black uppercase tracking-widest">{t("ticket_your_tickets") || "YOUR TICKETS"}</h2>
             <p className="text-sm text-[var(--subtext)]">{t("ticket_create_new") || "Manage or create new requests"}</p>
           </div>
         </div>
@@ -84,7 +84,7 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
           </div>
         ) : filteredTickets.length === 0 ? (
           <div className="col-span-full flex justify-center items-center h-32 theme-glass-inner rounded-xl">
-            <span className="text-sm font-bold text-[var(--subtext)] uppercase tracking-widest">{t("ticket_no_tickets") || "NO TICKETS FOUND."}</span>
+            <span className="text-sm font-bold text-[var(--subtext)] uppercase tracking-widest">{t("ticket_no_tickets") || "NO ACTIVE TICKETS FOUND"}</span>
           </div>
         ) : (
           filteredTickets.map(ticket => (

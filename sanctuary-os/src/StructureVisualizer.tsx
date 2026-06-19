@@ -46,7 +46,7 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
       const { error } = await supabase.from('mods').update({ folder_structure: targetMod.folder_structure || [] }).eq('id', targetMod.id);
       if (error) throw error;
       if (isArchitect) logArchitectAction(`Updated Mod Structure`, `mods`, targetMod.name);
-      useStore.getState().pushStatus(t("btn_saved") || "Structure Saved", "success");
+      useStore.getState().pushStatus(t("btn_saved") || "SAVED", "success");
       
       // Update local cloudMods state
       setCloudMods(prev => prev.map(m => m.id === targetMod.id ? { ...m, folder_structure: targetMod.folder_structure } : m));
@@ -69,7 +69,7 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
           
           <div className="relative flex-1 max-w-md ml-auto flex gap-4 items-center justify-end">
             <ModSearchDropdown 
-              placeholder={t("structure_select_artifact")}
+              placeholder={t("structure_select_artifact") || "Select Artifact to Manage..."}
               selectedItem={targetMod}
               onSelect={(mod: any) => setTargetMod(mod)}
               onClear={() => setTargetMod(null)}
@@ -104,7 +104,7 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
                 className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group disabled:opacity-50 disabled:hover:scale-100"
               >
                 <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{isSaving ? 'sync' : 'save'}</span>
-                {isSaving ? t("btn_saving") : t("btn_save_structure")}
+                {isSaving ? t("btn_saving") || "SAVING..." : t("btn_save_structure") || "SAVE STRUCTURE"}
               </button>
            </div>
            
@@ -121,8 +121,8 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
          <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center relative mt-20">
            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[var(--accent)] rounded-full blur-[120px] opacity-20 pointer-events-none" />
            <span className="material-symbols-outlined !text-6xl mb-4 text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_account_tree") || "account_tree"}</span>
-           <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.3em] z-10">{t("sv_empty_title")}</span>
-           <p className="text-[10px] mt-2 font-bold max-w-md z-10">{t("sv_empty_desc")}</p>
+           <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.3em] z-10">{t("sv_empty_title") || "SELECT AN ARTIFACT"}</span>
+           <p className="text-[10px] mt-2 font-bold max-w-md z-10">{t("sv_empty_desc") || "Select an artifact from the dropdown above to begin defining its exact deployment folder structure."}</p>
          </div>
        )}
        </div>

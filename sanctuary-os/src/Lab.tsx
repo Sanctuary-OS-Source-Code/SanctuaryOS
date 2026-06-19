@@ -58,8 +58,8 @@ export default function Lab({
 
       <div className="relative z-10 shrink-0">
         <ViewHeader 
-          title={t("lab_title")} 
-          subtitle={t("lab_subtitle")} 
+          title={t("lab_title") || "Homestead Lab"} 
+          subtitle={t("lab_subtitle") || "Diagnostics, calibration, and local system health"} 
           icon={t("ui_icon_science") || "science"} 
           iconColorClass="text-lime-400 border-lime-500/30" 
         />
@@ -83,10 +83,10 @@ export default function Lab({
               
               <div className="text-center space-y-4 w-full">
                 <h2 className="text-3xl font-black text-[var(--text)] uppercase tracking-tighter drop-shadow-md">
-                  {t("lab_mount_subject")}
+                  {t("lab_mount_subject") || "MOUNT DNA SUBJECT"}
                 </h2>
                 <p className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed max-w-xs mx-auto">
-                  {t("lab_mount_desc")}
+                  {t("lab_mount_desc") || "Select a primary DNA signature to begin the simulation sequence."}
                 </p>
                 <div className="pt-6 w-full relative z-50 shadow-2xl">
                   <ModSearchDropdown 
@@ -94,7 +94,7 @@ export default function Lab({
                     selectedItem={null}
                     onSelect={(m: any) => setActiveLabMod(m)}
                     onClear={() => {}}
-                    placeholder={t("lab_filter_dna") || "Search registry to mount..."}
+                    placeholder={t("lab_filter_dna") || "Filter DNA signatures..."}
                   />
                 </div>
               </div>
@@ -114,13 +114,13 @@ export default function Lab({
                     <span className="material-symbols-outlined text-[var(--text)] opacity-80 !text-[20px]">{t("ui_icon_folder") || "folder"}</span>
                   </div>
                   <div>
-                    <h3 className="text-[12px] font-black text-[var(--text)] uppercase tracking-widest leading-tight">{t("lab_symbiotic_deps")}</h3>
-                    <p className="text-[9px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-60">{t("lab_associated_identities") || "Associated Identities"}</p>
+                    <h3 className="text-[12px] font-black text-[var(--text)] uppercase tracking-widest leading-tight">{t("lab_symbiotic_deps") || "SYMBIOTIC DEPENDENCIES"}</h3>
+                    <p className="text-[9px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-60">{t("lab_associated_identities") || "ASSOCIATED IDENTITIES"}</p>
                   </div>
                 </div>
 
                 <p className="text-[10px] text-[var(--subtext)] leading-relaxed opacity-80 font-medium shrink-0">
-                  {t("lab_symbiotic_desc")}
+                  {t("lab_symbiotic_desc") || "These artifacts will be injected into the simulation alongside the primary subject."}
                 </p>
 
                 <div className="flex-1 flex flex-col gap-3 min-h-[150px] mt-2 relative">
@@ -128,7 +128,7 @@ export default function Lab({
                     <div className="flex-1 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center opacity-40 gap-3">
                       <span className="material-symbols-outlined !text-[32px] text-[var(--text)] opacity-50">{t("ui_icon_info") || "info"}</span>
                       <span className="text-[9px] font-black uppercase tracking-widest text-center leading-relaxed">
-                        {t("lab_no_deps")}
+                        {t("lab_no_deps") || "NO DEPENDENCIES DETECTED"}
                       </span>
                     </div>
                   ) : (
@@ -136,7 +136,7 @@ export default function Lab({
                       {stagedExtras.map((m: any) => (
                         <div key={m.hash} className="flex justify-between items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/5 p-4 rounded-2xl hover:border-white/20 hover:bg-white/5 transition-all group/item shadow-sm">
                           <span className="text-[10px] font-black uppercase text-[var(--text)] truncate max-w-[180px] drop-shadow-md">{getModName(m)}</span>
-                          <button onClick={() => setStagedExtras(stagedExtras.filter(e => e.hash !== m.hash))} className="w-6 h-6 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"><span className='material-symbols-outlined !text-[12px]'>{t('ui_icon_close') || 'close'}</span></button>
+                          <button onClick={() => setStagedExtras(stagedExtras.filter(e => e.hash !== m.hash))} className="w-6 h-6 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"><span className='material-symbols-outlined !text-[12px]'>{t("ui_icon_close") || "close"}</span></button>
                         </div>
                       ))}
                     </div>
@@ -174,7 +174,7 @@ export default function Lab({
 
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-4 shadow-sm backdrop-blur-md shrink-0">
                   <span className="w-2 h-2 rounded-full theme-bg-accent animate-pulse" />
-                  <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("lab_subject_isolation")}</span>
+                  <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("lab_subject_isolation") || "SUBJECT ISOLATION"}</span>
                 </div>
                 
                 <h2 className="text-3xl lg:text-4xl font-black text-[var(--text)] uppercase tracking-tighter leading-tight mb-3 drop-shadow-xl w-full line-clamp-3 break-words px-4">
@@ -189,7 +189,7 @@ export default function Lab({
                   onClick={() => { setActiveLabMod(null); setConflictTarget(null); setStagedExtras([]); setConflictExtras([]); }}
                   className="mt-8 px-6 py-2.5 rounded-full bg-transparent border border-white/10 text-[var(--subtext)] hover:text-white hover:bg-white/10 text-[9px] font-black uppercase tracking-widest transition-all"
                 >
-                  {t("lab_btn_abort")}
+                  {t("lab_btn_abort") || "ABORT / DISMOUNT SUBJECT"}
                 </button>
               </div>
 
@@ -199,16 +199,16 @@ export default function Lab({
                 
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 shrink-0">
-                    <span className="material-symbols-outlined theme-text-warning opacity-90 !text-[20px]">{t("ui_icon_warning") || "warning"}</span>
+                    <span className="material-symbols-outlined theme-text-warning opacity-90 !text-[20px]">{t("ui_icon_warning") || "warning_amber"}</span>
                   </div>
                   <div>
-                    <h3 className="text-[12px] font-black text-[var(--text)] uppercase tracking-widest leading-tight">{t("lab_adversarial_entities")}</h3>
-                    <p className="text-[9px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-60">{t("lab_nexus_sim") || "Nexus Sim"}</p>
+                    <h3 className="text-[12px] font-black text-[var(--text)] uppercase tracking-widest leading-tight">{t("lab_adversarial_entities") || "ADVERSARIAL ENTITIES"}</h3>
+                    <p className="text-[9px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-60">{t("lab_nexus_sim") || "CONFLECTING IDENTITIES"}</p>
                   </div>
                 </div>
 
                 <p className="text-[10px] text-[var(--subtext)] leading-relaxed opacity-80 font-medium shrink-0">
-                  {t("lab_adversarial_desc")}
+                  {t("lab_adversarial_desc") || "These artifacts will be pitted against the primary subject to monitor structural clashes."}
                 </p>
 
                 <div className="flex-1 flex flex-col gap-4 min-h-[150px] mt-2 relative">
@@ -216,7 +216,7 @@ export default function Lab({
                     <div className="flex-1 border-2 border-dashed border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col items-center justify-center opacity-40 gap-3 bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] transition-all hover:opacity-80">
                       <span className="material-symbols-outlined !text-[32px] theme-text-warning opacity-80 animate-pulse">{t("ui_icon_crisis") || "crisis_alert"}</span>
                       <span className="text-[9px] font-black uppercase tracking-widest text-center leading-relaxed theme-text-warning">
-                        {t("lab_no_clash")}
+                        {t("lab_no_clash") || "NO CONFLICTS DETECTED"}
                       </span>
                     </div>
                   ) : (
@@ -232,7 +232,7 @@ export default function Lab({
                             </span>
                             <span className="text-sm font-black uppercase text-[var(--text)] drop-shadow-md break-words leading-tight mt-1">{getModName(conflictTarget)}</span>
                           </div>
-                          <button onClick={() => { setConflictTarget(null); setConflictExtras([]); }} className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-[var(--danger)] text-white/70 hover:text-white transition-all shadow-md"><span className='material-symbols-outlined !text-[12px]'>{t('ui_icon_close') || 'close'}</span></button>
+                          <button onClick={() => { setConflictTarget(null); setConflictExtras([]); }} className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-[var(--danger)] text-white/70 hover:text-white transition-all shadow-md"><span className='material-symbols-outlined !text-[12px]'>{t("ui_icon_close") || "close"}</span></button>
                         </div>
                       </div>
 
@@ -240,13 +240,13 @@ export default function Lab({
                       {conflictExtras.length > 0 && (
                         <div className="flex flex-col gap-3 mt-2">
                           <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest px-2 opacity-60">
-                             {t("lab_symbiotic_deps") || "Dependencies"}
+                             {t("lab_symbiotic_deps") || "SYMBIOTIC DEPENDENCIES"}
                           </span>
                           <div className="overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3 max-h-[120px]">
                             {conflictExtras.map((m: any) => (
                               <div key={m.hash} className="flex justify-between items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/5 p-4 rounded-2xl hover:border-white/20 hover:bg-white/5 transition-all group/item shadow-sm">
                                 <span className="text-[10px] font-black uppercase text-[var(--text)] truncate max-w-[180px] drop-shadow-md">{getModName(m)}</span>
-                                <button onClick={() => setConflictExtras(conflictExtras.filter(e => e.hash !== m.hash))} className="w-6 h-6 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"><span className='material-symbols-outlined !text-[12px]'>{t('ui_icon_close') || 'close'}</span></button>
+                                <button onClick={() => setConflictExtras(conflictExtras.filter(e => e.hash !== m.hash))} className="w-6 h-6 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"><span className='material-symbols-outlined !text-[12px]'>{t("ui_icon_close") || "close"}</span></button>
                               </div>
                             ))}
                           </div>
@@ -290,10 +290,10 @@ export default function Lab({
         <div className="fixed bottom-0 left-[var(--sidebar-width)] right-0 pb-10 pt-4 z-40 flex items-center justify-center px-8 animate-in slide-in-from-bottom duration-500 pointer-events-none">
           <div className="w-full max-w-[1800px] mx-auto flex items-center justify-between theme-glass-panel border-white/5 backdrop-blur-3xl px-8 py-6 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto">
             <div className="hidden lg:flex flex-col gap-1 w-[250px]">
-              <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("status_pending") || "STATUS"}</span>
+              <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("status_pending") || "PENDING"}</span>
               <span className="text-sm font-black theme-text-accent tracking-widest uppercase flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full theme-bg-accent animate-ping" />
-                {shelterActive ? t("lab_btn_sim_progress") : "READY FOR INJECTION"}
+                {shelterActive ? t("lab_btn_sim_progress") || "SIMULATION IN PROGRESS" : "READY FOR INJECTION"}
               </span>
             </div>
 
@@ -305,7 +305,7 @@ export default function Lab({
                 >
                   <div className="absolute inset-0 rounded-[2.5rem] opacity-20 bg-gradient-to-b from-[var(--accent)] to-transparent pointer-events-none" />
                   <span className="material-symbols-outlined !text-[20px] animate-pulse relative z-10">{t("ui_icon_bolt") || "bolt"}</span>
-                  <span className="relative z-10">{t("lab_btn_initiate_swap")}</span>
+                  <span className="relative z-10">{t("lab_btn_initiate_swap") || "CONDUCT EXPERIMENT"}</span>
                 </button>
               ) : (
                 <button 
@@ -314,7 +314,7 @@ export default function Lab({
                 >
                   <div className="absolute inset-0 rounded-[2.5rem] opacity-20 bg-gradient-to-b from-[var(--success)] to-transparent pointer-events-none" />
                   <span className="material-symbols-outlined !text-[20px] animate-spin-slow relative z-10">{t("ui_icon_science") || "science"}</span>
-                  <span className="relative z-10">{t("lab_btn_conclude_experiment")}</span>
+                  <span className="relative z-10">{t("lab_btn_conclude_experiment") || "CONCLUDE EXPERIMENT"}</span>
                 </button>
               )}
             </div>
@@ -334,7 +334,7 @@ export default function Lab({
         isOpen={showReportPanel}
         onClose={handleCloseReport}
         title={t("radar_tier3_results") || "LAB REPORT"}
-        subtitle={testErrorFound ? (t("status_broken") || "BROKEN SIMULATION") : (t("status_verified") || "VERIFIED SIMULATION")}
+        subtitle={testErrorFound ? (t("status_broken") || "BROKEN") : (t("status_verified") || "VERIFIED")}
         icon={testErrorFound ? 'warning' : 'science'}
         iconColorClass={testErrorFound ? 'text-[var(--danger)]' : 'text-[var(--success)]'}
         widthClass="w-[800px] max-w-[90vw]"
@@ -377,7 +377,7 @@ export default function Lab({
             </div>
 
             <pre className="whitespace-pre-wrap break-all leading-relaxed flex-1 opacity-80">
-              {testLogSnippet || t("lab_no_logs") || "> No runtime exceptions thrown. Exit code 0."}
+              {testLogSnippet || t("lab_no_logs") || "No logs available for this session. System reports standard exit code."}
             </pre>
           </div>
         </div>

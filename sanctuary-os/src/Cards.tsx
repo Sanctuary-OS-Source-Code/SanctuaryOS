@@ -14,7 +14,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
       
       {onRemove && (
         <button onClick={(e) => { e.stopPropagation(); onRemove(e); }} className="absolute top-4 left-4 z-[50] w-8 h-8 rounded-full bg-black/50 backdrop-blur-md border border-white/10 hover:bg-red-500/80 hover:border-red-500/50 flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg shadow-black/20">
-          <span className="material-symbols-outlined !text-[16px]">close</span>
+          <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_close") || "close"}</span>
         </button>
       )}
 
@@ -50,10 +50,10 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
       
       <div className="p-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-white/5 flex gap-2 relative z-10 items-center justify-between">
           <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
-            {mod.category_override || mod.suggested_type || t("registry_label_class2") || "MOD"}
+            {mod.category_override || mod.suggested_type || t("registry_label_class2") || "Unknown"}
           </span>
-          <button className="h-9 px-4 rounded-xl text-[10px] font-black text-[var(--accent)] border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 hover:border-[var(--accent)]/50 backdrop-blur-md transition-all shadow-sm uppercase tracking-widest flex items-center justify-center gap-2 shrink-0">
-            <span className="material-symbols-outlined !text-[14px]">{overrideActionLabel ? "arrow_forward" : (t("ui_icon_edit") || "edit")}</span> {overrideActionLabel || t("ui_btn_edit") || "EDIT"}
+          <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+            {overrideActionLabel || t("ui_btn_edit") || "EDIT"} <span className="text-lg leading-none">&rarr;</span>
           </button>
       </div>
     </div>
@@ -63,7 +63,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
 export function CollectionCard({ setItem, activeSetId, onClick, masonsList, masonNameFallback }: { setItem: any, activeSetId?: string, onClick: () => void, masonsList?: any[], masonNameFallback?: string }) {
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
-  const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("registry_col_mason");
+  const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("registry_col_mason") || "MASON / CREATOR";
 
   return (
     <div onClick={onClick} className={`theme-glass-panel rounded-[1.5rem] flex flex-col group cursor-pointer border hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden relative ${activeSetId === setItem.id ? 'theme-border-accent ring-2 ring-[var(--accent)]/50' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
@@ -80,7 +80,7 @@ export function CollectionCard({ setItem, activeSetId, onClick, masonsList, maso
           </div>
         )}
         <div className="absolute top-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-lg uppercase tracking-widest shadow-lg z-20 border bg-amber-500/20 text-amber-400 border-amber-500/20">
-          TIER {setItem.compliance_tier || 0}
+          {t("vault_stat_tier") || "TIER"} {setItem.compliance_tier || 0}
         </div>
       </div>
       
@@ -100,8 +100,8 @@ export function CollectionCard({ setItem, activeSetId, onClick, masonsList, maso
           <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
             {masonName}
           </span>
-          <button className="h-9 px-4 rounded-xl text-[10px] font-black text-[var(--accent)] border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 hover:border-[var(--accent)]/50 backdrop-blur-md transition-all shadow-sm uppercase tracking-widest flex items-center justify-center gap-2 shrink-0">
-            <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_edit") || "edit"}</span> {t("ui_btn_edit") || "EDIT"}
+          <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+            {t("ui_btn_edit") || "EDIT"} <span className="text-lg leading-none">&rarr;</span>
           </button>
       </div>
     </div>

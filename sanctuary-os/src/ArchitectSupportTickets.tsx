@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
+import { useStore } from './store';
 import { supabase } from "./supabase";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import { logArchitectAction } from "./lib/audit";
@@ -20,7 +21,7 @@ interface Ticket {
   author_username?: string;
 }
 
-export default function ArchitectSupportTickets({ userRole = "architect", masonProfileId, onOpenDNA }: { userRole?: string, masonProfileId?: string, onOpenDNA?: (hash: string) => void }) {
+export default function ArchitectSupportTickets({ userRole = "architect", masonProfileId, onOpenDNA, setStatus }: { userRole?: string, masonProfileId?: string, onOpenDNA?: (hash: string) => void, setStatus?: any }) {
   const { t } = useLexicon();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,10 +74,27 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
       const targetModIds = [...new Set(mergedTickets.map(t => t.target_mod_id || t.metadata?.target_mod_id).filter(Boolean))];
       const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
       const validModIds = targetModIds.filter(isValidUUID);
+      const hashes = targetModIds.filter(id => !isValidUUID(id));
       const modAuthorMap: Record<string, string> = {};
+      
+      if (hashes.length > 0) {
+        const { data: verData } = await supabase.from('mod_versions').select('mod_id, dna_hash').in('dna_hash', hashes);
+        if (verData && verData.length > 0) {
+          const mIds = [...new Set(verData.map((v: any) => v.mod_id))];
+          mIds.forEach(id => {
+              if (!validModIds.includes(id)) validModIds.push(id);
+          });
+          verData.forEach((v: any) => {
+             modAuthorMap[`HASH_MAP_${v.dna_hash}`] = v.mod_id;
+          });
+        }
+      }
+
       if (validModIds.length > 0) {
         const { data: modsData } = await supabase.from('mods').select('id, mason_id').in('id', validModIds);
-        modsData?.forEach(m => modAuthorMap[m.id] = m.mason_id);
+        modsData?.forEach(m => {
+           modAuthorMap[m.id] = m.mason_id;
+        });
       }
 
       let finalTickets = mergedTickets;
@@ -84,7 +102,10 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
          finalTickets = mergedTickets.filter(t => {
             const typeStr = t.ticket_type || t.category;
             const cat = catData?.find((c: any) => c.category_name === typeStr || c.category_code === typeStr);
-            const baseDest = cat?.ticket_destination || 'architect';
+            let baseDest = cat?.ticket_destination || 'architect';
+            if (typeStr === 'BUG_MOD' || typeStr?.toLowerCase().includes('bug_mod') || typeStr?.toLowerCase().includes('artifact')) {
+                baseDest = 'mod_author';
+            }
             const escalationPath = cat?.escalation_path || 'standard';
 
             if (userRole === 'wayfinder') {
@@ -110,17 +131,45 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
             let currentTierIndex = tiers.indexOf(baseDest);
             if (currentTierIndex === -1) currentTierIndex = 1;
 
-            let effectiveTierIndex = Math.min(currentTierIndex + escalationTiers, tiers.length - 1);
+            let effectiveTierIndex = currentTierIndex;
+            if (escalationPath?.toLowerCase() !== 'none') {
+                effectiveTierIndex += escalationTiers;
+            }
+            
+            // Auto escalation capped at Oversight (senior_architect, index 2) unless originally targeted higher
+            effectiveTierIndex = Math.min(effectiveTierIndex, Math.max(2, currentTierIndex));
             let dest = tiers[effectiveTierIndex];
 
-            if (t.status?.toUpperCase() === 'ESCALATED' && dest !== 'wayfinder') {
-              const idx = tiers.indexOf(dest);
-              dest = tiers[Math.min(idx + 1, tiers.length - 1)];
+            if (t.status?.toUpperCase() === 'ESCALATED') {
+              const logs = t.metadata?.action_log || [];
+              const lastEscalation = [...logs].reverse().find((l: any) => l.action === 'ESCALATED');
+              
+              if (lastEscalation) {
+                  const esciArc = lastEscalation.architect;
+                  if (esciArc === 'Wayfinder') {
+                      dest = 'wayfinder';
+                  } else if (esciArc === 'Senior Architect' || esciArc === 'Oversight') {
+                      dest = 'wayfinder'; // Manual escalation pushes to wayfinder
+                  } else if (esciArc === 'Architect') {
+                      dest = 'senior_architect';
+                  } else if (esciArc === 'Mason' || esciArc === 'Mod Author') {
+                      dest = 'architect';
+                  } else {
+                      // Fallback
+                      dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
+                  }
+              } else {
+                  // Fallback without logs
+                  dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
+              }
             }
 
             if (dest === 'mod_author') {
               const modId = t.target_mod_id || t.metadata?.target_mod_id;
-              const modAuthorId = modId ? modAuthorMap[modId] : null;
+              let modAuthorId = modId ? modAuthorMap[modId] : null;
+              if (!modAuthorId && modId && modAuthorMap[`HASH_MAP_${modId}`]) {
+                 modAuthorId = modAuthorMap[modAuthorMap[`HASH_MAP_${modId}`]];
+              }
               if (!modAuthorId) dest = 'architect';
             }
 
@@ -172,13 +221,18 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
       })
       .eq('id', selectedTicket.id);
 
-    if (!error) {
-      if (userRole === "architect") {
-         logArchitectAction(`Support Ticket ${actionType}: ${reason}`, 'sanctuary_tickets', selectedTicket.id);
-      }
-      setSelectedTicket(null);
-      fetchTickets();
+    if (error) {
+      useStore.getState().pushStatus("Failed to update ticket: " + error.message, "error");
+      return;
     }
+    
+    useStore.getState().pushStatus("Ticket status updated successfully", "success");
+
+    if (userRole === "architect") {
+        logArchitectAction(`Support Ticket ${actionType}: ${reason}`, 'sanctuary_tickets', selectedTicket.id);
+    }
+    setSelectedTicket(null);
+    fetchTickets();
   };
 
   return (
@@ -197,7 +251,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("ui_placeholder_search") || "Search tickets..."}
+              placeholder={t("ui_placeholder_search") || "Search..."}
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchQuery && (
@@ -219,19 +273,19 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
               onClick={() => setActiveFilter("pending")}
               className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'pending' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
             >
-              {t("ui_tab_pending") || "PENDING"}
+              {t("ui_tab_pending") || "Pending"}
             </button>
             <button 
               onClick={() => setActiveFilter("new")}
               className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'new' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
             >
-              {t("ui_tab_new") || "NEW"}
+              {t("ui_tab_new") || "New"}
             </button>
             <button 
               onClick={() => setActiveFilter("closed")}
               className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'closed' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
             >
-              {t("ui_tab_closed") || "CLOSED"}
+              {t("ui_tab_closed") || "Closed"}
             </button>
           </div>
         </div>
@@ -240,11 +294,11 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
       <div className="w-full flex flex-col gap-4 pb-10">
         {isLoading ? (
           <div className="flex justify-center items-center h-40 opacity-50">
-            <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing")}</span>
+            <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing") || "PROCESSING..."}</span>
           </div>
         ) : tickets.length === 0 ? (
           <div className="flex justify-center items-center h-40 bg-black/10 backdrop-blur-[2px] rounded-2xl mx-6 border border-white/5">
-            <span className="text-sm font-bold text-[var(--subtext)] uppercase tracking-widest">{t("ticket_no_tickets")}</span>
+            <span className="text-sm font-bold text-[var(--subtext)] uppercase tracking-widest">{t("ticket_no_tickets") || "NO ACTIVE TICKETS FOUND"}</span>
           </div>
         ) : (() => {
           const filteredTickets = tickets.filter(t => {
@@ -261,9 +315,9 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
           
           if (filteredTickets.length === 0) return (
             <div className="flex flex-col justify-center items-center h-64 bg-black/10 backdrop-blur-[2px] rounded-3xl mx-6 border border-white/5 shadow-xl group">
-                <span className="material-symbols-outlined !text-6xl mb-4 opacity-30 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:text-emerald-400">celebration</span>
+                <span className="material-symbols-outlined !text-6xl mb-4 opacity-30 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:text-emerald-400">{t("ui_icon_celebration") || "celebration"}</span>
                 <span className="text-sm font-black text-[var(--subtext)] uppercase tracking-widest text-center px-8 leading-relaxed">
-                    {searchQuery ? "NO TICKETS MATCH YOUR SEARCH." : (activeFilter === 'new' ? (t("mason_no_bug_reports") || "NO OPEN BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : "NO TICKETS FOUND IN THIS CATEGORY.")}
+                    {searchQuery ? "NO TICKETS MATCH YOUR SEARCH." : (activeFilter === 'new' ? (t("mason_no_bug_reports") || "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : "NO TICKETS FOUND IN THIS CATEGORY.")}
                 </span>
             </div>
           );
@@ -301,7 +355,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
                                     ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' : ''}
                                     ${!['new', 'open', 'closed', 'resolved', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : ''}
                                 `}>
-                                    {(ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open') ? (t("ui_tab_new") || "NEW") : (t(`ticket_status_${ticket.status.toLowerCase()}`) || ticket.status || "NEW")}
+                                    {(ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open') ? (t("ui_tab_new") || "New") : (t(`ticket_status_${ticket.status.toLowerCase()}`) || ticket.status || "NEW")}
                                 </span>
                                 {(ticket.ticket_type || ticket.category) && (
                                     <span className="px-2 py-1 rounded bg-[var(--text)]/5 text-[var(--text)]/60 border border-[var(--text)]/10 text-[8px] font-black uppercase tracking-widest whitespace-nowrap group-hover:bg-[var(--text)]/10 group-hover:border-[var(--text)]/20 transition-all">
@@ -319,19 +373,19 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
                             {ticket.description}
                         </p>
                         
-                        <div className="flex justify-between items-center mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-2">
-                            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                                <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60">
+                        <div className="flex justify-between items-center mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-4">
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                                <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
                                     <span className="material-symbols-outlined !text-[14px] normal-case">{t("ui_icon_calendar_today") || "calendar_today"}</span>
                                     {new Date(ticket.created_at).toLocaleDateString()}
                                 </span>
-                                <span className="text-[10px] font-mono theme-text-accent uppercase tracking-widest flex items-center gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                                <span className="text-[10px] font-mono theme-text-accent uppercase tracking-widest flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity min-w-0 flex-1">
                                     <span className="material-symbols-outlined !text-[14px] normal-case shrink-0">{t("ui_icon_person") || "person"}</span>
-                                    <span className="truncate block pr-2">{ticket.author_username || ticket.author_id.substring(0,8)}</span>
+                                    <span className="truncate">{ticket.author_username || ticket.author_id.substring(0,8)}</span>
                                 </span>
                             </div>
-                            <button className="text-[10px] font-black text-[var(--text)] group-hover:theme-text-accent uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0 bg-black/10 px-3 py-2 rounded-xl border border-white/5 group-hover:border-[var(--accent)]/30">
-                                {t("mason_bug_inspect_report") || "INSPECT"} <span className="text-lg leading-none">&rarr;</span>
+                            <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                                {t("mason_bug_inspect_report") || "View"} <span className="text-lg leading-none">&rarr;</span>
                             </button>
                         </div>
                     </div>

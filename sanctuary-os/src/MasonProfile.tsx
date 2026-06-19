@@ -133,7 +133,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                 id: b.id,
                 name: b.name,
                 author: mData.name,
-                description: (b.artifacts?.length || 0) + (t("modcard_artifacts") || " Mods"),
+                description: (b.artifacts?.length || 0) + (t("modcard_artifacts") || "Artifacts"),
                 created_at: b.created_at,
                 asset_type: 'blueprint',
                 json_data: b
@@ -157,7 +157,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
   }, [masonId]);
 
   const toggleFollow = async () => {
-    if (!userId) { alert("You must be logged in to follow Masons."); return; }
+    if (!userId) { useStore.getState().pushStatus("You must be logged in to follow Masons."); return; }
     if (isFollowing) {
       await supabase.from('mason_followers').delete().match({ user_id: userId, mason_id: masonId });
       setFollowerCount(prev => prev - 1);
@@ -169,8 +169,8 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
     }
   };
 
-  if (loading) return <div className="p-12 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">{t("profile_accessing")}</div>;
-  if (!mason) return <div className="p-12 text-center text-[var(--subtext)] opacity-60 font-black tracking-widest uppercase">{t("profile_not_found")}</div>;
+  if (loading) return <div className="p-12 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">{t("profile_accessing") || "Accessing Architect Profile..."}</div>;
+  if (!mason) return <div className="p-12 text-center text-[var(--subtext)] opacity-60 font-black tracking-widest uppercase">{t("profile_not_found") || "Architect not found in the Network."}</div>;
 
   const filteredMods = mods.filter(m => {
      if (modCategory !== "ALL" && m.category_override !== modCategory) return false;
@@ -184,7 +184,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
-    if (!userId) return alert(t("feed_login_required") || "Login Required");
+    if (!userId) return useStore.getState().pushStatus(t("feed_login_required") || "LOGIN REQUIRED TO REPLY");
     
     const { error } = await supabase.from('mason_post_likes').insert({ post_id: post.id, user_id: userId });
     let increment = 1;
@@ -236,12 +236,12 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                {mason.avatar_url ? (
                  <img src={mason.avatar_url} alt="Avatar" className="w-full h-full object-cover filter contrast-[1.1] group-hover:scale-105 transition-transform duration-700" />
                ) : (
-                 <span className="text-5xl opacity-40 grayscale material-symbols-outlined">{t("ui_icon_mason") || "person"}</span>
+                 <span className="text-5xl opacity-40 grayscale material-symbols-outlined">{t("ui_icon_mason") || "construction"}</span>
                )}
             </div>
             {mason.is_verified && (
                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[var(--sidebar)] border border-emerald-500/30 px-3 py-1 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)] z-30 flex items-center gap-1 backdrop-blur-md">
-                 <span className="material-symbols-outlined !text-[12px] text-emerald-400">{t("ui_icon_verified") || "verified"}</span>
+                 <span className="material-symbols-outlined !text-[12px] text-emerald-400">{t("ui_icon_verified") || "verified_user"}</span>
                  <span className="text-[9px] text-emerald-400 font-black tracking-[0.2em]">{t("status_verified") || "VERIFIED"}</span>
                </div>
             )}
@@ -255,7 +255,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                   <span className="hidden sm:block h-6 w-px bg-white/10" />
                   <div className="flex gap-4 text-[10px] font-mono uppercase tracking-[0.2em]">
                      <div className="flex items-center gap-2">
-                        <span className="text-[var(--subtext)] opacity-60">{t("profile_followers") || "FOLLOWERS"}</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("profile_followers") || "Followers"}</span>
                         <span className="theme-text-accent font-black text-sm">{followerCount}</span>
                      </div>
                      <div className="flex items-center gap-2">
@@ -274,7 +274,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
              <div className="bg-black/20 rounded-2xl p-5 border border-white/5 relative">
                 <div className="absolute top-0 left-4 w-8 h-px theme-bg-accent opacity-50" />
                 <p className="text-[13px] font-medium text-[var(--text)] opacity-80 leading-relaxed font-mono whitespace-pre-wrap max-w-4xl">
-                   {mason.bio || t("profile_no_bio") || "No biographical data available for this subject."}
+                   {mason.bio || t("profile_no_bio") || "No dossier data on file."}
                 </p>
              </div>
           </div>
@@ -327,10 +327,10 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         
         <div className="w-full lg:w-1/3 flex flex-col gap-4">
           <h3 className="text-xs font-black theme-text-accent uppercase tracking-widest ml-4 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_broadcast")}</span> {t("profile_tab_commlink")}
+            <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_broadcast") || "satellite_alt"}</span> {t("profile_tab_commlink") || "Comm-Link"}
           </h3>
           <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-4">
-            {posts.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_posts")}</div>}
+            {posts.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_posts") || "No transmissions found."}</div>}
             <div className="flex flex-col gap-6">
               {posts.map((p, index) => (
                 <div key={p.id} className="break-inside-avoid">
@@ -351,10 +351,10 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         <div className="w-full lg:w-2/3 flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-4 w-full theme-glass-panel p-3 rounded-[2rem] shadow-xl overflow-visible">
              <div className="flex items-center gap-1 overflow-x-auto accent-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner shrink-0 max-w-full">
-               <HubTabButton id="MODS" icon={t("ui_icon_collection") || "inventory_2"} label={t("profile_tab_artifacts") || "Mods"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
-               <HubTabButton id="BLUEPRINTS" icon={t("ui_icon_map") || "map"} label={t("market_tab_blueprints") || "Blueprints"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
-               <HubTabButton id="LEXICONS" icon={t("ui_icon_language") || "language"} label={t("market_tab_lexicons") || "Lexicons"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
-               <HubTabButton id="CHAMELEONS" icon={t("ui_icon_theme") || "palette"} label={t("market_tab_chameleons") || "Chameleons"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+               <HubTabButton id="MODS" icon={t("ui_icon_collection") || "inventory_2"} label={t("profile_tab_artifacts") || "Artifacts"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+               <HubTabButton id="BLUEPRINTS" icon={t("ui_icon_map") || "map"} label={t("market_tab_blueprints") || "BLUEPRINTS"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+               <HubTabButton id="LEXICONS" icon={t("ui_icon_translate") || "translate"} label={t("market_tab_lexicons") || "Lexicon"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+               <HubTabButton id="CHAMELEONS" icon={t("ui_icon_theme") || "palette"} label={t("market_tab_chameleons") || "Chameleon"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
              </div>
              
               <div className="flex flex-row items-center gap-3 flex-1 justify-end min-w-[300px]">
@@ -367,17 +367,17 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                       let rawOpts: any[] = [];
                       if (profileTab === 'MODS') {
                         rawOpts = [
-                          { id: "ALL", label: t("profile_all_classes") || "ALL CLASSES", icon: t("ui_icon_folder") || "folder" },
-                          { id: "Script", label: t("profile_script") || "SCRIPT", icon: t("ui_icon_scroll") || "receipt_long" },
-                          { id: "BuildBuy", label: t("profile_buildbuy") || "BUILD/BUY", icon: t("ui_icon_couch") || "chair" },
-                          { id: "CAS", label: t("profile_cas") || "CAS", icon: t("ui_icon_shirt") || "checkroom" },
-                          { id: "Animation", label: t("profile_animation") || "ANIMATION", icon: t("ui_icon_clapper") || "movie" }
+                          { id: "ALL", label: t("profile_all_classes") || "All Categories", icon: t("ui_icon_folder") || "folder" },
+                          { id: "Script", label: t("profile_script") || "Script Mod", icon: t("ui_icon_scroll") || "receipt_long" },
+                          { id: "BuildBuy", label: t("profile_buildbuy") || "Build/Buy Asset", icon: t("ui_icon_couch") || "chair" },
+                          { id: "CAS", label: t("profile_cas") || "CAS Asset", icon: t("ui_icon_shirt") || "checkroom" },
+                          { id: "Animation", label: t("profile_animation") || "Animation Mod", icon: t("ui_icon_clapper") || "movie" }
                         ];
                       } else if (profileTab === 'LEXICONS') {
                         rawOpts = [
-                          { id: "ALL", label: t("market_filter_type") || "ALL TYPES", icon: t("ui_icon_folder") || "folder" },
-                          { id: "Default", label: t("market_type_default") || "DEFAULT", icon: t("ui_icon_package") || "inventory_2" },
-                          { id: "Theme", label: t("market_type_theme") || "THEME", icon: t("ui_icon_theme") || "palette" }
+                          { id: "ALL", label: t("market_filter_type") || "Type", icon: t("ui_icon_folder") || "folder" },
+                          { id: "Default", label: t("market_type_default") || "Default", icon: t("ui_icon_package") || "inventory_2" },
+                          { id: "Theme", label: t("market_type_theme") || "Theme", icon: t("ui_icon_theme") || "palette" }
                         ];
                       } else if (profileTab === 'BLUEPRINTS') {
                         rawOpts = [ { id: "ALL", label: t("market_filter_all_versions") || "All Versions", icon: t("ui_icon_folder") || "folder" } ];
@@ -386,9 +386,9 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                         }
                       } else if (profileTab === 'CHAMELEONS') {
                         rawOpts = [
-                          { id: "ALL", label: t("market_filter_mode") || "ALL MODES", icon: t("ui_icon_folder") || "folder" },
-                          { id: "Dark", label: t("market_mode_dark") || "DARK", icon: "dark_mode" },
-                          { id: "Light", label: t("market_mode_light") || "LIGHT", icon: "light_mode" }
+                          { id: "ALL", label: t("market_filter_mode") || "Theme Mode", icon: t("ui_icon_folder") || "folder" },
+                          { id: "Dark", label: t("market_mode_dark") || "Dark", icon: "dark_mode" },
+                          { id: "Light", label: t("market_mode_light") || "Light", icon: "light_mode" }
                         ];
                       }
                       
@@ -409,7 +409,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
           <div className="flex-1 theme-glass-panel rounded-[2rem] rounded-[2rem] p-6 shadow-2xl overflow-y-auto custom-scrollbar grid grid-cols-1 md:grid-cols-2 gap-4 content-start">
             {profileTab === 'MODS' && (
               <>
-                {filteredMods.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_mods")}</div>}
+                {filteredMods.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_mods") || "No artifacts deployed."}</div>}
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 
                 {filteredMods.map(mod => (
@@ -533,7 +533,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                             }}
                             className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105"
                           >
-                            {t("market_btn_download_install") || "DOWNLOAD"}
+                            {t("market_btn_download_install") || "Download & Install"}
                           </button>
                         </div>
                       </div>
@@ -566,7 +566,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                           className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
                         />
                       ) : (
-                        <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("ui_icon_language") || "language"}</span>
+                        <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("ui_icon_translate") || "translate"}</span>
                       )}
 
                       <div className="absolute top-4 right-4 flex gap-2 z-30">
@@ -603,7 +603,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                             }}
                             className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}
                           >
-                            {isInstalled(asset) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "DOWNLOAD")}
+                            {isInstalled(asset) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "Download & Install")}
                           </button>
                         </div>
                       </div>
@@ -672,7 +672,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                             }}
                             className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}
                           >
-                            {isInstalled(asset) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "DOWNLOAD")}
+                            {isInstalled(asset) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "Download & Install")}
                           </button>
                         </div>
                       </div>
@@ -715,7 +715,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate">{selectedBlueprint.name || "Blueprint"}</h3>
               <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-2 flex gap-4">
                 <span>{mason?.name || selectedBlueprint.author || "Citizen"} &bull; {selectedBlueprint.created_at ? new Date(selectedBlueprint.created_at).toLocaleDateString() : ""}</span>
-                <span className="text-[var(--accent)] font-mono">{selectedBlueprint.json_data?.game_version ? `${t("market_blueprint_verified") || "Verified Version: "} ${selectedBlueprint.json_data.game_version}` : (t("market_blueprint_verified_unknown") || "Verified Version: Unknown")}</span>
+                <span className="text-[var(--accent)] font-mono">{selectedBlueprint.json_data?.game_version ? `${t("market_blueprint_verified") || "Verified Version:"} ${selectedBlueprint.json_data.game_version}` : (t("market_blueprint_verified_unknown") || "Verified Version: Unknown")}</span>
               </p>
             </div>
 
@@ -728,7 +728,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                  
                  <div className="flex flex-col gap-4">
                     <h3 className="text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-80 flex items-center gap-2">
-                      <span className="theme-text-accent px-2 py-0.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded">{selectedBlueprint.json_data?.artifacts?.length || 0}</span> {t("market_blueprint_included") || "Included Mods"}
+                      <span className="theme-text-accent px-2 py-0.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded">{selectedBlueprint.json_data?.artifacts?.length || 0}</span> {t("market_blueprint_included") || "Included Artifacts"}
                     </h3>
                     <div className="flex flex-col gap-2">
                       {(selectedBlueprint.json_data?.artifacts || []).map((mod: any, i: number) => (
@@ -754,7 +754,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                       }}
                       className={standardAccentGlassButtonClass + " w-full"}
                    >
-                      {t("market_btn_download_install") || "DOWNLOAD"}
+                      {t("market_btn_download_install") || "Download & Install"}
                    </button>
                  </div>
               </div>

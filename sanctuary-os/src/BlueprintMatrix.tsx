@@ -35,12 +35,12 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
              const session = sessionResult.data?.session;
              if (!session) return;
 
-             let { data: masonData } = await supabase.from('masons').select('id').eq('profile_id', session.user.id).maybeSingle();
+             let { data: masonData } = await supabase.from('masons').select("id").eq('profile_id', session.user.id).maybeSingle();
 
              if (!masonData) {
                const username = session.user.user_metadata?.username;
                if (!username) return;
-               const { data: byName } = await supabase.from('masons').select('id').ilike('name', username).maybeSingle();
+               const { data: byName } = await supabase.from('masons').select("id").ilike('name', username).maybeSingle();
                masonData = byName;
              }
 
@@ -68,7 +68,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
     const code = await onUpload(isPublic, isLocked, allowedMods, isMarketListed);
     if (code) {
       setGeneratedCode(code);
-      useStore.getState().pushStatus(t("matrix_uplink_success") || "Uplink Successful", "success");
+      useStore.getState().pushStatus(t("matrix_uplink_success") || "UPLINK ESTABLISHED & COPIED", "success");
       navigator.clipboard.writeText(code).catch(() => {});
     } else {
       setUploadError(t("matrix_uplink_failed") || "Failed to generate uplink code.");
@@ -111,14 +111,14 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("matrix_title") || "Matrix"}
-      subtitle={`${t("matrix_subtitle")}${playSet.name}`}
+      title={t("matrix_title") || "Blueprint Uplink"}
+      subtitle={`${t("matrix_subtitle") || "Cloud Uplink Configuration:"}${playSet.name}`}
       icon="cloud_upload"
       widthClass="w-[800px]"
       footer={
         <div className="flex justify-end gap-4 w-full">
            <button onClick={onClose} className={standardButtonClass}>
-              {t("shared_cancel") || "Cancel"}
+              {t("shared_cancel") || "CANCEL"}
            </button>
            {blockedMods.length > 0 ? (
              <button 
@@ -126,7 +126,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
                disabled={isUploading}
                className={standardAccentGlassButtonClass}
              >
-               <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_cloud_upload") || "cloud_upload"}</span> {isUploading ? t("status_uploading_dna") || "UPLOADING..." : (generatedCode ? (t("matrix_btn_update_clean") || "UPDATE CLEAN IN CLOUD") : (t("matrix_btn_upload_clean") || "UPLOAD CLEAN"))}
+               <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_cloud_upload") || "cloud_upload"}</span> {isUploading ? t("status_uploading_dna") || "UPLOADING DNA:" : (generatedCode ? (t("matrix_btn_update_clean") || "UPDATE CLEAN IN CLOUD") : (t("matrix_btn_upload_clean") || "UPLINK PURGED BLUEPRINT"))}
              </button>
            ) : (
              <button 
@@ -134,7 +134,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
                disabled={isUploading}
                className={standardAccentGlassButtonClass}
              >
-               <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_cloud_upload") || "cloud_upload"}</span> {isUploading ? t("status_uploading_dna") || "UPLOADING..." : (generatedCode ? (t("matrix_btn_update") || "UPDATE IN CLOUD") : (t("matrix_btn_upload") || "UPLOAD"))}
+               <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_cloud_upload") || "cloud_upload"}</span> {isUploading ? t("status_uploading_dna") || "UPLOADING DNA:" : (generatedCode ? (t("matrix_btn_update") || "Update Nexus Uplink") : (t("matrix_btn_upload") || "UPLINK TO THE NEXUS"))}
              </button>
            )}
         </div>
@@ -148,14 +148,14 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isPublic ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("ui_icon_public") || "public"}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${isPublic ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_public")}</span>
+                <span className={`text-sm font-black uppercase tracking-widest ${isPublic ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_public") || "Public Access"}</span>
               </div>
               <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isPublic ? 'theme-border-success' : 'border-[var(--subtext)]/50'}`}>
                 {isPublic && <div className="w-3 h-3 rounded-full theme-bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.8)]" />}
               </div>
             </div>
             <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
-              {t("matrix_public_desc")}
+              {t("matrix_public_desc") || "Blueprint visible to all Citizens on the Nexus."}
             </p>
           </div>
 
@@ -163,14 +163,14 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isPublic ? 'theme-text-accent' : 'text-[var(--subtext)]'}`}>{t("ui_icon_visibility_off") || "visibility_off"}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${!isPublic ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_private")}</span>
+                <span className={`text-sm font-black uppercase tracking-widest ${!isPublic ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_private") || "Classified"}</span>
               </div>
               <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isPublic ? 'theme-border-accent' : 'border-[var(--subtext)]/50'}`}>
                 {!isPublic && <div className="w-3 h-3 rounded-full theme-bg-accent shadow-[0_0_10px_rgba(var(--accent-rgb),0.8)]" />}
               </div>
             </div>
             <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
-              {t("matrix_private_desc")}
+              {t("matrix_private_desc") || "Blueprint restricted to your authorization level."}
             </p>
           </div>
 
@@ -179,14 +179,14 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isLocked ? 'theme-text-danger' : 'text-[var(--subtext)]'}`}>{t("ui_icon_lock") || "lock"}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${isLocked ? 'theme-text-danger' : 'text-[var(--text)]'}`}>{t("matrix_locked")}</span>
+                <span className={`text-sm font-black uppercase tracking-widest ${isLocked ? 'theme-text-danger' : 'text-[var(--text)]'}`}>{t("matrix_locked") || "Enforced"}</span>
               </div>
               <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isLocked ? 'theme-border-danger' : 'border-[var(--subtext)]/50'}`}>
                 {isLocked && <div className="w-3 h-3 rounded-full theme-bg-danger shadow-[0_0_10px_rgba(var(--danger-rgb),0.8)]" />}
               </div>
             </div>
             <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
-              {t("matrix_locked_desc")}
+              {t("matrix_locked_desc") || "Enforce strict protocol parameters & matrix compatibility."}
             </p>
           </div>
 
@@ -194,14 +194,14 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isLocked ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("ui_icon_lock_open") || "lock_open"}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${!isLocked ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_unlocked")}</span>
+                <span className={`text-sm font-black uppercase tracking-widest ${!isLocked ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_unlocked") || "Bypassed"}</span>
               </div>
               <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isLocked ? 'theme-border-success' : 'border-[var(--subtext)]/50'}`}>
                 {!isLocked && <div className="w-3 h-3 rounded-full theme-bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.8)]" />}
               </div>
             </div>
             <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
-              {t("matrix_unlocked_desc")}
+              {t("matrix_unlocked_desc") || "Allow decentralized deployment vectors."}
             </p>
           </div>
 
@@ -210,14 +210,14 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isMarketListed ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("ui_icon_store") || "storefront"}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${isMarketListed ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_market")}</span>
+                <span className={`text-sm font-black uppercase tracking-widest ${isMarketListed ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_market") || "NEXUS LISTING"}</span>
               </div>
               <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isMarketListed ? 'theme-border-success' : 'border-[var(--subtext)]/50'}`}>
                 {isMarketListed && <div className="w-3 h-3 rounded-full theme-bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.8)]" />}
               </div>
             </div>
             <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
-              {t("matrix_market_desc")}
+              {t("matrix_market_desc") || "Blueprint is visible on the public Nexus."}
             </p>
           </div>
 
@@ -225,14 +225,14 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isMarketListed ? 'theme-text-accent' : 'text-[var(--subtext)]'}`}>{t("ui_icon_visibility_off") || "visibility_off"}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${!isMarketListed ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_market_off")}</span>
+                <span className={`text-sm font-black uppercase tracking-widest ${!isMarketListed ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_market_off") || "UNLISTED"}</span>
               </div>
               <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isMarketListed ? 'theme-border-accent' : 'border-[var(--subtext)]/50'}`}>
                 {!isMarketListed && <div className="w-3 h-3 rounded-full theme-bg-accent shadow-[0_0_10px_rgba(var(--accent-rgb),0.8)]" />}
               </div>
             </div>
             <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
-              {t("matrix_market_off_desc")}
+              {t("matrix_market_off_desc") || "Blueprint is hidden from the Nexus."}
             </p>
           </div>
 
@@ -242,11 +242,11 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
           <div className="mt-8 p-10 theme-glass-panel border-l-4 border-l-[var(--danger)] border-[var(--danger)]/50 rounded-[2.5rem] shadow-2xl flex flex-col gap-6">
             <div className="flex items-center gap-5">
               <div className="w-14 h-14 rounded-2xl theme-bg-danger flex items-center justify-center shadow-[0_0_20px_rgba(var(--danger-rgb),0.4)]">
-                <span className="material-symbols-outlined !text-3xl text-white">{t("ui_icon_warning") || "warning"}</span>
+                <span className="material-symbols-outlined !text-3xl text-white">{t("ui_icon_warning") || "warning_amber"}</span>
               </div>
               <div className="flex flex-col gap-1">
-                <h4 className="text-xl font-black theme-text-danger uppercase tracking-widest">{t("matrix_tier_warning_title")}</h4>
-                <p className="text-xs font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("matrix_tier_warning_desc")}</p>
+                <h4 className="text-xl font-black theme-text-danger uppercase tracking-widest">{t("matrix_tier_warning_title") || "Integrity Violation Detected"}</h4>
+                <p className="text-xs font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("matrix_tier_warning_desc") || "The following artifacts violate protocol compliance and cannot be uplinked:"}</p>
               </div>
             </div>
             <div className="theme-glass-inner rounded-2xl p-6 border border-white/5 max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-2">
@@ -261,12 +261,12 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
         )}
 
         <div className="theme-glass-panel p-8 rounded-[2.5rem] border border-white/10 flex flex-col gap-4 shadow-xl">
-          <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-80">{t("matrix_uplink_code_label")}</span>
+          <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-80">{t("matrix_uplink_code_label") || "Uplink Code"}</span>
           <div className="flex items-center gap-3">
             <input 
               readOnly 
               value={generatedCode || ""} 
-              placeholder={t("matrix_code_placeholder")}
+              placeholder={t("matrix_code_placeholder") || "PENDING UPLINK..."}
               className="flex-1 bg-black/40 border border-white/10 rounded-xl p-4 text-[var(--text)] font-mono font-bold tracking-widest text-center focus:outline-none"
             />
             <button 
@@ -278,10 +278,10 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
               disabled={!generatedCode}
               className={`px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${generatedCode ? 'bg-white/10 hover:bg-white/20 text-[var(--text)]' : 'bg-white/5 text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}
             >
-              {t("matrix_btn_copy")}
+              {t("matrix_btn_copy") || "COPY"}
             </button>
           </div>
-          {uploadError && <span className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center justify-center gap-2 mt-2"><span className="material-symbols-outlined !text-[14px]">error</span> {uploadError}</span>}
+          {uploadError && <span className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center justify-center gap-2 mt-2"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_error") || "error"}</span> {uploadError}</span>}
         </div>
       </div>
     </SidePanel>,

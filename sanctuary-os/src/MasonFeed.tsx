@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./MasonPostViewer";
+import { useStore } from './store';
 
 export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols }: { onOpenMasonProfile?: (id: string, postId?: string) => void, noCardWrapper?: boolean, gridCols?: string }) {
   const { t } = useLexicon();
@@ -29,7 +30,7 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
-    if (!userId) return alert(t("feed_login_required") || "Login Required");
+    if (!userId) return useStore.getState().pushStatus(t("feed_login_required") || "LOGIN REQUIRED TO REPLY");
     
     const { error } = await supabase.from('mason_post_likes').insert({ post_id: post.id, user_id: userId });
     let increment = 1;
@@ -53,7 +54,7 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
   const feedContent = (
     <div className={`grid ${gridCols || 'grid-cols-1 md:grid-cols-2'} gap-6 flex-1 overflow-y-auto custom-scrollbar pr-2 pb-4`}>
       {loading ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
+        <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading") || "Loading"}</div>
       ) : posts.length === 0 ? (
         <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest col-span-2">{t("mason_no_posts") || "NO COMM-LINK TRANSMISSIONS FOUND"}</div>
       ) : (

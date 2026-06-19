@@ -5,7 +5,7 @@ import { useLexicon } from "./LexiconContext";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import { useStore } from "./store";
 
-export default function MasonBugReports({ masonId }: { masonId?: string }) {
+export default function MasonBugReports({ masonId, onOpenDNA }: { masonId?: string, onOpenDNA?: (hash: string) => void }) {
     const { t } = useLexicon();
     const [tickets, setTickets] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -25,23 +25,34 @@ export default function MasonBugReports({ masonId }: { masonId?: string }) {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (data && !error) {
-                let filtered = data.filter(t => t.ticket_type?.toLowerCase().includes('bug'));
+                let filtered = data.filter(t => {
+                    const typeStr = (t.ticket_type || t.category || '').toLowerCase();
+                    return (typeStr.includes('bug') || typeStr.includes('artifact')) && !typeStr.includes('os');
+                });
                 
                 if (masonId || user) {
                     let masonModIds: string[] = [];
-                    if (masonId) {
-                        const { data: modsData } = await supabase.from('mods').select('id').eq('mason_id', masonId);
-                        if (modsData) masonModIds = modsData.flatMap(m => [m.id]).filter(Boolean);
+                    let query = supabase.from('mods').select("id");
+                    if (masonId && user) {
+                        query = query.or(`mason_id.eq.${masonId},mason_id.eq.${user.id}`);
+                    } else if (masonId) {
+                        query = query.eq('mason_id', masonId);
+                    } else if (user) {
+                        query = query.eq('mason_id', user.id);
                     }
+                    const { data: modsData } = await query;
+                    if (modsData) masonModIds = modsData.flatMap(m => [m.id]).filter(Boolean);
 
                     filtered = filtered.filter(t => {
-                        if (user && t.author_id === user.id) return true;
+                        const targetUser = t.metadata?.target_user_id;
+                        const targetMason = t.metadata?.target_mason;
+                        const ticketMasonId = t.metadata?.mason_id;
+                        const targetMod = t.metadata?.target_mod_id;
                         
-                        if (masonId) {
-                            if (!t.metadata) return false;
-                            if (t.metadata.mason_id === masonId || t.metadata.target_mason === masonId) return true;
-                            if (t.metadata.target_mod_id && masonModIds.includes(t.metadata.target_mod_id)) return true;
-                        }
+                        if (user && (targetUser === user.id || targetMason === user.id || ticketMasonId === user.id || t.author_id === user.id)) return true;
+                        if (masonId && (targetUser === masonId || targetMason === masonId || ticketMasonId === masonId)) return true;
+                        if (targetMod && masonModIds.includes(targetMod)) return true;
+                        
                         return false;
                     });
                 }
@@ -122,23 +133,31 @@ export default function MasonBugReports({ masonId }: { masonId?: string }) {
             const { data: { user } } = await supabase.auth.getUser();
             
             if (data) {
-                let filtered = data.filter(t => t.ticket_type?.toLowerCase().includes('bug'));
+                let filtered = data.filter(t => (t.ticket_type?.toLowerCase().includes('bug') || t.ticket_type?.toLowerCase().includes('artifact')) && !t.ticket_type?.toLowerCase().includes('os'));
                 
                 if (masonId || user) {
                     let masonModIds: string[] = [];
-                    if (masonId) {
-                        const { data: modsData } = await supabase.from('mods').select('id').eq('mason_id', masonId);
-                        if (modsData) masonModIds = modsData.flatMap(m => [m.id]).filter(Boolean);
+                    let query = supabase.from('mods').select("id");
+                    if (masonId && user) {
+                        query = query.or(`mason_id.eq.${masonId},mason_id.eq.${user.id}`);
+                    } else if (masonId) {
+                        query = query.eq('mason_id', masonId);
+                    } else if (user) {
+                        query = query.eq('mason_id', user.id);
                     }
+                    const { data: modsData } = await query;
+                    if (modsData) masonModIds = modsData.flatMap(m => [m.id]).filter(Boolean);
 
                     filtered = filtered.filter(t => {
-                        if (user && t.author_id === user.id) return true;
-
-                        if (masonId) {
-                            if (!t.metadata) return false;
-                            if (t.metadata.mason_id === masonId || t.metadata.target_mason === masonId) return true;
-                            if (t.metadata.target_mod_id && masonModIds.includes(t.metadata.target_mod_id)) return true;
-                        }
+                        const targetUser = t.metadata?.target_user_id;
+                        const targetMason = t.metadata?.target_mason;
+                        const ticketMasonId = t.metadata?.mason_id;
+                        const targetMod = t.metadata?.target_mod_id;
+                        
+                        if (user && (targetUser === user.id || targetMason === user.id || ticketMasonId === user.id || t.author_id === user.id)) return true;
+                        if (masonId && (targetUser === masonId || targetMason === masonId || ticketMasonId === masonId)) return true;
+                        if (targetMod && masonModIds.includes(targetMod)) return true;
+                        
                         return false;
                     });
                 }
@@ -194,7 +213,7 @@ export default function MasonBugReports({ masonId }: { masonId?: string }) {
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={t("ui_placeholder_search") || "Search tickets..."}
+                            placeholder={t("ui_placeholder_search") || "Search..."}
                             className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
                         />
                         {searchQuery && (
@@ -208,19 +227,19 @@ export default function MasonBugReports({ masonId }: { masonId?: string }) {
                             onClick={() => setActiveTab("pending")}
                             className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'pending' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
                         >
-                            {t("ui_tab_pending") || "PENDING"}
+                            {t("ui_tab_pending") || "Pending"}
                         </button>
                         <button 
                             onClick={() => setActiveTab("open")}
                             className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'open' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
                         >
-                            {t("ui_tab_new") || "NEW"}
+                            {t("ui_tab_new") || "New"}
                         </button>
                         <button 
                             onClick={() => setActiveTab("closed")}
                             className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'closed' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
                         >
-                            {t("ui_tab_closed") || "CLOSED"}
+                            {t("ui_tab_closed") || "Closed"}
                         </button>
                     </div>
                 </div>
@@ -229,7 +248,7 @@ export default function MasonBugReports({ masonId }: { masonId?: string }) {
             <div className="w-full flex flex-col gap-6 px-6 pb-20">
                 {isLoading ? (
                     <div className="flex justify-center items-center h-32 opacity-50">
-                        <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing") || "LOADING..."}</span>
+                        <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing") || "PROCESSING..."}</span>
                     </div>
                 ) : (() => {
                     const filteredTickets = tickets.filter(t => {
@@ -248,7 +267,7 @@ export default function MasonBugReports({ masonId }: { masonId?: string }) {
                         <div className="flex flex-col justify-center items-center h-64 theme-glass-panel rounded-3xl border border-white/5 shadow-xl group">
                             <span className="material-symbols-outlined !text-6xl mb-4 opacity-30 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:text-emerald-400">{t("ui_icon_celebration") || "celebration"}</span>
                             <span className="text-sm font-black text-[var(--subtext)] uppercase tracking-widest text-center px-8 leading-relaxed">
-                                {searchQuery ? "NO TICKETS MATCH YOUR SEARCH." : (activeTab === 'open' ? (t("mason_no_bug_reports") || "NO OPEN BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : "NO TICKETS FOUND IN THIS CATEGORY.")}
+                                {searchQuery ? "NO TICKETS MATCH YOUR SEARCH." : (activeTab === 'open' ? (t("mason_no_bug_reports") || "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : "NO TICKETS FOUND IN THIS CATEGORY.")}
                             </span>
                         </div>
                     );
@@ -258,23 +277,23 @@ export default function MasonBugReports({ masonId }: { masonId?: string }) {
                             {filteredTickets.map(ticket => (
                                 <div 
                                     key={ticket.id}
-                                    className="theme-glass-panel rounded-[1.5rem] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-emerald-500/50 hover:shadow-[0_0_40px_rgba(16,185,129,0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
+                                    className="theme-glass-panel rounded-[1.5rem] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
                                     onClick={() => setSelectedTicket(ticket)}
                                 >
-                                    <div className={`absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-gradient-to-br from-fuchsia-500/10 to-transparent' : 'bg-gradient-to-br from-emerald-500/5 to-transparent'}`} />
+                                    <div className={`absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-gradient-to-br from-fuchsia-500/10 to-transparent' : 'bg-gradient-to-br from-[var(--accent)]/5 to-transparent'}`} />
                                     
                                     <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
                                         ${ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-rose-500/50 group-hover:bg-rose-500 group-hover:shadow-[0_0_20px_rgba(244,63,94,0.5)]' : ''}
                                         ${ticket.status?.toLowerCase() === 'resolved' ? 'bg-emerald-500/50 group-hover:bg-emerald-500 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.5)]' : ''}
                                         ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/50 group-hover:bg-amber-500 group-hover:shadow-[0_0_20px_rgba(245,158,11,0.5)]' : ''}
                                         ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/50 group-hover:bg-fuchsia-500 group-hover:shadow-[0_0_20px_rgba(217,70,239,0.5)]' : ''}
-                                        ${!['open', 'new', 'resolved', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-emerald-500/50 group-hover:bg-emerald-500' : ''}
+                                        ${!['open', 'new', 'resolved', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)]' : ''}
                                     `} />
                                     
                                     <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
                                         <div className="flex justify-between items-start gap-4">
-                                            <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500/30 group-hover:border-fuchsia-500/50' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-emerald-500/30'}`}>
-                                                <span className={`material-symbols-outlined !text-[24px] transition-colors duration-500 opacity-50 group-hover:opacity-100 ${ticket.status?.toLowerCase() === 'escalated' ? 'text-fuchsia-400' : 'text-[var(--text)] group-hover:text-emerald-400'}`}>
+                                            <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500/30 group-hover:border-fuchsia-500/50' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[var(--accent)]/30'}`}>
+                                                <span className={`material-symbols-outlined !text-[24px] transition-colors duration-500 opacity-50 group-hover:opacity-100 ${ticket.status?.toLowerCase() === 'escalated' ? 'text-fuchsia-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
                                                     {ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'support_agent' : ticket.status?.toLowerCase() === 'resolved' ? 'done_all' : ticket.status?.toLowerCase() === 'investigating' ? 'warning' : ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' : 'bug_report'}
                                                 </span>
                                             </div>
@@ -284,11 +303,11 @@ export default function MasonBugReports({ masonId }: { masonId?: string }) {
                                                 ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' : ''}
                                                 ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' : ''}
                                             `}>
-                                                {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new") || "NEW") : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
+                                                {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new") || "New") : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
                                             </span>
                                         </div>
                                         
-                                        <h3 className="font-black text-xl leading-tight text-[var(--text)] group-hover:text-emerald-400 transition-colors uppercase tracking-widest line-clamp-2 mt-2">
+                                        <h3 className="font-black text-xl leading-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors uppercase tracking-widest line-clamp-2 mt-2">
                                             {ticket.title}
                                         </h3>
                                         
@@ -303,14 +322,14 @@ export default function MasonBugReports({ masonId }: { masonId?: string }) {
                                                     {new Date(ticket.created_at).toLocaleDateString()}
                                                 </span>
                                                 {ticket.metadata?.target_mod_id && (
-                                                    <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity min-w-0 flex-1">
+                                                    <span className="text-[10px] font-mono text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity min-w-0 flex-1">
                                                         <span className="material-symbols-outlined !text-[14px] normal-case shrink-0">{t("ui_icon_extension") || "extension"}</span>
                                                         <span className="truncate">{ticket.target_mod_name || ticket.metadata.target_mod_id}</span>
                                                     </span>
                                                 )}
                                             </div>
-                                            <button className="text-[10px] font-black text-[var(--text)] group-hover:text-emerald-400 uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                                                {t("mason_bug_inspect_report") || "INSPECT"} <span className="text-lg leading-none">&rarr;</span>
+                                            <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                                                {t("mason_bug_inspect_report") || "View"} <span className="text-lg leading-none">&rarr;</span>
                                             </button>
                                         </div>
                                     </div>
@@ -329,6 +348,7 @@ export default function MasonBugReports({ masonId }: { masonId?: string }) {
                 canReply={true}
                 availableActions={['RESOLVED', 'REJECTED', 'ESCALATED', 'PENDING']}
                 onTakeAction={handleTakeAction}
+                onOpenDNA={onOpenDNA}
                 onReplyAdded={(newMetadata) => {
                     setSelectedTicket({...selectedTicket, metadata: newMetadata});
                 }}

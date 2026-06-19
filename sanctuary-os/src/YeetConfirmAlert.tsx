@@ -8,9 +8,9 @@ export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending,  }
     <SidePanel
       isOpen={!!yeetConfirmPending}
       onClose={() => setYeetConfirmPending(null)}
-      title={t("yeet_cascade_detected")}
-      subtitle={t("yeet_removing_following")}
-      icon={t("ui_icon_warning")}
+      title={t("yeet_cascade_detected") || "YEET CASCADE DETECTED"}
+      subtitle={t("yeet_removing_following") || "REMOVING THIS WILL ALSO YEET THE FOLLOWING"}
+      icon={t("ui_icon_warning") || "warning_amber"}
       iconColorClass="theme-text-danger animate-pulse drop-shadow-[0_0_8px_rgba(var(--danger-rgb),0.6)]"
       backdropZ="z-[65000]"
       panelZ="z-[65001]"
@@ -42,7 +42,7 @@ export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending,  }
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-black text-[var(--text)] truncate">{c.replace(/_/g, " ")}</span>
-              <span className="text-[9px] font-bold theme-text-danger uppercase tracking-widest opacity-80">{t("modcard_override_exclusive") || "WILL BE REMOVED"}</span>
+              <span className="text-[9px] font-bold theme-text-danger uppercase tracking-widest opacity-80">{t("modcard_override_exclusive") || "Protocol Override Required"}</span>
             </div>
           </div>
         ))}

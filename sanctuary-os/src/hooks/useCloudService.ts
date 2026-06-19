@@ -13,23 +13,23 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
 
   async function uploadBlueprintToCloud(setName: string, isPublic: boolean = true, isLocked: boolean = false, allowedMods?: any[], isMarketListed: boolean = false) {
     if (!session) {
-      alert("Guest Mode Active: Uploads are disabled.");
+      useStore.getState().pushStatus("Guest Mode Active: Uploads are disabled.");
       return;
     }
 
     let actualMasonId = activeMasonProfileId;
     try {
       if (!actualMasonId) {
-        let { data: masonData } = await supabase.from('masons').select('id').eq('profile_id', session.user.id).maybeSingle();
+        let { data: masonData } = await supabase.from('masons').select("id").eq('profile_id', session.user.id).maybeSingle();
         
         if (!masonData) {
           const username = session.user.user_metadata?.username;
           if (username) {
-            let { data: byName } = await supabase.from('masons').select('id').ilike('name', username).maybeSingle();
+            let { data: byName } = await supabase.from('masons').select("id").ilike('name', username).maybeSingle();
             if (byName) {
               masonData = byName;
             } else {
-              const { data: newMason } = await supabase.from('masons').insert({ name: username, profile_id: session.user.id }).select('id').maybeSingle();
+              const { data: newMason } = await supabase.from('masons').insert({ name: username, profile_id: session.user.id }).select("id").maybeSingle();
               if (newMason) masonData = newMason;
             }
           }
@@ -86,7 +86,7 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
     
     const hasTier2 = blueprintData.mods.some((m: any) => tier2Hashes.includes(m.hash));
     if (hasTier2) {
-      alert(t("status_explicit_signature"));
+      useStore.getState().pushStatus(t("status_explicit_signature") || "Explicit signature detected. This loadout cannot be synced to the Global Network. Local deployment only.");
       return;
     }
 
@@ -111,21 +111,21 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
 
       await logUserAction(`Uploaded Blueprint: ${targetSet.name}`, 'blueprints', code, `Visibility: ${isPublic ? 'Public' : 'Private'}, Marketplace: ${isMarketListed ? 'Listed' : 'Unlisted'}`);
 
-      setStatus(`${t("status_blueprint_uplinked")} ${code}`);
+      setStatus(`${t("status_blueprint_uplinked") || "Blueprint Uplinked! Code:"} ${code}`);
       setSyncCode(code);
       return code;
     } catch (err: any) {
-      setStatus(`${t("log_icon_fatal")} ${t("status_uplink_failed")}${err.message || err}`);
+      setStatus(`${t("log_icon_fatal")} ${t("status_uplink_failed") || "Uplink Failed:"}${err.message || err}`);
       return undefined;
     }
   }
 
   async function syncBlueprintByCode(code: string) {
     if (!code) return;
-    setStatus(`${t("log_icon_radar")} ${t("status_sync_blueprint")}${code}...`);
+    setStatus(`${t("log_icon_radar") || "Log Icon Radar"} ${t("status_sync_blueprint") || "Synchronizing Blueprint:"}${code}...`);
     try {
       const { data, error } = await supabase.from('blueprints').select('*').eq('code', code.toUpperCase()).single();
-      if (error || !data) throw new Error(t("status_invalid_code"));
+      if (error || !data) throw new Error(t("status_invalid_code") || "Invalid or Expired Code.");
       const parsed = { sanctuary_profile: true, name: data.name, mods: data.artifacts };
       const missing: any[] = [];
       parsed.mods.forEach((m: any) => {
@@ -145,16 +145,16 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         const updatedSets = [...playSets, { name: `${parsed.name} (Synced)`, mods: parsed.mods.map((m: any) => m.name) }];
         setPlaySets(updatedSets);
         localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
-        setStatus(`${t("ui_icon_success")} ${t("status_blueprint_synced")}`);
+        setStatus(`${t("ui_icon_success") || "check_circle"} ${t("status_blueprint_synced") || "Blueprint Synchronized."}`);
       }
     } catch (err: any) {
-      setStatus(`${t("log_icon_fatal")} ${t("status_sync_error")}${err.message || err}`);
+      setStatus(`${t("log_icon_fatal")} ${t("status_sync_error") || "Sync Error:"}${err.message || err}`);
     }
   }
 
   async function massIngestToCloud() {
     if (!session) {
-      alert("Guest Mode Active: Uploads are disabled.");
+      useStore.getState().pushStatus("Guest Mode Active: Uploads are disabled.");
       return;
     }
     const rawGhosts = modList.filter((m) => m && !m.isSynced);
@@ -164,13 +164,13 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       ).values(),
     );
     if (ghosts.length === 0) {
-      setStatus(t("status_bunker_synced"));
-      alert("All mods are already synced. No unknown mods found.");
+      setStatus(t("status_bunker_synced") || "BUNKER FULLY SYNCED: No unique unknowns found.");
+      useStore.getState().pushStatus("All mods are already synced. No unknown mods found.");
       return;
     }
     setIngestProgress({ current: 0, total: ghosts.length, active: true });
     setStatus(
-      `${t("status_mass_ingestion_prefix")}${ghosts.length}${t("status_mass_ingestion_suffix")}`,
+      `${t("status_mass_ingestion_prefix") || "MASS INGESTION: Unifying"}${ghosts.length}${t("status_mass_ingestion_suffix") || "unique identities..."}`,
     );
     let successCount = 0;
     for (let i = 0; i < ghosts.length; i++) {
@@ -213,7 +213,7 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
     }
     setIngestProgress(null);
     setStatus(
-      `${t("ui_icon_success")} Ingested ${successCount}/${ghosts.length} unknowns to the Network.`,
+      `${t("ui_icon_success") || "check_circle"} Ingested ${successCount}/${ghosts.length} unknowns to the Network.`,
     );
   }
 

@@ -32,11 +32,11 @@ export default function SAWayfinderReports() {
       <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-4 pb-10">
         {isLoading ? (
           <div className="flex justify-center items-center h-40 opacity-50">
-            <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing")}</span>
+            <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing") || "PROCESSING..."}</span>
           </div>
         ) : reports.length === 0 ? (
           <div className="flex justify-center items-center h-40 theme-glass-inner rounded-2xl">
-            <span className="text-sm font-bold text-[var(--subtext)] uppercase tracking-widest">No Wayfinder metrics available.</span>
+            <span className="text-sm font-bold text-[var(--subtext)] uppercase tracking-widest">{t("sa_no_wayfinder") || "No Wayfinder metrics available."}</span>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">

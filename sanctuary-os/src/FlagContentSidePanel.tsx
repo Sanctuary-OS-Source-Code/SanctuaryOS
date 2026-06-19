@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { SidePanel, standardButtonClass } from "./shared";
+import { useStore } from './store';
 
 interface FlagContentSidePanelProps {
   isOpen: boolean;
@@ -32,9 +33,9 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
     setIsSubmitting(false);
 
     if (error) {
-      alert((t("feed_flag_error") || "Failed to flag content") + ": " + error.message);
+      useStore.getState().pushStatus((t("feed_flag_error") || "Failed to flag content") + ": " + error.message);
     } else {
-      alert(t("feed_flag_success") || "Content has been flagged for review.");
+      useStore.getState().pushStatus(t("feed_flag_success") || "Content has been flagged for review.");
       setReason("");
       onClose();
     }

@@ -17,15 +17,15 @@ export function DefconAlert({ backupProgress }: any) {
         <div className="flex items-start gap-8 relative z-10 text-left">
           <div className="relative w-32 h-32 rounded-3xl bg-red-900/20 border border-red-500/50 flex items-center justify-center text-6xl shrink-0 shadow-[0_0_30px_rgba(220,38,38,0.3)]">
             <div className="absolute inset-0 rounded-3xl border-2 border-red-500/40 animate-ping opacity-50"></div>
-            <span className="material-symbols-outlined !text-6xl text-red-500 animate-pulse drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]">warning</span>
+            <span className="material-symbols-outlined !text-6xl text-red-500 animate-pulse drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]">{t("ui_icon_warning") || "warning_amber"}</span>
           </div>
 
           <div className="flex flex-col gap-4 pt-2 flex-1">
-            <h2 className="text-5xl font-black text-red-500 tracking-tighter uppercase drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] leading-none">{t("defcon_alert_title")}</h2>
-            <h3 className="text-xl font-bold text-red-400 uppercase tracking-[0.3em] opacity-80">{t("defcon_patch_detected")}</h3>
+            <h2 className="text-5xl font-black text-red-500 tracking-tighter uppercase drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] leading-none">{t("defcon_alert_title") || "GLOBAL ALERT"}</h2>
+            <h3 className="text-xl font-bold text-red-400 uppercase tracking-[0.3em] opacity-80">{t("defcon_patch_detected") || "ENGINE PATCH DETECTED"}</h3>
             <div className="w-full h-px bg-gradient-to-r from-red-500/50 to-transparent my-2"></div>
             <p className="text-sm font-bold text-red-300/90 leading-relaxed uppercase tracking-[0.2em] max-w-2xl">
-              {t("defcon_sealing_desc")}
+              {t("defcon_sealing_desc") || "A surprise game patch is imminent. Sanctuary OS is currently sealing your vault and executing emergency backups to prevent Artifcat corruption. Do not close the application."}
             </p>
           </div>
         </div>
@@ -50,8 +50,8 @@ export function DefconAlert({ backupProgress }: any) {
           ) : (
             <>
               <div className="flex justify-between items-end text-[10px] font-black uppercase tracking-[0.3em] text-red-400">
-                <span>{t("defcon_init_secure")}</span>
-                <span className="animate-pulse">{t("defcon_stand_by")}</span>
+                <span>{t("defcon_init_secure") || "INITIALIZING SECURE PROTOCOL..."}</span>
+                <span className="animate-pulse">{t("defcon_stand_by") || "STAND BY"}</span>
               </div>
               <div className="w-full bg-black/60 rounded-full h-3 overflow-hidden border border-red-500/20 shadow-inner">
                 <div className="h-full bg-gradient-to-r from-red-700 to-red-400 animate-pulse w-full"></div>

@@ -52,8 +52,8 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
     <SidePanel
       isOpen={!!conflict}
       onClose={onClose}
-      title={t("radar_title") || "CONFLICT RESOLUTION"}
-      subtitle={isTier4 ? (t("radar_tier4_title")?.replace("dY>` ", "") || "FATAL CLASH") : isTier3 ? (t("radar_tier3_title") || "TUNING OVERLAP") : (t("scout_duplicate_clones") || "DUPLICATE CLONES")}
+      title={t("radar_title") || "Conflict Radar"}
+      subtitle={isTier4 ? (t("radar_tier4_title") || "Collision Severity 4"?.replace("dY>` ", "") || "FATAL CLASH") : isTier3 ? (t("radar_tier3_title") || "Collision Severity 3") : (t("scout_duplicate_clones") || "Collision Severity 2")}
       icon="warning"
       iconColorClass={isTier4 ? "text-[var(--danger)]" : isTier3 ? "text-[var(--warning)]" : "text-[var(--accent)]"}
       widthClass="w-[500px]"
@@ -88,7 +88,7 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
           </h3>
           {conflict.is_ghost && (
              <div className={`px-4 py-3 border rounded-xl text-xs font-black tracking-wide ${isTier4 ? "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[var(--danger)] text-[var(--danger)]" : "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[var(--warning)] text-[var(--warning)]"}`}>
-               <span className="material-symbols-outlined !text-[12px] opacity-70 mr-1">{t("ui_icon_policy") || "policy"}</span> {t("scout_logical_clash")} {conflict.resolution_note}
+               <span className="material-symbols-outlined !text-[12px] opacity-70 mr-1">{t("ui_icon_policy") || "policy"}</span> {t("scout_logical_clash") || "LOGICAL CLASH:"} {conflict.resolution_note}
              </div>
           )}
           <p className="text-sm text-[var(--text)] opacity-80 leading-relaxed font-bold">
@@ -138,7 +138,7 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                         : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'
                     }`}>
                       <span className={`material-symbols-outlined !text-[28px] transition-colors duration-300 ${isActive ? 'text-[var(--bg)]' : 'text-[var(--text)] opacity-50 group-hover:opacity-100'}`}>
-                        extension
+                        {t("ui_icon_extension") || "extension"}
                       </span>
                     </div>
 

@@ -5,7 +5,7 @@ import { CustomDropdown, ModSearchDropdown, SidePanel, standardButtonClass, stan
 import { useStore } from "./store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-
+import { invoke } from "@tauri-apps/api/core";
 
 export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType }: { isOpen: boolean; onClose: () => void; preselectedType?: string }) {
   const { t } = useLexicon();
@@ -18,23 +18,32 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
   const [logs, setLogs] = useState("");
   const [customFieldsData, setCustomFieldsData] = useState<Record<string, string>>({});
   const [categories, setCategories] = useState<any[]>([]);
+  const [telemetrySources, setTelemetrySources] = useState<any[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [policyViolations, setPolicyViolations] = useState<string[]>([]);
+  const [optedOutSources, setOptedOutSources] = useState<string[]>([]);
 
   useEffect(() => {
     if (!isOpen) return;
-    const fetchCats = async () => {
-      setLoadingCats(true);
-      const { data } = await supabase.from('sanctuary_support_categories').select('*').eq('is_active', true).order('category_name', { ascending: true });
-      if (data && data.length > 0) {
-        setCategories(data);
-        if (!preselectedType) setType(data[0].category_code);
-        setCustomFieldsData({});
-      }
-      setLoadingCats(false);
-    };
-    fetchCats();
+      const fetchData = async () => {
+        setLoadingCats(true);
+        const [{ data: cats }, { data: sources }] = await Promise.all([
+          supabase.from('sanctuary_support_categories').select('*').eq('is_active', true).order('category_name', { ascending: true }),
+          supabase.from('sanctuary_telemetry_sources').select('*').eq('is_active', true)
+        ]);
+        if (cats && cats.length > 0) {
+          setCategories(cats);
+          if (!preselectedType) setType(cats[0].category_code);
+          setCustomFieldsData({});
+        }
+        if (sources) {
+          setTelemetrySources(sources);
+        }
+        setLoadingCats(false);
+      };
+      fetchData();
   }, [isOpen, preselectedType]);
 
   const activeCategory = categories.find(c => c.category_code === type);
@@ -55,11 +64,110 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
     }
     setIsSubmitting(true);
     setError("");
+    setPolicyViolations([]);
 
     try {
+      const storeState = useStore.getState();
+      const activeSet = storeState.playSets[storeState.activePlaySetIndex];
+
+      // GLOBAL POLICY CHECK
+      let hasViolations = false;
+      let violations: string[] = [];
+      if (activeCategory?.requires_target_mod && targetModId) {
+          const m = storeState.modList.find(ml => ml.id === targetModId);
+          if (m && m.compliance_tier >= 1 && m.compliance_tier <= 3) {
+              hasViolations = true;
+              violations.push(m.displayName || m.name);
+          }
+      }
+      if (activeCategory?.requires_target_mod && activeSet && activeSet.mods) {
+          activeSet.mods.forEach((modName: string) => {
+              const exactMatch = storeState.modList.find((ml: any) => ml.name === modName || ml.displayName === modName);
+              if (exactMatch && exactMatch.compliance_tier >= 1 && exactMatch.compliance_tier <= 3) {
+                  hasViolations = true;
+                  violations.push(exactMatch.displayName || exactMatch.name);
+                  return;
+              }
+              
+              const fallbackMatch = storeState.modList.find((ml: any) => {
+                 const mBase = ml.name?.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+                 const targetBase = modName.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+                 return mBase && targetBase && mBase === targetBase;
+              });
+              if (fallbackMatch && fallbackMatch.compliance_tier >= 1 && fallbackMatch.compliance_tier <= 3) {
+                  hasViolations = true;
+                  violations.push(fallbackMatch.displayName || fallbackMatch.name);
+              }
+          });
+      }
+
+      if (hasViolations && activeCategory?.requires_target_mod) {
+          invoke("write_os_log", { message: "Support ticket submitted with policy violations: " + violations.join(", "), level: "WARNING" }).catch(console.error);
+      }
+
+      let finalLogs = logs;
+
+      // Auto-collect telemetry logs
+      if (activeCategory?.telemetry_config?.sources) {
+        const modsPath = useStore.getState().modsPath;
+        const sourceIds = activeCategory.telemetry_config.sources;
+        const activeSources = telemetrySources.filter(s => sourceIds.includes(s.id) && !optedOutSources.includes(s.id));
+        
+        for (const source of activeSources) {
+          try {
+            if (source.type === 'OS') {
+                const sysInfo = await invoke<string>("get_system_info");
+                const storeState = useStore.getState();
+                const activeSet = storeState.playSets[storeState.activePlaySetIndex];
+
+                const netUpdates = storeState.networkUpdates;
+                const totalUpdates = (netUpdates?.broken?.length || 0) + (netUpdates?.obsolete?.length || 0) + (netUpdates?.updated?.length || 0);
+                
+                const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nUser Agent: ${navigator.userAgent}\nMods Path: ${storeState.modsPath}\nActive Blueprint: ${activeSet?.name || "None"}\nActive Mods: ${activeSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toISOString()}\nDiagnostic Bundle Version: 1.0.0\n`;
+                finalLogs += `\n--- TELEMETRY: ${source.label} (OS) ---\n` + sysInfo + diagnostics + "\n";
+
+                if (activeSet) {
+                    const bpPayload = JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2);
+                    finalLogs += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
+                }
+
+                const systemLogHistory = storeState.statusLog.map(entry => {
+                    return `[${new Date(entry.timestamp).toISOString()}] [${entry.type.toUpperCase()}] ${entry.message}`;
+                }).join('\n');
+                finalLogs += `\n--- TELEMETRY: System Log History ---\n${systemLogHistory || "No system logs available."}\n`;
+            } else {
+                // Very basic path resolution, replacing %MODS_DIR%
+                const docDirMatch = modsPath.match(/(.*)[\\/]+mods[\\/]*$/i);
+                const docDir = docDirMatch ? docDirMatch[1] : modsPath;
+                let searchPath = source.search_path.replace('%MODS_DIR%', modsPath).replace('%DOC_DIR%', docDir);
+                // Combine with file pattern
+                // To handle simple cases like %MODS_DIR%/MCCC/mc_lastexception.html
+                const isPatternIncludedInPath = source.file_pattern.includes('/');
+                let fullPath = searchPath;
+                if (!fullPath.endsWith('\\') && !fullPath.endsWith('/')) fullPath += '/';
+                fullPath += source.file_pattern;
+
+                // Fix slashes for windows vs unix if needed, though tauri fs handles both
+                const text = await readTextFile(fullPath);
+                if (text) {
+                   finalLogs += `\n--- TELEMETRY: ${source.label} ---\n` + text.substring(0, 10000) + "\n";
+                }
+            }
+          } catch (e) {
+            // File not found or couldn't read, skip silently
+          }
+        }
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error("Must be logged in to submit a ticket.");
+      }
+
+      // Ensure blueprint is always attached for ANY Bug Report if they have an active set and it wasn't already attached via OS Telemetry
+      if (activeSet && type.toLowerCase().includes('bug') && !finalLogs.includes('--- TELEMETRY: Attached Blueprint ---')) {
+          const bpPayload = JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2);
+          finalLogs += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
       }
 
       const { error } = await supabase.from('sanctuary_tickets').insert([{
@@ -69,20 +177,22 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
         description: description || "No description provided.",
         status: "open",
         metadata: {
-          target_mod_id: targetModId || null,
-          target_user_id: targetUserId || null,
-          logs: logs || null,
-          custom_fields: customFieldsData
+          target_mod_id: activeCategory?.requires_target_mod ? (targetModId || null) : null,
+          target_user_id: activeCategory?.requires_target_user ? (targetUserId || null) : null,
+          logs: finalLogs || null,
+          custom_fields: customFieldsData,
+          ...(hasViolations && activeCategory?.requires_target_mod ? { restricted_violations: [...new Set(violations)] } : {})
         }
       }]);
 
       if (error) throw error;
       
-      useStore.getState().pushStatus(t("sa_support_success") || "Ticket Submitted: Your request has been logged.", "success");
+      useStore.getState().pushStatus(t("sa_support_success") || "Reply sent successfully", "success");
       onClose();
     } catch (e: any) {
       setError(e.message);
       useStore.getState().pushStatus(e.message, "error");
+      invoke("write_os_log", { message: "Support ticket submission failed: " + e.message, level: "ERROR" }).catch(console.error);
     } finally {
       setIsSubmitting(false);
     }
@@ -107,28 +217,60 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("sa_support_title") || "Support & Reporting"}
-      subtitle={t("sa_support_subtitle") || "Submit a ticket to the Sanctuary team"}
-      icon={t("ui_icon_support") || "contact_support"}
+      title={t("sa_support_title") || "SUBMIT A TICKET"}
+      subtitle={t("sa_support_subtitle") || "SANCTUARY SUPPORT"}
+      icon={t("ui_icon_support") || "support_agent"}
       widthClass="w-[600px]"
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
       footer={
         <div className="flex justify-end gap-4">
           <button onClick={onClose} className={standardButtonClass}>
-            {t("shared_cancel") || "Cancel"}
+            {t("shared_cancel") || "CANCEL"}
           </button>
           <button onClick={submitTicket} disabled={isSubmitting} className={standardAccentGlassButtonClass}>
-            {isSubmitting ? "..." : t("sa_support_submit") || "Submit"}
+            {isSubmitting ? "..." : t("sa_support_submit") || "SUBMIT TICKET"}
           </button>
         </div>
       }
     >
       <div className="flex flex-col gap-6 relative">
-        {error && <div className="theme-bg-danger text-[var(--bg)] px-4 py-3 rounded-xl text-xs font-bold">{error}</div>}
+        {error && (
+            <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(244,63,94,0.15)] group mt-2">
+                <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
+                <div className="flex items-start gap-4 p-5 relative z-10">
+                    <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center shrink-0 border border-rose-500/30 text-rose-400">
+                        <span className="material-symbols-outlined !text-[20px]">warning</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
+                        <span className="text-sm font-black text-rose-400 tracking-wide">{t("sa_support_err_failed") || "SUBMISSION FAILED"}</span>
+                        <span className="text-xs font-bold text-rose-200/80 leading-relaxed pr-4">{error}</span>
+                    </div>
+                    <button 
+                      onClick={() => { setError(""); setPolicyViolations([]); }} 
+                      className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/20 transition-all shrink-0"
+                    >
+                      <span className="material-symbols-outlined !text-[18px]">close</span>
+                    </button>
+                </div>
+                {policyViolations.length > 0 && (
+                    <div className="bg-black/30 p-4 border-t border-rose-500/20 flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
+                        <span className="text-[9px] font-black tracking-widest text-rose-400/80 uppercase">RESTRICTED ARTIFACTS DETECTED:</span>
+                        <div className="flex flex-col gap-2">
+                            {policyViolations.map((mod, i) => (
+                                <div key={i} className="flex items-center gap-2 text-rose-200/90 text-[10px] font-mono bg-rose-500/10 py-1.5 px-3 rounded-md border border-rose-500/20">
+                                    <span className="material-symbols-outlined !text-[12px] opacity-70">extension</span>
+                                    <span className="truncate">{mod.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '').replace(/[-_]/g, ' ') || mod.replace(/[-_]/g, ' ')}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        )}
 
           <div className="flex flex-col gap-2 relative z-[70]">
-            <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_support_category") || "Category"}</label>
+            <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_support_category") || "TICKET CATEGORY"}</label>
             <CustomDropdown disableTint={true}  
               value={type}
               options={categories.map(c => ({ id: c.category_code, label: c.category_name }))}
@@ -138,13 +280,13 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
 
           {String(activeCategory?.show_title_box) !== "false" && (
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_support_ticket_title") || "Title"}</label>
+              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_support_ticket_title") || "Support Queue"}</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                placeholder={t("sa_support_placeholder_title") || "Brief summary..."}
+                placeholder={t("sa_support_placeholder_title") || "Enter a concise title..."}
               />
             </div>
           )}
@@ -178,13 +320,13 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
           {String(activeCategory?.show_description_box) !== "false" && (
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex justify-between">
-                <span>{t("sa_support_desc") || "Description"}</span>
+                <span>{t("sa_support_desc") || "TICKET DESCRIPTION"}</span>
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all h-32 resize-none custom-scrollbar"
-                placeholder={t("sa_support_placeholder_desc") || "Provide detailed information..."}
+                placeholder={t("sa_support_placeholder_desc") || "Describe your issue in detail..."}
               />
             </div>
           )}
@@ -241,9 +383,9 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
                       : currentValue === opt;
 
                     return (
-                      <label key={opt} className={`flex items-center gap-3 cursor-pointer group theme-glass-inner rounded-xl px-4 py-3 transition-all border ${isChecked ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-transparent hover:border-white/10'}`}>
-                         <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all shrink-0 ${isChecked ? 'theme-bg-accent border-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.5)]' : 'bg-black/40 border-white/10 group-hover:border-white/30'}`}>
-                           {isChecked && <span className="material-symbols-outlined !text-[14px] text-[var(--bg)] font-black">check</span>}
+                      <label key={opt} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl ${isChecked ? 'theme-glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'theme-glass-inner border-white/5 hover:border-white/10 hover:bg-white/5'}`}>
+                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner ${isChecked ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-white/10 group-hover:border-white/30 group-hover:bg-black/30'}`}>
+                           {isChecked && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("ui_icon_check") || "check"}</span>}
                          </div>
                          <span className={`text-sm font-bold transition-colors ${isChecked ? 'text-[var(--text)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>{opt}</span>
                          <input
@@ -273,19 +415,55 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
             </div>
           ))}
 
+          {activeCategory?.telemetry_config?.sources && activeCategory.telemetry_config.sources.length > 0 && (
+             <div className="flex flex-col gap-2 relative z-[50]">
+               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_support_telemetry_opt") || "AUTOMATIC DIAGNOSTICS"}</label>
+               <div className="flex flex-col gap-2">
+                 {activeCategory.telemetry_config.sources.map((sourceId: string) => {
+                   const source = telemetrySources.find(s => s.id === sourceId);
+                   if (!source) return null;
+                   const isOptedOut = optedOutSources.includes(sourceId);
+                   return (
+                      <label key={sourceId} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl ${!isOptedOut ? 'theme-glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'theme-glass-inner border-white/5 hover:border-white/10 hover:bg-white/5'}`}>
+                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner ${!isOptedOut ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-white/10 group-hover:border-white/30 group-hover:bg-black/30'}`}>
+                           {!isOptedOut && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("ui_icon_check") || "check"}</span>}
+                         </div>
+                         <div className="flex flex-col">
+                           <span className={`text-sm font-bold transition-colors ${!isOptedOut ? 'text-[var(--text)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>{source.label}</span>
+                           <span className="text-[10px] font-bold opacity-50">{source.description || source.file_pattern}</span>
+                         </div>
+                         <input
+                           type="checkbox"
+                           className="hidden"
+                           checked={!isOptedOut}
+                           onChange={(e) => {
+                             if (e.target.checked) {
+                               setOptedOutSources(prev => prev.filter(id => id !== sourceId));
+                             } else {
+                               setOptedOutSources(prev => [...prev, sourceId]);
+                             }
+                           }}
+                         />
+                      </label>
+                   )
+                 })}
+               </div>
+             </div>
+          )}
+
           {String(activeCategory?.show_logs_box) !== "false" && (
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex justify-between items-center">
-                <span>{t("sa_support_logs") || "Logs (Optional)"}</span>
+                <span>{t("sa_support_logs") || "ATTACH SYSTEM LOGS"}</span>
                 <button onClick={attachLog} className="text-[var(--accent)] hover:opacity-80 transition-opacity flex items-center gap-1">
-                  <span>+ {t("sa_support_attach_log") || "Attach File"}</span>
+                  <span>+ {t("sa_support_attach_log") || "ATTACH LOG"}</span>
                 </button>
               </label>
               <textarea
                 value={logs}
                 onChange={(e) => setLogs(e.target.value)}
                 className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-[10px] font-mono focus:outline-none focus:theme-border-accent transition-all h-24 resize-none custom-scrollbar whitespace-pre-wrap"
-                placeholder={t("sa_support_placeholder_logs") || "Paste logs or use attach button..."}
+                placeholder={t("sa_support_placeholder_logs") || "No logs attached."}
               />
             </div>
           )}

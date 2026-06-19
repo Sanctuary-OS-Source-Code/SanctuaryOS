@@ -61,7 +61,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
 
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
-            <span className="text-xs font-black uppercase tracking-widest text-[var(--subtext)] animate-pulse">{t("loading") || "LOADING..."}</span>
+            <span className="text-xs font-black uppercase tracking-widest text-[var(--subtext)] animate-pulse">{t("loading") || "Loading"}</span>
           </div>
         ) : error ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 p-10">
@@ -85,12 +85,12 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                   {(data.displayName || (data.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.package$|\.ts4script$/i, '')}
                 </h3>
                 <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-2">
-                  {data.version_label || data.version || t("dossier_vlocal")} &bull; {data.author || data.master_author || t("dossier_unknown")}
+                  {data.version_label || data.version || t("dossier_vlocal") || "V.LOCAL"} &bull; {data.author || data.master_author || t("dossier_unknown") || "UNKNOWN"}
                 </p>
               </div>
               <div className="p-10 flex flex-col gap-6 shrink-0 relative z-10">
                 <div className="text-sm text-[var(--text)] leading-relaxed font-medium theme-glass-inner p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                  {data.description ? stripMarkdown(data.description) : t("dossier_no_desc_sub") || "No Description Provided"}
+                  {data.description ? stripMarkdown(data.description) : t("dossier_no_desc_sub") || "No specific local description provided for this sub-artifact."}
                 </div>
               </div>
             </>
@@ -101,11 +101,11 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                   onClick={(e) => {
                     e.stopPropagation();
                     navigator.clipboard.writeText(data.json_data?.code || '').catch(() => {});
-                    alert("Copied Uplink Code: " + (data.json_data?.code || ''));
+                    useStore.getState().pushStatus("Copied Uplink Code: " + (data.json_data?.code || ''));
                   }}
                   className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all hover:scale-[1.02] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
                 >
-                  {t("market_btn_download_install") || "DOWNLOAD"}
+                  {t("market_btn_download_install") || "Download & Install"}
                 </button>
               ) : assetType === 'lexicon' || assetType === 'chameleon' ? (
                 <button 
@@ -114,16 +114,16 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                     if (assetType === 'lexicon') {
                        const parsedData = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
                        importLexicon({ ...parsedData, _meta_language: data.language || "Custom" }, data.name);
-                       alert(`Successfully Installed Lexicon: ${data.name}`);
+                       useStore.getState().pushStatus(`Successfully Installed Lexicon: ${data.name}`);
                     } else if (assetType === 'chameleon') {
                        importTheme(data.json_data);
-                       alert(`Successfully Installed Chameleon: ${data.name}`);
+                       useStore.getState().pushStatus(`Successfully Installed Chameleon: ${data.name}`);
                     }
                     await supabase.rpc('increment_asset_downloads', { asset_id: data.id });
                   }}
                   className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all hover:scale-[1.02] ${isInstalled(data) ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}
                 >
-                  {isInstalled(data) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "DOWNLOAD")}
+                  {isInstalled(data) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "Download & Install")}
                 </button>
               ) : null}
 

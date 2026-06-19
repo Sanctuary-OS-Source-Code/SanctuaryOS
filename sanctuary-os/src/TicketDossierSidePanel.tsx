@@ -4,7 +4,7 @@ import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
 import { SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass } from "./shared";
 import MarkdownRenderer from "./MarkdownRenderer";
-import CodeSnippetSidebar from "./CodeSnippetSidebar";
+import TicketLogViewer from "./TicketLogViewer";
 
 interface TicketDossierProps {
   isOpen: boolean;
@@ -35,7 +35,6 @@ export default function TicketDossierSidePanel({
   const [authorName, setAuthorName] = useState("LOADING...");
   const [replies, setReplies] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeLogSnippet, setActiveLogSnippet] = useState<string | null>(null);
   const [fetchedTargetModName, setFetchedTargetModName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,12 +47,12 @@ export default function TicketDossierSidePanel({
     const fetchName = async () => {
       try {
         if (isUUID) {
-          const { data } = await supabase.from('mods').select('name').eq('id', targetModId).single();
+          const { data } = await supabase.from('mods').select("name").eq('id', targetModId).single();
           if (data) setFetchedTargetModName(data.name);
         } else {
-          const { data: verData } = await supabase.from('mod_versions').select('mod_id').eq('dna_hash', targetModId).maybeSingle();
+          const { data: verData } = await supabase.from('mod_versions').select("mod_id").eq('dna_hash', targetModId).maybeSingle();
           if (verData?.mod_id) {
-            const { data: modData } = await supabase.from('mods').select('name').eq('id', verData.mod_id).single();
+            const { data: modData } = await supabase.from('mods').select("name").eq('id', verData.mod_id).single();
             if (modData) setFetchedTargetModName(modData.name);
           }
         }
@@ -70,7 +69,7 @@ export default function TicketDossierSidePanel({
         if (data) {
            setAuthorName(data.username || ticket.author_id.substring(0,8).toUpperCase());
         } else {
-           supabase.from('masons').select('name').eq('id', ticket.author_id).single().then(({data: mData}) => {
+           supabase.from('masons').select("name").eq('id', ticket.author_id).single().then(({data: mData}) => {
                if (mData) setAuthorName(mData.name);
                else setAuthorName(ticket.author_id.substring(0,8).toUpperCase());
            });
@@ -134,7 +133,6 @@ export default function TicketDossierSidePanel({
   if (!isOpen || !ticket) return null;
 
   return (
-    <>
     <SidePanel 
       isOpen={isOpen} 
       onClose={onClose} 
@@ -149,7 +147,7 @@ export default function TicketDossierSidePanel({
                 disabled={!reason.trim() || isSubmitting}
                 className="h-10 px-6 rounded-full border border-rose-900/50 text-rose-500 text-[9px] font-black uppercase tracking-widest transition-all hover:bg-rose-500/10 hover:border-rose-500 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none"
               >
-                <span className="material-symbols-outlined !text-[14px]">cancel</span> {t("ticket_dossier_btn_reject") || "REJECT"}
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_cancel") || "cancel"}</span> {t("ticket_dossier_btn_reject") || "Reject"}
               </button>
             )}
             {availableActions.includes("ESCALATED") && (
@@ -158,7 +156,7 @@ export default function TicketDossierSidePanel({
                 disabled={!reason.trim() || isSubmitting}
                 className="h-10 px-6 rounded-full border border-white/10 text-[var(--text)] text-[9px] font-black uppercase tracking-widest transition-all hover:bg-white/5 hover:border-white/20 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none"
               >
-                <span className="material-symbols-outlined !text-[14px]">warning</span> {t("ticket_dossier_btn_escalate") || "ESCALATE"}
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_warning") || "warning_amber"}</span> {t("ticket_dossier_btn_escalate") || "Escalate"}
               </button>
             )}
             {availableActions.includes("PENDING" as any) && (
@@ -167,7 +165,7 @@ export default function TicketDossierSidePanel({
                 disabled={!reason.trim() || isSubmitting}
                 className="h-10 px-6 rounded-full border border-white/10 text-[var(--text)] text-[9px] font-black uppercase tracking-widest transition-all hover:bg-white/5 hover:border-white/20 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none"
               >
-                <span className="material-symbols-outlined !text-[14px]">hourglass_empty</span> SET PENDING
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_hourglass_empty") || "hourglass_empty"}</span> {t("ticket_action_set_pending") || "Set to Pending"}
               </button>
             )}
             {availableActions.includes("RESOLVED") && (
@@ -176,7 +174,7 @@ export default function TicketDossierSidePanel({
                 disabled={!reason.trim() || isSubmitting}
                 className="h-10 px-6 rounded-full border border-emerald-900/50 text-emerald-500 text-[9px] font-black uppercase tracking-widest transition-all hover:bg-emerald-500/10 hover:border-emerald-500 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none"
               >
-                <span className="material-symbols-outlined !text-[14px]">check_circle</span> {t("ticket_dossier_btn_resolve") || "RESOLVE"}
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check_circle") || "check_circle"}</span> {t("ticket_dossier_btn_resolve") || "Resolve"}
               </button>
             )}
           </div>
@@ -187,6 +185,24 @@ export default function TicketDossierSidePanel({
         <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest">
           {ticket.title}
         </h2>
+
+        {ticket.metadata?.restricted_violations && ticket.metadata.restricted_violations.length > 0 && (
+            <div className="bg-rose-500/10 border border-rose-500/30 p-5 rounded-2xl flex flex-col gap-3 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
+                <div className="flex items-center gap-3 relative z-10">
+                    <span className="material-symbols-outlined !text-[20px] text-rose-500">warning</span>
+                    <span className="text-rose-400 font-black text-[10px] tracking-widest uppercase">{t("ticket_dossier_restricted_detected") || "RESTRICTED ARTIFACTS DETECTED IN BLUEPRINT"}</span>
+                </div>
+                <div className="flex flex-wrap gap-2 relative z-10">
+                    {ticket.metadata.restricted_violations.map((v: string, i: number) => (
+                        <div key={i} className="flex items-center gap-2 text-rose-200/90 text-[10px] font-mono bg-rose-500/10 py-1.5 px-3 rounded-md border border-rose-500/20">
+                            <span className="material-symbols-outlined !text-[12px] opacity-70">extension</span>
+                            <span>{v.replace(/[-_]/g, ' ')}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
         
         <div className="flex flex-col gap-5 pb-8 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <div className="flex justify-between items-center">
@@ -233,7 +249,7 @@ export default function TicketDossierSidePanel({
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all active:scale-95 max-w-[250px] shrink-0"
                   >
                     <span className="text-[10px] font-mono font-bold truncate">{ticket.target_mod_name || fetchedTargetModName || ticket.target_mod_id || ticket.metadata?.target_mod_id}</span>
-                    <span className="material-symbols-outlined !text-[14px] shrink-0">open_in_new</span>
+                    <span className="material-symbols-outlined !text-[14px] shrink-0">{t("ui_icon_open_in_new") || "open_in_new"}</span>
                   </button>
                 ) : (
                   <span className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] max-w-[250px] shrink-0">
@@ -263,26 +279,12 @@ export default function TicketDossierSidePanel({
           </div>
         </div>
 
-        {ticket.metadata?.logs && ticket.metadata.logs !== "null" && ticket.metadata.logs.trim() !== "" && (
+          {ticket.metadata?.logs && ticket.metadata.logs !== "null" && ticket.metadata.logs.trim() !== "" && (
             <div className="flex flex-col gap-3 mt-4">
               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_terminal") || "terminal"}</span> {t("ticket_dossier_attached_logs") || "Attached Logs"}
               </label>
-              <button 
-                onClick={() => setActiveLogSnippet(ticket.metadata.logs)}
-                className="w-full flex items-center justify-between px-5 py-4 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center text-[var(--accent)]">
-                    <span className="material-symbols-outlined !text-[20px]">data_object</span>
-                  </div>
-                  <div className="flex flex-col text-left">
-                    <span className="text-sm font-black text-[var(--text)] uppercase tracking-widest">{t("view_attached_logs") || "VIEW ATTACHED LOGS"}</span>
-                    <span className="text-[9px] uppercase font-bold tracking-widest opacity-50">{t("click_to_expand") || "CLICK TO EXPAND SNIPPET"}</span>
-                  </div>
-                </div>
-                <span className="material-symbols-outlined text-[var(--accent)] group-hover:translate-x-1 transition-transform">arrow_forward</span>
-              </button>
+              <TicketLogViewer logs={ticket.metadata.logs} />
             </div>
           )}
 
@@ -312,7 +314,7 @@ export default function TicketDossierSidePanel({
                           {r.author}
                         </span>
                         <span className="text-[9px] font-bold opacity-50 text-[var(--text)] uppercase tracking-wider">
-                          {r.time ? new Date(r.time).toLocaleString() : t("ticket_dossier_unknown_date") || "UNKNOWN DATE"}
+                          {r.time ? new Date(r.time).toLocaleString() : t("ticket_dossier_unknown_date") || "Unknown Date"}
                         </span>
                       </div>
                     </div>
@@ -366,9 +368,5 @@ export default function TicketDossierSidePanel({
         )}
       </div>
     </SidePanel>
-    {activeLogSnippet && (
-      <CodeSnippetSidebar widthClass="w-[40vw] max-w-xl" code={activeLogSnippet} onClose={() => setActiveLogSnippet(null)} />
-    )}
-    </>
   );
 }

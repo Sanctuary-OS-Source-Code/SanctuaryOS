@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass } from "./shared";
+import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass } from "./shared";
 import { logArchitectAction } from "./lib/audit";
 
 const fetchAllPaginated = async (queryFn: () => any) => { 
@@ -101,6 +101,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
   const [deleteReason, setDeleteReason] = useState("");
   const [confirmingApprove, setConfirmingApprove] = useState<string | null>(null);
   const [confirmingReject, setConfirmingReject] = useState<string | null>(null);
+  const [updateReason, setUpdateReason] = useState("");
 
   const fetchMods = async () => {
     const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author, latest_version, url').order('name'));
@@ -119,20 +120,21 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
     fetchMods();
   }, []);
 
-  const handleAddGhost = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddGhost = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!modA || !modB) return;
     if (editConflictId) {
+      if (!updateReason.trim()) return;
       const { error } = await supabase.from('logical_conflicts').update({ mod_a_id: modA.id, mod_b_id: modB.id, severity_rank: severity, resolution_note: note, status: 'approved' }).eq('id', editConflictId);
       if (!error) { 
-          logArchitectAction("Updated Global Conflict Rule", "logical_conflicts", editConflictId);
-          setModA(null); setModB(null); setNote(""); setIsSidePanelOpen(false); setEditConflictId(null); fetchGhosts(); 
+          logArchitectAction("Updated Global Conflict Rule", "logical_conflicts", editConflictId, updateReason);
+          setModA(null); setModB(null); setNote(""); setIsSidePanelOpen(false); setEditConflictId(null); setUpdateReason(""); fetchGhosts(); 
       }
     } else {
       const { error } = await supabase.from('logical_conflicts').insert([{ mod_a_id: modA.id, mod_b_id: modB.id, severity_rank: severity, resolution_note: note, status: 'approved' }]);
       if (!error) { 
           logArchitectAction("Created Global Conflict Rule", "logical_conflicts", "T"+severity);
-          setModA(null); setModB(null); setNote(""); setIsSidePanelOpen(false); fetchGhosts(); 
+          setModA(null); setModB(null); setNote(""); setIsSidePanelOpen(false); setUpdateReason(""); fetchGhosts(); 
       }
     }
   };
@@ -147,6 +149,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
     setEditConflictId(g.id);
     setIsDeleting(false);
     setDeleteReason("");
+    setUpdateReason("");
     setIsSidePanelOpen(true);
   };
 
@@ -161,15 +164,22 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
   const handleDeleteGhost = async (id: string, reason?: string) => {
     const { error } = await supabase.from('logical_conflicts').delete().eq('id', id);
     if (!error) {
-        if(reason) logArchitectAction(`Deleted Global Conflict Rule - Reason: ${reason}`, "logical_conflicts", id);
+        if(reason) logArchitectAction("Deleted Global Conflict Rule", "logical_conflicts", id, reason);
         else logArchitectAction("Deleted Pending Conflict Rule", "logical_conflicts", id);
         fetchGhosts();
     }
   };
 
   const handleConfirmSidePanelDelete = async () => {
-      if (!editConflictId || !deleteReason.trim()) return;
+      if (!editConflictId) return;
       await handleDeleteGhost(editConflictId, deleteReason);
+      setIsSidePanelOpen(false);
+      setEditConflictId(null);
+  };
+
+  const handleConfirmSidePanelApprove = async () => {
+      if (!editConflictId) return;
+      await handleApproveGhost(editConflictId);
       setIsSidePanelOpen(false);
       setEditConflictId(null);
   };
@@ -286,29 +296,6 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                        <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameB}</span>
                     </div>
                   </div>
-                
-                  {/* Footer Actions */}
-                  <div className="pt-2 flex gap-2 relative z-10 border-t border-white/5 mt-auto">
-                     {confirmingApprove === g.id ? (
-                        <button onClick={(e) => { e.stopPropagation(); handleApproveGhost(g.id); setConfirmingApprove(null); }} className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--success)] bg-[var(--success)]/20 border border-[var(--success)]/50 hover:bg-[var(--success)]/30 backdrop-blur-md transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.3)] uppercase tracking-widest flex items-center justify-center gap-2 animate-in fade-in zoom-in duration-300">
-                          {t("ui_confirm_approve") || "CONFIRM APPROVE"}
-                        </button>
-                     ) : (
-                        <button onClick={(e) => { e.stopPropagation(); setConfirmingApprove(g.id); setConfirmingReject(null); }} className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--success)] border border-[var(--success)]/30 bg-[var(--success)]/10 hover:bg-[var(--success)]/20 hover:border-[var(--success)]/50 backdrop-blur-md transition-all shadow-sm uppercase tracking-widest flex items-center justify-center gap-2">
-                          <span className="material-symbols-outlined !text-[14px]">check</span> {t("matrix_btn_approve") || "APPROVE"}
-                        </button>
-                     )}
-                     
-                     {confirmingReject === g.id ? (
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteGhost(g.id); setConfirmingReject(null); }} className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--danger)] bg-[var(--danger)]/20 border border-[var(--danger)]/50 hover:bg-[var(--danger)]/30 backdrop-blur-md transition-all shadow-[0_0_20px_rgba(var(--danger-rgb),0.3)] uppercase tracking-widest flex items-center justify-center gap-2 animate-in fade-in zoom-in duration-300">
-                          {t("ui_confirm_reject") || "CONFIRM REJECT"}
-                        </button>
-                     ) : (
-                        <button onClick={(e) => { e.stopPropagation(); setConfirmingReject(g.id); setConfirmingApprove(null); }} className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--danger)] border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 hover:border-[var(--danger)]/50 backdrop-blur-md transition-all shadow-sm uppercase tracking-widest flex items-center justify-center gap-2">
-                          <span className="material-symbols-outlined !text-[14px]">close</span> {t("matrix_btn_reject") || "REJECT"}
-                        </button>
-                     )}
-                  </div>
                 </div>
               );
               })}
@@ -384,13 +371,6 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                        <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameB}</span>
                     </div>
                   </div>
-                
-                  {/* Footer */}
-                  <div className="pt-2 flex gap-2 relative z-10 border-t border-white/5 mt-auto">
-                     <button className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--accent)] border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 hover:border-[var(--accent)]/50 backdrop-blur-md transition-all shadow-sm uppercase tracking-widest flex items-center justify-center gap-2">
-                        <span className="material-symbols-outlined !text-[14px]">visibility</span> {t("matrix_btn_view") || "VIEW DIRECTIVE"}
-                     </button>
-                  </div>
                 </div>
               );
               })
@@ -409,13 +389,51 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
             title={editConflictId ? (t("nexus_edit_side_panel") || "EDIT DIRECTIVE") : (t("nexus_forge_title") || "FORGE NEW DIRECTIVE")}
             icon="security"
             footer={
-               editConflictId && !isDeleting ? (
-                  <div className="flex justify-end gap-4 w-full">
-                      <button type="button" onClick={() => setIsDeleting(true)} className={standardDangerButtonClass}>
-                          {t("nexus_purge") || "DELETE"}
-                      </button>
-                  </div>
-               ) : null
+              <div className="flex flex-col gap-4 w-full">
+                {isDeleting ? (
+                    <div className="flex flex-col gap-4 p-5 bg-[var(--danger)]/10 rounded-3xl border border-[var(--danger)]/30 backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
+                      <span className="text-sm font-black text-[var(--danger)] uppercase tracking-widest text-center">{t("ui_confirm_delete") || "ARE YOU SURE?"}</span>
+                      <input 
+                         value={deleteReason} 
+                         onChange={e => setDeleteReason(e.target.value)} 
+                         placeholder={t("matrix_delete_reason_ph") || "Enter mandatory reason for deletion..."}
+                         className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--danger)]/50 transition-all text-[var(--text)] placeholder:opacity-40 border border-[var(--danger)]/20"
+                      />
+                      <div className="flex gap-3">
+                        <button type="button" onClick={handleConfirmSidePanelDelete} className="flex-1 py-3 bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/50 rounded-xl uppercase font-black text-[10px] tracking-widest hover:bg-[var(--danger)] hover:text-white transition-all disabled:opacity-50 disabled:pointer-events-none">{t("matrix_btn_confirm_delete") || "CONFIRM DELETE"}</button>
+                        <button type="button" onClick={() => { setIsDeleting(false); setDeleteReason(""); }} className="flex-1 py-3 bg-white/5 text-[var(--text)] rounded-xl uppercase font-black text-[10px] tracking-widest border border-white/10 hover:bg-white/10 transition-all">{t("ui_btn_cancel") || "CANCEL"}</button>
+                      </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-4 w-full">
+                       {editConflictId && editingGhost?.status !== 'pending' && (
+                           <input 
+                              value={updateReason}
+                              onChange={e => setUpdateReason(e.target.value)}
+                              placeholder={t("matrix_update_reason_ph") || "Enter mandatory reason for update..."}
+                              className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] placeholder:opacity-40 border border-[var(--accent)]/20"
+                           />
+                       )}
+                       <div className="flex justify-center items-center gap-4 mt-2 w-full">
+                           {editConflictId && (
+                               <button type="button" onClick={() => setIsDeleting(true)} className={standardDangerButtonClass}>
+                                   {editingGhost?.status === 'pending' ? (t("matrix_btn_reject") || "DISCARD") : (t("nexus_purge") || "DELETE")}
+                               </button>
+                           )}
+                           {editingGhost?.status !== 'pending' && (
+                               <button type="button" onClick={() => handleAddGhost()} disabled={!modA || !modB || (!!editConflictId && !updateReason.trim())} className={standardAccentGlassButtonClass}>
+                                 {editConflictId ? (t("architect_update_conflict") || "SAVE DIRECTIVE") : (t("nexus_inject") || "INJECT DIRECTIVE")}
+                               </button>
+                           )}
+                           {editingGhost?.status === 'pending' && (
+                              <button type="button" onClick={() => handleConfirmSidePanelApprove()} className={standardSuccessButtonClass}>
+                                 {t("matrix_btn_approve") || "APPROVE & BIND"}
+                              </button>
+                           )}
+                       </div>
+                    </div>
+                )}
+              </div>
             }
             noPadding={true}
             noScroll={true}
@@ -469,33 +487,11 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 w-full p-5 rounded-[2rem] bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner relative z-10 transition-all hover:border-white/20">
+              <div className="flex flex-col gap-3 w-full p-5 rounded-[2rem] bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner relative z-10 transition-all hover:border-white/20 mb-8">
                 <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest ml-1 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_edit_note") || "edit_note"}</span> {t("nexus_resolution") || "RESOLUTION DIRECTIVE"}</label>
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("nexus_resolution")} className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent resize-none custom-scrollbar shadow-inner" />
               </div>
 
-              <div className="flex flex-col gap-4 pt-6 mt-2 border-t border-white/10">
-                {isDeleting ? (
-                    <div className="flex flex-col gap-4 p-5 bg-[var(--danger)]/10 rounded-3xl border border-[var(--danger)]/30 backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
-                      <span className="text-sm font-black text-[var(--danger)] uppercase tracking-widest text-center">{t("ui_confirm_delete") || "ARE YOU SURE?"}</span>
-                      <input 
-                         value={deleteReason} 
-                         onChange={e => setDeleteReason(e.target.value)} 
-                         placeholder={t("matrix_delete_reason_ph") || "Enter mandatory reason for deletion..."}
-                         className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--danger)]/50 transition-all text-[var(--text)] placeholder:opacity-40 border border-[var(--danger)]/20"
-                      />
-                      <div className="flex gap-3">
-                        <button type="button" disabled={!deleteReason.trim()} onClick={handleConfirmSidePanelDelete} className="flex-1 py-3 bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/50 rounded-xl uppercase font-black text-[10px] tracking-widest hover:bg-[var(--danger)] hover:text-white transition-all disabled:opacity-50 disabled:pointer-events-none">{t("matrix_btn_confirm_delete") || "CONFIRM DELETE"}</button>
-                        <button type="button" onClick={() => { setIsDeleting(false); setDeleteReason(""); }} className="flex-1 py-3 bg-white/5 text-[var(--text)] rounded-xl uppercase font-black text-[10px] tracking-widest border border-white/10 hover:bg-white/10 transition-all">{t("ui_btn_cancel") || "CANCEL"}</button>
-                      </div>
-                    </div>
-                ) : (
-                    <button type="submit" disabled={!modA || !modB} className={standardAccentGlassButtonClass + " !w-full disabled:bg-transparent"}>
-                      <span className="material-symbols-outlined !text-[16px]">{editConflictId ? "save" : "add"}</span>
-                      {editConflictId ? (t("architect_update_conflict") || "SAVE DIRECTIVE") : (t("nexus_inject") || "INJECT DIRECTIVE INTO CLOUD")}
-                    </button>
-                )}
-              </div>
             </form>
           </div>
         </div>

@@ -41,9 +41,9 @@ export default function SystemBroadcastsFeed({ audience, noCardWrapper, gridCols
   const feedContent = (
     <div className={`grid ${gridCols || 'grid-cols-1 md:grid-cols-2'} gap-6 flex-1 overflow-y-auto custom-scrollbar pr-2 pb-4`}>
       {loading ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
+        <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading") || "Loading"}</div>
       ) : posts.length === 0 ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest col-span-2">{t("system_no_broadcasts") || "NO RECENT BROADCASTS"}</div>
+        <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest col-span-2">{t("system_no_broadcasts") || "No Recent Broadcasts"}</div>
       ) : (
         posts.map((p, index) => {
           const isFeatured = index === 0 && posts.length !== 2;

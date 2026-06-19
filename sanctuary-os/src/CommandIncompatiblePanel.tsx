@@ -17,10 +17,10 @@ export default function CommandIncompatiblePanel({
       let reason = null;
 
       if ((typeof mod.status === 'string' && mod.status.toLowerCase() === 'broken') || mod.compliance_tier === 3 || mod.compliance_tier === 4) {
-        reason = t("bp_status_broken_noncompliant") || "BROKEN / NON-COMPLIANT";
+        reason = t("bp_status_broken_noncompliant") || "Status: Broken / Non-Compliant";
       } else {
         if (mod.compatible_versions && selectedVersion && !isVersionMatch(mod.compatible_versions, selectedVersion)) {
-           reason = t("bp_status_version_mismatch");
+           reason = t("bp_status_version_mismatch") || "Game Version Incompatibility Detected";
         } else if (mod.requiredDLC) {
            let rawDLC: string[] = [];
            if (typeof mod.requiredDLC === 'string') {
@@ -36,7 +36,7 @@ export default function CommandIncompatiblePanel({
            });
            if (missing.length > 0) {
               const missingNames = missing.map((m: string) => mapDlcCode(m)).join(", ");
-              reason = `${t("bp_status_missing_dlc")}${missingNames}`;
+              reason = `${t("bp_status_missing_dlc") || "Missing Required Expansion Protocol(s):"}${missingNames}`;
            }
         }
         
@@ -71,24 +71,24 @@ export default function CommandIncompatiblePanel({
       isOpen={isOpen}
       onClose={onClose}
       title={t("cmd_citizen_action_incompatible") || "INCOMPATIBLE"}
-      subtitle={t("cmd_incompatible_broken") || "Incompatible / Broken"}
-      icon={t("ui_icon_warning") || "warning"}
+      subtitle={t("cmd_incompatible_broken") || "BROKEN ARTIFACTS"}
+      icon={t("ui_icon_warning") || "warning_amber"}
       iconColorClass="text-amber-500"
       widthClass="w-[525px]"
     >
       <div className="flex-1 min-h-0 flex flex-col gap-6 w-full">
         <div className="px-2 py-2 shrink-0 flex flex-col gap-4 mt-2 relative">
           <div className="flex items-center justify-between w-full relative z-10">
-            <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("cmd_incompatible_broken")}</h3>
+            <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("cmd_incompatible_broken") || "BROKEN ARTIFACTS"}</h3>
             {brokenMods.length > 0 ? (
               <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                {brokenMods.length} {t("modcard_artifacts")}
+                {brokenMods.length} {t("modcard_artifacts") || "Artifacts"}
               </span>
             ) : (
               <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
-                0 {t("modcard_artifacts")}
+                0 {t("modcard_artifacts") || "Artifacts"}
               </span>
             )}
           </div>
@@ -98,7 +98,7 @@ export default function CommandIncompatiblePanel({
                brokenMods.forEach((m: any) => toggleInActiveSet && toggleInActiveSet(m._originalSetName || m.name, true, true));
              }} className={`w-full py-3 rounded-xl bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 border border-amber-500/50 hover:border-amber-500 text-[10px] font-black uppercase tracking-widest relative z-10 shrink-0 flex items-center justify-center gap-2 transition-all active:scale-95`}>
                <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete_sweep") || "delete_sweep"}</span>
-               {t("bp_purge_compromised")?.replace("{0}", String(brokenMods.length)) || `YEET ${brokenMods.length} ARTIFACTS`}
+               {(t("bp_purge_compromised") || "Yeet {0} Artifacts").replace("{0}", String(brokenMods.length))}
              </button>
           )}
         </div>
@@ -106,8 +106,8 @@ export default function CommandIncompatiblePanel({
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col gap-6">
           {brokenMods.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4 py-12">
-              <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_shield") || "shield"}</span>
-              <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("cmd_optimal") || "All systems are fully optimal"}</p>
+              <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_shield") || "security"}</span>
+              <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("cmd_optimal") || "RADAR SWEEP COMPLETE"}</p>
             </div>
           ) : (
             brokenMods.map((mod: any) => {
@@ -125,7 +125,7 @@ export default function CommandIncompatiblePanel({
                     <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${
                       isIgnored ? 'border-white/10 bg-black/50' : 'border-amber-500/50 bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.2)]'
                     }`}>
-                      <span className={`material-symbols-outlined !text-[24px] ${isIgnored ? 'text-[var(--text)] opacity-30' : 'text-amber-400'}`}>warning</span>
+                      <span className={`material-symbols-outlined !text-[24px] ${isIgnored ? 'text-[var(--text)] opacity-30' : 'text-amber-400'}`}>{t("ui_icon_warning") || "warning_amber"}</span>
                     </div>
                     
                     <div className="flex-1 min-w-0">
@@ -147,7 +147,7 @@ export default function CommandIncompatiblePanel({
                           }}
                           className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 shrink-0 ml-4"
                         >
-                          {isIgnored ? t("bp_restore_alert") : t("bp_ignore_alert")}
+                          {isIgnored ? t("bp_restore_alert") || "Restore Alert" : t("bp_ignore_alert") || "Ignore"}
                         </button>
                       </div>
                       <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest block mt-1">

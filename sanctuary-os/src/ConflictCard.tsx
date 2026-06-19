@@ -48,13 +48,13 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
   let label = "";
   
   if (tier === 4) {
-    label = t("radar_tier4_title")?.replace("dY>` ", "") || "FATAL CLASH";
+    label = t("radar_tier4_title") || "Collision Severity 4"?.replace("dY>` ", "") || "FATAL CLASH";
   } else if (tier === 3) {
-    label = t("radar_tier3_title") || "TUNING OVERLAP";
+    label = t("radar_tier3_title") || "Collision Severity 3";
   } else if (tier === 2) {
-    label = t("radar_tier2_title") || "DUPLICATE FOUND";
+    label = t("radar_tier2_title") || "Collision Severity 2";
   } else {
-    label = t("radar_tier1_title") || "SOFT CONFLICT";
+    label = t("radar_tier1_title") || "Collision Severity 1";
   }
 
   const tColor = tier === 4 ? 'text-[var(--danger)]' : tier === 3 ? 'text-[var(--warning)]' : tier === 2 ? 'text-[var(--accent)]' : 'text-white/50';
@@ -108,7 +108,7 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
         >
           <div className="flex justify-between items-start mb-1">
             <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tColor}`}>
-              <span className="material-symbols-outlined !text-[12px]">inventory_2</span> {t("matrix_label_mod_a") || "BASE MOD"}
+              <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_inventory") || "inventory_2"}</span> {t("matrix_label_mod_a") || "Artifact A"}
             </span>
             {isBulkMode && (
               <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] shrink-0 transition-all ${isSelectedA ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)] shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)]" : "border-white/10 text-transparent bg-black/20"}`}>
@@ -122,7 +122,7 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
         {/* VS Divider */}
         <div className="relative h-px w-full flex items-center justify-center z-20">
           <div className="w-7 h-7 rounded-full theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center bg-[var(--bg)] absolute">
-            <span className="text-[8px] font-black text-[var(--subtext)] italic uppercase">VS</span>
+            <span className="text-[8px] font-black text-[var(--subtext)] italic uppercase">{t("conflict_vs") || "VS"}</span>
           </div>
         </div>
 
@@ -133,7 +133,7 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
         >
           <div className="flex justify-between items-start mb-1">
             <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tColor}`}>
-              <span className="material-symbols-outlined !text-[12px]">error</span> {t("matrix_label_mod_b") || "CONFLICTING MOD"}
+              <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_error") || "error"}</span> {t("matrix_label_mod_b") || "Artifact B"}
             </span>
             {isBulkMode && (
               <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] shrink-0 transition-all ${isSelectedB ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)] shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)]" : "border-white/10 text-transparent bg-black/20"}`}>
@@ -148,8 +148,8 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
       {/* Footer info */}
       {conflict.is_ghost && (
         <div className="flex items-center gap-2 relative z-10 pt-1">
-          <span className="material-symbols-outlined !text-[14px] text-[var(--warning)] opacity-80">policy</span>
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--warning)] opacity-90">{t("scout_logical_clash") || "DATABASE MATCH"}</span>
+          <span className="material-symbols-outlined !text-[14px] text-[var(--warning)] opacity-80">{t("ui_icon_policy") || "policy"}</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--warning)] opacity-90">{t("scout_logical_clash") || "LOGICAL CLASH:"}</span>
         </div>
       )}
     </div>

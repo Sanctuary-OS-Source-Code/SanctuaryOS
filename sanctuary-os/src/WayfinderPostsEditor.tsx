@@ -89,7 +89,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     // Safely fallback if key isn't in lexicon yet
     const typeKey = `masonhub_asset_type_${asset.type}`;
     const translatedType = t(typeKey) !== typeKey ? t(typeKey) : (asset.type === 'mod' ? 'Artifact' : asset.type === 'blueprint' ? 'Blueprint' : asset.type === 'chameleon' ? 'Theme' : 'Lexicon');
-    const translatedView = t("ui_btn_view") !== "ui_btn_view" ? t("ui_btn_view") : "VIEW";
+    const translatedView = t("ui_btn_view") || "VIEW";
     
     const text = `${translatedType}: ${asset.name}`;
     
@@ -193,7 +193,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
         // Notify followers
         const { data: authUser } = await supabase.auth.getUser();
         if (authUser.user) {
-          const { data: followers } = await supabase.from('profiles').select('id');
+          const { data: followers } = await supabase.from('profiles').select("id");
           if (followers && followers.length > 0) {
             const notifications = followers.map(f => ({
               user_id: f.id,
@@ -209,7 +209,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       
       closeEditor();
       fetchPostsAndAssets();
-      useStore.getState().pushStatus(editingPostId ? "Transmission Updated!" : t("mason_post_success"), 'success');
+      useStore.getState().pushStatus(editingPostId ? "Transmission Updated!" : t("mason_post_success") || "Transmission broadcasted successfully.", 'success');
     } else {
       useStore.getState().pushStatus(`Transmission Failed: ${error.message}`, 'error');
     }
@@ -243,9 +243,9 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       <div className="flex items-center gap-4 px-6 py-6 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_1%,transparent)]">
         <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_satellite_alt") || "edit_document"}</span>
+            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_satellite_alt") || "satellite_alt"}</span>
           </div>
-          <span className="truncate">{t("wf_title_dispatct") || "COMM-POSTS"}</span>
+          <span className="truncate">{t("wf_title_dispatct") || "Dispatch"}</span>
         </h2>
         <div className="relative flex-1 max-w-xl ml-auto flex gap-4 items-center justify-end">
           <div className="relative flex-1 max-w-[300px]">
@@ -266,7 +266,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
             onClick={() => openEditor()} 
             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
           >
-            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_cell_tower") || "cell_tower"}</span> {t("mason_post_broadcast") || "BROADCAST TRANSMISSION"}
+            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_cell_tower") || "cell_tower"}</span> {t("mason_post_broadcast") || "NEW TRANSMISSION"}
           </button>
         </div>     
       </div>
@@ -303,16 +303,16 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                   {confirmDelete === post.id ? (
                     <>
                       <span className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
-                        <span className="material-symbols-outlined !text-[14px]">warning</span> Confirm
+                        <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_warning") || "warning_amber"}</span> Confirm
                       </span>
-                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">close</span> {t("ui_btn_cancel") || "CANCEL"}</button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">delete_forever</span> {t("ui_btn_delete") || "DELETE"}</button>
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_close") || "close"}</span> {t("ui_btn_cancel") || "CANCEL"}</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete_forever") || "delete_forever"}</span> {t("ui_btn_delete") || "DELETE"}</button>
                     </>
                   ) : (
                     <>
-                      <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">visibility</span> {t("masonhub_btn_view_post") || "VIEW"}</button>
-                      <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">edit</span> {t("ui_btn_edit") || "EDIT"}</button>
-                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">delete</span> {t("ui_btn_delete") || "DEL"}</button>
+                      <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_visibility") || "visibility"}</span> {t("masonhub_btn_view_post") || "VIEW"}</button>
+                      <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_edit") || "edit"}</span> {t("ui_btn_edit") || "EDIT"}</button>
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete") || "delete"}</span> {t("ui_btn_delete") || "DELETE"}</button>
                     </>
                   )}
                 </div>
@@ -321,7 +321,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           {filteredPosts.length === 0 && (
             <div className="col-span-full flex flex-col items-center justify-center opacity-30 mt-20">
               <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">
-                {t("masonhub_no_transmissions") || "NO TRANSMISSIONS"}
+                {t("masonhub_no_transmissions") || "No Transmissions Found"}
               </span>
             </div>
           )}
@@ -337,10 +337,10 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
             icon="cell_tower"
             widthClass="w-[800px]"
             title={editingPostId ? (t("masonhub_update_transmission") || "UPDATE TRANSMISSION") : (t("mason_new_transmission") || "NEW TRANSMISSION")}
-            subtitle={editingPostId ? (t("masonhub_editing_record") || "Editing Record") : (t("masonhub_composing_broadcast") || "Composing Broadcast")}
+            subtitle={editingPostId ? (t("masonhub_editing_record") || "Editing Record") : (t("masonhub_composing_broadcast") || "Composing New Broadcast")}
             actions={
               <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className={standardAccentGlassButtonClass + " !px-6 !py-3 !text-[10px]"}>
-                {isSubmitting ? t("mason_saving") : (editingPostId ? t("masonhub_update_transmission") : t("mason_btn_post"))}
+                {isSubmitting ? t("mason_saving") || "SAVING..." : (editingPostId ? t("masonhub_update_transmission") || "UPDATE TRANSMISSION" : t("mason_btn_post") || "BROADCAST")}
               </button>
             }
           >
@@ -348,10 +348,10 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
               
               <div className="flex border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-2 p-1 bg-black/40 rounded-2xl theme-glass-inner">
                 <button onClick={() => setViewMode('edit')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'edit' ? 'bg-[var(--accent)]/20 border border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] backdrop-blur-md' : 'bg-transparent border border-transparent text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:bg-white/5 hover:opacity-100 backdrop-blur-md'}`}>
-                  {t("masonhub_editor") || "EDITOR"}
+                  {t("masonhub_editor") || "Editor"}
                 </button>
                 <button onClick={() => setViewMode('preview')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'preview' ? 'bg-[var(--accent)]/20 border border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] backdrop-blur-md' : 'bg-transparent border border-transparent text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:bg-white/5 hover:opacity-100 backdrop-blur-md'}`}>
-                  {t("masonhub_preview") || "PREVIEW"}
+                  {t("masonhub_preview") || "Preview"}
                 </button>
                 
                 <label className="ml-4 pr-4 flex items-center gap-2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity">
@@ -359,7 +359,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                   <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shadow-inner ${isPinned ? 'bg-[var(--accent)] border-[var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-black/40'}`}>
                     {isPinned && <span className="material-symbols-outlined !text-[14px] text-[var(--bg)]">{t("ui_icon_check") || "check"}</span>}
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1"><span className="material-symbols-outlined !text-[16px]">{t("ui_icon_push_pin") || "push_pin"}</span> {t("masonhub_pin_transmission") || "PIN POST"}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1"><span className="material-symbols-outlined !text-[16px]">{t("ui_icon_push_pin") || "push_pin"}</span> {t("masonhub_pin_transmission") || "Pin Transmission"}</span>
                 </label>
               </div>
 
@@ -368,7 +368,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                   <div className="flex gap-4 w-full">
                     <div className="flex flex-col gap-2 flex-1">
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_post_title") || "Transmission Title"}</label>
-                      <input required value={title} onChange={e => setTitle(e.target.value)} placeholder={t("mason_post_title")} className="theme-glass-inner bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
+                      <input required value={title} onChange={e => setTitle(e.target.value)} placeholder={t("mason_post_title") || "Transmission Title"} className="theme-glass-inner bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
                     </div>
                     
                     <div className="flex flex-col gap-2 w-1/3">
@@ -391,8 +391,8 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_header_image_placeholder") || "Header Image URL (Optional)"}</label>
-                    <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("masonhub_header_image_placeholder")} className="theme-glass-inner bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_header_image_placeholder") || "Header Image URL Optional"}</label>
+                    <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("masonhub_header_image_placeholder") || "Header Image URL Optional"} className="theme-glass-inner bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
                   </div>
                   
                   <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
@@ -401,24 +401,24 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                     </div>
                     <div className="flex flex-col flex-1 theme-glass-inner bg-black/40 rounded-2xl overflow-hidden border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
                       <div className="flex flex-wrap items-center gap-1.5 p-3 bg-white/5 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative backdrop-blur-md">
-                        <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('bold') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-serif font-bold text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>B</button>
-                        <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('italic') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-serif italic text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>I</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('bold') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-serif font-bold text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_bold") || "B"}</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('italic') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-serif italic text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_italic") || "I"}</button>
                         <div className="w-px h-6 bg-white/10 mx-2" />
-                        <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('heading', { level: 1 }) ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>H1</button>
-                        <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('heading', { level: 2 }) ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>H2</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('heading', { level: 1 }) ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_h1") || "H1"}</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('heading', { level: 2 }) ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_h2") || "H2"}</button>
                         <div className="w-px h-6 bg-white/10 mx-2" />
-                        <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('bulletList') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>•</button>
-                        <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('orderedList') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>1.</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('bulletList') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_ul") || "•"}</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('orderedList') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_ol") || "1."}</button>
                         <div className="w-px h-6 bg-white/10 mx-2" />
-                        <button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${showImageInput ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>🖼️</button>
-                        <button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('codeBlock') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-mono text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>&lt;&gt;</button>
+                        <button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${showImageInput ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_image") || "🖼️"}</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('codeBlock') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-mono text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_code") || "<>"}</button>
                         
                         <div className="ml-auto relative flex gap-3">
                           <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`px-4 py-2 rounded-xl theme-glass-panel border transition-all text-[9px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2 shadow-sm ${showCodeInput ? 'bg-[var(--accent)]/20 border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)] backdrop-blur-md' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-white/20 hover:bg-white/5 backdrop-blur-md'}`}>
                             <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_data_object") || "data_object"}</span> {showCodeInput ? (t("masonhub_hide_code") || "HIDE CODE") : (t("masonhub_add_code") || "ADD CODE")}
                           </button>
                           <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="px-4 py-2 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-white/20 hover:bg-white/5 text-[9px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2 transition-all shadow-sm backdrop-blur-md">
-                            <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_link") || "link"}</span> {t("masonhub_link_asset") || "LINK ASSET"}
+                            <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_link") || "link"}</span> {t("masonhub_link_asset") || "Link Asset"}
                           </button>
                         </div>
                       </div>
@@ -462,7 +462,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                           <textarea 
                             value={codeSnippet}
                             onChange={(e) => setCodeSnippet(e.target.value)}
-                            placeholder="Paste code logs or error traces here..."
+                            placeholder={t("ph_code_logs") || "Paste code logs or error traces here..."}
                             className="w-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-xl text-[var(--text)] p-4 text-xs font-mono placeholder-[var(--subtext)] outline-none h-48 custom-scrollbar focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:border-[var(--accent)]"
                             spellCheck={false}
                           />
@@ -473,7 +473,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                 </div>
               ) : (
                 <div className="flex flex-col gap-6 mt-4">
-                  <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-2">{t("masonhub_live_preview") || "LIVE PREVIEW"}</h3>
+                  <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-2">{t("masonhub_live_preview") || "Live Preview"}</h3>
                   
                   {imageUrl && (
                     <div className="w-full rounded-2xl overflow-hidden shadow-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/20 shrink-0">
@@ -497,7 +497,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       <SidePanel
         isOpen={isAssetPanelOpen}
         onClose={() => setIsAssetPanelOpen(false)}
-        title={t("masonhub_link_asset") || "LINK ASSET"}
+        title={t("masonhub_link_asset") || "Link Asset"}
         icon="link"
         backdropZ="z-[50000]"
         panelZ="z-[50001]"
@@ -509,17 +509,17 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
               <input 
                 value={assetSearchQuery} 
                 onChange={(e) => setAssetSearchQuery(e.target.value)} 
-                placeholder={t("masonhub_search_assets") || "Search assets..."} 
+                placeholder={t("masonhub_search_assets") || "Search assets"} 
                 className="w-full theme-glass-panel rounded-2xl pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 shadow-inner"
                 autoFocus
               />
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            {filteredAssets.length === 0 && <span className="text-center text-[10px] font-black uppercase tracking-widest opacity-50 p-4">{t("masonhub_no_assets")}</span>}
+            {filteredAssets.length === 0 && <span className="text-center text-[10px] font-black uppercase tracking-widest opacity-50 p-4">{t("masonhub_no_assets") || "No assets found"}</span>}
             {filteredAssets.map(asset => (
               <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl theme-glass-inner hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
-                <span className="opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? '📦' : asset.type === 'blueprint' ? '🗺️' : asset.type === 'lexicon' ? '🗣️' : '🎨'}</span>
+                <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("ui_icon_extension") || "extension") : asset.type === 'blueprint' ? (t("ui_icon_architecture") || "architecture") : asset.type === 'lexicon' ? (t("ui_icon_translate") || "translate") : (t("ui_icon_palette") || "palette")}</span>
                 <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
               </button>
             ))}

@@ -82,7 +82,7 @@ function App() {
     const alias =
       versionIndex > 0 ? parts.slice(0, versionIndex).join(" ") : parts[0];
     return {
-      alias: alias || t("backups_unknown"),
+      alias: alias || t("backups_unknown") || "Unknown",
       version:
         versionPart === "LEGACY"
           ? isEngine
@@ -210,7 +210,7 @@ function App() {
   async function handleDroppedFiles(paths: string[]) {
     setDropzoneState("ingesting");
     setStatus(
-      `${t("status_mass_ingestion_prefix")}${paths.length}${t("status_mass_ingestion_suffix")}`,
+      `${t("status_mass_ingestion_prefix") || "MASS INGESTION: Unifying"}${paths.length}${t("status_mass_ingestion_suffix") || "unique identities..."}`,
     );
     try {
       for (let i = 0; i < paths.length; i++) {
@@ -219,14 +219,14 @@ function App() {
           await invoke("ingest_dropped_file", { path: paths[i], forceReplace: false });
         } catch (err) {
           if (err !== "DNA_MATCH") {
-            setStatus(`${t("status_link_failed")}${err}`);
+            setStatus(`${t("status_link_failed") || "LINK FAILED:"}${err}`);
           }
         }
       }
-      setStatus(t("status_ingest_success"));
+      setStatus(t("status_ingest_success") || "Status Ingest Success");
       runRadarSweep(true); 
     } catch (err) {
-      setStatus(`${t("status_link_failed")}${err}`);
+      setStatus(`${t("status_link_failed") || "LINK FAILED:"}${err}`);
     }
   }
   const view = useStore((state) => state.view);
@@ -347,7 +347,7 @@ function App() {
 
   const saveLocalMetadata = async (extraOverrides?: any) => {
     if (!activeDossier) return;
-    setStatus(t("status_syncing_metadata") || "Saving local metadata...");
+    setStatus(t("status_syncing_metadata") || "Syncing metadata to the Network...");
     try {
       const localOvr = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
       if (activeDossier.hash) {
@@ -380,7 +380,7 @@ function App() {
         }));
       }
       
-      setStatus(`${t("ui_icon_success")} Local overrides saved successfully.`);
+      setStatus(`${t("ui_icon_success") || "check_circle"} Local overrides saved successfully.`);
       setIsEditingMeta(false);
       setEditMode(false);
       runRadarSweep(true);
@@ -419,7 +419,7 @@ function App() {
         }
       }
       
-      setStatus(`${t("ui_icon_success")} Local overrides reset to database defaults.`);
+      setStatus(`${t("ui_icon_success") || "check_circle"} Local overrides reset to database defaults.`);
       setIsEditingMeta(false);
       setEditMode(false);
       setIsCorrectingMeta(false);
@@ -643,7 +643,7 @@ function App() {
       });
       const cleanVersion = rawRipped.replace(/[^0-9.]/g, "");
       setSelectedVersion(cleanVersion);
-      setStatus(`${t("status_standing_by")} |  v${cleanVersion}`);
+      setStatus(`${t("status_standing_by") || "Standing by..."} |  v${cleanVersion}`);
     } catch (err) {
       console.warn("Version detection failed:", err);
     }
@@ -729,7 +729,7 @@ function App() {
         if (Array.isArray(parsedCache) && parsedCache.length > 0) {
           setModList(parsedCache);
           setStatus(
-            `${t("status_offline_cache_prefix")} ${parsedCache.length} ${t("status_offline_cache_suffix")}`,
+            `${t("status_offline_cache_prefix") || "OFFLINE CACHE LOADED:"} ${parsedCache.length} ${t("status_offline_cache_suffix") || "signatures secured."}`,
           );
         }
       } catch (e) {
@@ -925,7 +925,7 @@ function App() {
       const addWithFamily = (modObj: any) => {
         if (!modObj || !modObj.name) return;
         if (excludeBroken && (modObj.status === t("status_broken") || modObj.status?.includes("BROKEN") || checkGhosted(modObj))) {
-          setStatus(t("cmd_critical_action") || "CRITICAL ACTION REQUIRED: Artifact is broken or missing dependencies.");
+          setStatus(t("cmd_critical_action") || "CRITICAL ACTION REQUIRED: Fatal conflicts require resolution before deployment");
           return;
         }
         
@@ -1098,7 +1098,7 @@ function App() {
       localStorage.removeItem("sanctuary_active_set");
     }
     setStatus(
-      `${t("status_removed_manifest_prefix")}${setName}${t("status_removed_manifest_suffix")}`,
+      `${t("status_removed_manifest_prefix") || "REMOVED: '"}${setName}${t("status_removed_manifest_suffix") || "' manifest deleted."}`,
     );
   }
   async function fetchCloudLabQueue() {
@@ -1112,7 +1112,7 @@ function App() {
         const cloudQueue = data.map((dbMod: any) => ({
           name: dbMod.mods.name,
           hash: dbMod.dna_hash,
-          status: t("status_under_review"),
+          status: t("status_under_review") || "UNDER REVIEW",
           color: "var(--warning)",
           displayName: dbMod.mods.name,
           isSynced: true,
@@ -1141,6 +1141,7 @@ function App() {
     }
     async function boot() {
       try {
+        localStorage.removeItem("sanctuary_cloud_cache"); // Force fetch fresh data from Supabase
         const config: any = await invoke("get_saved_coordinates");
         if (config.live_path && config.mods_path && config.vault_path) {
           setIsConfigured(true);
@@ -1169,7 +1170,7 @@ function App() {
                 if (Array.isArray(parsed) && parsed.length > 0) {
                   setModList(parsed);
                   setStatus(
-                    `${t("status_offline_cache_prefix")} ${parsed.length} ${t("status_offline_cache_suffix")}`,
+                    `${t("status_offline_cache_prefix") || "OFFLINE CACHE LOADED:"} ${parsed.length} ${t("status_offline_cache_suffix") || "signatures secured."}`,
                   );
                 }
               } catch (e) {
@@ -1185,9 +1186,14 @@ function App() {
             docsPath: docsBase,
             vaultPath: config.vault_path,
           }).catch(console.warn);
+          
+          invoke("initialize_settings_watch", {
+            modsPath: config.mods_path,
+            vaultPath: config.vault_path,
+          }).catch(console.warn);
         }
       } catch (e) {
-        setStatus(t("status_boot_failure"));
+        setStatus(t("status_boot_failure") || "BOOT FAILURE: Check coordinates.");
       }
     }
     fetchUserRole();
@@ -1197,36 +1203,137 @@ function App() {
     const targetSet = playSets.find((s) => s.name === setName);
     if (!targetSet) return;
     setStatus(
-      `${t("status_deploying_prefix")}${setName}${t("status_deploying_suffix")}`,
+      `${t("status_deploying_prefix") || "DEPLOYING: Projecting Blueprint ["}${setName}${t("status_deploying_suffix") || "]..."}`,
     );
     try {
       const config: any = await invoke("get_saved_coordinates");
-      let deployPayload: any[] = [];
-      targetSet.mods.forEach((modName: string) => {
-        const modObj = modList.find((m: any) => {
-          if (m.name === modName) return true;
-          const mBase = m.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
-          const targetBase = modName.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
-          return mBase && targetBase && mBase === targetBase;
+        let deployPayload: any[] = [];
+        const dbIdToPathMap = new Map<string, string>();
+        
+        const buildPathMap = (nodes: any[], currentPath: string) => {
+            for (const node of nodes) {
+                if (node.node_type === "folder" || node.type === "folder") {
+                    const nextPath = currentPath ? `${currentPath}/${node.name}` : node.name;
+                    if (node.children) buildPathMap(node.children, nextPath);
+                } else if (node.node_type === "file" || node.type === "file") {
+                    const mappedId = node.assignedModId || node.assigned_mod_id;
+                    if (mappedId) {
+                        dbIdToPathMap.set(mappedId, currentPath);
+                    }
+                }
+            }
+        };
+
+        targetSet.mods.forEach((modName: string) => {
+            let modObj = modList.find((m: any) => {
+              if (m.name === modName) return true;
+              const mBase = m.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+              const targetBase = modName.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+              return mBase && targetBase && mBase === targetBase;
+            });
+            
+            let parsedStructure = modObj?.folder_structure;
+            if (typeof parsedStructure === 'string') {
+                 try { parsedStructure = JSON.parse(parsedStructure); } catch (e) {}
+            }
+            if (Array.isArray(parsedStructure) && parsedStructure.length > 0) {
+                 buildPathMap(parsedStructure, "");
+            }
         });
-        if (modObj && modObj.isVirtual && modObj.flavors) {
-           modObj.flavors.forEach((f: any) => {
-             deployPayload.push({ path: f.name, allow_write: modObj.allow_write || false });
-           });
-        } else {
-           deployPayload.push({ path: modObj ? modObj.name : modName, allow_write: modObj?.allow_write || false });
-        }
-      });
-      const msg = await invoke("deploy_playset_bulk", {
+
+        targetSet.mods.forEach((modName: string) => {
+            let modObj = modList.find((m: any) => {
+              if (m.name === modName) return true;
+              const mBase = m.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+              const targetBase = modName.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+              return mBase && targetBase && mBase === targetBase;
+            });
+            
+            const flatFileName = modName.split(/[\\/]/).pop() || modName;
+            let targetPath = flatFileName;
+            
+            if (modObj?.dbId && dbIdToPathMap.has(modObj.dbId)) {
+                const folderPath = dbIdToPathMap.get(modObj.dbId);
+                if (folderPath) {
+                    targetPath = `${folderPath}/${flatFileName}`;
+                }
+            }
+            
+            deployPayload.push({ path: modName, allow_write: modObj?.allow_write || false, target_path: targetPath });
+        });
+
+        // Pass 1.5: Inject orphan config files from the Vault into the deployment payload
+        modList.forEach(m => {
+            if (m.name.match(/\.(cfg|ini|json|xml|log|txt)$/i)) {
+                if (!deployPayload.some(dp => dp.path === m.name)) {
+                    const flatFileName = m.name.split(/[\\/]/).pop() || m.name;
+                    const prefixMatch = flatFileName.match(/^([a-zA-Z0-9]+)[_ -]/);
+                    const prefix = prefixMatch ? prefixMatch[1].toLowerCase() : flatFileName.split('.')[0].toLowerCase();
+                    
+                    const matchingMod = deployPayload.find(other => {
+                        if (!other.target_path && !other.folder_structure) return false;
+                        if (other.target_path && other.target_path.match(/\.(cfg|ini|json|xml|log|txt)$/i)) return false;
+                        const otherFlat = other.path.split(/[\\/]/).pop() || other.path;
+                        return otherFlat.toLowerCase().startsWith(prefix);
+                    });
+
+                    if (matchingMod) {
+                        let folderName = "";
+                        if (matchingMod.target_path && matchingMod.target_path.includes('/')) {
+                            folderName = matchingMod.target_path.split('/')[0];
+                        } else if (matchingMod.folder_structure && Array.isArray(matchingMod.folder_structure) && matchingMod.folder_structure.length > 0) {
+                            folderName = matchingMod.folder_structure[0].name;
+                        }
+                        
+                        if (folderName) {
+                            deployPayload.push({ path: m.name, allow_write: true, target_path: `${folderName}/${flatFileName}` });
+                        } else {
+                            deployPayload.push({ path: m.name, allow_write: true, target_path: flatFileName });
+                        }
+                    }
+                }
+            }
+        });
+
+        // Pass 2: Automatically map config files that are ALREADY in the payload
+        deployPayload.forEach(dp => {
+           if (dp.target_path && dp.target_path.match(/\.(cfg|ini|json|xml|log|txt)$/i)) {
+               const flatFileName = dp.path.split(/[\\/]/).pop() || dp.path;
+               const prefixMatch = flatFileName.match(/^([a-zA-Z0-9]+)[_ -]/);
+               const prefix = prefixMatch ? prefixMatch[1].toLowerCase() : flatFileName.split('.')[0].toLowerCase();
+               
+               const matchingMod = deployPayload.find(other => {
+                  if (other === dp || (!other.target_path && !other.folder_structure)) return false;
+                  if (other.target_path && other.target_path.match(/\.(cfg|ini|json|xml|log|txt)$/i)) return false;
+                  const otherFlat = other.path.split(/[\\/]/).pop() || other.path;
+                  return otherFlat.toLowerCase().startsWith(prefix);
+               });
+
+               if (matchingMod) {
+                   let folderName = "";
+                   if (matchingMod.target_path && matchingMod.target_path.includes('/')) {
+                       folderName = matchingMod.target_path.split('/')[0];
+                   } else if (matchingMod.folder_structure && Array.isArray(matchingMod.folder_structure) && matchingMod.folder_structure.length > 0) {
+                       folderName = matchingMod.folder_structure[0].name;
+                   }
+                   
+                   if (folderName) {
+                       dp.target_path = `${folderName}/${flatFileName}`;
+                   }
+               }
+           }
+        });
+
+        const msg = await invoke("deploy_playset_bulk", {
         mods: deployPayload,
         modsPath: config.mods_path,
         vaultPath: config.vault_path,
       });
       setActiveSetName(setName);
       localStorage.setItem("sanctuary_active_set", setName);
-      setStatus(`${t("ui_icon_success")} ${msg as string}`);
+      setStatus(`${t("ui_icon_success") || "check_circle"} ${t("backend_deployed_prefix") || "Deployed"} ${msg as string} ${t("backend_deployed_suffix") || "artifacts."}`);
     } catch (err) {
-      setStatus(`${t("status_deploy_failed")}${err}`);
+      setStatus(`${t("status_deploy_failed") || "DEPLOYMENT FAILED:"} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
     }
   }
   async function fetchBackups() {
@@ -1241,7 +1348,7 @@ function App() {
     }
   }
   async function restoreGameBackup(filename: string) {
-    setStatus(`${t("status_restoring_prefix")}${filename}...`);
+    setStatus(`${t("status_restoring_prefix") || "RESTORING: Inflating"}${filename}...`);
     setIsRestoring(true);
     try {
       const config: any = await invoke("get_saved_coordinates");
@@ -1253,7 +1360,7 @@ function App() {
       });
       setStatus(msg as string);
     } catch (err) {
-      setStatus(`${t("status_restore_failure")}${err}`);
+      setStatus(`${t("status_restore_failure") || "RESTORE FAILURE:"}${err}`);
     } finally {
       setIsRestoring(false);
       detectGameVersion();
@@ -1271,7 +1378,7 @@ function App() {
     setScanProgress({
       current: 5,
       total: 100,
-      message: t("scan_interrogating_dna"),
+      message: t("scan_interrogating_dna") || "Interrogating Bunker DNA...",
     });
     try {
       const config: any = await invoke("get_saved_coordinates");
@@ -1355,7 +1462,7 @@ function App() {
       const initialList = localMods.map((m) => ({
         name: m.name,
         hash: m.hash,
-        status: t("status_identifying"),
+        status: t("status_identifying") || "IDENTIFYING...",
         color: "var(--text-secondary)",
         displayName: m.name,
         isSynced: false,
@@ -1381,12 +1488,12 @@ function App() {
       let allCloudData: any[] = [];
       const isOfflineMode = !session || localStorage.getItem("sanctuary_blacklisted") === "true";
       if (!isOfflineMode) {
-        for (let i = 0; i < hashes.length; i += 50) {
-        const chunk = hashes.slice(i, i + 50);
+        for (let i = 0; i < hashes.length; i += 20) {
+        const chunk = hashes.slice(i, i + 20);
         let { data, error } = await supabase
           .from("mod_versions")
           .select(
-            "dna_hash, version_label, game_version, download_url, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, masons(name))",
+            "dna_hash, version_label, game_version, download_url, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, folder_structure, masons(name))",
           )
           .in("dna_hash", chunk);
         if (error) {
@@ -1396,7 +1503,7 @@ function App() {
           const fallback = await supabase
             .from("mod_versions")
             .select(
-              "dna_hash, version_label, game_version, download_url, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, url, master_author, mason_id, created_at, updated_at, masons(name))",
+              "dna_hash, version_label, game_version, download_url, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, mason_id, created_at, updated_at, folder_structure, masons(name))",
             )
             .in("dna_hash", chunk);
           data = fallback.data as any;
@@ -1428,8 +1535,8 @@ function App() {
         ccSetsMetadata = sets || [];
         globalConflicts = rawConflicts || [];
         if (hashes.length > 0) {
-          for (let i = 0; i < hashes.length; i += 50) {
-            const chunk = hashes.slice(i, i + 50);
+          for (let i = 0; i < hashes.length; i += 20) {
+            const chunk = hashes.slice(i, i + 20);
             const { data: fData } = await supabase
               .from("flavor_group_members")
               .select("group_id, mod_hash")
@@ -1440,8 +1547,8 @@ function App() {
             ...new Set(flavorData.map((f) => f.group_id)),
           ];
           if (uniqueGroupIds.length > 0) {
-            for (let i = 0; i < uniqueGroupIds.length; i += 50) {
-              const chunk = uniqueGroupIds.slice(i, i + 50);
+            for (let i = 0; i < uniqueGroupIds.length; i += 20) {
+              const chunk = uniqueGroupIds.slice(i, i + 20);
               const { data: gData } = await supabase
                 .from("flavor_groups")
                 .select("id, name")
@@ -1471,8 +1578,8 @@ function App() {
         console.error("Bridge Error:", err);
       }
       if (identifiedIds.length > 0 && !isOfflineMode) {
-        for (let i = 0; i < identifiedIds.length; i += 50) {
-          const chunk = identifiedIds.slice(i, i + 50);
+        for (let i = 0; i < identifiedIds.length; i += 20) {
+          const chunk = identifiedIds.slice(i, i + 20);
           const { data: relsChild } = await supabase
             .from("mod_relationships")
             .select("*")
@@ -1503,8 +1610,8 @@ function App() {
           ]),
         ];
         if (pIds.length > 0) {
-          for (let i = 0; i < pIds.length; i += 50) {
-            const chunk = pIds.slice(i, i + 50);
+          for (let i = 0; i < pIds.length; i += 20) {
+            const chunk = pIds.slice(i, i + 20);
             const { data: pMods } = await supabase
               .from("mods")
               .select("id, name, master_author, image_url, url")
@@ -1801,6 +1908,7 @@ function App() {
           category_override: effectiveDbMod?.category_override,
           sub_type: effectiveDbMod?.sub_type,
           image_url: effectiveDbMod?.image_url,
+          folder_structure: effectiveDbMod?.folder_structure,
           url: effectiveCloudMatch?.download_url || effectiveDbMod?.url || mod.url || null,
           author:
             (Array.isArray(effectiveDbMod?.masons)
@@ -1855,11 +1963,11 @@ function App() {
           mason_id: dbMod?.mason_id || null,
           status: dbMod
             ? dbMod.status === "verified"
-              ? t("status_verified")
+              ? t("status_verified") || "VERIFIED"
               : dbMod.status === "unverified"
-                ? t("status_unverified")
+                ? t("status_unverified") || "UNVERIFIED"
                 : dbMod.status
-            : mod.status?.includes("EXPLICIT LOCAL") ? "🚫 EXPLICIT LOCAL" : t("status_local_only"),
+            : mod.status?.includes("EXPLICIT LOCAL") ? "🚫 EXPLICIT LOCAL" : t("status_local_only") || "LOCAL",
           isSynced: !!dbMod,
           isVirtual: false,
           isGhosted: isDlcMissing || isVersionMismatch,
@@ -1868,7 +1976,7 @@ function App() {
       });
 
       const unidentified = physicalMods.filter(
-        (m) => !m.isSynced && !m.status?.includes("EXPLICIT LOCAL") && !m.name.toLowerCase().includes("customchallenge") && !m.name.toLowerCase().includes("sandbox")
+        (m) => !m.isSynced && !m.status?.includes("EXPLICIT LOCAL") && !m.name.toLowerCase().includes("customchallenge") && !m.name.toLowerCase().includes("sandbox") && !m.name.match(/\.(cfg|ini|json|xml|log|txt)$/i)
       );
       if (unidentified.length > 0 && !isSilent) {
         setScoutQueue(unidentified);
@@ -1879,7 +1987,7 @@ function App() {
           (m) => String(m.setId) === String(set.id),
         );
         if (setMembers.length > 0) {
-          const verifiedCount = setMembers.filter((m) => m.status === t("status_verified")).length;
+          const verifiedCount = setMembers.filter((m) => m.status === (t("status_verified") || "VERIFIED")).length;
           const isAllVerified = verifiedCount === setMembers.length;
           const isNoneVerified = verifiedCount === 0;
           const isAnyBroken = setMembers.some((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
@@ -1888,11 +1996,11 @@ function App() {
           if (isAnyBroken) {
             folderStatus = "broken";
           } else if (isAllVerified) {
-            folderStatus = t("status_verified");
+            folderStatus = t("status_verified") || "VERIFIED";
           } else if (isNoneVerified) {
-            folderStatus = t("status_unverified");
+            folderStatus = t("status_unverified") || "UNVERIFIED";
           } else {
-            folderStatus = t("status_mixed") || "PARTIAL MATCH";
+            folderStatus = t("status_mixed") || "MIXED STATUS";
           }
 
           virtualCards.push({
@@ -1935,8 +2043,8 @@ function App() {
             : familyMembers[0].displayName,
           author: familyMembers[0].author,
         };
-          const safeName = pData.name || t("status_unknown_folder");
-          const verifiedCount = familyMembers.filter((m) => m.status === t("status_verified")).length;
+          const safeName = pData.name || t("status_unknown_folder") || "Unknown Folder";
+          const verifiedCount = familyMembers.filter((m) => m.status === (t("status_verified") || "VERIFIED")).length;
           const isAllVerified = verifiedCount === familyMembers.length;
           const isNoneVerified = verifiedCount === 0;
           const isAnyBroken = familyMembers.some((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
@@ -1945,11 +2053,11 @@ function App() {
           if (isAnyBroken) {
             folderStatus = "broken";
           } else if (isAllVerified) {
-            folderStatus = t("status_verified");
+            folderStatus = t("status_verified") || "VERIFIED";
           } else if (isNoneVerified) {
-            folderStatus = t("status_unverified");
+            folderStatus = t("status_unverified") || "UNVERIFIED";
           } else {
-            folderStatus = t("status_mixed") || "PARTIAL MATCH";
+            folderStatus = t("status_mixed") || "MIXED STATUS";
           }
 
           const myParentRels = allRels.filter((r) => String(r.child_id) === String(baseFId));
@@ -2022,7 +2130,7 @@ function App() {
         );
         if (setMembers.length > 0) {
           const isSet = !!set.isCCSet;
-          const verifiedCount = setMembers.filter((m: any) => m.status === t("status_verified")).length;
+          const verifiedCount = setMembers.filter((m: any) => m.status === (t("status_verified") || "VERIFIED")).length;
           const isAllVerified = verifiedCount === setMembers.length;
           const isNoneVerified = verifiedCount === 0;
           const isAnyBroken = setMembers.some((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
@@ -2031,11 +2139,11 @@ function App() {
           if (isAnyBroken) {
             folderStatus = "broken";
           } else if (isAllVerified) {
-            folderStatus = t("status_verified");
+            folderStatus = t("status_verified") || "VERIFIED";
           } else if (isNoneVerified) {
-            folderStatus = t("status_unverified");
+            folderStatus = t("status_unverified") || "UNVERIFIED";
           } else {
-            folderStatus = t("status_mixed") || "PARTIAL MATCH";
+            folderStatus = t("status_mixed") || "MIXED STATUS";
           }
 
           localVirtualCards.push({
@@ -2106,8 +2214,8 @@ function App() {
       }
 
       setModList(masterList);
-      setScanProgress({ current: 100, total: 100, message: t("status_done") });
-      if (!isSilent) setStatus(t("status_radar_done"));
+      setScanProgress({ current: 100, total: 100, message: t("status_done") || "Done." });
+      if (!isSilent) setStatus(t("status_radar_done") || "RADAR: Bunker Reorganized.");
       try {
         const config: any = await invoke("get_saved_coordinates");
         if (config.vault_path) {
@@ -2136,6 +2244,7 @@ function App() {
       const obsolete: any[] = [];
       const updated: any[] = [];
       let cloudData: any[] = [];
+      let hasError = false;
       const BATCH_SIZE = 500;
       for (let i = 0; i < syncedMods.length; i += BATCH_SIZE) {
         const batch = syncedMods.slice(i, i + BATCH_SIZE);
@@ -2143,13 +2252,20 @@ function App() {
         const batchNames = batch.filter(m => !m.dbId).map(m => m.name);
         
         if (batchIds.length > 0) {
-          const { data } = await supabase.from("mods").select("id, name, status, mod_versions(version_label, dna_hash, game_version, download_url)").in("id", batchIds).order("created_at", { referencedTable: "mod_versions", ascending: false });
+          const { data, error } = await supabase.from("mods").select("id, name, status, folder_structure, mod_versions(version_label, dna_hash, game_version, download_url)").in("id", batchIds).order("created_at", { referencedTable: "mod_versions", ascending: false });
+          if (error) { console.error(error); hasError = true; }
           if (data) cloudData = [...cloudData, ...data];
         }
         if (batchNames.length > 0) {
-          const { data } = await supabase.from("mods").select("id, name, status, mod_versions(version_label, dna_hash, game_version, download_url)").in("name", batchNames).order("created_at", { referencedTable: "mod_versions", ascending: false });
+          const { data, error } = await supabase.from("mods").select("id, name, status, folder_structure, mod_versions(version_label, dna_hash, game_version, download_url)").in("name", batchNames).order("created_at", { referencedTable: "mod_versions", ascending: false });
+          if (error) { console.error(error); hasError = true; }
           if (data) cloudData = [...cloudData, ...data];
         }
+      }
+
+      if (hasError && cloudData.length === 0) {
+        console.warn("Network check encountered errors and returned no data. Aborting to prevent wiping cached updates.");
+        return;
       }
 
       let debugLog = "";
@@ -2218,7 +2334,7 @@ function App() {
       });
       const parsed = JSON.parse(content);
       if (!parsed.sanctuary_profile) {
-        alert(t("status_invalid_profile"));
+        alert(t("status_invalid_profile") || "Invalid Profile format.");
         return;
       }
       const missing: any[] = [];
@@ -2250,7 +2366,7 @@ function App() {
         finalizeImport(readySet);
       }
     } catch (err) {
-      setStatus(`${t("log_icon_fatal")} ${t("status_import_failed")}${err}`);
+      setStatus(`${t("log_icon_fatal")} ${t("status_import_failed") || "Import Failed:"}${err}`);
     }
   }
   function finalizeImport(setToAdd: any) {
@@ -2259,7 +2375,7 @@ function App() {
     setPlaySets(updatedSets);
     localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
     setStatus(
-      `${t("ui_icon_success")} ${t("status_profile_imported")}${setToAdd.name}`,
+      `${t("ui_icon_success") || "check_circle"} ${t("status_profile_imported") || "Profile Imported:"}${setToAdd.name}`,
     );
     setMissingImportMods(null);
     setPendingImportSet(null);
@@ -2276,21 +2392,21 @@ function App() {
           : `https://${mod.url}`
         : `https://www.bing.com/search?q=${encodeURIComponent(`Sims 4 mod ${cleanName}`)}`;
     openUrl(targetUrl);
-    setStatus(`${t("status_intel_request")}${cleanName}`);
+    setStatus(`${t("status_intel_request") || "SYSTEM: Intel request sent to default browser for"}${cleanName}`);
   }
   async function registerConflict(
     modAHash: string,
     modBId: string,
     severity: number = 3,
   ) {
-    setStatus(t("status_conflict_resolving"));
+    setStatus(t("status_conflict_resolving") || "RESOLVING CONFLICT IDENTITIES...");
     try {
       const { data: verData, error: verErr } = await supabase
         .from("mod_versions")
         .select("mod_id")
         .eq("dna_hash", modAHash)
         .single();
-      if (verErr || !verData) throw new Error(t("status_error_primary_sync"));
+      if (verErr || !verData) throw new Error(t("status_error_primary_sync") || "ERROR: Primary Artifact must be synced to Cloud first.");
       const { error } = await supabase
         .from("logical_conflicts")
         .insert([
@@ -2298,19 +2414,19 @@ function App() {
             mod_a_id: verData.mod_id,
             mod_b_id: modBId,
             severity_rank: severity,
-            resolution_note: t("status_architect_flagged"),
+            resolution_note: t("status_architect_flagged") || "Architect flagged via Network Hub",
           },
         ]);
       if (error) throw error;
-      setStatus(t("status_conflict_registered"));
-      alert(t("alert_conflict_success"));
+      setStatus(t("status_conflict_registered") || "CONFLICT REGISTERED GLOBALLY.");
+      alert(t("alert_conflict_success") || "Conflict successfully locked into the network!");
     } catch (err: any) {
-      setStatus(`${t("status_conflict_failed")}${err.message}`);
-      alert(`${t("alert_conflict_failed")}${err.message}`);
+      setStatus(`${t("status_conflict_failed") || "CONFLICT REGISTRATION FAILED:"}${err.message}`);
+      alert(`${t("alert_conflict_failed") || "Failed to register conflict:"}${err.message}`);
     }
   }
   async function designateTwin(primaryHash: string, twinHash: string) {
-    setStatus(t("status_twins_linking"));
+    setStatus(t("status_twins_linking") || "LINKING TWINS: Forcing permanent connection...");
     try {
       const { data: verA } = await supabase
         .from("mod_versions")
@@ -2330,7 +2446,7 @@ function App() {
           .from("mods")
           .insert([
             {
-              name: localA?.name || t("backups_unknown"),
+              name: localA?.name || t("backups_unknown") || "Unknown",
               status: "unverified",
             },
           ])
@@ -2357,7 +2473,7 @@ function App() {
           .from("mods")
           .insert([
             {
-              name: localB?.name || t("backups_unknown"),
+              name: localB?.name || t("backups_unknown") || "Unknown",
               status: "unverified",
             },
           ])
@@ -2386,23 +2502,23 @@ function App() {
         { onConflict: "parent_id, child_id" },
       );
       if (error) throw error;
-      setStatus(t("status_twins_synced"));
+      setStatus(t("status_twins_synced") || "TWINS SYNCHRONIZED.");
       runRadarSweep(true);
     } catch (err: any) {
-      setStatus(`${t("status_twins_failed")}${err.message}`);
+      setStatus(`${t("status_twins_failed") || "TWIN LINK FAILED:"}${err.message}`);
     }
   }
   async function runSanitization() {
     try {
-      setStatus(t("status_sanitizing"));
+      setStatus(t("status_sanitizing") || "SANITIZING: Reorganizing Vault Lanes...");
       const config: any = await invoke("get_saved_coordinates");
       const msg = await invoke<string>("sanitize_vault", {
         vaultPath: config.vault_path,
       });
-      setStatus(`${t("ui_icon_success")} ${msg}`);
+      setStatus(`${t("ui_icon_success") || "check_circle"} ${t("backend_sanitize_prefix") || "Sanitization Complete:"} ${msg} ${t("backend_sanitize_suffix") || "files reorganized into strict Folders."}`);
       await runRadarSweep(false);
     } catch (err) {
-      setStatus(`${t("status_sanitize_error")}${err}`);
+      setStatus(`${t("status_sanitize_error") || "SANITIZE ERROR:"}${err}`);
     }
   }
   async function searchGlobalNetwork() {
@@ -2413,7 +2529,7 @@ function App() {
       .select("*")
       .ilike("name", `%${globalSearchQuery}%`)
       .limit(20);
-    if (error) setStatus(`${t("status_network_error")}${error.message}`);
+    if (error) setStatus(`${t("status_network_error") || "NETWORK ERROR:"}${error.message}`);
     else if (data) setCloudSearchResults(data);
     setIsSearchingCloud(false);
   }
@@ -2426,7 +2542,7 @@ function App() {
   ) {
     if (!activeDossier) return;
     try {
-      setStatus(t("status_sync_bond"));
+      setStatus(t("status_sync_bond") || "SYNCING NETWORK BOND...");
       let { data: childVer } = await supabase
         .from("mod_versions")
         .select("mod_id")
@@ -2436,7 +2552,7 @@ function App() {
       if (parentId !== null && !childModId) {
         const { data: newC } = await supabase
           .from("mods")
-          .insert([{ name: t("status_new_mod"), status: "unverified" }])
+          .insert([{ name: t("status_new_mod") || "New Mod", status: "unverified" }])
           .select()
           .single();
         childModId = newC.id;
@@ -2504,21 +2620,21 @@ function App() {
       setModList((prev) =>
         prev.map((m) => (m.hash === childHash ? updatedMod : m)),
       );
-      setStatus(t("status_link_updated"));
+      setStatus(t("status_link_updated") || "LINK UPDATED.");
       runRadarSweep(true);
     } catch (err: any) {
-      setStatus(`${t("status_link_failed")}${err.message}`);
+      setStatus(`${t("status_link_failed") || "LINK FAILED:"}${err.message}`);
     }
   }
   async function establishFlavors(primaryHash: string, targets: any[]) {
     if (!activeDossier || !targets || targets.length === 0) return;
     setStatus(
-      `${t("status_resolving_dna_prefix")}${targets.length}${t("status_resolving_dna_suffix")}`,
+      `${t("status_resolving_dna_prefix") || "RESOLVING DNA FOR"}${targets.length}${t("status_resolving_dna_suffix") || "ARTIFACTS..."}`,
     );
     try {
       let pId = activeDossier.dbId;
       if (!pId) {
-        setStatus(t("status_error_primary_sync"));
+        setStatus(t("status_error_primary_sync") || "ERROR: Primary Artifact must be synced to Cloud first.");
         return;
       }
       let resolvedHashes: string[] = [];
@@ -2539,13 +2655,13 @@ function App() {
         ...new Set([primaryHash, ...alreadyHasHash, ...resolvedHashes]),
       ];
       if (finalHashSquad.length <= 1) {
-        setStatus(t("status_error_dna_resolve"));
+        setStatus(t("status_error_dna_resolve") || "ERROR: Could not resolve DNA for selected flavors.");
         return;
       }
       let groupId = activeDossier.flavorGroupId;
       let groupName =
         activeDossier.flavorGroupName ||
-        `${activeDossier.displayName} ${t("status_exclusives")}`;
+        `${activeDossier.displayName} ${t("status_exclusives") || "EXCLUSIVES"}`;
       if (!groupId) {
         const { data: newG, error: gErr } = await supabase
           .from("flavor_groups")
@@ -2583,15 +2699,15 @@ function App() {
         }),
       );
       setStatus(
-        `${t("status_success_members_prefix")}${result?.length}${t("status_success_members_suffix")}`,
+        `${t("status_success_members_prefix") || "SUCCESS:"}${result?.length}${t("status_success_members_suffix") || "MEMBERS SECURED IN GROUP."}`,
       );
       runRadarSweep(true);
     } catch (err: any) {
-      setStatus(`${t("status_link_failed")}${err.message}`);
+      setStatus(`${t("status_link_failed") || "LINK FAILED:"}${err.message}`);
     }
   }
   async function severFlavor(modHash: string) {
-    setStatus(t("status_severing"));
+    setStatus(t("status_severing") || "SEVERING EXCLUSIVITY LINK...");
     try {
       await supabase
         .from("flavor_group_members")
@@ -2610,14 +2726,14 @@ function App() {
             : m,
         ),
       );
-      setStatus(t("status_severed"));
+      setStatus(t("status_severed") || "SEVERED: Artifact is independent again.");
       runRadarSweep(true);
     } catch (err: any) {
-      setStatus(`${t("status_unlink_failed")}${err.message}`);
+      setStatus(`${t("status_unlink_failed") || "UNLINK FAILED:"}${err.message}`);
     }
   }
   async function sendToLabQueue(mod: ModData) {
-    setStatus(`${t("status_uploading_dna")}${mod.displayName || mod.name}...`);
+    setStatus(`${t("status_uploading_dna") || "UPLOADING DNA:"}${mod.displayName || mod.name}...`);
     try {
       const { data: existingVer, error: searchError } = await supabase
         .from("mod_versions")
@@ -2671,11 +2787,11 @@ function App() {
           .eq("id", targetModId);
       }
       setStatus(
-        `${t("status_dna_secured_prefix")}${mod.displayName || mod.name}${t("status_dna_secured_suffix")}`,
+        `${t("status_dna_secured_prefix") || "DNA SECURED:"}${mod.displayName || mod.name}${t("status_dna_secured_suffix") || "is now in the Lab."}`,
       );
       const labMod = {
         ...mod,
-        status: t("status_under_review"),
+        status: t("status_under_review") || "UNDER REVIEW",
         color: "var(--warning)",
         isSynced: true,
       };
@@ -2687,7 +2803,7 @@ function App() {
       setActiveDossier(null);
     } catch (err: any) {
       setStatus(
-        `${t("status_cloud_rejection")}${err.message || t("status_unknown_db_failure")}`,
+        `${t("status_cloud_rejection") || "CLOUD REJECTION:"}${err.message || t("status_unknown_db_failure") || "Unknown Database Failure"}`,
       );
     }
   }
@@ -2698,7 +2814,7 @@ function App() {
       return;
     }
     if (playSets.some((s) => s.name.toLowerCase() === setName.toLowerCase())) {
-      setStatus(t("status_blueprint_exists"));
+      setStatus(t("status_blueprint_exists") || "A Play Set with that name already exists!");
       return;
     }
     const updatedSets = [...playSets, { name: setName, mods: [] }];
@@ -2706,7 +2822,7 @@ function App() {
     localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
     setActivePlaySetIndex(updatedSets.length - 1);
     setStatus(
-      `${t("status_blueprint_drafted_prefix")}${setName}${t("status_blueprint_drafted_suffix")}`,
+      `${t("status_blueprint_drafted_prefix") || "Blueprint["}${setName}${t("status_blueprint_drafted_suffix") || "] created."}`,
     );
     setIsDraftingSet(false);
     setDraftSetName("");
@@ -2715,18 +2831,18 @@ function App() {
   
 
   async function triggerShelter(active: boolean) {
-    setStatus(active ? t("status_evacuating") : t("status_restoring_bunker"));
+    setStatus(active ? t("status_evacuating") || "EVACUATING..." : t("status_restoring_bunker") || "RESTORING...");
     try {
       if (active) {
         let msg = await invoke("wipe_symlinks");
-        setStatus(msg as string);
+        setStatus(t(msg as string) || (msg as string));
       } else {
         if (activeSetName) await equipPlaySet(activeSetName);
         setStatus(t("status_bunker_reclaimed") || "BUNKER RECLAIMED");
       }
       setShelterActive(active);
     } catch (err) {
-      setStatus(`${t("status_shelter_error")}${err}`);
+      setStatus(`${t("status_shelter_error") || "SHELTER ERROR:"}${err}`);
     }
   }
   const deleteBackup = async (fileName: string) => {
@@ -2734,7 +2850,7 @@ function App() {
       await invoke("delete_backup", { fileName });
       fetchBackups();
     } catch (err) {
-      alert(`${t("alert_deletion_failed")}${err}`);
+      alert(`${t("alert_deletion_failed") || "Deletion Failed:"}${err}`);
     }
   };
   const triggerFullEngineBackup = async () => {
@@ -2748,7 +2864,7 @@ function App() {
       });
       fetchBackups();
     } catch (err) {
-      alert(`${t("alert_backup_failed")}${err}`);
+      alert(`${t("alert_backup_failed") || "World Backup Failed:"}${err}`);
     } finally {
       setIsBackingUp(false);
     }
@@ -2760,7 +2876,7 @@ function App() {
   }
   function purgeMod(filename: string) {
     setConfirmDialog({
-      message: `${t("confirm_delete_file_prefix")}${filename}${t("confirm_delete_file_suffix")}`,
+      message: `${t("confirm_delete_file_prefix") || "Delete"}${filename}${t("confirm_delete_file_suffix") || "?"}`,
       action: async () => {
         setConfirmDialog(null);
         await invoke("purge_quarantined_file", { filename });
@@ -2771,7 +2887,7 @@ function App() {
   const triggerPrePatchSnapshot = async () => {
     const config: any = await invoke("get_saved_coordinates");
     const docsBase = config.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
-    setStatus(`${t("log_icon_backups")} Executing Pre-Patch Snapshot...`);
+    setStatus(`${t("log_icon_backups") || "Log Icon Backups"} Executing Pre-Patch Snapshot...`);
     useModalStore.getState().setBackupType('world');
     setIsBackingUp(true);
     try {
@@ -2780,10 +2896,10 @@ function App() {
         version: selectedVersion,
       });
       fetchBackups();
-      setStatus(`${t("ui_icon_success")} Pre-Patch Snapshot Secured.`);
+      setStatus(`${t("ui_icon_success") || "check_circle"} Pre-Patch Snapshot Secured.`);
     } catch (err) {
       console.error(err);
-      alert(`${t("alert_backup_failed")}${err}`);
+      alert(`${t("alert_backup_failed") || "World Backup Failed:"}${err}`);
     } finally {
       setIsBackingUp(false);
     }
@@ -2795,10 +2911,10 @@ function App() {
       const pref = Number(config.backup_preference || 0);
       if (pref === 2) {
         const confirmLoneWolf = await askCustom(
-          t("defcon_lonewolf_warning"),
+          t("defcon_lonewolf_warning") || "Engine patch detected.\n\nYou have 'Lone Wolf' mode enabled. Are you SURE you want to launch without backing up?",
           false,
-          t("defcon_btn_launch_danger"),
-          t("playsets_btn_cancel"),
+          t("defcon_btn_launch_danger") || "LAUNCH (DANGER)",
+          t("playsets_btn_cancel") || "CANCEL",
           true,
           "DEFCON 1 INTERCEPT!",
         );
@@ -2809,20 +2925,20 @@ function App() {
         );
         if (hasBackedUp) {
           const confirm = await askCustom(
-            t("defcon_prompt_already_backed_up"),
+            t("defcon_prompt_already_backed_up") || "You have already completed an emergency backup.\n\nAre you sure you want to launch the game?",
             false,
-            t("defcon_btn_launch_danger"),
-            t("playsets_btn_cancel"),
+            t("defcon_btn_launch_danger") || "LAUNCH (DANGER)",
+            t("playsets_btn_cancel") || "CANCEL",
             true,
             "DEFCON 1 INTERCEPT!",
           );
           if (!confirm) return;
         } else {
           const confirmAlert = await askCustom(
-            t("defcon_prompt_intercept_launch"),
+            t("defcon_prompt_intercept_launch") || "A Game Patch is Active.\n\nWould you like to run an emergency backup before launching?",
             false,
-            t("defcon_btn_backup_launch"),
-            t("defcon_btn_launch_danger"),
+            t("defcon_btn_backup_launch") || "BACKUP & LAUNCH",
+            t("defcon_btn_launch_danger") || "LAUNCH (DANGER)",
             true,
             "DEFCON 1 INTERCEPT!",
           );
@@ -2834,10 +2950,10 @@ function App() {
             localStorage.setItem("sanctuary_defcon_backup_done", "true");
           } else {
             const proceedAnyway = await askCustom(
-              t("defcon_prompt_confirm_danger"),
+              t("defcon_prompt_confirm_danger") || "Are you sure you want to proceed WITHOUT a backup?",
               false,
-              t("defcon_btn_launch_danger"),
-              t("playsets_btn_cancel"),
+              t("defcon_btn_launch_danger") || "LAUNCH (DANGER)",
+              t("playsets_btn_cancel") || "CANCEL",
               true,
               "CONFIRM DANGER",
             );
@@ -2850,20 +2966,20 @@ function App() {
         );
         if (hasBackedUp) {
           const confirm = await askCustom(
-            t("defcon_prompt_already_backed_up"),
+            t("defcon_prompt_already_backed_up") || "You have already completed an emergency backup.\n\nAre you sure you want to launch the game?",
             false,
-            t("defcon_btn_launch_danger"),
-            t("playsets_btn_cancel"),
+            t("defcon_btn_launch_danger") || "LAUNCH (DANGER)",
+            t("playsets_btn_cancel") || "CANCEL",
             true,
             "DEFCON 1 INTERCEPT!",
           );
           if (!confirm) return;
         } else {
           const confirm = await askCustom(
-            t("defcon_launch_intercept"),
+            t("defcon_launch_intercept") || "Engine update detected. Forcing emergency backup before ignition. Proceed?",
             false,
-            t("defcon_btn_launch_danger"),
-            t("playsets_btn_cancel"),
+            t("defcon_btn_launch_danger") || "LAUNCH (DANGER)",
+            t("playsets_btn_cancel") || "CANCEL",
             true,
             "DEFCON 1 INTERCEPT!",
           );
@@ -2882,27 +2998,27 @@ function App() {
         livePath: config.live_path,
         modsPath: config.mods_path,
       });
-      setStatus(t("status_igniting") || (msg as string));
+      setStatus(t(msg as string) || (msg as string));
     } catch (err) {
-      setStatus(`${t("status_launch_failed") || "❌ LAUNCH FAILED"}: ${err}`);
+      setStatus(`${t("status_launch_failed") || "error LAUNCH FAILED"}: ${t(err as string) || err}`);
     }
   };
   async function executeHotSwap() {
     if (!activeLabMod) return;
     try {
       if (!shelterActive) {
-        setStatus(t("status_auto_isolate"));
+        setStatus(t("status_auto_isolate") || "AUTO-ISOLATE...");
         await invoke("evacuate_to_shelter");
         setShelterActive(true);
         fetchVault();
       }
-      setStatus(t("status_injecting"));
+      setStatus(t("status_injecting") || "INJECTING...");
       await invoke("move_to_lab", { filename: activeLabMod.physical_path || activeLabMod.name });
       const config: any = await invoke("get_saved_coordinates");
       const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
-      setStatus(t("status_purging_logs"));
+      setStatus(t("status_purging_logs") || "PURGING LOGS...");
       await invoke("clear_old_logs", { docsPath: dPath });
-      setStatus(t("status_igniting"));
+      setStatus(t("status_igniting") || "IGNITING ENGINES...");
       await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
       setTestErrorFound(false);
       setTestLogSnippet("");
@@ -2911,14 +3027,14 @@ function App() {
         if (res !== "Clean") {
           setTestErrorFound(true);
           setTestLogSnippet(res);
-          setStatus(`${t("status_fatal_error")} ${res.substring(0, 50)}...`);
+          setStatus(`${t("status_fatal_error") || "FATAL:"} ${res.substring(0, 50)}...`);
           clearInterval(interval);
           setLogWatcher(null);
         }
       }, 5000);
       setLogWatcher(interval);
     } catch (err) {
-      setStatus(`${t("status_lab_error")}${err}`);
+      setStatus(`${t("status_lab_error") || "LAB ERROR:"} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
     }
   }
   async function openWorkbench(modPath: string) {
@@ -2929,12 +3045,12 @@ function App() {
       setConfigContent(content);
       setEditMode(true);
     } catch (err) {
-      setStatus(t("status_no_editable"));
+      setStatus(t("status_no_editable") || "No editable config.");
     }
   }
   async function saveWorkbenchChanges() {
     if (!activeDossier) return;
-    setStatus(t("status_committing"));
+    setStatus(t("status_committing") || "COMMITTING CHANGES...");
     try {
       const configPath = activeDossier.name.replace(".package", ".cfg");
       const config: any = await invoke("get_saved_coordinates");
@@ -2943,10 +3059,10 @@ function App() {
         path: fullPath,
         content: configContent,
       });
-      setStatus(`${t("ui_icon_success")} ${msg}`);
+      setStatus(`${t("ui_icon_success") || "check_circle"} ${msg}`);
       setEditMode(false);
     } catch (err) {
-      setStatus(`${t("status_save_failure")}${err}`);
+      setStatus(`${t("status_save_failure") || "SAVE FAILURE:"}${err}`);
     }
   }
   async function submitLabReport() {
@@ -2960,32 +3076,32 @@ function App() {
       return;
     }
     setIsSubmittingReport(true);
-    setStatus(t("status_submitting_report"));
+    setStatus(t("status_submitting_report") || "Transmitting Lab Intel...");
     try {
       const { data: verData } = await supabase
         .from("mod_versions")
         .select("id, mod_id")
         .eq("dna_hash", activeLabMod.hash)
         .single();
-      if (!verData) throw new Error(t("status_missing_mod_msg"));
+      if (!verData) throw new Error(t("status_missing_mod_msg") || "Error: DNA Sequence not found in cloud.");
       const { error } = await supabase.from("solder_lab_logs").insert([
         {
           mod_id: verData.mod_id,
           version_id: verData.id,
           log_snippet: testLogSnippet,
-          tester_note: t("status_report_automated"),
+          tester_note: t("status_report_automated") || "Automated System Report",
         },
       ]);
       if (error) throw error;
-      setStatus(t("status_report_secured"));
+      setStatus(t("status_report_secured") || "Intel Secured");
     } catch (err: any) {
-      setStatus(`${t("status_report_failed")}${err.message}`);
+      setStatus(`${t("status_report_failed") || "Intel Transmission Failed:"}${err.message}`);
     }
     setIsSubmittingReport(false);
   }
   async function concludeTest(labContext?: any) {
     if (!activeLabMod) return;
-    setStatus(t("status_evaluating"));
+    setStatus(t("status_evaluating") || "EVALUATING TEST RESULTS...");
     if (logWatcher) {
       clearInterval(logWatcher);
       setLogWatcher(null);
@@ -2993,8 +3109,8 @@ function App() {
     try {
       const finalStatus = testErrorFound ? "broken" : "verified";
       const uiStatus = testErrorFound
-        ? t("status_broken")
-        : t("status_verified");
+        ? t("status_broken") || "BROKEN"
+        : t("status_verified") || "VERIFIED";
       const uiColor = testErrorFound ? "var(--danger)" : "var(--success)";
       const { data: verData } = await supabase
         .from("mod_versions")
@@ -3012,12 +3128,12 @@ function App() {
              mod_id: verData.mod_id,
              version_id: verData.id,
              log_snippet: testLogSnippet,
-             tester_note: labContext ? JSON.stringify(labContext) : t("status_report_automated"),
+             tester_note: labContext ? JSON.stringify(labContext) : t("status_report_automated") || "Automated System Report",
            }]);
         }
       }
       if (shelterActive) {
-        setStatus(t("status_restoring_bunker_full"));
+        setStatus(t("status_restoring_bunker_full") || "RESTORING BUNKER...");
         const lastSet = localStorage.getItem("sanctuary_active_set");
         if (lastSet) {
           await equipPlaySet(lastSet);
@@ -3039,10 +3155,10 @@ function App() {
       setTestErrorFound(false);
       setTestLogSnippet("");
       setStatus(
-        `${t("status_artifact_secured_prefix")}${finalStatus.toUpperCase()}`,
+        `${t("status_artifact_secured_prefix") || "ARTIFACT SECURED: Marked as"}${finalStatus.toUpperCase()}`,
       );
     } catch (err: any) {
-      setStatus(`${t("status_teardown_error")}${err.message}`);
+      setStatus(`${t("status_teardown_error") || "TEARDOWN ERROR:"}${err.message}`);
     }
   }
   const fetchLabAssociated = async (mod: ModData) => {
@@ -3137,7 +3253,7 @@ function App() {
   const runProvingRun = async (extraDeployNames: string[] = []) => {
     if (!activeLabMod) return;
     try {
-      setStatus(t("status_proving_run"));
+      setStatus(t("status_proving_run") || "INITIATING PROVING RUN: STAGING SIMULATION...");
       
       let depPaths: string[] = [];
       let modAId = activeLabMod.dbId;
@@ -3167,14 +3283,14 @@ function App() {
         const orQuery = ids.map(id => `child_id.eq.${id}`).join(',');
 
         const { data: depLinks } = await supabase.from('mod_dependencies').select('parent_id, child_id').or(orQuery);
-        const { data: addonLinks } = await supabase.from('mod_relationships').select('parent_id').or(orQuery).eq('relationship_type', 'addon');
+        const { data: addonLinks } = await supabase.from('mod_relationships').select("parent_id").or(orQuery).eq('relationship_type', 'addon');
         
         let allIds = new Set<string>();
         if (depLinks) depLinks.forEach((l: any) => allIds.add(l.parent_id));
         if (addonLinks) addonLinks.forEach((l: any) => allIds.add(l.parent_id));
         
         if (allIds.size > 0) {
-          const { data: depMods } = await supabase.from('mods').select('name').in('id', Array.from(allIds));
+          const { data: depMods } = await supabase.from('mods').select("name").in('id', Array.from(allIds));
           if (depMods) depPaths = depMods.map((m: any) => m.name);
         }
       }
@@ -3211,10 +3327,10 @@ function App() {
       fetchVault();
 
       const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
-      setStatus(t("status_purging_logs"));
+      setStatus(t("status_purging_logs") || "PURGING LOGS...");
       await invoke("clear_old_logs", { docsPath: dPath });
       
-      setStatus(t("status_igniting"));
+      setStatus(t("status_igniting") || "IGNITING ENGINES...");
       await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
       
       setTestErrorFound(false);
@@ -3224,14 +3340,14 @@ function App() {
         if (res !== "Clean") {
           setTestErrorFound(true);
           setTestLogSnippet(res);
-          setStatus(`${t("status_fatal_error")} ${res.substring(0, 50)}...`);
+          setStatus(`${t("status_fatal_error") || "FATAL:"} ${res.substring(0, 50)}...`);
           clearInterval(interval);
           setLogWatcher(null);
         }
       }, 5000);
       setLogWatcher(interval as any); 
     } catch (err) {
-      setStatus(`${t("status_lab_error")}${err}`);
+      setStatus(`${t("status_lab_error") || "LAB ERROR:"} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
     }
   };
   async function pickLivePath() {
@@ -3248,7 +3364,7 @@ function App() {
   }
   async function lockCoordinates() {
     if (!livePath || !modsPath || !vaultPath) {
-      alert(t("alert_select_paths"));
+      alert(t("alert_select_paths") || "Please select all 3 paths!");
       return;
     }
     await invoke("save_coordinates", { livePath, modsPath, vaultPath });
@@ -3277,10 +3393,10 @@ function App() {
       const matchesSubType =
         activeSubType === "ALL" || subType === activeSubType.toUpperCase();
       const rawStatus = (m.status || "").toLowerCase();
-      const strVerified = t("status_verified").toLowerCase();
-      const strReview = t("status_under_review").toLowerCase();
-      const strUnverified = t("status_unverified").toLowerCase();
-      const strLocal = t("status_local_only").toLowerCase();
+      const strVerified = t("status_verified") || "VERIFIED".toLowerCase();
+      const strReview = t("status_under_review") || "UNDER REVIEW".toLowerCase();
+      const strUnverified = t("status_unverified") || "UNVERIFIED".toLowerCase();
+      const strLocal = t("status_local_only") || "LOCAL".toLowerCase();
       let matchesStatus = false;
       if (filterStatus === "ALL") {
         matchesStatus = true;
@@ -3324,7 +3440,7 @@ function App() {
               <img src="/icon.png" alt="" className="w-12 h-12 object-contain relative z-10 drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]" />
             </div>
             <h1 className="text-3xl font-black uppercase tracking-widest text-white drop-shadow-md">
-              {t("setup_title")}
+              {t("setup_title") || "INITIALIZE CARTOGRAPHER"}
             </h1>
             <p className="text-[9px] font-bold uppercase tracking-[0.3em] theme-text-accent opacity-80 mt-2">
               {t("status_cartographer_init") || "Cartographer Initialization"}
@@ -3349,19 +3465,19 @@ function App() {
               }} 
               className="w-full bg-white/[0.03] backdrop-blur-md border border-white/10 px-6 py-4 rounded-xl text-[10px] font-black text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 uppercase tracking-widest mb-4 shadow-sm"
             >
-              <span>{t("ui_icon_cloud")} Auto-Detect Paths</span>
+              <span>{t("ui_icon_cloud") || "cloud"} Auto-Detect Paths</span>
             </button>
 
             <button onClick={pickLivePath} className="w-full bg-black/20 backdrop-blur-md border border-white/10 px-6 py-4 rounded-xl text-[10px] font-bold text-white hover:bg-white/5 focus:outline-none focus:border-[var(--accent)] transition-all flex items-center justify-between group shadow-sm">
-              <span className="uppercase tracking-widest">{livePath ? t("setup_btn_bin_locked") : t("setup_btn_bin")}</span>
+              <span className="uppercase tracking-widest">{livePath ? t("setup_btn_bin_locked") || "BIN LOCKED" : t("setup_btn_bin") || "SELECT BIN FOLDER"}</span>
               <div className={`w-2 h-2 rounded-full ${livePath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'theme-bg-warning animate-pulse'}`} />
             </button>
             <button onClick={pickModsPath} className="w-full bg-black/20 backdrop-blur-md border border-white/10 px-6 py-4 rounded-xl text-[10px] font-bold text-white hover:bg-white/5 focus:outline-none focus:border-[var(--accent)] transition-all flex items-center justify-between group shadow-sm">
-              <span className="uppercase tracking-widest">{modsPath ? t("setup_btn_mods_locked") : t("setup_btn_mods")}</span>
+              <span className="uppercase tracking-widest">{modsPath ? t("setup_btn_mods_locked") || "MODS LOCKED" : t("setup_btn_mods") || "SELECT MODS FOLDER"}</span>
               <div className={`w-2 h-2 rounded-full ${modsPath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'theme-bg-warning animate-pulse'}`} />
             </button>
             <button onClick={pickVaultPath} className="w-full bg-black/20 backdrop-blur-md border border-white/10 px-6 py-4 rounded-xl text-[10px] font-bold text-white hover:bg-white/5 focus:outline-none focus:border-[var(--accent)] transition-all flex items-center justify-between group shadow-sm">
-              <span className="uppercase tracking-widest">{vaultPath ? t("setup_btn_vault_locked") : t("setup_btn_vault")}</span>
+              <span className="uppercase tracking-widest">{vaultPath ? t("setup_btn_vault_locked") || "VAULT LOCKED" : t("setup_btn_vault") || "SELECT VAULT FOLDER"}</span>
               <div className={`w-2 h-2 rounded-full ${vaultPath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'theme-bg-warning animate-pulse'}`} />
             </button>
 
@@ -3370,7 +3486,7 @@ function App() {
               disabled={!livePath || !modsPath || !vaultPath}
               className="w-full mt-2 py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
             >
-              {t("setup_btn_lock")}
+              {t("setup_btn_lock") || "LOCK COORDINATES"}
             </button>
           </div>
         </div>
@@ -3399,7 +3515,7 @@ function App() {
           {!isSidebarCollapsed && (
             <div className="overflow-hidden whitespace-normal flex flex-col justify-center mt-1">
               <h1 className="text-[17px] font-black tracking-[0.15em] uppercase text-left bg-gradient-to-r from-[var(--text)] to-[var(--accent)] bg-clip-text text-transparent">
-                {t("sidebar_app_title")}
+                {t("sidebar_app_title") || "SANCTUARY OS"}
               </h1>
               <div className="flex items-center gap-2 mt-0.5">
                  <div className="w-1 h-1 rounded-sm theme-bg-accent animate-pulse shadow-[0_0_8px_var(--accent)]" />
@@ -3414,16 +3530,16 @@ function App() {
           <NavButton
             active={view === "dashboard"}
             onClick={() => setView("dashboard")}
-            icon={t("ui_icon_pc")}
-            label={t("sidebar_cmd_center")}
+            icon={t("ui_icon_pc") || "desktop_windows"}
+            label={t("sidebar_cmd_center") || "Command Center"}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
           />
           <NavButton
             active={view === "vault"}
             onClick={() => setView("vault")}
-            icon={t("ui_icon_architect")}
-            label={t("sidebar_collection")}
+            icon={t("ui_icon_architect") || "account_balance"}
+            label={t("sidebar_collection") || "Your Vault"}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
           />
@@ -3432,7 +3548,7 @@ function App() {
               active={view === "marketplace"}
               onClick={() => setView("marketplace")}
               icon={t("ui_icon_hub") || "hub"}
-              label={t("sidebar_marketplace") || "Marketplace"}
+              label={t("sidebar_marketplace") || "The Nexus"}
               isCollapsed={isSidebarCollapsed}
               isAccent={true}
             />
@@ -3440,8 +3556,8 @@ function App() {
           <NavButton
             active={view === "playsets"}
             onClick={() => setView("playsets")}
-            icon={t("ui_icon_playsets")}
-            label={t("playsets_title")}
+            icon={t("ui_icon_playsets") || "map"}
+            label={t("playsets_title") || "Blueprints"}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
           />
@@ -3449,8 +3565,8 @@ function App() {
             <NavButton
               active={view === "GlobalFeed"}
               onClick={() => setView("GlobalFeed")}
-              icon={t("ui_icon_broadcast") || "radar"}
-              label={t("sidebar_commlink")}
+              icon={t("ui_icon_broadcast") || "satellite_alt"}
+              label={t("sidebar_commlink") || "COMM-LINK"}
               isCollapsed={isSidebarCollapsed}
               isAccent={true}
             />
@@ -3458,24 +3574,24 @@ function App() {
           <NavButton
             active={view === "DbpfScout"}
             onClick={() => setView("DbpfScout")}
-            icon={t("ui_icon_radar")}
-            label={t("sidebar_radar")}
+            icon={t("ui_icon_radar") || "track_changes"}
+            label={t("sidebar_radar") || "Conflict Radar"}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
           />
           <NavButton
             active={view === "lab"}
             onClick={() => setView("lab")}
-            icon={t("ui_icon_lab")}
-            label={t("sidebar_lab")}
+            icon={t("ui_icon_lab") || "science"}
+            label={t("sidebar_lab") || "Homestead Lab"}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
           />
           <NavButton
             active={view === "backups"}
             onClick={() => setView("backups")}
-            icon={t("ui_icon_backups")}
-            label={t("sidebar_time_capsule")}
+            icon={t("ui_icon_backups") || "history"}
+            label={t("sidebar_time_capsule") || "Time Capsule"}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
           />
@@ -3483,14 +3599,14 @@ function App() {
             <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
               {!isSidebarCollapsed && (
                 <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
-                  {t("sidebar_creator_tools")}
+                  {t("sidebar_creator_tools") || "Mason"}
                 </p>
               )}
               <NavButton
                 active={view === "MasonHub"}
                 onClick={() => setView("MasonHub")}
-                icon={t("ui_icon_mason")}
-                label={t("sidebar_mason_hub")}
+                icon={t("ui_icon_mason") || "construction"}
+                label={t("sidebar_mason_hub") || "Workshop"}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
               />
@@ -3500,14 +3616,14 @@ function App() {
             <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
               {!isSidebarCollapsed && (
                 <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
-                  {t("sidebar_architect_tools")}
+                  {t("sidebar_architect_tools") || "Architect"}
                 </p>
               )}
               <NavButton
                 active={view === "ArchitectHub"}
                 onClick={() => setView("ArchitectHub")}
-                icon={t("ui_icon_analytics")}
-                label={t("sidebar_architect_hub")}
+                icon={t("ui_icon_analytics") || "analytics"}
+                label={t("sidebar_architect_hub") || "Console"}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
               />
@@ -3517,14 +3633,14 @@ function App() {
             <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
               {!isSidebarCollapsed && (
                 <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
-                  {t("sidebar_senior_architect") || "Senior Architect"}
+                  {t("sidebar_senior_architect") || "OVERSIGHT"}
                 </p>
               )}
               <NavButton
                 active={view === "SeniorArchitect"}
                 onClick={() => setView("SeniorArchitect")}
                 icon={t("ui_icon_shield") || "security"}
-                label={t("sidebar_oversight")}
+                label={t("sidebar_oversight") || "Command"}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
               />
@@ -3535,14 +3651,14 @@ function App() {
             <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
               {!isSidebarCollapsed && (
                 <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
-                  {t("sidebar_wayfinder_tools") || "WAYFINDER TOOLS"}
+                  {t("sidebar_wayfinder_tools") || "Wayfinder"}
                 </p>
               )}
               <NavButton
                 active={view === "WayfinderHub"}
                 onClick={() => setView("WayfinderHub")}
-                icon={t("ui_icon_terminal") || "explore"}
-                label={t("sidebar_wayfinder_hub") || "WAYFINDER HUB"}
+                icon={t("ui_icon_terminal") || "terminal"}
+                label={t("sidebar_wayfinder_hub") || "Operations"}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
               />
@@ -3555,8 +3671,8 @@ function App() {
                   localStorage.setItem("sanctuary_show_login", "true");
                   window.location.reload();
                 }}
-                icon={t("ui_icon_key")}
-                label={t("sidebar_signin")}
+                icon={t("ui_icon_key") || "key"}
+                label={t("sidebar_signin") || "AUTHENTICATE"}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
               />
@@ -3586,7 +3702,7 @@ function App() {
             active={view === "settings"}
             onClick={() => setView("settings")}
             icon={t("ui_icon_settings") || "settings"}
-            label={t("sidebar_settings")}
+            label={t("sidebar_settings") || "Preferences"}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
           />
@@ -3596,11 +3712,11 @@ function App() {
               className={`w-full py-3 rounded-xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl backdrop-blur-md border ${isPatchDetected || defconLevel < 5 ? "text-[var(--danger)] border-[var(--danger)]/30 shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] hover:shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)] hover:bg-black/20" : "text-[var(--success)] border-[var(--success)]/30 shadow-[0_0_20px_rgba(var(--success-rgb),0.2)] hover:shadow-[0_0_30px_rgba(var(--success-rgb),0.4)] hover:bg-black/20"}`}
               style={isPatchDetected || defconLevel < 5 ? { backgroundColor: 'rgba(var(--danger-rgb), 0.15)' } : { backgroundColor: 'rgba(var(--success-rgb), 0.15)' }}
             >
-              {isSidebarCollapsed ? <span className="material-symbols-outlined !text-xl drop-shadow-md">{t("ui_icon_rocket_launch") || "rocket_launch"}</span> : <><span className="material-symbols-outlined !text-xl drop-shadow-md">{t("ui_icon_rocket_launch") || "rocket_launch"}</span> {t("sidebar_quick_launch")}</>}
+              {isSidebarCollapsed ? <span className="material-symbols-outlined !text-xl drop-shadow-md">{t("ui_icon_rocket_launch") || "rocket_launch"}</span> : <><span className="material-symbols-outlined !text-xl drop-shadow-md">{t("ui_icon_rocket_launch") || "rocket_launch"}</span> {t("sidebar_quick_launch") || "QUICK LAUNCH"}</>}
             </button>
             {isSidebarCollapsed && (
               <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-all duration-300 z-[1000] pointer-events-none">
-                {t("sidebar_quick_launch")}
+                {t("sidebar_quick_launch") || "QUICK LAUNCH"}
               </div>
             )}
           </div>
@@ -3793,11 +3909,13 @@ function App() {
           {view === "MasonHub" &&
             ["mason", "wayfinder", "admin"].includes(userRole) && <MasonHub sandboxMod={activeSandboxMod} clearSandboxMod={() => setActiveSandboxMod(null)} vaultPath={vaultPath} handleOpenMasonProfile={handleOpenMasonProfile} />}
           {view === "ArchitectHub" &&
-            ["architect", "wayfinder", "admin"].includes(userRole) && (
-              <ErrorBoundary moduleName="Architect Hub">
-                <ArchitectHub userRole={userRole} equipPlaySet={equipPlaySet} modList={modList} />
-              </ErrorBoundary>
-            )}
+            ["architect", "senior_architect", "wayfinder", "admin"].includes(
+                userRole,
+              ) && (
+                <ErrorBoundary moduleName="Architect Hub">
+                  <ArchitectHub userRole={userRole} equipPlaySet={equipPlaySet} modList={modList} setStatus={setStatus} />
+                </ErrorBoundary>
+              )}
           {view === "SeniorArchitect" &&
             ["senior_architect", "wayfinder", "admin"].includes(userRole) && (
               <ErrorBoundary moduleName="Senior Architect">
@@ -3902,7 +4020,7 @@ function App() {
               await invoke("purge_quarantined_file", {
                 filename: filename.split("/").pop() || filename,
               });
-              setStatus(`${t("ui_icon_success")} ${t("status_file_shredded")}`);
+              setStatus(`${t("ui_icon_success") || "check_circle"} ${t("status_file_shredded") || "File shredded securely."}`);
               runRadarSweep();
             } catch (err: any) {
               setStatus(` Error: ${err}`);

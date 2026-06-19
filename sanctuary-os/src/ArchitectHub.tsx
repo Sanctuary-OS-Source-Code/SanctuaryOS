@@ -43,8 +43,8 @@ function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOpen: boo
       <div className="fixed top-0 right-0 bottom-1 w-[320px] theme-glass-panel border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-2xl flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden">
         <div className="flex items-center justify-between pt-[60px] px-6 pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0">
           <div className="flex flex-col">
-            <h3 className="text-xl font-black tracking-widest text-[var(--text)]">{t("mason_create_title")}</h3>
-            <p className="text-[9px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("mason_create_subtitle")}</p>
+            <h3 className="text-xl font-black tracking-widest text-[var(--text)]">{t("mason_create_title") || "New Mason"}</h3>
+            <p className="text-[9px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("mason_create_subtitle") || "Master Registry Insertion"}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text)] transition-colors hover:scale-110 bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <span className="text-sm font-black">&times;</span>
@@ -52,14 +52,14 @@ function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOpen: boo
         </div>
         
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name")}</label>
-          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name")} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name") || "MASON NAME"}</label>
+          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name") || "Enter mason name..."} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
 
         <div className="p-6 pb-12 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:scale-[1.02] text-[var(--text)] font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all">{t("ui_btn_cancel")}</button>
+          <button onClick={onClose} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:scale-[1.02] text-[var(--text)] font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all">{t("ui_btn_cancel") || "CANCEL"}</button>
           <button onClick={handleCreate} disabled={isCreating || !newMasonName.trim()} className="flex-1 py-4 theme-bg-accent hover:opacity-90 text-[var(--bg)] font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg disabled:opacity-50">
-            {isCreating ? t("mason_create_btn_creating") : t("mason_create_btn_create")}
+            {isCreating ? t("mason_create_btn_creating") || "CREATING..." : t("mason_create_btn_create") || "CREATE UUID"}
           </button>
         </div>
       </div>
@@ -157,14 +157,16 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     
     // Extract filename from path
     const fileName = filePath.split(/[/\\]/).pop() || "Unknown File";
+    const cleanFileName = fileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
+    const hiddenPath = filePath.replace(/^(?:[A-Z]:)?[\/\\]Users[\/\\][^\/\\]+[\/\\]/i, '...\\');
 
     const { error } = await supabase.from('sanctuary_tickets').insert({
       author_id: userId,
       status: "ESCALATED", // Goes straight to oversight
       ticket_type: "DNA_FLAG",
-      title: `Flagged File: ${fileName}`,
-      description: `File Path: ${filePath}\nDNA Hash: ${fileHash}\n\nReason: ${flagReason}`,
-      metadata: { file_hash: fileHash, file_path: filePath, flag_reason: flagReason }
+      title: `Flagged File: ${cleanFileName}`,
+      description: `File Path: ${hiddenPath}\n\nReason: ${flagReason}`,
+      metadata: { file_hash: fileHash, file_path: hiddenPath, flag_reason: flagReason, target_mod_id: fileHash }
     });
 
     setIsSubmitting(false);
@@ -225,7 +227,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       border: "border-red-400/30",
       icon: "gavel",
       title: t("verify_status_flagged") || "ESCALATED TO OVERSIGHT",
-      desc: t("verify_status_flagged_desc") || "Artifact has been flagged for manual review by Senior Architects."
+      desc: t("verify_status_flagged_desc") || "Artifact has been flagged for manual review by Oversight."
     }
   }[statusState] as any;
 
@@ -265,7 +267,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               <div className="theme-glass-inner rounded-2xl p-6 border border-white/5 flex flex-col gap-4">
                 <div className="flex flex-col">
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("verify_panel_file_path") || "FILE PATH"}</span>
-                  <span className="text-xs font-mono text-[var(--text)] break-all">{filePath}</span>
+                  <span className="text-xs font-mono text-[var(--text)] break-all">{filePath.replace(/^(?:[A-Z]:)?[\/\\]Users[\/\\][^\/\\]+[\/\\]/i, '...\\')}</span>
                 </div>
                 
                 <div className="flex flex-col">
@@ -289,7 +291,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                 <div className="theme-glass-panel rounded-2xl p-6 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex flex-col gap-4 animate-in zoom-in-95 mt-2 bg-gradient-to-br from-[var(--accent)]/5 to-transparent">
                     <div className="flex items-start justify-between">
                       <div className="flex flex-col">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("registry_label_name") || "MATCHED ARTIFACT"}</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("registry_label_name") || "Display Name"}</span>
                         <span className="text-sm font-black theme-text-accent uppercase tracking-widest">{matchedMod.name}</span>
                         <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1 uppercase tracking-widest">
                           {t("verify_panel_version") || "VERSION"}: {matchedMod.version_label || matchedMod.version_number || "UNKNOWN"}
@@ -304,7 +306,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                         onClick={() => onJumpToArtifact(matchedMod)}
                         className="w-full py-3 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                       >
-                        {t("modal_btn_link") || "VIEW ARTIFACT"} <span className="text-sm leading-none">&rarr;</span>
+                        {t("modal_btn_link") || "LINK"} <span className="text-sm leading-none">&rarr;</span>
                       </button>
                     )}
                     {isSeniorArchitect && onManualFlag && (
@@ -324,8 +326,18 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                   className="w-full py-4 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
                 >
                   <span className="material-symbols-outlined !text-sm">{t("ui_icon_report") || "flag"}</span>
-                  {t("verify_panel_flag_btn") || "FLAG ARTIFACT"}
+                  {t("verify_panel_flag_btn") || "FLAG ARTIFACT FOR OVERSIGHT REVIEW"}
                 </button>
+              )}
+
+              {fileHash && !matchedMod && isSeniorArchitect && onManualFlag && (
+                  <button 
+                    onClick={() => onManualFlag(fileHash)}
+                    className="w-full py-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
+                  >
+                    <span className="material-symbols-outlined !text-sm">gavel</span>
+                    {t("sa_btn_manual_threat_flag") || "MANUAL THREAT FLAG"} <span className="text-sm leading-none">&rarr;</span>
+                  </button>
               )}
 
               {showFlagForm && (
@@ -416,7 +428,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
 
 
 
-export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDossier }: any) {
+export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDossier, setStatus }: any) {
   const { t } = useLexicon();
   const [activeTab, setActiveTab] = useState("command_center");
   const [isVerifyPanelOpen, setIsVerifyPanelOpen] = useState(false);
@@ -435,8 +447,8 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-32 relative">
       <ViewHeader 
-        title={t("hub_title")} 
-        subtitle={t("hub_subtitle")} 
+        title={t("hub_title") || "Architect Console"} 
+        subtitle={t("hub_subtitle") || "Registry review, metadata governance, and conflict triage"} 
         icon={t("ui_icon_analytics") || "analytics"} 
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" 
       >
@@ -445,7 +457,7 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
             onClick={() => setIsVerifyPanelOpen(true)}
             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
           >
-            <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_verified") || "verified"}</span>
+            <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_verified") || "verified_user"}</span>
             <span className="text-[10px] font-black uppercase tracking-widest">{t("architect_btn_verify_hash") || "VERIFY HASH"}</span>
           </button>
         </div>
@@ -453,17 +465,17 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
 
         <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
           <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner">
-          <HubTabButton id="command_center" icon={t("ui_icon_pc") || "desktop_windows"} label={t("hub_tab_command_screen")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="registry" icon={t("ui_icon_inventory") || "inventory_2"} label={t("hub_tab_registry")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-                    <HubTabButton id="cc_sets" icon={t("ui_icon_folder") || "folder"} label={t("hub_tab_cc_sets")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="protocols" icon={t("ui_icon_link") || "link"} label={t("hub_tab_protocols")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="structure" icon={t("ui_icon_architecture") || "architecture"} label={t("hub_tab_structure")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="matrix" icon={t("ui_icon_security") || "security"} label={t("hub_tab_matrix")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="queue" icon={t("ui_icon_search") || "search"} label={t("hub_tab_queue")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="mason_queue" icon={t("ui_icon_mason") || "construction"} label={t("hub_tab_mason_queue")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="marketplace_reports" icon={t("ui_icon_report") || "flag"} label={t("hub_tab_marketplace_reports")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="support_tickets" icon={t("ui_icon_local_activity") || "local_activity"} label={(t("hub_tab_support_tickets") || "SUPPORT QUEUE").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="lab" icon={t("ui_icon_diagnostics") || "monitor_heart"} label={t("hub_tab_diagnostics")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="command_center" icon={t("ui_icon_pc") || "desktop_windows"} label={t("hub_tab_command_screen") || "COMMAND"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="registry" icon={t("ui_icon_inventory") || "inventory_2"} label={t("hub_tab_registry") || "ARTIFACTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+                    <HubTabButton id="cc_sets" icon={t("ui_icon_folder") || "folder"} label={t("hub_tab_cc_sets") || "COLLECTIONS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="protocols" icon={t("ui_icon_link") || "link"} label={t("hub_tab_protocols") || "PROTOCOLS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="structure" icon={t("ui_icon_architecture") || "architecture"} label={t("hub_tab_structure") || "STRUCTURE"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="matrix" icon={t("ui_icon_security") || "security"} label={t("hub_tab_matrix") || "CONFLICTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="queue" icon={t("ui_icon_search") || "search"} label={t("hub_tab_queue") || "SCOUT"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="mason_queue" icon={t("ui_icon_mason") || "construction"} label={t("hub_tab_mason_queue") || "MASON"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="marketplace_reports" icon={t("ui_icon_report") || "flag"} label={t("hub_tab_marketplace_reports") || "REPORTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="support_tickets" icon={t("ui_icon_local_activity") || "local_activity"} label={(t("hub_tab_support_tickets") || "SUPPORT").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="lab" icon={t("ui_icon_diagnostics") || "monitor_heart"} label={t("hub_tab_diagnostics") || "DIAGNOSTICS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
           </div>
         </div>
 
@@ -476,16 +488,18 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
       />
 
         <div className="w-full flex-1 flex flex-col min-h-0">
-          {activeTab === "command_center" && <ArchitectCommandScreen onNavigate={handleNavigate} setViewingPost={setViewingPost} />}
-          <ArchitectRegistry isActiveTab={activeTab === "registry"} initialSearch={registrySearch} onClearSearch={() => setRegistrySearch("")} initialActiveMod={registryTargetMod || inspectMod} onClearActiveMod={() => { setRegistryTargetMod(null); setInspectMod(null); }} modList={modList} />
+          {activeTab === "command_center" && <ArchitectCommandScreen setStatus={setStatus} onNavigate={handleNavigate} setViewingPost={setViewingPost} />}
+          <ArchitectRegistry setStatus={setStatus} isActiveTab={activeTab === "registry"} initialSearch={registrySearch} onClearSearch={() => setRegistrySearch("")} initialActiveMod={registryTargetMod || inspectMod} onClearActiveMod={() => { setRegistryTargetMod(null); setInspectMod(null); }} modList={modList} />
         {activeTab === "protocols" && <ProtocolVisualizer isArchitect={true} />}
-                {activeTab === "cc_sets" && <CCSetForge />}
+                {activeTab === "cc_sets" && <CCSetForge setStatus={setStatus} />}
         {activeTab === "structure" && <StructureVisualizer isArchitect={true} />}
-        {activeTab === "queue" && <ScoutQueue modList={modList || []} />}
-        {activeTab === "mason_queue" && <MasonQueue modList={modList || []} />}
+        {activeTab === "queue" && <ScoutQueue modList={modList || []} setStatus={setStatus} />}
+        {activeTab === "mason_queue" && <MasonQueue modList={modList || []} setStatus={setStatus} />}
         {activeTab === "marketplace_reports" && <MarketplaceReportsViewer onOpenDossier={onOpenDossier} />}
-          {activeTab === "support_tickets" && <ArchitectSupportTickets />}
-          {activeTab === "lab" && <ProvingGrounds modList={modList || []} />}
+          {activeTab === "support_tickets" && <ArchitectSupportTickets setStatus={setStatus} onOpenDNA={(hash) => {
+             setInspectMod(hash as any);
+          }} />}
+          {activeTab === "lab" && <ProvingGrounds modList={modList || []} setStatus={setStatus} />}
           {activeTab === "matrix" && <ArchitectConflictMatrix modList={modList || []} />}
         </div>
       {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId="architect" />}
@@ -494,7 +508,7 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
   );
 }
 
-function DashboardStatTile({ icon, number, label, colorClass, onClick }: any) {
+function DashboardStatTile({  icon, number, label, colorClass, onClick , setStatus }: any) {
   return (
     <div onClick={onClick} className={`flex-1 flex flex-col justify-center items-start gap-1 p-6 rounded-3xl border border-white/10 backdrop-blur-md ${colorClass} transition-all cursor-pointer shadow-lg relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl`}>
        <div className="absolute inset-0 bg-current opacity-0 group-hover:opacity-[0.15] transition-opacity duration-300" />
@@ -507,7 +521,7 @@ function DashboardStatTile({ icon, number, label, colorClass, onClick }: any) {
   );
 }
 
-function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
+function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any) {
   const { t } = useLexicon();
   const [stats, setStats] = useState({ 
     scoutQueue: 0, masonQueue: 0, marketplaceReports: 0, 
@@ -536,15 +550,15 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
       const { count: marketplaceReportsCount } = await supabase.from('marketplace_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
       
       const { data: ticketsDataRaw } = await supabase.from('sanctuary_tickets')
-        .select('created_at, ticket_type, status, metadata')
-        .in('status', ['NEW', 'OPEN', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'new', 'open', 'pending', 'escalated', 'investigating']);
+        .select('created_at, ticket_type, status, metadata, target_mod_id')
+        .in('status', ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating']);
       const { data: catData } = await supabase.from('sanctuary_support_categories').select('*');
       
       let supportTicketsCount = 0;
       if (ticketsDataRaw && catData) {
         const ticketsData = ticketsDataRaw.map(t => ({
           ...t,
-          target_mod_id: t.metadata?.target_mod_id,
+          target_mod_id: t.target_mod_id || t.metadata?.target_mod_id,
           category: t.ticket_type
         }));
 
@@ -559,7 +573,10 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
         supportTicketsCount = ticketsData.filter(t => {
           const typeStr = t.category;
           const cat = catData.find(c => c.category_name === typeStr || c.category_code === typeStr);
-          const baseDest = cat?.ticket_destination || 'architect';
+          let baseDest = cat?.ticket_destination || 'architect';
+          if (typeStr === 'BUG_MOD' || typeStr?.toLowerCase().includes('bug_mod') || typeStr?.toLowerCase().includes('artifact')) {
+              baseDest = 'mod_author';
+          }
           const escalationPath = cat?.escalation_path || 'standard';
 
           const ageMs = Date.now() - new Date(t.created_at).getTime();
@@ -576,12 +593,34 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
           let currentTierIndex = tiers.indexOf(baseDest);
           if (currentTierIndex === -1) currentTierIndex = 1;
 
-          let effectiveTierIndex = Math.min(currentTierIndex + escalationTiers, tiers.length - 1);
+          let effectiveTierIndex = currentTierIndex;
+          if (escalationPath?.toLowerCase() !== 'none') {
+              effectiveTierIndex += escalationTiers;
+          }
+          
+          effectiveTierIndex = Math.min(effectiveTierIndex, Math.max(2, currentTierIndex));
           let dest = tiers[effectiveTierIndex];
 
-          if (t.status?.toUpperCase() === 'ESCALATED' && dest !== 'wayfinder') {
-            const idx = tiers.indexOf(dest);
-            dest = tiers[Math.min(idx + 1, tiers.length - 1)];
+          if (t.status?.toUpperCase() === 'ESCALATED') {
+            const logs = t.metadata?.action_log || [];
+            const lastEscalation = [...logs].reverse().find((l: any) => l.action === 'ESCALATED');
+            
+            if (lastEscalation) {
+                const esciArc = lastEscalation.architect;
+                if (esciArc === 'Wayfinder') {
+                    dest = 'wayfinder';
+                } else if (esciArc === 'Senior Architect' || esciArc === 'Oversight') {
+                    dest = 'wayfinder';
+                } else if (esciArc === 'Architect') {
+                    dest = 'senior_architect';
+                } else if (esciArc === 'Mason' || esciArc === 'Mod Author') {
+                    dest = 'architect';
+                } else {
+                    dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
+                }
+            } else {
+                dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
+            }
           }
 
           if (dest === 'mod_author') {
@@ -589,7 +628,7 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
             if (!modAuthorId) dest = 'architect';
           }
 
-          return dest === 'architect';
+          return dest === 'architect' || dest === 'senior_architect';
         }).length;
       }
       const { count: nsfwCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 1);
@@ -633,7 +672,7 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
       <div className="flex flex-col lg:flex-row gap-8 w-full">
         {/* Left Column - Wayfinder Comms */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wayfinder_comms") || "WAYFINDER COMMS"}</h2>
+          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wayfinder_comms") || "Latest Dispatch"}</h2>
           
           <div className="flex flex-col gap-8 w-full">
              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
@@ -656,14 +695,14 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
                       {isFeatured && <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 mb-6 line-clamp-3">{post.message}</p>}
                       <div className="mt-auto flex items-center justify-between pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
                          <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("ui_icon_calendar_today") || "calendar_today"}</span> {new Date(post.created_at).toLocaleDateString()}</span>
-                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more") || "READ MORE"} <span className="material-symbols-outlined !text-lg">{t('arrow_forward') || 'arrow_forward'}</span></span>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more") || "READ MORE"} <span className="material-symbols-outlined !text-lg">{t("arrow_forward") || "arrow_forward"}</span></span>
                        </div>
                     </div>
                  </div>
                  );
                }) : (
                  <div className="w-full xl:col-span-2 theme-glass-panel rounded-[2rem] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                   {t("system_no_broadcasts") || "NO RECENT BROADCASTS"}
+                   {t("system_no_broadcasts") || "No Recent Broadcasts"}
                  </div>
                )}
              </div>
@@ -672,19 +711,19 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-orange-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-orange-500">{stats.totalArtifacts}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_total_artifacts") || "TOTAL ARTIFACTS"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_total_artifacts") || "ARTIFACTS"}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-blue-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-blue-500">{stats.unverifiedMods}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_unverified") || "UNVERIFIED MODS"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_unverified") || "UNVERIFIED"}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-red-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-red-500">{stats.tier4Conflicts}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_tier4") || "TIER 4 CONFLICTS"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_tier4") || "Collision Severity 4"}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-orange-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-orange-500">{stats.tier3Conflicts}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_tier3") || "TIER 3 CONFLICTS"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_tier3") || "Collision Severity 3"}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-blue-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-blue-500">{stats.labQueue}</span>
@@ -718,7 +757,7 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_architecture") || "architecture"}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("structure_title") || "STRUCTURE MATRIX"}</h3>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("structure_title") || "Structure Matrix"}</h3>
                    <span className="text-[8px] uppercase font-bold text-amber-400 opacity-80 group-hover:text-amber-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> {t("hub_ql_asset_org") || "ASSET ORGANIZATION"}</span>
                  </div>
                </div>
@@ -771,7 +810,7 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
 
 
 
-function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSearch, initialActiveMod = null, onClearActiveMod, modList }: any = {}) {
+function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSearch, initialActiveMod = null, onClearActiveMod, modList , setStatus }: any = {}) {
   const { t } = useLexicon();
   const [cloudMods, setCloudMods] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
@@ -909,14 +948,14 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
 
       if (!error) {
         logArchitectAction(`Updated Mod Metadata`, `mods`, activeMod.name);
-        alert(`[${activeMod.name}] ${t("alert_saved") || "Saved successfully!"}`);
+        if (setStatus) setStatus(`${t("ui_icon_success")} [${activeMod.name}] ${t("alert_saved") || "Saved successfully!"}`);
         setPage(0);
         fetchData(true);
       } else {
-        alert((t("alert_error") || "Error: ") + error.message);
+        if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("alert_error") || "Error saving:"} ${t(error.message)}`);
       }
     } catch (err: any) {
-      alert((t("alert_error") || "Error: ") + err.message);
+      if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("alert_error") || "Error saving:"} ${t(err.message)}`);
     }
     setIsCommitting(false);
   };
@@ -940,7 +979,7 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
             <input 
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
-              placeholder={t("registry_search_placeholder") || "Search ID or Name..."} 
+              placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchTerm && (
@@ -955,11 +994,11 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
               value={activeCategory}
               onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
               options={[
-                { id: "ALL", label: t("vault_cat_all") || "ALL CLASSES" },
+                { id: "ALL", label: t("vault_cat_all") || "ALL" },
                 { id: "CAS", label: t("vault_cat_cas") || "CAS" },
-                { id: "BuildBuy", label: t("vault_cat_buildbuy") || "BUILD/BUY" },
-                { id: "Script", label: t("vault_cat_script") || "SCRIPT" },
-                { id: "Animation", label: t("vault_cat_animation") || "ANIMATION" },
+                { id: "BuildBuy", label: t("vault_cat_buildbuy") || "BuildBuy" },
+                { id: "Script", label: t("vault_cat_script") || "Script" },
+                { id: "Animation", label: t("vault_cat_animation") || "Animation" },
                 { id: "Core", label: t("vault_cat_core") || "CORE" }
               ]}
             />
@@ -971,10 +1010,10 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
                 value={activeSubType}
                 onChange={(val: string[]) => setActiveSubType(val[0])}
                 options={[
-                  { id: "ALL", label: t("vault_sub_all") || "ALL CAS" },
-                  { id: "Tattoo", label: t("vault_sub_tattoo") || "TATTOO" },
-                  { id: "Hair", label: t("vault_sub_hair") || "HAIR" },
-                  { id: "Clothing", label: t("vault_sub_clothing") || "CLOTHING" }
+                  { id: "ALL", label: t("vault_sub_all") || "ALL" },
+                  { id: "Tattoo", label: t("vault_sub_tattoo") || "Tattoo" },
+                  { id: "Hair", label: t("vault_sub_hair") || "Hair" },
+                  { id: "Clothing", label: t("vault_sub_clothing") || "Clothing" }
                 ]}
               />
             </div>
@@ -1019,7 +1058,7 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
       <SidePanel
         isOpen={!!activeMod}
         onClose={() => setActiveMod(null)}
-        title={activeMod?.name || t("mason_unnamed_artifact") || "UNNAMED ARTIFACT"}
+        title={t("ui_edit_metadata") || "EDIT METADATA"}
         subtitle={`UUID: ${activeMod?.id}`}
         icon={t("ui_icon_inventory") || "inventory_2"}
         footer={
@@ -1028,21 +1067,31 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
               {t("shared_cancel") || "CANCEL"}
             </button>
             <button onClick={handleCommitChanges} disabled={isCommitting} className={standardAccentGlassButtonClass}>
-              {isCommitting ? (t("registry_committing") || "COMMITTING...") : (t("registry_commit_changes") || "COMMIT CHANGES")}
+              {isCommitting ? (t("registry_committing") || "COMMITTING...") : (t("registry_commit_changes") || "Commit Changes")}
             </button>
           </div>
         }
       >
         {activeMod && (
           <div className="flex flex-col gap-6 pb-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mb-2">
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
+              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info") || "info"}</span>
+                {t("registry_meta") || "Metadata"}
+              </h4>
+              
+              <div className="flex flex-col gap-2 relative z-10">
+                <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none">{activeMod?.name || t("sa_identities_unknown") || "UNKNOWN"}</h3>
+              </div>
+            </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_name") || "NAME"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_name") || "Display Name"}</label>
                   <input value={activeMod.name || ""} onChange={e => setActiveMod({...activeMod, name: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason") || "MASON"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason") || "MASON ENTITY (AUTHOR)"}</label>
                   <div className="flex gap-2 relative">
                     <div className="flex-1 min-w-0">
                       <CustomMasonDropdown 
@@ -1056,56 +1105,55 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
                     </button>
                   </div>
                 </div>
-              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class") || "CLASSIFICATION"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class") || "Category"}</label>
                   <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(newType: string) => setActiveMod({...activeMod, category_override: newType})} />
                 </div>
                 
                 <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "FILE EXTENSION"}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "File Extension"}</label>
                     <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="e.g. .package, .ts4script" />
                   </div>
                   <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat") || "SUB-CLASS"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat") || "SUB-CATEGORY"}</label>
                   <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="e.g. Tuning, Object, CAS" />
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "DESCRIPTION"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "Description"}</label>
                   <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image") || "IMAGE URL"}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image") || "Cover Image URL"}</label>
                 <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="https://..." />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
-                    {t("registry_label_version") || "VERSION"} 
+                    {t("registry_label_version") || "Master Version (Latest)"} 
                   </label>
                   <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder="e.g. 1.0, 1.1, 1.2" className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "DOWNLOAD URL"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
                   <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status") || "STATUS"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status") || "Global Status"}</label>
                   <CustomStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({...activeMod, status: newStatus})} />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "SAFETY TIER"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "SAFETY RATING"}</label>
                   <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({...activeMod, compliance_tier: newTier})} includeTier3={false} />
                 </div>
               </div>
@@ -1121,7 +1169,7 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
       <SidePanel
         isOpen={isMasonPanelOpen}
         onClose={() => setIsMasonPanelOpen(false)}
-        title={t("mason_create_title") || "CREATE MASON"}
+        title={t("mason_create_title") || "New Mason"}
         icon="person_add"
         widthClass="w-[350px]"
         footer={
@@ -1130,14 +1178,14 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
               {t("shared_cancel") || "CANCEL"}
             </button>
             <button onClick={handleCreateMason} className={standardAccentGlassButtonClass}>
-              {t("mason_create_btn_create") || "CREATE"}
+              {t("mason_create_btn_create") || "CREATE UUID"}
             </button>
           </div>
         }
       >
         <div className="p-6">
           <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name") || "MASON NAME"}</label>
-          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name") || "Enter name..."} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name") || "Enter mason name..."} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
       </SidePanel>
     </>
@@ -1148,7 +1196,7 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
 
 
 
-function CCSetForge() {
+function CCSetForge({ setStatus }: any) {
   const { t } = useLexicon();
   const [sets, setSets] = useState<any[]>([]);
   const [activeSet, setActiveSet] = useState<any | null>(null);
@@ -1254,9 +1302,9 @@ function CCSetForge() {
     if (!error) {
       logArchitectAction("Updated CC Set Metadata", "cc_sets", activeSet.name);
       await fetchSets();
-      alert(`[${activeSet.name}] ${t("alert_saved") || "Saved successfully!"}`);
+      if (setStatus) setStatus(`${t("ui_icon_success")} [${activeSet.name}] ${t("alert_saved") || "Saved successfully!"}`);
     } else {
-      alert((t("alert_error") || "Error: ") + error.message);
+      if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("alert_error") || "Error saving:"} ${t(error.message)}`);
     }
     setTimeout(() => setIsSaving(false), 500);
   };
@@ -1323,7 +1371,7 @@ function CCSetForge() {
             <input 
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
-              placeholder={t("registry_search_placeholder") || "Search..."} 
+              placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
@@ -1331,14 +1379,14 @@ function CCSetForge() {
              <CustomDropdown disableTint={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{id: "ALL", label: "ALL TIERS"}, {id: "0", label: "TIER 0"}, {id: "1", label: "TIER 1"}, {id: "2", label: "TIER 2"}]} />
           </div>
           <button onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add") || "add"}</span> {t("forge_new_set") || "CREATE NEW SET"}
+            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add") || "add"}</span> {t("forge_new_set") || "New Collection"}
           </button>
         </div>
       </div>
       
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 content-start pr-2">
-          {filteredSets.length === 0 && <div className="p-4 col-span-full text-center text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("mason_cc_no_sets") || "NO SETS FOUND"}</div>}
+          {filteredSets.length === 0 && <div className="p-4 col-span-full text-center text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("mason_cc_no_sets") || "No Collections Found"}</div>}
           {filteredSets.map(setItem => (
               <CollectionCard 
                 key={setItem.id} 
@@ -1354,28 +1402,28 @@ function CCSetForge() {
       <SidePanel
         isOpen={isForgePanelOpen}
         onClose={() => setIsForgePanelOpen(false)}
-        title={t("forge_new_set") || "CREATE NEW SET"}
-        subtitle={t("mason_create_subtitle") || "Organize your mods"}
+        title={t("forge_new_set") || "New Collection"}
+        subtitle={t("mason_create_subtitle") || "Master Registry Insertion"}
         icon="add_circle"
         footer={
           <div className="flex justify-end gap-4 w-full">
             <button type="button" onClick={() => setIsForgePanelOpen(false)} className={standardButtonClass}>
-              {t("shared_cancel") || "Cancel"}
+              {t("shared_cancel") || "CANCEL"}
             </button>
             <button type="button" onClick={createSet} disabled={!setName.trim()} className={standardAccentGlassButtonClass}>
-              {t("forge_init_set") || "CREATE SET"}
+              {t("forge_init_set") || "INITIALIZE COLLECTION"}
             </button>
           </div>
         }
       >
         <div className="flex flex-col h-full gap-8">
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name") || "Set Name"}</label>
-            <input value={setName} onChange={e => setSetName(e.target.value)} placeholder={t("forge_set_name") || "Set Name"} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name") || "Collection Name..."}</label>
+            <input value={setName} onChange={e => setSetName(e.target.value)} placeholder={t("forge_set_name") || "Collection Name..."} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
           </div>
           
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_mason")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_mason") || "MASON / CREATOR"}</label>
             <div className="flex gap-2">
               <div className="flex-1">
                 <CustomMasonDropdown value={setMasonId} options={masonsList} onChange={setSetMasonId} />
@@ -1387,12 +1435,12 @@ function CCSetForge() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "Compliance Tier"}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "SAFETY RATING"}</label>
             <CustomComplianceDropdown value={setTier} onChange={setSetTier} includeTier3={false} />
           </div>
 
           <div className="flex flex-col gap-2">
-             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
              <input value={setSetUrl} onChange={e => setSetSetUrl(e.target.value)} placeholder="https://..." className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold opacity-80 focus:opacity-100 focus:outline-none focus:theme-border-accent transition-all" />
           </div>
         </div>
@@ -1402,7 +1450,7 @@ function CCSetForge() {
         isOpen={!!activeSet}
         onClose={() => setActiveSet(null)}
         title={activeSet?.name || "UNNAMED SET"}
-        subtitle={t("masonhub_manage_collection") || "MANAGE COLLECTION"}
+        subtitle={t("masonhub_manage_collection") || "Manage Collection"}
         icon="library_books"
         footer={
           <div className="flex justify-end gap-4 w-full">
@@ -1410,7 +1458,7 @@ function CCSetForge() {
               {t("mason_cc_btn_delete_set") || "DELETE SET"}
             </button>
             <button type="button" onClick={saveSetMeta} disabled={isSaving} className={standardAccentGlassButtonClass}>
-              {isSaving ? (t("ui_btn_loading") || "SAVING...") : (t("mason_cc_save_set") || "SAVE COLLECTION")}
+              {isSaving ? (t("ui_btn_loading") || "LOADING...") : (t("mason_cc_save_set") || "Save Collection")}
             </button>
           </div>
         }
@@ -1419,12 +1467,12 @@ function CCSetForge() {
           <div className="flex flex-col h-full gap-8">
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name") || "Collection Name..."}</label>
                   <input value={activeSet.name || ""} onChange={e => setActiveSet({...activeSet, name: e.target.value})} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
                 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_mason")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_mason") || "MASON / CREATOR"}</label>
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <CustomMasonDropdown value={activeSet.mason_id || ""} options={masonsList} onChange={(val: string) => setActiveSet({...activeSet, mason_id: val})} />
@@ -1436,7 +1484,7 @@ function CCSetForge() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "Compliance Tier"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "SAFETY RATING"}</label>
                   <CustomComplianceDropdown value={activeSet.compliance_tier || 0} onChange={(val: number) => setActiveSet({...activeSet, compliance_tier: val})} includeTier3={false} />
                 </div>
 
@@ -1446,7 +1494,7 @@ function CCSetForge() {
                 </div>
                 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "External URL"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
                   <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("dossier_external_url_placeholder") || "External URL..."} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
               </div>
@@ -1454,12 +1502,12 @@ function CCSetForge() {
               <div className="h-[1px] bg-white/5 my-2 w-full" />
 
               <div className="flex flex-col gap-4 pb-12">
-                <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title") || "SET CONTENTS"}</h4>
+                <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title") || "Set Contents"}</h4>
                 
                 <div className="flex flex-col gap-2 bg-black/10 p-4 rounded-2xl border border-white/5 relative z-[6000]">
                   <div className="flex items-center gap-3">
                      <span className={isSearching ? "animate-spin theme-text-accent material-symbols-outlined" : "theme-text-accent material-symbols-outlined"}>{t("registry_icon_search") || "search"}</span>
-                     <input value={assetSearch} onChange={e => setAssetSearch(e.target.value)} placeholder={t("forge_search_assets") || "Search all mods..."} className="w-full bg-transparent border-none outline-none text-[var(--text)] text-sm font-bold placeholder:opacity-40" />
+                     <input value={assetSearch} onChange={e => setAssetSearch(e.target.value)} placeholder={t("forge_search_assets") || "Search Assets to add..."} className="w-full bg-transparent border-none outline-none text-[var(--text)] text-sm font-bold placeholder:opacity-40" />
                   </div>
                   
                   {assetSearch.length >= 2 && availableAssets.length > 0 && (
@@ -1479,7 +1527,7 @@ function CCSetForge() {
 
                 <div className="flex flex-col gap-4 mt-2">
                     <div className="flex items-center justify-between px-2">
-                    <span className="text-[9px] uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("mason_cc_in_set") || "CURRENT ASSETS"}</span>
+                    <span className="text-[9px] uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("mason_cc_in_set") || "Items in Set"}</span>
                     <span className="theme-text-accent font-black text-xs">{manifestMembers.length}</span>
                     </div>
                     
@@ -1498,7 +1546,7 @@ function CCSetForge() {
                   {manifestMembers.length === 0 && (
                     <div className="w-full h-32 flex flex-col items-center justify-center opacity-40">
                       <span className="text-3xl mb-2 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_flask") || "science"}</span></span>
-                      <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t("hub_no_mods_found") || "NO MODS IN SET"}</span>
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t("hub_no_mods_found") || "QUEUE CLEAR / NO ASSETS FOUND"}</span>
                     </div>
                   )}
                 </div>
@@ -1510,7 +1558,7 @@ function CCSetForge() {
       <SidePanel
         isOpen={isMasonPanelOpen}
         onClose={() => setIsMasonPanelOpen(false)}
-        title={t("mason_create_title") || "CREATE MASON"}
+        title={t("mason_create_title") || "New Mason"}
         icon="person_add"
         widthClass="w-[350px]"
         footer={
@@ -1519,14 +1567,14 @@ function CCSetForge() {
               {t("shared_cancel") || "CANCEL"}
             </button>
             <button onClick={handleCreateMason} className={standardAccentGlassButtonClass}>
-              {t("mason_create_btn_create") || "CREATE"}
+              {t("mason_create_btn_create") || "CREATE UUID"}
             </button>
           </div>
         }
       >
         <div className="p-6">
           <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name") || "MASON NAME"}</label>
-          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name") || "Enter name..."} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name") || "Enter mason name..."} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
       </SidePanel>
 
@@ -1534,7 +1582,7 @@ function CCSetForge() {
   );
 }
 
-function ScoutQueue({ modList = [] }: { modList?: any[] }) {
+function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: any }) {
     const { t } = useLexicon();
     const [searchTerm, setSearchTerm] = useState("");
     const [submissions, setSubmissions] = useState<any[]>([]);
@@ -1711,7 +1759,7 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
             <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_search") || "search"}</span>
             </div>
-            <span className="truncate">{t("hub_scout_queue")}</span>
+            <span className="truncate">{t("hub_scout_queue") || "SCOUT QUEUE"}</span>
           </h2>
           <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
             <div className="relative flex-1 max-w-[300px]">
@@ -1719,7 +1767,7 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
               <input 
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
-                placeholder={t("registry_search_placeholder") || "Search..."} 
+                placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
                 className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
               />
             </div>
@@ -1728,7 +1776,7 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
   
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
           {loading ? (
-              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("scout_intercepting")}</div>
+              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("scout_intercepting") || "Intercepting Transmissions..."}</div>
           ) : filteredSubmissions.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center opacity-30">
                 <span className="text-6xl mb-4 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_museum") || "account_balance"}</span></span>
@@ -1737,7 +1785,7 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
           ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-32">
               {filteredSubmissions.map((mod: any) => (
-                  <ArtifactCard key={mod.id} mod={{ ...mod, name: mod.suggested_name, category_override: mod.suggested_type || "Scout Suggestion" }} onClick={() => setActiveScout(mod)} masonsList={masonsList} overrideActionLabel={t("mason_bug_inspect_report") || "INSPECT"} />
+                  <ArtifactCard key={mod.id} mod={{ ...mod, name: mod.suggested_name, category_override: mod.suggested_type || "Scout Suggestion" }} onClick={() => setActiveScout(mod)} masonsList={masonsList} overrideActionLabel={t("mason_bug_inspect_report") || "View"} />
               ))}
               </div>
           )}
@@ -1746,16 +1794,16 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
         <SidePanel
           isOpen={!!activeScout}
           onClose={() => setActiveScout(null)}
-          title={t("scout_reviewing") || "Review Scout Submission"}
+          title={t("scout_reviewing") || "Scout Queue"}
             icon={t("ui_icon_search") || "search"}
           subtitle={`HASH: ${activeScout?.dna_hash}`}
           actions={
             <>
               <button onClick={() => handleAction('rejected')} disabled={isProcessing} className={standardDangerButtonClass}>
-                {t("scout_discard")}
+                {t("scout_discard") || "Discard"}
               </button>
               <button onClick={() => handleAction('approved')} disabled={isProcessing} className={standardSuccessButtonClass}>
-                {isProcessing ? t("mason_saving") : t("scout_approve")}
+                {isProcessing ? t("mason_saving") || "SAVING..." : t("scout_approve") || "Approve & Bind"}
               </button>
             </>
           }
@@ -1769,17 +1817,17 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
                   <div className="flex flex-col gap-2 relative z-10">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-2">
                       <span className="material-symbols-outlined !text-[14px]">account_tree</span>
-                      {t("scout_label_lineage")}
+                      {t("scout_label_lineage") || "LINK TO LINEAGE (OPTIONAL)"}
                     </label>
                     <ModSearchDropdown 
                       modList={cloudModsList || []} 
                       onSelect={(m: any) => setLineageId(m.id)} 
                       selectedItem={cloudModsList?.find((m: any) => m.id === lineageId)} 
                       onClear={() => setLineageId("")}
-                      placeholder={t("scout_ph_link_lineage")}
+                      placeholder={t("scout_ph_link_lineage") || "Search to link with existing Mod Lineage..."}
                     />
                     <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 mt-1 ml-2">
-                      {t("scout_label_lineage_desc")}
+                      {t("scout_label_lineage_desc") || "Linking will append this signature to the existing Mod rather than creating a new one."}
                     </p>
                   </div>
                 </div>
@@ -1788,17 +1836,17 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
                   <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
                     <span className="material-symbols-outlined !text-[14px]">info</span>
-                    {t("mason_bug_inspect_report") || "METADATA"}
+                    {t("mason_bug_inspect_report") || "View"}
                   </h4>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_label_modname")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_label_modname") || "Mod Name"}</label>
                       <input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" />
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason") || "MASON ENTITY (AUTHOR)"}</label>
                       <div className="flex gap-2 relative">
                         <div className="flex-1 min-w-0">
                           <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id: string) => setEditForm({...editForm, mason_id: id})} />
@@ -1812,16 +1860,16 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
     
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class") || "Category"}</label>
                       <CustomClassificationDropdown value={editForm.category_override} onChange={(newType: string) => setEditForm({...editForm, category_override: newType})} />
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "FILE EXTENSION"}</label>
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "File Extension"}</label>
                         <input value={editForm.file_extension} onChange={e => setEditForm({...editForm, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder="e.g. .package, .ts4script" />
                       </div>
                       <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat") || "SUB-CATEGORY"}</label>
                       <input value={editForm.sub_type} onChange={e => setEditForm({...editForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder="e.g. Tuning, Object, CAS" />
                     </div>
                   </div>
@@ -1831,21 +1879,21 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
                     <span className="material-symbols-outlined !text-[14px]">link</span>
-                    {t("hub_label_resources") || "RESOURCES"}
+                    {t("hub_label_resources") || "Resources"}
                   </h4>
 
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
                     <input value={editForm.url || ""} onChange={e => setEditForm({...editForm, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image") || "Cover Image URL"}</label>
                     <input value={editForm.image_url || ""} onChange={e => setEditForm({...editForm, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "Description"}</label>
                     <textarea value={editForm.description || ""} onChange={e => setEditForm({...editForm, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-28 resize-none focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
                 </div>
@@ -1854,25 +1902,25 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
                     <span className="material-symbols-outlined !text-[14px]">verified</span>
-                    {t("masonhub_compliance_tier") || "COMPLIANCE"}
+                    {t("masonhub_compliance_tier") || "COMPLIANCE TIER"}
                   </h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_compliance_tier")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_compliance_tier") || "COMPLIANCE TIER"}</label>
                       <CustomComplianceDropdown value={editForm.compliance_tier || 0} onChange={(val: number) => setEditForm({...editForm, compliance_tier: val})} includeTier3={false} />
                     </div>
                     
                     <div className="flex flex-col gap-2">
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-1">
-                        {t("registry_label_version")}
+                        {t("registry_label_version") || "Master Version (Latest)"}
                       </label>
                       <input value={editForm.latest_version} onChange={e => setEditForm({ ...editForm, latest_version: e.target.value })} placeholder="e.g. 1.0, 1.1, 1.2" className="theme-glass-inner rounded-xl px-5 h-12 text-purple-400 text-sm font-bold focus:outline-none focus:border-purple-500/50 bg-black/20" />
                     </div>
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions") || "GAME VERSIONS"}</label>
                     <GameVersionMultiSelect selectedVersions={editForm.compatible_versions || []} onChange={(v: string[]) => setEditForm({...editForm, compatible_versions: v})} />
                   </div>
                 </div>
@@ -1884,24 +1932,24 @@ function ScoutQueue({ modList = [] }: { modList?: any[] }) {
         <SidePanel
           isOpen={isMasonPanelOpen}
           onClose={() => setIsMasonPanelOpen(false)}
-          title={t("mason_create_title")}
+          title={t("mason_create_title") || "New Mason"}
             icon={t("ui_icon_person_add") || "person_add"}
             actions={
             <button onClick={handleCreateMason} className={standardAccentGlassButtonClass}>
-              {t("mason_create_btn_create")}
+              {t("mason_create_btn_create") || "CREATE UUID"}
             </button>
           }
         >
           <div className="p-6">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name")}</label>
-            <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name")} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name") || "MASON NAME"}</label>
+            <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name") || "Enter mason name..."} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
           </div>
         </SidePanel>
       </div>
     )
   }
 
-function MasonQueue({ modList = [] }: { modList?: any[] }) {
+function MasonQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: any }) {
     const { t } = useLexicon();
     const [submissions, setSubmissions] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -1966,7 +2014,7 @@ function MasonQueue({ modList = [] }: { modList?: any[] }) {
         setActiveMod(null);
         fetchData();
       } else {
-        alert(`${t("err_save_failed")}: ` + error.message);
+        if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("err_save_failed")} ${t(error.message)}`);
       }
       setIsProcessing(false);
     };
@@ -1987,7 +2035,7 @@ function MasonQueue({ modList = [] }: { modList?: any[] }) {
         setActiveMod(null);
         fetchData();
       } else {
-        alert(`${t("err_save_failed")}: ` + error.message);
+        if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("err_save_failed")} ${t(error.message)}`);
       }
       setIsProcessing(false);
     };
@@ -2001,7 +2049,7 @@ function MasonQueue({ modList = [] }: { modList?: any[] }) {
             <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_mason") || "construction"}</span>
             </div>
-            <span className="truncate">{t("hub_tab_mason_queue")}</span>
+            <span className="truncate">{t("hub_title_mason_queue") || "MASON"}</span>
           </h2>
           <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
             <div className="relative flex-1 max-w-[300px]">
@@ -2009,7 +2057,7 @@ function MasonQueue({ modList = [] }: { modList?: any[] }) {
               <input 
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
-                placeholder={t("registry_search_placeholder") || "Search..."} 
+                placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
                 className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
               />
             </div>
@@ -2018,7 +2066,7 @@ function MasonQueue({ modList = [] }: { modList?: any[] }) {
   
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
           {loading ? (
-              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("hub_loading")}</div>
+              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("hub_loading") || "ESTABLISHING SECURE CONNECTION..."}</div>
           ) : filteredSubmissions.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center opacity-30">
                 <span className="text-6xl mb-4 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_museum") || "account_balance"}</span></span>
@@ -2027,7 +2075,7 @@ function MasonQueue({ modList = [] }: { modList?: any[] }) {
           ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-32">
               {filteredSubmissions.map((mod: any) => (
-                  <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("mason_bug_inspect_report") || "INSPECT"} />
+                  <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("mason_bug_inspect_report") || "View"} />
               ))}
               </div>
           )}
@@ -2036,13 +2084,13 @@ function MasonQueue({ modList = [] }: { modList?: any[] }) {
         <SidePanel
           isOpen={!!activeMod}
           onClose={() => setActiveMod(null)}
-          title={t("registry_select_master") || "Review Mason Submission"}
+          title={t("registry_select_master") || "Select a Master Record"}
             icon={t("ui_icon_construction") || "construction"}
           subtitle={`UUID: ${activeMod?.id}`}
           actions={
             <>
-              <button onClick={handleReject} disabled={isProcessing} className={standardDangerButtonClass}>{t("registry_btn_sever")}</button>
-              <button onClick={handleApprove} disabled={isProcessing} className={standardSuccessButtonClass}>{isProcessing ? t("mason_saving") : t("registry_btn_approve")}</button>
+              <button onClick={handleReject} disabled={isProcessing} className={standardDangerButtonClass}>{t("registry_btn_sever") || "Sever"}</button>
+              <button onClick={handleApprove} disabled={isProcessing} className={standardSuccessButtonClass}>{isProcessing ? t("mason_saving") || "SAVING..." : t("registry_btn_approve") || "Approve"}</button>
             </>
           }
         >
@@ -2053,33 +2101,33 @@ function MasonQueue({ modList = [] }: { modList?: any[] }) {
                   <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
                     <span className="material-symbols-outlined !text-[14px]">info</span>
-                    {t("mason_bug_inspect_report") || "METADATA"}
+                    {t("mason_bug_inspect_report") || "View"}
                   </h4>
                   
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_label_modname")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_label_modname") || "Mod Name"}</label>
                     <input value={editForm.name || ""} onChange={e => setEditForm({...editForm, name: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" />
                   </div>
     
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason") || "MASON ENTITY (AUTHOR)"}</label>
                       <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id: string) => setEditForm({...editForm, mason_id: id})} />
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class") || "Category"}</label>
                       <CustomClassificationDropdown value={editForm.category_override} onChange={(newType: string) => setEditForm({...editForm, category_override: newType})} />
                     </div>
                   </div>
     
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "FILE EXTENSION"}</label>
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "File Extension"}</label>
                         <input value={editForm.file_extension} onChange={e => setEditForm({...editForm, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder="e.g. .package, .ts4script" />
                       </div>
                       <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat") || "SUB-CATEGORY"}</label>
                       <input value={editForm.sub_type} onChange={e => setEditForm({...editForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder="e.g. Tuning, Object, CAS" />
                     </div>
                   </div>
@@ -2089,21 +2137,21 @@ function MasonQueue({ modList = [] }: { modList?: any[] }) {
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
                     <span className="material-symbols-outlined !text-[14px]">link</span>
-                    {t("hub_label_resources") || "RESOURCES"}
+                    {t("hub_label_resources") || "Resources"}
                   </h4>
 
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
                     <input value={editForm.url || ""} onChange={e => setEditForm({...editForm, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image") || "Cover Image URL"}</label>
                     <input value={editForm.image_url || ""} onChange={e => setEditForm({...editForm, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "Description"}</label>
                     <textarea value={editForm.description || ""} onChange={e => setEditForm({...editForm, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-28 resize-none focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
                 </div>
@@ -2112,16 +2160,16 @@ function MasonQueue({ modList = [] }: { modList?: any[] }) {
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
                     <span className="material-symbols-outlined !text-[14px]">verified</span>
-                    {t("masonhub_compliance_tier") || "COMPLIANCE"}
+                    {t("masonhub_compliance_tier") || "COMPLIANCE TIER"}
                   </h4>
 
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_compliance_tier")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_compliance_tier") || "COMPLIANCE TIER"}</label>
                     <CustomComplianceDropdown value={editForm.compliance_tier || 0} onChange={(val: number) => setEditForm({...editForm, compliance_tier: val})} includeTier3={false} />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions") || "GAME VERSIONS"}</label>
                     <GameVersionMultiSelect selectedVersions={editForm.compatible_versions || []} onChange={(v: string[]) => setEditForm({...editForm, compatible_versions: v})} />
                   </div>
                 </div>
@@ -2136,356 +2184,13 @@ function MasonQueue({ modList = [] }: { modList?: any[] }) {
 function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val: number) => void }) {
   const { t } = useLexicon();
   const options = [
-    { id: 4, label: t("nexus_tier4") },
-    { id: 3, label: t("nexus_tier3") },
+    { id: 4, label: t("nexus_tier4") || "Severity 4: Fatal Collision" },
+    { id: 3, label: t("nexus_tier3") || "Severity 3: Tuning Overlap" },
   ];
   return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: any[]) => onChange(v[0])} placeholder="Select Tier" />;
 }
 
-function ConflictMatrix({ modList = [] }: { modList?: any[] }) {
-  const { t } = useLexicon();
-  const [ghosts, setGhosts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [tierFilter, setTierFilter] = useState<number | null>(null);
-  
-  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
-  const [activeMaster, setActiveMaster] = useState<any | null>(null);
-  const [conflictEnemy, setConflictEnemy] = useState<any | null>(null);
-  const [conflictSeverity, setConflictSeverity] = useState(4);
-  const [conflictResolution, setConflictResolution] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editConflictId, setEditConflictId] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-
-  const realMods = modList.filter(m => !m.isParent && !m.isFlavorFolder);
-
-  const fetchGhosts = async () => {
-    setLoading(true);
-    const { data, error } = await supabase.from('logical_conflicts').select(`
-      *,
-      mod_a:mods!logical_conflicts_mod_a_id_fkey(id, name),
-      mod_b:mods!logical_conflicts_mod_b_id_fkey(id, name)
-    `).order('status', { ascending: false }).order('created_at', { ascending: false });
-    
-    if (!error && data) setGhosts(data);
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchGhosts(); }, []);
-
-  const handleAddConflict = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeMaster || !conflictEnemy) return;
-    setIsSubmitting(true);
-    
-    if (editConflictId) {
-      const { error } = await supabase.from('logical_conflicts').update({ 
-        mod_a_id: activeMaster.id, 
-        mod_b_id: conflictEnemy.id, 
-        severity_rank: conflictSeverity, 
-        resolution_note: conflictResolution,
-        status: 'approved' 
-      }).eq('id', editConflictId);
-      if (!error) logArchitectAction("Updated Global Conflict Rule", "logical_conflicts", `T${conflictSeverity}`);
-    } else {
-      const { error } = await supabase.from('logical_conflicts').insert([{ 
-        mod_a_id: activeMaster.id, 
-        mod_b_id: conflictEnemy.id, 
-        severity_rank: conflictSeverity, 
-        resolution_note: conflictResolution,
-        status: 'approved'
-      }]);
-      if (!error) logArchitectAction("Created Global Conflict Rule", "logical_conflicts", `T${conflictSeverity}`);
-    }
-    
-    setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setActiveMaster(null); setEditConflictId(null);
-    setIsSidePanelOpen(false);
-    await fetchGhosts();
-    setIsSubmitting(false);
-  };
-
-  const handleEditConflict = (c: any) => {
-    let myMod = c.mod_a;
-    let enemyMod = c.mod_b;
-    if (c.mod_a_id && !myMod) myMod = realMods.find(m => m.id === c.mod_a_id);
-    if (c.mod_b_id && !enemyMod) enemyMod = realMods.find(m => m.id === c.mod_b_id);
-
-    setActiveMaster(myMod || null);
-    setConflictEnemy(enemyMod || null);
-    setConflictSeverity(c.severity_rank || 4);
-    setConflictResolution(c.resolution_note || "");
-    setEditConflictId(c.id);
-    setIsSidePanelOpen(true);
-  };
-
-  const handleDeleteConflict = async (id: string) => {
-    const { error } = await supabase.from('logical_conflicts').delete().eq('id', id);
-    if (!error) {
-      logArchitectAction("Deleted Global Conflict Rule", "logical_conflicts", id);
-      setDeleteConfirmId(null);
-      setIsSidePanelOpen(false);
-      fetchGhosts();
-    }
-  };
-
-  const handleApproveGhost = async (id: string) => {
-    const { error } = await supabase.from('logical_conflicts').update({ status: 'approved' }).eq('id', id);
-    if (!error) {
-      logArchitectAction("Approved Pending Conflict Rule", "logical_conflicts", id);
-      fetchGhosts();
-    }
-  };
-
-  const filteredGhosts = ghosts.filter(c => {
-    if (tierFilter !== null && c.severity_rank !== tierFilter) return false;
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    const nameA = c.mod_a?.name || c.mod_a || "";
-    const nameB = c.mod_b?.name || c.mod_b || "";
-    return nameA.toLowerCase().includes(search) || nameB.toLowerCase().includes(search);
-  });
-
-  const pendingGhosts = filteredGhosts.filter(c => c.status === 'pending');
-  const activeGhosts = filteredGhosts.filter(c => c.status !== 'pending');
-
-
-  return (
-    <div className="flex flex-col w-full relative">
-      
-      <div className="flex flex-col gap-6 p-6 pb-32 transition-all duration-500">
-        
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-             <span className="material-symbols-outlined !text-3xl opacity-70">{t("ui_icon_security") || "security"}</span>
-             <span className="truncate">{t("ui_tab_conflicts")?.replace("⚔️ ", "") || "Conflict Matrix"}</span>
-          </h2>
-          <button onClick={() => { setEditConflictId(null); setActiveMaster(null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }} className="flex items-center gap-3 px-6 py-3 theme-glass-panel theme-text-accent border border-[var(--accent)]/30 hover:border-[var(--accent)] hover:shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.2)] rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95">
-            + {t("ui_btn_create") || "CREATE RULE"}
-          </button>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-4 items-center w-full">
-          <div className="relative flex-1 w-full">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 opacity-50">🔍</span>
-            <input 
-              type="text" 
-              placeholder={t("ui_search_placeholder") || "Search conflicts..."} 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-4 py-3 text-sm font-bold focus:outline-none transition-all text-[var(--text)] border border-white/5 hover:border-white/10"
-            />
-          </div>
-          <div className="flex items-center gap-2 theme-glass-panel rounded-2xl p-2 shrink-0">
-            <button onClick={() => setTierFilter(null)} className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === null ? 'bg-white/10 text-white' : 'opacity-50 hover:opacity-100 hover:bg-white/5'}`}>{t("hub_ql_all") || "ALL"}</button>
-            {[4, 3, 2, 1].map(tier => (
-              <button key={tier} onClick={() => setTierFilter(tier)} className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === tier ? 'bg-white/10 text-white shadow-sm' : 'opacity-50 hover:opacity-100 hover:bg-white/5'}`}>
-                {(t("hub_filter_sev") || "SEV ") + tier}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="py-12 flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("hub_loading") || "LOADING..."}</div>
-        ) : filteredGhosts.length === 0 ? (
-           <div className="py-12 flex flex-col items-center justify-center opacity-30 gap-4">
-            <span className="text-4xl grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_ghost") || "visibility_off"}</span></span>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text)]">{t("masonhub_no_conflicts") || "NO CONFLICTS"}</span>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-8 mt-4">
-            {pendingGhosts.length > 0 && (
-              <div className="flex flex-col gap-4">
-                <h3 className="text-sm font-black text-amber-500 uppercase tracking-widest flex items-center gap-2 px-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-                  {t("masonhub_pending_approval") || "Pending Approval"}
-                </h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {pendingGhosts.map(c => {
-                    const nameA = c.mod_a?.name || c.mod_a || "UNKNOWN";
-                    const nameB = c.mod_b?.name || c.mod_b || "UNKNOWN";
-                    return (
-                      <div 
-                        key={c.id} 
-                        onClick={() => handleEditConflict(c)} 
-                        className="relative group cursor-pointer w-full rounded-[2rem] overflow-hidden transition-all duration-500 border border-amber-500/30 shadow-lg hover:shadow-[0_0_30px_rgba(245,158,11,0.2)] hover:scale-[1.02]"
-                      >
-                        <div className="absolute inset-0 theme-glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
-                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5 group-hover:opacity-10 transition-opacity duration-500" />
-                        
-                        <div className="relative p-6 flex flex-col gap-4 z-10">
-                          <div className="flex justify-between items-start">
-                            <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase shadow-sm flex items-center gap-1.5 ${c.severity_rank === 4 ? 'bg-red-500 text-[var(--bg)] shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-orange-500 text-[var(--bg)] shadow-[0_0_10px_rgba(249,115,22,0.5)]'}`}>
-                              <span className="material-symbols-outlined !text-[12px]">{c.severity_rank === 4 ? 'error' : 'warning'}</span>
-                              T{c.severity_rank}
-                            </span>
-                            <span className="px-3 py-1.5 bg-amber-500 text-[var(--bg)] rounded-lg text-[9px] font-black uppercase shadow-[0_0_10px_rgba(245,158,11,0.5)] animate-pulse">{t("hub_pending") || "PENDING"}</span>
-                          </div>
-                          
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined !text-xl theme-text-accent">{t("ui_icon_extension") || "extension"}</span>
-                              </div>
-                              <span className="text-sm font-black text-[var(--text)] truncate">{nameA}</span>
-                            </div>
-                            
-                            <div className="flex items-center justify-center gap-4 text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-50 px-8">
-                              <div className="h-px bg-white/10 flex-1" />
-                              <span className="shrink-0">{t("nexus_vs") || "VS"}</span>
-                              <div className="h-px bg-white/10 flex-1" />
-                            </div>
-                            
-                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined !text-xl theme-text-danger">{t("ui_icon_extension") || "extension"}</span>
-                              </div>
-                              <span className="text-sm font-black text-[var(--text)] truncate">{nameB}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {activeGhosts.length > 0 && (
-              <div className="flex flex-col gap-4">
-                <h3 className="text-sm font-black text-[var(--subtext)] opacity-50 uppercase tracking-widest flex items-center gap-2 px-2">
-                  {t("matrix_established") || "ESTABLISHED CONFLICTS"}
-                </h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {activeGhosts.map(c => {
-                    const nameA = c.mod_a?.name || c.mod_a || "UNKNOWN";
-                    const nameB = c.mod_b?.name || c.mod_b || "UNKNOWN";
-                    return (
-                      <div 
-                        key={c.id} 
-                        onClick={() => handleEditConflict(c)} 
-                        className="relative group cursor-pointer w-full rounded-[2rem] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-lg hover:shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_10%,transparent)] hover:scale-[1.02]"
-                      >
-                        <div className="absolute inset-0 theme-glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
-                        <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
-                        
-                        <div className="relative p-6 flex flex-col gap-4 z-10">
-                          <div className="flex justify-between items-start">
-                            <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase shadow-sm flex items-center gap-1.5 ${c.severity_rank === 4 ? 'bg-red-500 text-[var(--bg)] shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-orange-500 text-[var(--bg)] shadow-[0_0_10px_rgba(249,115,22,0.5)]'}`}>
-                              <span className="material-symbols-outlined !text-[12px]">{c.severity_rank === 4 ? 'error' : 'warning'}</span>
-                              T{c.severity_rank}
-                            </span>
-                          </div>
-                          
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined !text-xl theme-text-accent">{t("ui_icon_extension") || "extension"}</span>
-                              </div>
-                              <span className="text-sm font-black text-[var(--text)] truncate group-hover:theme-text-accent transition-colors">{nameA}</span>
-                            </div>
-                            
-                            <div className="flex items-center justify-center gap-4 text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-50 px-8">
-                              <div className="h-px bg-white/10 flex-1" />
-                              <span className="shrink-0">{t("nexus_vs") || "VS"}</span>
-                              <div className="h-px bg-white/10 flex-1" />
-                            </div>
-                            
-                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined !text-xl theme-text-danger">{t("ui_icon_extension") || "extension"}</span>
-                              </div>
-                              <span className="text-sm font-black text-[var(--text)] truncate">{nameB}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <SidePanel
-        isOpen={isSidePanelOpen}
-        onClose={() => setIsSidePanelOpen(false)}
-        title={editConflictId ? (t("ui_btn_edit") || "EDIT") : (t("ui_btn_create") || "CREATE")}
-        icon="security"
-      >
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 pb-32">
-              <form onSubmit={handleAddConflict} className="flex flex-col gap-8">
-                <div className="flex flex-col gap-6">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">{t("nexus_enemy_a") || "MOD A"}</label>
-                    <ModSearchDropdown placeholder={t("registry_select_master") || "Select Mod..."} selectedItem={activeMaster} onSelect={(m: any) => setActiveMaster(m)} onClear={() => setActiveMaster(null)} modList={realMods} />
-                  </div>
-                  
-                  <div className="flex justify-center -my-2 z-20">
-                      <span className="text-[10px] theme-text-danger font-black shrink-0 px-2 py-1 bg-red-500/10 rounded-full border border-red-500/20">{t("nexus_vs") || "VS"}</span>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">{t("nexus_enemy_b") || "MOD B"}</label>
-                      <ModSearchDropdown placeholder={t("mason_enemy_placeholder") || "Select Enemy..."} selectedItem={conflictEnemy} onSelect={(m: any) => setConflictEnemy(m)} onClear={() => setConflictEnemy(null)} modList={realMods} />
-                    </div>
-                  
-                    <div className="flex flex-col gap-2 relative z-10">
-                      <label className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">{t("nexus_rank") || "TIER"}</label>
-                      <CustomTierDropdown value={conflictSeverity} onChange={(val) => setConflictSeverity(val)} />
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col gap-2 relative z-0">
-                    <label className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">{t("nexus_label_notes") || "NOTES"}</label>
-                    <textarea 
-                      placeholder={t("ui_placeholder_notes") || "Describe the nature of this conflict and how Architect should handle it..."} 
-                      value={conflictResolution} 
-                      onChange={(e) => setConflictResolution(e.target.value)} 
-                      className="w-full theme-glass-panel rounded-xl px-5 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all font-bold h-24 resize-none placeholder:text-[var(--text)]/20 hover:border-white/10"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-3 pt-4 mt-4 border-t border-white/10 relative z-0">
-                    {deleteConfirmId === editConflictId && editConflictId ? (
-                       <div className="flex flex-col gap-3 p-4 theme-panel-danger rounded-xl border animate-in slide-in-from-bottom-2">
-                         <span className="text-xs font-black text-[var(--bg)] uppercase tracking-widest text-center">{t("ui_confirm_delete") || "ARE YOU SURE?"}</span>
-                         <div className="flex gap-2">
-                           <button type="button" onClick={() => handleDeleteConflict(editConflictId)} className="flex-1 py-2 bg-[var(--bg)] theme-text-danger rounded uppercase font-black text-[10px] hover:opacity-90">{t("ui_btn_delete") || "DELETE"}</button>
-                           <button type="button" onClick={() => setDeleteConfirmId(null)} className="flex-1 py-2 bg-transparent text-[var(--bg)] rounded uppercase font-black text-[10px] border border-[var(--bg)] hover:bg-[var(--bg)] hover:text-[var(--text)] transition-colors">{t("ui_btn_cancel") || "CANCEL"}</button>
-                         </div>
-                       </div>
-                    ) : (
-                      <>
-                        <button type="submit" disabled={isSubmitting || !activeMaster || !conflictEnemy} className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${isSubmitting || !activeMaster || !conflictEnemy ? 'opacity-50 cursor-not-allowed bg-white/5 text-[var(--subtext)]' : 'theme-bg-danger text-white shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:scale-[1.02]'}`}>
-                          {isSubmitting ? "..." : (editConflictId ? t("masonhub_update_conflict") : t("masonhub_add_conflict"))}
-                        </button>
-                        
-                        {editConflictId && (
-                          <div className="flex gap-3 mt-2">
-                            {ghosts.find((g: any) => g.id === editConflictId)?.status === 'pending' && (
-                              <button type="button" onClick={() => handleApproveGhost(editConflictId)} className="flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest theme-bg-success text-[var(--bg)] shadow-lg hover:scale-[1.02] transition-all">
-                                {t("ui_btn_approve") || "APPROVE"}
-                              </button>
-                            )}
-                            <button type="button" onClick={() => setDeleteConfirmId(editConflictId)} className="flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all">
-                              {t("ui_btn_delete") || "DELETE"}
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    )}
-            </div>
-          </form>
-        </div>
-      </SidePanel>
-    </div>
-  );
-}
-function ProvingGrounds({ modList }: { modList: any[] }) {
+function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: any }) {
   const { t } = useLexicon();
   const [labReports, setLabReports] = useState<any[]>([]);
   const [allMods, setAllMods] = useState<any[]>([]);
@@ -2605,8 +2310,8 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
           const orParentQuery = ids.map(id => `parent_id.eq.${id}`).join(',');
           
           const { data: depLinks } = await supabase.from('mod_dependencies').select('parent_id, child_id').or(orQuery);
-          const { data: twinLinks } = await supabase.from('mod_relationships').select('child_id').or(orParentQuery).eq('relationship_type', 'twin');
-          const { data: addonLinks } = await supabase.from('mod_relationships').select('parent_id').or(orQuery).eq('relationship_type', 'addon');
+          const { data: twinLinks } = await supabase.from('mod_relationships').select("child_id").or(orParentQuery).eq('relationship_type', 'twin');
+          const { data: addonLinks } = await supabase.from('mod_relationships').select("parent_id").or(orQuery).eq('relationship_type', 'addon');
 
           let allIds = new Set<string>();
           if (depLinks) depLinks.forEach((l: any) => allIds.add(l.parent_id));
@@ -2614,7 +2319,7 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
           if (addonLinks) addonLinks.forEach((l: any) => allIds.add(l.parent_id));
 
           if (allIds.size > 0) {
-            const { data: depMods } = await supabase.from('mods').select('name').in('id', Array.from(allIds));
+            const { data: depMods } = await supabase.from('mods').select("name").in('id', Array.from(allIds));
             if (depMods) depPaths = depMods.map((m: any) => m.name);
           }
         }
@@ -2690,12 +2395,85 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
           if (activeSet) {
             let deployMods: any[] = [];
             activeSet.mods.forEach((modName: string) => {
-              const modObj = modList.find((m: any) => m.name === modName || m.displayName === modName);
-              if (modObj && modObj.isVirtual && modObj.flavors) {
-                 modObj.flavors.forEach((f: any) => deployMods.push({ path: f.name, allow_write: true }));
-              } else {
-                 deployMods.push({ path: modObj ? modObj.name : modName, allow_write: true });
-              }
+                let modObj = modList.find((m: any) => m.name === modName || m.displayName === modName);
+                
+                let tPath = null;
+                let virtualParent = modObj?.isVirtual ? modObj : null;
+                let parsedStructure = virtualParent?.folder_structure;
+                if (typeof parsedStructure === 'string') {
+                    try { parsedStructure = JSON.parse(parsedStructure); } catch (e) {}
+                }
+        
+                if (!virtualParent) {
+                    const normalize = (s: string) => s.replace(/[^a-z0-9]/gi, "").toLowerCase();
+                    const cleanModName = modName.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "") || "";
+                    
+                    for (const m of (modList || [])) {
+                        if (m.isVirtual && m.folder_structure) {
+                            let struct = m.folder_structure;
+                            if (typeof struct === 'string') {
+                                try { struct = JSON.parse(struct); } catch (e) { continue; }
+                            }
+                            if (Array.isArray(struct)) {
+                                const getPath = (structure: any[], targetName: string, currentPath = ""): string | null => {
+                                  for (const node of structure) {
+                                    const nodePath = currentPath ? `${currentPath}/${node.name}` : node.name;
+                                    if (node.type === "file") {
+                                      if (node.assignedModId === targetName) return nodePath;
+                                      if (node.assignedModName && normalize(node.assignedModName) === normalize(targetName)) return nodePath;
+                                      if (normalize(node.name) === normalize(targetName)) return nodePath;
+                                      if (normalize(node.name.replace(/\.(package|ts4script|cfg|ini)$/i, "")) === normalize(targetName)) return nodePath;
+                                    }
+                                    if (node.children) {
+                                      const result = getPath(node.children, targetName, nodePath);
+                                      if (result) return result;
+                                    }
+                                  }
+                                  return null;
+                                };
+                                
+                                let foundPath = getPath(struct, cleanModName) || getPath(struct, modName);
+                                if (!foundPath && modObj?.dbId) foundPath = getPath(struct, String(modObj.dbId));
+                                
+                                if (foundPath) {
+                                    virtualParent = m;
+                                    parsedStructure = struct;
+                                    const ext = modName.includes('.') ? modName.split('.').pop() : '';
+                                    if (ext && !foundPath.toLowerCase().endsWith(`.${ext.toLowerCase()}`)) {
+                                        tPath = `${foundPath}.${ext}`;
+                                    } else {
+                                        tPath = foundPath;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Fallback: If not found in JSON tree, search flavors
+                    if (!virtualParent) {
+                        virtualParent = (modList || []).find((m: any) => {
+                            if (!m.isVirtual || !m.flavors) return false;
+                            const targetBaseName = normalize(modName.split(/[\\/]/).pop()?.replace(/\.(package|ts4script|cfg|ini)$/i, "") || "");
+                            return m.flavors.some((f: any) => {
+                                const cleanF = normalize(f.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script|cfg|ini)$/i, "") || "");
+                                return cleanF === targetBaseName;
+                            });
+                        });
+                        if (virtualParent) {
+                            parsedStructure = virtualParent.folder_structure;
+                            if (typeof parsedStructure === 'string') {
+                                try { parsedStructure = JSON.parse(parsedStructure); } catch (e) {}
+                            }
+                        }
+                    }
+                }
+
+                if (modObj && modObj.isVirtual) {
+                   deployMods.push({ path: modObj.name, allow_write: true, folder_structure: parsedStructure || null, target_path: null });
+                } else {
+                   deployMods.push({ path: modName, allow_write: true, target_path: tPath });
+                }
             });
             await invoke("deploy_playset_bulk", {
               mods: deployMods,
@@ -2740,7 +2518,7 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_diagnostics") || "monitor_heart"}</span>
           </div>
-          <span className="truncate">{t("hub_tab_lab")?.replace("🧪 ", "") || "Homestead Diagnostics"}</span>
+          <span className="truncate">{t("hub_tab_lab") || "Homestead DIAGNOSTICS"?.replace("🧪 ", "") || "Homestead Diagnostics"}</span>
         </h2>
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
@@ -2748,7 +2526,7 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
             <input 
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
-              placeholder={t("lab_search_ph") || "Search diagnostics..."} 
+              placeholder={t("lab_search_ph") || "Search mods..."} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
@@ -2763,12 +2541,12 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]"></span>
               </div>
               <h4 className="text-sm font-black text-amber-500 uppercase tracking-widest drop-shadow-md">
-                {t("lab_pending_queue") || "PENDING DIAGNOSTICS"} ({pendingReports.length})
+                {t("lab_pending_queue") || "Pending Diagnostics"} ({pendingReports.length})
               </h4>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
               {pendingReports.map((mod: any) => (
-                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("mason_bug_inspect_report") || "INSPECT"} />
+                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("mason_bug_inspect_report") || "View"} />
               ))}
             </div>
           </div>
@@ -2781,12 +2559,12 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
                 <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70">check_circle</span>
               </div>
               <h4 className="text-sm font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest drop-shadow-md">
-                {t("lab_completed_queue") || "COMPLETED DIAGNOSTICS"} ({completedReports.length})
+                {t("lab_completed_queue") || "Completed Diagnostics"} ({completedReports.length})
               </h4>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
               {completedReports.map((mod: any) => (
-                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("mason_bug_inspect_report") || "INSPECT"} />
+                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("mason_bug_inspect_report") || "View"} />
               ))}
             </div>
           </div>
@@ -2804,7 +2582,7 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
         <SidePanel
           isOpen={!!activeReport}
           onClose={closePanel}
-          title={t("lab_diagnostic_panel_title") || "Diagnostic Run"}
+          title={t("lab_diagnostic_panel_title") || "Diagnostic Report"}
           icon="monitor_heart"
           footer={
             (!testRun || isLoading) ? (
@@ -2833,7 +2611,7 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
                         className="w-full h-14 theme-glass-panel border border-[var(--warning)]/50 text-[var(--warning)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--warning)]/10 transition-all shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] flex items-center justify-center gap-2"
                       >
                         <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_download") || "download"}</span>
-                        {t("lab_missing_artifacts") || "ACQUIRE MISSING ARTIFACT"}
+                        {t("lab_missing_artifacts") || "Missing Artifacts"}
                       </button>
                     ) : (
                       <button 
@@ -2858,8 +2636,8 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
             <div className="flex-1 overflow-y-auto custom-scrollbar p-8 pb-8 flex flex-col gap-8">
               
               <div className="flex flex-col gap-4">
-                <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("lab_diagnostic_dependencies") || "Add Dependencies"}</h3>
-                <p className="text-[10px] text-[var(--subtext)] opacity-50 ml-2 -mt-2 leading-relaxed">{t("lab_diagnostic_dependencies_desc") || "Select optional or required mods to inject alongside the target."}</p>
+                <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("lab_diagnostic_dependencies") || "Dependencies"}</h3>
+                <p className="text-[10px] text-[var(--subtext)] opacity-50 ml-2 -mt-2 leading-relaxed">{t("lab_diagnostic_dependencies_desc") || "Mods required by this artifact."}</p>
                 
                 <div className="theme-glass-inner rounded-xl p-4 flex flex-col gap-4">
                   <ModSearchDropdown 
@@ -2937,14 +2715,14 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
 
                     {!testPassed && conflictTarget && (
                       <div className="mt-4 border-t border-[var(--danger)]/20 pt-6">
-                        <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">{t("lab_btn_add_to_nexus")}</h3>
+                        <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">{t("lab_btn_add_to_nexus") || "Add To Nexus"}</h3>
                         <form onSubmit={submitToNexus} className="flex flex-col gap-4">
                           <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_resolution_suggestion")}</label>
+                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_resolution_suggestion") || "Resolution Suggestion"}</label>
                             <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder="e.g. Load Mod A after Mod B" className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
                           </div>
                           <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_severity")}</label>
+                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_severity") || "Severity (4 = Fatal, 3 = Minor)"}</label>
                             <CustomTierDropdown value={severity} onChange={(val) => setSeverity(val)} />
                           </div>
                           <button type="submit" disabled={isSubmitting} className="w-full py-4 theme-bg-success text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg disabled:opacity-50 mt-2">
@@ -2965,7 +2743,7 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
       <SidePanel
         isOpen={isMissingArtifactPanelOpen}
         onClose={() => setIsMissingArtifactPanelOpen(false)}
-        title={t("lab_missing_artifacts") || "ACQUIRE MISSING ARTIFACT"}
+        title={t("lab_missing_artifacts") || "Missing Artifacts"}
         icon="download"
         widthClass="w-[450px]"
         footer={
@@ -2999,11 +2777,11 @@ function ProvingGrounds({ modList }: { modList: any[] }) {
 function CustomStatusDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const options =[
-    { id: 'verified', label: t("status_dd_verified") },
-    { id: 'under_review', label: t("status_dd_review") },
-    { id: 'broken', label: t("status_dd_broken") },
-    { id: 'pending', label: t("status_pending") || "Pending" },
-    { id: 'unverified', label: t("status_dd_unverified") },
+    { id: 'verified', label: t("status_dd_verified") || "Verified Safe" },
+    { id: 'under_review', label: t("status_dd_review") || "Under Review" },
+    { id: 'broken', label: t("status_dd_broken") || "Broken / Fatal" },
+    { id: 'pending', label: t("status_pending") || "PENDING" },
+    { id: 'unverified', label: t("status_dd_unverified") || "Unverified" },
   ];
   return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder="Select Status" />;
 }
@@ -3023,12 +2801,12 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
 
   const getTitle = () => {
     switch(mode) {
-      case 'dependency': return t("modal_sel_dep");
-      case 'addon': return t("modal_sel_addon");
-      case 'twin': return t("modal_sel_twin");
-      case 'rival': return t("modal_sel_rival");
+      case 'dependency': return t("modal_sel_dep") || "Select Required Master (Dependency)";
+      case 'addon': return t("modal_sel_addon") || "Select Child Artifact (Addon)";
+      case 'twin': return t("modal_sel_twin") || "Select Sync Partner (Twin)";
+      case 'rival': return t("modal_sel_rival") || "Select Invisible Rival (Conflict)";
       case 'beta': return "Select Beta Protocol";
-      default: return t("modal_sel_artifact");
+      default: return t("modal_sel_artifact") || "Select Artifact";
     }
   };
 
@@ -3045,7 +2823,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
           <input
             autoFocus
             type="text"
-            placeholder={t("modal_search_catalog")}
+            placeholder={t("modal_search_catalog") || "Search Global Catalog..."}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent"
@@ -3062,7 +2840,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
               <div className="flex flex-col max-w-[80%]">
                 <span className="text-xs font-black text-[var(--text)] uppercase truncate">{mod.name}</span>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate">{mod.master_author || t("registry_unknown_architect")}</span>
+                  <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate">{mod.master_author || t("registry_unknown_architect") || "Unknown Mason"}</span>
                   {(mod.original_filename || mod.mod_type) && (
                     <>
                       <span className="text-[var(--subtext)] opacity-40">•</span>
@@ -3077,10 +2855,10 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
                   )}
                 </div>
               </div>
-              <span className="theme-text-accent opacity-0 group-hover:opacity-100 transition-opacity font-black text-[10px] uppercase tracking-widest">{t("modal_btn_link")}</span>
+              <span className="theme-text-accent opacity-0 group-hover:opacity-100 transition-opacity font-black text-[10px] uppercase tracking-widest">{t("modal_btn_link") || "LINK"}</span>
             </button>
           )) : (
-            <div className="text-center p-8 text-[var(--subtext)] opacity-60 font-bold text-xs uppercase tracking-widest">{t("modal_no_matches")}</div>
+            <div className="text-center p-8 text-[var(--subtext)] opacity-60 font-bold text-xs uppercase tracking-widest">{t("modal_no_matches") || "No matching artifacts found."}</div>
           )}
         </div>
       </div>
@@ -3118,7 +2896,7 @@ function DLCSearchDropdown({ onSelect, currentDLC =[] }: { onSelect: (pack: stri
             value={query}
             onChange={e => { setQuery(e.target.value); setIsOpen(true); }}
             onFocus={() => setIsOpen(true)}
-            placeholder={t("registry_search_dlc")}
+            placeholder={t("registry_search_dlc") || "Search DLC (e.g. Seasons)..."}
             className="w-full theme-glass-inner rounded-lg px-3 py-1.5 text-[var(--text)] text-sm uppercase font-bold focus:outline-none focus:theme-border-success"
           />
           {query && (
@@ -3138,7 +2916,7 @@ function DLCSearchDropdown({ onSelect, currentDLC =[] }: { onSelect: (pack: stri
               <span className="text-[9px] font-bold text-[var(--subtext)] opacity-80 group-hover:text-[var(--text)] uppercase">{d.name}</span>
             </button>
           )) : (
-            <div className="p-4 text-center text-[9px] font-black text-gray-600 uppercase tracking-widest">{t("registry_no_dlc")}</div>
+            <div className="p-4 text-center text-[9px] font-black text-gray-600 uppercase tracking-widest">{t("registry_no_dlc") || "No Valid DLC Found"}</div>
           )}
         </div>
       )}
@@ -3146,7 +2924,7 @@ function DLCSearchDropdown({ onSelect, currentDLC =[] }: { onSelect: (pack: stri
   );
 }
 
-function CommandCenter({ onNavigate }: any = {}) {
+function CommandCenter({  onNavigate , setStatus }: any = {}) {
   const { t } = useLexicon();
 
   const [stats, setStats] = useState({ 
@@ -3268,42 +3046,42 @@ function CommandCenter({ onNavigate }: any = {}) {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
         <button onClick={() => onNavigate && onNavigate('registry', 'unverified')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(59, 130, 246, 0.3)' } as any}>
           <span className="text-4xl font-black text-[var(--text)] group-hover:theme-text-success transition-colors drop-shadow-md">{stats.unverified}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("status_dd_unverified")}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("status_dd_unverified") || "Unverified"}</span>
         </button>
         
         <button onClick={() => onNavigate && onNavigate('queue')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(59, 130, 246, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-accent transition-colors drop-shadow-[0_0_15px_var(--accent)]">{stats.scoutQueue}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_queue")}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_queue") || "SCOUT"}</span>
         </button>
         
         <button onClick={() => onNavigate && onNavigate('mason_queue')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(192, 132, 252, 0.5)' } as any}>
           <span className="text-4xl font-black text-purple-400 transition-colors drop-shadow-[0_0_15px_rgba(192,132,252,0.5)]">{stats.masonQueue}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_mason_queue")}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_mason_queue") || "MASON"}</span>
         </button>
 
         <button onClick={() => onNavigate && onNavigate('matrix')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(239, 68, 68, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-danger transition-colors drop-shadow-[0_0_15px_var(--danger)]">{stats.conflictPending}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_conflicts_pending")}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_conflicts_pending") || "CONFLICTS PENDING"}</span>
         </button>
 
         <button onClick={() => onNavigate && onNavigate('marketplace_reports')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(245, 158, 11, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-warning transition-colors drop-shadow-[0_0_15px_var(--warning)]">{stats.marketplaceReports}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_marketplace_reports")}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_marketplace_reports") || "REPORTS"}</span>
         </button>
 
         <button onClick={() => onNavigate && onNavigate('lab')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(245, 158, 11, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-warning transition-colors drop-shadow-[0_0_15px_var(--warning)]">{stats.labReports}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("lab_queue")}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("lab_queue") || "Test Queue"}</span>
         </button>
 
         <button onClick={() => onNavigate && onNavigate('registry', 'nsfw')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(245, 158, 11, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-warning transition-colors drop-shadow-[0_0_15px_var(--warning)]">{stats.nsfw}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_nsfw_reported")}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_nsfw_reported") || "NSFW REPORTED"}</span>
         </button>
 
         <button onClick={() => onNavigate && onNavigate('registry', 'explicit')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(249, 115, 22, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-danger transition-colors drop-shadow-[0_0_15px_var(--danger)]">{stats.explicit}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_explicit_reported")}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_explicit_reported") || "EXPLICIT REPORTED"}</span>
         </button>
       </div>
 
@@ -3313,7 +3091,7 @@ function CommandCenter({ onNavigate }: any = {}) {
           <div className="absolute top-[-100px] left-[-100px] w-96 h-96 theme-bg-accent opacity-10 blur-[100px] rounded-full pointer-events-none z-0" />
           <h3 className="text-sm font-black theme-text-accent uppercase tracking-[0.3em] mb-6 flex items-center gap-4 relative z-10 pl-2">
             <span className="w-2.5 h-2.5 rounded-full theme-bg-success animate-pulse shadow-[0_0_15px_var(--success)]"></span>
-            {t("hub_comms_title")}
+            {t("hub_comms_title") || "Latest Dispatch"}
           </h3>
           
           <div className="flex-1 bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] border border-white/5 rounded-[2.5rem] flex flex-col mb-6 overflow-y-auto p-8 gap-5 custom-scrollbar shadow-inner relative z-10 backdrop-blur-[3px]">
@@ -3321,7 +3099,7 @@ function CommandCenter({ onNavigate }: any = {}) {
                <div className="flex-1 flex flex-col items-center justify-center opacity-40">
                  <span className="text-5xl mb-6 grayscale drop-shadow-2xl">{t("emote_chat")}</span>
                  <span className="text-xs font-black text-[var(--text)] uppercase tracking-[0.3em] text-center px-8 leading-loose opacity-70">
-                   {t("hub_comms_offline")}<br/>{t("hub_comms_handshake")}
+                   {t("hub_comms_offline") || "Secure transmission channel currently offline."}<br/>{t("hub_comms_handshake") || "Awaiting Cryptographic Handshake."}
                  </span>
                </div>
              ) : (
@@ -3336,7 +3114,7 @@ function CommandCenter({ onNavigate }: any = {}) {
                      <div className="flex gap-4 items-center">
                        {currentUserId === msg.sender_id && (
                            <div className="flex gap-3 mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[9px] uppercase font-black tracking-widest hover:theme-text-accent transition-colors hover:scale-110">{t("emote_edit")}</button>
+                            <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[9px] uppercase font-black tracking-widest hover:theme-text-accent transition-colors hover:scale-110">{t("emote_edit") || "EDIT"}</button>
                             <button onClick={() => deleteComm(msg.id)} className="text-[9px] uppercase font-black tracking-widest hover:theme-text-danger transition-colors hover:scale-110">{t("emote_close")}</button>
                           </div>
                        )}
@@ -3356,14 +3134,14 @@ function CommandCenter({ onNavigate }: any = {}) {
               onChange={(e) => setCommsInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && sendComm()}
               className="flex-1 bg-transparent rounded-2xl px-6 py-3 text-[var(--text)] text-sm font-bold focus:outline-none transition-all placeholder-[color-mix(in_srgb,var(--subtext)_50%,transparent)]" 
-              placeholder={t("hub_comms_placeholder")} 
+              placeholder={t("hub_comms_placeholder") || "Channel offline..."} 
             />
             <button 
               onClick={sendComm}
               disabled={!commsInput.trim()}
               className="px-10 py-4 theme-bg-accent text-[var(--bg)] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] shrink-0"
             >
-              {editingCommId ? t("hub_comms_btn_update") : t("hub_btn_send")}
+              {editingCommId ? t("hub_comms_btn_update") || "UPDATE" : t("hub_btn_send") || "Send"}
             </button>
           </div>
         </div>
@@ -3386,7 +3164,7 @@ interface UnifiedReport {
   metadata?: any;
 }
 
-export function MarketplaceReportsViewer({ onOpenDossier }: any) {
+export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
     const { t } = useLexicon();
     const [reports, setReports] = useState<UnifiedReport[]>([]);
     const [loading, setLoading] = useState(true);
@@ -3529,7 +3307,7 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
         setResolutionReason("");
       } catch (e) {
         console.error(e);
-        alert("Failed to process action.");
+        if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("hub_failed_action") || "Failed to process action."}`);
       }
       
       setIsSubmittingAction(false);
@@ -3552,7 +3330,7 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
               <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_report") || "flag"}</span>
               </div>
-              <span className="truncate">{t("hub_title_reports")?.replace("dY>' ", "") || "Nexus Reports"}</span>
+              <span className="truncate">{t("hub_title_reports") || "REPORTS QUEUE"?.replace("dY>' ", "") || "Nexus Reports"}</span>
             </h2>
 
             <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
@@ -3561,7 +3339,7 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
                 <input 
                   value={searchTerm} 
                   onChange={e => setSearchTerm(e.target.value)} 
-                  placeholder={t("registry_search_placeholder") || "Search reports..."} 
+                  placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
                   className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
                 />
               </div>
@@ -3599,10 +3377,10 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
         
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
         {loading ? (
-          <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading")}</div>
+          <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading") || "ESTABLISHING SECURE CONNECTION..."}</div>
         ) : filteredReports.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center opacity-50 theme-glass-panel rounded-3xl py-20">
-            <span className="text-4xl mb-4 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_shield") || "shield"}</span></span>
+            <span className="text-4xl mb-4 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_shield") || "security"}</span></span>
             <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">NO TICKETS FOUND IN THIS CATEGORY.</span>
           </div>
         ) : (
@@ -3610,19 +3388,19 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
             {filteredReports.map(report => (
               <div 
                   key={report.id}
-                  className="theme-glass-panel rounded-[1.5rem] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-emerald-500/50 hover:shadow-[0_0_40px_rgba(16,185,129,0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
+                  className="theme-glass-panel rounded-[1.5rem] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
                   onClick={() => setSelectedReport(report)}
               >
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                   
                   <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
-                      ${report.status?.toLowerCase() === 'pending' ? 'bg-amber-500/50 group-hover:bg-amber-500 group-hover:shadow-[0_0_20px_rgba(245,158,11,0.5)]' : 'bg-emerald-500/50 group-hover:bg-emerald-500 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.5)]'}
+                      ${report.status?.toLowerCase() === 'pending' ? 'bg-amber-500/50 group-hover:bg-amber-500 group-hover:shadow-[0_0_20px_rgba(245,158,11,0.5)]' : 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]'}
                   `} />
                   
                   <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
                       <div className="flex justify-between items-start gap-4">
-                          <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-emerald-500/30">
-                              <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-50 group-hover:opacity-100 group-hover:text-emerald-400 transition-colors duration-500">
+                          <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[var(--accent)]/30">
+                              <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-colors duration-500">
                                   {report.status?.toLowerCase() === 'pending' ? 'warning' : 'done_all'}
                               </span>
                           </div>
@@ -3637,7 +3415,7 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
                           <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 truncate opacity-70 group-hover:opacity-100 transition-opacity">
                               {report.source.replace('-', ' ')}
                           </span>
-                          <h3 className="font-black text-xl leading-tight text-[var(--text)] group-hover:text-emerald-400 transition-colors uppercase tracking-widest line-clamp-2">
+                          <h3 className="font-black text-xl leading-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors uppercase tracking-widest line-clamp-2">
                               {report.title}
                           </h3>
                       </div>
@@ -3657,8 +3435,8 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
                                   {report.reporter_name.substring(0, 8)}
                               </span>
                           </div>
-                          <button className="text-[10px] font-black text-[var(--text)] group-hover:text-emerald-400 uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                              {t("mason_bug_inspect_report") || "INSPECT"} <span className="text-lg leading-none">&rarr;</span>
+                          <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                              {t("mason_bug_inspect_report") || "View"} <span className="text-lg leading-none">&rarr;</span>
                           </button>
                       </div>
                   </div>
@@ -3681,7 +3459,7 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
             {selectedReport && (
               <>
                 <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_reporter") || "Reporter"}</span>
+                  <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_reporter") || "Reporter:"}</span>
                   <span className="text-sm font-bold theme-text-accent">{selectedReport.reporter_name}</span>
                 </div>
                 
@@ -3721,7 +3499,7 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
                     <textarea 
                       value={resolutionReason}
                       onChange={e => setResolutionReason(e.target.value)}
-                      placeholder={t("hub_resolution_reason_ph") || "Reason for decision..."}
+                      placeholder={t("hub_resolution_reason_ph") || "Enter resolution or rejection reason..."}
                       className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-white/5 focus:border-[var(--accent)]/50 resize-none custom-scrollbar"
                     />
                     
@@ -3731,7 +3509,7 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
                         disabled={isSubmittingAction || !resolutionReason} 
                         className={`w-full ${standardButtonClass}`}
                       >
-                        {t("hub_btn_dismiss_report") || "Dismiss"}
+                        {t("hub_btn_dismiss_report") || "DISMISS REPORT"}
                       </button>
                       
                       <button 
@@ -3739,7 +3517,7 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
                         disabled={isSubmittingAction || !resolutionReason} 
                         className={`w-full ${standardDangerButtonClass}`}
                       >
-                        {t("hub_btn_remove_asset") || "Remove Asset"}
+                        {t("hub_btn_remove_asset") || "REMOVE ARTIFACT"}
                       </button>
                       
                       <button 
@@ -3747,7 +3525,7 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
                         disabled={isSubmittingAction || !resolutionReason} 
                         className={`w-full ${standardDangerButtonClass}`}
                       >
-                        {t("hub_btn_revoke_mason") || "Revoke Masons Uploads"}
+                        {t("hub_btn_revoke_mason") || "Revoke Mason"}
                       </button>
                     </div>
                   </div>
@@ -3778,5 +3556,6 @@ export function MarketplaceReportsViewer({ onOpenDossier }: any) {
 function CustomMasonDropdown({ value, options, onChange }: { value: string, options: any[], onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const dropdownOptions = options.map(o => ({ id: o.id, label: o.name }));
-  return <CustomDropdown disableTint={true} searchable={true} value={value} options={dropdownOptions} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason_label_select")} />;
+  return <CustomDropdown disableTint={true} searchable={true} value={value} options={dropdownOptions} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason_label_select") || "MASON"} />;
 }
+

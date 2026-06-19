@@ -30,7 +30,7 @@ export default function MasonNotepadSidePanel({ isOpen, onClose }: MasonNotepadS
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("mason_notepad_title")}
+      title={t("mason_notepad_title") || "NOTEPAD"}
       icon={t("ui_icon_document") || "description"}
       noPadding={true}
     >
@@ -38,7 +38,7 @@ export default function MasonNotepadSidePanel({ isOpen, onClose }: MasonNotepadS
         <textarea
           value={content}
           onChange={handleChange}
-          placeholder={t("mason_notepad_placeholder")}
+          placeholder={t("mason_notepad_placeholder") || "Type your notes here..."}
           className="flex-1 w-full h-full bg-transparent p-8 text-sm font-mono text-[var(--text)] focus:outline-none focus:bg-white/5 transition-colors resize-none custom-scrollbar"
         />
       </div>

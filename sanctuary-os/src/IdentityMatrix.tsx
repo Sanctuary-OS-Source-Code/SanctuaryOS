@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass } from './shared';
+import { useStore } from './store';
 
 export const ROLES = ['citizen', 'mason', 'architect', 'senior_architect', 'wayfinder'];
 
@@ -44,7 +45,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
     }
     
     setIsSubmitting(true);
-    setStatus(t("sa_identities_updating"));
+    setStatus(t("sa_identities_updating") || "UPDATING ROLE...");
     
     const { data, error } = await supabase.from('profiles').update({ 
       role: editRole,
@@ -53,7 +54,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
     }).eq('id', profile.id).select();
     
     if (error || !data || data.length === 0) {
-      setStatus(t("sa_identities_failed_prefix") + " " + (error?.message || "Permission Denied."));
+      setStatus(t("sa_identities_failed_prefix") || "FAILED:" + " " + (error?.message || "Permission Denied."));
     } else {
       const userRes = await supabase.auth.getUser();
       const myId = userRes.data.user?.id;
@@ -66,7 +67,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
          reason: isBanned ? editReason : "Role Update"
       });
       
-      setStatus(t("sa_identities_updated"));
+      setStatus(t("sa_identities_updated") || "ROLE UPDATED");
       onUpdated();
       setTimeout(() => {
         onClose();
@@ -85,7 +86,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
       title="EDIT IDENTITY"
       icon={t("ui_icon_group") || "group"}
       subtitle={profile ? `UUID: ${profile.id}` : undefined}
-      widthClass={isSkinny ? "w-[90vw] max-w-[400px]" : undefined}
+      widthClass={isSkinny ? "w-[90vw] max-w-[475px]" : undefined}
       actions={
         <div className="flex flex-col gap-4 w-full">
           {status && (
@@ -99,7 +100,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
             disabled={isSubmitting || (isBanned && !editReason.trim())} 
             className={`!w-full !rounded-[2rem] !py-5 ${isBanned ? standardDangerButtonClass : standardSuccessButtonClass}`}
           >
-            {isSubmitting ? t("sa_identities_updating") : t("registry_commit_changes")}
+            {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : t("registry_commit_changes") || "Commit Changes"}
           </button>
         </div>
       }
@@ -109,20 +110,20 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
         <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
           <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
           <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-            <span className="material-symbols-outlined !text-[14px]">info</span>
-            {t("mason_bug_inspect_report") || "METADATA"}
+            <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info") || "info"}</span>
+            {t("mason_bug_inspect_report") || "View"}
           </h4>
           
           <div className="flex flex-col gap-2 relative z-10">
-            <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none">{profile?.username || t("sa_identities_unknown")}</h3>
+            <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none">{profile?.username || t("sa_identities_unknown") || "UNKNOWN"}</h3>
           </div>
         </div>
 
         <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
           <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none rounded-2xl" />
           <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-            <span className="material-symbols-outlined !text-[14px]">settings</span>
-            {t("sa_identities_role_label") || "ROLE MANAGEMENT"}
+            <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_settings") || "settings"}</span>
+            {t("sa_identities_role_label") || "ROLE:"}
           </h4>
           <div className="flex flex-col gap-2 relative z-50">
             <CustomRoleSelect 
@@ -137,7 +138,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
         <div className={`flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border ${isBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
           <div className={`absolute inset-0 bg-gradient-to-br ${isBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
           <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isBanned ? 'border-red-500/20 text-red-400' : 'border-white/5 text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
-            <span className="material-symbols-outlined !text-[14px]">gavel</span>
+            <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_gavel") || "gavel"}</span>
             PUNITIVE ACTION
           </h4>
            <div className="flex items-center justify-between relative z-10">
@@ -155,12 +156,12 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
            {isBanned && (
              <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-10 mt-2">
                <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                  {t("sa_ban_reason_req")}
+                  {t("sa_ban_reason_req") || "BAN REASON (REQUIRED)"}
                </label>
                <textarea 
                  value={editReason} 
                  onChange={e => setEditReason(e.target.value)} 
-                 placeholder="Reason for quarantine / ban..." 
+                 placeholder={t("id_reason_ban") || "Reason for quarantine / ban..."} 
                  className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]" 
                />
              </div>
@@ -195,7 +196,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
 
   const handleOpenPanel = (p: any) => {
     if (!isWayfinder && p.role === 'wayfinder') {
-      alert("You cannot edit Wayfinder identities from this matrix.");
+      useStore.getState().pushStatus("You cannot edit Wayfinder identities from this matrix.");
       return;
     }
     setSelectedProfile(p);
@@ -214,16 +215,16 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_group") || "group"}</span>
           </div>
-          <span className="truncate">{t("sa_title_identities")}</span>
+          <span className="truncate">{t("sa_title_identities") || "Identity Matrix"}</span>
         </h2>
         
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">search</span>
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search") || "search"}</span>
             <input 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
-              placeholder={t("sa_identities_search")} 
+              placeholder={t("sa_identities_search") || "Search global registry..."} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
@@ -244,7 +245,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-8">
       {loading ? (
-        <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("sa_identities_fetching")}</div>
+        <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("sa_identities_fetching") || "Fetching Records..."}</div>
       ) : (
         <>
             <div className="flex flex-col gap-4">
@@ -254,7 +255,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse shadow-[0_0_10px_rgba(var(--accent-rgb),0.5)]"></span>
                   </div>
                   <h4 className="text-sm font-black text-[var(--accent)] uppercase tracking-widest drop-shadow-md">
-                    {t("sa_active_citizens").replace("{count}", filteredProfiles.length.toString())}
+                    {t("sa_active_citizens") || "ACTIVE CITIZENS ({count})".replace("{count}", filteredProfiles.length.toString())}
                   </h4>
                 </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
@@ -282,7 +283,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
                     
                     <div className="flex flex-col gap-1 mt-auto">
                         <span className="text-lg font-black text-[var(--text)] uppercase tracking-tighter truncate leading-tight transition-colors group-hover:theme-text-accent">
-                          {p.username || t("sa_identities_unknown")}
+                          {p.username || t("sa_identities_unknown") || "UNKNOWN"}
                         </span>
                         <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60">ID: {p.id.substring(0,8)}</span>
                     </div>
@@ -296,7 +297,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
             <div className="flex flex-col gap-4">
               <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_var(--danger)]"></span>
-                {t("sa_banned_identities").replace("{count}", blacklistedProfiles.length.toString())}
+                {t("sa_banned_identities") || "BANNED IDENTITIES ({count})".replace("{count}", blacklistedProfiles.length.toString())}
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                 {blacklistedProfiles.map((p: any) => (
@@ -317,7 +318,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
                             </span>
                         </div>
                         <span className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20">
-                            {t("sa_banned")}
+                            {t("sa_banned") || "BANNED"}
                         </span>
                       </div>
                       
@@ -327,7 +328,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
 
                       <div className="flex flex-col gap-1 mt-auto pt-2">
                           <span className="text-lg font-black text-red-400 uppercase tracking-tighter truncate leading-tight transition-colors group-hover:text-red-300">
-                            {p.username || t("sa_identities_unknown")}
+                            {p.username || t("sa_identities_unknown") || "UNKNOWN"}
                           </span>
                           <span className="text-[10px] font-mono text-red-400 opacity-60">ID: {p.id.substring(0,8)}</span>
                       </div>

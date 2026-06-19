@@ -359,8 +359,8 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
              disabled={isSaving || !activeTab}
              className={`shrink-0 px-6 h-12 theme-glass-panel border-white/5 hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] text-[var(--text)] rounded-xl text-[11px] font-black uppercase tracking-[0.2em] hover:scale-[1.02] transition-all flex items-center gap-2 disabled:opacity-50`}
            >
-              <span className={`material-symbols-outlined !text-lg ${isSaving ? 'animate-spin' : ''}`}>save</span>
-              {t("ide_save") || "SAVE"}
+              <span className={`material-symbols-outlined !text-lg ${isSaving ? 'animate-spin' : ''}`}>{t("ui_icon_save") || "save"}</span>
+              {t("ide_save") || "Save Changes"}
            </button>
            <button 
              onClick={() => setIsSidebarVisible(!isSidebarVisible)}
@@ -396,7 +396,7 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
                             <span className="text-[10px] font-black tracking-widest truncate uppercase">
                               {fileName}
                             </span>
-                            {isDirty && <span className="text-[8px] font-bold opacity-70 tracking-widest uppercase">Unsaved</span>}
+                            {isDirty && <span className="text-[8px] font-bold opacity-70 tracking-widest uppercase">{t("ide_unsaved") || "Unsaved"}</span>}
                           </div>
                           
                           <button
@@ -405,7 +405,7 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
                               handleCloseTab(tabPath);
                             }}
                             className={`w-5 h-5 flex items-center justify-center rounded-md transition-colors text-[10px] shrink-0 ${isActive ? 'hover:bg-white/10 text-[var(--text)] opacity-60 hover:opacity-100' : 'bg-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-0 group-hover:opacity-100'}`}
-                          ><span className='material-symbols-outlined !text-[12px]'>{t('ui_icon_close') || 'close'}</span></button>
+                          ><span className='material-symbols-outlined !text-[12px]'>{t("ui_icon_close") || "close"}</span></button>
                         </div>
                       );
                     })}
@@ -538,9 +538,9 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
               <div className="flex flex-col items-center gap-6 p-12 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-xl max-w-lg w-full text-center shadow-sm">
                 <span className="material-symbols-outlined !text-5xl theme-text-accent opacity-50">{t("ui_icon_code") || "code"}</span>
                 <div className="flex flex-col gap-2">
-                  <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-[0.4em]">{t("masonhub_ide_title") || "INTEGRATED DEV ENVIRONMENT"}</h3>
+                  <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-[0.4em]">{t("masonhub_ide_title") || "MASON IDE"}</h3>
                   <p className="text-[10px] font-mono text-[var(--subtext)] uppercase tracking-widest leading-relaxed">
-                    [{t("ide_welcome_msg") || "Select an artifact from the explorer sidebar to begin compilation."}]
+                    [{t("ide_welcome_msg") || "Select an isolated sandbox matrix file to begin direct neural-code interface."}]
                   </p>
                 </div>
                 <button 
@@ -562,7 +562,7 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
               <div className="flex justify-between items-center px-6 py-4 shrink-0 border-b border-white/5">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text)] flex items-center gap-3">
                   <span className="material-symbols-outlined !text-lg theme-text-accent">{t("ui_icon_folder_special") || "folder_special"}</span>
-                  {t("ide_explorer_title") || "SANDBOX EXPLORER"}
+                  {t("ide_explorer_title") || "Sandbox Explorer"}
                 </h3>
                 <div className="flex gap-2">
                    <button onClick={fetchFiles} className="w-8 h-8 flex items-center justify-center rounded-xl theme-glass-panel border-white/5 hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] transition-all text-[var(--subtext)]">
@@ -579,7 +579,7 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
                   <div className="flex flex-col items-center justify-center h-full opacity-30 gap-4">
                     <span className="material-symbols-outlined !text-4xl text-[var(--subtext)]">{t("ui_icon_folder_off") || "folder_off"}</span>
                     <div className="text-center text-[10px] font-mono uppercase tracking-widest leading-relaxed text-[var(--text)]">
-                      [{t("ide_no_files_found") || "NO FILES FOUND"}]<br/>{t("ide_place_files") || "PLACE FILES IN SANDBOX"}
+                      [{t("ide_no_files_found") || "No editable artifacts located."}]<br/>{t("ide_place_files") || "Place .js, .ts, .json, or .xml files in the Sandbox."}
                     </div>
                   </div>
                 ) : (
@@ -612,7 +612,7 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
         {pendingCloseTab ? (
           <div className="flex items-center justify-between w-full">
             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_warning") || "warning"}</span>
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_warning") || "warning_amber"}</span>
               UNSAVED CHANGES IN {pendingCloseTab.split(/[\\/]/).pop()}
             </span>
             <div className="flex items-center gap-2">

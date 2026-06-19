@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { SidePanel } from "./shared";
 import { CustomComplianceDropdown } from "./shared";
+import { useStore } from './store';
 
 export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initialQuery = "", onSuccess }: any) {
   const { t } = useLexicon();
@@ -60,7 +61,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
 
   const handleManualFlag = async () => {
     if (!manualSelectedMod) {
-      alert(t("sa_comp_manual_alert_select"));
+      useStore.getState().pushStatus(t("sa_comp_manual_alert_select") || "Please select a mod from the registry.");
       return;
     }
     setIsSubmitting(true);
@@ -77,14 +78,14 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
          reason: "Manual Flag via Oversight"
       });
 
-      alert(t("sa_comp_manual_alert_success"));
+      useStore.getState().pushStatus(t("sa_comp_manual_alert_success") || "Mod flagged manually successfully.");
       onClose();
       if (onSuccess) onSuccess();
       if (manualTier === 3) {
          window.dispatchEvent(new CustomEvent('force-radar-sweep'));
       }
     } catch (err: any) {
-      alert(t("sa_comp_manual_alert_fail") + " " + err.message);
+      useStore.getState().pushStatus(t("sa_comp_manual_alert_fail") || "Failed to manual flag:" + " " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -97,17 +98,17 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("sa_comp_manual_title")}
-      subtitle={t("sa_comp_manual_subtitle")}
+      title={t("sa_comp_manual_title") || "Manual Threat Flag"}
+      subtitle={t("sa_comp_manual_subtitle") || "Direct insertion into Global Registry"}
       icon={t("ui_icon_flag") || "flag"}
       iconColorClass="text-[var(--danger)] border-[var(--danger)]/30"
       actions={
         <div className="flex flex-col gap-4 w-full">
           <button onClick={handleManualFlag} disabled={isSubmitting} className={`!w-full !rounded-[2rem] !py-5 ${standardDangerButtonClass}`}>
-            {isSubmitting ? t("sa_comp_manual_btn_transmitting") : t("sa_comp_manual_btn_insert")}
+            {isSubmitting ? t("sa_comp_manual_btn_transmitting") || "TRANSMITTING..." : t("sa_comp_manual_btn_insert") || "INSERT RECORD"}
           </button>
             <button onClick={onClose} className="!w-full !rounded-[2rem] !py-4 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all uppercase font-black tracking-widest text-xs hover:-translate-y-0.5 shadow-lg hover:shadow-xl text-[var(--text)]">
-              {t("sa_comp_manual_btn_cancel")}
+              {t("sa_comp_manual_btn_cancel") || "CANCEL"}
             </button>
         </div>
       }
@@ -116,28 +117,28 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
           <div className="absolute inset-0 bg-gradient-to-br from-[var(--danger)]/5 to-transparent pointer-events-none rounded-2xl" />
           <h4 className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest flex items-center gap-2 border-b border-[var(--danger)]/20 pb-4 mb-2">
-            <span className="material-symbols-outlined !text-[14px]">flag</span>
-            {t("sa_comp_manual_title")}
+            <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_flag") || "flag"}</span>
+            {t("sa_comp_manual_title") || "Manual Threat Flag"}
           </h4>
           
           <div className="flex flex-col gap-2 relative">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_manual_search_label")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_manual_search_label") || "Search Global Registry"}</label>
             <input 
               value={manualSelectedMod ? manualSelectedMod.name : manualSearchQuery} 
               onChange={e => setManualSearchQuery(e.target.value)} 
               readOnly={!!manualSelectedMod}
               className="w-full theme-glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40" 
-              placeholder={t("sa_comp_manual_search_placeholder")} 
+              placeholder={t("sa_comp_manual_search_placeholder") || "Type to search registry..."} 
             />
             {manualSelectedMod && (
-              <button onClick={() => { setManualSelectedMod(null); setManualSearchQuery(""); }} className="absolute right-4 top-9 text-[var(--danger)] font-black text-[10px] bg-red-500/10 px-2 py-1 rounded-md">{t("emote_close")} {t("sa_comp_manual_clear")}</button>
+              <button onClick={() => { setManualSelectedMod(null); setManualSearchQuery(""); }} className="absolute right-4 top-9 text-[var(--danger)] font-black text-[10px] bg-red-500/10 px-2 py-1 rounded-md">{t("emote_close")} {t("sa_comp_manual_clear") || "CLEAR"}</button>
             )}
             {manualSearchResults.length > 0 && !manualSelectedMod && (
               <div className="absolute top-full left-0 right-0 mt-2 theme-glass-panel border border-white/10 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] z-[50000] overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
                 {manualSearchResults.map(m => (
                   <button key={m.id} onClick={() => setManualSelectedMod(m)} className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-white/5 last:border-0 flex flex-col group transition-all">
                     <span className="text-[11px] font-black uppercase text-[var(--text)] group-hover:theme-text-accent truncate">{m.name}</span>
-                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">{m.master_author || t("sa_comp_manual_unknown_author")}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">{m.master_author || t("sa_comp_manual_unknown_author") || "Unknown"}</span>
                   </button>
                 ))}
               </div>
@@ -145,7 +146,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
           </div>
 
           <div className="flex flex-col gap-2 relative z-40 mt-4">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_manual_tier_label")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_manual_tier_label") || "Compliance Tier"}</label>
             <CustomComplianceDropdown value={manualTier} onChange={setManualTier} includeTier3={true} />
           </div>
         </div>

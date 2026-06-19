@@ -41,10 +41,10 @@ export function TitleBar() {
         {/* Minimize */}
         <button 
           onClick={async () => { await getCurrentWebviewWindow().minimize(); }} 
-          className="group relative w-10 h-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 outline-none"
+          className="group relative w-12 h-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 outline-none"
         >
-          <div className="absolute inset-0 bg-white/5 rounded border border-white/10 group-hover:theme-bg-accent/20 group-hover:theme-border-accent transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
-          <span className="relative text-[var(--text)] opacity-40 group-hover:opacity-100 group-hover:theme-text-accent transition-all font-black flex items-center justify-center">
+          <div className="absolute inset-0 bg-white/5 rounded border border-white/10 group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_40%,transparent)] transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
+          <span className="relative text-[var(--text)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--warning)] transition-all font-black flex items-center justify-center">
             <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_remove") || "remove"}</span>
           </span>
         </button>
@@ -52,10 +52,10 @@ export function TitleBar() {
         {/* Maximize */}
         <button 
           onClick={async () => { await getCurrentWebviewWindow().toggleMaximize(); }} 
-          className="group relative w-10 h-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 outline-none"
+          className="group relative w-12 h-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 outline-none"
         >
-          <div className="absolute inset-0 bg-white/5 rounded border border-white/10 group-hover:theme-bg-accent/20 group-hover:theme-border-accent transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
-          <span className="relative text-[var(--text)] opacity-40 group-hover:opacity-100 group-hover:theme-text-accent transition-all flex items-center justify-center">
+          <div className="absolute inset-0 bg-white/5 rounded border border-white/10 group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
+          <span className="relative text-[var(--text)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all flex items-center justify-center">
              <span className="material-symbols-outlined !text-[14px] leading-none">{t("ui_icon_fullscreen") || "fullscreen"}</span>
           </span>
         </button>
@@ -63,7 +63,7 @@ export function TitleBar() {
         {/* Close */}
         <button 
           onClick={async () => { await getCurrentWebviewWindow().close(); }} 
-          className="group relative w-12 h-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 outline-none ml-2"
+          className="group relative w-12 h-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 outline-none"
         >
           <div className="absolute inset-0 bg-white/5 rounded border border-white/10 group-hover:bg-red-500/20 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
           <span className="relative text-[var(--text)] opacity-40 group-hover:opacity-100 group-hover:text-red-400 transition-all font-black flex items-center justify-center">

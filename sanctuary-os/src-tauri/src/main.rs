@@ -46,38 +46,38 @@ fn process_structure_nodes(nodes: &[StructureNode], current_target_dir: &std::pa
                 process_structure_nodes(children, &next_target_dir, vault_mods_lane, folders_to_check);
             }
         } else if node.node_type == "file" {
-            if let Some(mod_name) = &node.assigned_mod_name {
-                let mut source = vault_mods_lane.join(mod_name);
-                let mut found = false;
-                for f in folders_to_check {
-                    let base_test = if f.is_empty() { vault_mods_lane.join(mod_name) } else { vault_mods_lane.join(f).join(mod_name) };
-                    if base_test.exists() { source = base_test; found = true; break; }
-                    else if base_test.with_extension("package").exists() { source = base_test.with_extension("package"); found = true; break; }
-                    else if base_test.with_extension("ts4script").exists() { source = base_test.with_extension("ts4script"); found = true; break; }
+            let mod_name = node.assigned_mod_name.as_ref().unwrap_or(&node.name);
+            let mut source = vault_mods_lane.join(mod_name);
+            let mut found = false;
+            for f in folders_to_check {
+                let base_test = if f.is_empty() { vault_mods_lane.join(mod_name) } else { vault_mods_lane.join(f).join(mod_name) };
+                if base_test.is_file() { source = base_test; found = true; break; }
+                else if base_test.with_extension("package").is_file() { source = base_test.with_extension("package"); found = true; break; }
+                else if base_test.with_extension("ts4script").is_file() { source = base_test.with_extension("ts4script"); found = true; break; }
+            }
+            if found {
+                let mut final_name = node.name.clone();
+                if final_name == "*.package" {
+                    final_name = source.file_name().unwrap_or_default().to_string_lossy().into_owned();
                 }
-                if found {
-                    let mut final_name = node.name.clone();
-                    if final_name == "*.package" {
-                        final_name = source.file_name().unwrap_or_default().to_string_lossy().into_owned();
-                    }
-                    let target_path = current_target_dir.join(final_name);
-                    if source.is_dir() {
-                        let _ = deploy_junction(&source, &target_path);
-                    } else {
-                        let _ = create_symlink_file(&source, &target_path)
-                            .or_else(|_| std::fs::hard_link(&source, &target_path))
-                            .or_else(|_| std::fs::copy(&source, &target_path).map(|_| ()));
-                    }
+                let target_path = current_target_dir.join(final_name);
+                if source.is_dir() {
+                    let _ = deploy_junction(&source, &target_path);
+                } else {
+                    let _ = create_symlink_file(&source, &target_path)
+                        .or_else(|_| std::fs::hard_link(&source, &target_path))
+                        .or_else(|_| std::fs::copy(&source, &target_path).map(|_| ()));
                 }
             }
         }
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 pub struct DeployMod {
     pub path: String,
     pub allow_write: bool,
+    pub target_path: Option<String>,
     pub folder_structure: Option<serde_json::Value>,
 }
 
@@ -200,7 +200,7 @@ fn walk_packages(dir: &Path, files: &mut Vec<PathBuf>) {
                 walk_packages(&p, files);
             } else if let Some(ext) = p.extension().and_then(|s| s.to_str()) {
                 let ext_lower = ext.to_lowercase();
-                if ext_lower == "package" || ext_lower == "ts4script" {
+                if ext_lower == "package" || ext_lower == "ts4script" || ext_lower == "cfg" || ext_lower == "ini" || ext_lower == "json" || ext_lower == "txt" || ext_lower == "xml" || ext_lower == "log" {
                     files.push(p);
                 }
             }
@@ -259,7 +259,7 @@ fn launch_game(live_path: String, mods_path: String) -> Result<String, String> {
         exe_path.push("TS4_DX9_x64.exe");
 
         if !exe_path.exists() {
-            return Err("≡ƒ¢æ EXECUTABLE NOT FOUND: Verify System Coordinates.".to_string());
+            return Err("backend_exe_not_found".to_string());
         }
     }
 
@@ -269,8 +269,8 @@ fn launch_game(live_path: String, mods_path: String) -> Result<String, String> {
         .current_dir(parent_dir)
         .spawn()
     {
-        Ok(_) => Ok("🚀 IGNITION SEQUENCE STARTED...".to_string()),
-        Err(e) => Err(format!("❌ LAUNCH FAILED: {}", e)),
+        Ok(_) => Ok("backend_ignition_started".to_string()),
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -291,7 +291,7 @@ fn rip_game_version(live_path: String) -> Result<String, String> {
     let default_ini = bin_path.join("Default.ini");
 
     if !default_ini.exists() {
-        return Err("DEFAULT_INI_MISSING".into());
+        return Err("backend_default_ini_missing".into());
     }
 
     if let Ok(content) = fs::read_to_string(&default_ini) {
@@ -311,7 +311,7 @@ fn rip_game_version(live_path: String) -> Result<String, String> {
         }
     }
 
-    Err("VERSION_STRING_EMPTY".into())
+    Err("backend_version_string_empty".into())
 }
 
 #[tauri::command]
@@ -370,7 +370,7 @@ fn save_coordinates(
     }
     
     fs::write(config_path, json).map_err(|e| e.to_string())?;
-    Ok("Locked".into())
+    Ok("backend_locked".into())
 }
 
 fn deploy_air_gap(source: &Path, target: &Path) -> std::io::Result<()> {
@@ -429,6 +429,37 @@ fn create_symlink_file(source: &Path, target: &Path) -> std::io::Result<()> {
 }
 
 #[tauri::command]
+fn safe_wipe_mods_dir(dir: &std::path::Path) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.file_name().map_or(false, |n| n == "Resource.cfg") {
+                continue;
+            }
+            
+            let is_symlink_or_junction = std::fs::read_link(&path).is_ok() || 
+                std::fs::symlink_metadata(&path).map(|m| m.file_type().is_symlink()).unwrap_or(false);
+
+            if is_symlink_or_junction {
+                if path.is_dir() {
+                    let _ = std::fs::remove_dir(&path);
+                } else {
+                    let _ = std::fs::remove_file(&path);
+                }
+                continue;
+            }
+
+            if path.is_dir() {
+                safe_wipe_mods_dir(&path);
+                let _ = std::fs::remove_dir(&path);
+            } else {
+                let _ = std::fs::remove_file(&path);
+            }
+        }
+    }
+}
+
+#[tauri::command]
 async fn deploy_playset_bulk(
     mods: Vec<DeployMod>,
     mods_path: String,
@@ -448,21 +479,7 @@ async fn deploy_playset_bulk(
             return Err("Mods folder missing.".into());
         }
 
-        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.file_name().map_or(false, |n| n == "Resource.cfg") {
-                    continue;
-                }
-                if path.is_dir() {
-                    if std::fs::remove_dir(&path).is_err() {
-                        let _ = std::fs::remove_dir_all(&path);
-                    }
-                } else {
-                    let _ = std::fs::remove_file(path);
-                }
-            }
-        }
+        safe_wipe_mods_dir(&mods_dir);
 
         let config_content = "Priority 500\nPackedFile *.package\nPackedFile */*.package\nPackedFile */*/*.package\nPackedFile */*/*/*.package\nPackedFile */*/*/*/*.package\nPackedFile */Delta/tmscenario1.tmdelta\nPackedFile Data/*Strings.tmcatalog\nPackedFile */Data/*Strings.tmcatalog\n\nPriority 1000\nPackedFile Sanctuary/*.package\nPackedFile Sanctuary/*/*.package\nPackedFile Sanctuary/*/*/*.package\n\nPriority 1500\nPackedFile Sanctuary2/*.package\nPackedFile Sanctuary2/*/*.package\nPackedFile Sanctuary2/*/*/*.package\n\nPriority 2000\nPackedFile Sanctuary3/*.package\nPackedFile Sanctuary3/*/*.package\nPackedFile Sanctuary3/*/*/*.package";
         let _ = std::fs::write(mods_dir.join("Resource.cfg"), config_content);
@@ -470,10 +487,15 @@ async fn deploy_playset_bulk(
         let mut count = 0;
         for m in mods {
             if let Some(structure_val) = &m.folder_structure {
-                if let Ok(nodes) = serde_json::from_value::<Vec<StructureNode>>(structure_val.clone()) {
-                    let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
-                    process_structure_nodes(&nodes, &mods_dir, &vault_mods_lane, &folders_to_check);
-                    continue;
+                match serde_json::from_value::<Vec<StructureNode>>(structure_val.clone()) {
+                    Ok(nodes) => {
+                        let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
+                        process_structure_nodes(&nodes, &mods_dir, &vault_mods_lane, &folders_to_check);
+                        continue;
+                    }
+                    Err(e) => {
+                        println!("ERROR PARSING STRUCTURE NODE FOR {}: {}", m.path, e);
+                    }
                 }
             }
 
@@ -494,18 +516,37 @@ async fn deploy_playset_bulk(
                     vault_mods_lane.join(f).join(search_name)
                 };
                 
-                if base_test.exists() {
+                if base_test.is_file() {
                     source = base_test;
                     found = true;
                     break;
-                } else if base_test.with_extension("package").exists() {
+                } else if base_test.with_extension("package").is_file() {
                     source = base_test.with_extension("package");
                     found = true;
                     break;
-                } else if base_test.with_extension("ts4script").exists() {
+                } else if base_test.with_extension("ts4script").is_file() {
                     source = base_test.with_extension("ts4script");
                     found = true;
                     break;
+                }
+            }
+
+            if !found {
+                if let Some(file_name_only) = search_name.file_name() {
+                    let flat_test = vault_mods_lane.join(file_name_only);
+                    if flat_test.is_file() {
+                        source = flat_test;
+                        found = true;
+                        search_name = Path::new(file_name_only);
+                    } else if flat_test.with_extension("package").is_file() {
+                        source = flat_test.with_extension("package");
+                        found = true;
+                        search_name = Path::new(file_name_only);
+                    } else if flat_test.with_extension("ts4script").is_file() {
+                        source = flat_test.with_extension("ts4script");
+                        found = true;
+                        search_name = Path::new(file_name_only);
+                    }
                 }
             }
 
@@ -518,13 +559,24 @@ async fn deploy_playset_bulk(
                 continue;
             }
 
-            let file_name = Path::new(&m.path)
-                .file_name()
-                .unwrap_or_default();
+            if !source.is_dir() {
+                if let Some(file_name_str) = source.file_name().and_then(|n| n.to_str()) {
+                    if file_name_str.eq_ignore_ascii_case("desktop.ini") {
+                        continue;
+                    }
+                }
+            }
+
+            let mut target = if let Some(ref t_path) = m.target_path {
+                mods_dir.join(t_path)
+            } else {
+                mods_dir.join(search_name)
+            };
             
-            let mut target = mods_dir.join(file_name);
             if m.path.starts_with("Sanctuary/") || m.path.starts_with("Sanctuary\\") {
-                target = mods_dir.join("Sanctuary").join(file_name);
+                if m.target_path.is_none() {
+                    target = mods_dir.join("Sanctuary").join(search_name);
+                }
             }
 
             if let Some(parent) = target.parent() {
@@ -532,17 +584,13 @@ async fn deploy_playset_bulk(
             }
 
             if m.allow_write {
-                if source.is_dir() {
-                    let _ = deploy_junction(&source, &target);
-                } else {
+                if !source.is_dir() {
                     let _ = create_symlink_file(&source, &target)
                         .or_else(|_| std::fs::hard_link(&source, &target))
                         .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
                 }
             } else {
-                if source.is_dir() {
-                    let _ = deploy_air_gap(&source, &target);
-                } else {
+                if !source.is_dir() {
                     let _ = create_symlink_file(&source, &target)
                         .or_else(|_| std::fs::hard_link(&source, &target))
                         .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
@@ -571,9 +619,11 @@ async fn deploy_playset_bulk(
                 }
             }
 
+            // SAFE SIBLING LOGIC
             if let Some(source_parent) = source.parent() {
                 if let Some(target_parent) = target.parent() {
                     let mut is_top_level = source_parent == vault_mods_lane.as_path();
+                    let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
                     for f in &folders_to_check {
                         if !f.is_empty() {
                             let f_path = vault_mods_lane.join(f);
@@ -583,33 +633,29 @@ async fn deploy_playset_bulk(
                             }
                         }
                     }
-                    
                     if !is_top_level {
                         if let Ok(entries) = std::fs::read_dir(source_parent) {
                             for entry in entries.flatten() {
                                 let path = entry.path();
-                            if path.is_dir() {
-                                let dest = target_parent.join(entry.file_name());
-                                if !dest.exists() {
-                                    if m.allow_write {
-                                        let _ = deploy_junction(&path, &dest);
-                                    } else {
-                                        let _ = deploy_air_gap(&path, &dest);
-                                    }
-                                }
-                            } else if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                                let ext_lower = ext.to_lowercase();
-                                if ext_lower != "package" && ext_lower != "ts4script" {
-                                    let dest = target_parent.join(entry.file_name());
-                                    if !dest.exists() {
-                                        let _ = create_symlink_file(&path, &dest)
-                                            .or_else(|_| std::fs::hard_link(&path, &dest))
-                                            .or_else(|_| std::fs::copy(&path, &dest).map(|_| ()));
+                                if path.is_file() {
+                                    if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                                        if !file_name.eq_ignore_ascii_case("desktop.ini") {
+                                            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                                                let ext_lower = ext.to_lowercase();
+                                                if ext_lower == "cfg" || ext_lower == "ini" || ext_lower == "json" || ext_lower == "txt" {
+                                                    let dest = target_parent.join(file_name);
+                                                    if !dest.exists() {
+                                                        let _ = create_symlink_file(&path, &dest)
+                                                            .or_else(|_| std::fs::hard_link(&path, &dest))
+                                                            .or_else(|_| std::fs::copy(&path, &dest).map(|_| ()));
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
                     }
                 }
             }
@@ -617,13 +663,33 @@ async fn deploy_playset_bulk(
             count += 1;
         }
 
-        Ok(format!(
-            "Deployed {} artifacts to Root. Load order integrity maintained.",
-            count
-        ))
+        // Copy all top-level settings files from Vault/Mods to active Mods directory
+        if let Ok(entries) = std::fs::read_dir(&vault_mods_lane) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                            let ext_lower = ext.to_lowercase();
+                            if ext_lower == "cfg" || ext_lower == "ini" || ext_lower == "json" || ext_lower == "txt" || ext_lower == "xml" {
+                                let dest = mods_dir.join(file_name);
+                                if !dest.exists() {
+                                    let _ = create_symlink_file(&path, &dest)
+                                        .or_else(|_| std::fs::hard_link(&path, &dest))
+                                        .or_else(|_| std::fs::copy(&path, &dest).map(|_| ()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+        Ok(count.to_string())
     })
     .await
-    .map_err(|e| format!("Task failed: {}", e))?
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -668,32 +734,7 @@ async fn sanitize_vault(vault_path: String) -> Result<String, String> {
         }
     }
 
-    if let Ok(entries) = std::fs::read_dir(&mods_lane) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_file() {
-                if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                    let ext_lower = ext.to_lowercase();
-                    if ext_lower == "package" || ext_lower == "ts4script" {
-                        if let Some(file_stem) = path.file_stem() {
-                            let folder_name = file_stem.to_string_lossy().to_string();
-                            let target_dir = mods_lane.join(&folder_name);
-                            let _ = std::fs::create_dir_all(&target_dir);
-
-                            let target_path = target_dir.join(path.file_name().unwrap());
-                            let _ = std::fs::rename(&path, &target_path);
-                            moved += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(format!(
-        "Sanitization Complete: {} files reorganized into strict Folders.",
-        moved
-    ))
+    Ok(moved.to_string())
 }
 
 #[tauri::command]
@@ -705,9 +746,9 @@ fn purge_from_shelter(file_path: String) -> Result<String, String> {
         } else {
             std::fs::remove_file(path).map_err(|e| e.to_string())?;
         }
-        return Ok("PURGED".into());
+        return Ok("backend_purged".into());
     }
-    Err("NOT_FOUND".into())
+    Err("backend_not_found".into())
 }
 
 #[tauri::command]
@@ -1975,6 +2016,7 @@ async fn repopulate_from_shelter() -> Result<String, String> {
         .map(|name| DeployMod {
             path: name,
             allow_write: false,
+            target_path: None,
             folder_structure: None,
         })
         .collect();
@@ -2087,6 +2129,48 @@ fn initialize_airgap_watch(app_handle: tauri::AppHandle, docs_path: String, vaul
                                         "airgap_secured",
                                         filename.to_string_lossy().to_string(),
                                     );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+#[tauri::command]
+fn initialize_settings_watch(mods_path: String, vault_path: String) {
+    let path_to_watch = std::path::PathBuf::from(&mods_path);
+    if !path_to_watch.exists() {
+        return;
+    }
+    let vault_mods_path = std::path::PathBuf::from(&vault_path).join("Mods");
+    let _ = std::fs::create_dir_all(&vault_mods_path);
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        use notify::Watcher;
+        let mut watcher = notify::RecommendedWatcher::new(tx, notify::Config::default()).unwrap();
+        if watcher
+            .watch(&path_to_watch, notify::RecursiveMode::Recursive)
+            .is_ok()
+        {
+            let _keep_alive = watcher;
+            for res in rx {
+                if let Ok(event) = res {
+                    for path in event.paths {
+                        if path.is_file() {
+                            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                                let ext_lower = ext.to_lowercase();
+                                if ext_lower == "cfg" || ext_lower == "ini" || ext_lower == "json" || ext_lower == "txt" {
+                                    if let Ok(relative_path) = path.strip_prefix(&path_to_watch) {
+                                        let backup_dest = vault_mods_path.join(relative_path);
+                                        if let Some(parent) = backup_dest.parent() {
+                                            let _ = std::fs::create_dir_all(parent);
+                                        }
+                                        let _ = std::fs::copy(&path, &backup_dest);
+                                    }
                                 }
                             }
                         }
@@ -2425,12 +2509,7 @@ fn ingest_dropped_file(
         .unwrap_or("")
         .to_lowercase();
 
-    let mut target_dir = Path::new(&config.vault_path).join("Mods");
-    if source.is_file() && (ext == "package" || ext == "ts4script") {
-        if let Some(stem) = source.file_stem() {
-            target_dir = target_dir.join(stem);
-        }
-    }
+    let target_dir = Path::new(&config.vault_path).join("Mods");
 
     std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
     let target = target_dir.join(file_name);
@@ -2460,8 +2539,15 @@ fn ingest_dropped_file(
             let file = std::fs::File::open(source).map_err(|e| e.to_string())?;
             let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
             let mut extracted_files = Vec::new();
-            let target_base = Path::new(&config.vault_path).join("Mods");
-            let active_base = if !config.mods_path.is_empty() { Some(Path::new(&config.mods_path).to_path_buf()) } else { None };
+            
+            let zip_stem = source.file_stem().unwrap_or_default().to_string_lossy().to_string();
+            let target_base = Path::new(&config.vault_path).join("Mods").join(&zip_stem);
+            let _ = std::fs::create_dir_all(&target_base);
+            
+            let active_base = if !config.mods_path.is_empty() { Some(Path::new(&config.mods_path).join(&zip_stem)) } else { None };
+            if let Some(ref active_mods) = active_base {
+                let _ = std::fs::create_dir_all(active_mods);
+            }
             
             for i in 0..archive.len() {
                 if let Ok(mut zf) = archive.by_index(i) {
@@ -2469,12 +2555,12 @@ fn ingest_dropped_file(
                         let name = zf.name().to_string();
                         let p = Path::new(&name);
                         let zf_ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-                        if zf_ext == "package" || zf_ext == "ts4script" {
+                        if zf_ext == "package" || zf_ext == "ts4script" || zf_ext == "cfg" || zf_ext == "ini" || zf_ext == "txt" || zf_ext == "json" {
                             if let Some(zf_file_name) = p.file_name() {
                                 let file_name_str = zf_file_name.to_string_lossy().to_string();
                                 let mut file_target = target_base.clone();
-                                if let Some(stem) = p.file_stem() {
-                                    file_target = file_target.join(stem);
+                                if let Some(parent) = p.parent() {
+                                    file_target = file_target.join(parent);
                                 }
                                 let _ = std::fs::create_dir_all(&file_target);
                                 let final_path = file_target.join(zf_file_name);
@@ -2505,8 +2591,8 @@ fn ingest_dropped_file(
                                         if let Some(ref active_mods) = active_base {
                                             if active_mods.exists() {
                                                 let mut active_target = active_mods.clone();
-                                                if let Some(stem) = p.file_stem() {
-                                                    active_target = active_target.join(stem);
+                                                if let Some(parent) = p.parent() {
+                                                    active_target = active_target.join(parent);
                                                 }
                                                 let _ = std::fs::create_dir_all(&active_target);
                                                 let _ = std::fs::copy(&extract_target, active_target.join(zf_file_name));
@@ -2524,16 +2610,9 @@ fn ingest_dropped_file(
             std::fs::copy(source, &target).map_err(|e| e.to_string())?;
             if !config.mods_path.is_empty() {
                 let active_mods_dir = Path::new(&config.mods_path);
-                if active_mods_dir.exists() {
-                    let mut active_target = active_mods_dir.to_path_buf();
-                    if source.is_file() && (ext == "package" || ext == "ts4script") {
-                        if let Some(stem) = source.file_stem() {
-                            active_target = active_target.join(stem);
-                        }
-                    }
-                    let _ = std::fs::create_dir_all(&active_target);
-                    let _ = std::fs::copy(source, active_target.join(file_name));
-                }
+                let active_target = active_mods_dir.to_path_buf();
+                let _ = std::fs::create_dir_all(&active_target);
+                let _ = std::fs::copy(source, active_target.join(file_name));
             }
             return Ok(serde_json::to_string(&vec![file_name.to_string_lossy().to_string()]).unwrap_or_default());
         } else {
@@ -2569,33 +2648,14 @@ fn resolve_dna_match(
                     let config = get_saved_coordinates();
                     if !config.mods_path.is_empty() {
                         let active_mods_dir = std::path::Path::new(&config.mods_path);
-                        if active_mods_dir.exists() {
-                            let mut active_target = active_mods_dir.to_path_buf();
-                            if let Some(ext) = new_target.extension().and_then(|e| e.to_str()) {
-                                let ext = ext.to_lowercase();
-                                if ext == "package" || ext == "ts4script" {
-                                    if let Some(stem) = new_target.file_stem() {
-                                        active_target = active_target.join(stem);
-                                    }
-                                }
-                            }
-                            let _ = std::fs::create_dir_all(&active_target);
-                            if let Some(file_name) = new_target.file_name() {
-                                let _ = std::fs::copy(&new_target, active_target.join(file_name));
-                            }
-                            if let Some(old_file_name) = existing.file_name() {
-                                if old_file_name != new_target.file_name().unwrap_or_default() {
-                                    let mut old_active_target = active_mods_dir.to_path_buf();
-                                    if let Some(ext) = existing.extension().and_then(|e| e.to_str()) {
-                                        let ext = ext.to_lowercase();
-                                        if ext == "package" || ext == "ts4script" {
-                                            if let Some(stem) = existing.file_stem() {
-                                                old_active_target = old_active_target.join(stem);
-                                            }
-                                        }
-                                    }
-                                    let _ = std::fs::remove_file(old_active_target.join(old_file_name));
-                                }
+                        let active_target = active_mods_dir.to_path_buf();
+                        let _ = std::fs::create_dir_all(&active_target);
+                        let _ = std::fs::copy(&new_target, active_target.join(new_target.file_name().unwrap_or_default()));
+                        
+                        let old_active_target = active_mods_dir.to_path_buf();
+                        if let Some(old_file_name) = existing.file_name() {
+                            if old_file_name != new_target.file_name().unwrap_or_default() {
+                                let _ = std::fs::remove_file(old_active_target.join(old_file_name));
                             }
                         }
                     }
@@ -2818,10 +2878,24 @@ fn get_sandbox_files(vault_path: String) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-async fn ping_ea_store_version() -> Result<String, String> {
-    // Simulated ping to EA Store / Steam DB for the most recent game version.
-    // In production, this would hit an API wrapper that scrapes EA's patch notes.
-    Ok("1.124.54.1030".to_string())
+fn write_os_log(app_handle: tauri::AppHandle, message: String, level: String) -> Result<(), String> {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use tauri::Manager;
+
+    if let Ok(log_dir) = app_handle.path().app_log_dir() {
+        let _ = std::fs::create_dir_all(&log_dir);
+        let log_file = log_dir.join("sanctuary-os.log");
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_file) {
+            let timestamp = match SystemTime::now().duration_since(UNIX_EPOCH) {
+                Ok(n) => n.as_secs().to_string(),
+                Err(_) => "unknown".to_string(),
+            };
+            let _ = writeln!(file, "[{}] [{}]: {}", timestamp, level, message);
+        }
+    }
+    Ok(())
 }
 
 fn main() {
@@ -2842,7 +2916,6 @@ fn main() {
             delete_local_file,
             get_sandbox_files,
             delete_local_file,
-            ping_ea_store_version,
             get_saved_coordinates,
             save_coordinates,
             sanitize_vault,
@@ -2883,6 +2956,7 @@ fn main() {
             update_config,
             scan_game_logs,
             clear_old_logs,
+            write_os_log,
             generate_full_dna_hash,
             scan_installed_dlc,
             rip_game_version,
@@ -2895,13 +2969,15 @@ fn main() {
             sync_security_definitions,
             purge_vault_artifacts,
             initialize_airgap_watch,
+            initialize_settings_watch,
             mark_explicitly_local,
             move_mod_to_priority_folder,
             update_mod_game_version,
             update_mod_history_entry,
             get_hardware_id,
             open_developer_settings,
-            check_symlink_permissions
+            check_symlink_permissions,
+            get_system_info
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -2983,3 +3059,70 @@ fn open_developer_settings() -> Result<(), String> {
     }
     Ok(())
 }
+
+#[tauri::command]
+fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
+    use tauri::Manager;
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+    let app_version = app_handle.package_info().version.to_string();
+    
+    let mut os_version = String::new();
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(output) = std::process::Command::new("cmd").args(["/c", "ver"]).output() {
+            let ver_str = String::from_utf8_lossy(&output.stdout);
+            let mut display_name = "Windows 10".to_string();
+            if let Some(start) = ver_str.find("[Version ") {
+                if let Some(end) = ver_str[start..].find(']') {
+                    let version_part = &ver_str[start + 9..start + end];
+                    let parts: Vec<&str> = version_part.split('.').collect();
+                    if parts.len() >= 3 {
+                        if let Ok(build) = parts[2].parse::<u32>() {
+                            if build >= 22000 {
+                                display_name = "Windows 11".to_string();
+                            }
+                        }
+                    }
+                    os_version = format!("{} (Build {})", display_name, version_part);
+                } else {
+                    os_version = ver_str.trim().to_string();
+                }
+            } else {
+                os_version = ver_str.trim().to_string();
+            }
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Ok(output) = std::process::Command::new("uname").arg("-r").output() {
+            let ver_str = String::from_utf8_lossy(&output.stdout);
+            os_version = ver_str.trim().to_string();
+        }
+    }
+    
+    let mut info = format!("OS: {}\nArchitecture: {}\nSanctuary OS Version: {}\n", if os_version.is_empty() { os.to_string() } else { os_version.clone() }, arch, app_version);
+    
+    if let Ok(log_dir) = app_handle.path().app_log_dir() {
+        let log_file = log_dir.join("sanctuary-os.log");
+        if log_file.exists() {
+            if let Ok(content) = std::fs::read_to_string(&log_file) {
+                let chars: String = content.chars().rev().take(5000).collect();
+                let last_logs: String = chars.chars().rev().collect();
+                info.push_str("\n--- APP LOGS ---\n");
+                info.push_str(&last_logs);
+            }
+        }
+        
+        let panic_file = log_dir.join("panic.log");
+        if panic_file.exists() {
+            if let Ok(content) = std::fs::read_to_string(&panic_file) {
+                info.push_str("\n--- PANIC LOGS ---\n");
+                info.push_str(&content);
+            }
+        }
+    }
+    
+    Ok(info)
+}
+

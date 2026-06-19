@@ -7,6 +7,7 @@ import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./MasonPostViewer";
+import { useStore } from './store';
 
 export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?: (id: string, postId?: string) => void }) {
   const { t } = useLexicon();
@@ -45,7 +46,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         const { data, error } = await supabase.from('mason_posts').select('*, masons(*), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)').order('created_at', { ascending: false }).limit(100);
         if (error) {
           console.error("GlobalFeed Error:", error);
-          alert("GlobalFeed Error: " + error.message);
+          useStore.getState().pushStatus("GlobalFeed Error: " + error.message);
         }
         if (data) setPosts(data);
       }
@@ -71,7 +72,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
-    if (!userId) return alert(t("feed_login_required") || "Login Required");
+    if (!userId) return useStore.getState().pushStatus(t("feed_login_required") || "LOGIN REQUIRED TO REPLY");
     
     const { error } = await supabase.from('mason_post_likes').insert({ post_id: post.id, user_id: userId });
     let increment = 1;
@@ -95,9 +96,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
   return (
     <div className="w-full h-full flex flex-col animate-in fade-in duration-300">
       <ViewHeader 
-        title={t("mason_feed_title") || "GLOBAL COMM-LINK"}
-        subtitle={t("mason_feed_subtitle") || "LATEST NETWORK ACTIVITY"}
-        icon={t("ui_icon_broadcast") || "broadcast"}
+        title={t("mason_feed_title") || "COMM-LINK FEED"}
+        subtitle={t("mason_feed_subtitle") || "Platform updates, dispatches, and community signals"}
+        icon={t("ui_icon_broadcast") || "satellite_alt"}
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
       >
         {/* Placeholder for future tools */}
@@ -107,8 +108,8 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
       {/* Main Tabs */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mx-2 mt-2">
         <div className="flex items-center gap-1 overflow-x-auto accent-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner shrink-0">
-          <HubTabButton id="DISCOVER" icon="explore" label={t("feed_tab_discover") || "DISCOVER"} activeTab={activeTab} setTab={setActiveTab as any} />
-          <HubTabButton id="FOLLOWING" icon="diversity_1" label={t("feed_tab_following") || "FOLLOWING"} activeTab={activeTab} setTab={setActiveTab as any} />
+          <HubTabButton id="DISCOVER" icon="explore" label={t("feed_tab_discover") || "Network Sweep"} activeTab={activeTab} setTab={setActiveTab as any} />
+          <HubTabButton id="FOLLOWING" icon="diversity_1" label={t("feed_tab_following") || "Subscribed Channels"} activeTab={activeTab} setTab={setActiveTab as any} />
         </div>
       </div>
 
@@ -129,9 +130,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
 
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 pb-32">
         {loading ? (
-          <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading") || "ACCESSING NETWORK..."}</div>
+          <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading") || "Loading"}</div>
         ) : activeTab === "FOLLOWING" && !userId ? (
-          <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("feed_login_required")}</div>
+          <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("feed_login_required") || "LOGIN REQUIRED TO REPLY"}</div>
         ) : filteredPosts.length === 0 ? (
           <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("mason_no_posts") || "NO COMM-LINK TRANSMISSIONS FOUND"}</div>
         ) : (

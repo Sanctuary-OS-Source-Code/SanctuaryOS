@@ -41,21 +41,21 @@ export default function WayfinderHub() {
   const [defconLevel, setDefconLevel] = useState(5);
 
   useEffect(() => {
-    supabase.from('global_network_status').select('defcon_level').single().then(({data}) => {
+    supabase.from('global_network_status').select("defcon_level").single().then(({data}) => {
       if (data) setDefconLevel(data.defcon_level);
     });
   }, []);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
-      <ViewHeader title={t("wf_hub_title")} subtitle={t("wf_hub_subtitle")} icon={t("ui_icon_terminal") || "terminal"} iconColorClass="text-indigo-400 border-indigo-500/30">
+      <ViewHeader title={t("wf_hub_title") || "Wayfinder Operations"} subtitle={t("wf_hub_subtitle") || "Network operations, broadcasts, support routing, and platform health"} icon={t("ui_icon_terminal") || "terminal"} iconColorClass="text-indigo-400 border-indigo-500/30">
         <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
            {/* Verify Hash Button */}
            <button 
              onClick={() => setIsVerifyPanelOpen(true)}
              className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 border border-transparent text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50 font-black uppercase tracking-widest text-[10px] group"
            >
-             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_verified") || "verified"}</span>
+             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_verified") || "verified_user"}</span>
              {t("wf_hub_verify") || "VERIFY HASH"}
            </button>
            
@@ -73,22 +73,22 @@ export default function WayfinderHub() {
              <span className={`material-symbols-outlined !text-[24px] ${defconLevel === 1 ? 'animate-bounce' : 'opacity-70'}`}>
                {defconLevel === 1 ? 'warning' : 'security'}
              </span>
-             <span className="text-[10px]">{t("sa_defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>
+             <span className="text-[10px]">{t("sa_defcon_title") || "DEFCON OVERRIDE".replace("🚨 ", "").replace("⚠️ ", "")}</span>
            </button>
         </div>
       </ViewHeader>
 
       <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
         <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner">
-           <HubTabButton id="command_center" icon={t("ui_icon_pc") || "desktop_windows"} label={t("wf_tab_command") || "COMMAND SCREEN"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="command_center" icon={t("ui_icon_pc") || "desktop_windows"} label={t("wf_tab_command") || "COMMAND"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="wayfinder_comms" icon={t("ui_icon_satellite_alt") || "satellite_alt"} label={t("wf_tab_dispatch") || "DISPATCH"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="identities" icon={t("ui_icon_group") || "group"} label={t("sa_tab_identities") || "IDENTITY MATRIX"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="linker" icon={t("ui_icon_link") || "link"} label={t("sa_tab_linker") || "MASON VERIFICATION"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="compliance" icon={t("ui_icon_policy") || "policy"} label={t("sa_tab_compliance") || "COMPLIANCE"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="identities" icon={t("ui_icon_group") || "group"} label={t("sa_tab_identities") || "Identity"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="linker" icon={t("ui_icon_link") || "link"} label={t("sa_tab_linker") || "Masons"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="compliance" icon={t("ui_icon_policy") || "policy"} label={t("sa_tab_compliance") || "Compliance"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="reports" icon={t("ui_icon_report") || "flag"} label={t("mason_stat_bugs") || "REPORTS"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="sanctuary_tickets" icon={t("ui_icon_local_activity") || "local_activity"} label={t("wf_tab_tickets") || "SANCTUARY TICKETS"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="support_settings" icon={t("ui_icon_support_agent") || "support_agent"} label={t("wf_tab_support") || "SUPPORT SETTINGS"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="audit_logs" icon={t("ui_icon_history") || "history"} label={t("sa_tab_audit") || "AUDIT LOGS"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="sanctuary_tickets" icon={t("ui_icon_local_activity") || "local_activity"} label={t("wf_tab_tickets") || "SUPPORT"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="support_settings" icon={t("ui_icon_support_agent") || "support_agent"} label={t("wf_tab_support") || "SETTINGS"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="audit_logs" icon={t("ui_icon_history") || "history"} label={t("sa_tab_audit") || "Logs"} activeTab={activeTab} setTab={setActiveTab} />
         </div>
       </div>
 
@@ -145,19 +145,19 @@ function ServerHealthSidePanel({ isOpen, onClose, stats }: any) {
         <div className="flex flex-col gap-4">
           <div className="theme-glass-panel border border-white/5 rounded-2xl p-6 flex items-center justify-between">
              <div className="flex flex-col gap-1">
-               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70">CORE NODE STATUS</span>
+               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70">{t("wf_core_node") || "CORE NODE"}</span>
                <span className={`text-xl font-black tracking-widest ${stats.networkStatus === 'ONLINE' ? 'text-emerald-400' : 'text-yellow-400'}`}>{stats.networkStatus === 'ONLINE' ? (t("wf_stat_server_nominal") || "NOMINAL") : (t("wf_stat_server_degraded") || "DEGRADED")}</span>
              </div>
-             <span className="material-symbols-outlined !text-4xl opacity-20">memory</span>
+             <span className="material-symbols-outlined !text-4xl opacity-20">{t("ui_icon_memory") || "memory"}</span>
           </div>
 
           <div className="theme-glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-4">
              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 flex items-center gap-2">
-               <span className="material-symbols-outlined !text-[14px]">speed</span> SYSTEM LOAD
+               <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_speed") || "speed"}</span> SYSTEM LOAD
              </span>
              <div className="flex flex-col gap-2">
                <div className="flex justify-between text-xs font-bold text-[var(--text)]">
-                 <span>CPU USAGE</span>
+                 <span>{t("wf_health_cpu_usage") || "CPU USAGE"}</span>
                  <span className="text-[var(--accent)]">42%</span>
                </div>
                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
@@ -166,7 +166,7 @@ function ServerHealthSidePanel({ isOpen, onClose, stats }: any) {
              </div>
              <div className="flex flex-col gap-2 mt-2">
                <div className="flex justify-between text-xs font-bold text-[var(--text)]">
-                 <span>MEMORY ALLOCATION</span>
+                 <span>{t("wf_health_memory_allocation") || "MEMORY ALLOCATION"}</span>
                  <span className="text-orange-400">78%</span>
                </div>
                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
@@ -177,19 +177,19 @@ function ServerHealthSidePanel({ isOpen, onClose, stats }: any) {
 
           <div className="theme-glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-4">
              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 flex items-center gap-2">
-               <span className="material-symbols-outlined !text-[14px]">router</span> NETWORK DIAGNOSTICS
+               <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_router") || "router"}</span> NETWORK DIAGNOSTICS
              </span>
              <div className="grid grid-cols-2 gap-4">
                <div className="flex flex-col gap-1">
-                 <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">LATENCY</span>
+                 <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">{t("wf_latency") || "LATENCY"}</span>
                  <span className="text-lg font-black text-[var(--text)]">{stats.networkLatency || '--'} ms</span>
                </div>
                <div className="flex flex-col gap-1">
-                 <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">CONNECTIONS</span>
+                 <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">{t("wf_connections") || "CONNECTIONS"}</span>
                  <span className="text-lg font-black text-blue-400">1,204</span>
                </div>
                <div className="flex flex-col gap-1 col-span-2 mt-2">
-                 <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">DATABASE SYNC</span>
+                 <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">{t("wf_db_sync") || "DB SYNC"}</span>
                  <span className="text-sm font-black text-emerald-400 flex items-center gap-2">
                    <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.8)] animate-pulse"></span>
                    SYNCHRONIZED
@@ -232,7 +232,7 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter }: any) {
       let netLatency = null;
       let netStatus = "OFFLINE";
       try {
-        await supabase.from('global_network_status').select('id').limit(1);
+        await supabase.from('global_network_status').select("id").limit(1);
         netLatency = Math.round(performance.now() - startTime);
         netStatus = "ONLINE";
       } catch (e) {
@@ -240,7 +240,7 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter }: any) {
       }
 
       // DEFCON Level
-      const { data: defconData } = await supabase.from('global_network_status').select('defcon_level').single();
+      const { data: defconData } = await supabase.from('global_network_status').select("defcon_level").single();
 
       // Wayfinder Support Queue
       const { data: ticketsDataRaw } = await supabase.from('sanctuary_tickets')
@@ -252,17 +252,56 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter }: any) {
       let wayfinderTickets = 0;
       if (ticketsDataRaw && catData) {
         wayfinderTickets = ticketsDataRaw.filter((t: any) => {
-            const cat = catData.find((c: any) => c.category_id === t.category_id);
-            if (!cat) return false;
-            
-            const escalationPath = cat.escalation_path || 'standard';
-            let baseDest = cat.default_routing || 'mod_author';
+            const typeStr = t.ticket_type;
+            const cat = catData.find((c: any) => c.category_name === typeStr || c.category_code === typeStr);
+            const baseDest = cat?.ticket_destination || 'architect';
+            const escalationPath = cat?.escalation_path || 'standard';
 
-            const isTargeted = baseDest === 'wayfinder';
-            const logs = t.metadata?.action_log || [];
-            const isEscalatedFromOversight = t.status?.toUpperCase() === 'ESCALATED' && 
-                logs.some((l: any) => l.action === 'ESCALATED' && (l.architect === 'Senior Architect' || l.architect === 'Mason'));
-            return isTargeted || isEscalatedFromOversight;
+            const ageMs = Date.now() - new Date(t.created_at).getTime();
+            const hoursOld = ageMs / (1000 * 60 * 60);
+
+            let escalationTiers = 0;
+            if (escalationPath === 'urgent') {
+              escalationTiers = Math.floor(hoursOld / 24);
+            } else if (escalationPath === 'standard') {
+              escalationTiers = Math.floor(hoursOld / 72);
+            }
+
+            const tiers = ['mod_author', 'architect', 'senior_architect', 'wayfinder'];
+            let currentTierIndex = tiers.indexOf(baseDest);
+            if (currentTierIndex === -1) currentTierIndex = 1;
+
+            let effectiveTierIndex = currentTierIndex;
+            if (escalationPath?.toLowerCase() !== 'none') {
+                effectiveTierIndex += escalationTiers;
+            }
+            
+            effectiveTierIndex = Math.min(effectiveTierIndex, Math.max(2, currentTierIndex));
+            let dest = tiers[effectiveTierIndex];
+
+            if (t.status?.toUpperCase() === 'ESCALATED') {
+              const logs = t.metadata?.action_log || [];
+              const lastEscalation = [...logs].reverse().find((l: any) => l.action === 'ESCALATED');
+              
+              if (lastEscalation) {
+                  const esciArc = lastEscalation.architect;
+                  if (esciArc === 'Wayfinder') {
+                      dest = 'wayfinder';
+                  } else if (esciArc === 'Senior Architect' || esciArc === 'Oversight') {
+                      dest = 'wayfinder';
+                  } else if (esciArc === 'Architect') {
+                      dest = 'senior_architect';
+                  } else if (esciArc === 'Mason' || esciArc === 'Mod Author') {
+                      dest = 'architect';
+                  } else {
+                      dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
+                  }
+              } else {
+                  dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
+              }
+            }
+
+            return dest === 'wayfinder';
         }).length;
       }
 
@@ -347,17 +386,17 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter }: any) {
   return (
     <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32 mt-8">
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full">
-          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_warning") || "warning"}</span>} number={stats.defconLevel} label={t("sa_defcon_global") || "GLOBAL DEFCON"} colorClass={getDefconColor(stats.defconLevel)} onClick={() => setDefconOpen(true)} />
-          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">dns</span>} number={stats.networkLatency ? `${stats.networkLatency}` : "---"} label={stats.networkStatus === "ONLINE" ? (t("wf_stat_server_nominal") || "NOMINAL") : (t("wf_stat_server_degraded") || "DEGRADED")} colorClass={stats.networkStatus === "ONLINE" ? "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" : "border-yellow-500/30 text-yellow-500 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20"} onClick={() => setHealthOpen(true)} />
+          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_warning") || "warning_amber"}</span>} number={stats.defconLevel} label={t("sa_defcon_global") || "GLOBAL DEFCON"} colorClass={getDefconColor(stats.defconLevel)} onClick={() => setDefconOpen(true)} />
+          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_dns") || "dns"}</span>} number={stats.networkLatency ? `${stats.networkLatency}` : "---"} label={stats.networkStatus === "ONLINE" ? (t("wf_stat_server_nominal") || "NOMINAL") : (t("wf_stat_server_degraded") || "DEGRADED")} colorClass={stats.networkStatus === "ONLINE" ? "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" : "border-yellow-500/30 text-yellow-500 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20"} onClick={() => setHealthOpen(true)} />
           <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity") || "local_activity"}</span>} number={stats.supportQueue} label={t("wf_stat_support_queue") || "SUPPORT QUEUE"} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("sanctuary_tickets")} />
           <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_flag") || "flag"}</span>} number={stats.flaggedQueue} label={t("wf_stat_flagged") || "FLAGGED QUEUE"} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => { if(setComplianceFilter) setComplianceFilter('flagged'); setTab("compliance"); }} />
           <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_report") || "flag"}</span>} number={stats.reportQueue} label={t("wf_stat_report_queue") || "REPORT QUEUE"} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => setTab("reports")} />
-          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_malware_skull") || "bug_report"}</span>} number={stats.quarantined} label={t("wf_stat_quarantined") || "QUARANTINED"} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { if(setComplianceFilter) setComplianceFilter('quarantined'); setTab("compliance"); }} />
+          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_malware_skull") || "skull"}</span>} number={stats.quarantined} label={t("wf_stat_quarantined") || "QUARANTINED"} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { if(setComplianceFilter) setComplianceFilter('quarantined'); setTab("compliance"); }} />
         </div>
 
       <div className="flex flex-col lg:flex-row gap-8 w-full">
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wf_comms_title") || "LATEST DISPATCH"}</h2>
+          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wf_comms_title") || "Latest Dispatch"}</h2>
           <div className="flex flex-col gap-8 w-full mb-8">
              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
                 {broadcasts.length > 0 ? broadcasts.map((post, index) => {
@@ -379,14 +418,14 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter }: any) {
                        {isFeatured && <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 mb-6 line-clamp-3">{post.message || post.content}</p>}
                        <div className="mt-auto flex items-center justify-between pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
                           <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("ui_icon_calendar_today") || "calendar_today"}</span> {new Date(post.created_at).toLocaleDateString()}</span>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more") || "READ MORE"} <span className="material-symbols-outlined !text-lg">{t('arrow_forward') || 'arrow_forward'}</span></span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more") || "READ MORE"} <span className="material-symbols-outlined !text-lg">{t("arrow_forward") || "arrow_forward"}</span></span>
                         </div>
                      </div>
                   </div>
                   );
                 }) : (
                   <div className="w-full xl:col-span-2 theme-glass-panel rounded-[2rem] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    {t("system_no_broadcasts") || "NO RECENT BROADCASTS"}
+                    {t("system_no_broadcasts") || "No Recent Broadcasts"}
                   </div>
                 )}
              </div>
@@ -408,7 +447,7 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter }: any) {
              </div>
              <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-indigo-500/30 transition-all text-center h-32">
                 <span className="text-3xl font-black text-indigo-400">{stats.seniorArchitects}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-indigo-300/70 leading-tight">{t("hub_stat_senior_architects") || "SENIOR ARCHITECTS"}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-indigo-300/70 leading-tight">{t("hub_stat_senior_architects") || "OVERSIGHT"}</span>
              </div>
              <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-red-500/30 transition-all text-center h-32">
                 <span className="text-3xl font-black text-red-500">{stats.blacklisted}</span>
@@ -438,7 +477,7 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter }: any) {
                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_policy") || "policy"}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_comp_title") || "COMPLIANCE"}</h3>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_comp_title") || "Compliance Oversight"}</h3>
                    <span className="text-[8px] uppercase font-bold text-orange-400 opacity-80 group-hover:text-orange-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.8)]"></span> {t("sa_link_compliance_sub") || "ENFORCE POLICIES"}</span>
                  </div>
                </div>
@@ -450,8 +489,8 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter }: any) {
                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_local_activity") || "local_activity"}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_support") || "SANCTUARY TICKETS"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-purple-400 opacity-80 group-hover:text-purple-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></span> {t("wf_link_tickets_sub") || "HANDLE TICKETS"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_support") || "SUPPORT QUEUE"}</h3>
+                   <span className="text-[8px] uppercase font-bold text-purple-400 opacity-80 group-hover:text-purple-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></span> {t("wf_link_tickets_sub") || "VIEW TICKETS"}</span>
                  </div>
                </div>
              </button>
@@ -463,7 +502,7 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter }: any) {
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
                    <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_title_support_settings") || "SUPPORT SETTINGS"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-amber-400 opacity-80 group-hover:text-amber-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> {t("wf_link_support_sub") || "CONFIGURE SUPPORT"}</span>
+                   <span className="text-[8px] uppercase font-bold text-amber-400 opacity-80 group-hover:text-amber-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> {t("wf_link_support_sub") || "MANAGE SETTINGS"}</span>
                  </div>
                </div>
              </button>

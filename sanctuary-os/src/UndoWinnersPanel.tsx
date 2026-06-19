@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
 import { SidePanel, formatDisplayName } from "./shared";
+import { useStore } from './store';
 
 interface UndoWinnersPanelProps {
   isOpen: boolean;
@@ -53,7 +54,7 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
       onUndoComplete();
       onClose();
     } catch (err) {
-      alert(`Undo Error: ${err}`);
+      useStore.getState().pushStatus(`Undo Error: ${err}`);
     }
   };
 
@@ -63,7 +64,7 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
       onUndoComplete();
       onClose();
     } catch (err) {
-      alert(`Error: ${err}`);
+      useStore.getState().pushStatus(`Error: ${err}`);
     }
   };
 
@@ -89,8 +90,8 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
                 : "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] shadow-lg hover:scale-105"
             }`}
           >
-            <span className="material-symbols-outlined !text-sm">{t("ui_icon_warning") || "warning"}</span>
-            <span>CLEAR ALL OVERRIDES</span>
+            <span className="material-symbols-outlined !text-sm">{t("ui_icon_warning") || "warning_amber"}</span>
+            <span>{t("wf_health_clear_all_overrides") || "CLEAR ALL OVERRIDES"}</span>
           </button>
         </div>
       }
@@ -103,7 +104,7 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
         ) : overrides.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-white/20 text-center">
             <span className="material-symbols-outlined !text-4xl mb-4">{t("ui_icon_check_circle") || "check_circle"}</span>
-            <p className="text-sm font-black tracking-widest uppercase">No Active Overrides</p>
+            <p className="text-sm font-black tracking-widest uppercase">{t("radar_no_overrides") || "No Active Overrides"}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">

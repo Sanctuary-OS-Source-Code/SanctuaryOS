@@ -26,8 +26,9 @@ export default function BlueprintSwapSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("bp_blueprint_swap")}
-      subtitle={t("bp_available_blueprints")}
+      title={t("bp_blueprint_swap") || "BLUEPRINTS"}
+      subtitle={t("bp_available_blueprints") || "AVAILABLE BLUEPRINTS"}
+      widthClass="w-[550px]"
       icon={t("ui_icon_map") || "map"}
     >
       <div className="flex flex-col gap-6 h-full pb-10 px-2">
@@ -76,8 +77,8 @@ export default function BlueprintSwapSidePanel({
                         </h4>
                         {isActive && (
                           <span className="px-3 py-1.5 rounded-full bg-[var(--accent)] text-[var(--bg)] text-[9px] font-black uppercase tracking-[0.2em] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_50%,transparent)] animate-[pulse_2s_ease-in-out_infinite] shrink-0 flex items-center gap-1.5">
-                            <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_check") || "check_circle"}</span>
-                            ACTIVE
+                            <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_check") || "check"}</span>
+                            {t("hub_stat_active") || "ACTIVE"}
                           </span>
                         )}
                       </div>
@@ -85,7 +86,7 @@ export default function BlueprintSwapSidePanel({
                       <div className="flex items-center gap-4 mt-1">
                         <span className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-colors ${isActive ? 'theme-text-accent opacity-80' : 'text-[var(--subtext)] opacity-50'}`}>
                           <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_architecture") || "architecture"}</span>
-                          {bp.mods?.length || 0} Artifacts
+                          {bp.mods?.length || 0} {t("modcard_artifacts") || "Artifacts"}
                         </span>
                       </div>
                     </div>

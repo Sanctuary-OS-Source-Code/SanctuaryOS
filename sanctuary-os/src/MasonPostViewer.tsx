@@ -7,6 +7,7 @@ import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import { SidePanel, standardButtonClass } from "./shared";
 import FlagContentSidePanel from "./FlagContentSidePanel";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useStore } from './store';
 
 export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onAssetClick, userId }: { post: any, onClose: () => void, onOpenMasonProfile?: (id: string) => void, onAssetClick?: (type: string, id: string) => void, userId: string | null }) {
   const { t } = useLexicon();
@@ -113,7 +114,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
       setReplyTargetAuthorId(null);
       fetchComments();
     } else {
-      alert("Error posting comment: " + error.message);
+      useStore.getState().pushStatus("Error posting comment: " + error.message);
     }
   };
 
@@ -128,9 +129,9 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
     // Fallback to direct update (will likely fail due to RLS)
     const { data, error } = await supabase.from('mason_post_comments').update({ is_hidden: true }).eq('id', commentId).select();
     if (error) {
-      alert("Error hiding comment: " + error.message);
+      useStore.getState().pushStatus("Error hiding comment: " + error.message);
     } else if (data && data.length === 0) {
-      alert("Error: Database blocked the action! (Row-Level Security). You don't have permission to modify this comment.");
+      useStore.getState().pushStatus("Error: Database blocked the action! (Row-Level Security). You don't have permission to modify this comment.");
     } else {
       fetchComments();
     }
@@ -154,7 +155,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
       setEditingCommentId(null);
       fetchComments();
     } else {
-      alert("Error updating comment: " + error.message);
+      useStore.getState().pushStatus("Error updating comment: " + error.message);
     }
   };
 
@@ -309,7 +310,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               </div>
               <div className="mt-3">
                 {c.is_hidden && !isPostAuthor ? (
-                  <p className="text-[var(--subtext)] opacity-50 italic text-sm">{t("feed_reply_hidden") || "This reply was hidden by the architect."}</p>
+                  <p className="text-[var(--subtext)] opacity-50 italic text-sm">{t("feed_reply_hidden") || "HIDDEN"}</p>
                 ) : (
                   <div className={`text-[var(--text)] text-sm leading-relaxed whitespace-pre-wrap ${c.is_hidden ? 'opacity-50' : 'opacity-90'} markdown-body`}>
                     <MarkdownRenderer content={c.content} onAssetClick={(type: string, id: string) => { onAssetClick?.(type, id); }} />
@@ -320,7 +321,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 <div className="mt-4 flex">
                   <button onClick={() => setActiveCodeSnippet(c.code_snippet)} className="px-5 py-2.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-colors border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_data_object") || "data_object"}</span>
-                    {t("feed_show_code") || "VIEW CODE"}
+                    {t("feed_show_code") || "SHOW CODE"}
                   </button>
                 </div>
               )}
@@ -364,7 +365,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2">
               {t("mason_post_by") || "By"} 
               <span className="theme-text-accent cursor-pointer hover:underline flex items-center gap-1" onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }}>
-                {post.masons?.name || t("feed_unknown_architect")}
+                {post.masons?.name || t("feed_unknown_architect") || "Unknown Architect"}
               </span>
             </span>
           </div>
@@ -396,13 +397,13 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       <span className="material-symbols-outlined text-[24px] theme-text-accent">{t("ui_icon_data_object") || "data_object"}</span>
                     </div>
                     <div>
-                      <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("feed_code_snippet") || "ATTACHED CODE"}</h4>
+                      <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("feed_code_snippet") || "CODE SNIPPET"}</h4>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] mt-1">{t("feed_code_desc") || "View the snippet associated with this post."}</p>
                     </div>
                   </div>
                   <button onClick={() => setActiveCodeSnippet(post.code_snippet)} className="px-6 py-3 rounded-xl theme-bg-accent text-[var(--bg)] text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] flex items-center gap-2">
                     <span className="material-symbols-outlined text-[16px]">{t("ui_icon_visibility") || "visibility"}</span>
-                    {t("feed_show_code") || "VIEW CODE"}
+                    {t("feed_show_code") || "SHOW CODE"}
                   </button>
                 </div>
               </div>
@@ -412,7 +413,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
           <div className="mt-8 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-10 flex flex-col gap-8">
             <h3 className="text-2xl font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-4">
               <span className="material-symbols-outlined theme-text-accent text-[32px]">{t("ui_icon_forum") || "forum"}</span>
-              {t("feed_replies") || "DISCUSSION"}
+              {t("feed_replies") || "REPLIES"}
             </h3>
 
             {userId ? (
@@ -446,16 +447,16 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                     <textarea 
                       value={codeSnippet}
                       onChange={(e) => setCodeSnippet(e.target.value)}
-                      placeholder="Paste code logs or error traces here..."
+                      placeholder={t("ph_code_logs") || "Paste code logs or error traces here..."}
                       className="w-full bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl py-4 pl-6 pr-4 text-[13px] font-mono text-[var(--text)] placeholder-[var(--subtext)] outline-none focus:theme-border-accent transition-all resize-none h-40 custom-scrollbar shadow-inner"
                       spellCheck={false}
                     />
-                    <div className="absolute top-4 right-4 text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-30 pointer-events-none">CODE SNIPPET</div>
+                    <div className="absolute top-4 right-4 text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-30 pointer-events-none">{t("post_code_snippet") || "CODE SNIPPET"}</div>
                   </div>
                 )}
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
                   <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all border ${showCodeInput ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                    <span className="material-symbols-outlined !text-[16px]">{showCodeInput ? 'close' : 'data_object'}</span> {showCodeInput ? "HIDE CODE PASTE" : (t("feed_add_code") || "ATTACH CODE")}
+                    <span className="material-symbols-outlined !text-[16px]">{showCodeInput ? 'close' : 'data_object'}</span> {showCodeInput ? "HIDE CODE PASTE" : (t("feed_add_code") || "ATTACH CODE SNIPPET")}
                   </button>
                   <button type="submit" disabled={!newComment.trim() && !codeSnippet.trim()} className="px-8 py-3 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent font-black uppercase tracking-[0.2em] text-[10px] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2">
                     <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_send") || "send"}</span> {t("feed_btn_send") || "SEND"}
@@ -480,10 +481,10 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
             
             <div className="mt-8 pt-8 border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
                <div className="flex items-center gap-4">
-                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50">{t("feed_creator_links") || "CREATOR LINKS"}</span>
-                 <button onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }} className="px-6 py-3 bg-transparent border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest rounded-xl hover:theme-border-accent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:-translate-y-1 hover:shadow-lg transition-all duration-300">{t("feed_btn_view_profile") || "VIEW PROFILE"}</button>
-                 {post.masons?.patreon_url && <button onClick={() => openUrl(post.masons.patreon_url)} className="px-6 py-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(244,63,94,0.3)] transition-all duration-300 flex items-center gap-2">{t("feed_btn_patreon") || "SUPPORT ON PATREON"}</button>}
-                 {post.masons?.discord_url && <button onClick={() => openUrl(post.masons.discord_url)} className="px-6 py-3 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-500/20 hover:border-indigo-500/60 hover:text-indigo-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all duration-300 flex items-center gap-2">{t("feed_btn_discord") || "JOIN DISCORD"}</button>}
+                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50">{t("feed_creator_links") || "Creator Links"}</span>
+                 <button onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }} className="px-6 py-3 bg-transparent border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest rounded-xl hover:theme-border-accent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:-translate-y-1 hover:shadow-lg transition-all duration-300">{t("feed_btn_view_profile") || "View Profile"}</button>
+                 {post.masons?.patreon_url && <button onClick={() => openUrl(post.masons.patreon_url)} className="px-6 py-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(244,63,94,0.3)] transition-all duration-300 flex items-center gap-2">{t("feed_btn_patreon") || "Support on Patreon"}</button>}
+                 {post.masons?.discord_url && <button onClick={() => openUrl(post.masons.discord_url)} className="px-6 py-3 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-500/20 hover:border-indigo-500/60 hover:text-indigo-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all duration-300 flex items-center gap-2">{t("feed_btn_discord") || "Join Discord"}</button>}
                </div>
                {userId && !isPostAuthor && (
                  <button onClick={() => setFlagTarget({id: post.id, type: 'post'})} className="px-5 py-3 ml-auto bg-[var(--danger)]/5 border border-[var(--danger)]/20 theme-text-danger text-[10px] font-black uppercase tracking-widest flex items-center gap-2 rounded-xl transition-all hover:bg-[var(--danger)]/15 hover:border-[var(--danger)]/50 hover:shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] hover:scale-105 backdrop-blur-md">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { ViewHeader, CustomDropdown, HubTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass } from "./shared";
@@ -8,6 +8,10 @@ import { useTheme } from "./ThemeContext";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
+
+let cachedMarketplaceItems: any[] | null = null;
+let lastMarketplaceFetch = 0;
+const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
 
 interface MarketplaceProps {
   ownedHashes: string[];
@@ -135,7 +139,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             id: b.id,
             name: b.name,
             author: masonData?.find((m: any) => m.id === b.mason_id)?.name || "Citizen",
-            description: (b.artifacts?.length || 0) + " " + (t("modcard_artifacts") || "Mods"),
+            description: (b.artifacts?.length || 0) + " " + (t("modcard_artifacts") || "Artifacts"),
             created_at: b.created_at,
             asset_type: 'blueprint',
             json_data: b
@@ -174,7 +178,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
       if (session?.user?.id) {
         const { data: profileData } = await supabase.from('user_profiles').select('allow_upload').eq('id', session.user.id).maybeSingle();
         if (profileData && profileData.allow_upload === false) {
-          alert(t("market_upload_banned") || "Upload access has been revoked.");
+          useStore.getState().pushStatus(t("market_upload_banned") || "Upload access has been revoked.");
           return;
         }
       }
@@ -241,7 +245,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
       setUploadState(s => ({ ...s, isOpen: false }));
       fetchMarketplaceAssets();
     } catch (err: any) {
-      alert(`Upload failed: ${err.message || err}`);
+      useStore.getState().pushStatus(`Upload failed: ${err.message || err}`);
     }
   };
 
@@ -318,39 +322,68 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
     }
   }
 
-  async function fetchMarketplace() {
+  async function fetchMarketplace(forceRefresh = false) {
+    if (!forceRefresh && cachedMarketplaceItems && (performance.now() - lastMarketplaceFetch < CACHE_TTL)) {
+      setResults(cachedMarketplaceItems);
+      setCurrentPage(1);
+      return;
+    }
+
     setLoading(true);
+    const startFetch = performance.now();
     try {
-      // Fetch all mods with pagination to get ALL records
-      let allMods: any[] = [];
-      let from = 0;
-      const step = 999;
+      // 1. Get exact count of mods
+      const { count, error: countError } = await supabase
+        .from("mods")
+        .select("id", { count: "exact", head: true });
+        
+      if (countError) throw countError;
       
-      while (true) {
-        const { data, error } = await supabase
-          .from("mods")
-          .select("*, mod_versions(dna_hash, version_label), masons(id, name)")
-          .range(from, from + step);
-        
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        
-        allMods = [...allMods, ...data];
-        if (data.length <= step) break;
-        from += step + 1;
+      const BATCH_SIZE = 1000;
+      const pages = Math.ceil((count || 0) / BATCH_SIZE);
+      const modsPromises = [];
+      
+      for (let i = 0; i < pages; i++) {
+        modsPromises.push(
+          supabase
+            .from("mods")
+            .select("id, name, created_at, category_override, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, mod_versions(dna_hash, version_label), masons(id, name)")
+            .range(i * BATCH_SIZE, (i + 1) * BATCH_SIZE - 1)
+        );
       }
 
+      // 2. Fire all queries IN PARALLEL
+      const [
+        modsResultsArray,
+        flavorGroupsRes,
+        ccSetsRes,
+        relationshipsRes,
+        flavorMembersRes,
+        setMembersRes
+      ] = await Promise.all([
+        Promise.all(modsPromises),
+        supabase.from("flavor_groups").select("*"),
+        supabase.from("cc_sets").select("*"),
+        supabase.from("mod_relationships").select("parent_id, child_id, relationship_type").in("relationship_type", ["twin", "addon", "flavor", "set_item", "beta"]),
+        supabase.from("flavor_group_members").select("group_id, mod_hash"),
+        supabase.from("cc_set_members").select("set_id, mod_id")
+      ]);
+
+      // Process mods
+      let allMods: any[] = [];
+      for (const res of modsResultsArray) {
+        if (res.error) throw res.error;
+        if (res.data) allMods = [...allMods, ...res.data];
+      }
+      
       const modsData = allMods;
+      const midFetch = performance.now();
 
-      // Fetch flavor groups
-      const { data: flavorGroups } = await supabase
-        .from("flavor_groups")
-        .select("*");
-
-      // Fetch CC sets
-      const { data: ccSets } = await supabase
-        .from("cc_sets")
-        .select("*");
+      const flavorGroups = flavorGroupsRes.data;
+      const ccSets = ccSetsRes.data;
+      const relationships = relationshipsRes.data;
+      const allFlavorMembers = flavorMembersRes.data;
+      const allSetMembers = setMembersRes.data;
 
       let allItems: any[] = [];
 
@@ -363,12 +396,6 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
           modsById.set(String(mod.id), mod);
         });
       }
-
-      // Query mod_relationships to find twins and addons for grouping
-      const { data: relationships } = await supabase
-        .from("mod_relationships")
-        .select("parent_id, child_id, relationship_type")
-        .in("relationship_type", ["twin", "addon", "flavor", "set_item", "beta"]);
 
       // Build family groups from relationships
       const familyMap = new Map<string, Set<string>>();
@@ -419,18 +446,22 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
 
       // Add flavor groups as virtual cards with their members
       if (flavorGroups) {
+        const membersByGroup = new Map<string, any[]>();
+        if (allFlavorMembers) {
+          for (const fm of allFlavorMembers) {
+            if (!membersByGroup.has(fm.group_id)) membersByGroup.set(fm.group_id, []);
+            membersByGroup.get(fm.group_id)!.push(fm);
+          }
+        }
+
         for (const group of flavorGroups) {
-          // Fetch members of this flavor group using mod_hash
-          const { data: flavorMembers } = await supabase
-            .from("flavor_group_members")
-            .select("mod_hash")
-            .eq("group_id", group.id);
+          const flavorMembers = membersByGroup.get(group.id) || [];
           
           // Map mod_hash to mod IDs by finding matching versions
           const members: any[] = [];
           const memberIds = new Set<string>();
           
-          if (flavorMembers) {
+          if (flavorMembers.length > 0) {
             for (const fm of flavorMembers) {
               // Find the mod that has a version with this hash
               for (const [modId, mod] of modsById.entries()) {
@@ -470,20 +501,24 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
 
       // Add CC sets as virtual cards with their members
       if (ccSets) {
+        const membersBySet = new Map<string, any[]>();
+        if (allSetMembers) {
+          for (const sm of allSetMembers) {
+            if (!membersBySet.has(sm.set_id)) membersBySet.set(sm.set_id, []);
+            membersBySet.get(sm.set_id)!.push(sm);
+          }
+        }
+
         for (const set of ccSets) {
-          // Fetch members of this CC set
-          const { data: setMembers } = await supabase
-            .from("cc_set_members")
-            .select("mod_id")
-            .eq("set_id", set.id);
+          const setMembers = membersBySet.get(set.id) || [];
           
           const members = setMembers
-            ?.map(sm => modsById.get(String(sm.mod_id)))
+            .map((sm: any) => modsById.get(String(sm.mod_id)))
             .filter(Boolean) || [];
           
           // Mark CC set members as processed so they don't appear standalone
-          if (setMembers) {
-            setMembers.forEach(sm => processedMods.add(String(sm.mod_id)));
+          if (setMembers.length > 0) {
+            setMembers.forEach((sm: any) => processedMods.add(String(sm.mod_id)));
           }
           
           // Only add CC set if it has members
@@ -552,11 +587,14 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
         }
       });
 
-      setResults(Array.from(nameMap.values()));
+      cachedMarketplaceItems = Array.from(nameMap.values());
+      lastMarketplaceFetch = performance.now();
+
+      setResults(cachedMarketplaceItems);
       setCurrentPage(1);
     } catch (err: any) {
       console.error("Marketplace error:", err);
-      onSetStatus(`${t("market_error_prefix")}${err.message}`);
+      onSetStatus(`${t("market_error_prefix") || "MARKET ERROR:"}${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -565,21 +603,23 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
   // Get unique categories from category_override field
   const categories = [t("market_filter_all") || "ALL", ...Array.from(new Set(results.map((m: any) => m.category_override || "Uncategorized").filter(Boolean)))];
 
+  const ownedHashesSet = useMemo(() => new Set(ownedHashes), [ownedHashes]);
+
   // Apply filters and sorting
   let filteredResults = results.filter((mod: any) => {
     // Already owned filter - check if user has ANY version of this mod
     const modName = (mod.name || "").toLowerCase().trim();
-    const isOwned = ownedHashes.some((hash: string) => {
+    const isOwned = (() => {
       // Check if the hash matches this mod or any of its variants
       if (mod.isVirtual || mod.isParent) {
         return mod.flavors?.some((f: any) => 
-          f.hash === hash || 
-          f.mod_versions?.some((v: any) => v.dna_hash === hash)
+          ownedHashesSet.has(f.hash) || 
+          f.mod_versions?.some((v: any) => ownedHashesSet.has(v.dna_hash))
         );
       }
-      return mod.hash === hash || 
-        mod.mod_versions?.some((v: any) => v.dna_hash === hash);
-    });
+      return ownedHashesSet.has(mod.hash) || 
+        mod.mod_versions?.some((v: any) => ownedHashesSet.has(v.dna_hash));
+    })();
     
     if (isOwned) return false; // Hide mods the user already owns
     
@@ -698,10 +738,10 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
     return (
       <div className="flex flex-col gap-8 items-center justify-center h-full text-center animate-in fade-in duration-500">
         <div className="w-24 h-24 rounded-[2rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
-          <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">lock</span>
+          <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("ui_icon_lock") || "lock"}</span>
         </div>
         <h2 className="text-2xl font-black uppercase tracking-tighter text-[var(--text)]">{t("market_access_denied") || "ACCESS DENIED"}</h2>
-        <p className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest">{t("market_access_denied_desc") || "Login required"}</p>
+        <p className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest">{t("market_access_denied_desc") || "Only citizens that are logged in may access the Nexus."}</p>
       </div>
     );
   }
@@ -709,18 +749,21 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <ViewHeader 
-        title={t("market_title")} 
-        subtitle={`${t("market_subtitle_suffix") || "ARTIFACTS AVAILABLE"}`} 
+        title={t("market_title") || "The Nexus"} 
+        subtitle={`${t("market_subtitle_suffix") || "Community index, artifact discovery, and metadata links"}`} 
         icon={t("ui_icon_hub") || "hub"} 
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" 
       >
         <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
           <button
-            onClick={marketTab === 'MODS' ? fetchMarketplace : fetchMarketplaceAssets}
+            onClick={() => {
+              if (marketTab === 'MODS') fetchMarketplace(true);
+              else fetchMarketplaceAssets();
+            }}
             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
           >
             <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_refresh") || "refresh"}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_refresh") || "REFRESH"}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_refresh") || "Refresh"}</span>
           </button>
           
           {marketTab !== 'MODS' && marketTab !== 'BLUEPRINTS' && (
@@ -731,7 +774,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
               >
                 <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_upload") || "upload"}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest">{t("market_btn_upload") || "UPLOAD"}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">{t("market_btn_upload") || "Upload"}</span>
               </button>
             </>
           )}
@@ -766,7 +809,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
           </div>
           <input 
             type="text" 
-            placeholder={t("market_search_placeholder") || "Search artifacts, creators, descriptions..."} 
+            placeholder={t("market_search_placeholder") || "Search Artifacts or Masons..."} 
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -813,10 +856,10 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             value={sortBy}
             onChange={(val: string[]) => setSortBy(val[0])}
             options={[
-              { id: "newest", label: t("market_sort_newest") || "NEWEST" },
-              { id: "oldest", label: t("market_sort_oldest") || "OLDEST" },
-              { id: "name", label: t("market_sort_name") || "NAME" },
-              { id: "author", label: t("market_sort_author") || "AUTHOR" }
+              { id: "newest", label: t("market_sort_newest") || "NEWEST FIRST" },
+              { id: "oldest", label: t("market_sort_oldest") || "OLDEST FIRST" },
+              { id: "name", label: t("market_sort_name") || "NAME (A-Z)" },
+              { id: "author", label: t("market_sort_author") || "MASON (A-Z)" }
             ]}
           />
         </div>
@@ -841,7 +884,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8 mt-6">
         {loading ? (
           <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest animate-pulse">
-            {t("market_searching") || "SCANNING MARKETPLACE..."}
+            {t("market_searching") || "Searching The Nexus..."}
           </div>
         ) : paginatedResults.length > 0 ? (
           <>
@@ -884,7 +927,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                   {(mod.isVirtual || mod.isParent || mod.familyCount > 1) && (
                     <div className="absolute bottom-3 left-3 z-30 pointer-events-auto group/badge">
                       <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-lg transition-all group-hover/badge:bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]">
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] drop-shadow-sm">layers</span>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] drop-shadow-sm">{t("ui_icon_layers") || "layers"}</span>
                         <span className="text-[9px] font-black text-[var(--text)] uppercase tracking-widest drop-shadow-sm">
                           {mod.familyCount || (mod.flavors?.length || 0)} {t("market_variants") || "VARIANTS"}
                         </span>
@@ -909,9 +952,9 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                   
                   <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                      {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("market_date_unknown")}
+                      {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("market_date_unknown") || "Unknown Date"}
                     </span>
-                    <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">VIEW &rarr;</span>
+                    <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("market_btn_view") || "View"} &rarr;</span>
                   </div>
                 </div>
               </div>
@@ -922,8 +965,8 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             <div className="w-24 h-24 rounded-[2rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
               <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("ui_icon_marketplace") || "storefront"}</span>
             </div>
-            <p className="font-black uppercase tracking-widest text-xl mb-2">{t("market_empty_title") || "NO ARTIFACTS FOUND"}</p>
-            <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("market_empty_desc") || "Try adjusting your filters or search query"}</p>
+            <p className="font-black uppercase tracking-widest text-xl mb-2">{t("market_empty_title") || "No new artifacts detected."}</p>
+            <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("market_empty_desc") || "Everything in The Nexus is already in Your Vault."}</p>
           </div>
         )}
       </div>
@@ -936,7 +979,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             disabled={currentPage === 1}
             className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
           >
-            {t("nav_prev") || "← PREV"}
+            {t("nav_prev") || "PREV"}
           </button>
           <span className="text-[12px] font-black uppercase tracking-widest text-[var(--subtext)] px-4">
             {currentPage} / {totalPages}
@@ -946,7 +989,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             disabled={currentPage === totalPages}
             className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
           >
-            {t("nav_next") || "NEXT →"}
+            {t("nav_next") || "NEXT"}
           </button>
         </div>
       )}
@@ -962,7 +1005,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
               </div>
               <input 
                 type="text" 
-                placeholder={marketTab === 'LEXICONS' ? (t("market_search_lexicons") || "Search lexicons, creators...") : marketTab === 'BLUEPRINTS' ? (t("market_search_blueprints") || "Search Blueprints...") : (t("market_search_chameleons") || "Search chameleons, creators...")} 
+                placeholder={marketTab === 'LEXICONS' ? (t("market_search_lexicons") || "Search Lexicons or Masons...") : marketTab === 'BLUEPRINTS' ? (t("market_search_blueprints") || "Search Blueprints...") : (t("market_search_chameleons") || "Search Chameleons or Masons...")} 
                 value={assetSearchQuery}
                 onChange={(e) => {
                   setAssetSearchQuery(e.target.value);
@@ -995,7 +1038,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                     value={languageFilter}
                     onChange={(val: string[]) => { setLanguageFilter(val[0]); setCurrentPage(1); }}
                     options={[
-                      { id: "all", label: t("market_filter_language") || "LANGUAGE" },
+                      { id: "all", label: t("market_filter_language") || "Lexicon" },
                       ...availableLanguages.map(l => ({ id: l, label: l }))
                     ]}
                   />
@@ -1005,7 +1048,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                     value={lexiconTypeFilter}
                     onChange={(val: string[]) => { setLexiconTypeFilter(val[0]); setCurrentPage(1); }}
                     options={[
-                      { id: "all", label: t("market_filter_type") || "TYPE" },
+                      { id: "all", label: t("market_filter_type") || "Type" },
                       { id: "Default", label: t("market_type_default") || "Default" },
                       { id: "Theme", label: t("market_type_theme") || "Theme" }
                     ]}
@@ -1020,7 +1063,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                   value={themeModeFilter}
                   onChange={(val: string[]) => { setThemeModeFilter(val[0]); setCurrentPage(1); }}
                   options={[
-                    { id: "all", label: t("market_filter_mode") || "THEME MODE" },
+                    { id: "all", label: t("market_filter_mode") || "Theme Mode" },
                     { id: "Dark", label: t("market_mode_dark") || "Dark" },
                     { id: "Light", label: t("market_mode_light") || "Light" }
                   ]}
@@ -1033,10 +1076,10 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 value={assetSortBy}
                 onChange={(val: string[]) => setAssetSortBy(val[0])}
                 options={[
-                  { id: "newest", label: t("market_sort_newest") || "NEWEST" },
-                  { id: "oldest", label: t("market_sort_oldest") || "OLDEST" },
-                  { id: "name", label: t("market_sort_name") || "NAME" },
-                  { id: "author", label: t("market_sort_author") || "AUTHOR" }
+                  { id: "newest", label: t("market_sort_newest") || "NEWEST FIRST" },
+                  { id: "oldest", label: t("market_sort_oldest") || "OLDEST FIRST" },
+                  { id: "name", label: t("market_sort_name") || "NAME (A-Z)" },
+                  { id: "author", label: t("market_sort_author") || "MASON (A-Z)" }
                 ]}
               />
             </div>
@@ -1044,7 +1087,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
             {loading ? (
               <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest animate-pulse">
-                {t("market_searching") || "SCANNING MARKETPLACE..."}
+                {t("market_searching") || "Searching The Nexus..."}
               </div>
             ) : assetPaginatedResults.length > 0 ? (
               assetPaginatedResults.map((asset: any, index: number) => (
@@ -1065,7 +1108,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                     </span>
                     <div className="absolute top-4 right-4 flex gap-2 z-30">
                       <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                        {marketTab === 'BLUEPRINTS' ? (t("market_type_blueprint") || "BLUEPRINT") : marketTab === 'CHAMELEONS' ? (t("market_type_theme") || "THEME") : (t("market_type_lexicon") || "LANGUAGE")}
+                        {marketTab === 'BLUEPRINTS' ? (t("market_type_blueprint") || "BLUEPRINT") : marketTab === 'CHAMELEONS' ? (t("market_type_theme") || "Theme") : (t("market_type_lexicon") || "Lexicon")}
                       </span>
                     </div>
                   </div>
@@ -1114,7 +1157,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                             }}
                             className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105"
                           >
-                            {t("market_btn_download_install") || "DOWNLOAD"}
+                            {t("market_btn_download_install") || "Download & Install"}
                           </button>
                         ) : (
                           <button 
@@ -1133,7 +1176,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                             }}
                             className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}
                           >
-                            {isInstalled(asset) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "DOWNLOAD")}
+                            {isInstalled(asset) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "Download & Install")}
                           </button>
                         )}
                       </div>
@@ -1148,12 +1191,12 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 </div>
                 <p className="font-black uppercase tracking-widest text-xl mb-2">
                   {marketTab === 'CHAMELEONS' 
-                    ? (t("market_empty_title_chameleons") || "NO CHAMELEONS FOUND") 
+                    ? (t("market_empty_title_chameleons") || "No Chameleon found.") 
                     : marketTab === 'BLUEPRINTS'
                     ? (t("market_empty_title_blueprints") || "NO BLUEPRINTS FOUND")
-                    : (t("market_empty_title_lexicons") || "NO LEXICONS FOUND")}
+                    : (t("market_empty_title_lexicons") || "No Lexicons found.")}
                 </p>
-                <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("market_empty_desc") || "Try adjusting your filters or search query"}</p>
+                <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("market_empty_desc") || "Everything in The Nexus is already in Your Vault."}</p>
               </div>
             )}
           </div>
@@ -1166,7 +1209,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 disabled={currentPage === 1}
                 className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
               >
-                {t("nav_prev") || "← PREV"}
+                {t("nav_prev") || "PREV"}
               </button>
               <span className="text-[12px] font-black uppercase tracking-widest text-[var(--subtext)] px-4">
                 {currentPage} / {assetTotalPages}
@@ -1176,7 +1219,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 disabled={currentPage === assetTotalPages}
                 className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
               >
-                {t("nav_next") || "NEXT →"}
+                {t("nav_next") || "NEXT"}
               </button>
             </div>
           )}
@@ -1224,7 +1267,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                         const parsed = JSON.parse(content);
                         setUploadState(s => ({ ...s, fileContent: parsed, fileName: selected as string, name: s.name || parsed.name || 'Unknown' }));
                       } catch (err: any) {
-                        alert(`${t("alert_import_failed") || "Error reading file:"} ${err.message || err}`);
+                        useStore.getState().pushStatus(`${t("alert_import_failed") || "Import Failed:"} ${err.message || err}`);
                       }
                     }} className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest rounded-xl hover:scale-105 transition-all shadow-lg whitespace-nowrap ${standardAccentGlassButtonClass}`}>
                       {uploadState.fileName ? (t("ui_btn_replace") || "REPLACE") : (t("marketplace_btn_import") || "IMPORT")}
@@ -1256,25 +1299,25 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
               {marketTab === 'LEXICONS' && (
                 <>
                   <div className="flex flex-col gap-2 relative z-[60]">
-                    <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_language") || "Language"}</label>
+                    <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_language") || "Lexicon"}</label>
                     <CustomDropdown disableTint={true}  
                       value={uploadState.language}
                       onChange={(val: string[]) => setUploadState(s => ({ ...s, language: val[0] }))}
                       options={[
                         ...availableLanguages.map(l => ({ id: l, label: l })),
-                        { id: "add_new", label: t("market_upload_add_language") || "Add New Language..." }
+                        { id: "add_new", label: t("market_upload_add_language") || "Add New Lexicon..." }
                       ]}
                     />
                   </div>
                   {uploadState.language === 'add_new' && (
                     <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
-                      <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_new_language") || "New Language Name"}</label>
+                      <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_new_language") || "New Lexicon Name"}</label>
                       <input 
                         type="text" 
                         value={uploadState.newLanguage}
                         onChange={e => setUploadState(s => ({ ...s, newLanguage: e.target.value }))}
                         className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
-                        placeholder="e.g. French"
+                        placeholder={t("market_ph_language") || "e.g. French"}
                       />
                     </div>
                   )}
@@ -1313,7 +1356,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 onClick={() => setUploadState(s => ({ ...s, isOpen: false }))}
                 className="px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--text)]"
               >
-                {t("market_upload_cancel") || "Cancel"}
+                {t("market_upload_cancel") || "CANCEL"}
               </button>
               <button 
                 onClick={submitUpload}
@@ -1345,7 +1388,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             
             <div className="px-6 pt-6 pb-2 relative flex-shrink-0">
               <h3 className="text-2xl font-black text-[var(--text)] uppercase truncate">{t("market_report_title") || "Flag Asset"}</h3>
-              <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("market_report_desc") || "Submit a report"}</p>
+              <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("market_report_desc") || "Please provide detailed information about why this asset should be removed from the Marketplace. False reports may result in account termination."}</p>
             </div>
             
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 relative z-10">
@@ -1367,7 +1410,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                     {t("market_upload_cancel") || "CANCEL"}
                   </button>
                   <button type="submit" className={standardDangerButtonClass + " flex-1"}>
-                    {t("market_report_submit") || "SUBMIT"}
+                    {t("market_report_submit") || "Submit"}
                   </button>
                 </div>
               </form>
@@ -1395,7 +1438,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
               <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate">{selectedBlueprint.name}</h3>
               <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-2 flex gap-4">
                 <span>{selectedBlueprint.author || "Citizen"} &bull; {new Date(selectedBlueprint.created_at).toLocaleDateString()}</span>
-                <span className="text-[var(--accent)] font-mono">{selectedBlueprint.json_data.game_version ? `${t("market_blueprint_verified") || "Verified Version: "} ${selectedBlueprint.json_data.game_version}` : (t("market_blueprint_verified_unknown") || "Verified Version: Unknown")}</span>
+                <span className="text-[var(--accent)] font-mono">{selectedBlueprint.json_data.game_version ? `${t("market_blueprint_verified") || "Verified Version:"} ${selectedBlueprint.json_data.game_version}` : (t("market_blueprint_verified_unknown") || "Verified Version: Unknown")}</span>
               </p>
             </div>
 
@@ -1408,7 +1451,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                  
                  <div className="flex flex-col gap-4">
                     <h3 className="text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-80 flex items-center gap-2">
-                      <span className="theme-text-accent">{selectedBlueprint.json_data.artifacts?.length || 0}</span> {t("market_blueprint_included") || "Included Mods"}
+                      <span className="theme-text-accent">{selectedBlueprint.json_data.artifacts?.length || 0}</span> {t("market_blueprint_included") || "Included Artifacts"}
                     </h3>
                     <div className="flex flex-col gap-2">
                       {(selectedBlueprint.json_data.artifacts || []).map((mod: any, i: number) => (
@@ -1434,7 +1477,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                       }}
                       className={standardAccentGlassButtonClass + " w-full"}
                    >
-                      {t("market_btn_download_install") || "DOWNLOAD"}
+                      {t("market_btn_download_install") || "Download & Install"}
                    </button>
                  </div>
               </div>

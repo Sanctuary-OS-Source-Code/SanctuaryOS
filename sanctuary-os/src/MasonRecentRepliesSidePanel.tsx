@@ -78,7 +78,7 @@ export default function MasonRecentRepliesSidePanel({
                     </div>
                 ) : replies.length === 0 ? (
                     <div className="flex flex-col justify-center items-center h-64 theme-glass-panel rounded-3xl border border-white/5 shadow-xl group">
-                        <span className="text-6xl mb-4 grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:-rotate-12">{t("ui_icon_mailbox")}</span>
+                        <span className="text-6xl mb-4 grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:-rotate-12">{t("ui_icon_mailbox") || "mail"}</span>
                         <span className="text-sm font-black text-[var(--subtext)] uppercase tracking-widest text-center px-8 leading-relaxed">
                             {t("mason_no_recent_replies") || "NO RECENT REPLIES"}
                         </span>
@@ -119,7 +119,7 @@ export default function MasonRecentRepliesSidePanel({
                                     {t("mason_original_post") || "Original Post"}: 
                                 </span>
                                 <span className="text-[10px] font-bold text-[var(--text)] truncate max-w-[200px]">
-                                    {reply.mason_posts?.title || t("mason_unknown_mason") || "Unknown"}
+                                    {reply.mason_posts?.title || t("mason_unknown_mason") || "Unknown Mason"}
                                 </span>
                             </div>
                         </div>

@@ -9,7 +9,7 @@ import { isVersionMatch, deriveHumanReadableVersion, getHighestVersion, CustomCo
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { supabase } from "./supabase";
-import { ViewHeader, SidePanel, GameVersionMultiSelect, CustomDropdown, StatTile, ModSearchDropdown, CustomDatePicker, HubTabButton, standardButtonClass, standardPrimaryButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass } from "./shared";
+import { ViewHeader, SidePanel, GameVersionMultiSelect, CustomDropdown, StatTile, ModSearchDropdown, CustomDatePicker, HubTabButton, standardButtonClass, standardPrimaryButtonClass, standardDangerButtonClass, standardSuccessButtonClass, standardAccentGlassButtonClass } from "./shared";
 import ProtocolVisualizer from "./ProtocolVisualizer";
 import StructureVisualizer from "./StructureVisualizer";
 import ModStructureBuilder from "./ModStructureBuilder";
@@ -41,6 +41,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
   const [isSupportDeskOpen, setIsSupportDeskOpen] = useState(false);
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [activeAsset, setActiveAsset] = useState<{type: string, id: string} | null>(null);
+  const [registryTargetMod, setRegistryTargetMod] = useState<string | null>(null);
 
   useEffect(() => {
     if (sandboxMod) setActiveTab("sandbox");
@@ -58,23 +59,23 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
     fetchMasonProfile();
   },[]);
 
-  if (loading) return <div className="p-12 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">{t("mason_verifying")}</div>;
+  if (loading) return <div className="p-12 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">{t("mason_verifying") || "Verifying Mason Credentials..."}</div>;
 
   if (!masonProfile) return (
     <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
       <div className="w-24 h-24 rounded-[2rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
         <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("ui_icon_mason") || "construction"}</span>
       </div>
-      <h2 className="text-2xl font-black uppercase tracking-widest text-[var(--text)]">{t("mason_unlinked")}</h2>
-      <p className="text-sm font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("mason_unlinked_desc")}</p>
+      <h2 className="text-2xl font-black uppercase tracking-widest text-[var(--text)]">{t("mason_unlinked") || "Unlinked Account"}</h2>
+      <p className="text-sm font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("mason_unlinked_desc") || "Your profile is not linked to a Mason Entity. Contact a Wayfinder."}</p>
     </div>
   );
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader 
-        title={t("mason_title")} 
-        subtitle={t("mason_subtitle")} 
+        title={t("mason_title") || "MASON WORKSHOP"} 
+        subtitle={t("mason_subtitle") || "Creator tools, artifact publishing, and support intake"} 
         icon={t("ui_icon_mason") || "construction"} 
         iconColorClass="text-amber-400 border-amber-500/30" 
       >
@@ -111,11 +112,11 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
       
       <div className="flex flex-col gap-1 w-full mb-4">
         <div className="flex items-center gap-1 overflow-x-auto accent-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner">
-          <HubTabButton id="command_center" icon={t("ui_icon_pc") || "desktop_windows"} label={(t("mason_tab_command_screen") || "COMMAND SCREEN").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="command_center" icon={t("ui_icon_pc") || "desktop_windows"} label={(t("mason_tab_command_screen") || "COMMAND").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="registry" icon={t("ui_icon_artifact_card") || "deployed_code"} label={(t("mason_tab_registry") || "ARTIFACTS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="cc_sets" icon={t("ui_icon_collections_card") || "collections_bookmark"} label={(t("mason_tab_cc") || "Collections").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="marketplace" icon={t("ui_icon_hub") || "storefront"} label={(t("mason_tab_marketplace") || "The Nexus").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="bug_reports" icon={t("ui_icon_bug") || "bug_report"} label={(t("mason_tab_bug_reports") || "BUG REPORTS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="cc_sets" icon={t("ui_icon_collections_card") || "collections_bookmark"} label={(t("mason_tab_cc") || "COLLECTIONS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="marketplace" icon={t("ui_icon_hub") || "hub"} label={(t("mason_tab_marketplace") || "Nexus").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="bug_reports" icon={t("ui_icon_bug") || "bug_report"} label={(t("mason_tab_bug_reports") || "REPORTS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="protocols" icon={t("ui_icon_link") || "link"} label={(t("masonhub_protocols_tab") || "PROTOCOLS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="structure" icon={t("ui_icon_architecture") || "architecture"} label={(t("masonhub_structures_tab") || "STRUCTURE").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="conflicts" icon={t("ui_icon_security") || "security"} label={(t("masonhub_tab_conflicts") || "CONFLICTS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
@@ -127,9 +128,11 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
 
       <div className="w-full pr-4">
         {activeTab === "command_center" && <MasonCommandScreen onNavigate={setActiveTab} masonId={masonProfile.id} session={session} onOpenRecentReplies={() => setIsRecentRepliesOpen(true)} onOpenSupportDesk={() => setIsSupportDeskOpen(true)} setViewingPost={setViewingPost} />}
-        {activeTab === "registry" && <MasonRegistry masonId={masonProfile.id} />}
+        <MasonRegistry masonId={masonProfile.id} initialActiveMod={registryTargetMod} onClearActiveMod={() => setRegistryTargetMod(null)} isActiveTab={activeTab === "registry"} />
         {activeTab === "cc_sets" && <MasonCCSetBuilder masonId={masonProfile.id} masonName={masonProfile.name} />}
-        {activeTab === "bug_reports" && <MasonBugReports masonId={masonProfile?.id} />}
+        {activeTab === "bug_reports" && <MasonBugReports masonId={masonProfile?.id} onOpenDNA={(hash) => {
+            setRegistryTargetMod(hash);
+        }} />}
         {activeTab === "marketplace" && <MasonMarketplace masonProfile={masonProfile} />}
         {activeTab === "protocols" && <ProtocolVisualizer masonId={masonProfile.id} isArchitect={false} />}
         {activeTab === "structure" && <StructureVisualizer masonId={masonProfile.id} isArchitect={false} />}
@@ -211,23 +214,35 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
       let tc = 0;
       
       if (session?.user?.id) {
-        const { count } = await supabase.from("sanctuary_tickets").select("*", { count: 'exact', head: true }).eq('author_id', session.user.id);
+        const { count } = await supabase.from("sanctuary_tickets").select("*", { count: 'exact', head: true })
+          .eq('author_id', session.user.id)
+          .in('status', ['NEW', 'OPEN', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'new', 'open', 'pending', 'escalated', 'investigating']);
         if (count !== null) tc = count;
       }
 
       if (masonId) {
-          const { data: allTickets } = await supabase.from('sanctuary_tickets').select('*');
+          const { data: allTickets } = await supabase.from('sanctuary_tickets').select('*')
+            .in('status', ['NEW', 'OPEN', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'new', 'open', 'pending', 'escalated', 'investigating']);
           if (allTickets) {
-              let filtered = allTickets.filter(t => t.ticket_type?.toLowerCase().includes('bug'));
+              let filtered = allTickets.filter(t => {
+                  const typeStr = (t.ticket_type || t.category || '').toLowerCase();
+                  return (typeStr.includes('bug') || typeStr.includes('artifact')) && !typeStr.includes('os');
+              });
               
-              const { data: modsData } = await supabase.from('mods').select('id').eq('mason_id', masonId);
+              const { data: modsData } = await supabase.from('mods').select("id").eq('mason_id', masonId);
               let masonModIds: string[] = [];
               if (modsData) masonModIds = modsData.flatMap(m => [m.id]).filter(Boolean);
 
+              const userId = session?.user?.id;
               filtered = filtered.filter(t => {
-                  if (session?.user?.id && t.author_id === session.user.id) return true;
-                  if (t.metadata?.mason_id === masonId || t.metadata?.target_mason === masonId) return true;
-                  if (t.metadata?.target_mod_id && masonModIds.includes(t.metadata.target_mod_id)) return true;
+                  const targetUser = t.metadata?.target_user_id;
+                  const targetMason = t.metadata?.target_mason;
+                  const ticketMasonId = t.metadata?.mason_id;
+                  const targetMod = t.target_mod_id || t.metadata?.target_mod_id;
+                  
+                  if (userId && (targetUser === userId || targetMason === userId || ticketMasonId === userId || t.author_id === userId)) return true;
+                  if (masonId && (targetUser === masonId || targetMason === masonId || ticketMasonId === masonId)) return true;
+                  if (targetMod && masonModIds.includes(targetMod)) return true;
                   return false;
               });
               bugc = filtered.length;
@@ -265,18 +280,18 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
     <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32 mt-8">
       {/* Stat Tiles */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full">
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_artifact_card") || "inventory_2"}</span>} number={stats.artifacts} label={t("mason_stat_artifacts") || "MY ARTIFACTS"} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => onNavigate("registry")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_collections_card") || "collections_bookmark"}</span>} number={stats.ccSets} label={t("mason_stat_cc") || "CC SETS"} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => onNavigate("cc_sets")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_edit_document") || "edit_document"}</span>} number={stats.posts} label={t("mason_stat_posts") || "COMM POSTS"} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => onNavigate("posts")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_bug") || "bug_report"}</span>} number={stats.bugs} label={t("mason_stat_bugs") || "BUG REPORTS"} colorClass="border-rose-500/30 text-rose-500 hover:border-rose-500 bg-rose-500/10 hover:bg-rose-500/20" onClick={() => onNavigate("bug_reports")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_forum") || "forum"}</span>} number={repliesCount} label={t("mason_stat_replies") || "RECENT REPLIES"} colorClass="border-indigo-500/30 text-indigo-500 hover:border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20" onClick={onOpenRecentReplies} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity") || "local_activity"}</span>} number={stats.support} label={t("mason_stat_support") || "SUPPORT DESK"} colorClass="border-pink-500/30 text-pink-500 hover:border-pink-500 bg-pink-500/10 hover:bg-pink-500/20" onClick={onOpenSupportDesk} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_artifact_card") || "deployed_code"}</span>} number={stats.artifacts} label={t("mason_stat_artifacts") || "ARTIFACTS"} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => onNavigate("registry")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_collections_card") || "collections_bookmark"}</span>} number={stats.ccSets} label={t("mason_stat_cc") || "Collections"} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => onNavigate("cc_sets")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_edit_document") || "edit_document"}</span>} number={stats.posts} label={t("mason_stat_posts") || "POSTS"} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => onNavigate("posts")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_bug") || "bug_report"}</span>} number={stats.bugs} label={t("mason_stat_bugs") || "REPORTS"} colorClass="border-rose-500/30 text-rose-500 hover:border-rose-500 bg-rose-500/10 hover:bg-rose-500/20" onClick={() => onNavigate("bug_reports")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_forum") || "forum"}</span>} number={repliesCount} label={t("mason_stat_replies") || "REPLIES"} colorClass="border-indigo-500/30 text-indigo-500 hover:border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20" onClick={onOpenRecentReplies} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity") || "local_activity"}</span>} number={stats.support} label={t("mason_stat_support") || "SUPPORT"} colorClass="border-pink-500/30 text-pink-500 hover:border-pink-500 bg-pink-500/10 hover:bg-pink-500/20" onClick={onOpenSupportDesk} />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8 w-full">
         {/* Left Column - Wayfinder Comms */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wayfinder_comms") || "WAYFINDER COMMS"}</h2>
+          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wayfinder_comms") || "Latest Dispatch"}</h2>
           
              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
                {broadcasts.length > 0 ? broadcasts.map((post, index) => {
@@ -298,14 +313,14 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
                       {isFeatured && <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 mb-6 line-clamp-3">{post.message}</p>}
                       <div className="mt-auto flex items-center justify-between pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
                          <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("ui_icon_calendar_today") || "calendar_today"}</span> {new Date(post.created_at).toLocaleDateString()}</span>
-                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more") || "READ MORE"} <span className="material-symbols-outlined !text-lg">{t('arrow_forward') || 'arrow_forward'}</span></span>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more") || "READ MORE"} <span className="material-symbols-outlined !text-lg">{t("arrow_forward") || "arrow_forward"}</span></span>
                        </div>
                     </div>
                  </div>
                  );
                }) : (
                  <div className="w-full xl:col-span-2 theme-glass-panel rounded-[2rem] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                   {t("system_no_broadcasts") || "NO RECENT BROADCASTS"}
+                   {t("system_no_broadcasts") || "No Recent Broadcasts"}
                  </div>
                )}
              </div>
@@ -314,11 +329,11 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-orange-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-orange-500">7</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_artifacts_linked") || "ARTIFACTS LINKED"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_artifacts_linked") || "ARTIFACTS"}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-blue-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-blue-500">1</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_blueprints_uploaded") || "BLUEPRINTS UPLOADED"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_blueprints_uploaded") || "BLUEPRINTS"}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-indigo-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-indigo-500">1</span>
@@ -330,7 +345,7 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-emerald-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-emerald-500">{stats.followers}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_followers") || "FOLLOWER COUNT"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_followers") || "FOLLOWERS"}</span>
                 </div>
              </div>
           </div>
@@ -347,7 +362,7 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
                    <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_protocol") || "PROTOCOL ORCHESTRATOR"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-blue-400 opacity-80 group-hover:text-blue-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]"></span> {t("hub_ql_global_rules") || "RULES & CONDITIONS"}</span>
+                   <span className="text-[8px] uppercase font-bold text-blue-400 opacity-80 group-hover:text-blue-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]"></span> {t("hub_ql_global_rules") || "GLOBAL RULES"}</span>
                  </div>
                </div>
              </button>
@@ -359,8 +374,8 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_architecture") || "architecture"}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("structure_title") || "STRUCTURE MATRIX"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-amber-400 opacity-80 group-hover:text-amber-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> {t("hub_ql_asset_org") || "METADATA MATRIX"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("structure_title") || "Structure Matrix"}</h3>
+                   <span className="text-[8px] uppercase font-bold text-amber-400 opacity-80 group-hover:text-amber-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> {t("hub_ql_asset_org") || "ASSET ORGANIZATION"}</span>
                  </div>
                </div>
              </button>
@@ -373,7 +388,7 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
                    <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_conflict") || "CONFLICT MATRIX"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-rose-400 opacity-80 group-hover:text-rose-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span> {t("hub_ql_logical_issues") || "RESOLUTION CENTER"}</span>
+                   <span className="text-[8px] uppercase font-bold text-rose-400 opacity-80 group-hover:text-rose-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span> {t("hub_ql_logical_issues") || "LOGICAL ISSUES"}</span>
                  </div>
                </div>
              </button>
@@ -385,7 +400,7 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_sandbox") || "handyman"}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                    <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sandbox_title") || "SANDBOX SYNC"}</h3>
+                    <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sandbox_title") || "Sandbox Sync"}</h3>
                     <span className="text-[8px] uppercase font-bold text-emerald-400 opacity-80 group-hover:text-emerald-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> {t("masonhub_sandbox_sub") || "TESTING GROUNDS"}</span>
                  </div>
                </div>
@@ -511,7 +526,7 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_collections_card") || "collections_bookmark"}</span>
           </div>
-          <span className="truncate">{t("mason_title_collections") || "YOUR COLLECTIONS"}</span>
+          <span className="truncate">{t("mason_title_collections") || "Your Collections"}</span>
         </h2>
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
@@ -519,7 +534,7 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
             <input 
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
-              placeholder={t("registry_search_placeholder") || "Search..."} 
+              placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchTerm && (
@@ -532,14 +547,14 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
              <CustomDropdown disableTint={true}  value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{id: "ALL", label: "ALL TIERS"}, {id: "0", label: "TIER 0"}, {id: "1", label: "TIER 1"}, {id: "2", label: "TIER 2"}]} />
           </div>
           <button onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add") || "add"}</span> {t("forge_new_set") || "CREATE NEW SET"}
+            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add") || "add"}</span> {t("forge_new_set") || "New Collection"}
           </button>
         </div>
       </div>
       
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 content-start pr-2">
-          {filteredSets.length === 0 && <div className="p-4 col-span-full text-center text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("mason_cc_no_sets") || "NO SETS FOUND"}</div>}
+          {filteredSets.length === 0 && <div className="p-4 col-span-full text-center text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("mason_cc_no_sets") || "No Collections Found"}</div>}
           {filteredSets.map(setItem => (
               <CollectionCard 
                 key={setItem.id} 
@@ -555,28 +570,28 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
       <SidePanel
         isOpen={isForgePanelOpen}
         onClose={() => setIsForgePanelOpen(false)}
-        title={t("forge_new_set") || "CREATE NEW SET"}
-        subtitle={t("mason_create_subtitle") || "Organize your mods"}
+        title={t("forge_new_set") || "New Collection"}
+        subtitle={t("mason_create_subtitle") || "Master Registry Insertion"}
         icon="add_circle"
         footer={
-          <div className="flex justify-end gap-4 w-full">
+          <div className="flex justify-center items-center gap-4 w-full">
             <button type="button" onClick={() => setIsForgePanelOpen(false)} className={standardButtonClass}>
-              {t("shared_cancel") || "Cancel"}
+              {t("shared_cancel") || "CANCEL"}
             </button>
             <button type="button" onClick={handleCreateSet} disabled={!newSetName.trim()} className={standardAccentGlassButtonClass}>
-              {t("forge_init_set") || "CREATE SET"}
+              {t("forge_init_set") || "INITIALIZE COLLECTION"}
             </button>
           </div>
         }
       >
         <div className="flex flex-col h-full gap-8">
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name") || "Set Name"}</label>
-            <input value={newSetName} onChange={e => setNewSetName(e.target.value)} placeholder={t("forge_set_name") || "Set Name"} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name") || "Collection Name..."}</label>
+            <input value={newSetName} onChange={e => setNewSetName(e.target.value)} placeholder={t("forge_set_name") || "Collection Name..."} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
           </div>
           
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "Compliance Tier"}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "SAFETY RATING"}</label>
             <CustomComplianceDropdown value={setTier} onChange={setSetTier} includeTier3={false} />
           </div>
         </div>
@@ -586,15 +601,15 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
         isOpen={!!activeSet}
         onClose={() => setActiveSet(null)}
         title={activeSet?.name || "UNNAMED SET"}
-        subtitle={t("masonhub_manage_collection") || "MANAGE COLLECTION"}
+        subtitle={t("masonhub_manage_collection") || "Manage Collection"}
         icon="library_books"
         footer={
-          <div className="flex justify-end gap-4 w-full">
+          <div className="flex justify-center items-center gap-4 w-full">
             <button type="button" onClick={handleDeleteSet} disabled={isSaving} className={standardDangerButtonClass}>
               {t("mason_cc_btn_delete_set") || "DELETE SET"}
             </button>
             <button type="button" onClick={handleSaveSetMeta} disabled={isSaving} className={standardAccentGlassButtonClass}>
-              {isSaving ? (t("mason_cc_saving") || "SAVING...") : (t("mason_cc_save_set") || "SAVE COLLECTION")}
+              {isSaving ? (t("mason_cc_saving") || "SAVING...") : (t("mason_cc_save_set") || "Save Collection")}
             </button>
           </div>
         }
@@ -607,7 +622,7 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
                   <input value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} placeholder={t("mason_cc_cover_url") || "Cover Image URL"} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "External URL"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
                   <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("dossier_external_url_placeholder") || "External URL..."} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
               </div>
@@ -615,10 +630,10 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
               <div className="h-[1px] bg-white/5 my-2 w-full" />
 
               <div className="flex flex-col gap-4 pb-12">
-                <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title") || "SET CONTENTS"}</h4>
+                <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title") || "Set Contents"}</h4>
                 
                 <div className="flex flex-col gap-2 bg-black/10 p-4 rounded-2xl border border-white/5 relative z-[6000]">
-                  <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t("mason_cc_search_assets") || "Search your mods..."} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                  <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t("mason_cc_search_assets") || "Search your artifacts..."} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
                   
                   {searchQuery.length >= 2 && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--sidebar)] border border-white/10 rounded-2xl shadow-2xl z-[7000] overflow-hidden flex flex-col max-h-[250px] overflow-y-auto custom-scrollbar">
@@ -637,7 +652,7 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
 
                 <div className="flex flex-col gap-2 mt-2">
                   <div className="flex items-center justify-between px-2">
-                    <span className="text-[9px] uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("mason_cc_in_set") || "CURRENT ASSETS"}</span>
+                    <span className="text-[9px] uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("mason_cc_in_set") || "Items in Set"}</span>
                     <span className="theme-text-accent font-black text-xs">{members.length}</span>
                   </div>
                   <div className="flex flex-col gap-2">
@@ -668,7 +683,7 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
   );
 }
 
-  function MasonRegistry({ masonId }: { masonId: string }) {
+  function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isActiveTab = true }: { masonId: string, initialActiveMod?: string | null, onClearActiveMod?: () => void, isActiveTab?: boolean }) {
   const safeDate = (d: any) => { try { if (!d) return ""; const parsed = new Date(d); if (isNaN(parsed.getTime())) return ""; return parsed.toISOString().slice(0, 10); } catch { return ""; } };
   const { t } = useLexicon();
   const [myMods, setMyMods] = useState<any[]>([]);
@@ -691,6 +706,21 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (initialActiveMod && myMods.length > 0) {
+      const mod = myMods.find(m => 
+        m.id === initialActiveMod || 
+        (m.mod_versions && m.mod_versions.some((v: any) => v.dna_hash === initialActiveMod))
+      );
+      if (mod) {
+        setActiveMod(mod);
+      } else {
+        useStore.getState().pushStatus("Artifact not found in your registry or missing DNA hash.", "error");
+      }
+      if (onClearActiveMod) onClearActiveMod();
+    }
+  }, [initialActiveMod, myMods]);
+
   const handleCommitChanges = async () => {
     if (!activeMod) return;
     setIsCommitting(true);
@@ -712,8 +742,8 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
         folder_structure: activeMod.folder_structure || []
       }).eq('id', activeMod.id);
       fetchData();
-      useStore.getState().pushStatus(t("mason_saved_success"), 'success');
-    } catch (err: any) { useStore.getState().pushStatus(`${t("mason_saved_error")}${err.message}`, 'error'); }
+      useStore.getState().pushStatus(t("mason_saved_success") || "Artifact Updated Successfully.", 'success');
+    } catch (err: any) { useStore.getState().pushStatus(`${t("mason_saved_error") || "Error saving:"}${err.message}`, 'error'); }
     setIsCommitting(false);
   };
 
@@ -739,13 +769,14 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
   const displayMods = filteredMods.slice(0, 50);
 
   return (
-    <div className="flex flex-col gap-6 pb-20">
+    <>
+    <div className={`flex flex-col gap-6 pb-20 ${isActiveTab ? '' : 'hidden'}`}>
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_artifact_card") || "deployed_code"}</span>
           </div>
-          <span className="truncate">{t("mason_title_artifacts") || "MY ARTIFACTS"}</span>
+          <span className="truncate">{t("mason_title_artifacts") || "Your Artifacts"}</span>
         </h2>
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
@@ -753,7 +784,7 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
             <input 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
-              placeholder={t("registry_search_placeholder") || "Search ID or Name..."} 
+              placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50"
             />
             {searchTerm && (
@@ -780,53 +811,74 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
           ))}
         </div>
       </div>
+    </div>
 
-      <SidePanel
-        isOpen={!!activeMod}
+    <SidePanel
+      isOpen={!!activeMod}
         onClose={() => setActiveMod(null)}
-        title={activeMod?.name || t("mason_unnamed_artifact") || "UNNAMED ARTIFACT"}
-        subtitle={t("masonhub_manage_artifact_meta") || "MANAGE ARTIFACT METADATA"}
+        title={t("ui_edit_metadata") || "EDIT METADATA"}
+        subtitle={`UUID: ${activeMod?.id}`}
         icon="inventory_2"
+        backdropZ="z-[50000]"
+        widthClass="w-[550px]"
+        panelZ="z-[50001]"
         footer={
-          <div className="flex justify-end gap-4 w-full">
+          <div className="flex justify-center items-center gap-4 w-full">
             <button onClick={() => setActiveMod(null)} disabled={isCommitting} className={standardButtonClass}>
-              {t("shared_cancel") || "Cancel"}
+              {t("shared_cancel") || "CANCEL"}
             </button>
             <button onClick={handleCommitChanges} disabled={isCommitting} className={standardAccentGlassButtonClass}>
-              {isCommitting ? t("mason_saving") : t("mason_save_meta")}
+              {isCommitting ? t("mason_saving") || "SAVING..." : t("mason_save_meta") || "SAVE METADATA"}
             </button>
           </div>
         }
       >
         {activeMod && (
           <div className="flex flex-col h-full gap-8">
+            <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
+              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info") || "info"}</span>
+                {t("registry_meta") || "Metadata"}
+              </h4>
+              
+              <div className="flex flex-col gap-2 relative z-10">
+                <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none">{activeMod?.name || t("sa_identities_unknown") || "UNKNOWN"}</h3>
+              </div>
+            </div>
+            
             <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_name") || "Artifact Name"}</label>
+                <input value={activeMod.name || ""} onChange={e => setActiveMod({...activeMod, name: e.target.value})} placeholder={t("registry_label_name") || "Artifact Name"} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+            </div>
+
+            <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class") || "Category"}</label>
                 <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(val: string) => setActiveMod({...activeMod, category_override: val})} />
               </div>
               
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_sub_classification")}</label>
-                <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} placeholder={t("masonhub_sub_classification_placeholder")} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_sub_classification") || "Sub Classification"}</label>
+                <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} placeholder={t("masonhub_sub_classification_placeholder") || "eg Trait Career Bed"} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
               </div>
               
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "FILE EXTENSION"}</label>
-                <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} placeholder={t("sandbox_placeholder_file_ext") || "e.g. .package, .zip"} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "File Extension"}</label>
+                <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} placeholder={t("sandbox_placeholder_file_ext") || "Enter File Extention (Package, ts4script)"} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
               </div>
               
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
                 <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "Description"}</label>
                 <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold min-h-[150px] custom-scrollbar resize-none focus:outline-none focus:theme-border-accent" />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image") || "Cover Image URL"}</label>
                 <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
               </div>
 
@@ -856,14 +908,14 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
             </div>
         )}
       </SidePanel>
-    </div>
+    </>
   );
 }
 
 function CustomClassificationDropdown({ value, onChange }: any) {
   const { t } = useLexicon();
-  const options =[{ id: 'Script', label: t("class_dd_script") }, { id: 'BuildBuy', label: t("class_dd_buildbuy") }, { id: 'CAS', label: t("class_dd_cas") }, { id: 'Animation', label: t("class_dd_animation") }];
-  return <CustomDropdown disableTint={true}  value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason_label_select") || "Select..."} />;
+  const options =[{ id: 'Script', label: t("class_dd_script") || "Script" }, { id: 'BuildBuy', label: t("class_dd_buildbuy") || "Build/Buy" }, { id: 'CAS', label: t("class_dd_cas") || "CAS" }, { id: 'Animation', label: t("class_dd_animation") || "Animation" }];
+  return <CustomDropdown disableTint={true}  value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason_label_select") || "MASON"} />;
 }
 
 function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: { masonId: string, masonProfileId: string, handleOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
@@ -913,7 +965,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
     const { data } = await supabase.from('mason_posts').select('*, masons(*)').eq('mason_id', masonId).order('created_at', { ascending: false });
     if (data) setPosts(data);
     
-    const { data: masonData } = await supabase.from('masons').select('name').eq('id', masonId).single();
+    const { data: masonData } = await supabase.from('masons').select("name").eq('id', masonId).single();
     if (masonData?.name) setMasonName(masonData.name);
     const mName = masonData?.name || '';
     
@@ -943,7 +995,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
     // Safely fallback if key isn't in lexicon yet
     const typeKey = `masonhub_asset_type_${asset.type}`;
     const translatedType = t(typeKey) !== typeKey ? t(typeKey) : (asset.type === 'mod' ? 'Artifact' : asset.type === 'blueprint' ? 'Blueprint' : asset.type === 'chameleon' ? 'Theme' : 'Lexicon');
-    const translatedView = t("ui_btn_view") !== "ui_btn_view" ? t("ui_btn_view") : "VIEW";
+    const translatedView = t("ui_btn_view") || "VIEW";
     
     const text = `${translatedType}: ${asset.name}`;
     
@@ -1078,7 +1130,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
       
       closeEditor();
       fetchPostsAndAssets();
-      useStore.getState().pushStatus(editingPostId ? "Transmission Updated!" : t("mason_post_success"), 'success');
+      useStore.getState().pushStatus(editingPostId ? "Transmission Updated!" : t("mason_post_success") || "Transmission broadcasted successfully.", 'success');
     } else {
       useStore.getState().pushStatus(`Transmission Failed: ${error.message}`, 'error');
     }
@@ -1135,7 +1187,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
             onClick={() => openEditor()} 
             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
           >
-            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_cell_tower") || "cell_tower"}</span> {t("mason_post_broadcast") || "BROADCAST TRANSMISSION"}
+            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_cell_tower") || "cell_tower"}</span> {t("mason_post_broadcast") || "NEW TRANSMISSION"}
           </button>
         </div>     
       </div>
@@ -1172,16 +1224,16 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
                   {confirmDelete === post.id ? (
                     <>
                       <span className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
-                        <span className="material-symbols-outlined !text-[14px]">warning</span> Confirm
+                        <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_warning") || "warning_amber"}</span> Confirm
                       </span>
-                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">close</span> {t("ui_btn_cancel") || "CANCEL"}</button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">delete_forever</span> {t("ui_btn_delete") || "DELETE"}</button>
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_close") || "close"}</span> {t("ui_btn_cancel") || "CANCEL"}</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete_forever") || "delete_forever"}</span> {t("ui_btn_delete") || "DELETE"}</button>
                     </>
                   ) : (
                     <>
-                      <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">visibility</span> {t("masonhub_btn_view_post") || "VIEW"}</button>
-                      <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">edit</span> {t("ui_btn_edit") || "EDIT"}</button>
-                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">delete</span> {t("ui_btn_delete") || "DEL"}</button>
+                      <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_visibility") || "visibility"}</span> {t("masonhub_btn_view_post") || "VIEW"}</button>
+                      <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_edit") || "edit"}</span> {t("ui_btn_edit") || "EDIT"}</button>
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete") || "delete"}</span> {t("ui_btn_delete") || "DELETE"}</button>
                     </>
                   )}
                 </div>
@@ -1190,7 +1242,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
           {filteredPosts.length === 0 && (
             <div className="col-span-full flex flex-col items-center justify-center opacity-30 mt-20">
               <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">
-                {t("masonhub_no_transmissions") || "NO TRANSMISSIONS"}
+                {t("masonhub_no_transmissions") || "No Transmissions Found"}
               </span>
             </div>
           )}
@@ -1206,10 +1258,10 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
             icon="cell_tower"
             widthClass="w-[800px]"
             title={editingPostId ? (t("masonhub_update_transmission") || "UPDATE TRANSMISSION") : (t("mason_new_transmission") || "NEW TRANSMISSION")}
-            subtitle={editingPostId ? (t("masonhub_editing_record") || "Editing Record") : (t("masonhub_composing_broadcast") || "Composing Broadcast")}
+            subtitle={editingPostId ? (t("masonhub_editing_record") || "Editing Record") : (t("masonhub_composing_broadcast") || "Composing New Broadcast")}
             actions={
               <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-                {isSubmitting ? t("mason_saving") : (editingPostId ? t("masonhub_update_transmission") : t("mason_btn_post"))}
+                {isSubmitting ? t("mason_saving") || "SAVING..." : (editingPostId ? t("masonhub_update_transmission") || "UPDATE TRANSMISSION" : t("mason_btn_post") || "BROADCAST")}
               </button>
             }
           >
@@ -1217,10 +1269,10 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
               
               <div className="flex border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-2 p-1 bg-black/40 rounded-2xl theme-glass-inner">
                 <button onClick={() => setViewMode('edit')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'edit' ? 'bg-[var(--accent)]/20 border border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] backdrop-blur-md' : 'bg-transparent border border-transparent text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:bg-white/5 hover:opacity-100 backdrop-blur-md'}`}>
-                  {t("masonhub_editor") || "EDITOR"}
+                  {t("masonhub_editor") || "Editor"}
                 </button>
                 <button onClick={() => setViewMode('preview')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'preview' ? 'bg-[var(--accent)]/20 border border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] backdrop-blur-md' : 'bg-transparent border border-transparent text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:bg-white/5 hover:opacity-100 backdrop-blur-md'}`}>
-                  {t("masonhub_preview") || "PREVIEW"}
+                  {t("masonhub_preview") || "Preview"}
                 </button>
                 
                 <label className="ml-4 pr-4 flex items-center gap-2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity">
@@ -1228,7 +1280,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
                   <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shadow-inner ${isPinned ? 'bg-[var(--accent)] border-[var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-black/40'}`}>
                     {isPinned && <span className="material-symbols-outlined !text-[14px] text-[var(--bg)]">{t("ui_icon_check") || "check"}</span>}
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1"><span className="material-symbols-outlined !text-[16px]">{t("ui_icon_push_pin") || "push_pin"}</span> {t("masonhub_pin_transmission") || "PIN POST"}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1"><span className="material-symbols-outlined !text-[16px]">{t("ui_icon_push_pin") || "push_pin"}</span> {t("masonhub_pin_transmission") || "Pin Transmission"}</span>
                 </label>
               </div>
 
@@ -1236,12 +1288,12 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
                 <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_post_title") || "Transmission Title"}</label>
-                    <input required value={title} onChange={e => setTitle(e.target.value)} placeholder={t("mason_post_title")} className="theme-glass-inner bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
+                    <input required value={title} onChange={e => setTitle(e.target.value)} placeholder={t("mason_post_title") || "Transmission Title"} className="theme-glass-inner bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_header_image_placeholder") || "Header Image URL (Optional)"}</label>
-                    <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("masonhub_header_image_placeholder")} className="theme-glass-inner bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_header_image_placeholder") || "Header Image URL Optional"}</label>
+                    <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("masonhub_header_image_placeholder") || "Header Image URL Optional"} className="theme-glass-inner bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
                   </div>
                   
                   <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
@@ -1250,24 +1302,24 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
                     </div>
                     <div className="flex flex-col flex-1 theme-glass-inner bg-black/40 rounded-2xl overflow-hidden border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
                       <div className="flex flex-wrap items-center gap-1.5 p-3 bg-white/5 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative backdrop-blur-md">
-                        <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('bold') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-serif font-bold text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>B</button>
-                        <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('italic') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-serif italic text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>I</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('bold') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-serif font-bold text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_bold") || "B"}</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('italic') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-serif italic text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_italic") || "I"}</button>
                         <div className="w-px h-6 bg-white/10 mx-2" />
-                        <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('heading', { level: 1 }) ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>H1</button>
-                        <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('heading', { level: 2 }) ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>H2</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('heading', { level: 1 }) ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_h1") || "H1"}</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('heading', { level: 2 }) ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_h2") || "H2"}</button>
                         <div className="w-px h-6 bg-white/10 mx-2" />
-                        <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('bulletList') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>•</button>
-                        <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('orderedList') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>1.</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('bulletList') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_ul") || "•"}</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('orderedList') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_ol") || "1."}</button>
                         <div className="w-px h-6 bg-white/10 mx-2" />
-                        <button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${showImageInput ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>🖼️</button>
-                        <button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('codeBlock') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-mono text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>&lt;&gt;</button>
+                        <button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${showImageInput ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-black text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_image") || "🖼️"}</button>
+                        <button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border ${editor?.isActive('codeBlock') ? 'border-[var(--accent)]/50 bg-[var(--accent)]/20' : 'border-white/10 hover:border-white/20'} backdrop-blur-md font-mono text-[var(--text)] flex items-center justify-center transition-all shadow-sm`}>{t("editor_code") || "<>"}</button>
                         
                         <div className="ml-auto relative flex gap-3">
                           <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`px-4 py-2 rounded-xl theme-glass-panel border transition-all text-[9px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2 shadow-sm ${showCodeInput ? 'bg-[var(--accent)]/20 border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)] backdrop-blur-md' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-white/20 hover:bg-white/5 backdrop-blur-md'}`}>
                             <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_data_object") || "data_object"}</span> {showCodeInput ? (t("masonhub_hide_code") || "HIDE CODE") : (t("masonhub_add_code") || "ADD CODE")}
                           </button>
                           <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="px-4 py-2 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-white/20 hover:bg-white/5 text-[9px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2 transition-all shadow-sm backdrop-blur-md">
-                            <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_link") || "link"}</span> {t("masonhub_link_asset") || "LINK ASSET"}
+                            <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_link") || "link"}</span> {t("masonhub_link_asset") || "Link Asset"}
                           </button>
                         </div>
                       </div>
@@ -1311,7 +1363,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
                           <textarea 
                             value={codeSnippet}
                             onChange={(e) => setCodeSnippet(e.target.value)}
-                            placeholder="Paste code logs or error traces here..."
+                            placeholder={t("ph_code_logs") || "Paste code logs or error traces here..."}
                             className="w-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-xl text-[var(--text)] p-4 text-xs font-mono placeholder-[var(--subtext)] outline-none h-48 custom-scrollbar focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:border-[var(--accent)]"
                             spellCheck={false}
                           />
@@ -1322,7 +1374,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
                 </div>
               ) : (
                 <div className="flex flex-col gap-6 mt-4">
-                  <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-2">{t("masonhub_live_preview") || "LIVE PREVIEW"}</h3>
+                  <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-2">{t("masonhub_live_preview") || "Live Preview"}</h3>
                   
                   {imageUrl && (
                     <div className="w-full rounded-2xl overflow-hidden shadow-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/20 shrink-0">
@@ -1346,7 +1398,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
       <SidePanel
         isOpen={isAssetPanelOpen}
         onClose={() => setIsAssetPanelOpen(false)}
-        title={t("masonhub_link_asset") || "LINK ASSET"}
+        title={t("masonhub_link_asset") || "Link Asset"}
         icon="link"
         backdropZ="z-[50000]"
         panelZ="z-[50001]"
@@ -1358,17 +1410,17 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
               <input 
                 value={assetSearchQuery} 
                 onChange={(e) => setAssetSearchQuery(e.target.value)} 
-                placeholder={t("masonhub_search_assets") || "Search assets..."} 
+                placeholder={t("masonhub_search_assets") || "Search assets"} 
                 className="w-full theme-glass-panel rounded-2xl pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 shadow-inner"
                 autoFocus
               />
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            {filteredAssets.length === 0 && <span className="text-center text-[10px] font-black uppercase tracking-widest opacity-50 p-4">{t("masonhub_no_assets")}</span>}
+            {filteredAssets.length === 0 && <span className="text-center text-[10px] font-black uppercase tracking-widest opacity-50 p-4">{t("masonhub_no_assets") || "No assets found"}</span>}
             {filteredAssets.map(asset => (
               <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl theme-glass-inner hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
-                <span className="opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? '📦' : asset.type === 'blueprint' ? '🗺️' : asset.type === 'lexicon' ? '🗣️' : '🎨'}</span>
+                <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("ui_icon_extension") || "extension") : asset.type === 'blueprint' ? (t("ui_icon_architecture") || "architecture") : asset.type === 'lexicon' ? (t("ui_icon_translate") || "translate") : (t("ui_icon_palette") || "palette")}</span>
                 <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
               </button>
             ))}
@@ -1425,7 +1477,7 @@ function MasonSettings({ profile, onUpdate }: { profile: any, onUpdate: (p: any)
        </div>
        
        <div className="flex flex-col gap-2">
-         <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_avatar_url") || "Avatar URL (Profile Picture)"}</label>
+         <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_avatar_url") || "Avatar URL Profile Picture"}</label>
          <input value={formData.avatar_url} onChange={e => setFormData({...formData, avatar_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
        </div>
        
@@ -1451,7 +1503,7 @@ function MasonSettings({ profile, onUpdate }: { profile: any, onUpdate: (p: any)
        </div>
        
        <button onClick={handleSave} disabled={isSaving} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group mt-4 w-full">
-         {isSaving ? t("masonhub_saving_settings") : t("masonhub_save_configuration")}
+         {isSaving ? t("masonhub_saving_settings") || "Saving" : t("masonhub_save_configuration") || "Save Configuration"}
        </button>
     </div>
   );
@@ -1473,7 +1525,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
             <h3 className="text-sm font-black uppercase tracking-widest theme-text-accent">{t("masonhub_select_artifact") || "Select Artifact"}</h3>
             <button onClick={onClose} className="text-[var(--text)]/50 hover:text-[var(--text)] font-black"><span className="material-symbols-outlined">{t("ui_icon_close") || "close"}</span></button>
           </div>
-          <input autoFocus placeholder="Search Global Catalog..." value={query} onChange={(e) => setQuery(e.target.value)} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent" />
+          <input autoFocus placeholder={t("ph_search_catalog") || "Search Global Catalog..."} value={query} onChange={(e) => setQuery(e.target.value)} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent" />
         </div>
         <div className="p-4 flex flex-col gap-2 max-h-96 overflow-y-auto custom-scrollbar">
           {results.length > 0 ? results.map((mod:any) => (
@@ -1495,8 +1547,8 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
   const [isOpen, setIsOpen] = useState(false);
 
   const options = [
-    { id: 4, label: t("nexus_tier4"), color: 'theme-text-danger', glow: 'theme-bg-danger' },
-    { id: 3, label: t("nexus_tier3"), color: 'theme-text-warning', glow: 'theme-bg-warning' },
+    { id: 4, label: t("nexus_tier4") || "Severity 4: Fatal Collision", color: 'theme-text-danger', glow: 'theme-bg-danger' },
+    { id: 3, label: t("nexus_tier3") || "Severity 3: Tuning Overlap", color: 'theme-text-warning', glow: 'theme-bg-warning' },
   ];
 
   const selected = options.find(o => o.id === value) || options[0];
@@ -1539,14 +1591,14 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
 function MasonStatusDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const options =[
-    { id: 'under_review', label: t("status_dd_verified") + " (Queues for Approval)" },
-    { id: 'broken', label: t("status_dd_broken") },
-    { id: 'unverified', label: t("status_dd_unverified") },
+    { id: 'under_review', label: t("status_dd_verified") || "Verified Safe" + " (Queues for Approval)" },
+    { id: 'broken', label: t("status_dd_broken") || "Broken / Fatal" },
+    { id: 'unverified', label: t("status_dd_unverified") || "Unverified" },
   ];
   if (value === 'verified') {
-     options.unshift({ id: 'verified', label: t("status_dd_verified") });
+     options.unshift({ id: 'verified', label: t("status_dd_verified") || "Verified Safe" });
   }
-  return <CustomDropdown disableTint={true}  value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason_label_select") || "Select..."} />;
+  return <CustomDropdown disableTint={true}  value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason_label_select") || "MASON"} />;
 }
 
 function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { masonId: string, initialSandboxMod: any, onClear: any, vaultPath?: string }) {
@@ -1724,7 +1776,7 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_sandbox") || "handyman"}</span>
           </div>
-          <span className="truncate">{t("sandbox_title") || "Sandbox"}</span>
+          <span className="truncate">{t("sandbox_title") || "Sandbox Sync"}</span>
         </h2>
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
@@ -1747,7 +1799,7 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group disabled:opacity-50"
           >
             {isImporting ? <span className="material-symbols-outlined !text-[16px] animate-spin">{t("ui_icon_refresh") || "refresh"}</span> : <span className="material-symbols-outlined !text-[16px] group-hover:-translate-y-0.5 transition-transform">{t("ui_icon_download") || "download"}</span>}
-            {isImporting ? t("sandbox_btn_importing") || "IMPORTING..." : t("sandbox_btn_import") || "IMPORT ARTIFACT"}
+            {isImporting ? t("sandbox_btn_importing") || "IMPORTING..." : t("sandbox_btn_import") || "IMPORT"}
           </button>
         </div>
       </div>
@@ -1755,7 +1807,7 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
       <div className="p-6 flex flex-col gap-10 pb-32 overflow-y-auto custom-scrollbar">
         {isLoading ? (
           <div className="flex justify-center items-center h-40 opacity-50 uppercase font-black tracking-widest text-[var(--text)]">
-            {t("sandbox_scanning") || "Scanning Sandbox..."}
+            {t("sandbox_scanning") || "SCANNING..."}
           </div>
         ) : (
           <>
@@ -1766,7 +1818,7 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
               </h3>
               {unlinkedMods.length === 0 ? (
                 <div className="opacity-50 text-center py-10 text-[10px] font-bold uppercase tracking-widest border border-dashed border-white/20 rounded-3xl theme-glass-panel">
-                  {t("sandbox_empty") || "No unlinked artifacts found"}
+                  {t("sandbox_empty") || "Sandbox Empty"}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
@@ -1785,7 +1837,7 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
                             <span className="text-2xl opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500">📦</span>
                           </div>
                           <span className="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest shadow-inner shrink-0 transition-colors group-hover:bg-orange-500/20">
-                            {t("sandbox_unlinked_badge")}
+                            {t("sandbox_unlinked_badge") || "Unlinked"}
                           </span>
                         </div>
                         <div className="flex flex-col gap-1 mt-auto">
@@ -1806,7 +1858,7 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
               </h3>
               {syncedMods.length === 0 ? (
                 <div className="opacity-30 text-center py-10 text-[10px] font-bold uppercase tracking-widest">
-                  {t("sandbox_no_synced")}
+                  {t("sandbox_no_synced") || "No synced artifacts in local sandbox"}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
@@ -1825,7 +1877,7 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
                             <span className="text-2xl opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500">🔗</span>
                           </div>
                           <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest shadow-inner shrink-0 transition-colors group-hover:bg-emerald-500/20">
-                            {t("sandbox_synced_badge")}
+                            {t("sandbox_synced_badge") || "Synced"}
                           </span>
                         </div>
                         <div className="flex flex-col gap-1 mt-auto">
@@ -1848,16 +1900,15 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
           <SidePanel
             isOpen={isEditorOpen}
             onClose={() => setIsEditorOpen(false)}
-            title={t("sandbox_artifact_config")}
-            subtitle={`${t("sandbox_hash_prefix")} ${activeMod?.hash}`}
+            title={t("sandbox_artifact_config") || "Artifact Config"}
+            subtitle={`${t("sandbox_hash_prefix") || "Hash:"} ${activeMod?.hash}`}
             icon="settings"
             widthClass="w-[600px]"
             backdropZ="z-[50000]"
             panelZ="z-[50001]"
             actions={
-              <button onClick={handleSyncToNetwork} disabled={isCommitting} className="theme-glass-panel border-white/5 hover:border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2">
-                {isCommitting ? <span className="material-symbols-outlined !text-[14px] animate-spin">{t("ui_icon_refresh") || "refresh"}</span> : <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_cloud_upload") || "cloud_upload"}</span>}
-                {isCommitting ? t("sandbox_btn_syncing") : (t("sandbox_btn_sync") || "SYNC & CREATE")}
+              <button onClick={handleSyncToNetwork} disabled={isCommitting} className={standardSuccessButtonClass}>
+                {isCommitting ? t("sandbox_btn_syncing") || "SYNCING..." : (t("sandbox_btn_sync") || "SYNC TO NETWORK")}
               </button>
             }
           >
@@ -1869,56 +1920,56 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class") || "Category"}</label>
                   <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(val: string) => setActiveMod({...activeMod, category_override: val})} />
                 </div>
                 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "FILE EXTENSION"}</label>
-                  <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} placeholder={t("sandbox_placeholder_file_ext") || "e.g. .package, .zip"} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-inner" />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "File Extension"}</label>
+                  <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} placeholder={t("sandbox_placeholder_file_ext") || "Enter File Extention (Package, ts4script)"} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-inner" />
                 </div>
                 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_subclass")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_subclass") || "Sub Classification"}</label>
                   <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} placeholder={t("sandbox_placeholder_subclass") || "e.g. Trait, Career, Bed"} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-inner" />
                 </div>
                 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
                   <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2 xl:col-span-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "Description"}</label>
                   <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="w-full theme-glass-panel rounded-3xl px-6 py-5 text-[var(--text)] text-sm font-bold min-h-[150px] custom-scrollbar resize-none focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2 xl:col-span-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image") || "Cover Image URL"}</label>
                   <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_condition")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_condition") || "Condition Protocol"}</label>
                   <MasonStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({...activeMod, status: newStatus})} />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_uploaded")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_uploaded") || "UPLOADED DATE"}</label>
                   <div className="w-full">
                     <CustomDatePicker value={activeMod.created_at || null} onChange={date => setActiveMod({...activeMod, created_at: date})} />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_updated")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_updated") || "LAST UPDATED"}</label>
                   <div className="w-full">
                     <CustomDatePicker value={activeMod.updated_at || null} onChange={date => setActiveMod({...activeMod, updated_at: date})} />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2 col-span-full">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_game_versions")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_game_versions") || "GAME VERSIONS"}</label>
                   <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v) => setActiveMod({...activeMod, compatible_versions: v})} />
                 </div>
               </div>
@@ -1926,13 +1977,13 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
               <div className="mt-auto shrink-0 pt-8 pb-4 flex flex-col gap-4">
                   {existingHashes.has(activeMod.hash) && (
                      <div className="theme-glass-panel border-green-500/20 bg-green-500/5 px-6 py-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                        <span className="text-sm font-black text-green-400 uppercase tracking-widest flex items-center justify-center gap-2"><span className="material-symbols-outlined !text-[16px]">check_circle</span> {t("sandbox_already_synced")}</span>
-                        <p className="text-[10px] text-[var(--subtext)] mt-1 font-bold">{t("sandbox_already_synced_desc")}</p>
+                        <span className="text-sm font-black text-green-400 uppercase tracking-widest flex items-center justify-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("ui_icon_check_circle") || "check_circle"}</span> {t("sandbox_already_synced") || "Already Synced"}</span>
+                        <p className="text-[10px] text-[var(--subtext)] mt-1 font-bold">{t("sandbox_already_synced_desc") || "This artifact is already linked to your Mason profile."}</p>
                      </div>
                   )}
                   <div className="flex justify-end gap-4 mt-2">
                      <button onClick={() => setIsLinkModalOpen(true)} disabled={isCommitting} className="flex-1 py-4 font-black text-xs uppercase tracking-widest rounded-2xl transition-all duration-300 theme-glass-panel border border-white/5 text-[var(--text)] hover:text-[var(--accent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
-                        <span className="material-symbols-outlined !text-[16px]">link</span> {t("sandbox_btn_link_existing") || "LINK"}
+                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_link") || "link"}</span> {t("sandbox_btn_link_existing") || "LINK TO EXISTING Artifact"}
                      </button>
                   </div>
               </div>
@@ -1974,7 +2025,7 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
                   className="w-full text-left p-5 rounded-2xl theme-glass-panel border border-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 transition-all duration-300 group flex items-center justify-between"
                 >
                   <span className="font-black text-xs text-[var(--text)] uppercase tracking-tight truncate mr-4 group-hover:text-[var(--accent)] transition-colors">{m.name}</span>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">link</span> {t("sandbox_btn_link_existing") || "LINK"}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_link") || "link"}</span> {t("sandbox_btn_link_existing") || "LINK TO EXISTING Artifact"}</span>
                 </button>
               ))
             )}
@@ -2065,7 +2116,7 @@ function MasonMarketplace({ masonProfile }: { masonProfile: any }) {
     }
   };
 
-  if (loading) return <div className="p-8 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">{t("mason_market_fetching")}</div>;
+  if (loading) return <div className="p-8 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">{t("mason_market_fetching") || "Fetching Market..."}</div>;
 
   const filteredAssets = assets.filter(a => {
     const matchCat = activeCategory === 'all' || a.asset_type === activeCategory;
@@ -2078,9 +2129,9 @@ function MasonMarketplace({ masonProfile }: { masonProfile: any }) {
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
         <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_hub") || "storefront"}</span>
+            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_hub") || "hub"}</span>
           </div>
-          <span className="truncate">{t("mason_market_title") || "MARKETPLACE"}</span>
+          <span className="truncate">{t("mason_market_title") || "Your Nexus Releases"}</span>
         </h2>
         <div className="flex items-center gap-3 relative flex-1 max-w-2xl ml-auto justify-end">
           <div className="relative flex-1 h-12 max-w-[300px]">
@@ -2098,9 +2149,9 @@ function MasonMarketplace({ masonProfile }: { masonProfile: any }) {
             )}
           </div>
           <div className="flex items-center gap-1 theme-glass-panel rounded-xl p-1 border border-white/5 shadow-inner h-12">
-            <button onClick={() => setActiveCategory("all")} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === 'all' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("mason_market_filter_all")}</button>
-            <button onClick={() => setActiveCategory("lexicon")} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === 'lexicon' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("market_filter_lexicons")}</button>
-            <button onClick={() => setActiveCategory("chameleon")} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === 'chameleon' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("market_filter_chameleons")}</button>
+            <button onClick={() => setActiveCategory("all")} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === 'all' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("mason_market_filter_all") || "All"}</button>
+            <button onClick={() => setActiveCategory("lexicon")} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === 'lexicon' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("market_filter_lexicons") || "Lexicons"}</button>
+            <button onClick={() => setActiveCategory("chameleon")} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === 'chameleon' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("market_filter_chameleons") || "Chameleons"}</button>
           </div>
         </div>
       </div>
@@ -2111,7 +2162,7 @@ function MasonMarketplace({ masonProfile }: { masonProfile: any }) {
             <div className="w-20 h-20 rounded-[1.5rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center">
               <span className="material-symbols-outlined !text-[36px] text-[var(--text)] opacity-50">{t("ui_icon_mason") || "construction"}</span>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest">{t("mason_market_no_assets") || "No assets found."}</p>
+            <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest">{t("mason_market_no_assets") || "You have not deployed any community assets."}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -2146,8 +2197,8 @@ function MasonMarketplace({ masonProfile }: { masonProfile: any }) {
                 {/* Footer */}
                 <div className="p-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-white/5 flex gap-2 relative z-10 items-center justify-between">
                    <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px] normal-case">{t("ui_icon_download") || "download"}</span> {asset.downloads || 0}</span>
-                   <button className="h-9 px-4 rounded-xl text-[10px] font-black text-[var(--accent)] border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 hover:border-[var(--accent)]/50 backdrop-blur-md transition-all shadow-sm uppercase tracking-widest flex items-center justify-center gap-2">
-                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_edit") || "edit"}</span> {t("ui_btn_edit") || "EDIT"}
+                   <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                      {t("ui_btn_edit") || "EDIT"} <span className="text-lg leading-none">&rarr;</span>
                    </button>
                 </div>
               </div>
@@ -2165,20 +2216,20 @@ function MasonMarketplace({ masonProfile }: { masonProfile: any }) {
         subtitle={uploadState.name || "Draft"}
         icon="cloud_upload"
         footer={
-          <div className="flex gap-4 w-full justify-end">
+          <div className="flex justify-center items-center gap-4 w-full">
             <button 
               type="button" 
               onClick={() => setUploadState(s => ({ ...s, isOpen: false }))} 
               className={standardButtonClass}
             >
-              {t("mason_cc_btn_cancel") || "CANCEL"}
+              {t("mason_cc_btn_cancel") || "Cancel"}
             </button>
             <button 
               onClick={submitUpload}
               disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
               className={standardAccentGlassButtonClass}
             >
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_upload") || "upload"}</span> {t("market_upload_btn_publish") || "PUBLISH NOW"}
+              {t("market_upload_btn_publish") || "Publish Now"}
             </button>
           </div>
         }
@@ -2227,26 +2278,26 @@ function MasonMarketplace({ masonProfile }: { masonProfile: any }) {
           {uploadState.assetType === 'lexicon' && (
             <>
               <div className="flex flex-col gap-2 relative z-[60]">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("market_upload_language") || "Language"}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("market_upload_language") || "Lexicon"}</label>
                 <CustomDropdown disableTint={true} 
                   value={uploadState.language}
                   onChange={(val: string[]) => setUploadState(s => ({ ...s, language: val[0] }))}
 
                   options={[
                     ...availableLanguages.map(l => ({ id: l, label: l })),
-                    { id: "add_new", label: t("market_upload_add_language") || "Add New Language..." }
+                    { id: "add_new", label: t("market_upload_add_language") || "Add New Lexicon..." }
                   ]}
                 />
               </div>
               {uploadState.language === 'add_new' && (
                 <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("market_upload_new_language") || "New Language Name"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("market_upload_new_language") || "New Lexicon Name"}</label>
                   <input 
                     type="text" 
                     value={uploadState.newLanguage}
                     onChange={e => setUploadState(s => ({ ...s, newLanguage: e.target.value }))}
                     className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
-                    placeholder="e.g. French"
+                    placeholder={t("ph_language") || "e.g. French"}
                   />
                 </div>
               )}

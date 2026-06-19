@@ -30,8 +30,8 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
     <SidePanel
       isOpen={true}
       onClose={() => { setMissingImportMods(null); setPendingImportSet(null); }}
-      title={t("modal_import_title")}
-      subtitle={<>{t("modal_import_desc1")} <span className="theme-text-accent font-black text-sm">{missingImportMods.length}</span> {t("modal_import_desc2")}</>}
+      title={t("modal_import_title") || "MISSING ARTIFACTS DETECTED"}
+      subtitle={<>{t("modal_import_desc1") || "This Blueprint requires"} <span className="theme-text-accent font-black text-sm">{missingImportMods.length}</span> {t("modal_import_desc2") || "artifacts that are not currently in your Vault. Please acquire them below."}</>}
       icon={t("emote_warning")}
       widthClass="w-full max-w-3xl"
       backdropZ="z-[15000]"
@@ -42,13 +42,13 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
             onClick={() => { setMissingImportMods(null); setPendingImportSet(null); }} 
             className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black rounded-2xl text-[10px] uppercase tracking-widest transition-all"
           >
-            {t("modal_btn_abort") || "ABORT"}
+            {t("modal_btn_abort") || "Abort"}
           </button>
           <button 
             onClick={() => finalizeImport(pendingImportSet)} 
             className="flex-1 py-4 theme-bg-success text-[var(--bg)] font-black rounded-2xl text-[10px] uppercase tracking-widest hover:opacity-90 transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.3)]"
           >
-            {t("modal_btn_confirm") || "CONFIRM"}
+            {t("modal_btn_confirm") || "Confirm"}
           </button>
         </div>
       }
@@ -60,7 +60,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
             <div key={idx} className="flex justify-between items-center theme-glass-inner border border-white/5 p-4 rounded-2xl hover:border-white/20 transition-all group shadow-md">
               <div className="flex flex-col min-w-0 pr-4">
                 <span className="text-xs font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors">{cleanModName(mod.name)}</span>
-                <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">{mod.author || t("registry_unknown_architect")}</span>
+                <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">{mod.author || t("registry_unknown_architect") || "Unknown Mason"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <button 
@@ -82,7 +82,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
                   }} 
                   className="shrink-0 px-4 py-2.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-bg-success hover:text-[var(--bg)] rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 text-[var(--text)]"
                 >
-                  {t("missing_imports_inject_locally")}
+                  {t("missing_imports_inject_locally") || "Inject Locally"}
                 </button>
                 <button 
                   onClick={() => {
@@ -96,7 +96,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
                   }}
                   className="shrink-0 px-4 py-2.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-bg-danger hover:text-[var(--bg)] rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-[var(--text)]"
                 >
-                  {t("missing_imports_skip")}
+                  {t("missing_imports_skip") || "Skip"}
                 </button>
                 <button 
                   onClick={() => {
@@ -105,7 +105,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
                   }} 
                   className="shrink-0 px-4 py-2.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 text-[var(--text)]"
                 >
-                  {t("modal_import_intel")} <span className="text-sm">{t("ui_icon_external_link")}</span>
+                  {t("modal_import_intel") || "GET INTEL"} <span className="text-sm">{t("ui_icon_external_link") || "open_in_new"}</span>
                 </button>
               </div>
             </div>

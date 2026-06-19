@@ -170,21 +170,20 @@ export default function CommandConflictsPanel({
             }
           }}
           options={[
-            { id: "", label: t("bp_priority_default") || "Default Priority" },
+            { id: "", label: t("bp_priority_default") || "Default (500)" },
             {
               id: "!Sanctuary",
-              label: t("bp_priority_sanctuary") || "High Priority (!Sanctuary)",
+              label: t("bp_priority_sanctuary") || "Sanctuary (1000)",
             },
             {
               id: "!Sanctuary2",
               label:
-                t("bp_priority_sanctuary2") || "Highest Priority (!Sanctuary2)",
+                t("bp_priority_sanctuary2") || "Sanctuary 2 (1500)",
             },
             {
               id: "!Sanctuary3",
               label:
-                t("bp_priority_sanctuary3") ||
-                "Absolute Priority (!Sanctuary3)",
+                t("bp_priority_sanctuary3") || "Sanctuary 3 (2000)",
             },
           ]}
         />
@@ -199,7 +198,7 @@ export default function CommandConflictsPanel({
       isOpen={isOpen}
       onClose={onClose}
       title={t("dashboard_stat_conflicts") || "CONFLICTS"}
-      subtitle={t("bp_load_order_conflicts") || "Load Order Conflicts"}
+      subtitle={t("bp_load_order_conflicts") || "Conflicts Detected"}
       icon={t("ui_icon_crisis") || "crisis_alert"}
       iconColorClass="text-amber-500"
       widthClass="w-[525px]"
@@ -211,25 +210,25 @@ export default function CommandConflictsPanel({
           return (
             <div className="px-2 py-2 shrink-0 flex items-center justify-between relative">
               <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">
-                {t("bp_load_order_conflicts") || "Load Order Conflicts"}
+                {t("bp_load_order_conflicts") || "Conflicts Detected"}
               </h3>
               <div className="flex items-center gap-2">
                 {tier4Count > 0 && (
                   <span className="text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                    {tier4Count} {t("panel_stat_tier4") || "FATAL"}
+                    {tier4Count} {t("panel_stat_tier4") || "Collision Severity 4"}
                   </span>
                 )}
                 {tier3Count > 0 && (
                   <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    {tier3Count} {t("panel_stat_tier3") || "OVERRIDE"}
+                    {tier3Count} {t("panel_stat_tier3") || "Collision Severity 3"}
                   </span>
                 )}
                 {activeConflicts.length === 0 && (
                   <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
-                    {t("bp_no_conflicts_detected") || "0 Detected"}
+                    {t("bp_no_conflicts_detected") || "No active load order conflicts detected."}
                   </span>
                 )}
               </div>
@@ -241,10 +240,10 @@ export default function CommandConflictsPanel({
           {activeConflicts.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4 py-12">
               <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">
-                {t("ui_icon_shield") || "shield"}
+                {t("ui_icon_shield") || "security"}
               </span>
               <p className="text-[10px] font-black tracking-widest uppercase text-center">
-                {t("bp_no_conflicts_detected") || "No Conflicts Detected"}
+                {t("bp_no_conflicts_detected") || "No active load order conflicts detected."}
               </p>
             </div>
           ) : (
@@ -314,9 +313,8 @@ export default function CommandConflictsPanel({
                             className={`text-xs font-black uppercase tracking-widest ${textClass}`}
                           >
                             {isTier4
-                              ? t("bp_fatal_override_clash") || "FATAL CLASH"
-                              : t("bp_data_override_conflict") ||
-                                "OVERRIDE CONFLICT"}
+                              ? t("bp_fatal_override_clash") || "Collision Severity 4"
+                              : t("bp_data_override_conflict") || "Collision Severity 3"}
                           </span>
                           <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">
                             {ac.conflict.resolution_note ||
@@ -338,8 +336,8 @@ export default function CommandConflictsPanel({
                           {isIgnored ? "visibility" : "visibility_off"}
                         </span>
                         {isIgnored
-                          ? t("bp_restore_alert") || "RESTORE"
-                          : t("bp_ignore_alert") || "IGNORE"}
+                          ? t("bp_restore_alert") || "Restore Alert"
+                          : t("bp_ignore_alert") || "Ignore"}
                       </button>
                     </div>
 
@@ -381,7 +379,7 @@ export default function CommandConflictsPanel({
                                 <span className="material-symbols-outlined !text-[14px]">
                                   {t("ui_icon_delete") || "delete"}
                                 </span>
-                                {t("bp_yeet_artifact") || "YEET ARTIFACT"}
+                                {t("bp_yeet_artifact") || "Yeet Artifact"}
                               </button>
                             )
                           ) : ac.conflict.severity_rank === 3 ? (
@@ -390,14 +388,14 @@ export default function CommandConflictsPanel({
                                 <span className="material-symbols-outlined !text-[14px]">
                                   {t("ui_icon_star") || "star"}
                                 </span>
-                                {t("bp_winning_artifact")}
+                                {t("bp_winning_artifact") || "WINNING ARTIFACT"}
                               </div>
                             ) : isWinnerB ? (
                               <div className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
                                 <span className="material-symbols-outlined !text-[12px]">
-                                  block
+                                  {t("ui_icon_block") || "block"}
                                 </span>
-                                {t("bp_overridden_by_winner")}
+                                {t("bp_overridden_by_winner") || "OVERRIDDEN BY WINNER"}
                               </div>
                             ) : (
                               allow_write &&
@@ -422,10 +420,9 @@ export default function CommandConflictsPanel({
                                   className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                 >
                                   <span className="material-symbols-outlined !text-[14px]">
-                                    {t("ui_icon_check_circle") ||
-                                      "check_circle"}
+                                    {t("ui_icon_check_circle") || "check_circle"}
                                   </span>
-                                  {t("bp_select_winning_artifact")}
+                                  {t("bp_select_winning_artifact") || "SELECT AS WINNER"}
                                 </button>
                               )
                             )
@@ -445,7 +442,7 @@ export default function CommandConflictsPanel({
                                   }
                                   className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center"
                                   title={
-                                    t("bp_yeet_artifact") || "YEET ARTIFACT"
+                                    t("bp_yeet_artifact") || "Yeet Artifact"
                                   }
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">
@@ -492,7 +489,7 @@ export default function CommandConflictsPanel({
                                 <span className="material-symbols-outlined !text-[14px]">
                                   {t("ui_icon_delete") || "delete"}
                                 </span>
-                                {t("bp_yeet_artifact") || "YEET ARTIFACT"}
+                                {t("bp_yeet_artifact") || "Yeet Artifact"}
                               </button>
                             )
                           ) : ac.conflict.severity_rank === 3 ? (
@@ -501,14 +498,14 @@ export default function CommandConflictsPanel({
                                 <span className="material-symbols-outlined !text-[14px]">
                                   {t("ui_icon_star") || "star"}
                                 </span>
-                                {t("bp_winning_artifact")}
+                                {t("bp_winning_artifact") || "WINNING ARTIFACT"}
                               </div>
                             ) : isWinnerA ? (
                               <div className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
                                 <span className="material-symbols-outlined !text-[12px]">
-                                  block
+                                  {t("ui_icon_block") || "block"}
                                 </span>
-                                {t("bp_overridden_by_winner")}
+                                {t("bp_overridden_by_winner") || "OVERRIDDEN BY WINNER"}
                               </div>
                             ) : (
                               allow_write &&
@@ -533,10 +530,9 @@ export default function CommandConflictsPanel({
                                   className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                 >
                                   <span className="material-symbols-outlined !text-[14px]">
-                                    {t("ui_icon_check_circle") ||
-                                      "check_circle"}
+                                    {t("ui_icon_check_circle") || "check_circle"}
                                   </span>
-                                  {t("bp_select_winning_artifact")}
+                                  {t("bp_select_winning_artifact") || "SELECT AS WINNER"}
                                 </button>
                               )
                             )
@@ -556,7 +552,7 @@ export default function CommandConflictsPanel({
                                   }
                                   className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center"
                                   title={
-                                    t("bp_yeet_artifact") || "YEET ARTIFACT"
+                                    t("bp_yeet_artifact") || "Yeet Artifact"
                                   }
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">

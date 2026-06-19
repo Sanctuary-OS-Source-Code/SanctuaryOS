@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { GameVersionMultiSelect, SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, ModSearchDropdown } from "./shared";
+import { useStore } from './store';
 
 interface ModLineageTreeProps {
   targetMod: any;
@@ -45,7 +46,7 @@ function EditableVersionRow({
       
       if (error) {
         console.error('Supabase update error:', error);
-        alert(`Failed to update: ${error.message}`);
+        useStore.getState().pushStatus(`Failed to update: ${error.message}`);
       } else {
         onUpdate(); // Refresh parent data
       }
@@ -69,11 +70,11 @@ function EditableVersionRow({
   };
 
   const handleDelete = async () => {
-    if (confirm(t("lineage_confirm_delete") || "Are you sure you want to delete this version?")) {
+    if (confirm(t("lineage_confirm_delete") || "Are you sure you want to delete this version? This action cannot be undone.")) {
       try {
         const { error } = await supabase.from('mod_versions').delete().eq('dna_hash', version.dna_hash);
         if (error) {
-          alert(`Failed to delete: ${error.message}`);
+          useStore.getState().pushStatus(`Failed to delete: ${error.message}`);
         } else {
           onUpdate();
         }
@@ -88,7 +89,7 @@ function EditableVersionRow({
     try {
       const { error } = await supabase.from('mod_versions').update({ mod_id: mod.id }).eq('dna_hash', version.dna_hash);
       if (error) {
-         alert(`Failed to reassign: ${error.message}`);
+         useStore.getState().pushStatus(`Failed to reassign: ${error.message}`);
       } else {
          setIsReassigning(false);
          onUpdate();
@@ -128,7 +129,7 @@ function EditableVersionRow({
           />
           {index === 0 && (
             <span className="px-3 py-1 bg-[var(--accent)]/20 border border-[var(--accent)]/40 rounded-full text-[9px] font-black uppercase text-[var(--accent)] shrink-0 tracking-widest shadow-sm">
-              {t("lineage_latest")}
+              {t("lineage_latest") || "Latest"}
             </span>
           )}
         </div>
@@ -153,14 +154,14 @@ function EditableVersionRow({
                 
                 if (error) {
                   console.error('Supabase update error:', error);
-                  alert(`Failed to update: ${error.message}`);
+                  useStore.getState().pushStatus(`Failed to update: ${error.message}`);
                 } else {
                   console.log('Supabase update success:', data);
                   onUpdate(); // Refresh the list
                 }
               } catch (err) {
                 console.error('Failed to update game version:', err);
-                alert(`Error: ${err}`);
+                useStore.getState().pushStatus(`Error: ${err}`);
               }
             }}
           />
@@ -183,22 +184,22 @@ function EditableVersionRow({
                       onSelect={handleReassign}
                       selectedItem={null}
                       onClear={() => {}}
-                      placeholder={t("lineage_reassign_ph") || "Select artifact..."}
+                      placeholder={t("lineage_reassign_ph") || "Select new artifact..."}
                     />
                  </div>
                  <button onClick={() => setIsReassigning(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-[var(--subtext)] shrink-0">
-                   <span className="material-symbols-outlined !text-[16px]">close</span>
+                   <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_close") || "close"}</span>
                  </button>
               </div>
             ) : (
               <>
                 <button onClick={() => setIsReassigning(true)} className="px-3 py-1.5 rounded-lg border border-[var(--accent)]/30 text-[var(--accent)] text-[9px] font-black uppercase hover:bg-[var(--accent)]/10 transition-colors flex items-center gap-1">
-                  <span className="material-symbols-outlined !text-[12px]">move_up</span>
-                  {t("lineage_btn_reassign") || "Reassign"}
+                  <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_move_up") || "move_up"}</span>
+                  {t("lineage_btn_reassign") || "Reassign Artifact"}
                 </button>
                 <button onClick={handleDelete} className="px-3 py-1.5 rounded-lg border border-[var(--danger)]/30 text-[var(--danger)] text-[9px] font-black uppercase hover:bg-[var(--danger)]/10 transition-colors flex items-center gap-1">
-                  <span className="material-symbols-outlined !text-[12px]">delete</span>
-                  {t("lineage_btn_delete") || "Delete"}
+                  <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_delete") || "delete"}</span>
+                  {t("lineage_btn_delete") || "Delete Version"}
                 </button>
               </>
             )}
@@ -245,7 +246,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
     
     try {
       if (!newDnaHash || !newDnaHash.trim()) {
-        alert('DNA hash is required to create a version entry');
+        useStore.getState().pushStatus('DNA hash is required to create a version entry');
         return;
       }
 
@@ -262,7 +263,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
 
       if (error) {
         console.error('Supabase insert error:', error);
-        alert(`Failed to add version: ${error.message}`);
+        useStore.getState().pushStatus(`Failed to add version: ${error.message}`);
         return;
       }
 
@@ -276,7 +277,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
       if (onRefresh) onRefresh();
     } catch (err) {
       console.error('Failed to add new version:', err);
-      alert(`Failed to add version: ${err}`);
+      useStore.getState().pushStatus(`Failed to add version: ${err}`);
     }
   };
 
@@ -291,10 +292,10 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
         <div>
           <h3 className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
             <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">{t("ui_icon_timeline") || "timeline"}</span>
-            {t("lineage_version_history")}
+            {t("lineage_version_history") || "Version History"}
           </h3>
           <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-2">
-            {t("lineage_timeline_desc")}
+            {t("lineage_timeline_desc") || "Chronological release timeline for this artifact"}
           </p>
         </div>
         <button
@@ -302,13 +303,13 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
           className="px-6 py-3 rounded-2xl theme-glass-inner text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:theme-border-accent hover:scale-[1.02] active:scale-95 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
         >
           <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("ui_icon_add") || "add"}</span>
-          {t("lineage_add_version")}
+          {t("lineage_add_version") || "Add Version"}
         </button>
       </div>
 
       {versionHistory.length === 0 ? (
         <div className="py-12 text-center text-[10px] font-black uppercase tracking-[0.3em] opacity-30 border border-dashed border-white/10 rounded-2xl">
-          {t("lineage_no_history")}
+          {t("lineage_no_history") || "No version history found"}
         </div>
       ) : (
         <div className="flex flex-col gap-4 relative z-10">
@@ -330,7 +331,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
     <SidePanel
       isOpen={showAddModal}
       onClose={() => { setShowAddModal(false); setNewVersionLabel(''); setNewGameVersion(''); setNewDnaHash(''); }}
-      title={t("lineage_add_version_modal_title")}
+      title={t("lineage_add_version_modal_title") || "Add New Version"}
       icon="add_box"
       footer={
         <div className="flex justify-end gap-4 w-full">
@@ -338,7 +339,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
             onClick={() => { setShowAddModal(false); setNewVersionLabel(''); setNewGameVersion(''); setNewDnaHash(''); }}
             className="px-6 py-3 rounded-2xl bg-[var(--text)]/5 border border-white/5 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:border-white/20 hover:bg-[var(--text)]/10 transition-all active:scale-95"
           >
-            {t("lineage_cancel")}
+            {t("lineage_cancel") || "Cancel"}
           </button>
           <button
             onClick={handleAddVersion}
@@ -346,44 +347,44 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
             className="px-6 py-3 rounded-2xl bg-[var(--accent)]/20 border border-[var(--accent)]/50 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:bg-[var(--accent)]/30 hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
           >
             <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_save") || "save"}</span>
-            {t("lineage_add_version_btn")}
+            {t("lineage_add_version_btn") || "Add Version"}
           </button>
         </div>
       }
     >
       <div className="flex flex-col gap-6 w-full">
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-black text-[var(--subtext)] uppercase tracking-[0.2em]">{t("lineage_version_label")}</label>
+          <label className="text-xs font-black text-[var(--subtext)] uppercase tracking-[0.2em]">{t("lineage_version_label") || "Version Label"}</label>
           <input
             autoFocus
             type="text"
             value={newVersionLabel}
             onChange={(e) => setNewVersionLabel(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddVersion()}
-            placeholder="e.g. v1.1, v2.0"
+            placeholder={t("ph_version") || "e.g. v1.1, v2.0"}
             className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-black text-[var(--subtext)] uppercase tracking-[0.2em]">{t("lineage_game_version")}</label>
+          <label className="text-xs font-black text-[var(--subtext)] uppercase tracking-[0.2em]">{t("lineage_game_version") || "Game Version"}</label>
           <input
             type="text"
             value={newGameVersion}
             onChange={(e) => setNewGameVersion(e.target.value)}
-            placeholder="e.g. 1.108.329.1020"
+            placeholder={t("ph_game_version") || "e.g. 1.108.329.1020"}
             className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-black text-[var(--subtext)] uppercase tracking-[0.2em]">DNA HASH (REQUIRED)</label>
+          <label className="text-xs font-black text-[var(--subtext)] uppercase tracking-[0.2em]">{t("label_dna_hash") || "DNA HASH (REQUIRED)"}</label>
           <input
             type="text"
             value={newDnaHash}
             onChange={(e) => setNewDnaHash(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddVersion()}
-            placeholder="Enter the unique file hash"
+            placeholder={t("ph_dna_hash") || "Enter the unique file hash"}
             className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[var(--accent)]/30 rounded-2xl px-5 py-4 text-sm font-mono font-bold focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
           />
         </div>
@@ -391,7 +392,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
         <div className="bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-2xl p-4 flex items-start gap-3 mt-2">
           <span className="material-symbols-outlined text-[var(--accent)] !text-[18px] mt-0.5">{t("ui_icon_info") || "info"}</span>
           <p className="text-[10px] font-bold text-[var(--text)] opacity-80 uppercase tracking-widest leading-relaxed">
-            {t("lineage_add_version_note")}
+            {t("lineage_add_version_note") || "Note: This will prompt you to select a file hash from your vault after clicking \"Add Version\""}
           </p>
         </div>
       </div>
