@@ -187,7 +187,7 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
 
       if (error) throw error;
       
-      useStore.getState().pushStatus(t("sa_support_success") || "Reply sent successfully", "success");
+      useStore.getState().pushStatus(t("ss_support_success") || "Ticket sent successfully", "success");
       onClose();
     } catch (e: any) {
       setError(e.message);

@@ -521,7 +521,7 @@ export default function CommandCenter({
         onClose={() => setShowUpdatesModal(false)}
         title={t("cmd_updates_modal_title") || "UPDATES"}
         subtitle={t("cmd_system_core") || "System Core & Sub-Systems"}
-        icon={t("ui_icon_refresh") || "refresh"}
+        icon={t("ui_icon_update") || "update"}
         iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
         widthClass="w-[525px]"
       >
