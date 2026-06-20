@@ -123,7 +123,7 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
                 const netUpdates = storeState.networkUpdates;
                 const totalUpdates = (netUpdates?.broken?.length || 0) + (netUpdates?.obsolete?.length || 0) + (netUpdates?.updated?.length || 0);
                 
-                const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nUser Agent: ${navigator.userAgent}\nMods Path: ${storeState.modsPath}\nActive Blueprint: ${activeSet?.name || "None"}\nActive Mods: ${activeSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toISOString()}\nDiagnostic Bundle Version: 1.0.0\n`;
+                const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nUser Agent: ${navigator.userAgent}\nMods Path: ${storeState.modsPath}\nActive Blueprint: ${activeSet?.name || "None"}\nActive Mods: ${activeSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`;
                 finalLogs += `\n--- TELEMETRY: ${source.label} (OS) ---\n` + sysInfo + diagnostics + "\n";
 
                 if (activeSet) {
@@ -224,7 +224,7 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
       footer={
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-center items-center gap-4 w-full">
           <button onClick={onClose} className={standardButtonClass}>
             {t("shared_cancel") || "CANCEL"}
           </button>

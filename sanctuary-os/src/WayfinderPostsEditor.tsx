@@ -6,7 +6,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
-import { standardAccentGlassButtonClass, SidePanel, CustomDropdown } from './shared';
+import { standardAccentGlassButtonClass, standardButtonClass, SidePanel, CustomDropdown } from './shared';
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostViewer from "./MasonPostViewer";
@@ -338,10 +338,15 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
             widthClass="w-[800px]"
             title={editingPostId ? (t("masonhub_update_transmission") || "UPDATE TRANSMISSION") : (t("mason_new_transmission") || "NEW TRANSMISSION")}
             subtitle={editingPostId ? (t("masonhub_editing_record") || "Editing Record") : (t("masonhub_composing_broadcast") || "Composing New Broadcast")}
-            actions={
-              <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className={standardAccentGlassButtonClass + " !px-6 !py-3 !text-[10px]"}>
-                {isSubmitting ? t("mason_saving") || "SAVING..." : (editingPostId ? t("masonhub_update_transmission") || "UPDATE TRANSMISSION" : t("mason_btn_post") || "BROADCAST")}
-              </button>
+            footer={
+              <div className="flex justify-center items-center gap-4 w-full">
+                <button onClick={closeEditor} className={standardButtonClass}>
+                  {t("shared_cancel") || "CANCEL"}
+                </button>
+                <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className={standardAccentGlassButtonClass}>
+                  {isSubmitting ? t("mason_saving") || "SAVING..." : (editingPostId ? t("masonhub_update_transmission") || "UPDATE TRANSMISSION" : t("mason_btn_post") || "BROADCAST")}
+                </button>
+              </div>
             }
           >
             <div className="flex flex-col gap-6">

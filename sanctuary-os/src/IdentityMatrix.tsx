@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
-import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass } from './shared';
+import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass } from './shared';
 import { useStore } from './store';
 
 export const ROLES = ['citizen', 'mason', 'architect', 'senior_architect', 'wayfinder'];
@@ -87,21 +87,25 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
       icon={t("ui_icon_group") || "group"}
       subtitle={profile ? `UUID: ${profile.id}` : undefined}
       widthClass={isSkinny ? "w-[90vw] max-w-[475px]" : undefined}
-      actions={
+      footer={
         <div className="flex flex-col gap-4 w-full">
           {status && (
             <div className="text-center bg-black/20 p-3 rounded-xl border border-white/5 w-full">
               <p className={`text-[10px] font-black uppercase tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
             </div>
           )}
-          
-          <button 
-            onClick={handleUpdateRole} 
-            disabled={isSubmitting || (isBanned && !editReason.trim())} 
-            className={`!w-full !rounded-[2rem] !py-5 ${isBanned ? standardDangerButtonClass : standardSuccessButtonClass}`}
-          >
-            {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : t("registry_commit_changes") || "Commit Changes"}
-          </button>
+          <div className="flex justify-center items-center gap-4 w-full">
+            <button type="button" onClick={onClose} disabled={isSubmitting} className={standardButtonClass}>
+              {t("ui_btn_cancel") || "CANCEL"}
+            </button>
+            <button 
+              onClick={handleUpdateRole} 
+              disabled={isSubmitting || (isBanned && !editReason.trim()) || (!isWayfinder && profile?.role === 'wayfinder')} 
+              className={isBanned ? standardDangerButtonClass : standardSuccessButtonClass}
+            >
+              {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : t("registry_commit_changes") || "Commit Changes"}
+            </button>
+          </div>
         </div>
       }
     >
@@ -125,48 +129,56 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
             <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_settings") || "settings"}</span>
             {t("sa_identities_role_label") || "ROLE:"}
           </h4>
-          <div className="flex flex-col gap-2 relative z-50">
-            <CustomRoleSelect 
-               value={editRole} 
-               roles={isWayfinder ? ROLES : ROLES.filter(r => r !== 'wayfinder')} 
-               onChange={(newRole: string) => setEditRole(newRole)}
-               isBlacklisted={isBanned}
-            />
-          </div>
+          {(!isWayfinder && profile?.role === 'wayfinder') ? (
+            <div className="flex flex-col gap-2 relative z-50 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+               <p className="text-xs font-bold text-amber-500">{t("sa_identities_wayfinder_locked") || "Wayfinder roles can only be modified by other Wayfinders."}</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 relative z-50">
+              <CustomRoleSelect 
+                 value={editRole} 
+                 roles={isWayfinder ? ROLES : ROLES.filter(r => r !== 'wayfinder')} 
+                 onChange={(newRole: string) => setEditRole(newRole)}
+                 isBlacklisted={isBanned}
+              />
+            </div>
+          )}
         </div>
 
-        <div className={`flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border ${isBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
-          <div className={`absolute inset-0 bg-gradient-to-br ${isBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
-          <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isBanned ? 'border-red-500/20 text-red-400' : 'border-white/5 text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
-            <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_gavel") || "gavel"}</span>
-            PUNITIVE ACTION
-          </h4>
-           <div className="flex items-center justify-between relative z-10">
-              <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
-                 BAN IDENTITY
-              </label>
-              <button 
-                onClick={() => setIsBanned(!isBanned)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isBanned ? 'bg-red-500' : 'bg-gray-600'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBanned ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-           </div>
-
-           {isBanned && (
-             <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-10 mt-2">
-               <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                  {t("sa_ban_reason_req") || "BAN REASON (REQUIRED)"}
-               </label>
-               <textarea 
-                 value={editReason} 
-                 onChange={e => setEditReason(e.target.value)} 
-                 placeholder={t("id_reason_ban") || "Reason for quarantine / ban..."} 
-                 className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]" 
-               />
+        {(!isWayfinder && profile?.role === 'wayfinder') ? null : (
+          <div className={`flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border ${isBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
+            <div className={`absolute inset-0 bg-gradient-to-br ${isBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
+            <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isBanned ? 'border-red-500/20 text-red-400' : 'border-white/5 text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_gavel") || "gavel"}</span>
+              {t("sa_identities_punitive") || "PUNITIVE ACTION"}
+            </h4>
+             <div className="flex items-center justify-between relative z-10">
+                <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
+                   {t("sa_identities_ban") || "BAN IDENTITY"}
+                </label>
+                <button 
+                  onClick={() => setIsBanned(!isBanned)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isBanned ? 'bg-red-500' : 'bg-gray-600'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBanned ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
              </div>
-           )}
-        </div>
+  
+             {isBanned && (
+               <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-10 mt-2">
+                 <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                    {t("sa_ban_reason_req") || "BAN REASON (REQUIRED)"}
+                 </label>
+                 <textarea 
+                   value={editReason} 
+                   onChange={e => setEditReason(e.target.value)} 
+                   placeholder={t("id_reason_ban") || "Reason for quarantine / ban..."} 
+                   className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]" 
+                 />
+               </div>
+             )}
+          </div>
+        )}
       </div>
     </SidePanel>
   );
@@ -255,7 +267,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse shadow-[0_0_10px_rgba(var(--accent-rgb),0.5)]"></span>
                   </div>
                   <h4 className="text-sm font-black text-[var(--accent)] uppercase tracking-widest drop-shadow-md">
-                    {t("sa_active_citizens") || "ACTIVE CITIZENS ({count})".replace("{count}", filteredProfiles.length.toString())}
+                    {(t("sa_active_citizens") || "ACTIVE CITIZENS ({count})").replace("{count}", filteredProfiles.length.toString())}
                   </h4>
                 </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
@@ -297,7 +309,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
             <div className="flex flex-col gap-4">
               <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_var(--danger)]"></span>
-                {t("sa_banned_identities") || "BANNED IDENTITIES ({count})".replace("{count}", blacklistedProfiles.length.toString())}
+                {(t("sa_banned_identities") || "BANNED IDENTITIES ({count})").replace("{count}", blacklistedProfiles.length.toString())}
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                 {blacklistedProfiles.map((p: any) => (

@@ -1058,11 +1058,12 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
       <SidePanel
         isOpen={!!activeMod}
         onClose={() => setActiveMod(null)}
+        widthClass="w-[600px]"
         title={t("ui_edit_metadata") || "EDIT METADATA"}
         subtitle={`UUID: ${activeMod?.id}`}
         icon={t("ui_icon_inventory") || "inventory_2"}
         footer={
-          <div className="flex justify-end gap-4 w-full">
+          <div className="flex justify-center items-center gap-4 w-full">
             <button onClick={() => setActiveMod(null)} disabled={isCommitting} className={standardButtonClass}>
               {t("shared_cancel") || "CANCEL"}
             </button>
@@ -1082,13 +1083,10 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
               </h4>
               
               <div className="flex flex-col gap-2 relative z-10">
-                <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none">{activeMod?.name || t("sa_identities_unknown") || "UNKNOWN"}</h3>
+                <input value={activeMod?.name || ""} onChange={e => setActiveMod({...activeMod, name: e.target.value})} placeholder={t("registry_label_name") || "Artifact Name"} className="bg-transparent text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full" />
               </div>
             </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_name") || "Display Name"}</label>
-                  <input value={activeMod.name || ""} onChange={e => setActiveMod({...activeMod, name: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-                </div>
+
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason") || "MASON ENTITY (AUTHOR)"}</label>
@@ -1115,24 +1113,25 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
                 <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "File Extension"}</label>
                     <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="e.g. .package, .ts4script" />
-                  </div>
-                  <div className="flex flex-col gap-2">
+                </div>
+                
+                <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat") || "SUB-CATEGORY"}</label>
                   <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="e.g. Tuning, Object, CAS" />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 mt-4">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "Description"}</label>
                   <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 mt-4">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image") || "Cover Image URL"}</label>
                 <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="https://..." />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
                     {t("registry_label_version") || "Master Version (Latest)"} 
@@ -1142,11 +1141,11 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
-                  <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                  <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="https://..." />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status") || "Global Status"}</label>
                   <CustomStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({...activeMod, status: newStatus})} />
@@ -1158,7 +1157,23 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_uploaded_date") || "UPLOADED DATE"}</label>
+                  <div className="w-full">
+                    <CustomDatePicker value={activeMod.created_at || null} onChange={(date: any) => setActiveMod({...activeMod, created_at: date})} />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_updated_date") || "LAST UPDATED"}</label>
+                  <div className="w-full">
+                    <CustomDatePicker value={activeMod.updated_at || null} onChange={(date: any) => setActiveMod({...activeMod, updated_at: date})} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 mt-4 pb-48">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions") || "GAME VERSIONS"}</label>
                 <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({...activeMod, compatible_versions: v})} />
               </div>
@@ -1171,7 +1186,7 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
         onClose={() => setIsMasonPanelOpen(false)}
         title={t("mason_create_title") || "New Mason"}
         icon="person_add"
-        widthClass="w-[350px]"
+        widthClass="w-[450px]"
         footer={
           <div className="flex justify-end gap-4 w-full">
             <button onClick={() => setIsMasonPanelOpen(false)} className={standardButtonClass}>
@@ -1406,7 +1421,7 @@ function CCSetForge({ setStatus }: any) {
         subtitle={t("mason_create_subtitle") || "Master Registry Insertion"}
         icon="add_circle"
         footer={
-          <div className="flex justify-end gap-4 w-full">
+          <div className="flex justify-center items-center gap-4 w-full">
             <button type="button" onClick={() => setIsForgePanelOpen(false)} className={standardButtonClass}>
               {t("shared_cancel") || "CANCEL"}
             </button>
@@ -1449,13 +1464,13 @@ function CCSetForge({ setStatus }: any) {
       <SidePanel
         isOpen={!!activeSet}
         onClose={() => setActiveSet(null)}
-        title={activeSet?.name || "UNNAMED SET"}
-        subtitle={t("masonhub_manage_collection") || "Manage Collection"}
+        title={t("masonhub_manage_collection") || "Manage Collection"}
+        subtitle={`UUID: ${activeSet?.id}`}
         icon="library_books"
         footer={
-          <div className="flex justify-end gap-4 w-full">
-            <button type="button" onClick={handleDeleteSet} disabled={isSaving} className={standardDangerButtonClass}>
-              {t("mason_cc_btn_delete_set") || "DELETE SET"}
+          <div className="flex justify-center items-center gap-4 w-full">
+            <button type="button" onDoubleClick={handleDeleteSet} disabled={isSaving} className={`${standardDangerButtonClass}`}>
+              <span>{t("mason_cc_btn_delete_set") || "DELETE SET"}</span>
             </button>
             <button type="button" onClick={saveSetMeta} disabled={isSaving} className={standardAccentGlassButtonClass}>
               {isSaving ? (t("ui_btn_loading") || "LOADING...") : (t("mason_cc_save_set") || "Save Collection")}
@@ -1465,11 +1480,23 @@ function CCSetForge({ setStatus }: any) {
       >
         {activeSet && (
           <div className="flex flex-col h-full gap-8">
+            <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
+              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info") || "info"}</span>
+                {t("registry_meta") || "Metadata"}
+              </h4>
+              <div className="flex flex-col gap-2 relative z-10">
+                <input 
+                  value={activeSet.name || ""} 
+                  onChange={e => setActiveSet({...activeSet, name: e.target.value})} 
+                  placeholder={t("forge_set_name") || "Collection Name..."}
+                  className="bg-transparent text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full"
+                />
+              </div>
+            </div>
             <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name") || "Collection Name..."}</label>
-                  <input value={activeSet.name || ""} onChange={e => setActiveSet({...activeSet, name: e.target.value})} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
-                </div>
+
                 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_mason") || "MASON / CREATOR"}</label>
@@ -1531,11 +1558,12 @@ function CCSetForge({ setStatus }: any) {
                     <span className="theme-text-accent font-black text-xs">{manifestMembers.length}</span>
                     </div>
                     
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-2">
+                    <div className="grid grid-cols-1 gap-2 mt-2">
                     {manifestMembers.map(member => (
                       <ArtifactCard 
                           key={member.id} 
                           mod={member.mods} 
+                          layout="horizontal"
                           onClick={() => {}} 
                           onRemove={() => removeFromManifest(member.id, member.mods?.name || "Unknown")} 
                           masonsList={[]}
@@ -1560,7 +1588,7 @@ function CCSetForge({ setStatus }: any) {
         onClose={() => setIsMasonPanelOpen(false)}
         title={t("mason_create_title") || "New Mason"}
         icon="person_add"
-        widthClass="w-[350px]"
+        widthClass="w-[450px]"
         footer={
           <div className="flex justify-end gap-4 w-full">
             <button onClick={() => setIsMasonPanelOpen(false)} className={standardButtonClass}>
@@ -2629,17 +2657,30 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
           }
         >
           <div className="flex flex-col h-full overflow-hidden">
-            <div className="px-8 py-4 border-b border-white/5 bg-white/5 backdrop-blur-md shrink-0 flex flex-col gap-1">
-               <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest">{t("nexus_target_artifact") || "TARGET ARTIFACT"}</span>
-               <span className="text-sm font-bold text-[var(--text)] truncate">{activeReport?.name}</span>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 pb-8 flex flex-col gap-8">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
               
-              <div className="flex flex-col gap-4">
-                <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("lab_diagnostic_dependencies") || "Dependencies"}</h3>
-                <p className="text-[10px] text-[var(--subtext)] opacity-50 ml-2 -mt-2 leading-relaxed">{t("lab_diagnostic_dependencies_desc") || "Mods required by this artifact."}</p>
+              <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
+                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                  <span className="material-symbols-outlined !text-[14px]">my_location</span>
+                  {t("nexus_target_artifact") || "TARGET ARTIFACT"}
+                </h4>
+                <div className="flex flex-col gap-2 relative z-10">
+                  <span className="theme-glass-inner rounded-xl px-5 h-12 flex items-center text-[var(--text)] text-sm font-bold bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{activeReport?.name}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
+                <div className="flex flex-col gap-1 border-b border-white/5 pb-4 mb-2">
+                  <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2">
+                    <span className="material-symbols-outlined !text-[14px]">account_tree</span>
+                    {t("lab_diagnostic_dependencies") || "Dependencies"}
+                  </h4>
+                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 uppercase tracking-widest">{t("lab_diagnostic_dependencies_desc") || "Mods required by this artifact."}</p>
+                </div>
                 
-                <div className="theme-glass-inner rounded-xl p-4 flex flex-col gap-4">
+                <div className="flex flex-col gap-4 relative z-10">
                   <ModSearchDropdown 
                     selectedItem={null}
                     onSelect={handleSelectDependency}
@@ -2650,10 +2691,10 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                   {dependencies.length > 0 && (
                     <div className="flex flex-col gap-2 mt-2">
                       {dependencies.map(d => (
-                         <div key={d.id} className="flex justify-between items-center p-3 theme-glass-panel rounded-lg border border-white/5 text-[var(--text)] text-sm font-bold">
+                         <div key={d.id} className="flex justify-between items-center px-5 h-12 theme-glass-inner rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-sm font-bold">
                            <span className="truncate pr-4">{d.name}</span>
-                           <button onClick={() => handleRemoveDependency(d.id)} className="w-6 h-6 rounded-md hover:bg-white/10 flex items-center justify-center shrink-0">
-                             <span className="material-symbols-outlined !text-[14px]">close</span>
+                           <button onClick={() => handleRemoveDependency(d.id)} className="w-8 h-8 rounded-lg hover:bg-white/10 text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors">
+                             <span className="material-symbols-outlined !text-[16px]">close</span>
                            </button>
                          </div>
                       ))}
@@ -2662,19 +2703,25 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                 </div>
               </div>
 
-              <div className="flex flex-col gap-4">
-                <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("lab_diagnostic_conflict_target") || "Target Conflict Matrix"}</h3>
-                <p className="text-[10px] text-[var(--subtext)] opacity-50 ml-2 -mt-2 leading-relaxed">{t("lab_diagnostic_conflict_target_desc") || "Select a suspected conflicting artifact to simulate their combined injection."}</p>
+              <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--warning)]/5 to-transparent pointer-events-none rounded-2xl" />
+                <div className="flex flex-col gap-1 border-b border-white/5 pb-4 mb-2">
+                  <h4 className="text-[10px] font-black text-[var(--warning)] uppercase tracking-widest flex items-center gap-2">
+                    <span className="material-symbols-outlined !text-[14px]">warning</span>
+                    {t("lab_diagnostic_conflict_target") || "Target Conflict Matrix"}
+                  </h4>
+                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 uppercase tracking-widest">{t("lab_diagnostic_conflict_target_desc") || "Select a suspected conflicting artifact to simulate their combined injection."}</p>
+                </div>
                 
-                <div className="theme-glass-inner rounded-xl p-4 flex flex-col gap-4">
+                <div className="flex flex-col gap-4 relative z-10">
                   {conflictTarget ? (
-                    <div className="flex flex-col gap-2 relative">
-                      <div className="flex justify-between items-center p-4 theme-glass-panel rounded-xl border border-[var(--danger)]/30 text-[var(--text)] bg-[var(--danger)]/5 shadow-[0_0_15px_rgba(var(--danger-rgb),0.1)]">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex justify-between items-center px-5 h-16 theme-glass-inner rounded-xl border border-[var(--warning)]/30 text-[var(--text)] bg-[var(--warning)]/5 shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)]">
                         <div className="flex flex-col min-w-0">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--danger)] mb-1">Testing Conflict With</span>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--warning)] mb-0.5">Testing Conflict With</span>
                           <span className="text-sm font-bold truncate">{conflictTarget.name}</span>
                         </div>
-                        <button onClick={() => setConflictTarget(null)} className="w-8 h-8 rounded-lg hover:bg-[var(--danger)]/20 text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors">
+                        <button onClick={() => setConflictTarget(null)} className="w-8 h-8 rounded-lg hover:bg-[var(--warning)]/20 text-[var(--warning)] flex items-center justify-center shrink-0 transition-colors">
                           <span className="material-symbols-outlined !text-[16px]">delete</span>
                         </button>
                       </div>
@@ -2691,13 +2738,18 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                 </div>
               </div>
 
-              {testRun ? (
-                <div className="flex flex-col gap-4 mt-4 animate-in slide-in-from-bottom-4">
-                  <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("lab_diagnostic_results") || "Diagnostic Results"}</h3>
-                  <div className={`p-6 theme-glass-inner rounded-2xl flex flex-col gap-4 border ${testPassed ? 'border-[var(--success)]/30 bg-[var(--success)]/5 shadow-[0_0_20px_rgba(var(--success-rgb),0.1)]' : 'border-[var(--danger)]/30 bg-[var(--danger)]/5 shadow-[0_0_20px_rgba(var(--danger-rgb),0.1)]'}`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${testPassed ? 'border-[var(--success)]/50 bg-[var(--success)]/20 text-[var(--success)]' : 'border-[var(--danger)]/50 bg-[var(--danger)]/20 text-[var(--danger)]'}`}>
-                         <span className="material-symbols-outlined !text-[20px]">{testPassed ? 'check_circle' : 'error'}</span>
+              {testRun && (
+                <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative animate-in slide-in-from-bottom-4">
+                  <div className={`absolute inset-0 bg-gradient-to-br ${testPassed ? 'from-[var(--success)]/10' : 'from-[var(--danger)]/10'} to-transparent pointer-events-none rounded-2xl`} />
+                  <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2 ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                    <span className="material-symbols-outlined !text-[14px]">science</span>
+                    {t("lab_diagnostic_results") || "Diagnostic Results"}
+                  </h4>
+                  
+                  <div className="flex flex-col relative z-10">
+                    <div className={`p-5 theme-glass-inner rounded-xl flex items-center gap-4 border ${testPassed ? 'border-[var(--success)]/30 bg-[var(--success)]/5 shadow-[0_0_20px_rgba(var(--success-rgb),0.1)]' : 'border-[var(--danger)]/30 bg-[var(--danger)]/5 shadow-[0_0_20px_rgba(var(--danger-rgb),0.1)]'}`}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${testPassed ? 'border-[var(--success)]/50 bg-[var(--success)]/20 text-[var(--success)]' : 'border-[var(--danger)]/50 bg-[var(--danger)]/20 text-[var(--danger)]'}`}>
+                         <span className="material-symbols-outlined !text-[24px]">{testPassed ? 'check_circle' : 'error'}</span>
                       </div>
                       <div className="flex flex-col">
                         <span className={`text-lg font-black uppercase tracking-widest ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
@@ -2709,7 +2761,7 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                       </div>
                     </div>
 
-                    <div className="mt-2 w-full theme-glass-panel rounded-xl p-4 border border-white/5 font-mono text-[10px] text-[var(--subtext)] max-h-48 overflow-y-auto custom-scrollbar whitespace-pre-wrap leading-relaxed">
+                    <div className="mt-6 w-full theme-glass-panel rounded-xl p-4 border border-white/5 font-mono text-[10px] text-[var(--subtext)] max-h-48 overflow-y-auto custom-scrollbar whitespace-pre-wrap leading-relaxed">
                       {testLog || "No logs generated."}
                     </div>
 
@@ -2733,7 +2785,7 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                     )}
                   </div>
                 </div>
-              ) : null}
+              )}
 
             </div>
           </div>
@@ -3173,6 +3225,8 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
     const [activeAsset, setActiveAsset] = useState<{id: string, type: string} | null>(null);
     const [resolutionReason, setResolutionReason] = useState("");
     const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+    const [selectedAction, setSelectedAction] = useState<"dismiss" | "remove" | "ban" | "">("");
+    const [banDuration, setBanDuration] = useState<string>("");
     
     // Filters
     const [searchTerm, setSearchTerm] = useState("");
@@ -3296,10 +3350,13 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
           }
         } else if (action === 'ban') {
            if (selectedReport.metadata?.author) {
-              await supabase.rpc('admin_ban_author', { target_author: selectedReport.metadata.author });
+              await supabase.rpc('admin_ban_author', { 
+                  target_author: selectedReport.metadata.author,
+                  duration_days: banDuration === 'permanent' ? -1 : parseInt(banDuration)
+              });
            }
            await supabase.from(table).update({ status: 'resolved' }).eq('id', selectedReport.id);
-           logArchitectAction(`Banned Author and Revoked Uploads: ${resolutionReason}`, `profiles`, selectedReport.metadata?.author || selectedReport.reporter_name);
+           logArchitectAction(`Banned Author for ${banDuration === 'permanent' ? 'Permanent' : banDuration + ' Days'} and Revoked Uploads: ${resolutionReason}`, `profiles`, selectedReport.metadata?.author || selectedReport.reporter_name);
         }
         
         setReports(reports.map(r => r.id === selectedReport.id ? { ...r, status: action === 'dismiss' ? 'dismissed' : 'resolved' } : r));
@@ -3454,79 +3511,120 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
           }}
           title={selectedReport?.title || "Report Details"}
           icon="shield"
+          footer={selectedReport?.status === 'pending' ? (
+            <div className="flex justify-center items-center gap-4 w-full">
+              <button type="button" onClick={() => setSelectedReport(null)} className={standardButtonClass}>
+                {t("ui_btn_cancel") || "CANCEL"}
+              </button>
+              <button 
+                onClick={() => handleProcessReport(selectedAction as "dismiss" | "remove" | "ban")} 
+                disabled={isSubmittingAction || !resolutionReason || !selectedAction || (selectedAction === 'ban' && !banDuration)} 
+                className={standardAccentGlassButtonClass}
+              >
+                {t("ticket_dossier_btn_save") || "SAVE ACTION"}
+              </button>
+            </div>
+          ) : undefined}
         >
           <div className="p-6 flex flex-col gap-6">
             {selectedReport && (
               <>
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_reporter") || "Reporter:"}</span>
-                  <span className="text-sm font-bold theme-text-accent">{selectedReport.reporter_name}</span>
+                <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
+                  <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                    <span className="material-symbols-outlined !text-[14px]">info</span>
+                    {t("hub_report_details") || "Report Details"}
+                  </h4>
+                  
+                  <div className="flex flex-col gap-6 relative z-10">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_reporter") || "Reporter:"}</label>
+                      <span className="theme-glass-inner rounded-xl px-5 h-12 flex items-center text-[var(--text)] text-sm font-bold bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{selectedReport.reporter_name}</span>
+                    </div>
+                    
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_reason") || "Reason"}</label>
+                      <p className="text-sm font-bold text-[var(--text)] leading-relaxed theme-glass-inner px-5 py-4 min-h-[4rem] rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{selectedReport.description}</p>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_reason") || "Reason"}</span>
-                  <p className="text-sm font-bold text-[var(--text)] leading-relaxed theme-glass-inner p-4 rounded-2xl">{selectedReport.description}</p>
-                </div>
-                
-                <div className="flex gap-4 mt-2">
-                   {selectedReport.source === 'marketplace' && selectedReport.metadata?.asset_full && (
-                      <button 
-                         onClick={() => setActiveAsset({ id: selectedReport.metadata.asset_full.id, type: selectedReport.metadata.asset_full.asset_type })}
-                         className="flex-1 py-3 theme-glass-inner hover:bg-white/10 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-white/5 hover:border-white/20"
-                      >
-                         <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_visibility") || "visibility"}</span>
-                         {t("hub_btn_view_nexus") || "View Nexus Asset"}
-                      </button>
-                   )}
-                   {selectedReport.metadata?.json_data && (
-                      <button 
-                         onClick={() => setActiveCodeSnippet(typeof selectedReport.metadata.json_data === 'string' ? selectedReport.metadata.json_data : JSON.stringify(selectedReport.metadata.json_data, null, 2))}
-                         className="flex-1 py-3 theme-glass-inner hover:bg-white/10 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-white/5 hover:border-white/20"
-                      >
-                         <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_data_object") || "data_object"}</span>
-                         {t("hub_btn_view_code") || "View Code Snippet"}
-                      </button>
-                   )}
-                </div>
+                {(selectedReport.source === 'marketplace' && selectedReport.metadata?.asset_full || selectedReport.metadata?.json_data) && (
+                  <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mt-2">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none rounded-2xl" />
+                    <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                      <span className="material-symbols-outlined !text-[14px]">link</span>
+                      {t("hub_label_resources") || "Resources"}
+                    </h4>
+                    
+                    <div className="flex gap-4 relative z-10">
+                       {selectedReport.source === 'marketplace' && selectedReport.metadata?.asset_full && (
+                          <button 
+                             onClick={() => setActiveAsset({ id: selectedReport.metadata.asset_full.id, type: selectedReport.metadata.asset_full.asset_type })}
+                             className="flex-1 py-3 theme-glass-inner hover:bg-emerald-500/10 text-[var(--text)] hover:text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-emerald-500/30"
+                          >
+                             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">visibility</span>
+                             {t("hub_btn_view_nexus") || "View Nexus Asset"}
+                          </button>
+                       )}
+                       {selectedReport.metadata?.json_data && (
+                          <button 
+                             onClick={() => setActiveCodeSnippet(typeof selectedReport.metadata.json_data === 'string' ? selectedReport.metadata.json_data : JSON.stringify(selectedReport.metadata.json_data, null, 2))}
+                             className="flex-1 py-3 theme-glass-inner hover:bg-emerald-500/10 text-[var(--text)] hover:text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-emerald-500/30"
+                          >
+                             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">data_object</span>
+                             {t("hub_btn_view_code") || "View Code Snippet"}
+                          </button>
+                       )}
+                    </div>
+                  </div>
+                )}
                 
                 {selectedReport.status === 'pending' && (
-                  <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-white/5">
-                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
+                  <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mt-2">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none rounded-2xl" />
+                    <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
                        <span className="material-symbols-outlined !text-[14px]">gavel</span>
                        {t("hub_architect_action") || "Architect Action"}
-                    </span>
+                    </h4>
                     
-                    <textarea 
-                      value={resolutionReason}
-                      onChange={e => setResolutionReason(e.target.value)}
-                      placeholder={t("hub_resolution_reason_ph") || "Enter resolution or rejection reason..."}
-                      className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-white/5 focus:border-[var(--accent)]/50 resize-none custom-scrollbar"
-                    />
-                    
-                    <div className="flex flex-col gap-3">
-                      <button 
-                        onClick={() => handleProcessReport('dismiss')} 
-                        disabled={isSubmittingAction || !resolutionReason} 
-                        className={`w-full ${standardButtonClass}`}
-                      >
-                        {t("hub_btn_dismiss_report") || "DISMISS REPORT"}
-                      </button>
+                    <div className="flex flex-col gap-6 relative z-10">
+                      <div className="flex flex-col gap-2">
+                        <textarea 
+                          value={resolutionReason}
+                          onChange={e => setResolutionReason(e.target.value)}
+                          placeholder={t("hub_resolution_reason_ph") || "Enter resolution or rejection reason..."}
+                          className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-amber-500/50 resize-none custom-scrollbar bg-black/20"
+                        />
+                      </div>
                       
-                      <button 
-                        onClick={() => handleProcessReport('remove')} 
-                        disabled={isSubmittingAction || !resolutionReason} 
-                        className={`w-full ${standardDangerButtonClass}`}
-                      >
-                        {t("hub_btn_remove_asset") || "REMOVE ARTIFACT"}
-                      </button>
-                      
-                      <button 
-                        onClick={() => handleProcessReport('ban')} 
-                        disabled={isSubmittingAction || !resolutionReason} 
-                        className={`w-full ${standardDangerButtonClass}`}
-                      >
-                        {t("hub_btn_revoke_mason") || "Revoke Mason"}
-                      </button>
+                      <div className="flex flex-col gap-3">
+                        <CustomDropdown
+                          value={[selectedAction]}
+                          onChange={(val: string[]) => setSelectedAction(val[0] as "dismiss" | "remove" | "ban" | "")}
+                          options={[
+                            { id: "dismiss", label: t("hub_btn_dismiss_report") || "DISMISS REPORT" },
+                            { id: "remove", label: t("hub_btn_remove_asset") || "REMOVE ARTIFACT" },
+                            { id: "ban", label: t("hub_btn_revoke_mason") || "Revoke Mason Uplink Privileges" }
+                          ]}
+                          placeholder={t("ui_dropdown_action") || "SELECT ACTION..."}
+                          disableTint={true}
+                        />
+                        {selectedAction === 'ban' && (
+                          <CustomDropdown
+                            value={[banDuration]}
+                            onChange={(val: string[]) => setBanDuration(val[0])}
+                            options={[
+                              { id: "1", label: t("hub_ban_24h") || "24 Hours" },
+                              { id: "7", label: t("hub_ban_7d") || "7 Days" },
+                              { id: "30", label: t("hub_ban_30d") || "30 Days" },
+                              { id: "permanent", label: t("hub_ban_permanent") || "Permanent Revoke" }
+                            ]}
+                            placeholder={t("hub_dropdown_ban_time") || "Select Duration"}
+                            disableTint={true}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

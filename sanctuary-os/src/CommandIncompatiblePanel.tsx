@@ -71,7 +71,7 @@ export default function CommandIncompatiblePanel({
       isOpen={isOpen}
       onClose={onClose}
       title={t("cmd_citizen_action_incompatible") || "INCOMPATIBLE"}
-      subtitle={t("cmd_incompatible_broken") || "BROKEN ARTIFACTS"}
+      subtitle={t("cmd_incompatible_broken") || "INCOMPATIBLE ARTIFACTS"}
       icon={t("ui_icon_warning") || "warning_amber"}
       iconColorClass="text-amber-500"
       widthClass="w-[525px]"
@@ -79,7 +79,7 @@ export default function CommandIncompatiblePanel({
       <div className="flex-1 min-h-0 flex flex-col gap-6 w-full">
         <div className="px-2 py-2 shrink-0 flex flex-col gap-4 mt-2 relative">
           <div className="flex items-center justify-between w-full relative z-10">
-            <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("cmd_incompatible_broken") || "BROKEN ARTIFACTS"}</h3>
+            <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("cmd_incompatible_broken") || "INCOMPATIBLE ARTIFACTS"}</h3>
             {brokenMods.length > 0 ? (
               <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />

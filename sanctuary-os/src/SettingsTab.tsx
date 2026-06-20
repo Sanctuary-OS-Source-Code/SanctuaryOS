@@ -473,7 +473,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
                            placeholder={t("settings_path_not_set") || "NOT SET"}
                          />
                          <div className="absolute right-3 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all duration-300 theme-glass-inner border border-white/20 hover:scale-105 active:scale-95 flex items-center gap-2 shadow-lg hover:theme-border-accent bg-black/40 text-[var(--text)]">
-                            <span className="material-symbols-outlined !text-sm text-[var(--accent)]">"sync"</span>
+                            <span className="material-symbols-outlined !text-sm text-[var(--accent)]">{t("ui_icon_sync") || "sync"}</span>
                             {t("settings_btn_calibrate") || "CALIBRATE"}
                           </div>
                          <div className="absolute left-[-2.5rem] text-xl opacity-0 group-hover:opacity-100 group-hover:left-6 transition-all duration-500 text-[var(--text)]"><span className="material-symbols-outlined">{dir.icon}</span></div>

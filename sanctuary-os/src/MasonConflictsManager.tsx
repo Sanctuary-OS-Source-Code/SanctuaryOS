@@ -200,8 +200,8 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
             <div className="col-span-full py-12 flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("hub_loading") || "ESTABLISHING SECURE CONNECTION..."}</div>
           ) : filteredGhosts.length === 0 ? (
              <div className="col-span-full py-12 flex flex-col items-center justify-center opacity-30 gap-4">
-              <span className="text-4xl grayscale">👻</span>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text)]">{t("masonhub_no_conflicts") || "No conflict rules defined"}</span>
+               <span className="material-symbols-outlined !text-[80px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_conflict") || "swords"}</span>
+              <span className="text-[14px] font-black uppercase tracking-[0.3em] text-[var(--text)]">{t("masonhub_no_conflicts") || "No conflict rules defined"}</span>
             </div>
           ) : (
             filteredGhosts.map(c => {
@@ -280,6 +280,42 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
             onClose={() => setIsSidePanelOpen(false)}
             title={editConflictId ? t("nexus_edit_side_panel") || "Update DIRECTIVE" : t("nexus_forge_title") || "NEW DIRECTIVE"}
             icon="security"
+            footer={
+              <div className="flex flex-col gap-4 w-full">
+                {deleteConfirmId === editConflictId && editConflictId ? (
+                   <div className="flex flex-col gap-4 p-5 bg-[var(--danger)]/10 rounded-2xl border border-[var(--danger)]/30 backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
+                     <span className="text-sm font-black text-[var(--danger)] uppercase tracking-widest text-center">{t("ui_confirm_delete") || "ARE YOU SURE?"}</span>
+                     <input 
+                         type="text" 
+                         value={deleteReason} 
+                         onChange={e => setDeleteReason(e.target.value)} 
+                         placeholder={t("matrix_delete_reason_ph") || "Enter mandatory reason for deletion..."}
+                         className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--danger)]/50 transition-all text-[var(--text)] border border-[var(--danger)]/30 placeholder:opacity-40"
+                     />
+                     <div className="flex gap-3">
+                       <button type="button" disabled={!deleteReason.trim()} onClick={() => handleDeleteConflict(editConflictId)} className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--danger)] bg-[var(--danger)]/20 border border-[var(--danger)]/50 hover:bg-[var(--danger)]/30 backdrop-blur-md transition-all shadow-[0_0_20px_rgba(var(--danger-rgb),0.3)] uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none">{t("ui_btn_delete") || "DELETE"}</button>
+                       <button type="button" onClick={() => { setDeleteConfirmId(null); setDeleteReason(""); }} className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--text)] bg-white/5 border border-white/10 hover:bg-white/10 backdrop-blur-md transition-all shadow-sm uppercase tracking-widest flex items-center justify-center gap-2">{t("ui_btn_cancel") || "CANCEL"}</button>
+                     </div>
+                   </div>
+                ) : (
+                  <div className="flex justify-center items-center gap-4 w-full">
+                    {!editConflictId && (
+                      <button type="button" onClick={() => setIsSidePanelOpen(false)} className={standardButtonClass}>
+                        {t("ui_btn_cancel") || "CANCEL"}
+                      </button>
+                    )}
+                    {editConflictId && (
+                      <button type="button" onClick={() => setDeleteConfirmId(editConflictId)} className={standardDangerButtonClass}>
+                        {t("ui_btn_delete") || "DELETE"}
+                      </button>
+                    )}
+                    <button type="button" onClick={(e) => handleAddConflict(e)} disabled={isSubmitting || !activeMaster || !conflictEnemy} className={standardAccentGlassButtonClass}>
+                      {isSubmitting ? "..." : (editConflictId ? t("masonhub_update_conflict") || "UPDATE CONFLICT RULE" : t("masonhub_add_conflict") || "ADD CONFLICT RULE")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            }
             noPadding={true}
             noScroll={true}
             ambientGlows={
@@ -337,40 +373,6 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                 <textarea value={conflictResolution} onChange={(e) => setConflictResolution(e.target.value)} placeholder={t("masonhub_resolution_placeholder") || "How is this conflict resolved Provide instructions"} className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent resize-none custom-scrollbar shadow-inner" />
               </div>
 
-              <div className="flex flex-col gap-4 pt-6 mt-2 border-t border-white/10">
-                {deleteConfirmId === editConflictId && editConflictId ? (
-                   <div className="flex flex-col gap-4 p-5 bg-[var(--danger)]/10 rounded-2xl border border-[var(--danger)]/30 backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
-                     <span className="text-sm font-black text-[var(--danger)] uppercase tracking-widest text-center">{t("ui_confirm_delete") || "ARE YOU SURE?"}</span>
-                     <input 
-                         type="text" 
-                         value={deleteReason} 
-                         onChange={e => setDeleteReason(e.target.value)} 
-                         placeholder={t("matrix_delete_reason_ph") || "Enter mandatory reason for deletion..."}
-                         className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--danger)]/50 transition-all text-[var(--text)] border border-[var(--danger)]/30 placeholder:opacity-40"
-                     />
-                     <div className="flex gap-3">
-                       <button type="button" disabled={!deleteReason.trim()} onClick={() => handleDeleteConflict(editConflictId)} className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--danger)] bg-[var(--danger)]/20 border border-[var(--danger)]/50 hover:bg-[var(--danger)]/30 backdrop-blur-md transition-all shadow-[0_0_20px_rgba(var(--danger-rgb),0.3)] uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none">{t("ui_btn_delete") || "DELETE"}</button>
-                       <button type="button" onClick={() => { setDeleteConfirmId(null); setDeleteReason(""); }} className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--text)] bg-white/5 border border-white/10 hover:bg-white/10 backdrop-blur-md transition-all shadow-sm uppercase tracking-widest flex items-center justify-center gap-2">{t("ui_btn_cancel") || "CANCEL"}</button>
-                     </div>
-                   </div>
-                ) : (
-                  <>
-                    <button type="submit" disabled={isSubmitting || !activeMaster || !conflictEnemy} className={standardAccentGlassButtonClass + " !w-full disabled:bg-transparent"}>
-                      <span className="material-symbols-outlined !text-[16px]">{editConflictId ? "save" : "add"}</span>
-                      {isSubmitting ? "..." : (editConflictId ? t("masonhub_update_conflict") || "UPDATE CONFLICT RULE" : t("masonhub_add_conflict") || "ADD CONFLICT RULE")}
-                    </button>
-                    
-                    {editConflictId && (
-                      <div className="flex gap-3">
-                        <button type="button" onClick={() => setDeleteConfirmId(editConflictId)} className={standardDangerButtonClass + " flex-1"}>
-                          <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete") || "delete"}</span>
-                          {t("ui_btn_delete") || "DELETE"}
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
             </form>
           </div>
         </div>

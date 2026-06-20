@@ -535,18 +535,29 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5" />
           
           <div className="relative z-10 flex flex-col flex-1 min-h-0">
-            <div className="px-8 py-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-between">
-              <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("bp_compatibility_scanner") || "Compromised Artifacts"}</h3>
-              {brokenMods.length > 0 ? (
-                <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  {brokenMods.length} {t("modcard_artifacts") || "Artifacts"}
-                </span>
-              ) : (
-                <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
-                  0 {t("modcard_artifacts") || "Artifacts"}
-                </span>
+            <div className="px-8 py-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col gap-4 relative">
+              <div className="flex items-center justify-between w-full relative z-10">
+                <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("bp_compatibility_scanner") || "Compromised Artifacts"}</h3>
+                {brokenMods.length > 0 ? (
+                  <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    {brokenMods.length} {t("modcard_artifacts") || "Artifacts"}
+                  </span>
+                ) : (
+                  <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+                    0 {t("modcard_artifacts") || "Artifacts"}
+                  </span>
+                )}
+              </div>
+              
+              {allow_write && brokenMods.length > 0 && (
+                 <button onClick={() => {
+                   brokenMods.forEach((m: any) => toggleInActiveSet(m._originalSetName || m.name, true, true));
+                 }} className={`w-full py-3 rounded-xl bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 border border-amber-500/50 hover:border-amber-500 text-[10px] font-black uppercase tracking-widest relative z-10 shrink-0 flex items-center justify-center gap-2 transition-all active:scale-95`}>
+                   <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete_sweep") || "delete_sweep"}</span>
+                   {(t("bp_purge_compromised") || "Yeet {0} Artifacts").replace("{0}", String(brokenMods.length))}
+                 </button>
               )}
             </div>
             
@@ -558,26 +569,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                 </div>
               ) : (
                 <>
-                  {allow_write && (
-                    <div className="mb-8 p-8 theme-glass-panel border-l-4 border-l-amber-500 border-amber-500/30 rounded-[2rem] flex flex-col gap-6 shadow-[0_0_40px_rgba(245,158,11,0.1)] relative overflow-hidden shrink-0">
-                      <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-transparent pointer-events-none" />
-                      <div className="flex items-center gap-6 relative z-10">
-                        <div className="w-16 h-16 rounded-2xl theme-glass-panel border border-amber-500/50 flex items-center justify-center shrink-0 shadow-[inset_0_0_20px_rgba(245,158,11,0.1),0_0_30px_rgba(245,158,11,0.3)]">
-                          <span className="material-symbols-outlined !text-4xl text-amber-500 animate-pulse">{t("ui_icon_warning") || "warning_amber"}</span>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <h4 className="text-xl font-black text-amber-500 uppercase tracking-widest">{t("bp_compromised_artifacts") || "Compromised Artifacts"}</h4>
-                          <p className="text-xs font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("bp_compromised_desc") || "This Blueprint contains {0} compromised Artifacts.".replace("{0}", String(brokenMods.length))}</p>
-                        </div>
-                      </div>
-                      <button onClick={() => {
-                        brokenMods.forEach((m: any) => toggleInActiveSet(m._originalSetName || m.name, true, true));
-                      }} className={`w-full py-4 rounded-xl bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 border border-amber-500/50 hover:border-amber-500 text-[11px] font-black uppercase tracking-widest relative z-10 shrink-0 flex items-center justify-center gap-2 transition-all active:scale-95`}>
-                        <span className="material-symbols-outlined !text-lg">{t("ui_icon_delete_sweep") || "delete_sweep"}</span>
-                        {(t("bp_purge_compromised") || "Yeet {0} Artifacts").replace("{0}", String(brokenMods.length))}
-                      </button>
-                    </div>
-                  )}
+
 
                   {brokenMods.map((mod: any) => {
                     const isIgnored = ignoredBroken.has(mod.name);

@@ -558,7 +558,7 @@ export function CustomDatePicker({ value, onChange, placeholder }: { value: stri
                   <button 
                     key={d} 
                     onClick={() => handleSelect(d)} 
-                    className={`p-1.5 text-[10px] rounded-lg transition-all ${isSelected ? 'theme-bg-accent text-[var(--bg)] font-black shadow-md' : isToday ? 'border border-[color-mix(in_srgb,var(--text)_20%,transparent)] font-bold' : 'hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                    className={`p-1.5 text-[10px] rounded-lg transition-all ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-black shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent),0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-sm scale-[1.05] relative z-10' : isToday ? 'border border-[color-mix(in_srgb,var(--text)_20%,transparent)] font-bold' : 'border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                   >
                     {d}
                   </button>

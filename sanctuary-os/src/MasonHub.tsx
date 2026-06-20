@@ -142,15 +142,12 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         {activeTab === "ide" && <MasonIDE vaultPath={vaultPath} />}
       </div>
 
-      <SidePanel
+      <MasonSettingsSidePanel
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        title={t("masonhub_settings_title") || "MASON SETTINGS"}
-        icon={t("ui_icon_settings") || "settings"}
-        widthClass="w-[450px]"
-      >
-        <MasonSettings profile={masonProfile} onUpdate={setMasonProfile} />
-      </SidePanel>
+        profile={masonProfile}
+        onUpdate={setMasonProfile}
+      />
 
       <MasonNotepadSidePanel isOpen={isNotepadOpen} onClose={() => setIsNotepadOpen(false)} />
       <MasonRecentRepliesSidePanel 
@@ -482,13 +479,18 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
   const handleSaveSetMeta = async () => {
     if (!activeSet) return;
     setIsSaving(true);
-      await supabase.from('cc_sets').update({ 
-        name: activeSet.name, 
-        image_url: activeSet.image_url,
-        url: activeSet.url
-      }).eq('id', activeSet.id);
+    const { error } = await supabase.from('cc_sets').update({ 
+      name: activeSet.name, 
+      image_url: activeSet.image_url,
+      url: activeSet.url
+    }).eq('id', activeSet.id);
     fetchSets();
     setIsSaving(false);
+    if (!error) {
+      useStore.getState().pushStatus(t("alert_saved") || "Saved successfully!", "success");
+    } else {
+      useStore.getState().pushStatus(`${t("alert_error") || "Error saving:"} ${error.message}`, "error");
+    }
   };
 
   const handleAddMod = async (modId: string) => {
@@ -505,12 +507,17 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
   const handleDeleteSet = async () => {
     if (!activeSet) return;
     setIsSaving(true);
-    await supabase.from('cc_set_members').delete().eq('set_id', activeSet.id);
-    await supabase.from('cc_sets').delete().eq('id', activeSet.id);
+    const { error: err1 } = await supabase.from('cc_set_members').delete().eq('set_id', activeSet.id);
+    const { error: err2 } = await supabase.from('cc_sets').delete().eq('id', activeSet.id);
     setActiveSet(null);
     setMembers([]);
     fetchSets();
     setIsSaving(false);
+    if (!err1 && !err2) {
+      useStore.getState().pushStatus(t("alert_deleted") || "Deleted successfully!", "success");
+    } else {
+      useStore.getState().pushStatus(`${t("alert_error") || "Error deleting:"} ${err1?.message || err2?.message}`, "error");
+    }
   };
 
   const filteredSets = sets.filter((s: any) => {
@@ -600,13 +607,13 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
       <SidePanel
         isOpen={!!activeSet}
         onClose={() => setActiveSet(null)}
-        title={activeSet?.name || "UNNAMED SET"}
-        subtitle={t("masonhub_manage_collection") || "Manage Collection"}
+        title={t("masonhub_manage_collection") || "Manage Collection"}
+        subtitle={`UUID: ${activeSet?.id}`}
         icon="library_books"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
-            <button type="button" onClick={handleDeleteSet} disabled={isSaving} className={standardDangerButtonClass}>
-              {t("mason_cc_btn_delete_set") || "DELETE SET"}
+            <button type="button" onDoubleClick={handleDeleteSet} disabled={isSaving} className={`${standardDangerButtonClass}`}>
+              <span>{t("mason_cc_btn_delete_set") || "DELETE SET"}</span>
             </button>
             <button type="button" onClick={handleSaveSetMeta} disabled={isSaving} className={standardAccentGlassButtonClass}>
               {isSaving ? (t("mason_cc_saving") || "SAVING...") : (t("mason_cc_save_set") || "Save Collection")}
@@ -616,6 +623,21 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
       >
         {activeSet && (
           <div className="flex flex-col h-full gap-8">
+            <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
+              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info") || "info"}</span>
+                {t("registry_meta") || "Metadata"}
+              </h4>
+              <div className="flex flex-col gap-2 relative z-10">
+                <input 
+                  value={activeSet.name || ""} 
+                  onChange={e => setActiveSet({...activeSet, name: e.target.value})} 
+                  placeholder={t("forge_set_name") || "Collection Name..."}
+                  className="bg-transparent text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full"
+                />
+              </div>
+            </div>
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_cc_cover_url") || "Cover Image URL"}</label>
@@ -656,11 +678,12 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
                     <span className="theme-text-accent font-black text-xs">{members.length}</span>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-2">
                       {members.map(mem => (
                         <ArtifactCard 
                           key={mem.id} 
                           mod={mem.mods} 
+                          layout="horizontal"
                           onClick={() => {}}
                           onRemove={(e) => handleRemoveMod(mem.id)}
                           masonsList={[]}
@@ -820,7 +843,7 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
         subtitle={`UUID: ${activeMod?.id}`}
         icon="inventory_2"
         backdropZ="z-[50000]"
-        widthClass="w-[550px]"
+        widthClass="w-[600px]"
         panelZ="z-[50001]"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
@@ -843,67 +866,84 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
               </h4>
               
               <div className="flex flex-col gap-2 relative z-10">
-                <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none">{activeMod?.name || t("sa_identities_unknown") || "UNKNOWN"}</h3>
+                <input value={activeMod?.name || ""} onChange={e => setActiveMod({...activeMod, name: e.target.value})} placeholder={t("registry_label_name") || "Artifact Name"} className="bg-transparent text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full" />
               </div>
             </div>
             
-            <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_name") || "Artifact Name"}</label>
-                <input value={activeMod.name || ""} onChange={e => setActiveMod({...activeMod, name: e.target.value})} placeholder={t("registry_label_name") || "Artifact Name"} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-            </div>
 
-            <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class") || "Category"}</label>
-                <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(val: string) => setActiveMod({...activeMod, category_override: val})} />
-              </div>
-              
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_sub_classification") || "Sub Classification"}</label>
-                <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} placeholder={t("masonhub_sub_classification_placeholder") || "eg Trait Career Bed"} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-              </div>
-              
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "File Extension"}</label>
-                <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} placeholder={t("sandbox_placeholder_file_ext") || "Enter File Extention (Package, ts4script)"} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-              </div>
-              
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
-                <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class") || "Category"}</label>
+                  <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(val: string) => setActiveMod({...activeMod, category_override: val})} />
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "File Extension"}</label>
+                    <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="e.g. .package, .ts4script" />
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat") || "SUB-CATEGORY"}</label>
+                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="e.g. Tuning, Object, CAS" />
+                </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "Description"}</label>
-                <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold min-h-[150px] custom-scrollbar resize-none focus:outline-none focus:theme-border-accent" />
+              <div className="flex flex-col gap-2 mt-4">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "Description"}</label>
+                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 mt-4">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image") || "Cover Image URL"}</label>
-                <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="https://..." />
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_condition_protocol") || "Condition Protocol"}</label>
-                <MasonStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({...activeMod, status: newStatus})} />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
+                    {t("registry_label_version") || "Master Version (Latest)"} 
+                  </label>
+                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder="e.g. 1.0, 1.1, 1.2" className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
+                </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_uploaded_date") || "UPLOADED DATE"}</label>
-                <div className="w-full">
-                  <CustomDatePicker value={activeMod.created_at || null} onChange={date => setActiveMod({...activeMod, created_at: date})} />
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
+                  <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="https://..." />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_updated_date") || "LAST UPDATED"}</label>
-                <div className="w-full">
-                  <CustomDatePicker value={activeMod.updated_at || null} onChange={date => setActiveMod({...activeMod, updated_at: date})} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status") || "Global Status"}</label>
+                  <MasonStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({...activeMod, status: newStatus})} />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "SAFETY RATING"}</label>
+                  <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({...activeMod, compliance_tier: newTier})} includeTier3={false} />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_uploaded_date") || "UPLOADED DATE"}</label>
+                  <div className="w-full">
+                    <CustomDatePicker value={activeMod.created_at || null} onChange={(date: any) => setActiveMod({...activeMod, created_at: date})} />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_updated_date") || "LAST UPDATED"}</label>
+                  <div className="w-full">
+                    <CustomDatePicker value={activeMod.updated_at || null} onChange={(date: any) => setActiveMod({...activeMod, updated_at: date})} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 mt-4 pb-48">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions") || "GAME VERSIONS"}</label>
-                <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v) => setActiveMod({...activeMod, compatible_versions: v})} />
+                <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({...activeMod, compatible_versions: v})} />
               </div>
             </div>
         )}
@@ -1259,10 +1299,13 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
             widthClass="w-[800px]"
             title={editingPostId ? (t("masonhub_update_transmission") || "UPDATE TRANSMISSION") : (t("mason_new_transmission") || "NEW TRANSMISSION")}
             subtitle={editingPostId ? (t("masonhub_editing_record") || "Editing Record") : (t("masonhub_composing_broadcast") || "Composing New Broadcast")}
-            actions={
-              <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-                {isSubmitting ? t("mason_saving") || "SAVING..." : (editingPostId ? t("masonhub_update_transmission") || "UPDATE TRANSMISSION" : t("mason_btn_post") || "BROADCAST")}
-              </button>
+            footer={
+              <div className="flex justify-center items-center gap-4 w-full">
+                <button onClick={closeEditor} disabled={isSubmitting} className={standardButtonClass}>{t("ui_btn_cancel") || "CANCEL"}</button>
+                <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className={standardAccentGlassButtonClass}>
+                  {isSubmitting ? t("mason_saving") || "SAVING..." : (editingPostId ? t("masonhub_update_transmission") || "UPDATE TRANSMISSION" : t("mason_btn_post") || "BROADCAST")}
+                </button>
+              </div>
             }
           >
             <div className="flex flex-col gap-6">
@@ -1445,7 +1488,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
 }
 
 
-function MasonSettings({ profile, onUpdate }: { profile: any, onUpdate: (p: any) => void }) {
+function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: { isOpen: boolean, onClose: () => void, profile: any, onUpdate: (p: any) => void }) {
   const { t } = useLexicon();
   const [formData, setFormData] = useState({
     name: profile.name || "",
@@ -1457,17 +1500,48 @@ function MasonSettings({ profile, onUpdate }: { profile: any, onUpdate: (p: any)
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        name: profile.name || "",
+        bio: profile.bio || "",
+        avatar_url: profile.avatar_url || "",
+        patreon_url: profile.patreon_url || "",
+        website_url: profile.website_url || "",
+        discord_url: profile.discord_url || ""
+      });
+    }
+  }, [isOpen, profile]);
+
   const handleSave = async () => {
     setIsSaving(true);
     const { data, error } = await supabase.from('masons').update(formData).eq('id', profile.id).select().single();
     if (!error && data) {
        onUpdate(data);
        useStore.getState().pushStatus("Profile settings saved successfully!", 'success');
+       onClose();
     }
     setIsSaving(false);
   };
 
   return (
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("masonhub_settings_title") || "MASON SETTINGS"}
+      icon={t("ui_icon_settings") || "settings"}
+      widthClass="w-[500px]"
+      footer={
+        <div className="flex justify-center items-center gap-4 w-full">
+          <button onClick={onClose} className={standardButtonClass}>
+             {t("shared_cancel") || "CANCEL"}
+          </button>
+          <button onClick={handleSave} disabled={isSaving} className={standardAccentGlassButtonClass}>
+            {isSaving ? t("masonhub_saving_settings") || "Saving" : t("masonhub_save_configuration") || "Save Configuration"}
+          </button>
+        </div>
+      }
+    >
     <div className="w-full flex flex-col gap-6">
        <h2 className="text-sm font-black theme-text-accent uppercase tracking-widest mb-2">{t("masonhub_creator_identity") || "Creator Identity"}</h2>
        
@@ -1502,10 +1576,8 @@ function MasonSettings({ profile, onUpdate }: { profile: any, onUpdate: (p: any)
          <input value={formData.discord_url} onChange={e => setFormData({...formData, discord_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
        </div>
        
-       <button onClick={handleSave} disabled={isSaving} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group mt-4 w-full">
-         {isSaving ? t("masonhub_saving_settings") || "Saving" : t("masonhub_save_configuration") || "Save Configuration"}
-       </button>
     </div>
+    </SidePanel>
   );
 }
 function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
@@ -1518,7 +1590,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
   ).slice(0, 15);
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-[3px] animate-in fade-in">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/20 backdrop-blur-[3px] animate-in fade-in">
       <div className="w-full max-w-lg bg-[var(--sidebar)] border border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden">
         <div className="p-6 border-b border-white/10">
           <div className="flex justify-between items-center mb-4">
@@ -1906,10 +1978,15 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
             widthClass="w-[600px]"
             backdropZ="z-[50000]"
             panelZ="z-[50001]"
-            actions={
-              <button onClick={handleSyncToNetwork} disabled={isCommitting} className={standardSuccessButtonClass}>
-                {isCommitting ? t("sandbox_btn_syncing") || "SYNCING..." : (t("sandbox_btn_sync") || "SYNC TO NETWORK")}
-              </button>
+            footer={
+              <div className="flex justify-center items-center gap-4 w-full">
+                <button onClick={() => setIsEditorOpen(false)} className={standardButtonClass}>
+                  {t("shared_cancel") || "CANCEL"}
+                </button>
+                <button onClick={handleSyncToNetwork} disabled={isCommitting} className={standardSuccessButtonClass}>
+                  {isCommitting ? t("sandbox_btn_syncing") || "SYNCING..." : (t("sandbox_btn_sync") || "SYNC TO NETWORK")}
+                </button>
+              </div>
             }
           >
             <div className="flex flex-col gap-8">

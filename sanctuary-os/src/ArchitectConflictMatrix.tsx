@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass } from "./shared";
+import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass, standardButtonClass } from "./shared";
 import { logArchitectAction } from "./lib/audit";
 
 const fetchAllPaginated = async (queryFn: () => any) => { 
@@ -415,6 +415,11 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                            />
                        )}
                        <div className="flex justify-center items-center gap-4 mt-2 w-full">
+                           {!editConflictId && (
+                               <button type="button" onClick={() => setIsSidePanelOpen(false)} className={standardButtonClass}>
+                                   {t("ui_btn_cancel") || "CANCEL"}
+                               </button>
+                           )}
                            {editConflictId && (
                                <button type="button" onClick={() => setIsDeleting(true)} className={standardDangerButtonClass}>
                                    {editingGhost?.status === 'pending' ? (t("matrix_btn_reject") || "DISCARD") : (t("nexus_purge") || "DELETE")}

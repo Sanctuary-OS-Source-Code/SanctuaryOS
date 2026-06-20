@@ -2,7 +2,7 @@ import { useStore } from "./store";
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
-import { SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass } from "./shared";
+import { SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, CustomDropdown } from "./shared";
 import MarkdownRenderer from "./MarkdownRenderer";
 import TicketLogViewer from "./TicketLogViewer";
 
@@ -36,6 +36,7 @@ export default function TicketDossierSidePanel({
   const [replies, setReplies] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fetchedTargetModName, setFetchedTargetModName] = useState<string | null>(null);
+  const [selectedAction, setSelectedAction] = useState<string>("");
 
   useEffect(() => {
     const targetModId = ticket?.target_mod_id || ticket?.metadata?.target_mod_id;
@@ -140,43 +141,21 @@ export default function TicketDossierSidePanel({
       icon="support_agent"
       footer={
         (!isReadOnly && onTakeAction && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '')) ? (
-          <div className="flex gap-2 w-full justify-end">
-            {availableActions.includes("REJECTED") && (
-              <button 
-                onClick={() => onTakeAction("REJECTED", reason)}
-                disabled={!reason.trim() || isSubmitting}
-                className="h-10 px-6 rounded-full border border-rose-900/50 text-rose-500 text-[9px] font-black uppercase tracking-widest transition-all hover:bg-rose-500/10 hover:border-rose-500 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none"
-              >
-                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_cancel") || "cancel"}</span> {t("ticket_dossier_btn_reject") || "Reject"}
-              </button>
-            )}
-            {availableActions.includes("ESCALATED") && (
-              <button 
-                onClick={() => onTakeAction("ESCALATED", reason)}
-                disabled={!reason.trim() || isSubmitting}
-                className="h-10 px-6 rounded-full border border-white/10 text-[var(--text)] text-[9px] font-black uppercase tracking-widest transition-all hover:bg-white/5 hover:border-white/20 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none"
-              >
-                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_warning") || "warning_amber"}</span> {t("ticket_dossier_btn_escalate") || "Escalate"}
-              </button>
-            )}
-            {availableActions.includes("PENDING" as any) && (
-              <button 
-                onClick={() => onTakeAction("PENDING" as any, reason)}
-                disabled={!reason.trim() || isSubmitting}
-                className="h-10 px-6 rounded-full border border-white/10 text-[var(--text)] text-[9px] font-black uppercase tracking-widest transition-all hover:bg-white/5 hover:border-white/20 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none"
-              >
-                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_hourglass_empty") || "hourglass_empty"}</span> {t("ticket_action_set_pending") || "Set to Pending"}
-              </button>
-            )}
-            {availableActions.includes("RESOLVED") && (
-              <button 
-                onClick={() => onTakeAction("RESOLVED", reason)}
-                disabled={!reason.trim() || isSubmitting}
-                className="h-10 px-6 rounded-full border border-emerald-900/50 text-emerald-500 text-[9px] font-black uppercase tracking-widest transition-all hover:bg-emerald-500/10 hover:border-emerald-500 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none"
-              >
-                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check_circle") || "check_circle"}</span> {t("ticket_dossier_btn_resolve") || "Resolve"}
-              </button>
-            )}
+          <div className="flex justify-center items-center gap-4 w-full">
+            <button 
+              onClick={onClose}
+              disabled={isSubmitting}
+              className={standardButtonClass}
+            >
+              {t("ui_btn_cancel") || "CANCEL"}
+            </button>
+            <button 
+              onClick={() => onTakeAction(selectedAction as any, reason)}
+              disabled={!selectedAction || !reason.trim() || isSubmitting}
+              className={standardAccentGlassButtonClass}
+            >
+              {t("ticket_dossier_btn_save") || "SAVE ACTION"}
+            </button>
           </div>
         ) : undefined
       }
@@ -352,8 +331,26 @@ export default function TicketDossierSidePanel({
         )}
 
         {!isReadOnly && onTakeAction && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '') && (
-          <>
-            <div className="flex flex-col gap-4 mt-6">
+          <div className="flex flex-col gap-6 mt-6">
+            <div className="flex flex-col gap-3">
+              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_task_alt") || "task_alt"}</span> {t("ticket_dossier_action") || "Action"} <span className="text-rose-500">*</span>
+              </label>
+              <div className="w-full relative z-50">
+                <CustomDropdown 
+                  disableTint={true}
+                  value={selectedAction} 
+                  onChange={(v: string[]) => setSelectedAction(v[0])} 
+                  options={availableActions.map(action => ({
+                    id: action,
+                    label: t(`ticket_dossier_action_${action.toLowerCase()}`) || action
+                  }))}
+                  placeholder={t("ticket_dossier_select_action") || "Select Action..."}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_gavel") || "gavel"}</span> {t("ticket_dossier_action_reason") || "Action Reason / Notes"} <span className="text-rose-500">*</span>
               </label>
@@ -364,7 +361,7 @@ export default function TicketDossierSidePanel({
                 className="w-full theme-glass-panel border-white/10 rounded-xl px-4 py-4 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] transition-all h-32 resize-none custom-scrollbar shadow-inner"
               />
             </div>
-          </>
+          </div>
         )}
       </div>
     </SidePanel>

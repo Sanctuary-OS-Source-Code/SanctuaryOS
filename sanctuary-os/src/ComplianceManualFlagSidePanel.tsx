@@ -102,14 +102,14 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       subtitle={t("sa_comp_manual_subtitle") || "Direct insertion into Global Registry"}
       icon={t("ui_icon_flag") || "flag"}
       iconColorClass="text-[var(--danger)] border-[var(--danger)]/30"
-      actions={
-        <div className="flex flex-col gap-4 w-full">
-          <button onClick={handleManualFlag} disabled={isSubmitting} className={`!w-full !rounded-[2rem] !py-5 ${standardDangerButtonClass}`}>
-            {isSubmitting ? t("sa_comp_manual_btn_transmitting") || "TRANSMITTING..." : t("sa_comp_manual_btn_insert") || "INSERT RECORD"}
-          </button>
-            <button onClick={onClose} className="!w-full !rounded-[2rem] !py-4 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all uppercase font-black tracking-widest text-xs hover:-translate-y-0.5 shadow-lg hover:shadow-xl text-[var(--text)]">
+      footer={
+        <div className="flex justify-center items-center gap-4 w-full">
+            <button onClick={onClose} className={standardButtonClass}>
               {t("sa_comp_manual_btn_cancel") || "CANCEL"}
             </button>
+          <button onClick={handleManualFlag} disabled={isSubmitting} className={standardDangerButtonClass}>
+            {isSubmitting ? t("sa_comp_manual_btn_transmitting") || "TRANSMITTING..." : t("sa_comp_manual_btn_insert") || "INSERT RECORD"}
+          </button>
         </div>
       }
     >

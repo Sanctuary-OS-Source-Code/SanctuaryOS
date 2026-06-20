@@ -449,17 +449,13 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                             className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-amber-500/50 transition-all font-mono"
                         />
                     </div>
-                    <div className="flex justify-end gap-4 w-full">
-                        {draft.id ? (
-                            <button onClick={handleDelete} disabled={isSaving || !actionReason} className={`h-12 !py-0 px-6 ${standardDangerButtonClass}`}>
+                    <div className="flex justify-center items-center gap-4 w-full">
+                        {draft.id && (
+                            <button onClick={handleDelete} disabled={isSaving || !actionReason} className={standardDangerButtonClass}>
                                 {t("sa_btn_delete") || "DELETE"}
                             </button>
-                        ) : (
-                            <button onClick={onClose} className={`h-12 !py-0 px-6 ${standardButtonClass}`}>
-                                {t("shared_cancel") || "CANCEL"}
-                            </button>
                         )}
-                        <button onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name || !actionReason} className={`h-12 !py-0 px-8 ${standardSuccessButtonClass}`}>
+                        <button onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name || !actionReason} className={standardSuccessButtonClass}>
                             {isSaving ? "..." : (t("ui_btn_save_changes") || "SAVE CHANGES")}
                         </button>
                     </div>
@@ -796,9 +792,9 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                             className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-xs font-bold focus:outline-none focus:border-[var(--warning)]/50 transition-all border border-white/5"
                         />
                     </div>
-                    <div className="flex justify-end gap-4 w-full">
+                    <div className="flex justify-center items-center gap-4 w-full">
                         {draft.id && (
-                            <button onClick={deleteSource} disabled={isSaving} className={`${standardDangerButtonClass} mr-auto`}>
+                            <button onClick={deleteSource} disabled={isSaving} className={standardDangerButtonClass}>
                                 {t("sa_telemetry_delete") || "DELETE"}
                             </button>
                         )}

@@ -72,8 +72,17 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
       parsedSections.push({ title: currentTitle, content: currentLines.join("\n").trim() });
     }
 
+    const PREFERRED_ORDER = ["Sanctuary OS Logs (OS)", "System Log History", "Attached Blueprint"];
+    
     // Filter out empty general sections
-    return parsedSections.filter(s => s.content.trim() !== "");
+    return parsedSections.filter(s => s.content.trim() !== "").sort((a, b) => {
+      const idxA = PREFERRED_ORDER.indexOf(a.title);
+      const idxB = PREFERRED_ORDER.indexOf(b.title);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return 0;
+    });
   }, [logs]);
 
   if (!logs || sections.length === 0) return null;

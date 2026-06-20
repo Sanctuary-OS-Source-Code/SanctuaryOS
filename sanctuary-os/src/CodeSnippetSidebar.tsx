@@ -31,7 +31,7 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
       panelZ="z-[60001]"
       backdropZ="z-[60000]"
       isResizable={true}
-      defaultWidth={800}
+      defaultWidth={575}
       footer={
         <div className="w-full flex justify-end gap-4">
           <button 

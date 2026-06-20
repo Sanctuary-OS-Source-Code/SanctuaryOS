@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { useModalStore } from './store/modalStore';
-import { ViewHeader, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, SidePanel, CustomComplianceDropdown, loadDLCMap, HubTabButton, StatTile, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass } from './shared';
+import { ViewHeader, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, SidePanel, CustomComplianceDropdown, loadDLCMap, HubTabButton, StatTile, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, CustomDatePicker } from './shared';
 import ArchitectSupportTickets from './ArchitectSupportTickets';
 import SASupportSettings from './SASupportSettings';
 import MasonPostViewer from './MasonPostViewer';
@@ -556,20 +556,25 @@ export function MasonLinker() {
         title={isCreating ? "LINK NEW MASON" : "EDIT MASON"}
         icon={t("ui_icon_link") || "link"}
         subtitle={selectedMason ? `UUID: ${selectedMason.id}` : t("sa_create_mason_subtitle") || "Link a new verified or unverified Mason"}
-        actions={
+        footer={
           <div className="flex flex-col gap-4 w-full">
             {status && (
               <div className="text-center bg-black/20 p-3 rounded-xl border border-white/5 w-full">
                 <p className={`text-[10px] font-black uppercase tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
               </div>
             )}
-            <button 
-              onClick={handleSave} 
-              disabled={isSubmitting || !editName.trim()} 
-              className={`!w-full !rounded-[2rem] !py-5 ${standardAccentGlassButtonClass}`}
-            >
-              {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : (isCreating ? t("sa_btn_create_mason_naked") || "LINK MASON" : t("registry_commit_changes") || "Commit Changes")}
-            </button>
+            <div className="flex justify-center items-center gap-4 w-full">
+              <button type="button" onClick={handleClosePanel} disabled={isSubmitting} className={standardButtonClass}>
+                {t("ui_btn_cancel") || "CANCEL"}
+              </button>
+              <button 
+                onClick={handleSave} 
+                disabled={isSubmitting || !editName.trim()} 
+                className={standardAccentGlassButtonClass}
+              >
+                {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : (isCreating ? t("sa_btn_create_mason_naked") || "LINK MASON" : t("registry_commit_changes") || "Commit Changes")}
+              </button>
+            </div>
           </div>
         }
       >
@@ -866,20 +871,25 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
         title={t("sa_comp_edit_tier") || "EDIT COMPLIANCE TIER"}
         icon={t("ui_icon_policy") || "policy"}
         subtitle={selectedMod ? `UUID: ${selectedMod.id}` : undefined}
-        actions={
+        footer={
           <div className="flex flex-col gap-4 w-full">
             {status && (
               <div className="text-center bg-black/20 p-3 rounded-xl border border-white/5 w-full">
                 <p className={`text-[10px] font-black uppercase tracking-widest ${status.includes('Failed') || status.includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
               </div>
             )}
-            <button 
-              onClick={handleSaveTier} 
-              disabled={isSubmitting || !editReason.trim()} 
-              className={`!w-full !rounded-[2rem] !py-5 ${standardSuccessButtonClass}`}
-            >
-              {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : t("registry_commit_changes") || "Commit Changes"}
-            </button>
+            <div className="flex justify-center items-center gap-4 w-full">
+              <button onClick={() => setSelectedMod(null)} className={standardButtonClass}>
+                {t("shared_cancel") || "CANCEL"}
+              </button>
+              <button 
+                onClick={handleSaveTier} 
+                disabled={isSubmitting || !editReason.trim()} 
+                className={standardSuccessButtonClass}
+              >
+                {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : t("registry_commit_changes") || "Commit Changes"}
+              </button>
+            </div>
           </div>
         }
       >
@@ -2009,37 +2019,33 @@ function GameManagementOversight() {
         subtitle={sidePanelMode?.includes('version') ? (t("sa_panel_sub_version") || "GAME VERSION REGISTRY") : (t("sa_panel_sub_dlc") || "DLC REGISTRY")}
         icon={sidePanelMode?.includes('version') ? "gamepad" : "extension"}
         footer={
-          <div className="flex flex-col gap-4 w-full">
-            <div className="flex gap-4 w-full">
-               {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') ? (
-                 <button 
-                   disabled={!panelReason.trim() || isPanelSubmitting}
-                   onClick={() => handlePanelCommit(true)}
-                   className={`flex-1 ${standardDangerButtonClass} !rounded-[2rem] disabled:opacity-30 disabled:pointer-events-none`}
-                 >
-                   {isPanelSubmitting ? t("ui_btn_processing") || "PROCESSING..." : (t("ui_btn_delete") || "DELETE")}
-                 </button>
-               ) : (
-                 <button 
-                   onClick={() => setSidePanelMode(null)}
-                   className={`flex-1 ${standardButtonClass} !rounded-[2rem]`}
-                 >
-                   {t("ui_btn_cancel") || "CANCEL"}
-                 </button>
-               )}
-               <button 
-                 onClick={() => handlePanelCommit(false)}
-                 disabled={
-                   isPanelSubmitting || 
-                   !panelReason.trim() || 
-                   ((sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && !panelInput1.trim()) ||
-                   ((sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (!panelInput1.trim() || !panelInput2.trim()))
-                 }
-                 className={`flex-1 !rounded-[2rem] ${standardSuccessButtonClass}`}
-               >
-                 {isPanelSubmitting ? (t("ui_btn_processing") || "PROCESSING...") : (t("ui_btn_commit") || "COMMIT CHANGES")}
-               </button>
-            </div>
+          <div className="flex justify-center items-center gap-4 w-full">
+            {(sidePanelMode === 'add_version' || sidePanelMode === 'add_dlc') && (
+              <button onClick={() => setSidePanelMode(null)} className={standardButtonClass}>
+                {t("shared_cancel") || "CANCEL"}
+              </button>
+            )}
+            {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && (
+              <button 
+                disabled={!panelReason.trim() || isPanelSubmitting}
+                onClick={() => handlePanelCommit(true)}
+                className={standardDangerButtonClass}
+              >
+                {isPanelSubmitting ? t("ui_btn_processing") || "PROCESSING..." : (t("ui_btn_delete") || "DELETE")}
+              </button>
+            )}
+            <button 
+              onClick={() => handlePanelCommit(false)}
+              disabled={
+                isPanelSubmitting || 
+                !panelReason.trim() || 
+                ((sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && !panelInput1.trim()) ||
+                ((sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (!panelInput1.trim() || !panelInput2.trim()))
+              }
+              className={standardSuccessButtonClass}
+            >
+              {isPanelSubmitting ? (t("ui_btn_processing") || "PROCESSING...") : (t("ui_btn_commit") || "COMMIT CHANGES")}
+            </button>
           </div>
         }
       >
@@ -2387,15 +2393,26 @@ export function AuditLogViewer() {
   
   const [search, setSearch] = useState("");
   const [filterAction, setFilterAction] = useState("ALL");
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
+
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [selectedLog, setSelectedLog] = useState<any>(null);
 
   const fetchLogs = async () => {
     setLoading(true);
-    // 1. Fetch raw logs without foreign key join
-    const { data: rawLogs, error: logError } = await supabase
-      .from('audit_logs')
-      .select('*')
+    let query = supabase.from('audit_logs').select('*');
+
+    if (dateStart) {
+      query = query.gte('created_at', new Date(dateStart).toISOString());
+    }
+    if (dateEnd) {
+      const end = new Date(dateEnd);
+      end.setHours(23, 59, 59, 999);
+      query = query.lte('created_at', end.toISOString());
+    }
+
+    const { data: rawLogs, error: logError } = await query
       .order('created_at', { ascending: false })
       .limit(100);
     
@@ -2433,7 +2450,7 @@ export function AuditLogViewer() {
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [dateStart, dateEnd]);
 
   const uniqueTargets = ["ALL", ...Array.from(new Set(logs.map(log => log.target_table).filter(Boolean)))];
   const filterOptions = uniqueTargets.map(target => ({
@@ -2463,8 +2480,8 @@ export function AuditLogViewer() {
           <span className="truncate">{t("sa_audit_title") || "Audit Logs"}</span>
         </h2>
         
-        <div className="flex gap-4 flex-1 w-full justify-end items-center">
-          <div className="relative flex-1 max-w-[300px]">
+        <div className="flex gap-4 flex-1 w-full justify-end items-center flex-wrap">
+          <div className="relative flex-1 max-w-[300px] min-w-[200px]">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search") || "search"}</span>
             <input 
               type="text" 
@@ -2482,6 +2499,15 @@ export function AuditLogViewer() {
               placeholder="FILTER LOGS"
               searchable={true}
             />
+          </div>
+          <div className="flex items-center gap-2 text-[var(--subtext)] z-30">
+             <div className="w-36">
+               <CustomDatePicker value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder="START" />
+             </div>
+             <span className="opacity-50">-</span>
+             <div className="w-36">
+               <CustomDatePicker value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder="END" />
+             </div>
           </div>
         </div>
       </div>
