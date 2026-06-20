@@ -85,6 +85,12 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
     if (!newComment.trim() && !codeSnippet.trim()) return;
     if (!userId) return;
     
+    const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', userId).single();
+    if (profile?.is_comm_banned) {
+      useStore.getState().pushStatus(`Communications Ban: ${profile.comm_blacklist_reason || 'You are banned from replying.'}`, "error");
+      return;
+    }
+
     let finalContent = newComment.trim();
 
     const { error } = await supabase.from('mason_post_comments').insert({
@@ -97,8 +103,8 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
     
     if (!error) {
       if (replyTargetAuthorId && replyTargetAuthorId !== userId) {
-        const { data: profile } = await supabase.from('profiles').select('username').eq('id', userId).single();
-        const senderName = profile?.username || "A Citizen";
+        const { data: notificationProfile } = await supabase.from('profiles').select('username').eq('id', userId).single();
+        const senderName = notificationProfile?.username || "A Citizen";
         await supabase.from('notifications').insert({
           user_id: replyTargetAuthorId,
           actor_id: userId,

@@ -1111,6 +1111,15 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', user.id).single();
+      if (profile?.is_comm_banned) {
+        useStore.getState().pushStatus(`Communications Ban: ${profile.comm_blacklist_reason || 'You are banned from comm-link.'}`, "error");
+        return;
+      }
+    }
+
     if (isPinned) {
       const existingPinned = posts.find(p => p.is_pinned && p.id !== editingPostId);
       if (existingPinned) {

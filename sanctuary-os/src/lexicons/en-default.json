@@ -1015,6 +1015,8 @@
   "sa_identities_updating": "UPDATING ROLE...",
   "sa_identities_wayfinder_locked": "Wayfinder roles can only be modified by other Wayfinders.",
   "sa_identities_punitive": "PUNITIVE ACTION",
+  "sa_identities_punitive_upload": "UPLOAD & NEXUS BAN",
+  "sa_identities_punitive_comm": "COMMUNICATIONS BAN",
   "sa_identities_ban": "BAN IDENTITY",
   "sa_link_profile": "LINK TO PROFILE",
   "sa_linker_search_mason": "Search Mod Creator...",
@@ -1837,5 +1839,7 @@
   "status_launch_failed": "error LAUNCH FAILED",
   "ui_btn_wrap_text": "Wrap Text",
   "ui_placeholder_search_code": "Search code snippet...",
-  "ui_edit_metadata": "EDIT METADATA"
+  "ui_edit_metadata": "EDIT METADATA",
+  "id_reason_ban": "Reason for quarantine / ban...",
+  "id_reason_comm_ban": "Reason for communications ban..."
 }

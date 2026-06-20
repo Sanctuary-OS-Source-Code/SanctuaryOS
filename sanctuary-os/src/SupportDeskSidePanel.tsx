@@ -164,6 +164,11 @@ export default function SupportDeskSidePanel({ isOpen, onClose, preselectedType 
         throw new Error("Must be logged in to submit a ticket.");
       }
 
+      const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', user.id).single();
+      if (profile?.is_comm_banned) {
+        throw new Error(`Communications Ban: ${profile.comm_blacklist_reason || "You have been banned from submitting support tickets."}`);
+      }
+
       // Ensure blueprint is always attached for ANY Bug Report if they have an active set and it wasn't already attached via OS Telemetry
       if (activeSet && type.toLowerCase().includes('bug') && !finalLogs.includes('--- TELEMETRY: Attached Blueprint ---')) {
           const bpPayload = JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2);

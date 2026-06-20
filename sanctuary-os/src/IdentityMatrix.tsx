@@ -24,7 +24,9 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
   const { t } = useLexicon();
   const [editRole, setEditRole] = useState("citizen");
   const [isBanned, setIsBanned] = useState(false);
+  const [isCommBanned, setIsCommBanned] = useState(false);
   const [editReason, setEditReason] = useState("");
+  const [editCommReason, setEditCommReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState("");
 
@@ -32,7 +34,9 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
     if (profile) {
       setEditRole(profile.role || "citizen");
       setIsBanned(profile.is_banned || false);
+      setIsCommBanned(profile.is_comm_banned || false);
       setEditReason(profile.blacklist_reason || "");
+      setEditCommReason(profile.comm_blacklist_reason || "");
       setStatus("");
     }
   }, [profile]);
@@ -40,7 +44,11 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
   const handleUpdateRole = async () => {
     if (!profile) return;
     if (isBanned && !editReason.trim()) {
-      setStatus("Reason is required for banning.");
+      setStatus("Reason is required for upload ban.");
+      return;
+    }
+    if (isCommBanned && !editCommReason.trim()) {
+      setStatus("Reason is required for comms ban.");
       return;
     }
     
@@ -50,7 +58,9 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
     const { data, error } = await supabase.from('profiles').update({ 
       role: editRole,
       is_banned: isBanned,
-      blacklist_reason: isBanned ? editReason : null
+      is_comm_banned: isCommBanned,
+      blacklist_reason: isBanned ? editReason : null,
+      comm_blacklist_reason: isCommBanned ? editCommReason : null
     }).eq('id', profile.id).select();
     
     if (error || !data || data.length === 0) {
@@ -59,12 +69,19 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
       const userRes = await supabase.auth.getUser();
       const myId = userRes.data.user?.id;
       
+      let auditReason = "Role Update";
+      let auditAction = `Updated role to ${editRole}`;
+      if (isBanned || isCommBanned) {
+         auditAction = `Banned User (${isBanned ? 'Upload ' : ''}${isCommBanned ? 'Comms' : ''})`;
+         auditReason = `Upload: ${editReason} | Comms: ${editCommReason}`;
+      }
+      
       await supabase.from('audit_logs').insert({
-         action: isBanned ? `Banned User` : `Updated role to ${editRole}`,
+         action: auditAction,
          target_table: 'profiles',
          target_name: profile.username || profile.id,
          actor_id: myId,
-         reason: isBanned ? editReason : "Role Update"
+         reason: auditReason
       });
       
       setStatus(t("sa_identities_updated") || "ROLE UPDATED");
@@ -100,8 +117,8 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
             </button>
             <button 
               onClick={handleUpdateRole} 
-              disabled={isSubmitting || (isBanned && !editReason.trim()) || (!isWayfinder && profile?.role === 'wayfinder')} 
-              className={isBanned ? standardDangerButtonClass : standardSuccessButtonClass}
+              disabled={isSubmitting || (isBanned && !editReason.trim()) || (isCommBanned && !editCommReason.trim()) || (!isWayfinder && profile?.role === 'wayfinder')} 
+              className={(isBanned || isCommBanned) ? standardDangerButtonClass : standardSuccessButtonClass}
             >
               {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : t("registry_commit_changes") || "Commit Changes"}
             </button>
@@ -146,37 +163,74 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
         </div>
 
         {(!isWayfinder && profile?.role === 'wayfinder') ? null : (
-          <div className={`flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border ${isBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
-            <div className={`absolute inset-0 bg-gradient-to-br ${isBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
-            <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isBanned ? 'border-red-500/20 text-red-400' : 'border-white/5 text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_gavel") || "gavel"}</span>
-              {t("sa_identities_punitive") || "PUNITIVE ACTION"}
-            </h4>
-             <div className="flex items-center justify-between relative z-10">
-                <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
-                   {t("sa_identities_ban") || "BAN IDENTITY"}
-                </label>
-                <button 
-                  onClick={() => setIsBanned(!isBanned)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isBanned ? 'bg-red-500' : 'bg-gray-600'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBanned ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-             </div>
-  
-             {isBanned && (
-               <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-10 mt-2">
-                 <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                    {t("sa_ban_reason_req") || "BAN REASON (REQUIRED)"}
-                 </label>
-                 <textarea 
-                   value={editReason} 
-                   onChange={e => setEditReason(e.target.value)} 
-                   placeholder={t("id_reason_ban") || "Reason for quarantine / ban..."} 
-                   className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]" 
-                 />
+          <div className="flex flex-col gap-6">
+            {/* Upload Ban */}
+            <div className={`flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border ${isBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
+              <div className={`absolute inset-0 bg-gradient-to-br ${isBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
+              <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isBanned ? 'border-red-500/20 text-red-400' : 'border-white/5 text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_gavel") || "gavel"}</span>
+                {t("sa_identities_punitive_upload") || "UPLOAD/NEXUS BAN"}
+              </h4>
+               <div className="flex items-center justify-between relative z-10">
+                  <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
+                     {t("sa_identities_ban") || "BAN IDENTITY"}
+                  </label>
+                  <button 
+                    onClick={() => setIsBanned(!isBanned)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isBanned ? 'bg-red-500' : 'bg-gray-600'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBanned ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
                </div>
-             )}
+    
+               {isBanned && (
+                 <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-10 mt-2">
+                   <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                      {t("sa_ban_reason_req") || "BAN REASON (REQUIRED)"}
+                   </label>
+                   <textarea 
+                     value={editReason} 
+                     onChange={e => setEditReason(e.target.value)} 
+                     placeholder={t("id_reason_ban") || "Reason for quarantine / ban..."} 
+                     className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]" 
+                   />
+                 </div>
+               )}
+            </div>
+
+            {/* Comms Ban */}
+            <div className={`flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border ${isCommBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
+              <div className={`absolute inset-0 bg-gradient-to-br ${isCommBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
+              <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isCommBanned ? 'border-red-500/20 text-red-400' : 'border-white/5 text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_gavel") || "gavel"}</span>
+                {t("sa_identities_punitive_comm") || "COMMUNICATIONS BAN (SUPPORT/POSTS)"}
+              </h4>
+               <div className="flex items-center justify-between relative z-10">
+                  <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
+                     {t("sa_identities_ban") || "BAN IDENTITY"}
+                  </label>
+                  <button 
+                    onClick={() => setIsCommBanned(!isCommBanned)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isCommBanned ? 'bg-red-500' : 'bg-gray-600'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCommBanned ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+               </div>
+    
+               {isCommBanned && (
+                 <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-10 mt-2">
+                   <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                      {t("sa_ban_reason_req") || "BAN REASON (REQUIRED)"}
+                   </label>
+                   <textarea 
+                     value={editCommReason} 
+                     onChange={e => setEditCommReason(e.target.value)} 
+                     placeholder={t("id_reason_comm_ban") || "Reason for comms ban..."} 
+                     className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]" 
+                   />
+                 </div>
+               )}
+            </div>
           </div>
         )}
       </div>
@@ -198,8 +252,8 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
     setLoading(true);
     const { data } = await supabase.from('profiles').select('*').order('username');
     if (data) {
-      setProfiles(data.filter(p => !p.is_banned));
-      setBlacklistedProfiles(data.filter(p => p.is_banned));
+      setProfiles(data.filter(p => !p.is_banned && !p.is_comm_banned));
+      setBlacklistedProfiles(data.filter(p => p.is_banned || p.is_comm_banned));
     }
     setLoading(false);
   };
@@ -329,13 +383,25 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
                                 block
                             </span>
                         </div>
-                        <span className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20">
-                            {t("sa_banned") || "BANNED"}
-                        </span>
+                        <div className="flex flex-col items-end gap-1">
+                          {p.is_banned && (
+                            <span className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20">
+                                {t("sa_banned_upload") || "UPLOAD BANNED"}
+                            </span>
+                          )}
+                          {p.is_comm_banned && (
+                            <span className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20">
+                                {t("sa_banned_comm") || "COMMS BANNED"}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
-                      {p.blacklist_reason && (
-                        <span className="text-xs font-bold text-red-400/80 leading-tight line-clamp-2 mt-2 italic flex-1">"{p.blacklist_reason}"</span>
+                      {p.is_banned && p.blacklist_reason && (
+                        <span className="text-xs font-bold text-red-400/80 leading-tight line-clamp-2 mt-2 italic flex-1">Upload: "{p.blacklist_reason}"</span>
+                      )}
+                      {p.is_comm_banned && p.comm_blacklist_reason && (
+                        <span className="text-xs font-bold text-red-400/80 leading-tight line-clamp-2 mt-2 italic flex-1">Comms: "{p.comm_blacklist_reason}"</span>
                       )}
 
                       <div className="flex flex-col gap-1 mt-auto pt-2">
