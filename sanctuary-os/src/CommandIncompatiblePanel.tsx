@@ -73,11 +73,11 @@ export default function CommandIncompatiblePanel({
       title={t("cmd_citizen_action_incompatible") || "INCOMPATIBLE"}
       subtitle={t("cmd_incompatible_broken") || "INCOMPATIBLE ARTIFACTS"}
       icon={t("ui_icon_warning") || "warning_amber"}
-      iconColorClass="text-amber-500"
+      iconColorClass="text-amber-500 border-amber-500/30"
       widthClass="w-[525px]"
     >
-      <div className="flex-1 min-h-0 flex flex-col gap-6 w-full">
-        <div className="px-2 py-2 shrink-0 flex flex-col gap-4 mt-2 relative">
+      <div className="flex flex-col gap-4 w-full">
+        <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative">
           <div className="flex items-center justify-between w-full relative z-10">
             <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("cmd_incompatible_broken") || "INCOMPATIBLE ARTIFACTS"}</h3>
             {brokenMods.length > 0 ? (
@@ -103,7 +103,7 @@ export default function CommandIncompatiblePanel({
           )}
         </div>
         
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+        <div className="flex flex-col gap-3 pb-24">
           {brokenMods.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4 py-12">
               <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_shield") || "security"}</span>
@@ -115,11 +115,10 @@ export default function CommandIncompatiblePanel({
               return (
                 <div 
                   key={mod.name} 
-                  className={`theme-glass-panel rounded-[2rem] border transition-all duration-500 relative overflow-hidden group/alert shrink-0 ${
-                    isIgnored ? 'border-white/5 opacity-50' : 'border-amber-500/30 hover:border-amber-500/50 hover:shadow-[0_0_30px_rgba(245,158,11,0.1)]'
+                  className={`w-full rounded-[2rem] border transition-all duration-500 relative overflow-hidden group/alert shrink-0 flex items-center ${
+                    isIgnored ? 'border-white/5 bg-black/20 opacity-50' : 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 hover:shadow-[0_0_30px_rgba(245,158,11,0.15)] shadow-lg'
                   }`}
                 >
-                  <div className={`absolute inset-0 transition-opacity duration-500 ${isIgnored ? 'opacity-0' : 'bg-gradient-to-br from-amber-500/10 to-transparent opacity-100'}`} />
                   
                   <div className="relative p-6 z-10 flex items-center gap-5 w-full">
                     <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${

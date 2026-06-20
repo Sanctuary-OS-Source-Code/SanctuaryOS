@@ -299,7 +299,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
           <div className="absolute inset-0 theme-glass-panel opacity-100" />
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5" />
           
-          <div className="relative z-10 flex flex-col flex-1 min-h-0">
+          <div className="relative z-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             {(() => {
               const tier4Count = activeConflicts.filter(c => c.conflict.severity_rank === 4).length;
               const tier3Count = activeConflicts.length - tier4Count;
@@ -332,7 +332,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
               );
             })()}
             
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-6">
+            <div className="p-8 flex flex-col gap-6 pb-24">
               {activeConflicts.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4">
                   <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_shield") || "security"}</span>
@@ -356,13 +356,12 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                   return (
                     <div 
                       key={ac.pairId} 
-                      className={`theme-glass-panel rounded-[2rem] border transition-all duration-500 relative overflow-hidden group/alert shrink-0 ${
+                      className={`w-full rounded-[2rem] border transition-all duration-500 relative overflow-hidden group/alert shrink-0 ${
                         isIgnored 
-                          ? 'opacity-50 grayscale border-white/5 bg-black/40' 
+                          ? 'opacity-50 grayscale border-white/5 bg-black/20' 
                           : `${borderClass} ${bgClass} shadow-lg ${shadowClass}`
                       }`}
                     >
-                      <div className={`absolute inset-0 transition-opacity duration-500 ${isIgnored ? 'opacity-0' : `bg-gradient-to-br ${isTier4 ? 'from-red-500/10' : 'from-amber-500/10'} to-transparent opacity-100`}`} />
                       
                       <div className="relative p-6 z-10 flex flex-col gap-5 w-full">
                         {/* HEADER */}
@@ -534,7 +533,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
           <div className="absolute inset-0 theme-glass-panel opacity-100" />
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5" />
           
-          <div className="relative z-10 flex flex-col flex-1 min-h-0">
+          <div className="relative z-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             <div className="px-8 py-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col gap-4 relative">
               <div className="flex items-center justify-between w-full relative z-10">
                 <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("bp_compatibility_scanner") || "Compromised Artifacts"}</h3>
@@ -561,7 +560,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
               )}
             </div>
             
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-4">
+            <div className="p-8 flex flex-col gap-4 pb-24">
               {brokenMods.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4">
                   <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_success") || "check_circle"}</span>
@@ -578,7 +577,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                         key={mod.name} 
                         className={`relative shrink-0 group w-full rounded-[2rem] overflow-hidden transition-all duration-500 border flex items-center ${
                           isIgnored 
-                            ? 'opacity-50 grayscale border-white/5 bg-black/40' 
+                            ? 'opacity-50 grayscale border-white/5 bg-black/20' 
                             : 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 shadow-lg hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]'
                         }`}
                       >

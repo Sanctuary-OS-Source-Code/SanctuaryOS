@@ -2252,12 +2252,12 @@ function App() {
         const batchNames = batch.filter(m => !m.dbId).map(m => m.name);
         
         if (batchIds.length > 0) {
-          const { data, error } = await supabase.from("mods").select("id, name, status, folder_structure, mod_versions(version_label, dna_hash, game_version, download_url)").in("id", batchIds).order("created_at", { referencedTable: "mod_versions", ascending: false });
+          const { data, error } = await supabase.from("mods").select("id, name, status, folder_structure, mod_versions(version_label, dna_hash, game_version, download_url)").in("id", batchIds).order("created_at", { referencedTable: "mod_versions", ascending: false }).limit(1, { referencedTable: "mod_versions" });
           if (error) { console.error(error); hasError = true; }
           if (data) cloudData = [...cloudData, ...data];
         }
         if (batchNames.length > 0) {
-          const { data, error } = await supabase.from("mods").select("id, name, status, folder_structure, mod_versions(version_label, dna_hash, game_version, download_url)").in("name", batchNames).order("created_at", { referencedTable: "mod_versions", ascending: false });
+          const { data, error } = await supabase.from("mods").select("id, name, status, folder_structure, mod_versions(version_label, dna_hash, game_version, download_url)").in("name", batchNames).order("created_at", { referencedTable: "mod_versions", ascending: false }).limit(1, { referencedTable: "mod_versions" });
           if (error) { console.error(error); hasError = true; }
           if (data) cloudData = [...cloudData, ...data];
         }

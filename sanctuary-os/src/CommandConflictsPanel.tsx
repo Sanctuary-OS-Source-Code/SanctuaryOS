@@ -209,8 +209,8 @@ export default function CommandConflictsPanel({
       iconColorClass={headerIconColorClass}
       widthClass="w-[525px]"
     >
-      <div className="flex-1 min-h-0 flex flex-col gap-6 w-full">
-        <div className="px-2 py-2 shrink-0 flex items-center justify-between relative">
+      <div className="flex flex-col gap-4 w-full">
+        <div className="px-1 py-2 shrink-0 flex items-center justify-between relative">
           <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">
             {t("bp_load_order_conflicts") || "Conflicts Detected"}
           </h3>
@@ -236,7 +236,7 @@ export default function CommandConflictsPanel({
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+        <div className="flex flex-col gap-3 pb-24">
           {activeConflicts.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4 py-12">
               <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">
@@ -281,15 +281,12 @@ export default function CommandConflictsPanel({
               return (
                 <div
                   key={ac.pairId}
-                  className={`theme-glass-panel rounded-[2rem] border transition-all duration-500 relative overflow-hidden group/alert shrink-0 ${
+                  className={`w-full rounded-[2rem] border transition-all duration-500 relative overflow-hidden group/alert shrink-0 ${
                     isIgnored
-                      ? "opacity-50 grayscale border-white/5 bg-black/40"
+                      ? "opacity-50 grayscale border-white/5 bg-black/20"
                       : `${borderClass} ${bgClass} shadow-lg ${shadowClass}`
                   }`}
                 >
-                  <div
-                    className={`absolute inset-0 transition-opacity duration-500 ${isIgnored ? "opacity-0" : `bg-gradient-to-br ${isTier4 ? "from-red-500/10" : "from-amber-500/10"} to-transparent opacity-100`}`}
-                  />
 
                   <div className="relative p-6 z-10 flex flex-col gap-5 w-full">
                     {/* HEADER */}
