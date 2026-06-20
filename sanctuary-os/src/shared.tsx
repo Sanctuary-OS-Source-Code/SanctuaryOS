@@ -1,5 +1,5 @@
 import { useLexicon } from "./LexiconContext";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 export const standardButtonClass = "px-8 py-4 rounded-[1.5rem] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
@@ -687,14 +687,22 @@ export function SidePanel({
   const { t } = useLexicon();
   const [panelWidth, setPanelWidth] = useState<number>(defaultWidth || 800);
   const [isResizing, setIsResizing] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isResizing) return;
     const handleMouseMove = (e: MouseEvent) => {
-       const newWidth = window.innerWidth - e.clientX;
-       setPanelWidth(Math.max(400, Math.min(newWidth, window.innerWidth - 100)));
+       const newWidth = Math.max(400, Math.min(window.innerWidth - e.clientX, window.innerWidth - 100));
+       if (panelRef.current) {
+         panelRef.current.style.width = `${newWidth}px`;
+       }
     };
-    const handleMouseUp = () => setIsResizing(false);
+    const handleMouseUp = () => {
+       setIsResizing(false);
+       if (panelRef.current) {
+         setPanelWidth(parseInt(panelRef.current.style.width) || defaultWidth || 800);
+       }
+    };
     
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
@@ -702,15 +710,16 @@ export function SidePanel({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isResizing]);
+  }, [isResizing, defaultWidth]);
 
   if (!isOpen) return null;
   return createPortal(
     <>
       <div className={`fixed top-0 right-0 bottom-10 ${backdropZ} bg-black/10 backdrop-blur-[2px] animate-in fade-in duration-500 transition-all`} style={{ left: "var(--sidebar-width, 288px)" }} onClick={onClose} />
       <div 
-        className={`fixed top-0 right-0 bottom-10 ${isResizable ? '' : widthClass} theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] flex flex-col ${panelZ} animate-in slide-in-from-right duration-500 ${isResizing ? '!transition-none !duration-0' : ''}`} 
-        style={isResizable ? { width: `${panelWidth}px`, transition: isResizing ? 'none' : undefined } : undefined}
+        ref={panelRef}
+        className={`fixed top-0 right-0 bottom-10 ${isResizable ? '' : widthClass} theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] flex flex-col ${panelZ} animate-in slide-in-from-right duration-500 ${isResizing ? '!transition-none !duration-0 select-none' : ''}`} 
+        style={isResizable ? { width: `${panelWidth}px`, transition: isResizing ? 'none' : undefined, pointerEvents: isResizing ? 'none' : undefined } : undefined}
         onClick={(e) => e.stopPropagation()}
       >
         {isResizable && (

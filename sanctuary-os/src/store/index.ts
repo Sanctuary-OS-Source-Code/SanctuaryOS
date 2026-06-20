@@ -1,5 +1,13 @@
 import { create } from 'zustand';
 
+const loadNetworkUpdates = () => {
+  try {
+    const cached = localStorage.getItem('sanctuary_network_updates');
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  return { broken: [], obsolete: [], updated: [] };
+};
+
 interface GlobalState {
   view: string;
   setView: (view: string) => void;
@@ -135,8 +143,17 @@ export const useStore = create<GlobalState>((set) => ({
   setMaskedDLC: (maskedDLC) => set({ maskedDLC }),
   selectedVersion: '',
   setSelectedVersion: (selectedVersion) => set({ selectedVersion }),
-  networkUpdates: { broken: [], obsolete: [], updated: [] },
-  setNetworkUpdates: (networkUpdates) => set({ networkUpdates }),
+  networkUpdates: loadNetworkUpdates(),
+  setNetworkUpdates: (networkUpdates) => {
+    try {
+      if (networkUpdates) {
+        localStorage.setItem('sanctuary_network_updates', JSON.stringify(networkUpdates));
+      } else {
+        localStorage.removeItem('sanctuary_network_updates');
+      }
+    } catch (e) {}
+    set({ networkUpdates });
+  },
   scanProgress: { current: 0, total: 0, message: '' },
   setScanProgress: (scanProgress) => set({ scanProgress }),
   defconLevel: 5,

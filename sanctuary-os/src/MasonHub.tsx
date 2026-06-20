@@ -941,7 +941,7 @@ function MasonCCSetBuilder({ masonId, masonName }: { masonId: string, masonName:
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 mt-4 pb-48">
+              <div className="flex flex-col gap-2 mt-4 pb-25">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions") || "GAME VERSIONS"}</label>
                 <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({...activeMod, compatible_versions: v})} />
               </div>

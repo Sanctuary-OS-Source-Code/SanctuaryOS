@@ -2245,7 +2245,7 @@ function App() {
       const updated: any[] = [];
       let cloudData: any[] = [];
       let hasError = false;
-      const BATCH_SIZE = 500;
+      const BATCH_SIZE = 40;
       for (let i = 0; i < syncedMods.length; i += BATCH_SIZE) {
         const batch = syncedMods.slice(i, i + BATCH_SIZE);
         const batchIds = batch.map(m => m.dbId).filter(Boolean);
