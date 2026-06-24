@@ -50,8 +50,9 @@ The Command Center has been entirely redesigned in V4 to provide a high-level, d
 
 * **Dynamic System Status:** This new tile is actively tied to your selected Blueprint.
   * 🟢 **System Stable:** No Actions Required.
-  * 🟡 **Citizen Action Recommended:** Artifact updates available, compatibility unknown, or Conflict Tier 3 Tuning Overlaps detected.
-  * 🔴 **Critical Failure Detected:** Conflict Tier 4 Fatal Engine Clashes.
+  * 🔵 **System Updates Available:** Artifact Updates are available.
+  * 🟡 **Citizen Action Recommended:** An artifact is flagged as Unstable or Conflict Severity 3 Collisions detected..
+  * 🔴 **Critical Failure Detected:** An artifact is flagged as Corrupted, Game Version Unsupported, Missing DLC/Dependencies, or Severity 4 Collisions detected.
 * **Vault Integrity:** View your total Artifact count and see a breakdown of Verified vs. Unverified mods, as well as your active UI Extensions (Lexicons & Chameleons).
 * **Quick Actions:** Instantly run a Radar Sweep, Lockdown the Vault (strip mods instantly), or Submit a Support Ticket.
 * **Global Comm-Link:** A live feed of updates, patch notes, and transmissions directly from Masons. Features threaded multi-level replies, WYSIWYG/Markdown text formatting, dedicated "Discover" vs "Following" tabs, and pinned posts.
