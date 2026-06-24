@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Sanctuary OS",
+  "version": "0.4.11",
+  "identifier": "sanctuary-os",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "fullscreen": false,
+        "width": 1700,
+        "height": 1200,
+        "minWidth": 1500,
+        "minHeight": 1000,
+        "resizable": true,
+        "center": true,
+        "title": "Sanctuary OS",
+        "decorations": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "sidebarImage": "icons/nsis/sidebar.bmp",
+        "headerImage": "icons/nsis/header.bmp"
+      },
+      "wix": {
+        "bannerPath": "icons/wix_banner.bmp",
+        "dialogImagePath": "icons/wix_dialog.bmp"
+      }
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1NEY5MjZCM0Y4MkUzOTMKUldTVDQ0SS9hNUpQRlpWV09HVDJRQmEzQnpCUGpwMDlYU0hBczlGWmJDS3R5cXVMM29KV0RjUmsK"
+    }
+  }
+}

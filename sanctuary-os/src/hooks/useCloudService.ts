@@ -1,0 +1,221 @@
+import { supabase } from "../supabase";
+import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
+import { useLexicon } from "../LexiconContext";
+import { logUserAction } from "../lib/audit";
+
+export function useCloudService(activeMasonProfileId: string | null, tier2Hashes: string[]) {
+  const { t } = useLexicon();
+  const { playSets, setPlaySets, setStatus, modList, session, selectedVersion } = useStore();
+  const { 
+    setSyncCode, setPendingImportSet, setMissingImportMods, setIngestProgress 
+  } = useModalStore();
+
+  async function uploadBlueprintToCloud(setName: string, isPublic: boolean = true, isLocked: boolean = false, allowedMods?: any[], isMarketListed: boolean = false) {
+    if (!session) {
+      useStore.getState().pushStatus("Guest Mode Active: Uploads are disabled.");
+      return;
+    }
+
+    let actualMasonId = activeMasonProfileId;
+    try {
+      if (!actualMasonId) {
+        let { data: masonData } = await supabase.from('masons').select("id").eq('profile_id', session.user.id).maybeSingle();
+        
+        if (!masonData) {
+          const username = session.user.user_metadata?.username;
+          if (username) {
+            let { data: byName } = await supabase.from('masons').select("id").ilike('name', username).maybeSingle();
+            if (byName) {
+              masonData = byName;
+            } else {
+              const { data: newMason } = await supabase.from('masons').insert({ name: username, profile_id: session.user.id }).select("id").maybeSingle();
+              if (newMason) masonData = newMason;
+            }
+          }
+        }
+        if (masonData) actualMasonId = masonData.id;
+      }
+    } catch (e) {
+      console.warn("Could not fetch or create mason id for current user", e);
+    }
+
+    const targetSet = playSets.find((s) => s.name === setName);
+    if (!targetSet) return;
+    
+    let code = targetSet.code;
+    if (!code && actualMasonId) {
+      try {
+        const { data: existing } = await supabase
+          .from('blueprints')
+          .select('code, is_market_listed, is_public, is_locked')
+          .eq('mason_id', actualMasonId)
+          .eq('name', targetSet.name)
+          .maybeSingle();
+        if (existing) {
+          code = existing.code;
+          // Only override parameters if the user didn't explicitly set them to true in the UI. 
+          // Since the UI defaults them to false if missing, we preserve true DB values.
+          if (existing.is_market_listed) isMarketListed = true;
+          if (existing.is_public) isPublic = true;
+          if (existing.is_locked) isLocked = true;
+        }
+      } catch (err) {
+        console.warn("Failed to check existing blueprint code", err);
+      }
+    }
+    
+    if (!code) {
+      code = Math.random().toString(36).substr(2, 6).toUpperCase();
+    }
+
+    const modsToUpload = allowedMods ? allowedMods.map(m => ({ name: m.name, hash: m.hash, url: m.url, author: m.author })) : targetSet.mods.map((modName: string) => {
+        const mod = modList.find(m => m.name === modName);
+        return { name: modName, hash: mod?.hash || "", url: mod?.url || "", author: mod?.author || "Unknown", compliance_tier: mod?.compliance_tier || 0, isVirtual: mod?.isVirtual };
+      }).filter((m: any) => {
+        if (m.isVirtual || m.name.startsWith("FOLDER_") || m.name.startsWith("SET_") || m.name.startsWith("LOCAL_SET_")) return false;
+        const lower = m.name.toLowerCase();
+        if (lower.includes("customchallenge_")) return true;
+        return !lower.includes("merged") && !lower.includes("simmatticly") && !lower.includes("batch fix") && !lower.includes("batch_fix") && m.compliance_tier !== 1 && m.compliance_tier !== 2;
+      }).map((m: any) => ({ name: m.name, hash: m.hash, url: m.url, author: m.author }));
+
+    const blueprintData = {
+      name: targetSet.name,
+      mods: modsToUpload
+    };
+    
+    const hasTier2 = blueprintData.mods.some((m: any) => tier2Hashes.includes(m.hash));
+    if (hasTier2) {
+      useStore.getState().pushStatus(t("status_explicit_signature") || "Explicit signature detected. This loadout cannot be synced to the Global Network. Local deployment only.");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('blueprints').upsert([{
+        code: code,
+        name: targetSet.name,
+        artifacts: blueprintData.mods,
+        mason_id: actualMasonId,
+        is_public: isPublic,
+        is_locked: isLocked,
+        is_market_listed: isMarketListed,
+        game_version: selectedVersion
+      }], { onConflict: 'code' });
+      if (error) throw error;
+      
+      setPlaySets((prev: any[]) => {
+        const updatedSets = prev.map(ps => ps.name === targetSet.name ? { ...ps, code, is_public: isPublic, is_locked: isLocked, is_market_listed: isMarketListed } : ps);
+        localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+        return updatedSets;
+      });
+
+      await logUserAction(`Uploaded Blueprint: ${targetSet.name}`, 'blueprints', code, `Visibility: ${isPublic ? 'Public' : 'Private'}, Marketplace: ${isMarketListed ? 'Listed' : 'Unlisted'}`);
+
+      setStatus(`${t("status_blueprint_uplinked") || "Blueprint Uplinked! Code:"} ${code}`);
+      setSyncCode(code);
+      return code;
+    } catch (err: any) {
+      setStatus(`${t("log_icon_fatal")} ${t("status_uplink_failed") || "Uplink Failed:"}${err.message || err}`);
+      return undefined;
+    }
+  }
+
+  async function syncBlueprintByCode(code: string) {
+    if (!code) return;
+    setStatus(`${t("log_icon_radar") || "Log Icon Radar"} ${t("status_sync_blueprint") || "Synchronizing Blueprint:"}${code}...`);
+    try {
+      const { data, error } = await supabase.from('blueprints').select('*').eq('code', code.toUpperCase()).single();
+      if (error || !data) throw new Error(t("status_invalid_code") || "Invalid or Expired Code.");
+      const parsed = { sanctuary_profile: true, name: data.name, mods: data.artifacts };
+      const missing: any[] = [];
+      parsed.mods.forEach((m: any) => {
+        const exists = modList.some((local: any) => {
+          if (local.hash && m.hash && local.hash === m.hash) return true;
+          if (local.name === m.name) return true;
+          const mBase = local.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+          const targetBase = typeof m === 'string' ? m.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '') : (m.name || '').split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '');
+          return mBase && targetBase && mBase === targetBase;
+        });
+        if (!exists) missing.push(m);
+      });
+      setPendingImportSet(parsed);
+      if (missing.length > 0) {
+        setMissingImportMods(missing);
+      } else {
+        const updatedSets = [...playSets, { name: `${parsed.name} (Synced)`, mods: parsed.mods.map((m: any) => m.name) }];
+        setPlaySets(updatedSets);
+        localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+        setStatus(`${t("ui_icon_success") || "check_circle"} ${t("status_blueprint_synced") || "Blueprint Synchronized."}`);
+      }
+    } catch (err: any) {
+      setStatus(`${t("log_icon_fatal")} ${t("status_sync_error") || "Sync Error:"}${err.message || err}`);
+    }
+  }
+
+  async function massIngestToCloud() {
+    if (!session) {
+      useStore.getState().pushStatus("Guest Mode Active: Uploads are disabled.");
+      return;
+    }
+    const rawGhosts = modList.filter((m) => m && !m.isSynced);
+    const ghosts = Array.from(
+      new Map(
+        rawGhosts.map((item) => [item.displayName || item.name, item]),
+      ).values(),
+    );
+    if (ghosts.length === 0) {
+      setStatus(t("status_bunker_synced") || "BUNKER FULLY SYNCED: No unique unknowns found.");
+      useStore.getState().pushStatus("All mods are already synced. No unknown mods found.");
+      return;
+    }
+    setIngestProgress({ current: 0, total: ghosts.length, active: true });
+    setStatus(
+      `${t("status_mass_ingestion_prefix") || "MASS INGESTION: Unifying"}${ghosts.length}${t("status_mass_ingestion_suffix") || "unique identities..."}`,
+    );
+    let successCount = 0;
+    for (let i = 0; i < ghosts.length; i++) {
+      const ghost = ghosts[i];
+      const cleanName = (ghost.displayName || ghost.name).trim();
+      try {
+        let { data: existingMod } = await supabase
+          .from("mods")
+          .select("id")
+          .eq("name", cleanName)
+          .single();
+
+        if (!existingMod) {
+          const { data: newMod, error } = await supabase
+            .from("mods")
+            .insert([{ name: cleanName, status: "unverified" }])
+            .select()
+            .single();
+          if (error) throw error;
+          existingMod = newMod;
+        }
+
+        if (existingMod && ghost.hash) {
+          await supabase.from("mod_versions").upsert(
+            [
+              {
+                mod_id: existingMod.id,
+                dna_hash: ghost.hash,
+                version_label: "v.System",
+              },
+            ],
+            { onConflict: "dna_hash" },
+          );
+        }
+        successCount++;
+      } catch (err) {
+        console.warn(`Failed to ingest ${cleanName}:`, err);
+      }
+      setIngestProgress({ current: i + 1, total: ghosts.length, active: true });
+    }
+    setIngestProgress(null);
+    setStatus(
+      `${t("ui_icon_success") || "check_circle"} Ingested ${successCount}/${ghosts.length} unknowns to the Network.`,
+    );
+  }
+
+  return { uploadBlueprintToCloud, syncBlueprintByCode, massIngestToCloud };
+}

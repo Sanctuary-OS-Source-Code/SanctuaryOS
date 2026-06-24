@@ -1,0 +1,113 @@
+[
+  {
+    "template_id": "mccc_mc_settings",
+    "schema_version": 2,
+    "supported_mod_versions": [
+      "2026.3.1",
+      "2026.3.0"
+    ],
+    "target_file": "mc_settings.cfg",
+    "parser_type": "json",
+    "write_scope": "active_mod_folder",
+    "mod_author": "Deaderpool",
+    "template_author": "Sanctuary OS Community",
+    "template_version": "1.0.0",
+    "categories": [
+      {
+        "id": "population",
+        "name_key": "workbench_category_population",
+        "icon_key": "workbench_icon_categories"
+      },
+      {
+        "id": "system",
+        "name_key": "workbench_category_system",
+        "icon_key": "workbench_icon_tune"
+      }
+    ],
+    "settings": [
+      {
+        "key": "Adopt_Neglected_Child",
+        "path": "Adopt_Neglected_Child",
+        "type": "boolean",
+        "label_key": "workbench_mccc_adopt_neglected",
+        "desc_key": "workbench_mccc_adopt_neglected_desc",
+        "category": "population",
+        "default": false
+      },
+      {
+        "key": "Adopt_No_Caregiver",
+        "path": "Adopt_No_Caregiver",
+        "type": "boolean",
+        "label_key": "workbench_mccc_adopt_nocare",
+        "desc_key": "workbench_mccc_adopt_nocare_desc",
+        "category": "population",
+        "default": false
+      },
+      {
+        "key": "Max_Household_Size",
+        "path": "Max_Household_Size",
+        "type": "number",
+        "label_key": "workbench_mccc_max_household",
+        "desc_key": "workbench_mccc_max_household_desc",
+        "category": "population",
+        "min": 1,
+        "max": 104,
+        "step": 1,
+        "default": 8,
+        "risk": "advanced"
+      },
+      {
+        "key": "Pregnancy_Percent_Chance",
+        "path": "Pregnancy_Percent_Chance",
+        "type": "number",
+        "label_key": "workbench_mccc_pregnancy_chance",
+        "desc_key": "workbench_mccc_pregnancy_chance_desc",
+        "category": "population",
+        "min": 0,
+        "max": 100,
+        "step": 5,
+        "default": 20
+      },
+      {
+        "key": "Teens_Quit_School",
+        "path": "Teens_Quit_School",
+        "type": "boolean",
+        "label_key": "workbench_mccc_teens_quit_school",
+        "desc_key": "workbench_mccc_teens_quit_school_desc",
+        "category": "population",
+        "default": false
+      },
+      {
+        "key": "Allow_Teen_Parenting",
+        "path": "Allow_Teen_Parenting",
+        "type": "boolean",
+        "label_key": "workbench_mccc_teen_parenting",
+        "desc_key": "workbench_mccc_teen_parenting_desc",
+        "category": "population",
+        "default": false,
+        "risk": "advanced"
+      },
+      {
+        "key": "AutoSave_Enabled",
+        "path": "AutoSave_Enabled",
+        "type": "boolean",
+        "label_key": "workbench_mccc_autosave",
+        "desc_key": "workbench_mccc_autosave_desc",
+        "category": "system",
+        "default": true
+      },
+      {
+        "key": "Autosave_Interval",
+        "path": "Autosave_Interval",
+        "type": "number",
+        "label_key": "workbench_mccc_autosave_interval",
+        "desc_key": "workbench_mccc_autosave_interval_desc",
+        "category": "system",
+        "min": 1,
+        "max": 24,
+        "step": 1,
+        "default": 1
+      }
+    ]
+  }
+]
