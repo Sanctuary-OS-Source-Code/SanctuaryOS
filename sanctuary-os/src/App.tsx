@@ -748,6 +748,47 @@ function App() {
         localStorage.removeItem("sanctuary_cache_v9");
       }
     }
+    
+    // Check for cached unsaved edits
+    let editNames: string[] = [];
+    const cwEdits = localStorage.getItem("sanctuary_cw_unsaved_edits");
+    if (cwEdits) {
+      try {
+        const parsed = JSON.parse(cwEdits);
+        Object.keys(parsed).forEach(k => {
+          if (Object.keys(parsed[k]).length > 0) {
+             const name = k.split(/[\\/]/).pop();
+             if (name && !editNames.includes(name)) editNames.push(name);
+          }
+        });
+      } catch (e) {}
+    }
+
+    const ideEdits = localStorage.getItem("sanctuary_ide_open_files");
+    if (ideEdits) {
+      try {
+        const parsed = JSON.parse(ideEdits);
+        if (Array.isArray(parsed)) {
+           parsed.forEach((f: any) => {
+              if (f.content !== f.originalContent && !editNames.includes(f.name)) {
+                 editNames.push(f.name);
+              }
+           });
+        }
+      } catch(e) {}
+    }
+
+    if (editNames.length > 0) {
+       setTimeout(() => {
+         if (editNames.length === 1) {
+            useStore.getState().setStatus(`${editNames[0]} has cached changes from your last session.`);
+         } else if (editNames.length <= 3) {
+            useStore.getState().setStatus(`${editNames.join(", ")} have cached changes from your last session.`);
+         } else {
+            useStore.getState().setStatus(`${editNames.slice(0, 2).join(", ")} and ${editNames.length - 2} other files have cached changes from your last session.`);
+         }
+       }, 2000); // Small delay so it appears after the cache load message
+    }
   }, []);
 
 
@@ -3642,7 +3683,7 @@ function App() {
           <NavButton
             active={view === "CitizensWorkbench"}
             onClick={() => setView("CitizensWorkbench")}
-            icon={t("ui_icon_workbench") || "home_repair_service"}
+            icon={t("ui_icon_design_services") || "design_services"}
             label={t("workbench_title_sidebar") || "Citizens Workbench"}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}

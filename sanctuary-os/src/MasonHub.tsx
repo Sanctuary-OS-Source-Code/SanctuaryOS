@@ -31,8 +31,7 @@ const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = [
 
 export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handleOpenMasonProfile }: { sandboxMod?: any, clearSandboxMod?: () => void, vaultPath?: string, handleOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
   const { t } = useLexicon();
-  const { session } = useStore();
-  const [activeTab, setActiveTab] = useState("command_center");
+  const { session, masonActiveTab, setMasonActiveTab } = useStore();
   const [masonProfile, setMasonProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -44,7 +43,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
   const [registryTargetMod, setRegistryTargetMod] = useState<string | null>(null);
 
   useEffect(() => {
-    if (sandboxMod) setActiveTab("sandbox");
+    if (sandboxMod) setMasonActiveTab("sandbox");
   }, [sandboxMod]);
 
   useEffect(() => {
@@ -112,34 +111,35 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
       
       <div className="flex flex-col gap-1 w-full mb-4">
         <div className="flex items-center gap-1 overflow-x-auto accent-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner">
-          <HubTabButton id="command_center" icon={t("ui_icon_pc") || "desktop_windows"} label={(t("mason_tab_command_screen") || "COMMAND").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="registry" icon={t("ui_icon_artifact_card") || "deployed_code"} label={(t("mason_tab_registry") || "ARTIFACTS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="cc_sets" icon={t("ui_icon_collections_card") || "collections_bookmark"} label={(t("mason_tab_cc") || "COLLECTIONS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="marketplace" icon={t("ui_icon_hub") || "hub"} label={(t("mason_tab_marketplace") || "Nexus").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="bug_reports" icon={t("ui_icon_bug") || "bug_report"} label={(t("mason_tab_bug_reports") || "REPORTS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="protocols" icon={t("ui_icon_link") || "link"} label={(t("masonhub_protocols_tab") || "PROTOCOLS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="structure" icon={t("ui_icon_architecture") || "architecture"} label={(t("masonhub_structures_tab") || "STRUCTURE").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="conflicts" icon={t("ui_icon_security") || "security"} label={(t("masonhub_tab_conflicts") || "CONFLICTS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="posts" icon={t("ui_icon_edit_document") || "edit_document"} label={(t("mason_tab_posts") || "POSTS").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="sandbox" icon={t("ui_icon_sandbox") || "handyman"} label={(t("mason_tab_sandbox") || "SANDBOX").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="ide" icon={t("ui_icon_code") || "code"} label={(t("masonhub_ide_tab") || "IDE").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="command_center" icon={t("ui_icon_pc") || "desktop_windows"} label={(t("mason_tab_command_screen") || "COMMAND").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <HubTabButton id="registry" icon={t("ui_icon_artifact_card") || "deployed_code"} label={(t("mason_tab_registry") || "ARTIFACTS").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <HubTabButton id="cc_sets" icon={t("ui_icon_collections_card") || "collections_bookmark"} label={(t("mason_tab_cc") || "COLLECTIONS").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <HubTabButton id="marketplace" icon={t("ui_icon_hub") || "hub"} label={(t("mason_tab_marketplace") || "Nexus").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <HubTabButton id="bug_reports" icon={t("ui_icon_bug") || "bug_report"} label={(t("mason_tab_bug_reports") || "REPORTS").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <HubTabButton id="protocols" icon={t("ui_icon_link") || "link"} label={(t("masonhub_protocols_tab") || "PROTOCOLS").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <HubTabButton id="structure" icon={t("ui_icon_architecture") || "architecture"} label={(t("masonhub_structures_tab") || "STRUCTURE").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <HubTabButton id="conflicts" icon={t("ui_icon_security") || "security"} label={(t("masonhub_tab_conflicts") || "CONFLICTS").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <HubTabButton id="posts" icon={t("ui_icon_edit_document") || "edit_document"} label={(t("mason_tab_posts") || "POSTS").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <div className="w-px h-6 bg-[var(--text)]/10 mx-2" />
+          <HubTabButton id="sandbox" icon={t("ui_icon_sandbox") || "handyman"} label={(t("mason_tab_sandbox") || "SANDBOX").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <HubTabButton id="ide" icon={t("ui_icon_code") || "code"} label={(t("masonhub_ide_tab") || "IDE").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
         </div>
       </div>
 
       <div className="w-full pr-4">
-        {activeTab === "command_center" && <MasonCommandScreen onNavigate={setActiveTab} masonId={masonProfile.id} session={session} onOpenRecentReplies={() => setIsRecentRepliesOpen(true)} onOpenSupportDesk={() => setIsSupportDeskOpen(true)} setViewingPost={setViewingPost} />}
-        <MasonRegistry masonId={masonProfile.id} initialActiveMod={registryTargetMod} onClearActiveMod={() => setRegistryTargetMod(null)} isActiveTab={activeTab === "registry"} />
-        {activeTab === "cc_sets" && <MasonCCSetBuilder masonId={masonProfile.id} masonName={masonProfile.name} />}
-        {activeTab === "bug_reports" && <MasonBugReports masonId={masonProfile?.id} onOpenDNA={(hash) => {
+        {masonActiveTab === "command_center" && <MasonCommandScreen onNavigate={setMasonActiveTab} masonId={masonProfile.id} session={session} onOpenRecentReplies={() => setIsRecentRepliesOpen(true)} onOpenSupportDesk={() => setIsSupportDeskOpen(true)} setViewingPost={setViewingPost} />}
+        {masonActiveTab === "registry" && <MasonRegistry masonId={masonProfile.id} initialActiveMod={registryTargetMod} onClearActiveMod={() => setRegistryTargetMod(null)} isActiveTab={masonActiveTab === "registry"} />}
+        {masonActiveTab === "cc_sets" && <MasonCCSetBuilder masonId={masonProfile.id} masonName={masonProfile.name} />}
+        {masonActiveTab === "bug_reports" && <MasonBugReports masonId={masonProfile?.id} onOpenDNA={(hash) => {
             setRegistryTargetMod(hash);
         }} />}
-        {activeTab === "marketplace" && <MasonMarketplace masonProfile={masonProfile} />}
-        {activeTab === "protocols" && <ProtocolVisualizer masonId={masonProfile.id} isArchitect={false} />}
-        {activeTab === "structure" && <StructureVisualizer masonId={masonProfile.id} isArchitect={false} />}
-        {activeTab === "posts" && <MasonPostsEditor masonId={masonProfile.id} masonProfileId={masonProfile.profile_id} handleOpenMasonProfile={handleOpenMasonProfile} />} 
-        {activeTab === "sandbox" && <MasonSandbox masonId={masonProfile.id} initialSandboxMod={sandboxMod} onClear={clearSandboxMod} vaultPath={vaultPath} />}
-        {activeTab === "conflicts" && <MasonConflictsManager masonId={masonProfile.id} />}
-        {activeTab === "ide" && <MasonIDE vaultPath={vaultPath} />}
+        {masonActiveTab === "marketplace" && <MasonMarketplace masonProfile={masonProfile} />}
+        {masonActiveTab === "protocols" && <ProtocolVisualizer masonId={masonProfile.id} isArchitect={false} />}
+        {masonActiveTab === "structure" && <StructureVisualizer masonId={masonProfile.id} isArchitect={false} />}
+        {masonActiveTab === "posts" && <MasonPostsEditor masonId={masonProfile.id} masonProfileId={masonProfile.profile_id} handleOpenMasonProfile={handleOpenMasonProfile} />} 
+        {masonActiveTab === "sandbox" && <MasonSandbox masonId={masonProfile.id} initialSandboxMod={sandboxMod} onClear={clearSandboxMod} vaultPath={vaultPath} />}
+        {masonActiveTab === "conflicts" && <MasonConflictsManager masonId={masonProfile.id} />}
+        {masonActiveTab === "ide" && <MasonIDE vaultPath={vaultPath} />}
       </div>
 
       <MasonSettingsSidePanel

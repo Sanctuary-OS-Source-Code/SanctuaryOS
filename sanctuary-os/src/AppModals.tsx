@@ -37,6 +37,45 @@ export function AppModals(props: any) {
 
   const { backupType, restoreType } = useModalStore();
 
+  const logModalRef = React.useRef<HTMLDivElement>(null);
+  const logDragRef = React.useRef({ isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, initOffsetX: 0, initOffsetY: 0 });
+
+  const handleLogPointerDown = (e: React.PointerEvent) => {
+    logDragRef.current = {
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      currentX: logDragRef.current.currentX,
+      currentY: logDragRef.current.currentY,
+      initOffsetX: logDragRef.current.currentX,
+      initOffsetY: logDragRef.current.currentY
+    };
+    if (logModalRef.current) {
+      logModalRef.current.style.transition = 'none';
+    }
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleLogPointerMove = (e: React.PointerEvent) => {
+    if (!logDragRef.current.isDragging) return;
+    const dx = e.clientX - logDragRef.current.startX;
+    const dy = e.clientY - logDragRef.current.startY;
+    logDragRef.current.currentX = logDragRef.current.initOffsetX + dx;
+    logDragRef.current.currentY = logDragRef.current.initOffsetY + dy;
+    
+    if (logModalRef.current) {
+       logModalRef.current.style.transform = `translate(${logDragRef.current.currentX}px, ${logDragRef.current.currentY}px)`;
+    }
+  };
+
+  const handleLogPointerUp = (e: React.PointerEvent) => {
+    logDragRef.current.isDragging = false;
+    if (logModalRef.current) {
+      logModalRef.current.style.transition = '';
+    }
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
   const isEngineBackup = backupType === 'engine';
   const backupTitle = isEngineBackup ? t("overlay_sealing_engine") || "SEALING ENGINE CORE" : t("overlay_sealing_world") || "SEALING WORLD STATE";
   const backupDesc = isEngineBackup ? t("overlay_sealing_engine_desc") || "Archiving game engine files and runtime structure..." : t("overlay_sealing_world_desc") || "Archiving saves, trays, and local world data...";
@@ -563,8 +602,16 @@ export function AppModals(props: any) {
       </div>
     )}
       {isLogExpanded && statusLog && statusLog.length > 0 && (
-        <div className="fixed bottom-14 right-4 w-[420px] max-h-[60vh] theme-glass-panel border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-[2rem] z-[99998] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/5 before:to-transparent before:pointer-events-none">
-          <div className="flex items-center justify-between p-5 border-b border-white/10 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 relative z-10">
+        <div 
+          ref={logModalRef}
+          className="fixed bottom-14 right-4 w-[420px] max-h-[60vh] theme-glass-panel border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-[2rem] z-[99998] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/5 before:to-transparent before:pointer-events-none"
+        >
+          <div 
+            className="flex items-center justify-between p-5 border-b border-white/10 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 relative z-10 cursor-move"
+            onPointerDown={handleLogPointerDown}
+            onPointerMove={handleLogPointerMove}
+            onPointerUp={handleLogPointerUp}
+          >
             <div className="flex items-center gap-3">
                <div className="w-8 h-8 rounded-xl theme-glass-inner border border-white/5 flex items-center justify-center shadow-inner">
                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("ui_icon_receipt_long") || "receipt_long"}</span>
@@ -594,6 +641,41 @@ export function AppModals(props: any) {
                   logIcon = match[1];
                   logText = match[2];
               }
+
+              let logTextNode: React.ReactNode = logText;
+              
+              const cachedMatch = (typeof logText === 'string') ? logText.match(/^(.*?) (has|have) cached changes from your last session\.$/) : null;
+              if (cachedMatch) {
+                 const filesString = cachedMatch[1];
+                 const isPlural = cachedMatch[2] === 'have';
+                 const parts = filesString.split(" and ");
+                 const fileNames = parts[0].split(", ");
+                 const otherFilesPart = parts.length > 1 ? ` and ${parts[1]}` : '';
+                 
+                 logTextNode = (
+                    <span className="flex flex-wrap gap-1.5 items-center leading-normal">
+                       {fileNames.map((f, idx) => (
+                          <React.Fragment key={f}>
+                             <button onClick={(e) => {
+                                e.stopPropagation();
+                                if (f.endsWith('.json')) {
+                                   useStore.getState().setView('CitizensWorkbench');
+                                } else {
+                                   useStore.getState().setView('MasonHub');
+                                   useStore.getState().setMasonActiveTab('ide');
+                                }
+                                setIsLogExpanded(false);
+                             }} className="px-2 py-0.5 bg-black/20 border border-white/5 hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-md transition-all uppercase tracking-widest cursor-pointer">
+                                {f}
+                             </button>
+                             {idx < fileNames.length - 1 && <span className="opacity-50">,</span>}
+                          </React.Fragment>
+                       ))}
+                       {otherFilesPart} <span className="opacity-80 ml-1">{isPlural ? 'have' : 'has'} cached changes from your last session.</span>
+                    </span>
+                 );
+                 if (logIcon === 'terminal') logIcon = 'save';
+              }
               
               const isErr = log.type === 'error' || logIcon === 'error' || logIcon === 'bug_report';
               const isSucc = log.type === 'success' || logIcon === 'check_circle' || logIcon === 'done' || logIcon === 'verified';
@@ -609,7 +691,7 @@ export function AppModals(props: any) {
                     <span className={`material-symbols-outlined !text-[18px] ${logColor}`}>{logIcon}</span>
                   </div>
                   <div className="flex flex-col gap-1.5 min-w-0 pt-0.5">
-                    <span className="text-[10px] font-bold text-[var(--text)] uppercase tracking-wider whitespace-pre-wrap leading-relaxed break-words opacity-90 group-hover:opacity-100 transition-opacity">{logText}</span>
+                    <div className="text-[10px] font-bold text-[var(--text)] uppercase tracking-wider whitespace-pre-wrap leading-relaxed break-words opacity-90 group-hover:opacity-100 transition-opacity">{logTextNode}</div>
                     <span className="text-[9px] font-mono font-bold text-[var(--subtext)] opacity-50 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("ui_icon_schedule") || "schedule"}</span>{new Date(log.timestamp).toLocaleTimeString()}</span>
                   </div>
                 </div>

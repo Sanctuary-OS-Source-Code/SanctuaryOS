@@ -1,5 +1,46 @@
 import { create } from 'zustand';
 
+
+const loadIdeOpenFiles = () => {
+  try {
+    const cached = localStorage.getItem('sanctuary_ide_open_files');
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  return [];
+};
+
+const loadIdeActiveFileIndex = () => {
+  try {
+    const cached = localStorage.getItem('sanctuary_ide_active_file_index');
+    if (cached) return parseInt(cached);
+  } catch (e) {}
+  return -1;
+};
+
+const loadCwUnsavedEdits = () => {
+  try {
+    const cached = localStorage.getItem('sanctuary_cw_unsaved_edits');
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  return {};
+};
+
+const loadCwSelectedFile = () => {
+  try {
+    const cached = localStorage.getItem('sanctuary_cw_selected_file');
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  return null;
+};
+
+const loadCwActiveTab = () => {
+  try {
+    const cached = localStorage.getItem('sanctuary_cw_active_tab');
+    if (cached) return cached as "visual" | "raw";
+  } catch (e) {}
+  return "visual" as "visual" | "raw";
+};
+
 const loadNetworkUpdates = () => {
   try {
     const cached = localStorage.getItem('sanctuary_network_updates');
@@ -72,6 +113,18 @@ interface GlobalState {
   setShowImages: (show: boolean) => void;
   marketSearchQuery: string;
   setMarketSearchQuery: (query: string) => void;
+  ideOpenFiles: {name: string, path: string, content: string, originalContent: string}[];
+  setIdeOpenFiles: (files: {name: string, path: string, content: string, originalContent: string}[] | ((prev: any[]) => any[])) => void;
+  ideActiveFileIndex: number;
+  setIdeActiveFileIndex: (index: number | ((prev: number) => number)) => void;
+  cwUnsavedEdits: Record<string, string>;
+  setCwUnsavedEdits: (edits: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
+  cwSelectedFile: {name: string, path: string} | null;
+  setCwSelectedFile: (file: {name: string, path: string} | null) => void;
+  cwActiveTab: "visual" | "raw";
+  setCwActiveTab: (tab: "visual" | "raw") => void;
+  masonActiveTab: string;
+  setMasonActiveTab: (tab: string) => void;
 }
 
 export const useStore = create<GlobalState>((set) => ({
@@ -173,5 +226,32 @@ export const useStore = create<GlobalState>((set) => ({
   showImages: localStorage.getItem("sanctuary_show_images") !== "false",
   setShowImages: (showImages) => { localStorage.setItem("sanctuary_show_images", showImages.toString()); set({ showImages }); },
   marketSearchQuery: '',
-  setMarketSearchQuery: (marketSearchQuery) => set({ marketSearchQuery })
+  setMarketSearchQuery: (marketSearchQuery) => set({ marketSearchQuery }),
+  ideOpenFiles: loadIdeOpenFiles(),
+  setIdeOpenFiles: (files) => set((state) => {
+      const newFiles = typeof files === 'function' ? files(state.ideOpenFiles) : files;
+      localStorage.setItem('sanctuary_ide_open_files', JSON.stringify(newFiles));
+      return { ideOpenFiles: newFiles };
+  }),
+  ideActiveFileIndex: loadIdeActiveFileIndex(),
+  setIdeActiveFileIndex: (index) => set((state) => {
+      const newIndex = typeof index === 'function' ? index(state.ideActiveFileIndex) : index;
+      localStorage.setItem('sanctuary_ide_active_file_index', newIndex.toString());
+      return { ideActiveFileIndex: newIndex };
+  }),
+  cwUnsavedEdits: loadCwUnsavedEdits(),
+  setCwUnsavedEdits: (edits) => set((state) => {
+      const newEdits = typeof edits === 'function' ? edits(state.cwUnsavedEdits) : edits;
+      localStorage.setItem('sanctuary_cw_unsaved_edits', JSON.stringify(newEdits));
+      return { cwUnsavedEdits: newEdits };
+  }),
+  cwSelectedFile: loadCwSelectedFile(),
+  setCwSelectedFile: (file) => set((state) => {
+      localStorage.setItem('sanctuary_cw_selected_file', JSON.stringify(file));
+      return { cwSelectedFile: file };
+  }),
+  cwActiveTab: loadCwActiveTab(),
+  setCwActiveTab: (tab) => { localStorage.setItem('sanctuary_cw_active_tab', tab); set({ cwActiveTab: tab }); },
+  masonActiveTab: "command_center",
+  setMasonActiveTab: (tab) => set({ masonActiveTab: tab }),
 }));

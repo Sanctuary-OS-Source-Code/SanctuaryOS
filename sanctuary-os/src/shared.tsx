@@ -686,6 +686,9 @@ export function SidePanel({
 }) {
   const { t } = useLexicon();
   const [panelWidth, setPanelWidth] = useState<number>(defaultWidth || 800);
+  useEffect(() => {
+    if (defaultWidth) setPanelWidth(defaultWidth);
+  }, [defaultWidth]);
   const [isResizing, setIsResizing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -743,11 +746,11 @@ export function SidePanel({
 
         {/* Header - Fixed */}
         {!hideHeader && (
-          <div className="pt-[70px] px-10 pb-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
+          <div className="pt-[40px] px-10 pb-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
             <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_3%,transparent)] to-transparent pointer-events-none" />
             
-            <button onClick={onClose} className="absolute top-[70px] right-8 z-50 w-12 h-12 rounded-2xl flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
+            <button onClick={onClose} className="absolute top-[40px] right-8 z-50 w-12 h-12 rounded-2xl flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
               <span className="material-symbols-outlined !text-[22px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("ui_icon_close") || "close"}</span>
             </button>
 
