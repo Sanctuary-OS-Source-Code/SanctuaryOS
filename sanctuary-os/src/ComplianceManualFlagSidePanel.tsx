@@ -14,6 +14,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
   const [manualSearchResults, setManualSearchResults] = useState<any[]>([]);
   const [manualSelectedMod, setManualSelectedMod] = useState<any>(null);
   const [manualTier, setManualTier] = useState<number>(3);
+  const [registryReason, setRegistryReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -113,22 +114,52 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
   }, [manualSearchQuery, manualSelectedMod, isOpen, activeTab]);
 
   const handleManualFlag = async () => {
-    if (!manualSelectedMod) {
-      useStore.getState().pushStatus(t("sa_comp_manual_alert_select") || "Please select a mod from the registry.");
+    if ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim()) {
+      useStore.getState().pushStatus(t("sa_comp_manual_alert_req") || "Please provide a target and a reason.");
       return;
     }
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('mods').update({ compliance_tier: manualTier }).eq('id', manualSelectedMod.id);
-      if (error) throw error;
+      let targetId = null;
+      let targetName = null;
+
+      if (manualSelectedMod) {
+        const { error } = await supabase.from('mods').update({ compliance_tier: manualTier }).eq('id', manualSelectedMod.id);
+        if (error) throw error;
+        targetId = manualSelectedMod.id;
+        targetName = manualSelectedMod.name;
+      } else {
+        const q = manualSearchQuery.trim();
+        const isHash = /^[0-9a-f]{64}$/i.test(q);
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q);
+
+        if (isUUID) {
+          const { error } = await supabase.from('mods').upsert({ id: q, name: 'Manual Flag (Unknown)', compliance_tier: manualTier });
+          if (error) throw error;
+          targetId = q;
+          targetName = q;
+        } else if (isHash) {
+          const { data: newMod, error: modErr } = await supabase.from('mods').insert({ name: 'Manual Flag (Hash)', compliance_tier: manualTier }).select('id').single();
+          if (modErr) throw modErr;
+          const { error: verErr } = await supabase.from('mod_versions').upsert({ mod_id: newMod.id, dna_hash: q, version_label: 'unknown' }, { onConflict: 'dna_hash' });
+          if (verErr) throw verErr;
+          targetId = newMod.id;
+          targetName = q;
+        } else {
+          const { data: newMod, error: modErr } = await supabase.from('mods').insert({ name: q, compliance_tier: manualTier }).select('id').single();
+          if (modErr) throw modErr;
+          targetId = newMod.id;
+          targetName = q;
+        }
+      }
       
       const userRes = await supabase.auth.getUser();
       await supabase.from('audit_logs').insert({
          action: `Manually flagged with tier ${manualTier}`,
          target_table: 'mods',
-         target_name: manualSelectedMod.name || manualSelectedMod.id,
+         target_name: targetName || targetId,
          actor_id: userRes.data.user?.id,
-         reason: "Manual Flag via Oversight"
+         reason: registryReason.trim()
       });
 
       useStore.getState().pushStatus(t("sa_comp_manual_alert_success") || "Mod flagged manually successfully.");
@@ -145,7 +176,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
   };
 
   const handleAddHeuristic = async () => {
-    if (!newSig.trim()) return;
+    if (!newSig.trim() || !notes.trim()) return;
     setIsSubmitting(true);
     
     const id = editingId || newSig.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -201,6 +232,9 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     setNotes("");
     setEnabled(true);
     setEditingId(null);
+    setRegistryReason("");
+    setManualSearchQuery("");
+    setManualSelectedMod(null);
   };
 
   const handleRemoveHeuristic = async (id: string) => {
@@ -242,7 +276,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
             </button>
           <button 
             onClick={activeTab === 'registry' ? handleManualFlag : handleAddHeuristic} 
-            disabled={isSubmitting || (activeTab === 'registry' && !manualSelectedMod) || (activeTab === 'heuristic' && !newSig.trim())} 
+            disabled={isSubmitting || (activeTab === 'registry' && ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())) || (activeTab === 'heuristic' && (!newSig.trim() || !notes.trim()))} 
             className={standardDangerButtonClass}
           >
             {isSubmitting ? (t("sa_comp_manual_btn_transmitting") || "TRANSMITTING...") : (t("sa_comp_manual_btn_insert") || "INSERT RECORD")}
@@ -309,6 +343,16 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_manual_tier_label") || "Compliance Tier"}</label>
               <CustomComplianceDropdown value={manualTier} onChange={setManualTier} includeTier3={true} />
             </div>
+
+            <div className="flex flex-col gap-2 relative z-30 mt-4">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_reason") || "Reason"}</label>
+              <textarea 
+                  value={registryReason}
+                  onChange={e => setRegistryReason(e.target.value)}
+                  className="w-full theme-glass-panel rounded-2xl p-5 min-h-[80px] text-sm font-medium focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 custom-scrollbar" 
+                  placeholder={t("sa_comp_reason_ph") || "Required context for this flag..."}
+              />
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
@@ -361,12 +405,12 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_notes") || "Notes (Optional)"}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_reason") || "Reason"}</label>
                 <textarea 
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   className="w-full theme-glass-panel rounded-2xl p-5 min-h-[80px] text-sm font-medium focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 custom-scrollbar" 
-                  placeholder={t("sa_comp_notes_ph") || "Context or reason for this signature..."}
+                  placeholder={t("sa_comp_reason_ph") || "Required context for this signature..."}
                 />
               </div>
 

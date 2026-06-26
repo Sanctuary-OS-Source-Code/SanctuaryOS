@@ -207,7 +207,7 @@ export default function CommandConflictsPanel({
       subtitle={t("bp_load_order_conflicts") || "Conflicts Detected"}
       icon={headerIcon}
       iconColorClass={headerIconColorClass}
-      widthClass="w-[525px]"
+      widthClass="w-[550px]"
     >
       <div className="flex flex-col gap-4 w-full">
         <div className="px-1 py-2 shrink-0 flex items-center justify-between relative">

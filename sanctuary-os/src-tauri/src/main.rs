@@ -24,6 +24,8 @@ pub struct SolderConfig {
     pub engine_retention_cycles: Option<u32>,
     pub world_retention_cycles: Option<u32>,
     pub vault_capacity_gb: Option<u32>,
+    pub timeline_retention_copies: Option<u32>,
+    pub timeline_retention_size_mb: Option<u32>,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -315,6 +317,52 @@ fn rip_game_version(live_path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn purge_external_file(path: String, hash: String, filename: String) -> Result<String, String> {
+    let p = std::path::PathBuf::from(&path);
+    let config = get_saved_coordinates();
+    let manifest_path = std::path::PathBuf::from(&config.vault_path).join("Quarantine").join(format!("{}.manifest.json", filename));
+    
+    if p.exists() {
+        tauri::async_runtime::spawn(async move {
+            if let Ok(mut perms) = p.metadata().map(|m| m.permissions()) {
+                if perms.readonly() {
+                    perms.set_readonly(false);
+                    let _ = std::fs::set_permissions(&p, perms);
+                }
+            }
+            if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(&p) {
+                if let Ok(meta) = f.metadata() {
+                    let zeros = vec![0u8; 1024 * 1024];
+                    // Shred up to 100MB to avoid freezing disk I/O on massive 50GB modpacks
+                    let mut remaining = std::cmp::min(meta.len(), 100 * 1024 * 1024);
+                    while remaining > 0 {
+                        let write_size = std::cmp::min(remaining, zeros.len() as u64);
+                        if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err() {
+                            break;
+                        }
+                        remaining -= write_size;
+                    }
+                    let _ = f.sync_all();
+                }
+            }
+            let _ = std::fs::remove_file(&p);
+            
+            if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content) {
+                    manifest.original_shredded = true;
+                    if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                        let _ = std::fs::write(&manifest_path, json);
+                    }
+                }
+            }
+        });
+        Ok("Purging initiated".into())
+    } else {
+        Err("File not found".into())
+    }
+}
+
+#[tauri::command]
 fn get_saved_coordinates() -> SolderConfig {
     let path = get_config_path();
     if let Ok(content) = fs::read_to_string(&path) {
@@ -333,6 +381,8 @@ fn get_saved_coordinates() -> SolderConfig {
                 engine_retention_cycles: v["engine_retention_cycles"].as_u64().map(|n| n as u32),
                 world_retention_cycles: v["world_retention_cycles"].as_u64().map(|n| n as u32),
                 vault_capacity_gb: v["vault_capacity_gb"].as_u64().map(|n| n as u32),
+                timeline_retention_copies: v["timeline_retention_copies"].as_u64().map(|n| n as u32),
+                timeline_retention_size_mb: v["timeline_retention_size_mb"].as_u64().map(|n| n as u32),
             };
         }
     }
@@ -350,6 +400,8 @@ fn save_coordinates(
     engine_retention_cycles: Option<u32>,
     world_retention_cycles: Option<u32>,
     vault_capacity_gb: Option<u32>,
+    timeline_retention_copies: Option<u32>,
+    timeline_retention_size_mb: Option<u32>,
 ) -> Result<String, String> {
     let json = serde_json::to_string_pretty(&SolderConfig {
         live_path,
@@ -361,6 +413,8 @@ fn save_coordinates(
         engine_retention_cycles,
         world_retention_cycles,
         vault_capacity_gb,
+        timeline_retention_copies,
+        timeline_retention_size_mb,
     })
     .map_err(|e| e.to_string())?;
     
@@ -823,8 +877,46 @@ pub struct HeuristicSignature {
     pub notes: String,
 }
 
-fn check_heuristic_malware(path: &Path, signatures: &[HeuristicSignature]) -> bool {
-    if signatures.is_empty() { return false; }
+fn obscure_username(path: &str) -> String {
+    let lower = path.to_lowercase();
+    let mut users_idx = lower.find("\\users\\");
+    let mut slash_len = 7;
+    let mut slash_char = '\\';
+    if users_idx.is_none() {
+        users_idx = lower.find("/users/");
+        slash_len = 7;
+        slash_char = '/';
+    }
+    
+    if let Some(idx) = users_idx {
+        let after_users = idx + slash_len;
+        if let Some(next_slash) = path[after_users..].find(slash_char) {
+            let mut obscured = String::new();
+            obscured.push_str(&path[..after_users]);
+            obscured.push_str("...");
+            obscured.push_str(&path[after_users + next_slash..]);
+            return obscured;
+        }
+    }
+    path.to_string()
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct QuarantineManifest {
+    pub artifact_name: String,
+    pub detected_hash: String,
+    pub signature: String,
+    pub quarantine_path: String,
+    pub original_path: Option<String>,
+    pub original_hash_at_import: Option<String>,
+    pub original_exists: bool,
+    pub original_shredded: bool,
+    pub quarantined_file_shredded: bool,
+    pub detected_at: String,
+}
+
+fn check_heuristic_malware(path: &Path, signatures: &[HeuristicSignature]) -> Option<String> {
+    if signatures.is_empty() { return None; }
     
     let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
     
@@ -832,8 +924,8 @@ fn check_heuristic_malware(path: &Path, signatures: &[HeuristicSignature]) -> bo
     for sig in signatures {
         if !sig.enabled { continue; }
         let sig_lower = sig.signature.to_lowercase();
-        if sig.match_type == "file_name_exact" && file_name == sig_lower { return true; }
-        if sig.match_type == "file_name_contains" && file_name.contains(&sig_lower) { return true; }
+        if sig.match_type == "file_name_exact" && file_name == sig_lower { return Some(sig.signature.clone()); }
+        if sig.match_type == "file_name_contains" && file_name.contains(&sig_lower) { return Some(sig.signature.clone()); }
     }
 
     if let Ok(file) = std::fs::File::open(path) {
@@ -844,14 +936,14 @@ fn check_heuristic_malware(path: &Path, signatures: &[HeuristicSignature]) -> bo
                     for sig in signatures {
                         if !sig.enabled { continue; }
                         let sig_lower = sig.signature.to_lowercase();
-                        if sig.match_type == "archive_entry_exact" && entry_name == sig_lower { return true; }
-                        if sig.match_type == "archive_entry_contains" && entry_name.contains(&sig_lower) { return true; }
+                        if sig.match_type == "archive_entry_exact" && entry_name == sig_lower { return Some(sig.signature.clone()); }
+                        if sig.match_type == "archive_entry_contains" && entry_name.contains(&sig_lower) { return Some(sig.signature.clone()); }
                     }
                 }
             }
         }
     }
-    false
+    None
 }
 
 #[tauri::command]
@@ -1051,7 +1143,7 @@ fn scan_bunker(
     let mut paths = Vec::new();
     walk_packages(&mods_lane, &mut paths);
     
-    let quarantine_dir = vault_dir.join(".sanctuary_quarantine");
+    let quarantine_dir = vault_dir.join("Quarantine");
     if quarantine_dir.exists() {
         walk_packages(&quarantine_dir, &mut paths);
     }
@@ -1070,7 +1162,7 @@ fn scan_bunker(
             .to_string();
 
         let current = progress_counter.fetch_add(1, Ordering::SeqCst) + 1;
-        if last_emit.elapsed() > std::time::Duration::from_millis(50) || current == total {
+        if last_emit.elapsed() > std::time::Duration::from_millis(200) || current == total {
             let _ = app.emit(
                 "scan-progress",
                 serde_json::json!({
@@ -1126,19 +1218,61 @@ fn scan_bunker(
         };
 
 
-        let is_malware = {
-            if let Ok(m) = state.malware_hashes.lock() {
-                m.contains(&dna_hash)
-            } else {
-                false
+        let mut is_malware = false;
+        let mut signature_name = "N/A".to_string();
+
+        if let Ok(m) = state.malware_hashes.lock() {
+            if m.contains(&dna_hash) {
+                is_malware = true;
             }
-        } || (is_script && check_heuristic_malware(&path, &heuristic_sigs));
+        }
+
+        if !is_malware && is_script {
+            if let Some(sig) = check_heuristic_malware(&path, &heuristic_sigs) {
+                is_malware = true;
+                signature_name = sig;
+            }
+        }
 
         if is_malware {
-            let quarantine_dir = vault_dir.join(".sanctuary_quarantine");
-            let _ = fs::create_dir_all(&quarantine_dir);
-            let target = quarantine_dir.join(path.file_name().unwrap_or_default());
+            let reports_dir = vault_dir.join("Quarantine");
+            let malware_dir = vault_dir.join(".sanctuary_quarantine");
+            let _ = fs::create_dir_all(&reports_dir);
+            let _ = fs::create_dir_all(&malware_dir);
+            let target = malware_dir.join(path.file_name().unwrap_or_default());
             let _ = fs::rename(&path, &target);
+            
+            let manifest = QuarantineManifest {
+                artifact_name: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                detected_hash: dna_hash.clone(),
+                signature: signature_name,
+                quarantine_path: obscure_username(&target.to_string_lossy()),
+                original_path: None,
+                original_hash_at_import: None,
+                original_exists: false,
+                original_shredded: false,
+                quarantined_file_shredded: false,
+                detected_at: chrono::Local::now().to_rfc3339(),
+            };
+            let manifest_path = reports_dir.join(format!("{}.manifest.json", target.file_name().unwrap_or_default().to_string_lossy()));
+            if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                let _ = fs::write(manifest_path, json);
+            }
+            
+            let _ = app.emit("malware_detected", serde_json::json!({
+                "path": target.to_string_lossy().to_string(),
+                "name": path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                "hash": dna_hash,
+                "status": "QUARANTINED",
+                "isLocalOverride": false,
+                "isVirtual": false,
+                "compliance_tier": 3,
+                "original_exists": manifest.original_exists,
+                "original_shredded": manifest.original_shredded,
+                "original_path": manifest.original_path,
+                "quarantine_path": manifest.quarantine_path,
+                "matched_signature": manifest.signature
+            }));
             
             cache.remove(&path_str);
             let target_str = target.to_string_lossy().to_string();
@@ -1235,7 +1369,7 @@ fn scan_sandbox(vault_path: String) -> Result<Vec<ModData>, String> {
 }
 
 #[tauri::command]
-async fn run_conflict_radar(
+fn run_conflict_radar(
     mods_path: String,
     target_files: Option<Vec<String>>,
 ) -> Result<serde_json::Value, String> {
@@ -2384,7 +2518,7 @@ fn restore_quarantined_file(filename: String) -> String {
         .join("Quarantine")
         .join(&filename);
     let sq_path = PathBuf::from(&config.vault_path)
-        .join(".sanctuary_quarantine")
+        .join("Quarantine")
         .join(&filename);
     let m_path = PathBuf::from(&config.vault_path)
         .join("Mods")
@@ -2423,9 +2557,6 @@ fn purge_quarantined_file(filename: String) -> Result<String, String> {
 
     let paths_to_check = vec![
         PathBuf::from(&config.vault_path)
-            .join("Quarantine")
-            .join(&filename),
-        PathBuf::from(&config.vault_path)
             .join(".sanctuary_quarantine")
             .join(&filename),
     ];
@@ -2438,33 +2569,42 @@ fn purge_quarantined_file(filename: String) -> Result<String, String> {
         }
 
         if q_path.exists() {
-            if let Ok(mut perms) = q_path.metadata().map(|m| m.permissions()) {
-                if perms.readonly() {
-                    perms.set_readonly(false);
-                    let _ = std::fs::set_permissions(&q_path, perms);
-                }
-            }
-            if let Ok(mut f) = fs::OpenOptions::new().write(true).open(&q_path) {
-                if let Ok(meta) = f.metadata() {
-                    let zeros = vec![0u8; 1024 * 1024];
-                    let mut remaining = meta.len();
-                    while remaining > 0 {
-                        let write_size = std::cmp::min(remaining, zeros.len() as u64);
-                        if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err()
-                        {
-                            break;
-                        }
-                        remaining -= write_size;
+            let q_path_clone = q_path.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Ok(mut perms) = q_path_clone.metadata().map(|m| m.permissions()) {
+                    if perms.readonly() {
+                        perms.set_readonly(false);
+                        let _ = std::fs::set_permissions(&q_path_clone, perms);
                     }
-                    let _ = f.sync_all();
                 }
-            }
-            if let Err(e) = fs::remove_file(&q_path) {
-                if cache_updated { save_cache(&config.vault_path, &cache); }
-                return Err(format!("Error removing file: {}", e));
-            }
+                if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(&q_path_clone) {
+                    if let Ok(meta) = f.metadata() {
+                        let zeros = vec![0u8; 1024 * 1024];
+                        let mut remaining = std::cmp::min(meta.len(), 100 * 1024 * 1024);
+                        while remaining > 0 {
+                            let write_size = std::cmp::min(remaining, zeros.len() as u64);
+                            if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err() {
+                                break;
+                            }
+                            remaining -= write_size;
+                        }
+                        let _ = f.sync_all();
+                    }
+                }
+                let _ = std::fs::remove_file(&q_path_clone);
+                
+                let manifest_path = q_path_clone.parent().unwrap().parent().unwrap().join("Quarantine").join(format!("{}.manifest.json", q_path_clone.file_name().unwrap().to_string_lossy()));
+                if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                    if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content) {
+                        manifest.quarantined_file_shredded = true;
+                        if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                            let _ = std::fs::write(&manifest_path, json);
+                        }
+                    }
+                }
+            });
             if cache_updated { save_cache(&config.vault_path, &cache); }
-            return Ok("Purged".into());
+            return Ok("Purge initiated".into());
         }
     }
     if cache_updated { save_cache(&config.vault_path, &cache); }
@@ -2524,6 +2664,7 @@ fn trigger_emp(_: bool, _: String) -> String {
 #[tauri::command]
 fn ingest_dropped_file(
     app: tauri::AppHandle,
+    state: tauri::State<'_, SecurityState>,
     path: String,
     force_replace: bool,
 ) -> Result<String, String> {
@@ -2547,7 +2688,7 @@ fn ingest_dropped_file(
         let mut needs_hash = true;
 
         for (k, _) in cache.iter() {
-            if Path::new(k).exists() && Path::new(k).file_name() == Some(source_file_name) {
+            if Path::new(k).file_name() == Some(source_file_name) && Path::new(k).exists() {
                 exists = true;
                 existing_name = k.clone();
                 match_reason = "NAME_MATCH".to_string();
@@ -2559,7 +2700,7 @@ fn ingest_dropped_file(
         if needs_hash {
             hash = calculate_hash(&source).unwrap_or_default();
             for (k, v) in cache.iter() {
-                if Path::new(k).exists() && v.dna_hash == hash && !hash.is_empty() {
+                if v.dna_hash == hash && !hash.is_empty() && Path::new(k).exists() {
                     exists = true;
                     existing_name = k.clone();
                     match_reason = "DNA_MATCH".to_string();
@@ -2651,23 +2792,73 @@ fn ingest_dropped_file(
                                     let _ = std::io::copy(&mut zf, &mut out_file);
                                     extracted_files.push(file_name_str.clone());
                                     
-                                    if needs_resolution {
-                                        let _ = app.emit("dna_match_detected", serde_json::json!({
-                                            "path": extract_target.to_string_lossy().to_string(), 
-                                            "hash": "", 
-                                            "existing_name": final_path.to_string_lossy().to_string(), 
-                                            "source_action": "ingest_dropped_file", 
-                                            "reason": "ZIP_NAME_MATCH" 
-                                        }));
+                                    let extracted_hash = calculate_hash(&extract_target).unwrap_or_default();
+                                    let is_malware = if let Ok(m) = state.malware_hashes.lock() {
+                                        m.contains(&extracted_hash)
                                     } else {
-                                        if let Some(ref active_mods) = active_base {
-                                            if active_mods.exists() {
-                                                let mut active_target = active_mods.clone();
-                                                if let Some(parent) = p.parent() {
-                                                    active_target = active_target.join(parent);
+                                        false
+                                    };
+
+                                    if is_malware {
+                                        let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
+                                        let reports_dir = Path::new(&config.vault_path).join("Quarantine");
+                                        let _ = std::fs::create_dir_all(&q_dir);
+                                        let _ = std::fs::create_dir_all(&reports_dir);
+                                        let q_target = q_dir.join(&zf_file_name);
+                                        let _ = std::fs::copy(&extract_target, &q_target);
+                                        let _ = std::fs::remove_file(&extract_target);
+                                        
+                                        let manifest = QuarantineManifest {
+                                            artifact_name: zf_file_name.to_string_lossy().to_string(),
+                                            detected_hash: extracted_hash.clone(),
+                                            signature: "N/A".to_string(),
+                                            quarantine_path: obscure_username(&q_target.to_string_lossy()),
+                                            original_path: Some(obscure_username(&source.to_string_lossy())),
+                                            original_hash_at_import: Some(calculate_hash(&source).unwrap_or_default()),
+                                            original_exists: true,
+                                            original_shredded: false,
+                                            quarantined_file_shredded: false,
+                                            detected_at: chrono::Local::now().to_rfc3339(),
+                                        };
+                                        let manifest_path = reports_dir.join(format!("{}.manifest.json", zf_file_name.to_string_lossy()));
+                                        if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                                            let _ = fs::write(manifest_path, json);
+                                        }
+                                        
+                                        let _ = app.emit("malware_detected", serde_json::json!({
+                                            "path": q_target.to_string_lossy().to_string(), 
+                                            "name": zf_file_name.to_string_lossy().to_string(),
+                                            "hash": extracted_hash, 
+                                            "status": "QUARANTINED",
+                                            "isLocalOverride": false,
+                                            "isVirtual": false,
+                                            "compliance_tier": 3,
+                                            "original_exists": manifest.original_exists,
+                                            "original_shredded": manifest.original_shredded,
+                                            "original_path": manifest.original_path,
+                                            "quarantine_path": manifest.quarantine_path,
+                                            "matched_signature": manifest.signature
+                                        }));
+                                        return Err("MALWARE".into());
+                                    } else {
+                                        if needs_resolution {
+                                            let _ = app.emit("dna_match_detected", serde_json::json!({
+                                                "path": extract_target.to_string_lossy().to_string(), 
+                                                "hash": "", 
+                                                "existing_name": final_path.to_string_lossy().to_string(), 
+                                                "source_action": "ingest_dropped_file", 
+                                                "reason": "ZIP_NAME_MATCH" 
+                                            }));
+                                        } else {
+                                            if let Some(ref active_mods) = active_base {
+                                                if active_mods.exists() {
+                                                    let mut active_target = active_mods.clone();
+                                                    if let Some(parent) = p.parent() {
+                                                        active_target = active_target.join(parent);
+                                                    }
+                                                    let _ = std::fs::create_dir_all(&active_target);
+                                                    let _ = std::fs::copy(&extract_target, active_target.join(zf_file_name));
                                                 }
-                                                let _ = std::fs::create_dir_all(&active_target);
-                                                let _ = std::fs::copy(&extract_target, active_target.join(zf_file_name));
                                             }
                                         }
                                     }
@@ -2679,6 +2870,55 @@ fn ingest_dropped_file(
             }
             return Ok(serde_json::to_string(&extracted_files).unwrap_or_else(|_| "[]".to_string()));
         } else if ext == "package" || ext == "ts4script" || ext == "7z" || ext == "rar" || ext == "dat" || ext == "cfg" || ext == "ini" || ext == "json" {
+            let file_hash = calculate_hash(&source).unwrap_or_default();
+            let is_malware = if let Ok(m) = state.malware_hashes.lock() {
+                m.contains(&file_hash)
+            } else {
+                false
+            };
+            
+            if is_malware {
+                let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
+                let reports_dir = Path::new(&config.vault_path).join("Quarantine");
+                let _ = std::fs::create_dir_all(&q_dir);
+                let _ = std::fs::create_dir_all(&reports_dir);
+                let q_target = q_dir.join(&file_name);
+                let _ = std::fs::copy(source, &q_target);
+                
+                let manifest = QuarantineManifest {
+                    artifact_name: file_name.to_string_lossy().to_string(),
+                    detected_hash: file_hash.clone(),
+                    signature: "N/A".to_string(),
+                    quarantine_path: obscure_username(&q_target.to_string_lossy()),
+                    original_path: Some(obscure_username(&source.to_string_lossy())),
+                    original_hash_at_import: Some(file_hash.clone()),
+                    original_exists: true,
+                    original_shredded: false,
+                    quarantined_file_shredded: false,
+                    detected_at: chrono::Local::now().to_rfc3339(),
+                };
+                let manifest_path = reports_dir.join(format!("{}.manifest.json", file_name.to_string_lossy()));
+                if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                    let _ = fs::write(manifest_path, json);
+                }
+                
+                let _ = app.emit("malware_detected", serde_json::json!({
+                    "path": q_target.to_string_lossy().to_string(),
+                    "name": file_name.to_string_lossy().to_string(),
+                    "hash": file_hash,
+                    "status": "QUARANTINED",
+                    "isLocalOverride": false,
+                    "isVirtual": false,
+                    "compliance_tier": 3,
+                    "original_exists": manifest.original_exists,
+                    "original_shredded": manifest.original_shredded,
+                    "original_path": manifest.original_path,
+                    "quarantine_path": manifest.quarantine_path,
+                    "matched_signature": manifest.signature
+                }));
+                return Err("MALWARE".into());
+            }
+
             std::fs::copy(source, &target).map_err(|e| e.to_string())?;
             if !config.mods_path.is_empty() {
                 let active_mods_dir = Path::new(&config.mods_path);
@@ -2970,6 +3210,148 @@ fn write_os_log(app_handle: tauri::AppHandle, message: String, level: String) ->
     Ok(())
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct HistoryEntry {
+    pub timestamp: u64,
+    pub content: String,
+    #[serde(default)]
+    pub pinned: Option<bool>,
+}
+
+#[tauri::command]
+fn save_file_with_history(app: tauri::AppHandle, path: String, content: String) -> Result<String, String> {
+    use tauri::Manager;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    // Save to the actual path
+    std::fs::write(&path, &content).map_err(|e| format!("Failed to save file: {}", e))?;
+
+    // Handle history
+    if let Ok(app_dir) = app.path().app_data_dir() {
+        let config = get_saved_coordinates();
+        let max_copies = config.timeline_retention_copies.unwrap_or(50) as usize;
+        let max_size_bytes = config.timeline_retention_size_mb.unwrap_or(100) as u64 * 1024 * 1024;
+
+        if max_copies == 0 {
+            return Ok("Saved without history".into());
+        }
+
+        let history_dir = app_dir.join("file_history");
+        std::fs::create_dir_all(&history_dir).unwrap_or_default();
+        
+        let path_hash = format!("{:x}", md5::compute(&path));
+        let file_history_dir = history_dir.join(path_hash);
+        std::fs::create_dir_all(&file_history_dir).unwrap_or_default();
+
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let history_file = file_history_dir.join(format!("{}.json", timestamp));
+        
+        let entry = HistoryEntry {
+            timestamp,
+            content,
+            pinned: Some(false),
+        };
+
+        if let Ok(json) = serde_json::to_string(&entry) {
+            let _ = std::fs::write(&history_file, json);
+        }
+
+        // Cleanup
+        if let Ok(entries) = std::fs::read_dir(&file_history_dir) {
+            let mut all_files = Vec::new();
+            for p in entries.flatten().filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("json")) {
+                let path = p.path();
+                let is_pinned = std::fs::read_to_string(&path)
+                    .ok()
+                    .and_then(|content| serde_json::from_str::<HistoryEntry>(&content).ok())
+                    .map(|h| h.pinned.unwrap_or(false))
+                    .unwrap_or(false);
+                
+                let size = path.metadata().map(|m| m.len()).unwrap_or(0);
+                let modified = path.metadata().and_then(|m| m.modified()).unwrap_or(SystemTime::UNIX_EPOCH);
+                all_files.push((path, is_pinned, size, modified));
+            }
+            
+            // Sort by modified time (oldest first)
+            all_files.sort_by_key(|f| f.3);
+            
+            let mut unpinned_count = all_files.iter().filter(|f| !f.1).count();
+            let mut unpinned_size: u64 = all_files.iter().filter(|f| !f.1).map(|f| f.2).sum();
+            
+            for (path, is_pinned, size, _) in all_files {
+                if unpinned_count <= max_copies && unpinned_size <= max_size_bytes {
+                    break;
+                }
+                if !is_pinned {
+                    if let Ok(_) = std::fs::remove_file(&path) {
+                        unpinned_count = unpinned_count.saturating_sub(1);
+                        unpinned_size = unpinned_size.saturating_sub(size);
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok("Saved successfully".into())
+}
+
+#[tauri::command]
+fn get_file_history(app: tauri::AppHandle, path: String) -> Result<Vec<HistoryEntry>, String> {
+    use tauri::Manager;
+    let mut history = Vec::new();
+    
+    if let Ok(app_dir) = app.path().app_data_dir() {
+        let path_hash = format!("{:x}", md5::compute(&path));
+        let file_history_dir = app_dir.join("file_history").join(path_hash);
+        
+        if file_history_dir.exists() {
+            if let Ok(entries) = std::fs::read_dir(file_history_dir) {
+                for entry in entries.flatten() {
+                    if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                        if let Ok(h) = serde_json::from_str::<HistoryEntry>(&content) {
+                            history.push(h);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Sort newest first, with pinned at the top
+    history.sort_by(|a, b| {
+        let a_pinned = a.pinned.unwrap_or(false);
+        let b_pinned = b.pinned.unwrap_or(false);
+        if a_pinned != b_pinned {
+            b_pinned.cmp(&a_pinned)
+        } else {
+            b.timestamp.cmp(&a.timestamp)
+        }
+    });
+    Ok(history)
+}
+
+#[tauri::command]
+fn toggle_pin_version(app: tauri::AppHandle, path: String, timestamp: u64, pinned: bool) -> Result<(), String> {
+    use tauri::Manager;
+    if let Ok(app_dir) = app.path().app_data_dir() {
+        let path_hash = format!("{:x}", md5::compute(&path));
+        let history_file = app_dir.join("file_history").join(path_hash).join(format!("{}.json", timestamp));
+        
+        if history_file.exists() {
+            if let Ok(content) = std::fs::read_to_string(&history_file) {
+                if let Ok(mut h) = serde_json::from_str::<HistoryEntry>(&content) {
+                    h.pinned = Some(pinned);
+                    if let Ok(json) = serde_json::to_string(&h) {
+                        let _ = std::fs::write(&history_file, json);
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    }
+    Err("Failed to update pin status".into())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
@@ -3010,6 +3392,7 @@ fn main() {
             get_suggested_paths,
             get_quarantine_list,
             purge_quarantined_file,
+            purge_external_file,
             restore_quarantined_file,
             trigger_emp,
             move_to_lab,
@@ -3051,7 +3434,10 @@ fn main() {
             check_symlink_permissions,
             get_system_info,
             get_heuristic_signatures,
-            save_heuristic_signatures
+            save_heuristic_signatures,
+            save_file_with_history,
+            get_file_history,
+            toggle_pin_version
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

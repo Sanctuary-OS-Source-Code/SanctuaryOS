@@ -6,6 +6,7 @@ import { useLexicon } from "./LexiconContext";
 import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass } from "./shared";
 import { readDir, readTextFile, writeTextFile, exists } from '@tauri-apps/plugin-fs';
 import { open } from "@tauri-apps/plugin-dialog";
+import VersionTimeline from './VersionTimeline';
 
 export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
   const { t } = useLexicon();
@@ -16,6 +17,7 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
   const setActiveFileIndex = useStore(state => state.setIdeActiveFileIndex);
   const [files, setFiles] = useState<{name: string, path: string}[]>([]);
   const [isScanning, setIsScanning] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [fileTypeFilter, setFileTypeFilter] = useState("all");
   const [problemsList, setProblemsList] = useState<any[]>([]);
@@ -216,7 +218,9 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
       if (activeFileIndex < 0) return;
       const file = openFiles[activeFileIndex];
       try {
-         await writeTextFile(file.path, file.content);
+         // The backend database keys paths with backslashes on Windows.
+         const normalizedPath = file.path.replace(/\//g, '\\');
+         await invoke('save_file_with_history', { path: normalizedPath, content: file.content });
          const newFiles = [...openFiles];
          newFiles[activeFileIndex].originalContent = file.content;
          setOpenFiles(newFiles);
@@ -364,6 +368,16 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
          iconColorClass="theme-text-accent"
          isResizable={true}
          defaultWidth={1000}
+         headerActions={
+           <button 
+             onClick={() => setShowTimeline(true)} 
+             disabled={!activeFile}
+             className="h-12 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none mr-2 backdrop-blur-md"
+           >
+             <span className="material-symbols-outlined !text-[18px]">history</span>
+             {t("workbench_btn_timeline") || "TIMELINE"}
+           </button>
+         }
          footer={
             <div className="flex items-center justify-center gap-3 w-full shrink-0">
                <div className="relative group">
@@ -467,6 +481,20 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
             )}
          </div>
       </SidePanel>
+      
+      {showTimeline && activeFile && (
+         <VersionTimeline 
+            filePath={activeFile.path.replace(/\//g, '\\')}
+            hasUnsavedChanges={activeFile.content !== activeFile.originalContent}
+            onRestore={(content) => {
+               setOpenFiles(prev => prev.map((f, i) => i === activeFileIndex ? { ...f, content } : f));
+               if (editorRef && (window as any).monaco) {
+                  validateContent(content, (window as any).monaco, editorRef.getModel());
+               }
+            }}
+            onClose={() => setShowTimeline(false)}
+         />
+      )}
     </div>
   );
 }

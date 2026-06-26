@@ -27,6 +27,7 @@ import { IdentityMatrix } from './IdentityMatrix';
 import { WayfinderPostsEditor } from './WayfinderPostsEditor';
 import { MarketplaceReportsViewer, FileVerificationSidePanel } from './ArchitectHub';
 import ComplianceManualFlagSidePanel from './ComplianceManualFlagSidePanel';
+import SAOversightReports from './SAOversightReports';
 
 export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfile?: (id: string) => void }) {
   const { t } = useLexicon();
@@ -87,6 +88,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
            <HubTabButton id="linker" icon={t("ui_icon_link") || "link"} label={t("sa_tab_linker") || "Masons"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="compliance" icon={t("ui_icon_policy") || "policy"} label={t("sa_tab_compliance") || "Compliance"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="reports" icon={t("ui_icon_report") || "flag"} label={t("mason_stat_bugs") || "REPORTS"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="oversight_reports" icon={t("ui_icon_threat_intelligence") || "threat_intelligence"} label={t("hub_tab_malware_logs") || "Manifests"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="sanctuary_tickets" icon={t("ui_icon_local_activity") || "local_activity"} label={t("wf_tab_tickets") || "SUPPORT"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="support_settings" icon={t("ui_icon_support_agent") || "support_agent"} label={t("wf_tab_support") || "SETTINGS"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="audit_logs" icon={t("ui_icon_history") || "history"} label={t("sa_tab_audit") || "Logs"} activeTab={activeTab} setTab={setActiveTab} />
@@ -104,10 +106,11 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
            setShowManualFlagModal(true); 
         }} />}
         {activeTab === "reports" && <MarketplaceReportsViewer onOpenDossier={(report: any) => {}} />}
+        {activeTab === "oversight_reports" && <SAOversightReports />}
         {activeTab === "sanctuary_tickets" && <ArchitectSupportTickets userRole="wayfinder" />}
         {activeTab === "support_settings" && <SASupportSettings />}
         {activeTab === "audit_logs" && <AuditLogViewer />}
-        {activeTab !== "command_center" && activeTab !== "wayfinder_comms" && activeTab !== "identities" && activeTab !== "linker" && activeTab !== "compliance" && activeTab !== "reports" && activeTab !== "sanctuary_tickets" && activeTab !== "support_settings" && activeTab !== "audit_logs" && (
+        {activeTab !== "command_center" && activeTab !== "wayfinder_comms" && activeTab !== "identities" && activeTab !== "linker" && activeTab !== "compliance" && activeTab !== "reports" && activeTab !== "oversight_reports" && activeTab !== "sanctuary_tickets" && activeTab !== "support_settings" && activeTab !== "audit_logs" && (
            <div className="p-12 text-center text-[var(--subtext)] opacity-50 font-black uppercase tracking-widest text-xs">
               {t("wf_under_construction")}
            </div>
@@ -222,6 +225,8 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMasonProfil
     supportQueue: 0,
     flaggedQueue: 0,
     reportQueue: 0,
+    oversightQueue: 0,
+    oversightQueueNew: 0,
     quarantined: 0,
     networkLatency: null as number | null,
     networkStatus: "CONNECTING...",
@@ -323,16 +328,26 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMasonProfil
         .in('compliance_tier', [1, 2, 3])
         .gte('created_at', isoDate); 
 
-      // Report Queue (marketplace_reports pending, last 30 days)
-      const { count: reportQueueCount } = await supabase.from('marketplace_reports')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending')
-        .gte('created_at', isoDate);
-
       // Quarantined (mods with compliance tier 3)
       const { count: quarantinedCount } = await supabase.from('mods')
         .select('*', { count: 'exact', head: true })
         .eq('compliance_tier', 3);
+        
+      // Oversight Queue
+      const { count: oversightQueueCount } = await supabase.from('malware_reports')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      
+      const { count: oversightNewCount } = await supabase.from('malware_reports')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .gte('created_at', isoDate);
+
+      // Report Queue
+      const { count: reportQueueCount } = await supabase.from('marketplace_reports')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .gte('created_at', isoDate);
 
       // Hub Metrics
       const { count: citizensCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'citizen');
@@ -354,6 +369,8 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMasonProfil
         supportQueue: wayfinderTickets,
         flaggedQueue: flaggedQueueCount || 0,
         reportQueue: reportQueueCount || 0,
+        oversightQueue: oversightQueueCount || 0,
+        oversightQueueNew: oversightNewCount || 0,
         quarantined: quarantinedCount || 0,
         networkLatency: netLatency,
         networkStatus: netStatus,
@@ -397,7 +414,7 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMasonProfil
           <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_dns") || "dns"}</span>} number={stats.networkLatency ? `${stats.networkLatency}` : "---"} label={stats.networkStatus === "ONLINE" ? (t("wf_stat_server_nominal") || "NOMINAL") : (t("wf_stat_server_degraded") || "DEGRADED")} colorClass={stats.networkStatus === "ONLINE" ? "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" : "border-yellow-500/30 text-yellow-500 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20"} onClick={() => setHealthOpen(true)} />
           <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity") || "local_activity"}</span>} number={stats.supportQueue} label={t("wf_stat_support_queue") || "SUPPORT QUEUE"} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("sanctuary_tickets")} />
           <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_flag") || "flag"}</span>} number={stats.flaggedQueue} label={t("wf_stat_flagged") || "FLAGGED QUEUE"} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => { if(setComplianceFilter) setComplianceFilter('flagged'); setTab("compliance"); }} />
-          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_report") || "flag"}</span>} number={stats.reportQueue} label={t("wf_stat_report_queue") || "REPORT QUEUE"} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => setTab("reports")} />
+          <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_threat_intelligence") || "threat_intelligence"}</span>} number={stats.oversightQueueNew} label={t("hub_stat_malware_logs") || "MALWARE MANIFESTS"} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => setTab("oversight_reports")} />
           <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_malware_skull") || "skull"}</span>} number={stats.quarantined} label={t("wf_stat_quarantined") || "QUARANTINED"} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { if(setComplianceFilter) setComplianceFilter('quarantined'); setTab("compliance"); }} />
         </div>
 
@@ -454,15 +471,15 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMasonProfil
              </div>
              <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-purple-500/30 transition-all text-center h-32">
                 <span className="text-3xl font-black text-purple-400">{stats.architects}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-purple-300/70 leading-tight">{t("hub_stat_architects") || "ARCHITECTS"}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-black-300/70 leading-tight">{t("hub_stat_architects") || "ARCHITECTS"}</span>
              </div>
              <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-indigo-500/30 transition-all text-center h-32">
                 <span className="text-3xl font-black text-indigo-400">{stats.seniorArchitects}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-indigo-300/70 leading-tight">{t("hub_stat_senior_architects") || "OVERSIGHT"}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-black-300/70 leading-tight">{t("hub_stat_senior_architects") || "OVERSIGHT"}</span>
              </div>
              <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-red-500/30 transition-all text-center h-32">
-                <span className="text-3xl font-black text-red-500">{stats.blacklisted}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-red-400/70 leading-tight">{t("hub_stat_blacklisted") || "BLACKLISTED"}</span>
+                <span className="text-3xl font-black text-red-500">{stats.oversightQueue}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-black-400/70 leading-tight">{t("hub_tab_malware_logs") || "MALWARE LOGS"}</span>
              </div>
           </div>
         </div>
@@ -483,13 +500,27 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMasonProfil
              </button>
 
              <button onClick={() => setTab("compliance")} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[1.5rem] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
-               <div className="flex items-center gap-5 h-full">
+               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
+               <div className="flex items-center gap-5 h-full relative z-10">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_policy") || "policy"}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
                    <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_comp_title") || "Compliance Oversight"}</h3>
                    <span className="text-[8px] uppercase font-bold text-orange-400 opacity-80 group-hover:text-orange-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.8)]"></span> {t("sa_link_compliance_sub") || "ENFORCE POLICIES"}</span>
+                 </div>
+               </div>
+             </button>
+             
+             <button onClick={() => setTab("oversight_reports")} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[1.5rem] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
+               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
+               <div className="flex items-center gap-5 h-full relative z-10">
+                 <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_threat_intelligence") || "threat_intelligence"}</span>
+                 </div>
+                 <div className="flex flex-col gap-1 flex-1 min-w-0">
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_oversight_dashboard") || "OVERSIGHT REPORTS"}</h3>
+                   <span className="text-[8px] uppercase font-bold text-red-500 opacity-80 group-hover:text-red-500 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-red-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span> {t("hub_ql_sys_reports") || "SYSTEM REPORTS"}</span>
                  </div>
                </div>
              </button>

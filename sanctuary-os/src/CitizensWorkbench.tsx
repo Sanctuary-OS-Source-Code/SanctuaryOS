@@ -5,6 +5,8 @@ import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { SearchBar, ViewHeader, CustomDropdown, SidePanel, standardButtonClass, standardPrimaryButtonClass, HubTabButton } from './shared';
 import { PushTemplateSidePanel } from "./PushTemplateSidePanel";
+import VersionTimeline from "./VersionTimeline";
+import { invoke } from '@tauri-apps/api/core';
 import workbenchTemplates from './data/workbench_templates.json';
 
 export default function CitizensWorkbench() {
@@ -63,6 +65,7 @@ export default function CitizensWorkbench() {
   const [isPreviewVisible, setIsPreviewVisible] = useState(true);
   const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
   const [isTemplateGuideOpen, setIsTemplateGuideOpen] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
 
 
 
@@ -223,10 +226,10 @@ export default function CitizensWorkbench() {
         };
         await writeTextFile(newFilePath, JSON.stringify(defaultContent, null, 2));
         setRefreshTrigger(prev => prev + 1);
-        pushStatus("New template created.", "success");
+        pushStatus(t("workbench_msg_template_created") || "New template created.", "success");
      } catch (e) {
         console.error("Error creating template", e);
-        pushStatus("Failed to create template.", "error");
+        pushStatus(t("workbench_msg_template_create_failed") || "Failed to create template.", "error");
      }
   };
 
@@ -260,10 +263,10 @@ export default function CitizensWorkbench() {
         }
         setRenamingFile(null);
         setRefreshTrigger(prev => prev + 1);
-        pushStatus("Template renamed.", "success");
+        pushStatus(t("workbench_msg_template_renamed") || "Template renamed.", "success");
      } catch (e) {
         console.error("Error renaming template", e);
-        pushStatus("Failed to rename template.", "error");
+        pushStatus(t("workbench_msg_template_rename_failed") || "Failed to rename template.", "error");
      }
   };
 
@@ -413,7 +416,7 @@ export default function CitizensWorkbench() {
     if (!selectedFile) return;
     setIsSaving(true);
     try {
-      await writeTextFile(selectedFile.path, rawText);
+      await invoke('save_file_with_history', { path: selectedFile.path, content: rawText });
       setUnsavedEdits(prev => {
           const next = {...prev};
           delete next[selectedFile.path];
@@ -437,7 +440,7 @@ export default function CitizensWorkbench() {
            
            const templatesArray = Array.isArray(workbenchTemplates) ? workbenchTemplates : (workbenchTemplates as any).default || [];
            const builtInMatch = templatesArray.find((t: any) => t.target_file?.toLowerCase() === selectedFile.name.toLowerCase());
-           if (builtInMatch) matches.push({ id: "built_in", label: "Sanctuary Default", data: builtInMatch });
+           if (builtInMatch) matches.push({ id: "built_in", label: t("workbench_template_sanctuary_default") || "Sanctuary Default", data: builtInMatch });
            
            for (const f of jsonFiles) {
                try {
@@ -613,7 +616,7 @@ export default function CitizensWorkbench() {
          <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 pb-32">
             {filteredMainFiles.length === 0 ? (
                  <div className="w-full p-12 rounded-[2rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col items-center justify-center gap-4 opacity-60 shadow-inner">
-                    <span className="material-symbols-outlined !text-4xl text-[var(--subtext)]">{mainTab === "CONFIGS" ? "settings_off" : "data_object"}</span>
+                    <span className="material-symbols-outlined !text-4xl text-[var(--subtext)]">{mainTab === "CONFIGS" ? (t("ui_icon_settings_off") || "settings_off") : (t("ui_icon_data_object") || "data_object")}</span>
                     <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)]">{t("workbench_no_files_found") || "No Files Found"}</span>
                  </div>
             ) : (
@@ -628,11 +631,11 @@ export default function CitizensWorkbench() {
                            >
                               <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                               <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner group-hover:border-[var(--accent)]/50 transition-colors">
-                                 <span className="material-symbols-outlined !text-2xl text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors">{isTmpl ? "data_object" : "settings"}</span>
+                                 <span className="material-symbols-outlined !text-2xl text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors">{isTmpl ? (t("ui_icon_data_object") || "data_object") : (t("ui_icon_settings") || "settings")}</span>
                               </div>
                               <div className="flex flex-col gap-1 z-10 pr-10">
                                  <span className="text-sm font-black text-[var(--text)] tracking-wider truncate">{file.name}</span>
-                                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60">{isTmpl ? "JSON Schema" : "System Configuration"}</span>
+                                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60">{isTmpl ? (t("workbench_schema_json") || "JSON Schema") : (t("workbench_schema_system") || "System Configuration")}</span>
                               </div>
                            </button>
                            {unsavedEdits[file.path] !== undefined && (
@@ -675,10 +678,20 @@ export default function CitizensWorkbench() {
         onClose={() => setSelectedFile(null)} 
         title={selectedFile?.name || ""} 
         subtitle={isTemplateMode ? (t("workbench_template_architect") || "TEMPLATE ARCHITECT") : (t("workbench_tab_visual") || "VISUAL TUNING")}
-        icon={isTemplateMode ? "data_object" : "tune"}
+        icon={isTemplateMode ? (t("ui_icon_data_object") || "data_object") : (t("ui_icon_tune") || "tune")}
         iconColorClass="theme-text-accent"
         isResizable={true}
         defaultWidth={isTemplateMode && isPreviewVisible ? 1400 : 900}
+        headerActions={
+          <button 
+            onClick={() => setShowTimeline(true)} 
+            disabled={!selectedFile}
+            className="h-12 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none mr-2 backdrop-blur-md"
+          >
+            <span className="material-symbols-outlined !text-[18px]">history</span>
+            {t("workbench_btn_timeline") || "TIMELINE"}
+          </button>
+        }
          footer={
           <div className="flex items-center justify-center gap-3 w-full shrink-0 relative">
              {!isTemplateMode && (
@@ -704,7 +717,7 @@ export default function CitizensWorkbench() {
                      onClick={() => setIsPushModalOpen(true)} 
                      disabled={problemsList.length > 0}
                      className={`${standardButtonClass} disabled:opacity-30 disabled:saturate-0`}
-                     title={problemsList.length > 0 ? "Cannot publish with errors" : ""}
+                     title={problemsList.length > 0 ? (t("workbench_err_publish_blocks") || "Cannot publish with errors") : ""}
                    >
                       <span className="material-symbols-outlined !text-[18px]">cloud_upload</span>
                       {t("workbench_btn_publish") || "PUBLISH"}
@@ -1031,8 +1044,28 @@ export default function CitizensWorkbench() {
                    </pre>
                 </div>
              </div>
-          </div>
+           </div>
        </SidePanel>
+       
+       {showTimeline && selectedFile && (
+          <VersionTimeline 
+             filePath={selectedFile.path}
+             hasUnsavedChanges={!!hasUnsavedChanges}
+             onRestore={(content) => {
+                setRawText(content);
+                setUnsavedEdits(prev => ({...prev, [selectedFile.path]: content}));
+                if (editorRef && (window as any).monaco) {
+                   validateContent(content, (window as any).monaco, editorRef.getModel());
+                }
+                try {
+                   setParsedData(JSON.parse(content));
+                } catch (e) {
+                   setParsedData(null);
+                }
+             }}
+             onClose={() => setShowTimeline(false)}
+          />
+       )}
     </div>
   );
 }

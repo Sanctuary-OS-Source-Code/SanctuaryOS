@@ -101,7 +101,7 @@ export default function CommandRadarSweepPanel({
       subtitle={t("cmd_system_core") || "System Core & Sub-Systems"}
       icon={t("ui_icon_radar3") || "radar"}
       iconColorClass={c_iconColor}
-      widthClass="w-[600px]"
+      widthClass="w-[625px]"
     >
       <div className="flex-1 min-h-0 flex flex-col gap-6 w-full p-4 overflow-y-auto custom-scrollbar">
         

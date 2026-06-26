@@ -5,6 +5,7 @@ import { YeetConfirmAlert } from "./YeetConfirmAlert";
 import { DefconAlert } from "./DefconAlert";
 import { useLexicon } from "./LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
+import { supabase } from "./supabase";
 import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, standardSuccessButtonClass } from "./shared";
 import { useModalStore } from "./store/modalStore";
 import { useStore } from './store';
@@ -84,16 +85,72 @@ export function AppModals(props: any) {
   const restoreTitle = isEngineRestore ? t("overlay_restoring_engine") || "RESTORING ENGINE CORE" : t("overlay_restoring_world") || "RESTORING WORLD STATE";
   const restoreDesc = isEngineRestore ? t("overlay_restoring_engine_desc") || "Rebuilding game engine archive..." : t("overlay_restoring_world_desc") || "Extracting saves and tray archive...";
 
+  const [shredState, setShredState] = React.useState<Record<string, string>>({});
+
+  const obscureUsername = (path: string) => {
+    if (!path) return "";
+    return path.replace(/([\\/])Users[\\/][^\\/]+([\\/])/i, "$1Users$1...$2");
+  };
+
   const handleSecureShred = async (m: any) => {
+    setShredState(prev => ({ ...prev, [m.hash]: 'shredding_vault' }));
     try {
-      await invoke("purge_quarantined_file", {
-        filename: m.name.split(/[\\/]/).pop() || m.name,
-      });
-      setStatus(`${t("ui_icon_success") || "check_circle"} ${t("status_file_shredded") || "File shredded securely."}`);
-      setMalwareAlert(malwareAlert.filter((x: any) => x.hash !== m.hash));
-      runRadarSweep();
+        await invoke("purge_quarantined_file", {
+          filename: m.name.split(/[\\/]/).pop() || m.name,
+        });
+        setStatus(`${t("ui_icon_success") || "check_circle"} ${t("status_file_shredded") || "File shredded securely."}`);
+        
+        if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
+          const { data: session } = await supabase.auth.getSession();
+          await supabase.from('malware_reports')
+            .update({ quarantined_file_shredded: true })
+            .eq('detected_hash', m.hash)
+            .eq('citizen_id', session?.session?.user?.id);
+        }
+
+        let originalPath = droppedFiles?.find((f: string) => f.split(/[\\/]/).pop() === m.name.split(/[\\/]/).pop());
+      if (!originalPath && droppedFiles && droppedFiles.length > 0) {
+        originalPath = droppedFiles.find((f: string) => /\.(zip|rar|7z|tar|gz)$/i.test(f));
+      }
+      
+      if (originalPath) {
+        setShredState(prev => ({ ...prev, [m.hash]: originalPath }));
+      } else {
+        setShredState(prev => { const n = {...prev}; delete n[m.hash]; return n; });
+        setMalwareAlert(malwareAlert.filter((x: any) => x.hash !== m.hash));
+        runRadarSweep();
+      }
+    } catch (err: any) {
+      setShredState(prev => { const n = {...prev}; delete n[m.hash]; return n; });
+      setStatus(`Error: ${err}`);
+    }
+  };
+
+  const handleSkipExternalShred = (m: any) => {
+    setShredState(prev => { const n = {...prev}; delete n[m.hash]; return n; });
+    setMalwareAlert(malwareAlert.filter((x: any) => x.hash !== m.hash));
+    runRadarSweep();
+  };
+
+  const handleExternalShred = async (m: any, originalPath: string) => {
+    setShredState(prev => ({ ...prev, [m.hash]: 'shredding_external' }));
+    try {
+      await invoke("purge_external_file", { path: originalPath, hash: m.hash, filename: m.name });
+      setStatus(`${t("ui_icon_success") || "check_circle"} ${t("status_external_shredded") || "Original file shredded securely."}`);
+
+      if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
+        const { data: session } = await supabase.auth.getSession();
+        await supabase.from('malware_reports')
+          .update({ original_shredded: true, original_exists: false })
+          .eq('detected_hash', m.hash)
+          .eq('citizen_id', session?.session?.user?.id);
+      }
     } catch (err: any) {
       setStatus(`Error: ${err}`);
+    } finally {
+      setShredState(prev => { const n = {...prev}; delete n[m.hash]; return n; });
+      setMalwareAlert(malwareAlert.filter((x: any) => x.hash !== m.hash));
+      runRadarSweep();
     }
   };
 
@@ -140,21 +197,54 @@ export function AppModals(props: any) {
             <div className="relative z-20 bg-black/40 backdrop-blur-md p-6 rounded-[2rem] border border-red-500/10 max-h-[40vh] overflow-y-auto custom-scrollbar flex flex-col gap-3 shadow-inner">
               <div className="flex flex-col gap-3">
                 {malwareAlert.map((m: any) => (
-                  <div key={m.hash} className="flex items-center justify-between p-5 bg-white/[0.02] rounded-2xl border border-red-500/10 hover:border-red-500/30 transition-all group">
-                    <div className="flex items-center gap-4 min-w-0 pr-4">
-                      <div className="w-2 h-2 ml-1 bg-red-500 rounded-full shadow-[0_0_10px_rgba(239,68,68,1)] animate-pulse shrink-0"></div>
-                      <div className="flex flex-col truncate">
-                        <span className="text-sm font-black text-red-400 truncate uppercase tracking-widest">{m.displayName || m.name}</span>
-                        <span className="text-[10px] font-mono text-red-300/50 truncate mt-1">{t("malware_alert_hash_label") || "Hash:"} {m.hash}</span>
+                  <React.Fragment key={m.hash}>
+                    <div className="flex items-center justify-between p-5 bg-white/[0.02] rounded-2xl border border-red-500/10 hover:border-red-500/30 transition-all group">
+                      <div className="flex items-center gap-4 min-w-0 pr-4">
+                        <div className="w-2 h-2 ml-1 bg-red-500 rounded-full shadow-[0_0_10px_rgba(239,68,68,1)] animate-pulse shrink-0"></div>
+                        <div className="flex flex-col truncate">
+                          <span className="text-sm font-black text-red-400 truncate uppercase tracking-widest">{m.displayName || m.name}</span>
+                          <span className="text-[10px] font-mono text-red-300/50 truncate mt-1">{t("malware_alert_hash_label") || "Hash:"} {m.hash}</span>
+                        </div>
                       </div>
+                      {shredState[m.hash] === 'shredding_vault' || shredState[m.hash] === 'shredding_external' ? (
+                        <div className="px-8 py-4 font-black text-[10px] uppercase tracking-[0.3em] text-red-400 animate-pulse shrink-0">
+                          {t("malware_btn_shredding") || "SHREDDING..."}
+                        </div>
+                      ) : shredState[m.hash] ? (
+                        <div className="flex gap-2 shrink-0">
+                           <button 
+                             onClick={() => handleSkipExternalShred(m)} 
+                             className="px-4 py-4 bg-transparent border border-red-500/20 hover:bg-red-500/10 text-red-400/60 hover:text-red-300 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                           >
+                             {t("malware_btn_skip") || "SKIP"}
+                           </button>
+                           <button 
+                             onClick={() => handleExternalShred(m, shredState[m.hash])} 
+                             className="px-6 py-4 bg-red-500/20 border border-red-500/50 hover:bg-red-500/40 text-red-300 hover:text-red-200 font-black text-[10px] uppercase tracking-[0.1em] rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.2)] hover:shadow-[0_0_30px_rgba(220,38,38,0.4)] active:scale-95"
+                           >
+                             {t("malware_btn_shred_original") || "SHRED ORIGINAL"}
+                           </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => handleSecureShred(m)} 
+                          className="px-8 py-4 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400 hover:text-red-300 font-black text-[10px] uppercase tracking-[0.3em] rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.1)] hover:shadow-[0_0_30px_rgba(220,38,38,0.3)] active:scale-95 shrink-0"
+                        >
+                          {t("malware_alert_btn_shred") || "SECURE SHRED"}
+                        </button>
+                      )}
                     </div>
-                    <button 
-                      onClick={() => handleSecureShred(m)} 
-                      className="px-8 py-4 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400 hover:text-red-300 font-black text-[10px] uppercase tracking-[0.3em] rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.1)] hover:shadow-[0_0_30px_rgba(220,38,38,0.3)] active:scale-95 shrink-0"
-                    >
-                      {t("malware_alert_btn_shred") || "SECURE SHRED"}
-                    </button>
-                  </div>
+                    
+                    {shredState[m.hash] && typeof shredState[m.hash] === 'string' && shredState[m.hash] !== 'shredding_vault' && shredState[m.hash] !== 'shredding_external' && (
+                      <div className="p-4 rounded-xl bg-red-950/30 border border-red-500/20 text-sm flex flex-col gap-3 animate-in slide-in-from-top-2 ml-10">
+                        <p className="text-red-300 font-bold">{t("malware_alert_external_title") || "WARNING: The original infected payload is still in your system!"}</p>
+                        <div className="group/path cursor-pointer">
+                          <p className="text-red-400/80 break-all group-hover/path:hidden">{obscureUsername(shredState[m.hash])}</p>
+                          <p className="text-red-400/80 break-all hidden group-hover/path:block">{shredState[m.hash]}</p>
+                        </div>
+                      </div>
+                    )}
+                  </React.Fragment>
                 ))}
               </div>
             </div>
@@ -621,10 +711,10 @@ export function AppModals(props: any) {
                </span>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => { clearStatusLog(); setIsLogExpanded(false); }} className="p-2 hover:bg-red-500/10 text-[var(--subtext)] hover:text-red-400 rounded-xl transition-all border border-transparent hover:border-red-500/20">
+              <button onPointerDown={(e) => e.stopPropagation()} onClick={() => { clearStatusLog(); setIsLogExpanded(false); }} className="p-2 hover:bg-red-500/10 text-[var(--subtext)] hover:text-red-400 rounded-xl transition-all border border-transparent hover:border-red-500/20">
                 <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete_sweep") || "delete_sweep"}</span>
               </button>
-              <button onClick={() => setIsLogExpanded(false)} className="p-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <button onPointerDown={(e) => e.stopPropagation()} onClick={() => setIsLogExpanded(false)} className="p-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                 <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_close") || "close"}</span>
               </button>
             </div>

@@ -652,6 +652,7 @@ export function SidePanel({
   iconColorClass,
   children,
   actions,
+  headerActions,
   footer,
   widthClass = "w-[600px]",
   backdropZ = "z-[40000]",
@@ -662,7 +663,9 @@ export function SidePanel({
   badgeText,
   ambientGlows,
   isResizable = false,
-  defaultWidth = 800
+  defaultWidth = 800,
+  noBackdropDim = false,
+  noPanelBlur = false
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
@@ -672,6 +675,7 @@ export function SidePanel({
   iconColorClass?: string,
   children: React.ReactNode,
   actions?: React.ReactNode,
+  headerActions?: React.ReactNode,
   footer?: React.ReactNode,
   widthClass?: string,
   backdropZ?: string,
@@ -682,7 +686,9 @@ export function SidePanel({
   badgeText?: string,
   ambientGlows?: React.ReactNode,
   isResizable?: boolean,
-  defaultWidth?: number
+  defaultWidth?: number,
+  noBackdropDim?: boolean,
+  noPanelBlur?: boolean
 }) {
   const { t } = useLexicon();
   const [panelWidth, setPanelWidth] = useState<number>(defaultWidth || 800);
@@ -718,10 +724,10 @@ export function SidePanel({
   if (!isOpen) return null;
   return createPortal(
     <>
-      <div className={`fixed top-0 right-0 bottom-10 ${backdropZ} bg-black/10 backdrop-blur-[2px] animate-in fade-in duration-500 transition-all`} style={{ left: "var(--sidebar-width, 288px)" }} onClick={onClose} />
+      <div className={`fixed top-0 right-0 bottom-10 ${backdropZ} ${noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[2px]'} animate-in fade-in duration-500 transition-all`} style={{ left: "var(--sidebar-width, 288px)" }} onClick={onClose} />
       <div 
         ref={panelRef}
-        className={`fixed top-10 right-0 bottom-10 rounded-tl-[3rem] rounded-bl-[3rem] overflow-hidden ${isResizable ? '' : widthClass} theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] flex flex-col ${panelZ} animate-in slide-in-from-right duration-500 ${isResizing ? '!transition-none !duration-0 select-none' : ''}`} 
+        className={`fixed top-10 right-0 bottom-10 rounded-tl-[3rem] rounded-bl-[3rem] overflow-hidden ${isResizable ? '' : widthClass} theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] flex flex-col ${panelZ} animate-in slide-in-from-right duration-500 ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${noPanelBlur ? '!backdrop-blur-none' : ''}`} 
         style={isResizable ? { width: `${panelWidth}px`, transition: isResizing ? 'none' : undefined, pointerEvents: isResizing ? 'none' : undefined } : undefined}
         onClick={(e) => e.stopPropagation()}
       >
@@ -750,6 +756,12 @@ export function SidePanel({
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
             <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_3%,transparent)] to-transparent pointer-events-none" />
             
+            {headerActions && (
+              <div className="absolute top-[40px] right-[88px] flex items-center gap-3 z-50">
+                 {headerActions}
+              </div>
+            )}
+
             <button onClick={onClose} className="absolute top-[40px] right-8 z-50 w-12 h-12 rounded-2xl flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
               <span className="material-symbols-outlined !text-[22px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("ui_icon_close") || "close"}</span>
             </button>
@@ -800,7 +812,7 @@ export function SidePanel({
 
 export function SearchBar({ value, onChange, placeholder = "Search..." }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
-    <div className="relative flex items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl overflow-hidden shadow-inner group focus-within:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] focus-within:bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] transition-all w-full">
+    <div className="relative flex items-center theme-glass-inner rounded-xl border border-transparent focus-within:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all shadow-inner group w-full">
       <div className="pl-4 pr-2 py-2 flex items-center justify-center shrink-0">
         <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-focus-within:text-[var(--accent)] transition-colors">search</span>
       </div>

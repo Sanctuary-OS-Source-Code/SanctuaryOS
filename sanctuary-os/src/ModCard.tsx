@@ -106,7 +106,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
             <div className={`absolute inset-0 bg-gradient-to-t ${isShadowed ? 'from-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'from-[color-mix(in_srgb,orange_30%,transparent)]'} to-transparent opacity-50 z-0 pointer-events-none`} />
             <div className="relative z-10 flex flex-col items-center">
               <div className={`text-[9px] font-black uppercase opacity-90 mb-0.5 ${isShadowed ? 'text-[var(--danger)]' : 'text-orange-500'}`}>
-                {isNemesisEquipped ? t("modcard_fatal_conflict") || "Collision Severity 4 Conflict" : hasMissingDeps ? t("modcard_missing_artifacts") || "Missing Artifacts" : isGameVersionMismatch ? t("vault_unsupported_version") || "UNSUPPORTED VERSION" : isGhosted ? t("modcard_missing_dlc") || "Missing DLC" : t("ui_icon_warning") || "warning_amber"}
+                {isNemesisEquipped ? t("modcard_fatal_conflict") || "Collision Severity 4 Conflict" : hasMissingDeps ? t("modcard_missing_artifacts") || "Missing Artifacts" : isGameVersionMismatch ? t("vault_unsupported_version") || "UNSUPPORTED VERSION" : isGhosted ? t("modcard_missing_dlc") || "Missing DLC" : t("modcard_artifact_corrupted") || "Artifact marked as Corrupted"}
               </div>
               <div className={`text-[11px] font-black w-full text-center whitespace-normal leading-tight ${isShadowed ? 'text-red-300' : 'text-orange-300'}`}>
               {isNemesisEquipped 
@@ -223,7 +223,9 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
             ) : confirmMode === 'broken' ? (
                <>
                  <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 transition-all shadow-lg">{t("modcard_btn_proceed") || "Proceed Anyway"}</button>
-                 <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all">{t("modcard_btn_add_not_broken") || "Add Not Broken"}</button>
+                 {mod.isParent && (
+                   <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-105 transition-all shadow-lg">{t("modcard_btn_add_not_broken") || "Add Not Broken"}</button>
+                 )}
                </>
             ) : (
                <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 transition-all shadow-lg">

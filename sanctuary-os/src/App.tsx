@@ -56,6 +56,7 @@ const setupBtnStyle: React.CSSProperties = {
 };
 
 function App() {
+  const insertingHashes = useRef<Set<string>>(new Set());
   const { t } = useLexicon();
   const [subtitleIndex, setSubtitleIndex] = useState(Math.floor(Math.random() * 9) + 1);
 
@@ -163,6 +164,7 @@ function App() {
         const paths = event.payload.paths;
         if (paths && paths.length > 0) {
           isProcessingDrop = true;
+          useModalStore.getState().setDroppedFiles(paths);
           setIsDropzoneOpen(true);
           setDropzoneState("ingesting");
           setIngestProgress({ active: true, current: 0, total: paths.length });
@@ -171,7 +173,7 @@ function App() {
             requestAnimationFrame(() => {
               setTimeout(async () => {
                  const startTime = Date.now();
-                 await handleDroppedFiles(paths);
+                 const hasMalware = await handleDroppedFiles(paths);
                  
                  // Enforce minimum 1.5s loading screen so it doesn't just flash instantly
                  const elapsed = Date.now() - startTime;
@@ -182,7 +184,19 @@ function App() {
                  isProcessingDrop = false;
                  setIsDropzoneOpen(false);
                  setDropzoneState("awaiting");
-                 setDroppedFiles([]);
+                 
+                 console.log("Checking if we should clear droppedFiles. hasMalware:", hasMalware);
+                 // We don't want to clear dropped files if there's a malware alert
+                 // because the malware alert needs the original dropped path to shred it.
+                 if (!hasMalware) {
+                   console.log("hasMalware is false, clearing droppedFiles array!");
+                   setTimeout(() => {
+                     useModalStore.getState().setDroppedFiles([]);
+                   }, 0);
+                 } else {
+                   console.log("hasMalware is true, KEEPING droppedFiles array!");
+                 }
+                 
                  setIngestProgress({ active: false, current: 0, total: 0 });
               }, 50);
             });
@@ -208,26 +222,40 @@ function App() {
       window.removeEventListener("keydown", handleCancelDrag);
     };
   }, []);
-  async function handleDroppedFiles(paths: string[]) {
+  const handleDroppedFiles = async (paths: string[]): Promise<boolean> => {
     setDropzoneState("ingesting");
     setStatus(
       `${t("status_mass_ingestion_prefix") || "MASS INGESTION: Unifying"}${paths.length}${t("status_mass_ingestion_suffix") || "unique identities..."}`,
     );
+    let hasMalware = false;
     try {
+      let needsSweep = false;
       for (let i = 0; i < paths.length; i++) {
         setIngestProgress({ active: true, current: i + 1, total: paths.length });
         try {
           await invoke("ingest_dropped_file", { path: paths[i], forceReplace: false });
+          needsSweep = true;
         } catch (err) {
-          if (err !== "DNA_MATCH") {
+          console.log("ingest_dropped_file threw error:", err);
+          if (err === "DNA_MATCH") {
+            // Conflict detected. Do nothing, event handles it
+          } else if (err === "MALWARE") {
+            hasMalware = true;
+          } else {
             setStatus(`${t("status_link_failed") || "LINK FAILED:"}${err}`);
           }
         }
       }
+      console.log("Loop finished. hasMalware is:", hasMalware);
       setStatus(t("status_ingest_success") || "Status Ingest Success");
-      runRadarSweep(true); 
+      if (needsSweep) {
+        runRadarSweep(true, true); 
+      }
+      return hasMalware;
     } catch (err) {
+      console.log("Outer handleDroppedFiles error:", err);
       setStatus(`${t("status_link_failed") || "LINK FAILED:"}${err}`);
+      return hasMalware;
     }
   }
   const view = useStore((state) => state.view);
@@ -570,15 +598,75 @@ function App() {
   useEffect(() => {
     let unlisten: any;
     listen("dna_match_detected", (event: any) => {
+      console.log("[DNA_MATCH] Received event:", event);
       const { hash, path } = event.payload;
-      if (hash && ignoredHashesRef.current.has(hash)) return;
-      if (!hash && ignoredHashesRef.current.has(path)) return;
+      if (hash && ignoredHashesRef.current.has(hash)) {
+        console.log("[DNA_MATCH] Ignored due to hash");
+        return;
+      }
+      if (!hash && ignoredHashesRef.current.has(path)) {
+        console.log("[DNA_MATCH] Ignored due to path");
+        return;
+      }
       setDnaMatchQueue((prev: any[]) => {
-        if (prev.some((m) => (hash ? m.hash === hash : m.path === path))) return prev;
+        const isDuplicate = prev.some((m) => (hash ? m.hash === hash : m.path === path));
+        console.log("[DNA_MATCH] Updating queue. Is duplicate:", isDuplicate, "Current length:", prev.length);
+        if (isDuplicate) return prev;
         return [...prev, event.payload];
       });
     }).then((handler) => { unlisten = handler; });
-    return () => { if (unlisten) unlisten(); };
+    
+    let unlistenMalware: () => void;
+    let isMounted = true;
+    listen("malware_detected", async (event: any) => {
+      if (!event.payload.hash || insertingHashes.current.has(event.payload.hash)) return;
+      insertingHashes.current.add(event.payload.hash);
+
+      if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          const citizen_id = session?.session?.user?.id || null;
+          
+          const { data: existing } = await supabase.from('malware_reports')
+            .select('id')
+            .eq('detected_hash', event.payload.hash)
+            .eq('citizen_id', citizen_id)
+            .maybeSingle();
+
+          if (!existing) {
+            const { error } = await supabase.from('malware_reports').insert({
+              artifact_name: event.payload.displayName || event.payload.name || event.payload.filename || 'Unknown',
+              detected_hash: event.payload.hash || 'unknown-hash',
+              signature: event.payload.matched_signature || 'Malware DNA Match',
+              status: 'pending',
+              citizen_id,
+              original_exists: event.payload.original_exists,
+              original_shredded: event.payload.original_shredded,
+              original_path: event.payload.original_path,
+              quarantine_path: event.payload.quarantine_path
+            });
+            if (error) console.error("Malware Report Insert Error (listen):", error);
+          }
+        } catch(e) {
+          console.error("Malware Report Insert Exception (listen):", e);
+        }
+      }
+
+      setMalwareAlert((prev: any[]) => {
+        if (!prev) return [event.payload];
+        if (prev.some((m) => (event.payload.hash ? m.hash === event.payload.hash : m.path === event.payload.path))) return prev;
+        return [...prev, event.payload];
+      });
+    }).then(unlisten => {
+      if (!isMounted) unlisten();
+      else unlistenMalware = unlisten;
+    });
+
+    return () => { 
+      isMounted = false;
+      if (unlisten) unlisten(); 
+      if (unlistenMalware) unlistenMalware();
+    };
   }, []);
   useEffect(() => {
     if (
@@ -1228,7 +1316,7 @@ function App() {
               } catch (e) {
                 console.error("Cache Load Error", e);
               }
-              runRadarSweep(true);
+              runRadarSweep(false);
             })
             .catch(() => runRadarSweep(false));
           fetchCloudLabQueue();
@@ -1424,50 +1512,54 @@ function App() {
     const sList = await invoke<string[]>("get_shelter_list");
     setShelterContents(sList);
   }
-  async function runRadarSweep(isSilent: boolean = false) {
+  async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = false) {
     if (isScanning) return;
-    setIsScanning(true);
-    setScanProgress({
-      current: 5,
-      total: 100,
-      message: t("scan_interrogating_dna") || "Interrogating Bunker DNA...",
-    });
+    if (!isSilent) {
+      setIsScanning(true);
+      setScanProgress({
+        current: 5,
+        total: 100,
+        message: t("scan_interrogating_dna") || "Interrogating Bunker DNA...",
+      });
+    }
     try {
       const config: any = await invoke("get_saved_coordinates");
       let currentOwnedDLC = ownedDLC;
       let currentMaskedDLC = maskedDLC;
-      try {
-        const physicalDLC = await invoke<string[]>("scan_installed_dlc", {
-          livePath: config.live_path,
-        });
-        setOwnedDLC(physicalDLC);
-        currentOwnedDLC = physicalDLC;
-        
-        if (config.launch_args) {
-          const maskMatch = config.launch_args.match(/-disablepack:([\w,]+)/i);
-          if (maskMatch?.[1]) {
-            const masked = maskMatch[1]
-              .split(",")
-              .map((s: string) => s.trim().toUpperCase());
-            setMaskedDLC(masked);
-            currentMaskedDLC = masked;
+      if (!quickScan) {
+        try {
+          const physicalDLC = await invoke<string[]>("scan_installed_dlc", {
+            livePath: config.live_path,
+          });
+          setOwnedDLC(physicalDLC);
+          currentOwnedDLC = physicalDLC;
+          
+          if (config.launch_args) {
+            const maskMatch = config.launch_args.match(/-disablepack:([\w,]+)/i);
+            if (maskMatch?.[1]) {
+              const masked = maskMatch[1]
+                .split(",")
+                .map((s: string) => s.trim().toUpperCase());
+              setMaskedDLC(masked);
+              currentMaskedDLC = masked;
+            }
           }
+        } catch (e) {
+          console.error("DLC scan failed during sweep", e);
         }
-      } catch (e) {
-        console.error("DLC scan failed during sweep", e);
-      }
 
-      try {
-        const { data: malwareData } = await supabase
-          .from("mod_versions")
-          .select("dna_hash, mods!inner(compliance_tier)")
-          .eq("mods.compliance_tier", 3);
-        if (malwareData && malwareData.length > 0) {
-          const malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
-          await invoke("sync_security_definitions", { malware: malwareHashes, tier2: [] });
+        try {
+          const { data: malwareData } = await supabase
+            .from("mod_versions")
+            .select("dna_hash, mods!inner(compliance_tier)")
+            .eq("mods.compliance_tier", 3);
+          if (malwareData && malwareData.length > 0) {
+            const malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
+            await invoke("sync_security_definitions", { malware: malwareHashes, tier2: [] });
+          }
+        } catch (err) {
+          console.error("Malware sync failed", err);
         }
-      } catch (err) {
-        console.error("Malware sync failed", err);
       }
 
       const rawLocalMods = await invoke<any[]>("scan_bunker", {
@@ -1502,7 +1594,7 @@ function App() {
 
       if (!allLocalMods || allLocalMods.length === 0) {
         setModList([]);
-        setIsScanning(false);
+      if (!isSilent) setIsScanning(false);
         return;
       }
       const uniqueMap = new Map();
@@ -2295,9 +2387,41 @@ function App() {
 
       const detectedMalware = masterList.filter((m: any) => (m.compliance_tier === 3 || (typeof m.status === 'string' && m.status.includes("QUARANTINED"))) && !m.isVirtual && !m.isLocalOverride);
       if (detectedMalware.length > 0) {
-        setMalwareAlert(detectedMalware);
-      } else {
-        setMalwareAlert([]);
+        if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
+          try {
+            const { data: session } = await supabase.auth.getSession();
+            const citizen_id = session?.session?.user?.id || null;
+            const { data: existingReports } = await supabase.from('malware_reports').select('detected_hash').eq('citizen_id', citizen_id);
+            const existingHashes = existingReports?.map((r: any) => r.detected_hash) || [];
+
+            const insertPayloads = detectedMalware
+              .filter((m: any) => !existingHashes.includes(m.hash))
+              .map((m: any) => ({
+                artifact_name: m.displayName || m.name || 'Unknown',
+                detected_hash: m.hash || 'unknown-hash',
+                signature: 'Radar Sweep Detection',
+                status: 'pending',
+                citizen_id,
+                original_exists: m.original_exists,
+                original_shredded: m.original_shredded,
+                original_path: m.original_path || m.path,
+                quarantine_path: m.quarantine_path
+              }));
+
+            if (insertPayloads.length > 0) {
+              const { error } = await supabase.from('malware_reports').insert(insertPayloads);
+              if (error) console.error("Malware Report Insert Error (sweep):", error);
+            }
+          } catch(e) {
+            console.error("Malware Report Insert Exception (sweep):", e);
+          }
+        }
+
+        setMalwareAlert((prev: any[]) => {
+          if (!prev) return detectedMalware;
+          const newAlerts = detectedMalware.filter((m: any) => !prev.some((p: any) => p.hash === m.hash || p.dbId === m.dbId));
+          return [...prev, ...newAlerts];
+        });
       }
 
       setModList(masterList);
@@ -2318,7 +2442,7 @@ function App() {
     } catch (err) {
       console.error("RADAR CRASH:", err);
     } finally {
-      setIsScanning(false);
+      if (!isSilent) setIsScanning(false);
     }
   }
   async function checkNetworkUpdates(currentModList: ModData[]) {

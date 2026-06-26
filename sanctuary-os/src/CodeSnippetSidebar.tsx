@@ -1,7 +1,7 @@
 import React from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { SidePanel } from './shared';
+import { SidePanel, standardButtonClass, standardAccentGlassButtonClass } from './shared';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 
@@ -33,27 +33,27 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
       isResizable={true}
       defaultWidth={575}
       footer={
-        <div className="w-full flex justify-end gap-4">
+        <div className="flex items-center justify-center w-full gap-4">
           <button 
-            onClick={onClose}
-            className="px-6 py-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[10px] uppercase tracking-widest transition-all"
+            onClick={onClose} 
+            className={standardButtonClass}
           >
             {t("ui_btn_close") || "CLOSE"}
           </button>
           <button 
             onClick={() => { navigator.clipboard.writeText(code); useStore.getState().pushStatus(t("alert_copied") || "Copied to clipboard!"); }} 
-            className="px-8 py-3 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent font-black text-[10px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] flex items-center gap-2"
+            className={standardAccentGlassButtonClass}
           >
-            <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_content_copy") || "content_copy"}</span> {t("ui_btn_copy_all") || "COPY ALL"}
+            <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_content_copy") || "content_copy"}</span> {t("ui_btn_copy_all") || "COPY ALL"}
           </button>
         </div>
       }
     >
-      <div className="flex-1 overflow-hidden p-6 lg:p-10 flex flex-col gap-6">
+      <div className="flex-1 overflow-hidden p-2 lg:p-2 flex flex-col gap-6">
         
         {/* Toolbar */}
         <div className="flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4 relative w-1/2 max-w-md">
+          <div className="flex items-center gap-2 relative w-1/2 max-w-md">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-[18px] opacity-50 z-10">{t("ui_icon_search") || "search"}</span>
             <input 
               type="text" 

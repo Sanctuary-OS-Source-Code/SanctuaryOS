@@ -119,6 +119,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   const [showMalwareOverride, setShowMalwareOverride] = useState(false);
   const [malwareToggleActive, setMalwareToggleActive] = useState(false);
   const [overrideInput, setOverrideInput] = useState("");
+  const [shareMalwareReports, setShareMalwareReports] = useState(localStorage.getItem("sanctuary_share_malware_reports") === "true");
 
   // Mason
   const [showMasonPanel, setShowMasonPanel] = useState(false);
@@ -336,7 +337,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   useEffect(() => { refreshConfig(); },[]);
 
   const updateConfig = async (key: string, val: any) => {
-    const parsedVal = (key === 'engine_agency_level' || key === 'backup_preference' || key === 'defcon_backup_target' || key === 'engine_retention_cycles' || key === 'world_retention_cycles') ? parseInt(val) : val;
+    const parsedVal = (key === 'engine_agency_level' || key === 'backup_preference' || key === 'defcon_backup_target' || key === 'engine_retention_cycles' || key === 'world_retention_cycles' || key === 'timeline_retention_copies' || key === 'timeline_retention_size_mb') ? parseInt(val) : val;
     const newConfig = { ...config, [key]: parsedVal };
     setConfig(newConfig);
     try {
@@ -349,7 +350,9 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         backupPreference: newConfig.backup_preference != null ? parseInt(newConfig.backup_preference) : null,
         engineRetentionCycles: newConfig.engine_retention_cycles != null ? parseInt(newConfig.engine_retention_cycles) : null,
         worldRetentionCycles: newConfig.world_retention_cycles != null ? parseInt(newConfig.world_retention_cycles) : null,
-        vaultCapacityGb: newConfig.vault_capacity_gb != null ? parseInt(newConfig.vault_capacity_gb) : null
+        vaultCapacityGb: newConfig.vault_capacity_gb != null ? parseInt(newConfig.vault_capacity_gb) : null,
+        timelineRetentionCopies: newConfig.timeline_retention_copies != null ? parseInt(newConfig.timeline_retention_copies) : null,
+        timelineRetentionSizeMb: newConfig.timeline_retention_size_mb != null ? parseInt(newConfig.timeline_retention_size_mb) : null
       });
     } catch (err) { console.error(err); }
   };
@@ -367,7 +370,9 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
           backupPreference: config.backup_preference != null ? parseInt(config.backup_preference) : null,
           engineRetentionCycles: config.engine_retention_cycles != null ? parseInt(config.engine_retention_cycles) : null,
           worldRetentionCycles: config.world_retention_cycles != null ? parseInt(config.world_retention_cycles) : null,
-          vaultCapacityGb: config.vault_capacity_gb != null ? parseInt(config.vault_capacity_gb) : null
+          vaultCapacityGb: config.vault_capacity_gb != null ? parseInt(config.vault_capacity_gb) : null,
+          timelineRetentionCopies: config.timeline_retention_copies != null ? parseInt(config.timeline_retention_copies) : null,
+          timelineRetentionSizeMb: config.timeline_retention_size_mb != null ? parseInt(config.timeline_retention_size_mb) : null
         };
         await invoke("save_coordinates", payload);
         await refreshConfig();
@@ -483,7 +488,50 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
                  })}
                  </div>
                </TabContainer>
+             <TabContainer 
+  title={t("settings_timeline_versions") || "Timeline Versions"}
+  icon="history"
+>
+    {/* Changed this wrapper to a 2-column grid instead of a flex column */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 w-full">
+      
+      {/* Timeline Version Copies */}
+      <div className="group">
+        <label className="block text-[10px] font-black uppercase tracking-[0.2em] mb-3 ml-4 text-[var(--subtext)] opacity-70 group-hover:text-[var(--text)] group-hover:theme-text-accent transition-colors">
+          {t("settings_timeline_copies") || "Timeline Version Copies"}
+        </label>
+        <CustomSettingsDropdown 
+          value={config.timeline_retention_copies || 50} 
+          onChange={(val: any) => updateConfig('timeline_retention_copies', val)}
+          options={[
+            { id: 10, label: t("settings_timeline_10") || "10 Versions" },
+            { id: 50, label: t("settings_timeline_50") || "50 Versions (Default)" },
+            { id: 100, label: t("settings_timeline_100") || "100 Versions" },
+            { id: 500, label: t("settings_timeline_500") || "500 Versions" }
+          ]} 
+        />
+      </div>
 
+      {/* Timeline Max Storage Size */}
+      <div className="group">
+        <label className="block text-[10px] font-black uppercase tracking-[0.2em] mb-3 ml-4 text-[var(--subtext)] opacity-70 group-hover:text-[var(--text)] group-hover:theme-text-accent transition-colors">
+          {t("settings_timeline_size") || "Timeline Max Storage Size"}
+        </label>
+        <CustomSettingsDropdown 
+          value={config.timeline_retention_size_mb || 100} 
+          onChange={(val: any) => updateConfig('timeline_retention_size_mb', val)}
+          options={[
+            { id: 50, label: t("settings_timeline_size_50") || "50 MB" },
+            { id: 100, label: t("settings_timeline_size_100") || "100 MB (Default)" },
+            { id: 500, label: t("settings_timeline_size_500") || "500 MB" },
+            { id: 1024, label: t("settings_timeline_size_1024") || "1 GB" }
+          ]} 
+        />
+      </div>
+
+    </div>
+ 
+</TabContainer>
                <TabContainer 
                   title={t("settings_time_capsule") || "Time Capsule"}
                   icon="history"
@@ -628,25 +676,39 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
            {activeTab === 'NETWORK' && (
              <TabContainer title={t("settings_tab_network") || "Network"} icon={TABS.find(t=>t.id==='NETWORK')?.icon}>
                <div className="grid xl:grid-cols-2 gap-12">
-                 <div className="flex items-center justify-between p-8 rounded-3xl theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={toggleLocalOnly}>
-                   <div className="flex flex-col gap-2">
-                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("settings_local_only") || "Local Network Only"}</span>
-                     <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("settings_local_only_desc") || "Block external uploads/downloads. Strict offline mode."}</span>
+                   <div className="flex items-center justify-between p-8 rounded-3xl theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={toggleLocalOnly}>
+                     <div className="flex flex-col gap-2">
+                       <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("settings_local_only") || "Local Network Only"}</span>
+                       <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("settings_local_only_desc") || "Block external uploads/downloads. Strict offline mode."}</span>
+                     </div>
+                     <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${localOnly ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
+                       <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${localOnly ? 'translate-x-8' : 'translate-x-0'}`} />
+                     </div>
                    </div>
-                   <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${localOnly ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-                     <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${localOnly ? 'translate-x-8' : 'translate-x-0'}`} />
-                   </div>
+                   <div className="flex items-center justify-between p-8 rounded-3xl theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={() => setShowImages(!showImages)}>
+                      <div className="flex flex-col gap-2">
+                        <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("settings_show_images") || "Show Artifact Images"}</span>
+                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("settings_show_images_desc") || "Display cover images on mod cards and dossiers."}</span>
+                      </div>
+                      <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${showImages ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
+                        <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${showImages ? 'translate-x-8' : 'translate-x-0'}`} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-8 rounded-3xl theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={() => {
+                      const val = !shareMalwareReports;
+                      setShareMalwareReports(val);
+                      localStorage.setItem("sanctuary_share_malware_reports", val.toString());
+                    }}>
+                      <div className="flex flex-col gap-2">
+                        <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("settings_malware_share_title") || "Share Malware Reports"}</span>
+                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("settings_malware_share_desc") || "Send quarantine manifests to Oversight"}</span>
+                      </div>
+                      <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${shareMalwareReports ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
+                        <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${shareMalwareReports ? 'translate-x-8' : 'translate-x-0'}`} />
+                      </div>
+                    </div>
                  </div>
-                 <div className="flex items-center justify-between p-8 rounded-3xl theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={() => setShowImages(!showImages)}>
-                    <div className="flex flex-col gap-2">
-                      <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("settings_show_images") || "Show Artifact Images"}</span>
-                      <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("settings_show_images_desc") || "Display cover images on mod cards and dossiers."}</span>
-                    </div>
-                    <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${showImages ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-                      <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${showImages ? 'translate-x-8' : 'translate-x-0'}`} />
-                    </div>
-                  </div>
-               </div>
+               
              </TabContainer>
            )}
 

@@ -12,6 +12,8 @@ import MasonPostViewer from './MasonPostViewer';
 import { FileVerificationSidePanel } from './ArchitectHub';
 import ComplianceManualFlagSidePanel from './ComplianceManualFlagSidePanel';
 import { IdentityMatrix, SharedIdentityEditor, CustomRoleSelect, ROLES } from './IdentityMatrix';
+import { SharedMetadataEditorSidePanel } from './SharedMetadataEditorSidePanel';
+import SAOversightReports from './SAOversightReports';
 
 function TabButton({ id, label, activeTab, setTab }: any) {
   const isActive = activeTab === id;
@@ -102,6 +104,7 @@ export default function SeniorArchitect({ onOpenMasonProfile }: any) {
            <HubTabButton id="identities" icon={t("ui_icon_group") || "group"} label={t("sa_tab_identities") || "Identity"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="linker" icon={t("ui_icon_link") || "link"} label={t("sa_tab_linker") || "Masons"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="compliance" icon={t("ui_icon_policy") || "policy"} label={t("sa_tab_compliance") || "Compliance"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="oversight_reports" icon={t("ui_icon_threat_intelligence") || "threat_intelligence"} label={t("hub_tab_malware_logs") || "Manifests"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="mass_update" icon={t("ui_icon_dynamic_feed") || "dynamic_feed"} label={t("sa_tab_mass_update") || "Mass Update"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="game_versions" icon={t("ui_icon_settings") || "settings"} label={t("sa_tab_game_versions") || "Management"} activeTab={activeTab} setTab={setActiveTab} />
            <HubTabButton id="sanctuary_tickets" icon={t("ui_icon_local_activity") || "local_activity"} label={t("wf_tab_tickets") || "SUPPORT"} activeTab={activeTab} setTab={setActiveTab} />
@@ -121,6 +124,7 @@ export default function SeniorArchitect({ onOpenMasonProfile }: any) {
         }} />}
         {activeTab === "mass_update" && <MassUpdateOversight />}
         {activeTab === "game_versions" && <GameManagementOversight />}
+        {activeTab === "oversight_reports" && <SAOversightReports />}
         {activeTab === "audit_logs" && <AuditLogViewer />}
         {activeTab === "sanctuary_tickets" && <ArchitectSupportTickets userRole="senior_architect" onOpenDNA={(hash) => {
            setVerifyPanelInitialHash(hash);
@@ -144,8 +148,7 @@ export default function SeniorArchitect({ onOpenMasonProfile }: any) {
         isOpen={showManualFlagModal}
         onClose={() => { setShowManualFlagModal(false); setInitialHeuristicEdit(null); }}
         initialQuery={initialManualFlagQuery}
-        initialHeuristicEdit={initialHeuristicEdit}
-        sourceHub="Oversight"
+        initialHeuristicSig={initialHeuristicEdit}
       />
       {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId="senior_architect" onOpenMasonProfile={onOpenMasonProfile} />}
     </div>
@@ -209,7 +212,7 @@ function DefconPanel() {
           <div className="relative w-full max-w-4xl theme-glass-panel border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[3rem] p-12 shadow-2xl flex flex-col gap-8 overflow-hidden">
             {defconLevel === 5 && (
               <>
-                <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(245,158,11,0.03)_25%,transparent_25%,transparent_50%,rgba(245,158,11,0.03)_50%,rgba(245,158,11,0.03)_75%,transparent_75%,transparent)] bg-[length:64px_64px] pointer-events-none opacity-50"></div>
+                <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(245,158,11,0.03)_25%,transparent,25%,transparent,50%,rgba(245,158,11,0.03),50%,rgba(245,158,11,0.03),75%,transparent,75%,transparent)] bg-[length:64px_64px] pointer-events-none opacity-50"></div>
                 <div className="absolute inset-0 bg-amber-500/5 animate-pulse pointer-events-none" />
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent opacity-80"></div>
               </>
@@ -739,6 +742,8 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
   const { t } = useLexicon();
   const [mods, setMods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [masonsList, setMasonsList] = useState<any[]>([]);
+  const [metadataMod, setMetadataMod] = useState<any>(null);
   const [filterTier, setFilterTier] = useState<number | null>(() => {
      if (initialFilter === "nsfw") return 1;
      if (initialFilter === "explicit") return 2;
@@ -761,15 +766,66 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
 
   const fetchMods = async () => {
     setLoading(true);
-    // Fetch all mods that are not tier 0 (clean) or have pending status
     const { data } = await supabase
       .from('mods')
-      .select('id, name, master_author, compliance_tier, status')
+      .select('id, name, master_author, compliance_tier, status, mason_id')
       .or('compliance_tier.gt.0,status.in.(under_review,pending,blacklisted)')
       .order('compliance_tier', { ascending: false });
     
     if (data) setMods(data);
+    const { data: mData } = await supabase.from('profiles').select('id, username').eq('role', 'mason');
+    if (mData) setMasonsList(mData);
     setLoading(false);
+  };
+
+  const handleClearFlag = async (e: React.MouseEvent, mod: any) => {
+    e.stopPropagation();
+    if (!editReason.trim()) {
+      setStatus(t("sa_identities_req_reason") || "A reason is required to process this change.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await supabase.from('mods').update({ compliance_tier: 0, status: 'verified' }).eq('id', mod.id);
+      const userRes = await supabase.auth.getUser();
+      await supabase.from('audit_logs').insert({
+        action: `Cleared compliance flag for artifact: ${mod.name}`,
+        target_table: 'mods',
+        target_name: mod.id,
+        actor_id: userRes.data?.user?.id,
+        reason: editReason
+      });
+      setEditReason("");
+      fetchMods();
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  const handleSetFlag = async (e: React.MouseEvent, mod: any) => {
+    e.stopPropagation();
+    if (!editReason.trim()) {
+      setStatus(t("sa_identities_req_reason") || "A reason is required to process this change.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await supabase.from('mods').update({ compliance_tier: 3, status: 'blacklisted' }).eq('id', mod.id);
+      const userRes = await supabase.auth.getUser();
+      await supabase.from('audit_logs').insert({
+        action: `Set compliance flag for artifact: ${mod.name} to Tier 3`,
+        target_table: 'mods',
+        target_name: mod.id,
+        actor_id: userRes.data?.user?.id,
+        reason: editReason
+      });
+      setEditReason("");
+      fetchMods();
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchMods(); }, []);
@@ -818,8 +874,6 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
       setIsSubmitting(false);
     }
   };
-
-
 
   const filteredMods = mods.filter(m => {
     const matchesSearch = m.name?.toLowerCase().includes(search.toLowerCase());
@@ -965,10 +1019,11 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
                          <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-opacity">{t("hub_btn_review") || "REVIEW"} &rarr;</span>
                        </span>
                     </div>
+
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
             {filteredMods.length === 0 && (
               <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest">
                 {t("sa_comp_no_alerts") || "No active compliance alerts."}
@@ -994,24 +1049,39 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
               </div>
             )}
             <div className="flex justify-center items-center gap-4 w-full">
-              <button onClick={() => setSelectedMod(null)} className={standardButtonClass}>
-                {t("shared_cancel") || "CANCEL"}
-              </button>
-              <button 
-                onClick={handleSaveTier} 
-                disabled={isSubmitting || !editReason.trim()} 
-                className={standardSuccessButtonClass}
-              >
-                {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : t("registry_commit_changes") || "Commit Changes"}
-              </button>
+                {(selectedMod?.status === 'pending' || selectedMod?.status === 'under_review') ? (
+                  <>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); handleClearFlag(e, selectedMod); setSelectedMod(null); }}
+                      className={standardSuccessButtonClass}
+                      disabled={isSubmitting || !editReason.trim()}
+                    >
+                      {t("sa_btn_clear_flag") || "CLEAR FLAG"}
+                    </button>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); handleSetFlag(e, selectedMod); setSelectedMod(null); }}
+                      className={standardDangerButtonClass}
+                      disabled={isSubmitting || !editReason.trim()}
+                    >
+                      {t("sa_btn_set_flag") || "SET FLAG"}
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    onClick={handleSaveTier} 
+                    disabled={isSubmitting || !editReason.trim()} 
+                    className={standardSuccessButtonClass}
+                  >
+                    {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : t("registry_commit_changes") || "Commit Changes"}
+                  </button>
+                )}
             </div>
           </div>
         }
       >
         <div className="p-6 flex flex-col h-full gap-8">
           
-          <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
+          <div className="flex flex-col gap-6 relative">
             <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
               <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info") || "info"}</span>
               {t("mason_bug_inspect_report") || "View"}
@@ -1019,13 +1089,19 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
             
             <div className="flex flex-col gap-2 relative z-10">
               <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none">{selectedMod?.name}</h3>
+              <button 
+                onClick={() => setMetadataMod(selectedMod)}
+                className="mt-2 text-[10px] font-black uppercase tracking-widest theme-text-accent hover:text-[var(--text)] transition-colors flex items-center gap-1 w-max"
+              >
+                <span className="material-symbols-outlined !text-[12px]">edit</span>
+                {t("ui_edit_metadata") || "EDIT METADATA"}
+              </button>
             </div>
           </div>
 
-          <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none rounded-2xl" />
+          <div className="flex flex-col gap-6 relative">
             <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_gavel") || "gavel"}</span>
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_policy") || "policy"}</span>
               {t("sa_comp_enforcement") || "ENFORCEMENT"}
             </h4>
 
@@ -1053,6 +1129,14 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
           </div>
         </div>
       </SidePanel>
+
+      <SharedMetadataEditorSidePanel 
+        isOpen={!!metadataMod}
+        onClose={() => setMetadataMod(null)}
+        activeMod={metadataMod}
+        masonsList={masonsList}
+        onModUpdated={fetchMods}
+      />
     </div>
   );
 }
@@ -1073,7 +1157,7 @@ function DashboardStatTile({ icon, number, label, colorClass, onClick }: any) {
 function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPost }: any) {
   const { t } = useLexicon();
   const defconLevel = useStore((state: any) => state.defconLevel);
-  const [stats, setStats] = useState({ masons: 0, citizens: 0, explicit: 0, malware: 0, nsfw: 0, tickets: 0, architects: 0, artifacts: 0, blacklists: 0 });
+  const [stats, setStats] = useState({ masons: 0, citizens: 0, explicit: 0, malware: 0, nsfw: 0, tickets: 0, architects: 0, artifacts: 0, blacklists: 0, oversightQueue: 0, oversightQueueNew: 0 });
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
 
   useEffect(() => {
@@ -1180,8 +1264,15 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
         }
         
       const { count: architectsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['architect', 'senior_architect']);
-      const { count: artifactsCount } = await supabase.from('mods').select('*', { count: 'exact', head: true });
       const { count: blacklistsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_banned', true);
+      const { count: oversightCount } = await supabase.from('malware_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+        
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const { count: oversightNewCount } = await supabase.from('malware_reports')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pending')
+          .gte('created_at', thirtyDaysAgo.toISOString());
 
       setStats({
         masons: masonsCount || 0,
@@ -1191,8 +1282,10 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
         nsfw: nsfwCount || 0,
         tickets: ticketsCount || 0,
         architects: architectsCount || 0,
-        artifacts: artifactsCount || 0,
-        blacklists: blacklistsCount || 0
+        artifacts: 0,
+        blacklists: blacklistsCount || 0,
+        oversightQueue: oversightCount || 0,
+        oversightQueueNew: oversightNewCount || 0
       });
     };
     fetchStats();
@@ -1211,10 +1304,10 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
       {/* Stat Tiles */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full">
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_warning") || "warning_amber"}</span>} number={defconLevel} label={t("hub_stat_global_defcon") || "GLOBAL DEFCON"} colorClass={getDefconColor(defconLevel)} onClick={onOpenDefcon} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_mason") || "construction"}</span>} number={stats.masons} label={t("hub_stat_active_masons") || "ACTIVE MASONS"} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => setTab("identities")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_nsfw") || "18_up_rating"}</span>} number={stats.nsfw} label={t("hub_stat_nsfw_flags") || "NSFW FLAGS"} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => { setComplianceFilter('nsfw'); setTab("compliance"); }} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_explicit") || "block"}</span>} number={stats.explicit} label={t("hub_stat_explicit_flags") || "EXPLICIT FLAGS"} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { setComplianceFilter('explicit'); setTab("compliance"); }} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_malware_skull") || "skull"}</span>} number={stats.malware} label={t("hub_stat_quarantined") || "QUARANTINED"} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { setComplianceFilter('malware'); setTab("compliance"); }} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_threat_intelligence") || "threat_intelligence"}</span>} number={stats.oversightQueueNew} label={t("hub_stat_malware_logs") || "MALWARE MANIFESTS"} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => setTab("oversight_reports")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity") || "local_activity"}</span>} number={stats.tickets} label={t("hub_stat_support_tickets") || "SUPPORT TICKETS"} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("sanctuary_tickets")} />
       </div>
 
@@ -1274,13 +1367,13 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
                    <span className="text-3xl font-black text-purple-400">{stats.architects}</span>
                    <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_architects") || "ARCHITECTS"}</span>
                 </div>
-                <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-emerald-500/30 transition-all text-center h-32">
-                   <span className="text-3xl font-black text-emerald-400">{stats.artifacts}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_artifacts") || "ARTIFACTS"}</span>
-                </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-red-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-red-500">{stats.blacklists}</span>
                    <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_blacklists") || "BLACKLISTS"}</span>
+                </div>
+                <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-emerald-500/30 transition-all text-center h-32">
+                   <span className="text-3xl font-black text-red-700">{stats.oversightQueue}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_tab_malware_logs") || "MALWARE LOGS"}</span>
                 </div>
              </div>
           </div>
@@ -1312,6 +1405,19 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
                    <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_comp_title") || "Compliance Oversight"}</h3>
                    <span className="text-[8px] uppercase font-bold text-amber-400 opacity-80 group-hover:text-amber-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> {t("hub_ql_global_review") || "GLOBAL REVIEW"}</span>
+                 </div>
+               </div>
+             </button>
+
+             <button onClick={() => setTab("oversight_reports")} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[1.5rem] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
+               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
+               <div className="flex items-center gap-5 h-full">
+                 <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_threat_intelligence") || "threat_intelligence"}</span>
+                 </div>
+                 <div className="flex flex-col gap-1 flex-1 min-w-0">
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_oversight_dashboard") || "OVERSIGHT REPORTS"}</h3>
+                   <span className="text-[8px] uppercase font-bold text-red-500 opacity-80 group-hover:text-red-500 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-red-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span> {t("hub_ql_sys_reports") || "SYSTEM REPORTS"}</span>
                  </div>
                </div>
              </button>
@@ -2439,7 +2545,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
               
               <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 relative overflow-hidden">
                  <div className="absolute top-0 left-0 w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_20px,rgba(239,68,68,0.05)_20px,rgba(239,68,68,0.05)_40px)] pointer-events-none"></div>
-                 <span className="material-symbols-outlined text-red-500 !text-2xl animate-pulse">{t("ui_icon_gavel") || "gavel"}</span>
+                 <span className="material-symbols-outlined text-red-500 !text-2xl animate-pulse">{t("ui_icon_threat_intelligence") || "threat_intelligence"}</span>
                  <p className="text-[10px] font-black text-red-400 uppercase tracking-widest text-center max-w-[80%] leading-relaxed">
                    {t("sa_defcon_warning_red") || "Do not use unless an official game patch is actively rolling out."}
                  </p>

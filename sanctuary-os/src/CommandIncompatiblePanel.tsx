@@ -97,7 +97,7 @@ export default function CommandIncompatiblePanel({
       subtitle={t("cmd_incompatible_broken") || "INCOMPATIBLE ARTIFACTS"}
       icon={redMods.length > 0 ? "gpp_bad" : "gpp_maybe"}
       iconColorClass={redMods.length > 0 ? "theme-text-danger border-[var(--danger)]/30" : "text-amber-500 border-amber-500/30"}
-      widthClass="w-[525px]"
+      widthClass="w-[550px]"
     >
       <div className="flex flex-col gap-4 w-full">
         <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative">

@@ -184,7 +184,11 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
   if (successMsg || showFlagForm) statusState = "FLAGGED";
   else if (isHashing) statusState = "SCANNING";
   else if (filePath && !fileHash) statusState = "SCANNING";
-  else if (fileHash && matchedMod) statusState = "VERIFIED";
+  else if (fileHash && matchedMod) {
+    if (matchedMod.compliance_tier === 3) statusState = "MALWARE";
+    else if (matchedMod.compliance_tier === 2) statusState = "EXPLICIT";
+    else statusState = "VERIFIED";
+  }
   else if (fileHash && !matchedMod) statusState = "MISMATCH";
 
   const statusConfig = {
@@ -220,6 +224,22 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       icon: "warning",
       title: t("verify_status_mismatch") || "UNVERIFIED SIGNATURE",
       desc: t("verify_status_mismatch_desc") || "This file's DNA hash does not exist in the registry. It may be modified or malicious."
+    },
+    MALWARE: {
+      color: "rgb(239, 68, 68)", 
+      bg: "color-mix(in srgb, rgb(239, 68, 68) 15%, transparent)",
+      border: "border-red-500/30",
+      icon: "skull",
+      title: t("verify_status_malware") || "MALWARE DETECTED",
+      desc: t("verify_status_malware_desc") || "This artifact hash matches a known malicious signature. Immediate shredding required."
+    },
+    EXPLICIT: {
+      color: "rgb(250, 204, 21)", 
+      bg: "color-mix(in srgb, rgb(250, 204, 21) 15%, transparent)",
+      border: "border-yellow-400/30",
+      icon: "warning",
+      title: t("verify_status_explicit") || "EXPLICIT CONTENT",
+      desc: t("verify_status_explicit_desc") || "This artifact hash is flagged for explicit or adult content."
     },
     FLAGGED: {
       color: "rgb(248, 113, 113)", 
@@ -288,17 +308,17 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               {BannerNode}
 
               {matchedMod && (
-                <div className="theme-glass-panel rounded-2xl p-6 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex flex-col gap-4 animate-in zoom-in-95 mt-2 bg-gradient-to-br from-[var(--accent)]/5 to-transparent">
+                <div className={`theme-glass-panel rounded-2xl p-6 border flex flex-col gap-4 animate-in zoom-in-95 mt-2 bg-gradient-to-br from-transparent to-transparent ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/5' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/5' : 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[var(--accent)]/5'}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex flex-col">
                         <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("registry_label_name") || "Display Name"}</span>
-                        <span className="text-sm font-black theme-text-accent uppercase tracking-widest">{matchedMod.name}</span>
+                        <span className={`text-sm font-black uppercase tracking-widest ${statusState === 'MALWARE' ? 'text-red-500' : statusState === 'EXPLICIT' ? 'text-yellow-400' : 'theme-text-accent'}`}>{matchedMod.name}</span>
                         <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1 uppercase tracking-widest">
                           {t("verify_panel_version") || "VERSION"}: {matchedMod.version_label || matchedMod.version_number || "UNKNOWN"}
                         </span>
                       </div>
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-inner border-[var(--accent)]/30 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]">
-                        <span className="material-symbols-outlined !text-[20px] theme-text-accent">check_circle</span>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-inner ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/10' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/10' : 'border-[var(--accent)]/30 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]'}`}>
+                        <span className={`material-symbols-outlined !text-[20px] ${statusState === 'MALWARE' ? 'text-red-500' : statusState === 'EXPLICIT' ? 'text-yellow-400' : 'theme-text-accent'}`}>{statusState === 'MALWARE' ? 'skull' : statusState === 'EXPLICIT' ? 'warning' : 'check_circle'}</span>
                       </div>
                     </div>
                     {onJumpToArtifact && !isSeniorArchitect && (
@@ -408,8 +428,14 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] font-mono text-[var(--subtext)] truncate max-w-[150px]" title={item.hash}>{item.hash}</span>
-                      {item.matchedModName ? (
-                        <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">VERIFIED</span>
+                      {item.matchedMod ? (
+                        item.matchedMod.compliance_tier === 3 ? (
+                          <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">MALWARE</span>
+                        ) : item.matchedMod.compliance_tier === 2 ? (
+                          <span className="text-[9px] font-black text-yellow-400 uppercase tracking-widest">EXPLICIT</span>
+                        ) : (
+                          <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">VERIFIED</span>
+                        )
                       ) : (
                         <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">MISMATCH</span>
                       )}
@@ -967,15 +993,13 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
   return (
     <>
       <div className={`flex flex-col gap-6 pb-20 w-full h-full relative ${isActiveTab ? '' : 'hidden'}`}>
-        <div className="flex items-center justify-between mb-2 pb-4 px-6 pt-4 border-b border-white/5">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-xl theme-glass-panel border border-[var(--accent)]/30 flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
-              <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_inventory") || "inventory_2"}</span>
+        <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_inventory") || "inventory_2"}</span>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <h2 className="text-2xl font-black theme-text-accent uppercase tracking-widest drop-shadow-md">{t("hub_tab_registry") || "ARTIFACTS"}</h2>
-            </div>
-          </div>
+            <span className="truncate">{t("hub_tab_registry") || "ARTIFACTS"}</span>
+          </h2>
           
           <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
@@ -2924,7 +2948,7 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
 }
 
 
-function CustomStatusDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+export function CustomStatusDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const options =[
     { id: 'stable', label: t("status_dd_stable") || "Stable" },
@@ -3750,7 +3774,7 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
       </div>
     );
   }
-function CustomMasonDropdown({ value, options, onChange }: { value: string, options: any[], onChange: (val: string) => void }) {
+export function CustomMasonDropdown({ value, options, onChange }: { value: string, options: any[], onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const dropdownOptions = options.map(o => ({ id: o.id, label: o.name }));
   return <CustomDropdown disableTint={true} searchable={true} value={value} options={dropdownOptions} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason_label_select") || "MASON"} />;

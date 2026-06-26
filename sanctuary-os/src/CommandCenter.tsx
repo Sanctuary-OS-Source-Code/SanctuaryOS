@@ -535,7 +535,7 @@ export default function CommandCenter({
         subtitle={t("cmd_system_core") || "System Core & Sub-Systems"}
         icon={t("ui_icon_update") || "update"}
         iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-        widthClass="w-[525px]"
+        widthClass="w-[550px]"
       >
         <div className="flex flex-col gap-3">
           {activeUpdates.length > 0 ? activeUpdates.map((update: any) => (
