@@ -748,7 +748,7 @@ export function AppModals(props: any) {
                           <React.Fragment key={f}>
                              <button onClick={(e) => {
                                 e.stopPropagation();
-                                if (f.endsWith('.json')) {
+                                if (f.endsWith('.json') || useStore.getState().userRole === 'citizen') {
                                    useStore.getState().setView('CitizensWorkbench');
                                 } else {
                                    useStore.getState().setView('MasonHub');

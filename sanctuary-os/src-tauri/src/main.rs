@@ -1219,7 +1219,7 @@ fn scan_bunker(
 
 
         let mut is_malware = false;
-        let mut signature_name = "N/A".to_string();
+        let mut signature_name = "NO SIGNATURE MATCH".to_string();
 
         if let Ok(m) = state.malware_hashes.lock() {
             if m.contains(&dna_hash) {
@@ -2888,7 +2888,7 @@ fn ingest_dropped_file(
                 let manifest = QuarantineManifest {
                     artifact_name: file_name.to_string_lossy().to_string(),
                     detected_hash: file_hash.clone(),
-                    signature: "N/A".to_string(),
+                    signature: "NO SIGNATURE MATCH".to_string(),
                     quarantine_path: obscure_username(&q_target.to_string_lossy()),
                     original_path: Some(obscure_username(&source.to_string_lossy())),
                     original_hash_at_import: Some(file_hash.clone()),

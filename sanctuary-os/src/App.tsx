@@ -185,16 +185,12 @@ function App() {
                  setIsDropzoneOpen(false);
                  setDropzoneState("awaiting");
                  
-                 console.log("Checking if we should clear droppedFiles. hasMalware:", hasMalware);
                  // We don't want to clear dropped files if there's a malware alert
                  // because the malware alert needs the original dropped path to shred it.
                  if (!hasMalware) {
-                   console.log("hasMalware is false, clearing droppedFiles array!");
                    setTimeout(() => {
                      useModalStore.getState().setDroppedFiles([]);
                    }, 0);
-                 } else {
-                   console.log("hasMalware is true, KEEPING droppedFiles array!");
                  }
                  
                  setIngestProgress({ active: false, current: 0, total: 0 });
@@ -236,7 +232,6 @@ function App() {
           await invoke("ingest_dropped_file", { path: paths[i], forceReplace: false });
           needsSweep = true;
         } catch (err) {
-          console.log("ingest_dropped_file threw error:", err);
           if (err === "DNA_MATCH") {
             // Conflict detected. Do nothing, event handles it
           } else if (err === "MALWARE") {
@@ -246,14 +241,12 @@ function App() {
           }
         }
       }
-      console.log("Loop finished. hasMalware is:", hasMalware);
       setStatus(t("status_ingest_success") || "Status Ingest Success");
       if (needsSweep) {
         runRadarSweep(true, true); 
       }
       return hasMalware;
     } catch (err) {
-      console.log("Outer handleDroppedFiles error:", err);
       setStatus(`${t("status_link_failed") || "LINK FAILED:"}${err}`);
       return hasMalware;
     }
@@ -619,8 +612,11 @@ function App() {
     let unlistenMalware: () => void;
     let isMounted = true;
     listen("malware_detected", async (event: any) => {
-      if (!event.payload.hash || insertingHashes.current.has(event.payload.hash)) return;
-      insertingHashes.current.add(event.payload.hash);
+      const origPath = event.payload.original_path || event.payload.path || '';
+      const debounceKey = `${event.payload.hash}-${origPath}`;
+      if (!event.payload.hash || insertingHashes.current.has(debounceKey)) return;
+      insertingHashes.current.add(debounceKey);
+      setTimeout(() => insertingHashes.current.delete(debounceKey), 2000);
 
       if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
         try {
@@ -630,6 +626,7 @@ function App() {
           const { data: existing } = await supabase.from('malware_reports')
             .select('id')
             .eq('detected_hash', event.payload.hash)
+            .eq('original_path', event.payload.original_path || event.payload.path || '')
             .eq('citizen_id', citizen_id)
             .maybeSingle();
 
@@ -642,7 +639,7 @@ function App() {
               citizen_id,
               original_exists: event.payload.original_exists,
               original_shredded: event.payload.original_shredded,
-              original_path: event.payload.original_path,
+              original_path: origPath,
               quarantine_path: event.payload.quarantine_path
             });
             if (error) console.error("Malware Report Insert Error (listen):", error);
@@ -654,7 +651,11 @@ function App() {
 
       setMalwareAlert((prev: any[]) => {
         if (!prev) return [event.payload];
-        if (prev.some((m) => (event.payload.hash ? m.hash === event.payload.hash : m.path === event.payload.path))) return prev;
+        if (prev.some((m) => {
+          const mOrig = m.original_path || m.path || '';
+          const pOrig = event.payload.original_path || event.payload.path || '';
+          return (event.payload.hash ? m.hash === event.payload.hash && mOrig === pOrig : m.path === event.payload.path);
+        })) return prev;
         return [...prev, event.payload];
       });
     }).then(unlisten => {
@@ -2391,11 +2392,10 @@ function App() {
           try {
             const { data: session } = await supabase.auth.getSession();
             const citizen_id = session?.session?.user?.id || null;
-            const { data: existingReports } = await supabase.from('malware_reports').select('detected_hash').eq('citizen_id', citizen_id);
-            const existingHashes = existingReports?.map((r: any) => r.detected_hash) || [];
+            const { data: existingReports } = await supabase.from('malware_reports').select('detected_hash, original_path').eq('citizen_id', citizen_id);
 
             const insertPayloads = detectedMalware
-              .filter((m: any) => !existingHashes.includes(m.hash))
+              .filter((m: any) => !existingReports?.some(r => r.detected_hash === m.hash && r.original_path === (m.original_path || m.path || '')))
               .map((m: any) => ({
                 artifact_name: m.displayName || m.name || 'Unknown',
                 detected_hash: m.hash || 'unknown-hash',
@@ -2404,7 +2404,7 @@ function App() {
                 citizen_id,
                 original_exists: m.original_exists,
                 original_shredded: m.original_shredded,
-                original_path: m.original_path || m.path,
+                original_path: m.original_path || m.path || '',
                 quarantine_path: m.quarantine_path
               }));
 

@@ -2797,42 +2797,42 @@ export function AuditLogViewer() {
           <div className="flex flex-col h-full">
              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8 pb-32">
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">{t("sa_audit_target_table") || "TARGET TABLE:"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_target_table") || "TARGET TABLE:"}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)]">
                      {selectedLog.target_table}
                    </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">{t("sa_audit_target_key") || "TARGET KEY"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_target_key") || "TARGET KEY"}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)] break-all">
                      {selectedLog.target_name || selectedLog.target_id || 'UNKNOWN'}
                    </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">{t("sa_audit_action") || "ACTION"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_action") || "ACTION"}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] text-sm font-bold text-[var(--text)] break-all whitespace-pre-wrap">
                      {selectedLog.action}
                    </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)]">{t("sa_audit_reason") || "REASON:"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_reason") || "REASON:"}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--danger)_10%,transparent)] text-sm font-bold text-[var(--text)] whitespace-pre-wrap">
                      {selectedLog.reason}
                    </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">{t("sa_audit_timestamp") || "TIMESTAMP"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_timestamp") || "TIMESTAMP"}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)]">
                      {new Date(selectedLog.created_at).toLocaleString()}
                    </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">{t("sa_audit_actor") || "ACTOR:"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_actor") || "ACTOR:"}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)] flex items-center justify-between">
                      <span>
                         {selectedLog.actor ? `${selectedLog.actor.username} ${selectedLog.actor.is_banned ? '(BANNED)' : ''}` : selectedLog.actor_id}
