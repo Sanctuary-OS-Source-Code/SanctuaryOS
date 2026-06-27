@@ -75,31 +75,31 @@ export default function CommandRadarSweepPanel({
     ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[color-mix(in_srgb,var(--accent)_80%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent)] hover:shadow-[0_0_25px_color-mix(in_srgb,var(--accent)_20%,transparent)]"
     : `bg-${colorCls}-500/10 border-${colorCls}-500/30 text-${colorCls}-400 hover:bg-${colorCls}-500/20 hover:border-${colorCls}-500/50 shadow-[0_0_15px_rgba(var(--${colorCls}-rgb),0.1)] hover:shadow-[0_0_25px_rgba(var(--${colorCls}-rgb),0.2)]`;
 
-  const topTitle = t("radar_sweep_complete") || "RADAR SWEEP COMPLETE";
-  let subtext = t("radar_sys_stable") || "System Stable";
+  const topTitle = t("radar_sweep_complete");
+  let subtext = t("radar_sys_stable");
   if (radarState === "critical") {
-    subtext = `${t("radar_crit_fail") || "critical failures detected"}`;
+    subtext = `${t("radar_crit_fail")}`;
   } else if (radarState === "warning") {
-    subtext = `${t("radar_sys_comp") || "system stability compromised"}`;
+    subtext = `${t("radar_sys_comp")}`;
   } else if (radarState === "update") {
-    subtext = `${t("radar_updates_det") || "artifact updates detected"}`;
+    subtext = `${t("radar_updates_det")}`;
   }
 
-  const breakdownText = `${updatesCount} ${t("cmd_citizen_action_updates") || "UPDATES"} • ${tier3Count + tier4Count} ${t("dashboard_stat_conflicts") || "CONFLICTS"} • ${brokenCount + unstableCount} ${t("cmd_citizen_action_incompatible") || "INCOMPATIBLE"}`;
+  const breakdownText = `${updatesCount} ${t("cmd_citizen_action_updates")} • ${tier3Count + tier4Count} ${t("dashboard_stat_conflicts")} • ${brokenCount + unstableCount} ${t("cmd_citizen_action_incompatible")}`;
 
   const bottomText = radarState === "critical"
-    ? (t("radar_crash_likely") || "Game Crash Likely")
+    ? (t("radar_crash_likely"))
     : radarState === "optimal"
-    ? (t("radar_no_crash") || "No Game Crashing / Glitching loadouts")
-    : (t("radar_sys_sub_stable") || "Review recommended actions.");
+    ? (t("radar_no_crash"))
+    : (t("radar_sys_sub_stable"));
 
   return (
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("dashboard_btn_radar") || "RADAR SWEEP"}
-      subtitle={t("cmd_system_core") || "System Core & Sub-Systems"}
-      icon={t("ui_icon_radar3") || "radar"}
+      title={t("dashboard_btn_radar")}
+      subtitle={t("cmd_system_core")}
+      icon={t("ui_icon_radar3")}
       iconColorClass={c_iconColor}
       widthClass="w-[625px]"
     >
@@ -110,10 +110,10 @@ export default function CommandRadarSweepPanel({
           <div className={`absolute inset-0 bg-gradient-to-br ${c_bgGradient} via-transparent to-transparent opacity-50`} />
           <div className="relative z-10 flex flex-col items-center text-center">
             <div className={`w-20 h-20 rounded-full flex items-center justify-center border ${c_ringBorder} ${c_ringBg} mb-6 ${c_ringShadow} ${isScanning ? 'animate-pulse' : ''}`}>
-               <span className={`material-symbols-outlined !text-4xl ${c_ringIcon} ${isScanning ? 'animate-spin' : ''}`}>{t("ui_icon_radar3") || "radar"}</span>
+               <span className={`material-symbols-outlined !text-4xl ${c_ringIcon} ${isScanning ? 'animate-spin' : ''}`}>{t("ui_icon_radar3")}</span>
             </div>
             <h3 className={`text-xl font-black uppercase tracking-tighter ${c_titleText} mb-1 flex flex-col gap-1`}>
-              {isScanning ? (t("cmd_scanning") || "SCANNING...") : topTitle}
+              {isScanning ? (t("cmd_scanning")) : topTitle}
               {!isScanning && <span className="text-sm opacity-80">{subtext}</span>}
             </h3>
             <span className={`text-[10px] font-bold uppercase tracking-widest ${c_subText} mt-3`}>
@@ -138,17 +138,17 @@ export default function CommandRadarSweepPanel({
 
           {/* Action Required */}
           <div className="flex flex-col gap-3">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("cmd_citizen_action_required") || "ACTION REQUIRED"}</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("cmd_citizen_action_required")}</h4>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={onOpenUpdates} className={`theme-glass-inner p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all ${updatesCount > 0 ? '!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-white/5'}`}>
-                 <span className={`material-symbols-outlined !text-lg opacity-50 ${updatesCount > 0 ? 'theme-text-accent' : ''}`}>{t("ui_icon_update") || "update"}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("cmd_citizen_action_updates") || "UPDATES"}</span>
+                 <span className={`material-symbols-outlined !text-lg opacity-50 ${updatesCount > 0 ? 'theme-text-accent' : ''}`}>{t("ui_icon_update")}</span>
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("cmd_citizen_action_updates")}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">{updatesCount}</span>
               </button>
               <button onClick={onOpenIncompatible} className={`theme-glass-inner p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all ${(brokenCount + unstableCount) > 0 ? (brokenCount > 0 ? '!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_15%,transparent)]' : '!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_15%,transparent)]') : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-white/5'}`}>
                  <span className={`material-symbols-outlined !text-lg opacity-50 ${(brokenCount + unstableCount) > 0 ? (brokenCount > 0 ? 'theme-text-danger' : 'theme-text-warning') : ''}`}>{brokenCount > 0 ? "gpp_bad" : (unstableCount > 0 ? "gpp_maybe" : "warning_amber")}</span>
                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">
-                   {brokenCount > 0 && unstableCount > 0 ? `${t("label_corrupted") || "Corrupted"} / ${t("label_unstable") || "Unstable"}` : brokenCount > 0 ? (t("label_corrupted") || "Corrupted") : (unstableCount > 0 ? (t("label_unstable") || "Unstable") : (t("cmd_citizen_action_incompatible") || "INCOMPATIBLE"))}
+                   {brokenCount > 0 && unstableCount > 0 ? `${t("label_corrupted")} / ${t("label_unstable")}` : brokenCount > 0 ? (t("label_corrupted")) : (unstableCount > 0 ? (t("label_unstable")) : (t("cmd_citizen_action_incompatible")))}
                  </span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">
                    {brokenCount > 0 && unstableCount > 0 ? `${brokenCount} / ${unstableCount}` : brokenCount + unstableCount}
@@ -157,7 +157,7 @@ export default function CommandRadarSweepPanel({
               <button onClick={onOpenConflicts} className={`theme-glass-inner p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-1 col-span-2 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all ${(tier4Count + tier3Count) > 0 ? (tier4Count > 0 ? '!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_15%,transparent)]' : '!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_15%,transparent)]') : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-white/5'}`}>
                  <span className={`material-symbols-outlined !text-lg opacity-50 ${(tier4Count + tier3Count) > 0 ? (tier4Count > 0 ? 'theme-text-danger' : 'theme-text-warning') : ''}`}>{tier4Count > 0 ? "crisis_alert" : (tier3Count > 0 ? "tune" : "radar")}</span>
                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">
-                   {tier4Count > 0 && tier3Count > 0 ? `${t("panel_stat_tier4") || "Severity 4"} / ${t("panel_stat_tier3") || "Severity 3"}` : tier4Count > 0 ? (t("panel_stat_tier4") || "Severity 4") : (tier3Count > 0 ? (t("panel_stat_tier3") || "Severity 3") : (t("cmd_citizen_action_conflicts") || "CONFLICTS"))}
+                   {tier4Count > 0 && tier3Count > 0 ? `${t("panel_stat_tier4")} / ${t("panel_stat_tier3")}` : tier4Count > 0 ? (t("panel_stat_tier4")) : (tier3Count > 0 ? (t("panel_stat_tier3")) : (t("cmd_citizen_action_conflicts")))}
                  </span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">
                    {tier4Count > 0 && tier3Count > 0 ? `${tier4Count} / ${tier3Count}` : tier4Count + tier3Count}
@@ -168,18 +168,18 @@ export default function CommandRadarSweepPanel({
 
           {/* Core Status */}
           <div className="flex flex-col gap-3">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("radar_domain_core") || "Core Status"}</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("radar_domain_core")}</h4>
             <div className="grid grid-cols-2 gap-3">
               <div className="theme-glass-inner p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1">
-                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_time") || "schedule"}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("dashboard_stat_last_scan") || "LAST SWEEP"}</span>
+                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_time")}</span>
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("dashboard_stat_last_scan")}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">
                     {localLastScan ? new Date(localLastScan).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (status?.last_scan ? new Date(status.last_scan * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A")}
                  </span>
               </div>
               <button onClick={onOpenHotSwap} className="theme-glass-inner p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-white/5 active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_map") || "map"}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("dashboard_stat_blueprints") || "Active Blueprints"}</span>
+                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_map")}</span>
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("dashboard_stat_blueprints")}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">{playSets?.length || 0}</span>
               </button>
             </div>
@@ -187,21 +187,21 @@ export default function CommandRadarSweepPanel({
 
           {/* Vault Integrity */}
           <div className="flex flex-col gap-3">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("radar_domain_vault") || "Blueprint Integrity"}</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("radar_domain_vault")}</h4>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'ALL' } })); }} className="theme-glass-inner p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 col-span-2 cursor-pointer hover:scale-[1.02] hover:bg-white/5 active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_inventory") || "inventory_2"}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("dashboard_stat_collection") || "Total Artifacts"}</span>
+                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_inventory")}</span>
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("dashboard_stat_collection")}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">{relevantMods.length}</span>
               </button>
               <button onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'VERIFIED' } })); }} className="theme-glass-inner p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-white/5 active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50 theme-text-success">{t("ui_icon_verified") || "verified_user"}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("status_verified") || "VERIFIED"}</span>
+                 <span className="material-symbols-outlined !text-lg opacity-50 theme-text-success">{t("ui_icon_verified")}</span>
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("status_verified")}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">{verifiedCount}</span>
               </button>
               <button onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'UNVERIFIED' } })); }} className="theme-glass-inner p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-white/5 active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50 theme-text-warning">{t("ui_icon_help") || "help"}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("status_unverified") || "UNVERIFIED"}</span>
+                 <span className="material-symbols-outlined !text-lg opacity-50 theme-text-warning">{t("ui_icon_help")}</span>
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("status_unverified")}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">{unverifiedCount}</span>
               </button>
             </div>
@@ -209,16 +209,16 @@ export default function CommandRadarSweepPanel({
 
           {/* Extensions */}
           <div className="flex flex-col gap-3">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("radar_domain_ext") || "Extensions"}</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("radar_domain_ext")}</h4>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => { onClose(); localStorage.setItem("sanctuary_settings_tab", "LEXICON"); useStore.getState().setView("settings"); window.dispatchEvent(new CustomEvent('navigateSettings', { detail: { tab: 'LEXICON' } })); }} className="theme-glass-inner p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-white/5 active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_language") || "language"}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("settings_tab_lexicon") || "Lexicon"}</span>
+                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_language")}</span>
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("settings_tab_lexicon")}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">{lexiconCount}</span>
               </button>
               <button onClick={() => { onClose(); localStorage.setItem("sanctuary_settings_tab", "CHAMELEON"); useStore.getState().setView("settings"); window.dispatchEvent(new CustomEvent('navigateSettings', { detail: { tab: 'CHAMELEON' } })); }} className="theme-glass-inner p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-white/5 active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_theme") || "palette"}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("settings_tab_chameleon") || "Chameleon"}</span>
+                 <span className="material-symbols-outlined !text-lg opacity-50">{t("ui_icon_theme")}</span>
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("settings_tab_chameleon")}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">{chameleonCount}</span>
               </button>
             </div>
@@ -235,8 +235,8 @@ export default function CommandRadarSweepPanel({
               : c_btnClass
           }`}
         >
-          <span className={`material-symbols-outlined !text-lg ${isScanning ? 'animate-spin' : ''}`}>{t("ui_icon_radar3") || "radar"}</span>
-          {isScanning ? (t("cmd_scanning") || "SCANNING...") : (t("dashboard_btn_radar") || "RADAR SWEEP")}
+          <span className={`material-symbols-outlined !text-lg ${isScanning ? 'animate-spin' : ''}`}>{t("ui_icon_radar3")}</span>
+          {isScanning ? (t("cmd_scanning")) : (t("dashboard_btn_radar"))}
         </button>
 
       </div>

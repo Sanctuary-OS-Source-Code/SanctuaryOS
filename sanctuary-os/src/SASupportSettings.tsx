@@ -121,20 +121,20 @@ export default function SASupportSettings() {
          <div className="flex items-center gap-4">
            <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_support_agent") || "support_agent"}</span>
+                <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_support_agent")}</span>
              </div>
-             <span className="truncate">{t("sa_title_support_settings") || "SUPPORT SETTINGS"}</span>
+             <span className="truncate">{t("sa_title_support_settings")}</span>
            </h2>
          </div>
          
          <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
             <div className="relative flex-1 max-w-[300px]">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search") || "search"}</span>
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search")}</span>
                 <input 
                   type="text" 
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  placeholder={t("sa_support_search") || "Search categories..."} 
+                  placeholder={t("sa_support_search")} 
                   className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
                 />
             </div>
@@ -143,9 +143,9 @@ export default function SASupportSettings() {
                   value={filter}
                   onChange={(v: string[]) => setFilter(v[0])}
                   options={[
-                    { id: "ALL", label: t("sa_support_all_cats") || "ALL CATEGORIES" },
-                    { id: "ACTIVE", label: t("sa_support_active_only") || "ACTIVE ONLY" },
-                    { id: "INACTIVE", label: t("sa_support_inactive_only") || "INACTIVE ONLY" }
+                    { id: "ALL", label: t("sa_support_all_cats") },
+                    { id: "ACTIVE", label: t("sa_support_active_only") },
+                    { id: "INACTIVE", label: t("sa_support_inactive_only") }
                   ]}
                 />
             </div>
@@ -154,18 +154,18 @@ export default function SASupportSettings() {
                 onClick={() => setActiveTab("CATEGORIES")}
                 className={`px-4 py-0 h-full rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center ${activeTab === 'CATEGORIES' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
               >
-                {t("sa_telemetry_tab_categories") || "CATEGORIES"}
+                {t("sa_telemetry_tab_categories")}
               </button>
               <button 
                 onClick={() => setActiveTab("TELEMETRY")}
                 className={`px-4 py-0 h-full rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center ${activeTab === 'TELEMETRY' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
               >
-                {t("sa_telemetry_sources") || "LOG SOURCES"}
+                {t("sa_telemetry_sources")}
               </button>
             </div>
             <button onClick={() => activeTab === 'CATEGORIES' ? openEditor() : openSourceEditor()} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-               <span className="material-symbols-outlined !text-[20px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add") || "add"}</span>
-               {activeTab === 'CATEGORIES' ? (t("sa_support_add_cat") || "ADD CATEGORY") : (t("sa_telemetry_add_source") || "ADD SOURCE")}
+               <span className="material-symbols-outlined !text-[20px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add")}</span>
+               {activeTab === 'CATEGORIES' ? (t("sa_support_add_cat")) : (t("sa_telemetry_add_source"))}
             </button>
          </div>
       </div>
@@ -174,10 +174,10 @@ export default function SASupportSettings() {
       <div className="flex flex-col gap-4">
            <div className="flex items-center gap-3 mb-2">
               <div className="w-8 h-8 rounded-lg theme-glass-panel border border-[color-mix(in_srgb,var(--text)_30%,transparent)] flex items-center justify-center shadow-md shrink-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70">{t("ui_icon_category") || "category"}</span>
+                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70">{t("ui_icon_category")}</span>
               </div>
               <h4 className="text-sm font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest drop-shadow-md">
-                {t("sa_support_active_cats") || "ACTIVE CATEGORIES"}
+                {t("sa_support_active_cats")}
               </h4>
            </div>
          
@@ -194,13 +194,13 @@ export default function SASupportSettings() {
                       <div className="flex justify-between items-start gap-4">
                           <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${cat.is_active ? 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[var(--accent)]/30' : 'border-red-500/30 group-hover:border-red-500/50'}`}>
                               <span className={`material-symbols-outlined !text-[24px] transition-colors duration-500 opacity-50 group-hover:opacity-100 ${cat.is_active ? 'text-[var(--text)] group-hover:text-[var(--accent)]' : 'text-red-400'}`}>
-                                  {cat.is_active ? (t("ui_icon_category") || "category") : (t("ui_icon_block") || "block")}
+                                  {cat.is_active ? (t("ui_icon_category")) : (t("ui_icon_block"))}
                               </span>
                           </div>
                           <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors
                               ${cat.is_active ? 'bg-[var(--accent)]/10 theme-text-accent border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : 'bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20'}
                           `}>
-                              {cat.is_active ? (t("sa_support_active") || "ACTIVE") : (t("sa_support_inactive") || "INACTIVE")}
+                              {cat.is_active ? (t("sa_support_active")) : (t("sa_support_inactive"))}
                           </span>
                       </div>
                       
@@ -228,7 +228,7 @@ export default function SASupportSettings() {
                               )}
                               {cat.custom_fields && cat.custom_fields.length > 0 && (
                                   <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-white/20 text-[var(--subtext)] rounded-full bg-white/5 shadow-[inset_0_0_10px_rgba(255,255,255,0.05)]">
-                                      {cat.custom_fields.length} {t("sa_support_custom_fields_count") || "CUSTOM FIELDS"}
+                                      {cat.custom_fields.length} {t("sa_support_custom_fields_count")}
                                   </span>
                               )}
                           </div>
@@ -239,8 +239,8 @@ export default function SASupportSettings() {
          </div>
          {!loading && filteredCategories.length === 0 && (
              <div className="p-10 text-center theme-glass-panel rounded-2xl border border-white/5 opacity-50 flex flex-col items-center gap-4">
-                 <span className="material-symbols-outlined text-4xl">{t("ui_icon_inventory") || "inventory_2"}</span>
-                 <span className="text-sm font-bold uppercase tracking-widest">{t("sa_support_no_cats") || "No categories found"}</span>
+                 <span className="material-symbols-outlined text-4xl">{t("ui_icon_inventory")}</span>
+                 <span className="text-sm font-bold uppercase tracking-widest">{t("sa_support_no_cats")}</span>
              </div>
          )}
       </div>
@@ -250,10 +250,10 @@ export default function SASupportSettings() {
       <div className="flex flex-col gap-4">
            <div className="flex items-center gap-3 mb-2">
               <div className="w-8 h-8 rounded-lg theme-glass-panel border border-[color-mix(in_srgb,var(--text)_30%,transparent)] flex items-center justify-center shadow-md shrink-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70">data_object</span>
+                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70">{t("auto_data_object")}</span>
               </div>
               <h4 className="text-sm font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest drop-shadow-md">
-                {t("sa_telemetry_sources") || "LOG SOURCES"}
+                {t("sa_telemetry_sources")}
               </h4>
            </div>
          
@@ -274,13 +274,13 @@ export default function SASupportSettings() {
                         <div className="flex justify-between items-start gap-4">
                             <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${source.is_active ? 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[var(--accent)]/30' : 'border-red-500/30 group-hover:border-red-500/50'}`}>
                                 <span className={`material-symbols-outlined !text-[24px] transition-colors duration-500 opacity-50 group-hover:opacity-100 ${source.is_active ? 'text-[var(--text)] group-hover:text-[var(--accent)]' : 'text-red-400'}`}>
-                                    {source.type === 'OS' ? (t("ui_icon_memory") || "memory") : (t("ui_icon_description") || "description")}
+                                    {source.type === 'OS' ? (t("ui_icon_memory")) : (t("ui_icon_description"))}
                                 </span>
                             </div>
                             <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors
                                 ${source.is_active ? 'bg-[var(--accent)]/10 theme-text-accent border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : 'bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20'}
                             `}>
-                                {source.is_active ? (t("sa_support_active") || "ACTIVE") : (t("sa_support_inactive") || "INACTIVE")}
+                                {source.is_active ? (t("sa_support_active")) : (t("sa_support_inactive"))}
                             </span>
                         </div>
                         
@@ -301,7 +301,7 @@ export default function SASupportSettings() {
                             <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
                                 {source.type === 'OS' ? (
                                     <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-purple-500/30 text-purple-400 rounded-full bg-purple-500/10 shadow-[inset_0_0_10px_rgba(168,85,247,0.1)] flex items-center gap-1">
-                                        BUILT-IN TELEMETRY
+                                        {t("auto_built_in_telemetry")}
                                     </span>
                                 ) : (
                                     <>
@@ -321,8 +321,8 @@ export default function SASupportSettings() {
            </div>
            {!loading && telemetrySources.length === 0 && (
                <div className="p-10 text-center theme-glass-panel rounded-2xl border border-white/5 opacity-50 flex flex-col items-center gap-4">
-                   <span className="material-symbols-outlined text-4xl">inventory_2</span>
-                   <span className="text-sm font-bold uppercase tracking-widest">{t("sa_telemetry_no_sources") || "No log sources found"}</span>
+                   <span className="material-symbols-outlined text-4xl">{t("auto_inventory_2")}</span>
+                   <span className="text-sm font-bold uppercase tracking-widest">{t("sa_telemetry_no_sources")}</span>
                </div>
            )}
       </div>
@@ -361,7 +361,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
 
     const save = async () => {
         if (!actionReason.trim()) {
-            useStore.getState().pushStatus(t("sa_reason_required") || "Reason required for Audit Logs.", "error");
+            useStore.getState().pushStatus(t("sa_reason_required"), "error");
             return;
         }
         setIsSaving(true);
@@ -375,7 +375,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                 if (error) throw error;
                 await logArchitectAction("Created Support Category", "sanctuary_support_categories", draft.category_name, actionReason);
             }
-            useStore.getState().pushStatus(t("sa_support_saved_msg") || "Category saved successfully", "success");
+            useStore.getState().pushStatus(t("sa_support_saved_msg"), "success");
             onSaved();
             onClose();
         } catch (e: any) {
@@ -387,7 +387,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
 
     const handleDelete = async () => {
         if (!actionReason.trim()) {
-            useStore.getState().pushStatus(t("sa_reason_required") || "Reason required for Audit Logs.", "error");
+            useStore.getState().pushStatus(t("sa_reason_required"), "error");
             return;
         }
         if (!draft.id) return;
@@ -396,7 +396,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
             const { error } = await supabase.from('sanctuary_support_categories').delete().eq('id', draft.id);
             if (error) throw error;
             await logArchitectAction("Deleted Support Category", "sanctuary_support_categories", draft.category_name, actionReason);
-            useStore.getState().pushStatus("Category deleted successfully", "success");
+            useStore.getState().pushStatus(t("auto_category_deleted_successfully"), "success");
             onSaved();
             onClose();
         } catch (e: any) {
@@ -409,7 +409,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
     const addField = () => {
         setDraft({
             ...draft,
-            custom_fields: [...(draft.custom_fields || []), { id: `field_${Date.now()}`, label: t("sa_support_new_field") || "New Field", type: "TEXT INPUT", required: false }]
+            custom_fields: [...(draft.custom_fields || []), { id: `field_${Date.now()}`, label: t("sa_support_new_field"), type: "TEXT INPUT", required: false }]
         });
     };
 
@@ -428,8 +428,8 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
         <SidePanel
             isOpen={isOpen}
             onClose={onClose}
-            title={draft.id ? (t("sa_support_edit_cat") || "EDIT CATEGORY") : (t("sa_support_new_cat") || "NEW CATEGORY")}
-            subtitle={t("sa_support_sidepanel_subtitle") || "Configure routing logic and settings for this support category."}
+            title={draft.id ? (t("sa_support_edit_cat")) : (t("sa_support_new_cat"))}
+            subtitle={t("sa_support_sidepanel_subtitle")}
             icon="category"
             widthClass="w-[600px]"
             backdropZ="z-[100]"
@@ -438,25 +438,25 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                 <div className="flex flex-col gap-4 w-full">
                     <div className="flex flex-col gap-2">
                         <label className="text-[9px] font-black uppercase tracking-widest theme-text-warning opacity-80 flex items-center gap-2">
-                            <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_history") || "history"}</span>
-                            {t("sa_audit_reason_req") || "AUDIT LOG REASON (REQUIRED)"}
+                            <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_history")}</span>
+                            {t("sa_audit_reason_req")}
                         </label>
                         <input
                             type="text"
                             value={actionReason}
                             onChange={(e) => setActionReason(e.target.value)}
-                            placeholder={t("sa_describe_change") || "Describe change..."}
+                            placeholder={t("sa_describe_change")}
                             className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-amber-500/50 transition-all font-mono"
                         />
                     </div>
                     <div className="flex justify-center items-center gap-4 w-full">
                         {draft.id && (
                             <button onClick={handleDelete} disabled={isSaving || !actionReason} className={standardDangerButtonClass}>
-                                {t("sa_btn_delete") || "DELETE"}
+                                {t("sa_btn_delete")}
                             </button>
                         )}
                         <button onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name || !actionReason} className={standardSuccessButtonClass}>
-                            {isSaving ? "..." : (t("ui_btn_save_changes") || "SAVE CHANGES")}
+                            {isSaving ? "..." : (t("ui_btn_save_changes"))}
                         </button>
                     </div>
                 </div>
@@ -465,7 +465,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
             <div className="flex flex-col gap-6">
                 
                 <div className="flex items-center justify-between theme-glass-panel p-4 rounded-xl border-white/5">
-                    <span className="text-xs font-black uppercase tracking-widest">{t("sa_support_active_status") || "Category is Active"}</span>
+                    <span className="text-xs font-black uppercase tracking-widest">{t("sa_support_active_status")}</span>
                     <label className="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" className="sr-only peer" checked={draft.is_active} onChange={e => setDraft({...draft, is_active: e.target.checked})} />
                         <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
@@ -473,30 +473,30 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_system_code") || "SYSTEM CODE"}</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_system_code")}</label>
                     <input 
                         type="text" 
                         value={draft.category_code}
                         onChange={e => setDraft({...draft, category_code: e.target.value})}
                         className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all font-mono"
-                        placeholder={t("sa_support_code_ph") || "UUID_REQUEST"}
+                        placeholder={t("sa_support_code_ph")}
                     />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_display_name") || "DISPLAY NAME"}</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_display_name")}</label>
                     <input 
                         type="text" 
                         value={draft.category_name}
                         onChange={e => setDraft({...draft, category_name: e.target.value})}
                         className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                        placeholder={t("sa_support_name_ph") || "OS BUG REPORT"}
+                        placeholder={t("sa_support_name_ph")}
                     />
                 </div>
 
                 <div className="flex gap-4 w-full">
                     <div className="flex flex-col gap-2 flex-1 relative z-20">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_destination") || "Destination"}</label>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_destination")}</label>
                         <CustomDropdown disableTint={true}  
                             value={draft.ticket_destination || 'architect'}
                             onChange={(val: string[]) => setDraft({...draft, ticket_destination: val[0] as any})}
@@ -509,7 +509,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                         />
                     </div>
                     <div className="flex flex-col gap-2 flex-1 relative z-20">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_escalation") || "Escalation"}</label>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_escalation")}</label>
                         <CustomDropdown disableTint={true}  
                             value={draft.escalation_path || 'standard'}
                             onChange={(val: string[]) => setDraft({...draft, escalation_path: val[0] as any})}
@@ -523,19 +523,19 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_description") || "DESCRIPTION"}</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_description")}</label>
                     <textarea 
                         value={draft.description}
                         onChange={e => setDraft({...draft, description: e.target.value})}
                         className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all h-24 resize-none"
-                        placeholder={t("sa_support_desc_ph") || "Please complete this intake form..."}
+                        placeholder={t("sa_support_desc_ph")}
                     />
                 </div>
 
                 <div className="flex flex-col gap-4 mt-4">
                     <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_custom_fields") || "CUSTOM FIELDS (JSON)"}</span>
-                        <button onClick={addField} className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:opacity-80">+ {t("sa_support_add_field") || "ADD FIELD"}</button>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_custom_fields")}</span>
+                        <button onClick={addField} className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:opacity-80">+ {t("sa_support_add_field")}</button>
                     </div>
 
                     <div className="flex flex-col gap-4">
@@ -548,7 +548,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                         value={field.label}
                                         onChange={e => updateField(idx, { label: e.target.value })}
                                         className="flex-1 bg-transparent border-b border-white/10 focus:border-[var(--accent)] outline-none text-sm font-bold py-1"
-                                        placeholder={t("sa_support_field_label_ph") || "Field Label"}
+                                        placeholder={t("sa_support_field_label_ph")}
                                     />
                                 </div>
                                 <div className="flex items-center gap-4">
@@ -557,19 +557,19 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                             value={field.type} 
                                             onChange={(val: string[]) => updateField(idx, { type: val[0] as any })}
                                             options={[
-                                                { id: "TEXT INPUT", label: t("sa_support_type_text") || "Text" },
-                                                { id: "TEXTAREA", label: t("sa_support_type_textarea") || "Textarea" },
-                                                { id: "DROPDOWN", label: t("sa_support_type_dropdown") || "Dropdown" },
-                                                { id: "CHECKBOX", label: t("sa_support_type_checkbox") || "Checkbox" }
+                                                { id: "TEXT INPUT", label: t("sa_support_type_text") },
+                                                { id: "TEXTAREA", label: t("sa_support_type_textarea") },
+                                                { id: "DROPDOWN", label: t("sa_support_type_dropdown") },
+                                                { id: "CHECKBOX", label: t("sa_support_type_checkbox") }
                                             ]}
                                         />
                                     </div>
-                                    <button onClick={() => updateField(idx, { required: !field.required })} className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all border ${field.required ? 'bg-[var(--accent)] text-[var(--bg)] border-[var(--accent)]' : 'bg-transparent border-white/10 text-[var(--subtext)] hover:border-white/30'}`}>{t("sa_support_req_btn") || "REQ"}</button>
-                                    <button onClick={() => removeField(idx)} className="text-red-500/70 hover:text-red-500 font-bold p-2 hover:bg-red-500/10 rounded-lg transition-all"><span className='material-symbols-outlined !text-[12px]'>{t("ui_icon_close") || "close"}</span></button>
+                                    <button onClick={() => updateField(idx, { required: !field.required })} className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all border ${field.required ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'bg-transparent border-white/10 text-[var(--subtext)] hover:border-white/30'}`}>{t("sa_support_req_btn")}</button>
+                                    <button onClick={() => removeField(idx)} className="text-red-500/70 hover:text-red-500 font-bold p-2 hover:bg-red-500/10 rounded-lg transition-all"><span className='material-symbols-outlined !text-[12px]'>{t("ui_icon_close")}</span></button>
                                 </div>
                                 {(field.type === "CHECKBOX" || field.type === "DROPDOWN") && (
                                     <div className="flex flex-col gap-2 pl-6 border-l border-white/10 mt-2">
-                                        <span className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_options") || "OPTIONS"}</span>
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_options")}</span>
                                         {(field.options || []).map((opt, oIdx) => (
                                             <div key={oIdx} className="flex items-center gap-2">
                                                 <input 
@@ -581,18 +581,18 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                                         updateField(idx, { options: newOpts });
                                                     }}
                                                     className="flex-1 theme-glass-inner rounded-md px-3 py-1.5 text-xs outline-none"
-                                                    placeholder={t("sa_support_option_ph") || "Option text..."}
+                                                    placeholder={t("sa_support_option_ph")}
                                                 />
                                                 <button onClick={() => {
                                                     const newOpts = (field.options || []).filter((_, i) => i !== oIdx);
                                                     updateField(idx, { options: newOpts });
-                                                }} className="text-red-500/50 hover:text-red-500 p-1"><span className='material-symbols-outlined !text-[12px]'>{t("ui_icon_close") || "close"}</span></button>
+                                                }} className="text-red-500/50 hover:text-red-500 p-1"><span className='material-symbols-outlined !text-[12px]'>{t("ui_icon_close")}</span></button>
                                             </div>
                                         ))}
-                                        <button onClick={() => updateField(idx, { options: [...(field.options || []), ""] })} className="w-full theme-glass-inner rounded-md py-1.5 text-[9px] font-black text-center opacity-60 hover:opacity-100 uppercase tracking-widest mt-1">{t("sa_support_add_option") || "ADD OPTION"}</button>
+                                        <button onClick={() => updateField(idx, { options: [...(field.options || []), ""] })} className="w-full theme-glass-inner rounded-md py-1.5 text-[9px] font-black text-center opacity-60 hover:opacity-100 uppercase tracking-widest mt-1">{t("sa_support_add_option")}</button>
                                         
                                         <div className="flex items-center justify-between mt-2 pr-2">
-                                            <span className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_allow_multi") || "ALLOW MULTI-SELECT"}</span>
+                                            <span className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_support_allow_multi")}</span>
                                             <label className="relative inline-flex items-center cursor-pointer scale-75">
                                                 <input type="checkbox" className="sr-only peer" checked={field.allow_multi_select || false} onChange={e => updateField(idx, { allow_multi_select: e.target.checked })} />
                                                 <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
@@ -607,35 +607,35 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
 
                 <div className="flex flex-col gap-3 mt-6 pt-6 border-t border-white/10">
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40"/> {t("sa_support_req_target_mod") || "REQUIRES TARGET MOD UUID"}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40"/> {t("sa_support_req_target_mod")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.requires_target_mod} onChange={e => setDraft({...draft, requires_target_mod: e.target.checked})} />
                             <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40"/> {t("sa_support_req_target_user") || "REQUIRES TARGET USER UUID"}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40"/> {t("sa_support_req_target_user")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.requires_target_user} onChange={e => setDraft({...draft, requires_target_user: e.target.checked})} />
                             <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40"/> {t("sa_support_show_title") || "SHOW TITLE BOX"}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40"/> {t("sa_support_show_title")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.show_title_box} onChange={e => setDraft({...draft, show_title_box: e.target.checked})} />
                             <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40"/> {t("sa_support_show_desc") || "SHOW DESCRIPTION BOX"}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40"/> {t("sa_support_show_desc")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.show_description_box} onChange={e => setDraft({...draft, show_description_box: e.target.checked})} />
                             <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40"/> {t("sa_support_show_logs") || "Show Logs"}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40"/> {t("sa_support_show_logs")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.show_logs_box} onChange={e => setDraft({...draft, show_logs_box: e.target.checked})} />
                             <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
@@ -646,14 +646,14 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                 {/* AUTOMATED TELEMETRY SECTION */}
                 <div className="flex flex-col gap-4 mt-6 pt-6 border-t border-white/10">
                    <div className="flex flex-col">
-                     <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("settings_tab_support") || "Support Settings"}</span>
-                     <span className="text-[9px] font-bold uppercase tracking-widest opacity-50">{t("sa_support_telemetry_desc") || "Automatically request logs from the citizen when this category is selected"}</span>
+                     <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("settings_tab_support")}</span>
+                     <span className="text-[9px] font-bold uppercase tracking-widest opacity-50">{t("sa_support_telemetry_desc")}</span>
                    </div>
 
                    <div className="grid grid-cols-2 gap-3">
                       {/* MOD SETTINGS */}
                       <div className="flex flex-col gap-3 p-4 theme-glass-inner rounded-xl border border-white/5">
-                        <span className="text-[9px] font-black uppercase tracking-widest theme-text-accent flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px]">bug_report</span> {t("settings_support_mod_reports") || "Mod Bug Reports"}</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest theme-text-accent flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px]">{t("auto_bug_report")}</span> {t("settings_support_mod_reports")}</span>
                         {telemetrySources.filter(s => s.type === 'MOD' && s.is_active).map(source => (
                           <div key={source.id} className="flex items-center justify-between group">
                              <div className="flex flex-col">
@@ -674,7 +674,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
 
                       {/* OS SETTINGS */}
                       <div className="flex flex-col gap-3 p-4 theme-glass-inner rounded-xl border border-white/5">
-                        <span className="text-[9px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px]">memory</span> {t("settings_support_os_reports") || "Sanctuary OS Bug Reports"}</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px]">{t("auto_memory")}</span> {t("settings_support_os_reports")}</span>
                         {telemetrySources.filter(s => s.type === 'OS' && s.is_active).map(source => (
                           <div key={source.id} className="flex items-center justify-between group">
                              <div className="flex flex-col">
@@ -716,11 +716,11 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
 
     const save = async () => {
         if (!actionReason.trim()) {
-            useStore.getState().pushStatus("Reason required for Audit Logs.", "error");
+            useStore.getState().pushStatus(t("auto_reason_required_for_audit_logs"), "error");
             return;
         }
         if (!draft.label || (draft.type !== 'OS' && (!draft.file_pattern || !draft.search_path))) {
-            useStore.getState().pushStatus("Please fill out all required fields.", "error");
+            useStore.getState().pushStatus(t("auto_please_fill_out_all_required_fields"), "error");
             return;
         }
 
@@ -736,7 +736,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                 if (error) throw error;
                 await logArchitectAction("Created Log Source", "sanctuary_telemetry_sources", draft.label, actionReason);
             }
-            useStore.getState().pushStatus("Log Source saved successfully", "success");
+            useStore.getState().pushStatus(t("auto_log_source_saved_successfully"), "success");
             onSaved();
             onClose();
         } catch (e: any) {
@@ -748,7 +748,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
 
     const deleteSource = async () => {
         if (!actionReason.trim()) {
-            useStore.getState().pushStatus("Reason required for Audit Logs.", "error");
+            useStore.getState().pushStatus(t("auto_reason_required_for_audit_logs"), "error");
             return;
         }
         if (!draft.id) return;
@@ -757,7 +757,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
             const { error } = await supabase.from('sanctuary_telemetry_sources').delete().eq('id', draft.id);
             if (error) throw error;
             await logArchitectAction("Deleted Log Source", "sanctuary_telemetry_sources", draft.label, actionReason);
-            useStore.getState().pushStatus("Log Source deleted successfully", "success");
+            useStore.getState().pushStatus(t("auto_log_source_deleted_successfully"), "success");
             onSaved();
             onClose();
         } catch (e: any) {
@@ -771,8 +771,8 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
         <SidePanel
             isOpen={isOpen}
             onClose={onClose}
-            title={draft.id ? (t("sa_telemetry_edit_source") || "EDIT LOG SOURCE") : (t("sa_telemetry_new_source") || "NEW LOG SOURCE")}
-            subtitle={t("sa_telemetry_subtitle") || "Configure a dynamic log file path for the client to capture."}
+            title={draft.id ? (t("sa_telemetry_edit_source")) : (t("sa_telemetry_new_source"))}
+            subtitle={t("sa_telemetry_subtitle")}
             icon="data_object"
             widthClass="w-[500px]"
             backdropZ="z-[100]"
@@ -781,25 +781,25 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                 <div className="flex flex-col gap-4 w-full">
                     <div className="flex flex-col gap-2">
                         <label className="text-[9px] font-black uppercase tracking-widest theme-text-warning opacity-80 flex items-center gap-2">
-                            <span className="material-symbols-outlined !text-[12px]">history</span>
-                            {t("sa_telemetry_reason") || "REASON (REQUIRED FOR AUDIT LOG)"}
+                            <span className="material-symbols-outlined !text-[12px]">{t("auto_history")}</span>
+                            {t("sa_telemetry_reason")}
                         </label>
                         <input
                             type="text"
                             value={actionReason}
                             onChange={(e) => setActionReason(e.target.value)}
-                            placeholder={t("sa_telemetry_reason_ph") || "Describe change..."}
+                            placeholder={t("sa_telemetry_reason_ph")}
                             className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-xs font-bold focus:outline-none focus:border-[var(--warning)]/50 transition-all border border-white/5"
                         />
                     </div>
                     <div className="flex justify-center items-center gap-4 w-full">
                         {draft.id && (
                             <button onClick={deleteSource} disabled={isSaving} className={standardDangerButtonClass}>
-                                {t("sa_telemetry_delete") || "DELETE"}
+                                {t("sa_telemetry_delete")}
                             </button>
                         )}
                         <button onClick={save} disabled={isSaving} className={standardSuccessButtonClass}>
-                            {isSaving ? (t("sa_telemetry_saving") || "SAVING...") : (t("sa_telemetry_save_changes") || "SAVE CHANGES")}
+                            {isSaving ? (t("sa_telemetry_saving")) : (t("sa_telemetry_save_changes"))}
                         </button>
                     </div>
                 </div>
@@ -807,12 +807,12 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
         >
             <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_telemetry_label") || "Source Label"}</label>
-                    <input type="text" value={draft.label} onChange={e => setDraft({...draft, label: e.target.value})} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5" placeholder={t("sa_telemetry_label_ph") || "e.g. MCCC Exception Logs"} />
+                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_telemetry_label")}</label>
+                    <input type="text" value={draft.label} onChange={e => setDraft({...draft, label: e.target.value})} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5" placeholder={t("sa_telemetry_label_ph")} />
                 </div>
                 
                 <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_telemetry_type") || "Category Type"}</label>
+                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_telemetry_type")}</label>
                     <CustomDropdown disableTint={true} value={draft.type} onChange={(v: string[]) => setDraft({...draft, type: v[0]})} options={[{id: 'MOD', label: 'MOD'}, {id: 'OS', label: 'OS'}]} />
                 </div>
 
@@ -821,7 +821,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                         <div className="flex flex-col gap-3">
                             <div className="flex flex-col gap-2">
                                 <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center justify-between">
-                                    <span>{t("sa_telemetry_prefix") || "Base Directory"}</span>
+                                    <span>{t("sa_telemetry_prefix")}</span>
                                 </label>
                                 <CustomDropdown disableTint={true} 
                                   value={['%MODS_DIR%', '%DOC_DIR%'].includes(draft.search_path) ? draft.search_path : 'CUSTOM'}
@@ -835,26 +835,26 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                             </div>
                             { !['%MODS_DIR%', '%DOC_DIR%'].includes(draft.search_path) && (
                                 <div className="flex flex-col gap-2 pl-4 border-l border-white/10 mt-1">
-                                    <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">Custom Path</label>
-                                    <input type="text" value={draft.search_path} onChange={e => setDraft({...draft, search_path: e.target.value})} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 font-mono" placeholder="e.g. C:\MyLogs\" />
+                                    <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("auto_custom_path")}</label>
+                                    <input type="text" value={draft.search_path} onChange={e => setDraft({...draft, search_path: e.target.value})} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 font-mono" placeholder={t("auto_e_g_c_mylogs")} />
                                 </div>
                             )}
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_telemetry_pattern") || "File Pattern"}</label>
-                            <input type="text" value={draft.file_pattern} onChange={e => setDraft({...draft, file_pattern: e.target.value})} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 font-mono" placeholder={t("sa_telemetry_pattern_ph") || "e.g. lastexception*.txt"} />
+                            <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_telemetry_pattern")}</label>
+                            <input type="text" value={draft.file_pattern} onChange={e => setDraft({...draft, file_pattern: e.target.value})} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 font-mono" placeholder={t("sa_telemetry_pattern_ph")} />
                         </div>
                     </>
                 )}
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_support_description") || "DESCRIPTION"}</label>
-                    <textarea value={draft.description} onChange={e => setDraft({...draft, description: e.target.value})} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 min-h-[80px]" placeholder={t("sa_telemetry_desc_ph") || "Brief explanation..."} />
+                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_support_description")}</label>
+                    <textarea value={draft.description} onChange={e => setDraft({...draft, description: e.target.value})} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 min-h-[80px]" placeholder={t("sa_telemetry_desc_ph")} />
                 </div>
 
                 <div className="flex items-center justify-between p-4 theme-glass-inner rounded-xl border border-white/5 mt-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_telemetry_is_active") || "Is Active"}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_telemetry_is_active")}</span>
                     <label className="relative inline-flex items-center cursor-pointer scale-[0.8] origin-right">
                         <input type="checkbox" className="sr-only peer" checked={draft.is_active} onChange={e => setDraft({...draft, is_active: e.target.checked})} />
                         <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>

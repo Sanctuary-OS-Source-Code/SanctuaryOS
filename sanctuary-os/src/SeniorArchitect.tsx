@@ -64,9 +64,9 @@ export default function SeniorArchitect({ onOpenMasonProfile }: any) {
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-32 relative">
       <ViewHeader 
-         title={t("sa_title") || "Oversight Command"} 
-         subtitle={t("sa_subtitle") || "Compliance, enforcement, audit control, and emergency authority"}
-         icon={t("ui_icon_shield") || "security"}
+         title={t("sa_title")} 
+         subtitle={t("sa_subtitle")}
+         icon={t("ui_icon_shield")}
          iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
       >
          <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
@@ -75,8 +75,8 @@ export default function SeniorArchitect({ onOpenMasonProfile }: any) {
              onClick={() => setIsVerifyPanelOpen(true)}
              className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
            >
-             <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_verified") || "verified_user"}</span>
-             <span className="text-[10px] font-black uppercase tracking-widest">{t("architect_btn_verify_hash") || "VERIFY HASH"}</span>
+             <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_verified")}</span>
+             <span className="text-[10px] font-black uppercase tracking-widest">{t("architect_btn_verify_hash")}</span>
            </button>
            
            <div className="w-px h-6 bg-white/10 mx-2" />
@@ -100,16 +100,16 @@ export default function SeniorArchitect({ onOpenMasonProfile }: any) {
       
       <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
          <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner">
-           <HubTabButton id="command_center" icon={t("ui_icon_pc") || "desktop_windows"} label={t("sa_tab_command_screen") || "Command"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="identities" icon={t("ui_icon_group") || "group"} label={t("sa_tab_identities") || "Identity"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="linker" icon={t("ui_icon_link") || "link"} label={t("sa_tab_linker") || "Masons"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="compliance" icon={t("ui_icon_policy") || "policy"} label={t("sa_tab_compliance") || "Compliance"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="oversight_reports" icon={t("ui_icon_threat_intelligence") || "threat_intelligence"} label={t("hub_tab_malware_logs") || "Manifests"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="mass_update" icon={t("ui_icon_dynamic_feed") || "dynamic_feed"} label={t("sa_tab_mass_update") || "Mass Update"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="game_versions" icon={t("ui_icon_settings") || "settings"} label={t("sa_tab_game_versions") || "Management"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="sanctuary_tickets" icon={t("ui_icon_local_activity") || "local_activity"} label={t("wf_tab_tickets") || "SUPPORT"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="support_settings" icon={t("ui_icon_support_agent") || "support_agent"} label={t("sa_tab_support_settings") || "SETTINGS"} activeTab={activeTab} setTab={setActiveTab} />
-           <HubTabButton id="audit_logs" icon={t("ui_icon_history") || "history"} label={t("sa_tab_audit") || "Logs"} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="command_center" icon={t("ui_icon_pc")} label={t("sa_tab_command_screen")} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="identities" icon={t("ui_icon_group")} label={t("sa_tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="linker" icon={t("ui_icon_link")} label={t("sa_tab_linker")} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="compliance" icon={t("ui_icon_policy")} label={t("sa_tab_compliance")} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="oversight_reports" icon={t("ui_icon_threat_intelligence")} label={t("hub_tab_malware_logs")} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="mass_update" icon={t("ui_icon_dynamic_feed")} label={t("sa_tab_mass_update")} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="game_versions" icon={t("ui_icon_settings")} label={t("sa_tab_game_versions")} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="sanctuary_tickets" icon={t("ui_icon_local_activity")} label={t("wf_tab_tickets")} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="support_settings" icon={t("ui_icon_support_agent")} label={t("sa_tab_support_settings")} activeTab={activeTab} setTab={setActiveTab} />
+           <HubTabButton id="audit_logs" icon={t("ui_icon_history")} label={t("sa_tab_audit")} activeTab={activeTab} setTab={setActiveTab} />
          </div>
       </div>
 
@@ -170,7 +170,7 @@ function DefconPanel() {
 
   const triggerDefcon = async () => {
     const newLevel = defconLevel === 1 ? 5 : 1;
-    const msg = newLevel === 1 ? t("sa_defcon_msg_emergency") || "Emergency Patch Detected" : t("sa_defcon_msg_normal") || "System Nominal";
+    const msg = newLevel === 1 ? t("sa_defcon_msg_emergency") : t("sa_defcon_msg_normal");
     
     setDefconLevel(newLevel);
     
@@ -188,13 +188,13 @@ function DefconPanel() {
       {defconLevel === 1 && <div className="absolute inset-0 bg-amber-500/5 animate-pulse pointer-events-none" />}
       
       <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center relative z-10 ${defconLevel === 1 ? 'border-amber-900/50 shadow-lg' : 'border-white/10'}`}>
-        <span className={`text-4xl material-symbols-outlined ${defconLevel === 1 ? 'animate-bounce text-amber-500' : 'text-white'}`}>{t("ui_icon_warning") || "warning_amber"}</span>
+        <span className={`text-4xl material-symbols-outlined ${defconLevel === 1 ? 'animate-bounce text-amber-500' : 'text-white'}`}>{t("ui_icon_warning")}</span>
       </div>
       
       <div className="flex flex-col gap-2 relative z-10">
-        <h3 className={`text-xl font-black uppercase tracking-tighter drop-shadow-md ${defconLevel === 1 ? 'text-amber-400' : 'text-[var(--text)]'}`}>{t("hub_defcon_override_title") || "Global Network Override"}</h3>
+        <h3 className={`text-xl font-black uppercase tracking-tighter drop-shadow-md ${defconLevel === 1 ? 'text-amber-400' : 'text-[var(--text)]'}`}>{t("hub_defcon_override_title")}</h3>
         <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">
-          {t("hub_defcon_override_desc") || "Initiate a DEFCON 1 protocol. This will instantly force all connected Sanctuary OS clients to seal their vaults and trigger emergency backups. Use only during imminent game patch deployments."}
+          {t("hub_defcon_override_desc")}
         </p>
       </div>
 
@@ -206,7 +206,7 @@ function DefconPanel() {
             : 'border border-amber-900/50 text-amber-400 hover:border-amber-500 hover:text-amber-400 hover:bg-amber-500/10'
         }`}
       >
-        {defconLevel === 1 ? t("hub_defcon_stand_down") || "Stand Down (Return to Normal)" : t("hub_defcon_initiate") || "Initiate DEFCON 1 Lock Down"}
+        {defconLevel === 1 ? t("hub_defcon_stand_down") : t("hub_defcon_initiate")}
       </button>      {showDefconConfirmModal && (
         <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/60 backdrop-blur-md animate-in fade-in duration-300 p-8">
           <div className="relative w-full max-w-4xl theme-glass-panel border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[3rem] p-12 shadow-2xl flex flex-col gap-8 overflow-hidden">
@@ -221,17 +221,17 @@ function DefconPanel() {
             <div className="flex items-start gap-8 relative z-10 text-left">
               <div className={`relative w-32 h-32 rounded-3xl flex items-center justify-center text-6xl shrink-0 shadow-lg ${defconLevel === 5 ? 'bg-amber-900/10 border border-amber-900/50' : 'bg-white/5 border border-white/10'}`}>
                 {defconLevel === 5 && <div className="absolute inset-0 rounded-3xl border-2 border-amber-500/20 animate-spin-slow"></div>}
-                <span className={`drop-shadow-md animate-pulse material-symbols-outlined ${defconLevel === 5 ? 'text-amber-500' : 'text-white'}`}>{t("ui_icon_warning") || "warning_amber"}</span>
+                <span className={`drop-shadow-md animate-pulse material-symbols-outlined ${defconLevel === 5 ? 'text-amber-500' : 'text-white'}`}>{t("ui_icon_warning")}</span>
               </div>
               <div className="flex flex-col gap-4 pt-2 flex-1">
                 <h2 className={`text-5xl font-black uppercase tracking-tighter drop-shadow-md leading-none ${defconLevel === 5 ? 'text-amber-400' : 'text-[var(--text)]'}`}>
-                  {t("hub_defcon_confirm_title") || "Global Override Confirm"}
+                  {t("hub_defcon_confirm_title")}
                 </h2>
                 <div className={`w-full h-px my-2 ${defconLevel === 5 ? 'bg-gradient-to-r from-amber-500/50 to-transparent' : 'bg-gradient-to-r from-white/10 to-transparent'}`}></div>
                 <p className={`text-xs font-bold uppercase tracking-[0.2em] leading-relaxed max-w-2xl whitespace-pre-line ${defconLevel === 5 ? 'text-amber-200/80' : 'text-[var(--text)]/80'}`}>
                   {defconLevel === 1 
-                    ? t("hub_defcon_confirm_stand_down") || "Are you sure you want to stand down the global alert? This will lift the lockdown for all clients."
-                    : t("hub_defcon_confirm_execute") || "Are you absolutely sure you want to broadcast a DEFCON 1 global alert? This will immediately lock down all connected clients and force emergency backups."}
+                    ? t("hub_defcon_confirm_stand_down")
+                    : t("hub_defcon_confirm_execute")}
                 </p>
               </div>
             </div>
@@ -245,13 +245,13 @@ function DefconPanel() {
                     : 'border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5'
                 }`}
               >
-                {defconLevel === 1 ? t("hub_btn_confirm_stand_down") || "Confirm Stand Down" : t("hub_btn_execute_defcon") || "Execute DEFCON 1"}
+                {defconLevel === 1 ? t("hub_btn_confirm_stand_down") : t("hub_btn_execute_defcon")}
               </button>
               <button 
                 onClick={() => setShowDefconConfirmModal(false)}
                 className="flex-1 py-6 theme-glass-inner border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-sm"
               >
-                {t("hub_btn_abort") || "Abort"}
+                {t("hub_btn_abort")}
               </button>
             </div>
           </div>
@@ -290,7 +290,7 @@ function ProfileSearchDropdown({ value, onChange, profiles }: any) {
              }
           }}
           onFocus={() => { if (!value) setIsOpen(true); }}
-          placeholder={t("sa_search_profile") || "SEARCH PROFILE NAME OR ID..."}
+          placeholder={t("sa_search_profile")}
           readOnly={!!value}
           className={`w-full h-12 theme-glass-inner rounded-xl px-5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all relative cursor-text ${value ? 'theme-text-accent' : ''}`}
         />
@@ -323,7 +323,7 @@ function ProfileSearchDropdown({ value, onChange, profiles }: any) {
                 <span className="text-[8px] font-mono opacity-50">{p.id}</span>
               </button>
             ))}
-            {filtered.length === 0 && <div className="p-4 text-center text-[10px] font-black uppercase tracking-widest opacity-50">{t("sa_no_profiles") || "NO PROFILES FOUND"}</div>}
+            {filtered.length === 0 && <div className="p-4 text-center text-[10px] font-black uppercase tracking-widest opacity-50">{t("sa_no_profiles")}</div>}
           </div>
         </>,
         document.body
@@ -391,7 +391,7 @@ export function MasonLinker() {
     }
     
     setIsSubmitting(true);
-    setStatus(t("sa_status_linking") || "LINKING..."); 
+    setStatus(t("sa_status_linking")); 
     
     const userRes = await supabase.auth.getUser();
     const myId = userRes.data.user?.id;
@@ -448,7 +448,7 @@ export function MasonLinker() {
        }
     }
     
-    setStatus(t("sa_identities_updated") || "ROLE UPDATED");
+    setStatus(t("sa_identities_updated"));
     fetchData();
     setTimeout(() => {
       handleClosePanel();
@@ -467,18 +467,18 @@ export function MasonLinker() {
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_link") || "link"}</span>
+            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_link")}</span>
           </div>
-          <span className="truncate">{t("sa_linker_title") || "Mason Verification"}</span>
+          <span className="truncate">{t("sa_linker_title")}</span>
         </h2>
         
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search") || "search"}</span>
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search")}</span>
             <input 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
-              placeholder={t("sa_linker_search_mason") || "Search Mason..."} 
+              placeholder={t("sa_linker_search_mason")} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
@@ -492,7 +492,7 @@ export function MasonLinker() {
                 { id: "verified", label: "VERIFIED" },
                 { id: "unverified", label: "UNVERIFIED" }
               ]}
-              placeholder="FILTER STATUS"
+              placeholder={t("auto_filter_status")}
             />
           </div>
 
@@ -500,15 +500,15 @@ export function MasonLinker() {
             onClick={() => handleOpenPanel(null)}
             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
           >
-            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_add") || "add"}</span>
-            {t("sa_btn_create_mason_naked") || "LINK MASON"}
+            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_add")}</span>
+            {t("sa_btn_create_mason_naked")}
           </button>
         </div>
       </div>
       
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
       {loading ? (
-        <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("sa_identities_fetching") || "Fetching Records..."}</div>
+        <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("sa_identities_fetching")}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
           {filteredMasons.map((m: any) => (
@@ -525,11 +525,11 @@ export function MasonLinker() {
                 <div className="flex justify-between items-start gap-4">
                   <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${m.is_verified ? 'group-hover:border-green-500/30' : 'group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}>
                       <span className={`material-symbols-outlined !text-[24px] text-[var(--text)] opacity-50 group-hover:opacity-100 transition-colors duration-500 ${m.is_verified ? 'group-hover:text-green-400' : 'group-hover:theme-text-accent'}`}>
-                          architecture
+                          {t("auto_architecture")}
                       </span>
                   </div>
                   <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors ${m.is_verified ? 'bg-green-500/10 text-green-400 border-green-500/20 group-hover:bg-green-500/20' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-60 border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                      {m.is_verified ? t("sa_verified") || "Verified" : t("sa_unverified") || "Unverified"}
+                      {m.is_verified ? t("sa_verified") : t("sa_unverified")}
                   </span>
                 </div>
                 
@@ -538,7 +538,7 @@ export function MasonLinker() {
                       {m.name || t("sa_identities_unknown") || "UNKNOWN"}
                     </span>
                     <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 flex gap-1.5 items-center">
-                        <span className="material-symbols-outlined !text-[12px] opacity-70">{t("ui_icon_fingerprint") || "fingerprint"}</span>
+                        <span className="material-symbols-outlined !text-[12px] opacity-70">{t("ui_icon_fingerprint")}</span>
                         {m.id.substring(0,8)}
                     </span>
                 </div>
@@ -546,7 +546,7 @@ export function MasonLinker() {
                 <div className="flex flex-col gap-1 mt-1 border-t border-white/5 pt-3">
                    <span className={`text-[10px] font-bold uppercase flex items-center gap-1.5 truncate ${m.profile_id ? 'text-[var(--text)] opacity-80' : 'text-red-400 opacity-80'}`}>
                      <span className="material-symbols-outlined !text-[12px] opacity-70">{m.profile_id ? "link" : "link_off"}</span>
-                     {m.profile_id ? (profiles.find(p => p.id === m.profile_id)?.username || m.profile_id.substring(0,8)) : (t("sa_unlinked") || "Unlinked")}
+                     {m.profile_id ? (profiles.find(p => p.id === m.profile_id)?.username || m.profile_id.substring(0,8)) : (t("sa_unlinked"))}
                    </span>
                 </div>
               </div>
@@ -554,7 +554,7 @@ export function MasonLinker() {
           ))}
           {filteredMasons.length === 0 && (
              <div className="col-span-full py-20 text-center text-[var(--subtext)] opacity-50 font-black uppercase tracking-widest">
-                {t("sa_no_masons") || "No Masons Found"}
+                {t("sa_no_masons")}
              </div>
           )}
         </div>
@@ -565,8 +565,8 @@ export function MasonLinker() {
         isOpen={!!selectedMason || isCreating}
         onClose={handleClosePanel}
         title={isCreating ? "LINK NEW MASON" : "EDIT MASON"}
-        icon={t("ui_icon_link") || "link"}
-        subtitle={selectedMason ? `UUID: ${selectedMason.id}` : t("sa_create_mason_subtitle") || "Link a new verified or unverified Mason"}
+        icon={t("ui_icon_link")}
+        subtitle={selectedMason ? `UUID: ${selectedMason.id}` : t("sa_create_mason_subtitle")}
         footer={
           <div className="flex flex-col gap-4 w-full">
             {status && (
@@ -576,14 +576,14 @@ export function MasonLinker() {
             )}
             <div className="flex justify-center items-center gap-4 w-full">
               <button type="button" onClick={handleClosePanel} disabled={isSubmitting} className={standardButtonClass}>
-                {t("ui_btn_cancel") || "CANCEL"}
+                {t("ui_btn_cancel")}
               </button>
               <button 
                 onClick={handleSave} 
                 disabled={isSubmitting || !editName.trim()} 
                 className={standardAccentGlassButtonClass}
               >
-                {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : (isCreating ? t("sa_btn_create_mason_naked") || "LINK MASON" : t("registry_commit_changes") || "Commit Changes")}
+                {isSubmitting ? t("sa_identities_updating") : (isCreating ? t("sa_btn_create_mason_naked") : t("registry_commit_changes"))}
               </button>
             </div>
           </div>
@@ -594,16 +594,16 @@ export function MasonLinker() {
           <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
             <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info") || "info"}</span>
-              {t("sa_metadata") || "METADATA"}
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info")}</span>
+              {t("sa_metadata")}
             </h4>
             
             <div className="flex flex-col gap-2 relative z-50">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_mason_name") || "MASON NAME"}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_mason_name")}</label>
               <input 
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
-                placeholder={t("sa_placeholder_mason_name") || "Enter Mason Name"}
+                placeholder={t("sa_placeholder_mason_name")}
                 className="w-full theme-glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
               />
             </div>
@@ -612,12 +612,12 @@ export function MasonLinker() {
           <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
             <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none rounded-2xl" />
             <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_link") || "link"}</span>
-              {t("sa_linking_verification") || "LINKING & VERIFICATION"}
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_link")}</span>
+              {t("sa_linking_verification")}
             </h4>
 
             <div className="flex flex-col gap-2 relative z-40">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_link_profile") || "LINK TO PROFILE"}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_link_profile")}</label>
               <ProfileSearchDropdown 
                  value={linkedProfileId} 
                  profiles={profiles} 
@@ -628,7 +628,7 @@ export function MasonLinker() {
             <div className="flex items-center justify-between mt-4">
               <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest ml-2 flex items-center gap-2">
                  <span className={`w-2 h-2 rounded-full ${isVerified ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-gray-500'}`}></span>
-                 {t("sa_mark_verified") || "MARK AS VERIFIED"}
+                 {t("sa_mark_verified")}
               </label>
               <button 
                 onClick={() => setIsVerified(!isVerified)}
@@ -672,7 +672,7 @@ function HeuristicsReadOnlyList({ onEditClick }: { onEditClick: (sig: any) => vo
   return (
     <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
       {loading ? (
-        <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">Loading Signatures...</div>
+        <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("auto_loading_signatures")}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {signatures.map(sig => {
@@ -697,7 +697,7 @@ function HeuristicsReadOnlyList({ onEditClick }: { onEditClick: (sig: any) => vo
                   <div className="flex justify-between items-start gap-4">
                     <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:${sBorder}/30`}>
                         <span className={`material-symbols-outlined !text-[24px] opacity-50 group-hover:opacity-100 transition-colors duration-500 ${sColor}`}>
-                            bug_report
+                            {t("auto_bug_report")}
                         </span>
                     </div>
                     <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-white/5 text-[var(--subtext)] border-white/10 group-hover:${sBorder}/30 group-hover:${sColor}`}>
@@ -710,7 +710,7 @@ function HeuristicsReadOnlyList({ onEditClick }: { onEditClick: (sig: any) => vo
                         {sig.signature}
                       </span>
                       <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 flex gap-1.5 items-center truncate">
-                          <span className="material-symbols-outlined !text-[12px] opacity-70">account_tree</span>
+                          <span className="material-symbols-outlined !text-[12px] opacity-70">{t("auto_account_tree")}</span>
                           {sig.match_type}
                       </span>
                   </div>
@@ -718,8 +718,8 @@ function HeuristicsReadOnlyList({ onEditClick }: { onEditClick: (sig: any) => vo
                   <div className="flex flex-col gap-1 mt-1 border-t border-white/5 pt-3">
                      <span className="text-[10px] font-bold uppercase flex justify-between items-center w-full text-[var(--subtext)] opacity-80">
                        <span className="flex items-center gap-1.5 truncate">
-                         <span className="material-symbols-outlined !text-[12px] opacity-70">shield</span>
-                         {sig.enabled ? (t("sa_comp_enabled") || "ENABLED") : (t("sa_comp_disabled") || "DISABLED")}
+                         <span className="material-symbols-outlined !text-[12px] opacity-70">{t("auto_shield")}</span>
+                         {sig.enabled ? (t("sa_comp_enabled")) : (t("sa_comp_disabled"))}
                        </span>
                      </span>
                   </div>
@@ -729,7 +729,7 @@ function HeuristicsReadOnlyList({ onEditClick }: { onEditClick: (sig: any) => vo
           })}
           {signatures.length === 0 && (
             <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest">
-              {t("sa_comp_no_heuristics") || "No active heuristic signatures."}
+              {t("sa_comp_no_heuristics")}
             </div>
           )}
         </div>
@@ -781,7 +781,7 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
   const handleClearFlag = async (e: React.MouseEvent, mod: any) => {
     e.stopPropagation();
     if (!editReason.trim()) {
-      setStatus(t("sa_identities_req_reason") || "A reason is required to process this change.");
+      setStatus(t("sa_identities_req_reason"));
       return;
     }
     setLoading(true);
@@ -806,7 +806,7 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
   const handleSetFlag = async (e: React.MouseEvent, mod: any) => {
     e.stopPropagation();
     if (!editReason.trim()) {
-      setStatus(t("sa_identities_req_reason") || "A reason is required to process this change.");
+      setStatus(t("sa_identities_req_reason"));
       return;
     }
     setLoading(true);
@@ -891,10 +891,10 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
 
   const getTierDetails = (tier: number) => {
     switch(tier) {
-      case 1: return { label: t("sa_rating_nsfw") || "NSFW (18+)", color: 'theme-text-warning', bg: 'theme-bg-warning' };
-      case 2: return { label: t("sa_rating_explicit") || "EXPLICIT", color: 'theme-text-danger', bg: 'theme-bg-danger' };
-      case 3: return { label: t("sa_rating_malware") || "MALWARE", color: 'text-red-500', bg: 'bg-red-500' };
-      default: return { label: t("sa_rating_clean") || "CLEAN", color: 'theme-text-success', bg: 'theme-bg-success' };
+      case 1: return { label: t("sa_rating_nsfw"), color: 'theme-text-warning', bg: 'theme-bg-warning' };
+      case 2: return { label: t("sa_rating_explicit"), color: 'theme-text-danger', bg: 'theme-bg-danger' };
+      case 3: return { label: t("sa_rating_malware"), color: 'text-red-500', bg: 'bg-red-500' };
+      default: return { label: t("sa_rating_clean"), color: 'theme-text-success', bg: 'theme-bg-success' };
     }
   };
 
@@ -903,18 +903,18 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_policy") || "policy"}</span>
+            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_policy")}</span>
           </div>
-          <span className="truncate">{t("sa_comp_title") || "Compliance Oversight"}</span>
+          <span className="truncate">{t("sa_comp_title")}</span>
         </h2>
         
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search") || "search"}</span>
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search")}</span>
             <input 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
-              placeholder={t("sa_comp_search_mods") || "Search Artifacts..."} 
+              placeholder={t("sa_comp_search_mods")} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
@@ -924,12 +924,12 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
               value={filterTier === null ? "all" : filterTier} 
               onChange={(v: any[]) => setFilterTier(v[0] === "all" ? null : v[0])} 
               options={[
-                { id: "all", label: t("sa_comp_filter_all_alerts") || "ALL ALERTS" },
+                { id: "all", label: t("sa_comp_filter_all_alerts") },
                 { id: 1, label: getTierDetails(1).label },
                 { id: 2, label: getTierDetails(2).label },
                 { id: 3, label: getTierDetails(3).label }
               ]}
-              placeholder={t("sa_comp_filter_tier") || "FILTER TIER"}
+              placeholder={t("sa_comp_filter_tier")}
             />
           </div>
 
@@ -938,19 +938,19 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
               onClick={() => setFilterStatus("pending")}
               className={`px-4 py-0 h-full rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center ${filterStatus === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
             >
-              {t("ui_tab_pending") || "Pending"}
+              {t("ui_tab_pending")}
             </button>
             <button 
               onClick={() => setFilterStatus("verified")}
               className={`px-4 py-0 h-full rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center ${filterStatus === 'verified' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
             >
-              {t("sa_verified") || "Verified"}
+              {t("sa_verified")}
             </button>
             <button 
               onClick={() => setFilterStatus("heuristics")}
               className={`px-4 py-0 h-full rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center ${filterStatus === 'heuristics' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
             >
-              {t("sa_heuristics_tab") || "HEURISTICS"}
+              {t("sa_heuristics_tab")}
             </button>
           </div>
 
@@ -958,8 +958,8 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
             onClick={() => onOpenManualFlag("")} 
             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group !w-auto"
           >
-            <span className="material-symbols-outlined !text-[18px] group-hover:scale-110 transition-transform">{t("ui_icon_flag") || "flag"}</span>
-            {t("sa_comp_btn_manual_flag") || "MANUAL FLAG"}
+            <span className="material-symbols-outlined !text-[18px] group-hover:scale-110 transition-transform">{t("ui_icon_flag")}</span>
+            {t("sa_comp_btn_manual_flag")}
           </button>
         </div>
       </div>
@@ -972,7 +972,7 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
         ) : (
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
           {loading ? (
-            <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("sa_comp_scanning") || "Scanning Global Registry..."}</div>
+            <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("sa_comp_scanning")}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredMods.map(mod => {
@@ -992,7 +992,7 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
                     <div className="flex justify-between items-start gap-4">
                       <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${isMalware ? 'group-hover:border-red-500/30' : 'group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}>
                           <span className={`material-symbols-outlined !text-[24px] opacity-50 group-hover:opacity-100 transition-colors duration-500 ${isMalware ? 'text-red-500' : 'text-[var(--text)] group-hover:theme-text-accent'}`}>
-                              policy
+                              {t("auto_policy")}
                           </span>
                       </div>
                       <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-white/5 ${td.color}`}>
@@ -1005,7 +1005,7 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
                           {mod.name}
                         </span>
                         <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 flex gap-1.5 items-center">
-                            <span className="material-symbols-outlined !text-[12px] opacity-70">{t("ui_icon_person") || "person"}</span>
+                            <span className="material-symbols-outlined !text-[12px] opacity-70">{t("ui_icon_person")}</span>
                             {mod.master_author || t("sa_comp_unknown_mason") || "UNKNOWN MASON"}
                         </span>
                     </div>
@@ -1013,10 +1013,10 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
                     <div className="flex flex-col gap-1 mt-1 border-t border-white/5 pt-3">
                        <span className="text-[10px] font-bold uppercase flex justify-between items-center w-full text-[var(--subtext)] opacity-80">
                          <span className="flex items-center gap-1.5 truncate">
-                           <span className="material-symbols-outlined !text-[12px] opacity-70">{t("ui_icon_fingerprint") || "fingerprint"}</span>
+                           <span className="material-symbols-outlined !text-[12px] opacity-70">{t("ui_icon_fingerprint")}</span>
                            {mod.id.substring(0,8)}
                          </span>
-                         <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-opacity">{t("hub_btn_review") || "REVIEW"} &rarr;</span>
+                         <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-opacity">{t("hub_btn_review")} &rarr;</span>
                        </span>
                     </div>
 
@@ -1026,7 +1026,7 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
               })}
             {filteredMods.length === 0 && (
               <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest">
-                {t("sa_comp_no_alerts") || "No active compliance alerts."}
+                {t("sa_comp_no_alerts")}
               </div>
             )}
           </div>
@@ -1038,8 +1038,8 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
       <SidePanel
         isOpen={!!selectedMod}
         onClose={() => setSelectedMod(null)}
-        title={t("sa_comp_edit_tier") || "EDIT COMPLIANCE TIER"}
-        icon={t("ui_icon_policy") || "policy"}
+        title={t("sa_comp_edit_tier")}
+        icon={t("ui_icon_policy")}
         subtitle={selectedMod ? `UUID: ${selectedMod.id}` : undefined}
         footer={
           <div className="flex flex-col gap-4 w-full">
@@ -1056,14 +1056,14 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
                       className={standardSuccessButtonClass}
                       disabled={isSubmitting || !editReason.trim()}
                     >
-                      {t("sa_btn_clear_flag") || "CLEAR FLAG"}
+                      {t("sa_btn_clear_flag")}
                     </button>
                     <button 
                       onClick={(e) => { e.preventDefault(); handleSetFlag(e, selectedMod); setSelectedMod(null); }}
                       className={standardDangerButtonClass}
                       disabled={isSubmitting || !editReason.trim()}
                     >
-                      {t("sa_btn_set_flag") || "SET FLAG"}
+                      {t("sa_btn_set_flag")}
                     </button>
                   </>
                 ) : (
@@ -1072,7 +1072,7 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
                     disabled={isSubmitting || !editReason.trim()} 
                     className={standardSuccessButtonClass}
                   >
-                    {isSubmitting ? t("sa_identities_updating") || "UPDATING ROLE..." : t("registry_commit_changes") || "Commit Changes"}
+                    {isSubmitting ? t("sa_identities_updating") : t("registry_commit_changes")}
                   </button>
                 )}
             </div>
@@ -1083,8 +1083,8 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
           
           <div className="flex flex-col gap-6 relative">
             <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info") || "info"}</span>
-              {t("mason_bug_inspect_report") || "View"}
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info")}</span>
+              {t("mason_bug_inspect_report")}
             </h4>
             
             <div className="flex flex-col gap-2 relative z-10">
@@ -1093,20 +1093,20 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
                 onClick={() => setMetadataMod(selectedMod)}
                 className="mt-2 text-[10px] font-black uppercase tracking-widest theme-text-accent hover:text-[var(--text)] transition-colors flex items-center gap-1 w-max"
               >
-                <span className="material-symbols-outlined !text-[12px]">edit</span>
-                {t("ui_edit_metadata") || "EDIT METADATA"}
+                <span className="material-symbols-outlined !text-[12px]">{t("auto_edit")}</span>
+                {t("ui_edit_metadata")}
               </button>
             </div>
           </div>
 
           <div className="flex flex-col gap-6 relative">
             <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_policy") || "policy"}</span>
-              {t("sa_comp_enforcement") || "ENFORCEMENT"}
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_policy")}</span>
+              {t("sa_comp_enforcement")}
             </h4>
 
             <div className="flex flex-col gap-2 relative z-50">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_assign_tier") || "ASSIGN TIER"}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_assign_tier")}</label>
               <CustomComplianceDropdown 
                 value={editTier} 
                 onChange={setEditTier} 
@@ -1117,12 +1117,12 @@ export function ComplianceOversight({ initialFilter, setInitialFilter, onOpenMan
             <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-40 mt-2">
                <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
-                  {t("sa_tier_reason_req") || "REASON FOR TIER CHANGE (REQUIRED)"}
+                  {t("sa_tier_reason_req")}
                </label>
                <textarea 
                  value={editReason} 
                  onChange={e => setEditReason(e.target.value)} 
-                 placeholder={t("sa_comp_reason_placeholder") || "Reason for compliance flag/adjustment..."} 
+                 placeholder={t("sa_comp_reason_placeholder")} 
                  className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]" 
                />
             </div>
@@ -1303,18 +1303,18 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
     <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32 mt-8">
       {/* Stat Tiles */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full">
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_warning") || "warning_amber"}</span>} number={defconLevel} label={t("hub_stat_global_defcon") || "GLOBAL DEFCON"} colorClass={getDefconColor(defconLevel)} onClick={onOpenDefcon} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_nsfw") || "18_up_rating"}</span>} number={stats.nsfw} label={t("hub_stat_nsfw_flags") || "NSFW FLAGS"} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => { setComplianceFilter('nsfw'); setTab("compliance"); }} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_explicit") || "block"}</span>} number={stats.explicit} label={t("hub_stat_explicit_flags") || "EXPLICIT FLAGS"} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { setComplianceFilter('explicit'); setTab("compliance"); }} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_malware_skull") || "skull"}</span>} number={stats.malware} label={t("hub_stat_quarantined") || "QUARANTINED"} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { setComplianceFilter('malware'); setTab("compliance"); }} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_threat_intelligence") || "threat_intelligence"}</span>} number={stats.oversightQueueNew} label={t("hub_stat_malware_logs") || "MALWARE MANIFESTS"} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => setTab("oversight_reports")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity") || "local_activity"}</span>} number={stats.tickets} label={t("hub_stat_support_tickets") || "SUPPORT TICKETS"} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("sanctuary_tickets")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_warning")}</span>} number={defconLevel} label={t("hub_stat_global_defcon")} colorClass={getDefconColor(defconLevel)} onClick={onOpenDefcon} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_nsfw")}</span>} number={stats.nsfw} label={t("hub_stat_nsfw_flags")} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => { setComplianceFilter('nsfw'); setTab("compliance"); }} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_explicit")}</span>} number={stats.explicit} label={t("hub_stat_explicit_flags")} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { setComplianceFilter('explicit'); setTab("compliance"); }} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_malware_skull")}</span>} number={stats.malware} label={t("hub_stat_quarantined")} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { setComplianceFilter('malware'); setTab("compliance"); }} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_threat_intelligence")}</span>} number={stats.oversightQueueNew} label={t("hub_stat_malware_logs")} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => setTab("oversight_reports")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity")}</span>} number={stats.tickets} label={t("hub_stat_support_tickets")} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("sanctuary_tickets")} />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8 w-full">
         {/* Left Column */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wayfinder_comms") || "Latest Dispatch"}</h2>
+          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wayfinder_comms")}</h2>
           
           <div className="flex flex-col gap-8 w-full">
                           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
@@ -1328,52 +1328,52 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
                         {extractPostImage(post) ? (
                             <img src={extractPostImage(post)} className="w-full h-full object-cover opacity-60 mix-blend-luminosity group-hover:scale-105 transition-transform duration-1000" />
                         ) : (
-                        <span className="material-symbols-outlined !text-6xl grayscale opacity-30 drop-shadow-lg group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 group-hover:grayscale-0 relative z-10">{t("ui_icon_satellite") || "satellite_alt"}</span>
+                        <span className="material-symbols-outlined !text-6xl grayscale opacity-30 drop-shadow-lg group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 group-hover:grayscale-0 relative z-10">{t("ui_icon_satellite")}</span>
                         )}
                      </div>
                    )}
                    <div className="flex-1 p-8 flex flex-col min-w-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--bg)_40%,transparent)] to-transparent relative z-10">
                       <div className="flex items-center gap-2 mb-4 shrink-0 flex-wrap">
                         <span className="px-3 py-1 bg-[var(--accent)]/20 text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg">{post.category || t("wayfinder_update") || "UPDATE"}</span>
-                        <span className="px-3 py-1 theme-glass-inner text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg">{t("wayfinder_system") || "SYSTEM"}</span>
+                        <span className="px-3 py-1 theme-glass-inner text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg">{t("wayfinder_system")}</span>
                       </div>
                       <h3 className="text-xl font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors mb-4 leading-normal line-clamp-2">{post.title}</h3>
                       {isFeatured && <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 mb-6 line-clamp-3">{stripMarkdown(post.message)}</p>}
                       <div className="mt-auto flex items-center justify-between pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
-                         <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("ui_icon_calendar_today") || "calendar_today"}</span> {new Date(post.created_at).toLocaleDateString()}</span>
-                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more") || "READ MORE"} <span className="material-symbols-outlined !text-lg">{t("arrow_forward") || "arrow_forward"}</span></span>
+                         <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("ui_icon_calendar_today")}</span> {new Date(post.created_at).toLocaleDateString()}</span>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more")} <span className="material-symbols-outlined !text-lg">{t("arrow_forward")}</span></span>
                        </div>
                     </div>
                  </div>
                  );
                }) : (
                  <div className="w-full xl:col-span-2 theme-glass-panel rounded-[2rem] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                   {t("system_no_broadcasts") || "No Recent Broadcasts"}
+                   {t("system_no_broadcasts")}
                  </div>
                )}
              </div>
 
-             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("hub_metrics") || "HUB METRICS"}</h2>
+             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("hub_metrics")}</h2>
              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-[var(--accent)]/30 transition-all text-center h-32">
                    <span className="text-3xl font-black theme-text-accent">{stats.citizens + stats.masons}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_users") || "USERS"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_users")}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-[var(--accent)]/30 transition-all text-center h-32">
                    <span className="text-3xl font-black theme-text-accent">{stats.masons}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_masons") || "MASONS"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_masons")}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-purple-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-purple-400">{stats.architects}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_architects") || "ARCHITECTS"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_architects")}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-red-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-red-500">{stats.blacklists}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_blacklists") || "BLACKLISTS"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_blacklists")}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-emerald-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-red-700">{stats.oversightQueue}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_tab_malware_logs") || "MALWARE LOGS"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_tab_malware_logs")}</span>
                 </div>
              </div>
           </div>
@@ -1381,17 +1381,17 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
 
         {/* Right Column - Quick Links */}
         <div className="w-[380px] shrink-0 flex flex-col">
-           <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6">{t("hub_quick_links") || "QUICK LINKS"}</h2>
+           <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6">{t("hub_quick_links")}</h2>
            <div className="flex flex-col gap-4">
              <button onClick={() => setTab("linker")} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[1.5rem] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                <div className="flex items-center gap-5 h-full">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
-                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_link") || "link"}</span>
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_link")}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_mason_linker") || "MASON VERIFICATION"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-blue-400 opacity-80 group-hover:text-blue-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]"></span> {t("hub_ql_link_profiles") || "LINK PROFILES"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_mason_linker")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-blue-400 opacity-80 group-hover:text-blue-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]"></span> {t("hub_ql_link_profiles")}</span>
                  </div>
                </div>
              </button>
@@ -1400,11 +1400,11 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                <div className="flex items-center gap-5 h-full">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
-                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_policy") || "policy"}</span>
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_policy")}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_comp_title") || "Compliance Oversight"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-amber-400 opacity-80 group-hover:text-amber-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> {t("hub_ql_global_review") || "GLOBAL REVIEW"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_comp_title")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-amber-400 opacity-80 group-hover:text-amber-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> {t("hub_ql_global_review")}</span>
                  </div>
                </div>
              </button>
@@ -1413,11 +1413,11 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                <div className="flex items-center gap-5 h-full">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
-                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_threat_intelligence") || "threat_intelligence"}</span>
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_threat_intelligence")}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_oversight_dashboard") || "OVERSIGHT REPORTS"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-red-500 opacity-80 group-hover:text-red-500 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-red-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span> {t("hub_ql_sys_reports") || "SYSTEM REPORTS"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("sa_oversight_dashboard")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-red-500 opacity-80 group-hover:text-red-500 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-red-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span> {t("hub_ql_sys_reports")}</span>
                  </div>
                </div>
              </button>
@@ -1426,11 +1426,11 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                <div className="flex items-center gap-5 h-full">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
-                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_dynamic_feed") || "dynamic_feed"}</span>
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_dynamic_feed")}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_mass_update") || "MASS UPDATE UTILITY"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-rose-400 opacity-80 group-hover:text-rose-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.8)]"></span> {t("hub_ql_bulk_actions") || "BULK ACTIONS"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_mass_update")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-rose-400 opacity-80 group-hover:text-rose-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.8)]"></span> {t("hub_ql_bulk_actions")}</span>
                  </div>
                </div>
              </button>
@@ -1439,11 +1439,11 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                <div className="flex items-center gap-5 h-full">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
-                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_settings") || "settings"}</span>
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_settings")}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_game_versions") || "GAME MANAGEMENT"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-emerald-400 opacity-80 group-hover:emerald-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> {t("hub_ql_registry_config") || "REGISTRY CONFIG"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_game_versions")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-emerald-400 opacity-80 group-hover:emerald-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> {t("hub_ql_registry_config")}</span>
                  </div>
                </div>
              </button>
@@ -1452,11 +1452,11 @@ function CommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPo
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                <div className="flex items-center gap-5 h-full">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
-                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_history") || "history"}</span>
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_history")}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_audit_logs") || "AUDIT LOGS"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-indigo-400 opacity-80 group-hover:text-indigo-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]"></span> {t("hub_ql_system_history") || "SYSTEM HISTORY"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_audit_logs")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-indigo-400 opacity-80 group-hover:text-indigo-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]"></span> {t("hub_ql_system_history")}</span>
                  </div>
                </div>
              </button>
@@ -1552,7 +1552,7 @@ export function WayfinderComms() {
            <div className="flex-1 flex flex-col items-center justify-center opacity-40">
              <span className="text-5xl mb-6 grayscale drop-shadow-2xl">{t("emote_broadcast")}</span>
              <span className="text-xs font-black text-[var(--text)] uppercase tracking-[0.3em] text-center px-8 leading-loose opacity-70">
-               {t("hub_comms_offline") || "Secure transmission channel currently offline."}<br/>{t("hub_comms_handshake") || "Awaiting Cryptographic Handshake."}
+               {t("hub_comms_offline")}<br/>{t("hub_comms_handshake")}
              </span>
            </div>
          ) : (
@@ -1567,7 +1567,7 @@ export function WayfinderComms() {
                  <div className="flex gap-4 items-center">
                    {currentUserId === msg.sender_id && (
                        <div className="flex gap-3 mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[9px] uppercase font-black tracking-widest hover:theme-text-accent transition-colors hover:scale-110">{t("emote_edit") || "EDIT"}</button>
+                        <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[9px] uppercase font-black tracking-widest hover:theme-text-accent transition-colors hover:scale-110">{t("emote_edit")}</button>
                         <button onClick={() => deleteComm(msg.id)} className="text-[9px] uppercase font-black tracking-widest hover:theme-text-danger transition-colors hover:scale-110">{t("emote_close")}</button>
                       </div>
                    )}
@@ -1589,14 +1589,14 @@ export function WayfinderComms() {
           onChange={(e) => setCommsInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendComm()}
           className="flex-1 bg-transparent rounded-2xl px-6 py-3 text-[var(--text)] text-sm font-bold focus:outline-none transition-all placeholder-[color-mix(in_srgb,var(--subtext)_50%,transparent)]" 
-          placeholder={t("sa_comms_placeholder") || "Transmit priority message to Wayfinders..."} 
+          placeholder={t("sa_comms_placeholder")} 
         />
         <button 
           onClick={sendComm}
           disabled={!commsInput.trim()}
           className="px-10 py-4 theme-bg-accent text-[var(--bg)] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] shrink-0"
         >
-          {editingCommId ? t("sa_comms_btn_update") || "Update" : t("sa_comms_btn_send") || "Send"}
+          {editingCommId ? t("sa_comms_btn_update") : t("sa_comms_btn_send")}
         </button>
       </div>
     </div>
@@ -1696,10 +1696,10 @@ function MassUpdateOversight() {
       setMassStatus(""); setMassCategory(""); setMassSubCategory(""); setMassCompliance(""); setMassGameVersions([]); setMassConflictId(null); setEditReason("");
       setSelectedIds(new Set());
       await loadData();
-      useStore.getState().pushStatus("Mass update completed successfully.");
+      useStore.getState().pushStatus(t("auto_mass_update_completed_successfully"));
     } catch (e) {
       console.error(e);
-      useStore.getState().pushStatus("Mass update failed.");
+      useStore.getState().pushStatus(t("auto_mass_update_failed"));
     }
     setIsUpdating(false);
   };
@@ -1743,15 +1743,15 @@ function MassUpdateOversight() {
       <div className="flex flex-col md:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_dynamic_feed") || "dynamic_feed"}</span>
+            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_dynamic_feed")}</span>
           </div>
-          <span className="truncate">{t("mass_update_title") || "Mass Update Utility"}</span>
+          <span className="truncate">{t("mass_update_title")}</span>
         </h2>
         
         <div className="flex items-center gap-4 ml-auto">
           <div className="flex flex-col items-end">
              <span className="text-2xl font-black theme-text-accent drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)] leading-none">{selectedIds.size}</span>
-             <span className="text-[9px] font-black uppercase tracking-widest opacity-60">{t("sa_artifacts_selected") || "ARTIFACTS SELECTED"}</span>
+             <span className="text-[9px] font-black uppercase tracking-widest opacity-60">{t("sa_artifacts_selected")}</span>
           </div>
         </div>
       </div>
@@ -1765,10 +1765,10 @@ function MassUpdateOversight() {
              
              <div className="flex flex-wrap gap-4 items-center">
                <div className="relative flex-1 min-w-[200px]">
-                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search") || "search"}</span>
+                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search")}</span>
                  <input 
                    type="text" 
-                   placeholder={t("sa_comp_search_mods") || "Search Artifacts..."} 
+                   placeholder={t("sa_comp_search_mods")} 
                    value={searchQuery} 
                    onChange={e => setSearchQuery(e.target.value)} 
                    className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
@@ -1785,7 +1785,7 @@ function MassUpdateOversight() {
                      { id: "Tuning", label: "TUNING" },
                      { id: "CC", label: "CUSTOM CONTENT" }
                    ]}
-                   placeholder="FILTER CATEGORY"
+                   placeholder={t("auto_filter_category")}
                  />
                </div>
                <button 
@@ -1795,7 +1795,7 @@ function MassUpdateOversight() {
                  {showOnlySelected ? "SHOWING SELECTED" : "SHOW SELECTED ONLY"}
                </button>
                <button onClick={handleSelectAllFiltered} className="px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all theme-glass-inner border-white/10 text-[var(--text)] hover:bg-white/5 hover:theme-border-accent shrink-0">
-                 TOGGLE ALL VISIBLE
+                 {t("auto_toggle_all_visible")}
                </button>
              </div>
              
@@ -1806,7 +1806,7 @@ function MassUpdateOversight() {
 
           <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 p-6 bg-black/10">
             {loading ? (
-               <div className="py-20 text-center font-black opacity-50 uppercase tracking-widest animate-pulse">{t("sa_loading_registry") || "Loading Registry..."}</div>
+               <div className="py-20 text-center font-black opacity-50 uppercase tracking-widest animate-pulse">{t("sa_loading_registry")}</div>
             ) : (
               <>
                 {filteredMods.slice(0, visibleCount).map(m => (
@@ -1821,7 +1821,7 @@ function MassUpdateOversight() {
                 <div className="flex flex-col min-w-0 flex-1">
                   <span className={`text-sm font-black uppercase truncate leading-tight transition-colors ${selectedIds.has(m.id) ? "theme-text-accent drop-shadow-md" : "text-[var(--text)] group-hover:text-white"}`}>{m.name}</span>
                   <span className="text-[9px] font-bold uppercase text-[var(--subtext)] opacity-60 mt-1 truncate">
-                    {m.master_author ? `${m.master_author} | ` : ""}STATUS: {(m.status || "UNVERIFIED").replace(/_/g, ' ')} | TIER: {m.compliance_tier}
+                    {m.master_author ? `${m.master_author} | ` : ""}{t("auto_status")} {(m.status || "UNVERIFIED").replace(/_/g, ' ')} {t("auto_tier")} {m.compliance_tier}
                   </span>
                 </div>
               </div>
@@ -1832,12 +1832,12 @@ function MassUpdateOversight() {
                 onClick={() => setVisibleCount(v => v + 100)}
                 className="w-full py-4 mt-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] font-black uppercase tracking-widest transition-all"
               >
-                {t("ui_btn_load_more") || "LOAD MORE"} ({visibleCount} / {filteredMods.length})
+                {t("ui_btn_load_more")} ({visibleCount} / {filteredMods.length})
               </button>
             )}
             
             {!loading && filteredMods.length === 0 && (
-               <div className="py-20 text-center font-black opacity-50 uppercase tracking-widest">{t("sa_no_artifacts") || "No artifacts found."}</div>
+               <div className="py-20 text-center font-black opacity-50 uppercase tracking-widest">{t("sa_no_artifacts")}</div>
             )}
             </>
             )}
@@ -1853,7 +1853,7 @@ function MassUpdateOversight() {
 
              <div className="flex items-center gap-3 border-b border-white/10 pb-6 mb-6 z-10 shrink-0">
                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_var(--danger)]" />
-               <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-widest italic">{t("mass_update_apply") || "Apply Changes"}</h3>
+               <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-widest italic">{t("mass_update_apply")}</h3>
              </div>
 
              <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6 pr-2 z-10">
@@ -1861,7 +1861,7 @@ function MassUpdateOversight() {
                  {/* Terminal Block Without Outer Borders */}
                  <div className="flex flex-col gap-2 relative z-50">
                     <label className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-2 transition-all ${massStatus ? 'theme-text-accent drop-shadow-[0_0_5px_rgba(var(--accent-rgb),0.5)]' : 'text-[var(--subtext)] opacity-60'}`}>
-                       {t("mass_status_protocol") || "Status Protocol"}
+                       {t("mass_status_protocol")}
                     </label>
                     <CustomDropdown disableTint={true}   
                       value={massStatus} 
@@ -1878,7 +1878,7 @@ function MassUpdateOversight() {
 
                  <div className="flex flex-col gap-2 relative z-40">
                     <label className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-2 transition-all ${massCompliance ? 'text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.5)]' : 'text-[var(--subtext)] opacity-60'}`}>
-                       {t("mass_compliance_tier") || "Compliance Tier"}
+                       {t("mass_compliance_tier")}
                     </label>
                     <CustomDropdown disableTint={true}   
                       value={massCompliance} 
@@ -1895,7 +1895,7 @@ function MassUpdateOversight() {
 
                  <div className="flex flex-col gap-2 relative z-30">
                     <label className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-2 transition-all ${massCategory ? 'theme-text-warning drop-shadow-[0_0_5px_rgba(var(--warning-rgb),0.5)]' : 'text-[var(--subtext)] opacity-60'}`}>
-                       {t("mass_category_override") || "Category Override"}
+                       {t("mass_category_override")}
                     </label>
                     <CustomDropdown disableTint={true}   
                       value={massCategory} 
@@ -1912,17 +1912,17 @@ function MassUpdateOversight() {
 
                  <div className="flex flex-col gap-2 relative z-20">
                     <label className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-2 transition-all ${massGameVersions.length > 0 ? 'theme-text-accent drop-shadow-[0_0_5px_rgba(var(--accent-rgb),0.5)]' : 'text-[var(--subtext)] opacity-60'}`}>
-                       REPLACE GAME VERSIONS
+                       {t("auto_replace_game_versions")}
                     </label>
                     <GameVersionMultiSelect selectedVersions={massGameVersions} onChange={setMassGameVersions} />
                  </div>
 
                  <div className="flex flex-col gap-2 relative z-10">
                     <label className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-2 transition-all ${massConflictId ? 'text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.5)]' : 'text-[var(--subtext)] opacity-60'}`}>
-                       {t("mass_assign_conflict") || "Assign Conflict"}
+                       {t("mass_assign_conflict")}
                     </label>
                     <ModSearchDropdown 
-                      placeholder="Select Artifact to Conflict..." 
+                      placeholder={t("auto_select_artifact_to_conflict")} 
                       selectedItem={massConflictId} 
                       onSelect={setMassConflictId} 
                       onClear={() => setMassConflictId(null)} 
@@ -1936,12 +1936,12 @@ function MassUpdateOversight() {
                <div className="flex flex-col gap-2">
                  <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_5px_var(--danger)]"></span>
-                    {t("sa_batch_reason_req") || "BATCH REASON (REQUIRED)"}
+                    {t("sa_batch_reason_req")}
                  </label>
                  <textarea 
                    value={editReason} 
                    onChange={e => setEditReason(e.target.value)} 
-                   placeholder={t("sa_reason_update") || "Reason for mass update..."} 
+                   placeholder={t("sa_reason_update")} 
                    className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-danger transition-all border border-white/5" 
                  />
                </div>
@@ -2094,14 +2094,14 @@ function GameManagementOversight() {
       <div className="flex flex-col lg:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_settings") || "settings"}</span>
+            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_settings")}</span>
           </div>
-          <span className="truncate">{t("sa_title_game_versions") || "Game Management"}</span>
+          <span className="truncate">{t("sa_title_game_versions")}</span>
         </h2>
         
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search") || "search"}</span>
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search")}</span>
             <input 
               type="text" 
               placeholder={activeTab === 'versions' ? "Search Patches..." : "Search DLC..."} 
@@ -2117,7 +2117,7 @@ function GameManagementOversight() {
                  value={dlcTypeFilter}
                  onChange={(v: string[]) => setDlcTypeFilter(v[0])}
                  options={["ALL", ...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: x === "ALL" ? "ALL TYPES" : x }))}
-                 placeholder={t("sa_gm_type_filter_placeholder") || "Filter Type..."}
+                 placeholder={t("sa_gm_type_filter_placeholder")}
                />
              </div>
           )}
@@ -2127,13 +2127,13 @@ function GameManagementOversight() {
               onClick={() => setActiveTab("versions")}
               className={`px-4 py-0 h-full rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center ${activeTab === 'versions' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
             >
-              {t("sa_game_versions") || "Patch Versions"}
+              {t("sa_game_versions")}
             </button>
             <button 
               onClick={() => setActiveTab("dlc")}
               className={`px-4 py-0 h-full rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center ${activeTab === 'dlc' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
             >
-              {t("sa_dlc_registry") || "DLC Registry"}
+              {t("sa_dlc_registry")}
             </button>
           </div>
 
@@ -2141,7 +2141,7 @@ function GameManagementOversight() {
              onClick={() => openPanel(activeTab === 'versions' ? 'add_version' : 'add_dlc')} 
              className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
           >
-            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add") || "add"}</span>
+            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add")}</span>
             {activeTab === 'versions' ? "REGISTER PATCH" : `REGISTER DLC`}
           </button>
         </div>
@@ -2161,10 +2161,10 @@ function GameManagementOversight() {
                      <div className="flex justify-between items-start w-full relative z-10 mb-4">
                        <div className="flex items-start gap-4">
                          <div className="w-14 h-14 rounded-2xl theme-glass-inner border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
-                           <span className="material-symbols-outlined !text-[28px] theme-text-accent drop-shadow-md">{t("ui_icon_gamepad") || "gamepad"}</span>
+                           <span className="material-symbols-outlined !text-[28px] theme-text-accent drop-shadow-md">{t("ui_icon_gamepad")}</span>
                          </div>
                          <div className="flex flex-col pt-1">
-                           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1">{t("sa_patch_release") || "PATCH RELEASE"}</span>
+                           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1">{t("sa_patch_release")}</span>
                            <span className="text-xl font-mono font-black text-[var(--text)] group-hover:theme-text-accent transition-colors truncate drop-shadow-sm">{v.version}</span>
                          </div>
                        </div>
@@ -2172,19 +2172,19 @@ function GameManagementOversight() {
                      
                      <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
                         <div className="flex flex-col">
-                           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("sa_release_date") || "RELEASED"}</span>
+                           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("sa_release_date")}</span>
                            <span className="text-xs font-bold text-[var(--text)] opacity-90 mt-1">
                              {v.release_date ? new Date(v.release_date).toLocaleDateString() : (v.created_at ? new Date(v.created_at).toLocaleDateString() : "UNKNOWN")}
                            </span>
                         </div>
                         
                         <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                            VIEW <span className="text-lg leading-none">&rarr;</span>
+                            {t("auto_view")} <span className="text-lg leading-none">&rarr;</span>
                         </button>
                      </div>
                   </div>
                ))}
-               {filteredVersions.length === 0 && <div className="col-span-full py-12 text-center text-xs font-black opacity-30 uppercase tracking-widest">{t("sa_no_versions") || "NO VERSIONS FOUND"}</div>}
+               {filteredVersions.length === 0 && <div className="col-span-full py-12 text-center text-xs font-black opacity-30 uppercase tracking-widest">{t("sa_no_versions")}</div>}
             </div>
           </>
         )}
@@ -2214,18 +2214,18 @@ function GameManagementOversight() {
                      
                      <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
                         <div className="flex flex-col items-start gap-0.5">
-                           <span className="text-[8px] font-black tracking-widest text-[var(--subtext)] opacity-50 uppercase">{t("sa_released") || "RELEASED"}</span>
+                           <span className="text-[8px] font-black tracking-widest text-[var(--subtext)] opacity-50 uppercase">{t("sa_released")}</span>
                            <span className="px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-[var(--text)] opacity-70 group-hover:opacity-100 transition-opacity">
                              {d.release_date ? new Date(d.release_date).toLocaleDateString() : d.id}
                            </span>
                         </div>
                         <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                            VIEW <span className="text-lg leading-none">&rarr;</span>
+                            {t("auto_view")} <span className="text-lg leading-none">&rarr;</span>
                         </button>
                      </div>
                   </div>
                ))}
-               {filteredDlcs.length === 0 && <div className="col-span-full py-12 text-center text-xs font-black opacity-30 uppercase tracking-widest">{t("sa_no_dlc") || "NO DLC PACKS FOUND"}</div>}
+               {filteredDlcs.length === 0 && <div className="col-span-full py-12 text-center text-xs font-black opacity-30 uppercase tracking-widest">{t("sa_no_dlc")}</div>}
             </div>
           </>
         )}
@@ -2236,18 +2236,18 @@ function GameManagementOversight() {
         isOpen={!!sidePanelMode}
         onClose={() => setSidePanelMode(null)}
         title={
-          sidePanelMode === 'add_version' ? (t("sa_btn_register_patch_naked") || "REGISTER PATCH") :
-          sidePanelMode === 'edit_version' ? (t("sa_panel_edit_patch") || "EDIT PATCH") :
-          sidePanelMode === 'edit_dlc' ? (t("sa_panel_edit_dlc") || "EDIT DLC") : 
-          (t("sa_panel_add_dlc") || "REGISTER DLC")
+          sidePanelMode === 'add_version' ? (t("sa_btn_register_patch_naked")) :
+          sidePanelMode === 'edit_version' ? (t("sa_panel_edit_patch")) :
+          sidePanelMode === 'edit_dlc' ? (t("sa_panel_edit_dlc")) : 
+          (t("sa_panel_add_dlc"))
         }
-        subtitle={sidePanelMode?.includes('version') ? (t("sa_panel_sub_version") || "GAME VERSION REGISTRY") : (t("sa_panel_sub_dlc") || "DLC REGISTRY")}
+        subtitle={sidePanelMode?.includes('version') ? (t("sa_panel_sub_version")) : (t("sa_panel_sub_dlc"))}
         icon={sidePanelMode?.includes('version') ? "gamepad" : "extension"}
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
             {(sidePanelMode === 'add_version' || sidePanelMode === 'add_dlc') && (
               <button onClick={() => setSidePanelMode(null)} className={standardButtonClass}>
-                {t("shared_cancel") || "CANCEL"}
+                {t("shared_cancel")}
               </button>
             )}
             {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && (
@@ -2256,7 +2256,7 @@ function GameManagementOversight() {
                 onClick={() => handlePanelCommit(true)}
                 className={standardDangerButtonClass}
               >
-                {isPanelSubmitting ? t("ui_btn_processing") || "PROCESSING..." : (t("ui_btn_delete") || "DELETE")}
+                {isPanelSubmitting ? t("ui_btn_processing") : (t("ui_btn_delete"))}
               </button>
             )}
             <button 
@@ -2269,7 +2269,7 @@ function GameManagementOversight() {
               }
               className={standardSuccessButtonClass}
             >
-              {isPanelSubmitting ? (t("ui_btn_processing") || "PROCESSING...") : (t("ui_btn_commit") || "COMMIT CHANGES")}
+              {isPanelSubmitting ? (t("ui_btn_processing")) : (t("ui_btn_commit"))}
             </button>
           </div>
         }
@@ -2279,7 +2279,7 @@ function GameManagementOversight() {
              {/* Read-Only display if editing */}
              {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && panelTarget && (
                <div className="p-4 theme-glass-inner rounded-xl border border-white/5 opacity-80">
-                 <p className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-1">{t("hub_ql_targeting") || "TARGETING"}</p>
+                 <p className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-1">{t("hub_ql_targeting")}</p>
                  <p className="text-sm font-bold theme-text-accent">{panelTarget?.name || panelTarget}</p>
                </div>
              )}
@@ -2289,17 +2289,17 @@ function GameManagementOversight() {
                <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
                  <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2 relative z-10">
-                   <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info") || "info"}</span>
-                   {t("sa_metadata") || "METADATA"}
+                   <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info")}</span>
+                   {t("sa_metadata")}
                  </h4>
                  <div className="flex flex-col gap-2 relative z-10">
-                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_game_version") || "PATCH VERSION"}</label>
+                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_game_version")}</label>
                    <div className="relative">
-                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("ui_icon_gamepad") || "gamepad"}</span>
+                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("ui_icon_gamepad")}</span>
                      <input 
                        value={panelInput1} 
                        onChange={e => setPanelInput1(e.target.value)} 
-                       placeholder={t("ph_game_version") || "e.g. 1.108.329.1020"} 
+                       placeholder={t("ph_game_version")} 
                        className="theme-glass-inner rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-white/5 bg-transparent" 
                      />
                    </div>
@@ -2311,25 +2311,25 @@ function GameManagementOversight() {
                <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
                  <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2 relative z-10">
-                   <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_extension") || "extension"}</span>
-                   {t("sa_dlc_metadata") || "DLC METADATA"}
+                   <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_extension")}</span>
+                   {t("sa_dlc_metadata")}
                  </h4>
                  
                  <div className="flex flex-col gap-2 relative z-50">
-                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_dlc_id_code") || "DLC ID CODE"}</label>
+                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_dlc_id_code")}</label>
                    <div className="relative">
-                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("ui_icon_fingerprint") || "fingerprint"}</span>
+                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("ui_icon_fingerprint")}</span>
                      <input 
                        value={panelInput1} 
                        onChange={e => setPanelInput1(e.target.value)} 
-                       placeholder={t("ph_pack_code") || "e.g. EP18"} 
+                       placeholder={t("ph_pack_code")} 
                        className="theme-glass-inner rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-white/5 uppercase bg-transparent" 
                      />
                    </div>
                  </div>
 
                  <div className="flex flex-col gap-2 relative z-40">
-                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_pack_type") || "PACK TYPE"}</label>
+                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_pack_type")}</label>
                    <CustomDropdown disableTint={true}   
                      value={panelInput3} 
                      onChange={(v: string[]) => setPanelInput3(v[0])} 
@@ -2337,21 +2337,21 @@ function GameManagementOversight() {
                        ...[...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: t(`sa_dlc_type_${x.toLowerCase().replace(/ /g, '_')}`) || `${x} PACK` })),
                        { id: "CUSTOM", label: "+ CUSTOM TYPE" }
                      ]}
-                     placeholder="Select Type..." 
+                     placeholder={t("auto_select_type")} 
                    />
                  </div>
 
                  {panelInput3 === "CUSTOM" && (
                    <div className="flex flex-col gap-2 relative z-30 animate-in fade-in slide-in-from-top-2">
                      <label className="text-[9px] font-black theme-text-accent uppercase tracking-widest ml-2 flex items-center gap-2 drop-shadow-md">
-                        <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_edit") || "edit"}</span>
-                        NEW PACK TYPE
+                        <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_edit")}</span>
+                        {t("auto_new_pack_type")}
                      </label>
                      <div className="relative">
                        <input 
                          value={panelInput4} 
                          onChange={e => setPanelInput4(e.target.value.toUpperCase())} 
-                         placeholder={t("ph_pack_type") || "e.g. BUNDLE"} 
+                         placeholder={t("ph_pack_type")} 
                          className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-white/5 uppercase bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]" 
                        />
                      </div>
@@ -2359,13 +2359,13 @@ function GameManagementOversight() {
                  )}
 
                  <div className="flex flex-col gap-2 relative z-30">
-                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_pack_name") || "PACK NAME"}</label>
+                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_pack_name")}</label>
                    <div className="relative">
-                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("ui_icon_badge") || "badge"}</span>
+                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("ui_icon_badge")}</span>
                      <input 
                        value={panelInput2} 
                        onChange={e => setPanelInput2(e.target.value)} 
-                       placeholder={t("ph_pack_name") || "e.g. Dream Home Decorator"} 
+                       placeholder={t("ph_pack_name")} 
                        className="theme-glass-inner rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-white/5 uppercase bg-transparent" 
                      />
                    </div>
@@ -2378,12 +2378,12 @@ function GameManagementOversight() {
              <div className="flex flex-col gap-2 mt-4">
                  <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_5px_var(--danger)]"></span>
-                    {t("sa_audit_reason_req") || "AUDIT LOG REASON (REQUIRED)"}
+                    {t("sa_audit_reason_req")}
                  </label>
                  <textarea 
                    value={panelReason} 
                    onChange={e => setPanelReason(e.target.value)} 
-                   placeholder={t("sa_mutation_reason") || "Enter reason for database mutation..."} 
+                   placeholder={t("sa_mutation_reason")} 
                    className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none focus:theme-border-danger transition-all border border-white/5" 
                  />
              </div>
@@ -2469,8 +2469,8 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
     <SidePanel 
       isOpen={isOpen} 
       onClose={onClose} 
-      title={t("sa_defcon_title") || "DEFCON OVERRIDE"} 
-      subtitle={t("sa_defcon_auth_req") || "OVERSIGHT AUTHORIZATION REQUIRED"}
+      title={t("sa_defcon_title")} 
+      subtitle={t("sa_defcon_auth_req")}
       icon={status?.defcon_level === 1 ? 'warning' : 'security'}
       iconColorClass={status?.defcon_level === 1 ? "text-red-500 animate-pulse drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" : "text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]"}
       widthClass="w-[600px]"
@@ -2481,8 +2481,8 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
         
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50 relative z-10">
-            <span className="material-symbols-outlined animate-spin text-4xl text-amber-500">{t("ui_icon_sync") || "sync"}</span>
-            <div className="text-center font-black animate-pulse uppercase tracking-widest text-xs text-amber-500">{t("sa_defcon_accessing") || "Accessing Global Core..."}</div>
+            <span className="material-symbols-outlined animate-spin text-4xl text-amber-500">{t("ui_icon_sync")}</span>
+            <div className="text-center font-black animate-pulse uppercase tracking-widest text-xs text-amber-500">{t("sa_defcon_accessing")}</div>
           </div>
         ) : (
           <>
@@ -2512,21 +2512,21 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                </div>
 
                <span className={`text-4xl font-black tracking-tighter relative z-30 mb-2 ${status?.defcon_level === 1 ? 'text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]' : 'text-[var(--text)]'}`}>
-                 {status?.defcon_level === 1 ? t("sa_defcon_active") || "DEFCON 1 ACTIVE" : t("sa_defcon_normal") || "SYSTEM NORMAL"}
+                 {status?.defcon_level === 1 ? t("sa_defcon_active") : t("sa_defcon_normal")}
                </span>
                <span className={`text-[11px] font-black uppercase tracking-[0.4em] relative z-30 ${status?.defcon_level === 1 ? 'text-red-300/80' : 'theme-text-success opacity-80'}`}>
-                 {status?.defcon_level === 1 ? t("sa_defcon_active_sub") || "VAULT LOCKDOWN ENGAGED ACROSS ALL CLIENTS" : t("sa_defcon_normal_sub") || "NO EMERGENCY PATCH DETECTED"}
+                 {status?.defcon_level === 1 ? t("sa_defcon_active_sub") : t("sa_defcon_normal_sub")}
                </span>
                
                {/* Simulated Data Readout */}
                <div className="flex gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] w-full justify-center relative z-30">
                   <div className="flex flex-col items-center gap-1">
-                    <span className="text-[8px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_tab_network") || "NETWORK"}</span>
+                    <span className="text-[8px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_tab_network")}</span>
                     <span className={`text-[10px] font-mono font-bold ${status?.defcon_level === 1 ? 'text-red-400' : 'theme-text-success'}`}>{status?.defcon_level === 1 ? 'LOCKED' : 'SECURE'}</span>
                   </div>
                   <div className="w-px h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"></div>
                   <div className="flex flex-col items-center gap-1">
-                    <span className="text-[8px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_tab_vaults") || "VAULTS"}</span>
+                    <span className="text-[8px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("sa_tab_vaults")}</span>
                     <span className={`text-[10px] font-mono font-bold ${status?.defcon_level === 1 ? 'text-red-400' : 'theme-text-success'}`}>{status?.defcon_level === 1 ? 'SEALED' : 'ONLINE'}</span>
                   </div>
                </div>
@@ -2536,18 +2536,18 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
             <div className="flex flex-col gap-4 relative z-10">
               <div className="theme-glass-panel border-l-4 border-l-amber-500 p-5 rounded-2xl flex items-start gap-4">
                 <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 border border-amber-500/20">
-                  <span className="material-symbols-outlined text-amber-500 !text-xl">{t("ui_icon_info") || "info"}</span>
+                  <span className="material-symbols-outlined text-amber-500 !text-xl">{t("ui_icon_info")}</span>
                 </div>
                 <p className="text-xs font-bold text-[var(--subtext)] leading-relaxed pt-0.5">
-                  {t("sa_defcon_warning") || "Initiating a DEFCON Override will immediately flag the Global Network status as LOCKED. All connected Sanctuary OS clients will automatically seal their vaults and run emergency backups to protect their loadouts against a surprise game update."}
+                  {t("sa_defcon_warning")}
                 </p>
               </div>
               
               <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 relative overflow-hidden">
                  <div className="absolute top-0 left-0 w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_20px,rgba(239,68,68,0.05)_20px,rgba(239,68,68,0.05)_40px)] pointer-events-none"></div>
-                 <span className="material-symbols-outlined text-red-500 !text-2xl animate-pulse">{t("ui_icon_threat_intelligence") || "threat_intelligence"}</span>
+                 <span className="material-symbols-outlined text-red-500 !text-2xl animate-pulse">{t("ui_icon_threat_intelligence")}</span>
                  <p className="text-[10px] font-black text-red-400 uppercase tracking-widest text-center max-w-[80%] leading-relaxed">
-                   {t("sa_defcon_warning_red") || "Do not use unless an official game patch is actively rolling out."}
+                   {t("sa_defcon_warning_red")}
                  </p>
               </div>
             </div>
@@ -2562,12 +2562,12 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                 <>
                   {confirmMode === 'standDown' ? (
                     <div className="flex flex-col gap-2 animate-in slide-in-from-bottom-2 fade-in duration-300 relative">
-                      <p className="text-[10px] text-center font-black uppercase tracking-widest text-amber-500 mb-1 animate-pulse">{t("sa_confirm_sure") || "Are you absolutely sure?"}</p>
+                      <p className="text-[10px] text-center font-black uppercase tracking-widest text-amber-500 mb-1 animate-pulse">{t("sa_confirm_sure")}</p>
                       <button 
                         onClick={standDown} disabled={submitting}
                         className={`w-full py-6 text-xs ${standardSuccessButtonClass} !bg-amber-500/20 !border-amber-500/50 !text-amber-400 hover:!bg-amber-500/40 hover:!text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.2)]`}
                       >
-                        {t("modal_btn_proceed") || "PROCEED"}
+                        {t("modal_btn_proceed")}
                       </button>
                     </div>
                   ) : (
@@ -2575,8 +2575,8 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                       onClick={() => setConfirmMode('standDown')} disabled={submitting}
                       className={`w-full py-6 text-xs ${standardSuccessButtonClass}`}
                     >
-                      <span className="material-symbols-outlined !text-xl">{t("ui_icon_lock_open") || "lock_open"}</span>
-                      {t("sa_defcon_stand_down") || "STAND DOWN (RETURN TO NORMAL)"}
+                      <span className="material-symbols-outlined !text-xl">{t("ui_icon_lock_open")}</span>
+                      {t("sa_defcon_stand_down")}
                     </button>
                   )}
                 </>
@@ -2584,12 +2584,12 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                 <>
                   {confirmMode === 'execute' ? (
                     <div className="flex flex-col gap-2 animate-in slide-in-from-bottom-2 fade-in duration-300 relative">
-                      <p className="text-[10px] text-center font-black uppercase tracking-widest text-red-500 mb-1 animate-pulse">{t("hub_defcon_confirm_execute") || "Are you absolutely sure you want to broadcast a DEFCON 1 global alert? This will immediately lock down all connected clients and force emergency backups."}</p>
+                      <p className="text-[10px] text-center font-black uppercase tracking-widest text-red-500 mb-1 animate-pulse">{t("hub_defcon_confirm_execute")}</p>
                       <button 
                         onClick={executeDefcon} disabled={submitting}
                         className={`w-full py-6 text-xs ${standardDangerButtonClass} shadow-[0_0_30px_rgba(220,38,38,0.4)] animate-[pulse_2s_ease-in-out_infinite] bg-red-600/40`}
                       >
-                        PROCEED
+                        {t("auto_proceed")}
                       </button>
                     </div>
                   ) : (
@@ -2597,8 +2597,8 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                       onClick={() => setConfirmMode('execute')} disabled={submitting}
                       className={`w-full py-6 text-xs ${standardDangerButtonClass} hover:bg-red-600/30 active:scale-95 transition-all shadow-[0_0_30px_rgba(220,38,38,0.2)]`}
                     >
-                      <span className="material-symbols-outlined !text-xl group-hover:animate-bounce">{t("ui_icon_warning") || "warning_amber"}</span> 
-                      {t("sa_defcon_execute") || "EXECUTE OVERRIDE"}
+                      <span className="material-symbols-outlined !text-xl group-hover:animate-bounce">{t("ui_icon_warning")}</span> 
+                      {t("sa_defcon_execute")}
                     </button>
                   )}
                 </>
@@ -2700,17 +2700,17 @@ export function AuditLogViewer() {
       <div className="flex flex-col md:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5">
         <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest whitespace-nowrap flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] opacity-70 theme-text-accent drop-shadow-lg">{t("ui_icon_history") || "history"}</span>
+            <span className="material-symbols-outlined !text-[24px] opacity-70 theme-text-accent drop-shadow-lg">{t("ui_icon_history")}</span>
           </div>
-          <span className="truncate">{t("sa_audit_title") || "Audit Logs"}</span>
+          <span className="truncate">{t("sa_audit_title")}</span>
         </h2>
         
         <div className="flex gap-4 flex-1 w-full justify-end items-center flex-wrap">
           <div className="relative flex-1 max-w-[300px] min-w-[200px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search") || "search"}</span>
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search")}</span>
             <input 
               type="text" 
-              placeholder={t("sa_audit_search") || "Search Logs..."} 
+              placeholder={t("sa_audit_search")} 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 font-inter" 
@@ -2721,17 +2721,17 @@ export function AuditLogViewer() {
               value={filterAction} 
               onChange={(v: string[]) => setFilterAction(v[0])} 
               options={filterOptions}
-              placeholder="FILTER LOGS"
+              placeholder={t("auto_filter_logs")}
               searchable={true}
             />
           </div>
           <div className="flex items-center gap-2 text-[var(--subtext)] z-30">
              <div className="w-36">
-               <CustomDatePicker value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder="START" />
+               <CustomDatePicker value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
              </div>
              <span className="opacity-50">-</span>
              <div className="w-36">
-               <CustomDatePicker value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder="END" />
+               <CustomDatePicker value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
              </div>
           </div>
         </div>
@@ -2740,7 +2740,7 @@ export function AuditLogViewer() {
       <div className="p-6 w-full flex flex-col gap-6 animate-in fade-in">
 
          {loading ? (
-            <div className="p-12 text-center text-[var(--subtext)] opacity-50 font-black uppercase tracking-widest animate-pulse">{t("sa_audit_fetching") || "Fetching Records..."}</div>
+            <div className="p-12 text-center text-[var(--subtext)] opacity-50 font-black uppercase tracking-widest animate-pulse">{t("sa_audit_fetching")}</div>
          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
                {filteredLogs.map(log => (
@@ -2751,7 +2751,7 @@ export function AuditLogViewer() {
                     <div className="flex justify-between items-start w-full relative z-10 mb-4">
                       <div className="flex items-start gap-4 w-full">
                         <div className="w-12 h-12 rounded-2xl theme-glass-inner border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
-                          <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">{t("ui_icon_history") || "history"}</span>
+                          <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">{t("ui_icon_history")}</span>
                         </div>
                         <div className="flex flex-col pt-1 min-w-0 flex-1">
                           <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1 truncate">{log.target_table.replace(/_/g, ' ')}</span>
@@ -2765,15 +2765,15 @@ export function AuditLogViewer() {
 
                     <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
                        <div className="flex flex-col min-w-0 flex-1 pr-2">
-                          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("sa_audit_actor") || "ACTOR:"}</span>
+                          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("sa_audit_actor")}</span>
                           <span className="text-[10px] font-bold text-[var(--text)] opacity-90 mt-1 flex items-center gap-1 truncate">
-                            <span className="material-symbols-outlined !text-[12px] theme-text-accent shrink-0">{t("ui_icon_person") || "person"}</span>
+                            <span className="material-symbols-outlined !text-[12px] theme-text-accent shrink-0">{t("ui_icon_person")}</span>
                             <span className="truncate">{log.actor?.username || log.actor_id.substring(0, 8)}</span>
                           </span>
                        </div>
                        
                        <div className="flex flex-col items-end shrink-0 pl-2 border-l border-white/5">
-                          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("sa_sort_date") || "DATE"}</span>
+                          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("sa_sort_date")}</span>
                           <span className="text-[10px] font-bold text-[var(--text)] opacity-90 mt-1">
                             {new Date(log.created_at).toLocaleDateString()}
                           </span>
@@ -2781,7 +2781,7 @@ export function AuditLogViewer() {
                     </div>
                  </div>
                ))}
-               {filteredLogs.length === 0 && <div className="col-span-full py-12 text-center text-xs font-black opacity-30 uppercase tracking-widest">{t("sa_audit_no_logs") || "No audit logs found"}</div>}
+               {filteredLogs.length === 0 && <div className="col-span-full py-12 text-center text-xs font-black opacity-30 uppercase tracking-widest">{t("sa_audit_no_logs")}</div>}
             </div>
          )}
       </div>
@@ -2789,50 +2789,50 @@ export function AuditLogViewer() {
       <SidePanel 
         isOpen={!!selectedLog} 
         onClose={() => setSelectedLog(null)} 
-        title={t("sa_audit_details_title") || "AUDIT LOG DETAILS"} 
-        subtitle={`${t("sa_audit_log_id") || "LOG ID"}: ${selectedLog?.id?.substring(0, 8).toUpperCase()}`}
+        title={t("sa_audit_details_title")} 
+        subtitle={`${t("sa_audit_log_id")}: ${selectedLog?.id?.substring(0, 8).toUpperCase()}`}
         icon="history"
       >
         {selectedLog && (
           <div className="flex flex-col h-full">
              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8 pb-32">
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_target_table") || "TARGET TABLE:"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_target_table")}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)]">
                      {selectedLog.target_table}
                    </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_target_key") || "TARGET KEY"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_target_key")}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)] break-all">
                      {selectedLog.target_name || selectedLog.target_id || 'UNKNOWN'}
                    </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_action") || "ACTION"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_action")}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] text-sm font-bold text-[var(--text)] break-all whitespace-pre-wrap">
                      {selectedLog.action}
                    </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_reason") || "REASON:"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_reason")}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--danger)_10%,transparent)] text-sm font-bold text-[var(--text)] whitespace-pre-wrap">
                      {selectedLog.reason}
                    </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_timestamp") || "TIMESTAMP"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_timestamp")}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)]">
                      {new Date(selectedLog.created_at).toLocaleString()}
                    </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_actor") || "ACTOR:"}</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("sa_audit_actor")}</h3>
                    <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)] flex items-center justify-between">
                      <span>
                         {selectedLog.actor ? `${selectedLog.actor.username} ${selectedLog.actor.is_banned ? '(BANNED)' : ''}` : selectedLog.actor_id}
@@ -2842,8 +2842,8 @@ export function AuditLogViewer() {
                           onClick={() => setSelectedProfile(selectedLog.actor)}
                           className={`h-10 !py-0 px-6 ${standardButtonClass}`}
                         >
-                          <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_person") || "person"}</span>
-                          {t("sa_edit_identity") || "EDIT IDENTITY"}
+                          <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_person")}</span>
+                          {t("sa_edit_identity")}
                         </button>
                      )}
                    </div>

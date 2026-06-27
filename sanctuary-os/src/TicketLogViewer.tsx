@@ -31,7 +31,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
       window.dispatchEvent(new Event("storage"));
       
       store.pushStatus && store.pushStatus(
-        (t("sa_support_blueprint_imported") || "Blueprint {name} imported successfully!").replace('{name}', newName), 
+        (t("sa_support_blueprint_imported")).replace('{name}', newName), 
         'success'
       );
       setBlueprintJson(null);
@@ -112,11 +112,11 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                                     <button 
                                         onClick={() => {
                                             navigator.clipboard.writeText(value);
-                                            store.pushStatus && store.pushStatus(t("sa_support_path_copied") || "Path copied to clipboard", "success");
+                                            store.pushStatus && store.pushStatus(t("sa_support_path_copied"), "success");
                                         }}
                                         className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/10 text-[var(--subtext)] hover:text-white transition-colors"
                                     >
-                                        <span className="material-symbols-outlined !text-[14px]">content_copy</span>
+                                        <span className="material-symbols-outlined !text-[14px]">{t("auto_content_copy")}</span>
                                     </button>
                                 </div>
                             ) : key.toUpperCase() === 'USER AGENT' ? (
@@ -137,18 +137,18 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
             return (
                 <div className="flex flex-col items-center justify-center gap-4 py-8 theme-glass-inner rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center text-[var(--accent)] border border-white/5 shadow-inner">
-                        <span className="material-symbols-outlined !text-[32px]">map</span>
+                        <span className="material-symbols-outlined !text-[32px]">{t("auto_map")}</span>
                     </div>
                     <div className="text-center">
                         <h3 className="text-xl font-black tracking-tighter text-[var(--text)] drop-shadow-md">{parsed.name || t("sa_support_attached_blueprint") || "Blueprint"}</h3>
-                        <p className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] mt-1">{(parsed.mods?.length || 0)} {t("sa_support_mods_attached") || "MODS ATTACHED"}</p>
+                        <p className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] mt-1">{(parsed.mods?.length || 0)} {t("sa_support_mods_attached")}</p>
                     </div>
                     <button 
                         onClick={() => setBlueprintJson(parsed)}
                         className="mt-2 px-6 py-3 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] hover:scale-105"
                     >
-                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_visibility") || "visibility"}</span>
-                        {t("sa_support_view_blueprint") || "VIEW BLUEPRINT"}
+                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_visibility")}</span>
+                        {t("sa_support_view_blueprint")}
                     </button>
                 </div>
             );
@@ -191,7 +191,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                 })}
                 {historyLines.length === 0 && (
                     <div className="p-8 text-center text-[10px] font-bold tracking-widest uppercase text-[var(--subtext)]">
-                        {t("sa_support_no_content") || "No content."}
+                        {t("sa_support_no_content")}
                     </div>
                 )}
             </div>
@@ -208,8 +208,8 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                  onClick={() => setViewingLogContent(sec.content)}
                  className="absolute top-4 right-4 px-4 py-2 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center gap-2 hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all opacity-0 group-hover:opacity-100 shadow-md backdrop-blur-md"
                >
-                 <span className="material-symbols-outlined !text-[14px]">open_in_full</span>
-                 {t("ui_btn_expand_snippet") || "VIEW IN CODE PANEL"}
+                 <span className="material-symbols-outlined !text-[14px]">{t("auto_open_in_full")}</span>
+                 {t("ui_btn_expand_snippet")}
                </button>
             )}
         </div>
@@ -247,18 +247,18 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
           <SidePanel
             isOpen={!!blueprintJson}
             onClose={() => setBlueprintJson(null)}
-            title={t("sa_support_attached_blueprint") || "ATTACHED BLUEPRINT"}
+            title={t("sa_support_attached_blueprint")}
             subtitle={blueprintJson.name || t("sa_support_import_load_order") || "Import Load Order"}
-            icon={t("ui_icon_map") || "map"}
+            icon={t("ui_icon_map")}
             iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
             widthClass="w-full md:w-[550px]"
           >
              <div className="flex flex-col h-full gap-4 relative">
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("sa_support_mods_list") || "MODS LIST"} ({(blueprintJson.mods?.length || 0)})</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("sa_support_mods_list")} ({(blueprintJson.mods?.length || 0)})</div>
                     {blueprintJson.mods?.map((m: string, i: number) => (
                         <div key={i} className="theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 rounded-xl flex items-center gap-3">
-                            <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">{t("ui_icon_extension") || "extension"}</span>
+                            <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">{t("ui_icon_extension")}</span>
                             <span className="text-[11px] font-bold text-[var(--text)] truncate">{m.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, '').replace(/[-_]/g, ' ') || m.replace(/[-_]/g, ' ')}</span>
                         </div>
                     ))}
@@ -269,8 +269,8 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                         onClick={handleImportBlueprint}
                         className="w-full h-14 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] rounded-2xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]"
                     >
-                        <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_download") || "download"}</span>
-                        {t("sa_support_import_library") || "IMPORT TO LIBRARY"}
+                        <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_download")}</span>
+                        {t("sa_support_import_library")}
                     </button>
                 </div>
              </div>

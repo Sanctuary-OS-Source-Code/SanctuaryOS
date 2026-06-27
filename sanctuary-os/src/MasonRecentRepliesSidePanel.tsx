@@ -65,25 +65,25 @@ export default function MasonRecentRepliesSidePanel({
     <SidePanel 
         isOpen={isOpen} 
         onClose={onClose} 
-        title={t("mason_recent_transmissions") || "Recent Transmissions"}
-        subtitle={t("mason_recent_transmissions_sub") || "Monitor activity across your Comm-Link"}
-        icon={t("ui_icon_forum") || "forum"}
+        title={t("mason_recent_transmissions")}
+        subtitle={t("mason_recent_transmissions_sub")}
+        icon={t("ui_icon_forum")}
         widthClass="w-[1000px]"
     >
         <div className="flex flex-col gap-6 w-full pb-8">
             <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
                 {isLoading ? (
                     <div className="flex justify-center items-center h-32 opacity-50">
-                        <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("mason_loading_transmissions") || "Loading transmissions..."}</span>
+                        <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("mason_loading_transmissions")}</span>
                     </div>
                 ) : replies.length === 0 ? (
                     <div className="flex flex-col justify-center items-center h-64 theme-glass-panel rounded-3xl border border-white/5 shadow-xl group">
-                        <span className="text-6xl mb-4 grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:-rotate-12">{t("ui_icon_mailbox") || "mail"}</span>
+                        <span className="text-6xl mb-4 grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:-rotate-12">{t("ui_icon_mailbox")}</span>
                         <span className="text-sm font-black text-[var(--subtext)] uppercase tracking-widest text-center px-8 leading-relaxed">
-                            {t("mason_no_recent_replies") || "NO RECENT REPLIES"}
+                            {t("mason_no_recent_replies")}
                         </span>
                         <span className="text-[10px] font-bold text-[var(--subtext)] opacity-50 uppercase tracking-widest mt-2">
-                            {t("mason_comm_link_quiet") || "Your comm-link is quiet."}
+                            {t("mason_comm_link_quiet")}
                         </span>
                     </div>
                 ) : (
@@ -114,9 +114,9 @@ export default function MasonRecentRepliesSidePanel({
                             </p>
                             
                             <div className="flex items-center gap-2 mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                                <span className="material-symbols-outlined text-sm text-[var(--subtext)]">{t("ui_icon_reply") || "reply"}</span>
+                                <span className="material-symbols-outlined text-sm text-[var(--subtext)]">{t("ui_icon_reply")}</span>
                                 <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
-                                    {t("mason_original_post") || "Original Post"}: 
+                                    {t("mason_original_post")}: 
                                 </span>
                                 <span className="text-[10px] font-bold text-[var(--text)] truncate max-w-[200px]">
                                     {reply.mason_posts?.title || t("mason_unknown_mason") || "Unknown Mason"}

@@ -33,9 +33,9 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
     setIsSubmitting(false);
 
     if (error) {
-      useStore.getState().pushStatus((t("feed_flag_error") || "Failed to flag content") + ": " + error.message);
+      useStore.getState().pushStatus((t("feed_flag_error")) + ": " + error.message);
     } else {
-      useStore.getState().pushStatus(t("feed_flag_success") || "Content has been flagged for review.");
+      useStore.getState().pushStatus(t("feed_flag_success"));
       setReason("");
       onClose();
     }
@@ -45,9 +45,9 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("feed_flag_title") || "FLAG CONTENT"}
-      subtitle={t("feed_flag_subtitle") || "Report a violation to Sanctuary Architects"}
-      icon={t("ui_icon_flag") || "flag"}
+      title={t("feed_flag_title")}
+      subtitle={t("feed_flag_subtitle")}
+      icon={t("ui_icon_flag")}
       widthClass="w-[450px]"
       panelZ="z-[60001]"
       backdropZ="z-[60000]"
@@ -59,7 +59,7 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
             className={standardButtonClass}
             disabled={isSubmitting}
           >
-            {t("shared_cancel") || "CANCEL"}
+            {t("shared_cancel")}
           </button>
           <button 
             type="submit" 
@@ -67,7 +67,7 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
             disabled={!reason.trim() || isSubmitting} 
             className={standardDangerButtonClass}
           >
-            {t("feed_flag_submit") || "SUBMIT REPORT"}
+            {t("feed_flag_submit")}
           </button>
         </div>
       }
@@ -76,12 +76,12 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
         <div className="flex-1 flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
-              {t("feed_flag_reason_label") || "Reason for Flagging"}
+              {t("feed_flag_reason_label")}
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder={t("feed_flag_reason_placeholder") || "Please detail why this content violates protocols..."}
+              placeholder={t("feed_flag_reason_placeholder")}
               className="w-full bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl p-4 text-xs text-[var(--text)] outline-none focus:theme-border-accent transition-all resize-none h-48 custom-scrollbar shadow-inner"
               required
             />

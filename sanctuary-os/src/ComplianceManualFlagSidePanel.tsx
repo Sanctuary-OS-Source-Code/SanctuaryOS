@@ -115,7 +115,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
 
   const handleManualFlag = async () => {
     if ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim()) {
-      useStore.getState().pushStatus(t("sa_comp_manual_alert_req") || "Please provide a target and a reason.");
+      useStore.getState().pushStatus(t("sa_comp_manual_alert_req"));
       return;
     }
     setIsSubmitting(true);
@@ -162,14 +162,14 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
          reason: registryReason.trim()
       });
 
-      useStore.getState().pushStatus(t("sa_comp_manual_alert_success") || "Mod flagged manually successfully.");
+      useStore.getState().pushStatus(t("sa_comp_manual_alert_success"));
       onClose();
       if (onSuccess) onSuccess();
       if (manualTier === 3) {
          window.dispatchEvent(new CustomEvent('force-radar-sweep'));
       }
     } catch (err: any) {
-      useStore.getState().pushStatus((t("sa_comp_manual_alert_fail") || "Failed to manual flag:") + " " + err.message);
+      useStore.getState().pushStatus((t("sa_comp_manual_alert_fail")) + " " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -216,7 +216,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       setSignatures(updated);
       
       resetHeuristicForm();
-      useStore.getState().pushStatus("Heuristic signature saved.");
+      useStore.getState().pushStatus(t("auto_heuristic_signature_saved"));
       window.dispatchEvent(new CustomEvent('force-heuristics-refresh'));
       if (onSuccess) onSuccess();
     } catch (e: any) {
@@ -265,21 +265,21 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("sa_comp_manual_title") || "Manual Threat Flag"}
-      subtitle={t("sa_comp_manual_subtitle") || "Direct insertion into Global Registry"}
-      icon={t("ui_icon_flag") || "flag"}
+      title={t("sa_comp_manual_title")}
+      subtitle={t("sa_comp_manual_subtitle")}
+      icon={t("ui_icon_flag")}
       iconColorClass="text-[var(--danger)] border-[var(--danger)]/30"
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
             <button onClick={onClose} className={standardButtonClass}>
-              {t("sa_comp_manual_btn_cancel") || "CANCEL"}
+              {t("sa_comp_manual_btn_cancel")}
             </button>
           <button 
             onClick={activeTab === 'registry' ? handleManualFlag : handleAddHeuristic} 
             disabled={isSubmitting || (activeTab === 'registry' && ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())) || (activeTab === 'heuristic' && (!newSig.trim() || !notes.trim()))} 
             className={standardDangerButtonClass}
           >
-            {isSubmitting ? (t("sa_comp_manual_btn_transmitting") || "TRANSMITTING...") : (t("sa_comp_manual_btn_insert") || "INSERT RECORD")}
+            {isSubmitting ? (t("sa_comp_manual_btn_transmitting")) : (t("sa_comp_manual_btn_insert"))}
           </button>
         </div>
       }
@@ -287,10 +287,10 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       <div className="p-6 flex flex-col h-full gap-8">
         <div className="flex gap-4 border-b border-white/5 pb-4">
            <button onClick={() => setActiveTab('registry')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${activeTab === 'registry' ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : 'text-[var(--subtext)] hover:text-[var(--text)]'}`}>
-             GLOBAL REGISTRY
+             {t("auto_global_registry")}
            </button>
            <button onClick={() => setActiveTab('heuristic')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${activeTab === 'heuristic' ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : 'text-[var(--subtext)] hover:text-[var(--text)]'}`}>
-             {t("sa_heuristics_tab") || "HEURISTICS"}
+             {t("sa_heuristics_tab")}
            </button>
         </div>
 
@@ -298,12 +298,12 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
           <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--danger)]/5 to-transparent pointer-events-none rounded-2xl" />
             <h4 className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest flex items-center gap-2 border-b border-[var(--danger)]/20 pb-4 mb-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_flag") || "flag"}</span>
-              {t("sa_comp_manual_title") || "Manual Threat Flag"}
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_flag")}</span>
+              {t("sa_comp_manual_title")}
             </h4>
             
             <div className="flex flex-col gap-2 relative z-[60]">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_manual_search_label") || "Search Global Registry"}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_manual_search_label")}</label>
               <div className="relative">
                 <input 
                   ref={inputRef}
@@ -312,10 +312,10 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                   readOnly={!!manualSelectedMod}
                   onFocus={() => { if (!manualSelectedMod) setIsDropdownOpen(true); }}
                   className="w-full theme-glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40" 
-                  placeholder={t("sa_comp_manual_search_placeholder") || "Type to search registry..."} 
+                  placeholder={t("sa_comp_manual_search_placeholder")} 
                 />
                 {manualSelectedMod && (
-                  <button onClick={() => { setManualSelectedMod(null); setManualSearchQuery(""); inputRef.current?.focus(); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] font-black text-[10px] bg-red-500/10 px-2 py-1 rounded-md">{t("emote_close")} {t("sa_comp_manual_clear") || "CLEAR"}</button>
+                  <button onClick={() => { setManualSelectedMod(null); setManualSearchQuery(""); inputRef.current?.focus(); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] font-black text-[10px] bg-red-500/10 px-2 py-1 rounded-md">{t("emote_close")} {t("sa_comp_manual_clear")}</button>
                 )}
               </div>
 
@@ -340,17 +340,17 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
             </div>
 
             <div className="flex flex-col gap-2 relative z-40 mt-4">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_manual_tier_label") || "Compliance Tier"}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_manual_tier_label")}</label>
               <CustomComplianceDropdown value={manualTier} onChange={setManualTier} includeTier3={true} />
             </div>
 
             <div className="flex flex-col gap-2 relative z-30 mt-4">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_reason") || "Reason"}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_reason")}</label>
               <textarea 
                   value={registryReason}
                   onChange={e => setRegistryReason(e.target.value)}
                   className="w-full theme-glass-panel rounded-2xl p-5 min-h-[80px] text-sm font-medium focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 custom-scrollbar" 
-                  placeholder={t("sa_comp_reason_ph") || "Required context for this flag..."}
+                  placeholder={t("sa_comp_reason_ph")}
               />
             </div>
           </div>
@@ -358,31 +358,31 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
           <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--danger)]/5 to-transparent pointer-events-none rounded-2xl" />
             <h4 className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest flex items-center gap-2 border-b border-[var(--danger)]/20 pb-4 mb-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_flag") || "flag"}</span>
-              {t("sa_heuristics_tab") || "HEURISTIC SIGNATURES"}
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_flag")}</span>
+              {t("sa_heuristics_tab")}
             </h4>
             
             <div className="flex flex-col gap-4 relative z-[60]">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">File Signature</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("auto_file_signature")}</label>
                 <input 
                   value={newSig}
                   onChange={e => setNewSig(e.target.value)}
                   className="w-full theme-glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40" 
-                  placeholder={t("sa_heuristics_placeholder") || "e.g. ts4_poc.py"}
+                  placeholder={t("sa_heuristics_placeholder")}
                 />
               </div>
 
               <div className="flex flex-col gap-4 z-[90] relative">
                 <div className="flex flex-col gap-2 relative">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_match_type") || "Match Type"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_match_type")}</label>
                   <CustomDropdown
                     value={matchType}
                     options={[
-                      { id: "archive_entry_exact", label: t("sa_comp_match_type_archive_exact") || "ARCHIVE ENTRY (EXACT)" },
-                      { id: "archive_entry_contains", label: t("sa_comp_match_type_archive_contains") || "ARCHIVE ENTRY (CONTAINS)" },
-                      { id: "file_name_exact", label: t("sa_comp_match_type_file_exact") || "FILE NAME (EXACT)" },
-                      { id: "file_name_contains", label: t("sa_comp_match_type_file_contains") || "FILE NAME (CONTAINS)" }
+                      { id: "archive_entry_exact", label: t("sa_comp_match_type_archive_exact") },
+                      { id: "archive_entry_contains", label: t("sa_comp_match_type_archive_contains") },
+                      { id: "file_name_exact", label: t("sa_comp_match_type_file_exact") },
+                      { id: "file_name_contains", label: t("sa_comp_match_type_file_contains") }
                     ]}
                     onChange={(v: string[]) => setMatchType(v[0])}
                     disableTint={true}
@@ -390,13 +390,13 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                 </div>
                 
                 <div className="flex flex-col gap-2 relative">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_severity") || "Severity"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_severity")}</label>
                   <CustomDropdown
                     value={severity}
                     options={[
-                      { id: "malware", label: t("sa_comp_severity_malware") || "MALWARE (TIER 3)"},
-                      { id: "explicit", label: t("sa_comp_severity_explicit") || "EXPLICIT (TIER 2)" },
-                      { id: "suspicious", label: t("sa_comp_severity_suspicious") || "SUSPICIOUS (TIER 1)" }
+                      { id: "malware", label: t("sa_comp_severity_malware")},
+                      { id: "explicit", label: t("sa_comp_severity_explicit") },
+                      { id: "suspicious", label: t("sa_comp_severity_suspicious") }
                     ]}
                     onChange={(v: string[]) => setSeverity(v[0])}
                     disableTint={true}
@@ -405,12 +405,12 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_reason") || "Reason"}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sa_comp_reason")}</label>
                 <textarea 
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   className="w-full theme-glass-panel rounded-2xl p-5 min-h-[80px] text-sm font-medium focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 custom-scrollbar" 
-                  placeholder={t("sa_comp_reason_ph") || "Required context for this signature..."}
+                  placeholder={t("sa_comp_reason_ph")}
                 />
               </div>
 
@@ -422,12 +422,12 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                   <div className={`w-5 h-5 rounded-full bg-[var(--text)] transition-transform ${enabled ? 'translate-x-7 bg-[var(--accent)]' : 'translate-x-0 opacity-50'}`} />
                 </button>
                 <span className="text-xs font-bold uppercase tracking-widest text-[var(--subtext)]">
-                  {enabled ? (t("sa_comp_enabled") || "ENABLED") : (t("sa_comp_disabled") || "DISABLED")}
+                  {enabled ? (t("sa_comp_enabled")) : (t("sa_comp_disabled"))}
                 </span>
                 
                 {editingId && (
                   <button onClick={resetHeuristicForm} className="ml-auto text-[10px] font-black uppercase text-[var(--subtext)] hover:text-white px-3 py-1 rounded-lg border border-white/5 hover:bg-white/5 transition-all">
-                    CANCEL
+                    {t("auto_cancel")}
                   </button>
                 )}
               </div>
@@ -442,7 +442,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                       <span className="text-[9px] uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">{sig.match_type} &middot; {sig.severity}</span>
                     </div>
                     <button onClick={(e) => { e.stopPropagation(); handleRemoveHeuristic(sig.id); }} className="text-[var(--subtext)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all material-symbols-outlined !text-[16px] p-2 rounded-lg hover:bg-red-500/10">
-                      delete
+                      {t("auto_delete")}
                     </button>
                   </div>
                 ))}

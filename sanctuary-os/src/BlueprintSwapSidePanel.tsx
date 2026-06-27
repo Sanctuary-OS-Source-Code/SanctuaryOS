@@ -26,17 +26,17 @@ export default function BlueprintSwapSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("bp_blueprint_swap") || "BLUEPRINTS"}
-      subtitle={t("bp_available_blueprints") || "AVAILABLE BLUEPRINTS"}
+      title={t("bp_blueprint_swap")}
+      subtitle={t("bp_available_blueprints")}
       widthClass="w-[550px]"
-      icon={t("ui_icon_map") || "map"}
+      icon={t("ui_icon_map")}
     >
       <div className="flex flex-col gap-6 h-full pb-10 px-2">
         {!playSets || playSets.length === 0 ? (
           <div className="flex justify-center items-center h-32 theme-glass-inner rounded-[2rem] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-50 flex items-center gap-3">
-              <span className="material-symbols-outlined !text-xl">{t("ui_icon_scan_delete") || "scan_delete"}</span>
-              {t("bp_no_blueprints_found") || "No Blueprints Found"}
+              <span className="material-symbols-outlined !text-xl">{t("ui_icon_scan_delete")}</span>
+              {t("bp_no_blueprints_found")}
             </span>
           </div>
         ) : (
@@ -54,8 +54,8 @@ export default function BlueprintSwapSidePanel({
                   }`}
                 >
                   {/* Background Layers */}
-                  <div className={`absolute inset-0 transition-opacity duration-500 ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] opacity-100' : 'theme-glass-panel opacity-100 group-hover:opacity-0'}`} />
-                  <div className={`absolute inset-0 bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 transition-opacity duration-500 ${isActive ? 'opacity-10' : 'group-hover:opacity-10'}`} />
+                  <div className={`absolute inset-0 rounded-[inherit] transition-opacity duration-500 ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] opacity-100' : 'theme-glass-panel opacity-100 group-hover:opacity-0'}`} />
+                  <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 transition-opacity duration-500 ${isActive ? 'opacity-10' : 'group-hover:opacity-10'}`} />
                   
                   <div className="relative p-6 flex flex-col sm:flex-row items-center gap-6 z-10">
                     {/* Icon Tile */}
@@ -65,7 +65,7 @@ export default function BlueprintSwapSidePanel({
                         : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'
                     }`}>
                       <span className={`material-symbols-outlined !text-[32px] transition-colors duration-500 ${isActive ? 'text-[var(--bg)] drop-shadow-md' : 'text-[var(--text)] opacity-50 group-hover:opacity-100 group-hover:theme-text-accent'}`}>
-                        {t("ui_icon_map") || "map"}
+                        {t("ui_icon_map")}
                       </span>
                     </div>
 
@@ -77,16 +77,16 @@ export default function BlueprintSwapSidePanel({
                         </h4>
                         {isActive && (
                           <span className="px-3 py-1.5 rounded-full bg-[var(--accent)] text-[var(--bg)] text-[9px] font-black uppercase tracking-[0.2em] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_50%,transparent)] animate-[pulse_2s_ease-in-out_infinite] shrink-0 flex items-center gap-1.5">
-                            <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_check") || "check"}</span>
-                            {t("hub_stat_active") || "ACTIVE"}
+                            <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_check")}</span>
+                            {t("hub_stat_active")}
                           </span>
                         )}
                       </div>
                       
                       <div className="flex items-center gap-4 mt-1">
                         <span className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-colors ${isActive ? 'theme-text-accent opacity-80' : 'text-[var(--subtext)] opacity-50'}`}>
-                          <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_architecture") || "architecture"}</span>
-                          {bp.mods?.length || 0} {t("modcard_artifacts") || "Artifacts"}
+                          <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_architecture")}</span>
+                          {bp.mods?.length || 0} {t("modcard_artifacts")}
                         </span>
                       </div>
                     </div>

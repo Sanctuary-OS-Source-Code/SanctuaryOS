@@ -72,7 +72,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
-    if (!userId) return useStore.getState().pushStatus(t("feed_login_required") || "LOGIN REQUIRED TO REPLY");
+    if (!userId) return useStore.getState().pushStatus(t("feed_login_required"));
     
     const { error } = await supabase.from('mason_post_likes').insert({ post_id: post.id, user_id: userId });
     let increment = 1;
@@ -96,9 +96,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
   return (
     <div className="w-full h-full flex flex-col animate-in fade-in duration-300">
       <ViewHeader 
-        title={t("mason_feed_title") || "COMM-LINK FEED"}
-        subtitle={t("mason_feed_subtitle") || "Platform updates, dispatches, and community signals"}
-        icon={t("ui_icon_broadcast") || "satellite_alt"}
+        title={t("mason_feed_title")}
+        subtitle={t("mason_feed_subtitle")}
+        icon={t("ui_icon_broadcast")}
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
       >
         {/* Placeholder for future tools */}
@@ -108,8 +108,8 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
       {/* Main Tabs */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mx-2 mt-2">
         <div className="flex items-center gap-1 overflow-x-auto accent-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner shrink-0">
-          <HubTabButton id="DISCOVER" icon="explore" label={t("feed_tab_discover") || "Network Sweep"} activeTab={activeTab} setTab={setActiveTab as any} />
-          <HubTabButton id="FOLLOWING" icon="diversity_1" label={t("feed_tab_following") || "Subscribed Channels"} activeTab={activeTab} setTab={setActiveTab as any} />
+          <HubTabButton id="DISCOVER" icon="explore" label={t("feed_tab_discover")} activeTab={activeTab} setTab={setActiveTab as any} />
+          <HubTabButton id="FOLLOWING" icon="diversity_1" label={t("feed_tab_following")} activeTab={activeTab} setTab={setActiveTab as any} />
         </div>
       </div>
 
@@ -117,12 +117,12 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
       <div className="theme-glass-panel p-6 rounded-[2rem] shadow-xl border border-white/10 mb-8 animate-in slide-in-from-top-4 duration-500 flex flex-wrap gap-4 items-center relative z-20 mx-2">
         <div className="flex-1 min-w-[250px] relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--accent)] text-lg flex items-center justify-center">
-            <span className="material-symbols-outlined !text-[20px] drop-shadow-md">{t("ui_icon_search") || "search"}</span>
+            <span className="material-symbols-outlined !text-[20px] drop-shadow-md">{t("ui_icon_search")}</span>
           </div>
           <input 
             value={searchQuery} 
             onChange={e => setSearchQuery(e.target.value)} 
-            placeholder={t("mason_search_placeholder") || "Search transmissions..."} 
+            placeholder={t("mason_search_placeholder")} 
             className="w-full theme-glass-inner rounded-2xl pl-12 pr-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all shadow-inner"
           />
         </div>
@@ -130,11 +130,11 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
 
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 pb-32">
         {loading ? (
-          <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading") || "Loading"}</div>
+          <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
         ) : activeTab === "FOLLOWING" && !userId ? (
-          <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("feed_login_required") || "LOGIN REQUIRED TO REPLY"}</div>
+          <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("feed_login_required")}</div>
         ) : filteredPosts.length === 0 ? (
-          <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("mason_no_posts") || "NO COMM-LINK TRANSMISSIONS FOUND"}</div>
+          <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("mason_no_posts")}</div>
         ) : (
           <div className="columns-1 lg:columns-2 xl:columns-3 gap-6 space-y-6">
             {filteredPosts.map((p, index) => {

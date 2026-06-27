@@ -59,12 +59,12 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
       <div className="fixed inset-0 z-[52000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" onClick={onClose} />
       <div className="fixed top-10 right-0 bottom-10 w-full max-w-xl theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[52001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] rounded-tl-[3rem] rounded-bl-[3rem]">
         <button onClick={onClose} className="absolute top-8 right-8 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-          <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close") || "close"}</span>
+          <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close")}</span>
         </button>
 
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
-            <span className="text-xs font-black uppercase tracking-widest text-[var(--subtext)] animate-pulse">{t("loading") || "Loading"}</span>
+            <span className="text-xs font-black uppercase tracking-widest text-[var(--subtext)] animate-pulse">{t("loading")}</span>
           </div>
         ) : error ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 p-10">
@@ -103,7 +103,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
               </div>
               <div className="p-10 flex flex-col gap-6 shrink-0 relative z-10">
                 <div className="text-sm text-[var(--text)] leading-relaxed font-medium theme-glass-inner p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                  {data.description ? stripMarkdown(data.description) : t("dossier_no_desc_sub") || "No specific local description provided for this sub-artifact."}
+                  {data.description ? stripMarkdown(data.description) : t("dossier_no_desc_sub")}
                 </div>
                 {assetType === 'workbench_template' && data.json_data && (() => {
                    const parsedRaw = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
@@ -111,50 +111,50 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                    return (
                      <div className="flex flex-col gap-4 p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
                         <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2 mb-2">
-                           <span className="material-symbols-outlined !text-[14px]">info</span>
-                           Template Architecture
+                           <span className="material-symbols-outlined !text-[14px]">{t("auto_info")}</span>
+                           {t("auto_template_architecture")}
                         </h4>
                         <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-[10px] font-mono">
                            {parsed.template_id && (
                              <div className="flex flex-col gap-1">
-                                <span className="text-[var(--subtext)] opacity-60">TEMPLATE ID</span>
+                                <span className="text-[var(--subtext)] opacity-60">{t("auto_template_id")}</span>
                                 <span className="text-[var(--text)] font-black truncate">{parsed.template_id}</span>
                              </div>
                            )}
                            {parsed.target_file && (
                              <div className="flex flex-col gap-1">
-                                <span className="text-[var(--subtext)] opacity-60">TARGET FILE</span>
+                                <span className="text-[var(--subtext)] opacity-60">{t("auto_target_file")}</span>
                                 <span className="text-[var(--text)] font-black truncate">{parsed.target_file}</span>
                              </div>
                            )}
                            {parsed.schema_version && (
                              <div className="flex flex-col gap-1">
-                                <span className="text-[var(--subtext)] opacity-60">SCHEMA</span>
-                                <span className="text-[var(--text)] font-black">v{parsed.schema_version}</span>
+                                <span className="text-[var(--subtext)] opacity-60">{t("auto_schema")}</span>
+                                <span className="text-[var(--text)] font-black">{t("auto_v")}{parsed.schema_version}</span>
                              </div>
                            )}
                            {parsed.template_version && (
                              <div className="flex flex-col gap-1">
-                                <span className="text-[var(--subtext)] opacity-60">VERSION</span>
+                                <span className="text-[var(--subtext)] opacity-60">{t("auto_version")}</span>
                                 <span className="text-[var(--text)] font-black">{parsed.template_version}</span>
                              </div>
                            )}
                            {parsed.mod_author && (
                              <div className="flex flex-col gap-1">
-                                <span className="text-[var(--subtext)] opacity-60">MOD AUTHOR</span>
+                                <span className="text-[var(--subtext)] opacity-60">{t("auto_mod_author")}</span>
                                 <span className="text-[var(--text)] font-black truncate">{parsed.mod_author}</span>
                              </div>
                            )}
                            {parsed.parser_type && (
                              <div className="flex flex-col gap-1">
-                                <span className="text-[var(--subtext)] opacity-60">PARSER</span>
+                                <span className="text-[var(--subtext)] opacity-60">{t("auto_parser")}</span>
                                 <span className="text-[var(--text)] font-black uppercase">{parsed.parser_type}</span>
                              </div>
                            )}
                         </div>
                         {parsed.supported_mod_versions && Array.isArray(parsed.supported_mod_versions) && parsed.supported_mod_versions.length > 0 && (
                           <div className="flex flex-col gap-2 mt-2 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                             <span className="text-[var(--subtext)] opacity-60 text-[10px] font-mono">SUPPORTED VERSIONS</span>
+                             <span className="text-[var(--subtext)] opacity-60 text-[10px] font-mono">{t("auto_supported_versions")}</span>
                              <div className="flex flex-wrap gap-2">
                                {parsed.supported_mod_versions.map((v: string) => (
                                  <span key={v} className="px-2 py-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-md text-[9px] font-black text-[var(--text)]">{v}</span>
@@ -175,16 +175,16 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                   onClick={onClose}
                   className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_5px_20px_rgba(0,0,0,0.2)]"
                 >
-                  <span className="material-symbols-outlined !text-[18px]">close</span>
-                  {t("ui_btn_cancel") || "CANCEL"}
+                  <span className="material-symbols-outlined !text-[18px]">{t("auto_close")}</span>
+                  {t("ui_btn_cancel")}
                 </button>
               ) : onFlag ? (
                 <button 
                   onClick={(e) => { e.stopPropagation(); onFlag(assetId, assetType); }}
                   className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--danger-rgb),0.2)]"
                 >
-                  <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_flag") || "flag"}</span>
-                  {t("market_btn_report") || "FLAG"}
+                  <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_flag")}</span>
+                  {t("market_btn_report")}
                 </button>
               ) : null}
 
@@ -197,8 +197,8 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                   }}
                   className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--accent-rgb),0.2)]"
                 >
-                  <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_download") || "download"}</span>
-                  {t("market_btn_download_install") || "Download & Install"}
+                  <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_download")}</span>
+                  {t("market_btn_download_install")}
                 </button>
               ) : assetType === 'lexicon' || assetType === 'chameleon' || assetType === 'workbench_template' ? (
                 <button 
@@ -236,7 +236,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                   className={`flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all shadow-lg text-xs hover:scale-[1.02] active:scale-95 ${isInstalled(data) ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--success-rgb),0.2)]' : 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--accent-rgb),0.2)]'}`}
                 >
                   <span className="material-symbols-outlined !text-[18px]">{isInstalled(data) ? "check_circle" : "download"}</span>
-                  {isInstalled(data) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "Download & Install")}
+                  {isInstalled(data) ? (t("market_btn_reinstall")) : (t("market_btn_download_install"))}
                 </button>
               ) : null}
             </div>

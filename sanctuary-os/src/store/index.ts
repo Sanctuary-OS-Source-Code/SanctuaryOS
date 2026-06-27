@@ -125,6 +125,8 @@ interface GlobalState {
   setCwActiveTab: (tab: "visual" | "raw") => void;
   masonActiveTab: string;
   setMasonActiveTab: (tab: string) => void;
+  communityDefaultsRefreshTrigger: number;
+  incrementCommunityDefaultsRefreshTrigger: () => void;
 }
 
 export const useStore = create<GlobalState>((set) => ({
@@ -254,4 +256,6 @@ export const useStore = create<GlobalState>((set) => ({
   setCwActiveTab: (tab) => { localStorage.setItem('sanctuary_cw_active_tab', tab); set({ cwActiveTab: tab }); },
   masonActiveTab: "command_center",
   setMasonActiveTab: (tab) => set({ masonActiveTab: tab }),
+  communityDefaultsRefreshTrigger: 0,
+  incrementCommunityDefaultsRefreshTrigger: () => set((state) => ({ communityDefaultsRefreshTrigger: state.communityDefaultsRefreshTrigger + 1 }))
 }));

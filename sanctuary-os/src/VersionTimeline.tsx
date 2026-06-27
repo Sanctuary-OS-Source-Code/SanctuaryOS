@@ -47,30 +47,30 @@ export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsav
   return (
     <SidePanel 
         isOpen={true} 
-        title={t("timeline_title") || "VERSION TIMELINE"} 
+        title={t("timeline_title")} 
         onClose={onClose} 
-        icon={t("ui_icon_history") || "history"}
+        icon={t("ui_icon_history")}
         iconColorClass="theme-text-accent"
         widthClass="w-[500px]"
         noBackdropDim={true}
     >
       <div className="flex flex-col gap-6 w-full h-full relative z-10" style={{ color: currentTheme.text }}>
         <div className="px-1 mt-1">
-            <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder={t("timeline_search") || "Search dates..."} />
+            <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder={t("timeline_search")} />
         </div>
 
         {loading && (
            <div className="flex flex-col items-center justify-center h-40 opacity-50 gap-4">
-              <span className="material-symbols-outlined !text-4xl animate-spin">{t("ui_icon_sync") || "sync"}</span>
-              <div className="text-[10px] uppercase font-black tracking-widest">{t("timeline_loading") || "LOADING TIMELINE..."}</div>
+              <span className="material-symbols-outlined !text-4xl animate-spin">{t("ui_icon_sync")}</span>
+              <div className="text-[10px] uppercase font-black tracking-widest">{t("timeline_loading")}</div>
            </div>
         )}
         
         {!loading && history.length === 0 && (
           <div className="flex flex-col items-center justify-center h-40 opacity-40 gap-4">
-             <span className="material-symbols-outlined !text-4xl">{t("ui_icon_history_toggle_off") || "history_toggle_off"}</span>
+             <span className="material-symbols-outlined !text-4xl">{t("ui_icon_history_toggle_off")}</span>
              <div className="text-[10px] uppercase font-black tracking-[0.2em] max-w-[200px] text-center">
-               {t("timeline_empty") || "No versions found for this file."}
+               {t("timeline_empty")}
              </div>
           </div>
         )}
@@ -86,9 +86,9 @@ export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsav
           if (filteredHistory.length === 0) {
              return (
                <div className="flex flex-col items-center justify-center h-40 opacity-40 gap-4">
-                 <span className="material-symbols-outlined !text-4xl">{t("ui_icon_search_off") || "search_off"}</span>
+                 <span className="material-symbols-outlined !text-4xl">{t("ui_icon_search_off")}</span>
                  <div className="text-[10px] uppercase font-black tracking-[0.2em] max-w-[200px] text-center">
-                   {t("timeline_search_empty") || "No matching versions"}
+                   {t("timeline_search_empty")}
                  </div>
                </div>
              );
@@ -105,7 +105,7 @@ export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsav
                      <div className="flex justify-between items-center">
                        <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
-                            {entry.pinned && <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("ui_icon_push_pin") || "push_pin"}</span>}
+                            {entry.pinned && <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("ui_icon_push_pin")}</span>}
                             <span className={`text-xs font-black uppercase tracking-widest ${selectedEntry?.timestamp === entry.timestamp ? 'theme-text-accent' : 'opacity-80'}`}>
                               {new Date(entry.timestamp * 1000).toLocaleDateString()}
                             </span>
@@ -119,14 +119,14 @@ export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsav
                          {idx === 0 && !searchQuery && (
                             <div className="px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-[0.2em] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center gap-1">
                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse shadow-[0_0_5px_var(--accent)]" />
-                               {t("timeline_active_version") || "ACTIVE VERSION"}
+                               {t("timeline_active_version")}
                             </div>
                          )}
                          <button 
                            onClick={(e) => { e.stopPropagation(); togglePin(entry.timestamp, !entry.pinned); }}
                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${entry.pinned ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-white hover:bg-white/10 border-transparent hover:border-white/20'} border`}
                          >
-                           <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_push_pin") || "push_pin"}</span>
+                           <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_push_pin")}</span>
                          </button>
                        </div>
                      </div>
@@ -139,19 +139,19 @@ export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsav
                         {!(idx === 0 && !searchQuery) && (
                           confirmRestore === entry.timestamp ? (
                              <div className="flex flex-col gap-2 mt-2">
-                               {hasUnsavedChanges && <div className="text-[10px] font-black uppercase text-[var(--danger)] text-center tracking-widest">{t("timeline_unsaved_warning") || "WARNING: UNSAVED CHANGES WILL BE LOST"}</div>}
+                               {hasUnsavedChanges && <div className="text-[10px] font-black uppercase text-[var(--danger)] text-center tracking-widest">{t("timeline_unsaved_warning")}</div>}
                                <div className="flex items-center gap-2">
                                   <button 
                                      onClick={(e) => { e.stopPropagation(); setConfirmRestore(null); }}
                                      className={`h-12 flex-1 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center gap-2`}
                                   >
-                                     {t("timeline_cancel_restore") || "CANCEL"}
+                                     {t("timeline_cancel_restore")}
                                   </button>
                                   <button 
                                      onClick={(e) => { e.stopPropagation(); onRestore(entry.content); onClose(); }}
                                      className={`h-12 flex-[2] rounded-2xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center gap-2`}
                                   >
-                                     {hasUnsavedChanges ? (t("timeline_confirm_nuke") || "DISCARD EDITS & RESTORE") : (t("timeline_confirm_restore") || "CONFIRM RESTORE")}
+                                     {hasUnsavedChanges ? (t("timeline_confirm_nuke")) : (t("timeline_confirm_restore"))}
                                   </button>
                                </div>
                              </div>
@@ -160,8 +160,8 @@ export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsav
                                 onClick={(e) => { e.stopPropagation(); setConfirmRestore(entry.timestamp); }}
                                 className={`h-12 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 w-full mt-2`}
                              >
-                                <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_restore") || "restore"}</span>
-                                {t("timeline_restore_btn") || "RESTORE THIS VERSION"}
+                                <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_restore")}</span>
+                                {t("timeline_restore_btn")}
                              </button>
                           )
                         )}

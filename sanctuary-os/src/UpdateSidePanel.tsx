@@ -18,8 +18,8 @@ export function UpdateSidePanel() {
     <SidePanel
       isOpen={true}
       onClose={() => setUpdatePayload(null)}
-      title={t("update_panel_title") || "SYSTEM UPDATE"}
-      subtitle={t("update_panel_subtitle") || "CRITICAL CORE PATCH"}
+      title={t("update_panel_title")}
+      subtitle={t("update_panel_subtitle")}
       icon="system_update"
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[550px]"
@@ -38,14 +38,14 @@ export function UpdateSidePanel() {
            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
            
            <div className="w-24 h-24 rounded-full bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-4 border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_40px_rgba(var(--accent-rgb),0.3)] flex items-center justify-center relative z-10 mb-2">
-             <span className={`material-symbols-outlined !text-[48px] text-[var(--accent)] ${isInstalling ? 'animate-pulse' : 'animate-bounce'}`}>{t("ui_icon_downloading") || "downloading"}</span>
+             <span className={`material-symbols-outlined !text-[48px] text-[var(--accent)] ${isInstalling ? 'animate-pulse' : 'animate-bounce'}`}>{t("ui_icon_downloading")}</span>
            </div>
            
            <h3 className="text-3xl font-black uppercase tracking-widest text-[var(--text)] drop-shadow-md relative z-10">
-             {t("update_version") || "VERSION"} {updatePayload.version}
+             {t("update_version")} {updatePayload.version}
            </h3>
            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-80 relative z-10">
-             {t("update_panel_ready") || "A NEW UPDATE IS READY TO INSTALL"}
+             {t("update_panel_ready")}
            </p>
            {updatePayload.date && (
              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] opacity-60 relative z-10">
@@ -58,9 +58,9 @@ export function UpdateSidePanel() {
         <div className="theme-glass-panel border border-white/5 rounded-3xl p-8 shadow-lg relative overflow-hidden group/card flex-1 flex flex-col min-h-0">
            <div className="flex items-center gap-4 mb-6 relative z-10 shrink-0">
              <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--text)]">
-               <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_subject") || "subject"}</span>
+               <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_subject")}</span>
              </div>
-             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("update_panel_notes") || "RELEASE NOTES"}</h3>
+             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("update_panel_notes")}</h3>
            </div>
            
            <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 relative z-10 prose prose-invert prose-sm max-w-none text-[var(--text)]/80 marker:text-[var(--accent)]">
@@ -68,8 +68,8 @@ export function UpdateSidePanel() {
                <ReactMarkdown>{updatePayload.body}</ReactMarkdown>
              ) : (
                <div className="text-center py-12 opacity-50 font-bold uppercase text-[10px] tracking-widest flex flex-col items-center gap-2">
-                 <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_visibility_off") || "visibility_off"}</span>
-                 {t("update_panel_no_notes") || "NO RELEASE NOTES PROVIDED"}
+                 <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_visibility_off")}</span>
+                 {t("update_panel_no_notes")}
                </div>
              )}
            </div>
@@ -81,14 +81,14 @@ export function UpdateSidePanel() {
             disabled={isInstalling}
             onClick={async () => {
               setIsInstalling(true);
-              setStatus(t("status_downloading_update") || "DOWNLOADING UPDATE...");
+              setStatus(t("status_downloading_update"));
               try {
                 await updatePayload.downloadAndInstall((event: any) => {
                    if (event.event === 'Progress') {
                       // We could update a progress bar here, but setStatus is enough for now
                    }
                 });
-                setStatus(t("status_restarting") || "RESTARTING...");
+                setStatus(t("status_restarting"));
                 await relaunch();
               } catch (e) {
                 setStatus("UPDATE FAILED: " + e);
@@ -99,13 +99,13 @@ export function UpdateSidePanel() {
           >
             {isInstalling ? (
               <>
-                <span className="material-symbols-outlined !text-[28px] animate-spin">{t("ui_icon_refresh") || "refresh"}</span>
-                {t("update_panel_installing") || "INSTALLING UPDATE..."}
+                <span className="material-symbols-outlined !text-[28px] animate-spin">{t("ui_icon_refresh")}</span>
+                {t("update_panel_installing")}
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined !text-[28px]">{t("ui_icon_system_update_alt") || "system_update_alt"}</span>
-                {t("update_panel_install") || "DOWNLOAD & INSTALL"}
+                <span className="material-symbols-outlined !text-[28px]">{t("ui_icon_system_update_alt")}</span>
+                {t("update_panel_install")}
               </>
             )}
           </button>

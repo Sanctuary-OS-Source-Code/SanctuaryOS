@@ -38,7 +38,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
     if (isEditingName) {
       return (
         <span className="flex items-center gap-2">
-          {t("bp_subtitle") || "Blueprint:"}
+          {t("bp_subtitle")}
           <input
             autoFocus
             type="text"
@@ -68,8 +68,8 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
         className="flex items-center gap-2 group cursor-pointer hover:text-[var(--text)] transition-colors" 
         onClick={() => { setIsEditingName(true); setNewNameInput(playSet.name); }}
       >
-        {t("bp_subtitle") || "Blueprint:"} {playSet.name} ({activeMods.length} {t("modcard_artifacts") || "Artifacts"})
-        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[14px] ml-1">{t("ui_icon_edit") || "edit"}</span>
+        {t("bp_subtitle")} {playSet.name} ({activeMods.length} {t("modcard_artifacts")})
+        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[14px] ml-1">{t("ui_icon_edit")}</span>
       </span>
     );
   };
@@ -156,10 +156,10 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
       }
 
       if (isBroken || mod.compliance_tier === 3 || mod.compliance_tier === 4) {
-        reason = t("bp_status_broken_noncompliant") || "Status: Broken / Non-Compliant";
+        reason = t("bp_status_broken_noncompliant");
         alertType = 'red';
       } else if (mod.compatible_versions && selectedVersion && !isVersionMatch(mod.compatible_versions, selectedVersion)) {
-        reason = t("bp_status_version_mismatch") || "Game Version Incompatibility Detected";
+        reason = t("bp_status_version_mismatch");
         alertType = 'red';
       } else {
         if (mod.requiredDLC) {
@@ -177,7 +177,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
            });
            if (missing.length > 0) {
               const missingNames = missing.map((m: string) => mapDlcCode(m)).join(", ");
-              reason = `${t("bp_status_missing_dlc") || "Missing Required Expansion Protocol(s):"}${missingNames}`;
+              reason = `${t("bp_status_missing_dlc")}${missingNames}`;
               alertType = 'red';
            }
         }
@@ -193,14 +193,14 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
               const activeModNames = activeMods.map((m: any) => (m._originalSetName || m.name)?.toLowerCase());
               const missing = rawDeps.filter((req: string) => !activeModNames.includes(req.toLowerCase()));
               if (missing.length > 0) {
-                 reason = `${t("vault_missing_deps") || "MISSING DEPENDENCIES"}: ${missing.join(", ")}`;
+                 reason = `${t("vault_missing_deps")}: ${missing.join(", ")}`;
                  alertType = 'red';
               }
            }
         }
 
         if (!reason && typeof mod.status === 'string' && mod.status.toLowerCase() === 'unstable') {
-          reason = t("bp_status_unstable") || "Status: Unstable";
+          reason = t("bp_status_unstable");
           alertType = 'amber';
         }
       }
@@ -282,10 +282,10 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
             }
           }}
           options={[
-            { id: "", label: t("bp_priority_default") || "Default (500)" },
-            { id: "!Sanctuary", label: t("bp_priority_sanctuary") || "Sanctuary (1000)" },
-            { id: "!Sanctuary2", label: t("bp_priority_sanctuary2") || "Sanctuary 2 (1500)" },
-            { id: "!Sanctuary3", label: t("bp_priority_sanctuary3") || "Sanctuary 3 (2000)" }
+            { id: "", label: t("bp_priority_default") },
+            { id: "!Sanctuary", label: t("bp_priority_sanctuary") },
+            { id: "!Sanctuary2", label: t("bp_priority_sanctuary2") },
+            { id: "!Sanctuary3", label: t("bp_priority_sanctuary3") }
           ]}
         />
       </div>
@@ -298,9 +298,9 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("bp_title") || "Blueprint Alerts"}
+      title={t("bp_title")}
       subtitle={renderSubtitle()}
-      icon={t("ui_icon_warning") || "warning_amber"}
+      icon={t("ui_icon_warning")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[950px]"
       noScroll={true}
@@ -308,12 +308,12 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
           <button onClick={onClose} className={standardButtonClass}>
-            <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_close") || "close"}</span>
-            {t("shared_cancel") || "CANCEL"}
+            <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_close")}</span>
+            {t("shared_cancel")}
           </button>
           <button onClick={onClose} className={standardAccentGlassButtonClass}>
             <span className="material-symbols-outlined !text-[18px]">{allow_write ? "done_all" : "logout"}</span>
-            {allow_write ? t("bp_btn_finalize") || "Finalize Design" : t("bp_btn_exit_preview") || "Exit Preview"}
+            {allow_write ? t("bp_btn_finalize") : t("bp_btn_exit_preview")}
           </button>
         </div>
       }
@@ -321,8 +321,8 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
       <div className="flex-1 min-h-0 flex gap-8 p-8 pb-12 w-full">
         {/* LEFT SIDE: LOAD ORDER CONFLICTS */}
         <div className="flex-1 flex flex-col relative group rounded-[3rem] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] min-h-0">
-          <div className="absolute inset-0 theme-glass-panel opacity-100" />
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5" />
+          <div className="absolute inset-0 rounded-[inherit] theme-glass-panel opacity-100" />
+          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5" />
           
           <div className="relative z-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             {(() => {
@@ -331,25 +331,25 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
               return (
                 <div className="px-8 py-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-between">
                   <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">
-                    {t("bp_load_order_conflicts") || "Conflicts Detected"}
+                    {t("bp_load_order_conflicts")}
                   </h3>
                   <div className="flex items-center gap-2">
                     {tier4Count > 0 && (
                       <span className="text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                        {tier4Count} {t("panel_stat_tier4") || "Collision Severity 4"}
+                        {tier4Count} {t("panel_stat_tier4")}
                       </span>
                     )}
                     {tier3Count > 0 && (
                       <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                        {tier3Count} {t("panel_stat_tier3") || "Collision Severity 3"}
+                        {tier3Count} {t("panel_stat_tier3")}
                       </span>
                     )}
                     {activeConflicts.length === 0 && (
                       <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
-                        {t("bp_no_conflicts_detected") || "No active load order conflicts detected."}
+                        {t("bp_no_conflicts_detected")}
                       </span>
                     )}
                   </div>
@@ -360,8 +360,8 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
             <div className="p-8 flex flex-col gap-6 pb-24">
               {activeConflicts.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4">
-                  <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_shield") || "security"}</span>
-                  <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("bp_no_conflicts_detected") || "No active load order conflicts detected."}</p>
+                  <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_shield")}</span>
+                  <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("bp_no_conflicts_detected")}</p>
                 </div>
               ) : (
                 activeConflicts.map((ac) => {
@@ -377,7 +377,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                   const bgClass = isTier4 ? "bg-red-500/5 hover:bg-red-500/10" : "bg-amber-500/5 hover:bg-amber-500/10";
                   const shadowClass = isTier4 ? "hover:shadow-[0_0_30px_rgba(239,68,68,0.2)]" : "hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]";
                   const textClass = isTier4 ? "text-red-500" : "text-amber-500";
-                  const iconName = isTier4 ? (t("ui_icon_crisis") || "crisis_alert") : (t("ui_icon_tune") || "tune");
+                  const iconName = isTier4 ? (t("ui_icon_crisis")) : (t("ui_icon_tune"));
                   return (
                     <div 
                       key={ac.pairId} 
@@ -399,7 +399,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                             </div>
                             <div className="flex flex-col">
                               <span className={`text-xs font-black uppercase tracking-widest ${textClass}`}>
-                                {isTier4 ? t("bp_fatal_override_clash") || "Collision Severity 4" : t("bp_data_override_conflict") || "Collision Severity 3"}
+                                {isTier4 ? t("bp_fatal_override_clash") : t("bp_data_override_conflict")}
                               </span>
                               <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">
                                 {ac.conflict.resolution_note || "Local Scan Detects Tuning Overlap"}
@@ -417,7 +417,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                             className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 shrink-0 ml-4 flex items-center gap-2"
                           >
                             <span className="material-symbols-outlined !text-[12px]">{isIgnored ? "visibility" : "visibility_off"}</span>
-                            {isIgnored ? t("bp_restore_alert") || "Restore Alert" : t("bp_ignore_alert") || "Ignore"}
+                            {isIgnored ? t("bp_restore_alert") : t("bp_ignore_alert")}
                           </button>
                         </div>
                         
@@ -439,20 +439,20 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                       onClick={() => toggleInActiveSet(ac.modA._originalSetName || ac.modA.name, true, true)}
                                       className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                     >
-                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete") || "delete"}</span>
-                                      {t("bp_yeet_artifact") || "Yeet Artifact"}
+                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete")}</span>
+                                      {t("bp_yeet_artifact")}
                                     </button>
                                   )
                                 ) : ac.conflict.severity_rank === 3 ? (
                                   isWinnerA ? (
                                     <div className="w-full py-2.5 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
-                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_star") || "star"}</span>
-                                      {t("bp_winning_artifact") || "WINNING ARTIFACT"}
+                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_star")}</span>
+                                      {t("bp_winning_artifact")}
                                     </div>
                                   ) : isWinnerB ? (
                                     <div className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_block") || "block"}</span>
-                                      {t("bp_overridden_by_winner") || "OVERRIDDEN BY WINNER"}
+                                      <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_block")}</span>
+                                      {t("bp_overridden_by_winner")}
                                     </div>
                                   ) : (
                                     allow_write && (
@@ -463,8 +463,8 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                         ])}
                                         className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                       >
-                                        <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check_circle") || "check_circle"}</span>
-                                        {t("bp_select_winning_artifact") || "SELECT AS WINNER"}
+                                        <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check_circle")}</span>
+                                        {t("bp_select_winning_artifact")}
                                       </button>
                                     )
                                   )
@@ -475,9 +475,9 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                       <button 
                                         onClick={() => toggleInActiveSet(ac.modA._originalSetName || ac.modA.name, true, true)}
                                         className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center"
-                                        title={t("bp_yeet_artifact") || "Yeet Artifact"}
+                                        title={t("bp_yeet_artifact")}
                                       >
-                                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete") || "delete"}</span>
+                                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete")}</span>
                                       </button>
                                     )}
                                   </div>
@@ -501,20 +501,20 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                       onClick={() => toggleInActiveSet(ac.modB._originalSetName || ac.modB.name, true, true)}
                                       className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                     >
-                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete") || "delete"}</span>
-                                      {t("bp_yeet_artifact") || "Yeet Artifact"}
+                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete")}</span>
+                                      {t("bp_yeet_artifact")}
                                     </button>
                                   )
                                 ) : ac.conflict.severity_rank === 3 ? (
                                   isWinnerB ? (
                                     <div className="w-full py-2.5 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
-                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_star") || "star"}</span>
-                                      {t("bp_winning_artifact") || "WINNING ARTIFACT"}
+                                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_star")}</span>
+                                      {t("bp_winning_artifact")}
                                     </div>
                                   ) : isWinnerA ? (
                                     <div className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_block") || "block"}</span>
-                                      {t("bp_overridden_by_winner") || "OVERRIDDEN BY WINNER"}
+                                      <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_block")}</span>
+                                      {t("bp_overridden_by_winner")}
                                     </div>
                                   ) : (
                                     allow_write && (
@@ -522,8 +522,8 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                         onClick={() => setBlueprintLoadOrder([{ name: ac.modB._originalSetName || ac.modB.name, prefix: "Sanctuary" }, { name: ac.modA._originalSetName || ac.modA.name, prefix: "" }])}
                                         className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                       >
-                                        <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check_circle") || "check_circle"}</span>
-                                        {t("bp_select_winning_artifact") || "SELECT AS WINNER"}
+                                        <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check_circle")}</span>
+                                        {t("bp_select_winning_artifact")}
                                       </button>
                                     )
                                   )
@@ -534,9 +534,9 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                       <button 
                                         onClick={() => toggleInActiveSet(ac.modB._originalSetName || ac.modB.name, true, true)}
                                         className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center"
-                                        title={t("bp_yeet_artifact") || "Yeet Artifact"}
+                                        title={t("bp_yeet_artifact")}
                                       >
-                                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete") || "delete"}</span>
+                                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete")}</span>
                                       </button>
                                     )}
                                   </div>
@@ -555,32 +555,32 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
         
         {/* RIGHT SIDE: BROKEN/COMPATIBILITY ALERTS */}
         <div className="flex-1 flex flex-col relative group rounded-[3rem] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] min-h-0">
-          <div className="absolute inset-0 theme-glass-panel opacity-100" />
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5" />
+          <div className="absolute inset-0 rounded-[inherit] theme-glass-panel opacity-100" />
+          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5" />
           
           <div className="relative z-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             <div className="px-8 py-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col gap-4 relative">
               <div className="flex items-center justify-between w-full relative z-10">
-                <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("bp_compatibility_scanner") || "Compromised Artifacts"}</h3>
+                <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("bp_compatibility_scanner")}</h3>
                 {brokenMods.length > 0 ? (
                   <div className="flex gap-2">
                     {redMods.length > 0 && (
                       <span className="text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)] animate-pulse" />
-                        {redMods.length} {t("modcard_artifacts") || "Artifacts"}
+                        {redMods.length} {t("modcard_artifacts")}
                       </span>
                     )}
                     {amberMods.length > 0 && (
                       <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                        {amberMods.length} {t("modcard_artifacts") || "Artifacts"}
+                        {amberMods.length} {t("modcard_artifacts")}
                       </span>
                     )}
                   </div>
                 ) : (
                   <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
-                    0 {t("modcard_artifacts") || "Artifacts"}
+                    {t("auto_0")} {t("modcard_artifacts")}
                   </span>
                 )}
               </div>
@@ -591,16 +591,16 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                     <button onClick={() => {
                       redMods.forEach((m: any) => toggleInActiveSet(m._originalSetName || m.name, true, true));
                     }} className={`flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
-                      <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete_sweep") || "delete_sweep"}</span>
-                      {(t("bp_purge_corrupted") || "Yeet {0} Corrupted").replace("{0}", String(redMods.length))}
+                      <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete_sweep")}</span>
+                      {(t("bp_purge_corrupted")).replace("{0}", String(redMods.length))}
                     </button>
                   )}
                   {amberMods.length > 0 && (
                     <button onClick={() => {
                       amberMods.forEach((m: any) => toggleInActiveSet(m._originalSetName || m.name, true, true));
                     }} className={`flex-1 py-3 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-500/50 text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
-                      <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete_sweep") || "delete_sweep"}</span>
-                      {(t("bp_purge_unstable") || "Yeet {0} Unstable").replace("{0}", String(amberMods.length))}
+                      <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete_sweep")}</span>
+                      {(t("bp_purge_unstable")).replace("{0}", String(amberMods.length))}
                     </button>
                   )}
                 </div>
@@ -610,8 +610,8 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
             <div className="p-8 flex flex-col gap-4 pb-24">
               {brokenMods.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4">
-                  <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_success") || "check_circle"}</span>
-                  <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("bp_no_broken_mods_detected") || "All active artifacts passed compliance checks."}</p>
+                  <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_success")}</span>
+                  <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("bp_no_broken_mods_detected")}</p>
                 </div>
               ) : (
                 <>
@@ -657,7 +657,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                 }}
                                 className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 shrink-0 ml-4"
                               >
-                                {isIgnored ? t("bp_restore_alert") || "Restore Alert" : t("bp_ignore_alert") || "Ignore"}
+                                {isIgnored ? t("bp_restore_alert") : t("bp_ignore_alert")}
                               </button>
                             </div>
                             <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest block mt-1">
@@ -670,7 +670,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                               onClick={() => toggleInActiveSet(mod._originalSetName || mod.name, true, true)}
                               className={`shrink-0 w-10 h-10 rounded-full border font-black transition-all backdrop-blur-md active:scale-95 flex items-center justify-center ${isAmber ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/30 hover:border-amber-500/60 hover:text-amber-200 hover:shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] hover:text-[var(--danger)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_40%,transparent)]'}`}
                             >
-                              <span className="material-symbols-outlined !text-lg">{t("ui_icon_close") || "close"}</span>
+                              <span className="material-symbols-outlined !text-lg">{t("ui_icon_close")}</span>
                             </button>
                           )}
                         </div>

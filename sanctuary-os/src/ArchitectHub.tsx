@@ -16,6 +16,7 @@ import MasonPostViewer from "./MasonPostViewer";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { ArtifactCard, CollectionCard } from "./Cards";
+import ArchitectTemplateOversight from "./ArchitectTemplateOversight";
 
 const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = []; let from = 0; const step = 999; while (true) { const { data, error } = await queryFn().range(from, from + step); if (error || !data || data.length === 0) break; allData = [...allData, ...data]; if (data.length <= step) break; from += step + 1; } return { data: allData, error: null }; };
 
@@ -43,8 +44,8 @@ function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOpen: boo
       <div className="fixed top-0 right-0 bottom-1 w-[320px] theme-glass-panel border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-2xl flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden">
         <div className="flex items-center justify-between pt-[60px] px-6 pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0">
           <div className="flex flex-col">
-            <h3 className="text-xl font-black tracking-widest text-[var(--text)]">{t("mason_create_title") || "New Mason"}</h3>
-            <p className="text-[9px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("mason_create_subtitle") || "Master Registry Insertion"}</p>
+            <h3 className="text-xl font-black tracking-widest text-[var(--text)]">{t("mason_create_title")}</h3>
+            <p className="text-[9px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("mason_create_subtitle")}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text)] transition-colors hover:scale-110 bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <span className="text-sm font-black">&times;</span>
@@ -52,14 +53,14 @@ function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOpen: boo
         </div>
         
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name") || "MASON NAME"}</label>
-          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name") || "Enter mason name..."} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name")}</label>
+          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name")} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
 
         <div className="p-6 pb-12 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:scale-[1.02] text-[var(--text)] font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all">{t("ui_btn_cancel") || "CANCEL"}</button>
+          <button onClick={onClose} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:scale-[1.02] text-[var(--text)] font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all">{t("ui_btn_cancel")}</button>
           <button onClick={handleCreate} disabled={isCreating || !newMasonName.trim()} className="flex-1 py-4 theme-bg-accent hover:opacity-90 text-[var(--bg)] font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg disabled:opacity-50">
-            {isCreating ? t("mason_create_btn_creating") || "CREATING..." : t("mason_create_btn_create") || "CREATE UUID"}
+            {isCreating ? t("mason_create_btn_creating") : t("mason_create_btn_create")}
           </button>
         </div>
       </div>
@@ -172,7 +173,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     setIsSubmitting(false);
     if (!error) {
       await logArchitectAction(`Flagged Artifact: ${fileName}`, 'sanctuary_tickets', fileName, `User provided reason: ${flagReason}`);
-      setSuccessMsg(t("verify_panel_flag_success") || "Flag submitted to Oversight Command.");
+      setSuccessMsg(t("verify_panel_flag_success"));
       setShowFlagForm(false);
       setFlagReason("");
     } else {
@@ -196,17 +197,17 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       color: "var(--subtext)",
       bg: "transparent",
       border: "border-white/10",
-      icon: t("ui_icon_pending") || "hourglass_empty",
-      title: t("verify_status_awaiting") || "AWAITING ARTIFACT",
-      desc: t("verify_status_awaiting_desc") || "Select a local file to extract and verify its DNA hash."
+      icon: t("ui_icon_pending"),
+      title: t("verify_status_awaiting"),
+      desc: t("verify_status_awaiting_desc")
     },
     SCANNING: {
       color: "var(--accent)",
       bg: "color-mix(in srgb, var(--accent) 5%, transparent)",
       border: "border-[var(--accent)]/30",
-      icon: t("ui_icon_sync") || "sync",
-      title: t("verify_status_scanning") || "ANALYZING DNA",
-      desc: t("verify_status_scanning_desc") || "Extracting cryptographic hash signature...",
+      icon: t("ui_icon_sync"),
+      title: t("verify_status_scanning"),
+      desc: t("verify_status_scanning_desc"),
       pulse: true
     },
     VERIFIED: {
@@ -214,40 +215,40 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       bg: "color-mix(in srgb, rgb(52, 211, 153) 15%, transparent)",
       border: "border-emerald-400/30",
       icon: "verified_user",
-      title: t("verify_status_verified") || "AUTHENTICATED",
-      desc: t("verify_status_verified_desc") || "Hash perfectly matches a registered artifact in the database."
+      title: t("verify_status_verified"),
+      desc: t("verify_status_verified_desc")
     },
     MISMATCH: {
       color: "rgb(251, 146, 60)", 
       bg: "color-mix(in srgb, rgb(251, 146, 60) 15%, transparent)",
       border: "border-orange-400/30",
       icon: "warning",
-      title: t("verify_status_mismatch") || "UNVERIFIED SIGNATURE",
-      desc: t("verify_status_mismatch_desc") || "This file's DNA hash does not exist in the registry. It may be modified or malicious."
+      title: t("verify_status_mismatch"),
+      desc: t("verify_status_mismatch_desc")
     },
     MALWARE: {
       color: "rgb(239, 68, 68)", 
       bg: "color-mix(in srgb, rgb(239, 68, 68) 15%, transparent)",
       border: "border-red-500/30",
       icon: "skull",
-      title: t("verify_status_malware") || "MALWARE DETECTED",
-      desc: t("verify_status_malware_desc") || "This artifact hash matches a known malicious signature. Immediate shredding required."
+      title: t("verify_status_malware"),
+      desc: t("verify_status_malware_desc")
     },
     EXPLICIT: {
       color: "rgb(250, 204, 21)", 
       bg: "color-mix(in srgb, rgb(250, 204, 21) 15%, transparent)",
       border: "border-yellow-400/30",
       icon: "warning",
-      title: t("verify_status_explicit") || "EXPLICIT CONTENT",
-      desc: t("verify_status_explicit_desc") || "This artifact hash is flagged for explicit or adult content."
+      title: t("verify_status_explicit"),
+      desc: t("verify_status_explicit_desc")
     },
     FLAGGED: {
       color: "rgb(248, 113, 113)", 
       bg: "color-mix(in srgb, rgb(248, 113, 113) 15%, transparent)",
       border: "border-red-400/30",
       icon: "gavel",
-      title: t("verify_status_flagged") || "ESCALATED TO OVERSIGHT",
-      desc: t("verify_status_flagged_desc") || "Artifact has been flagged for manual review by Oversight."
+      title: t("verify_status_flagged"),
+      desc: t("verify_status_flagged_desc")
     }
   }[statusState] as any;
 
@@ -264,7 +265,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
   );
 
   return (
-    <SidePanel isOpen={isOpen} onClose={onClose} title={t("verify_panel_title") || "DNA VERIFICATION"} subtitle={t("verify_panel_subtitle") || "IMPORT AN ARTIFACT TO VERIFY ITS HASH"} icon="verified" iconColorClass="theme-text-accent" widthClass="w-[700px]">
+    <SidePanel isOpen={isOpen} onClose={onClose} title={t("verify_panel_title")} subtitle={t("verify_panel_subtitle")} icon="verified" iconColorClass="theme-text-accent" widthClass="w-[700px]">
       <div className="flex flex-col h-full relative">
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-6">
 
@@ -273,10 +274,10 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
             className={`w-full py-6 rounded-2xl border-2 border-dashed border-[var(--accent)]/30 hover:border-[var(--accent)]/60 bg-[color-mix(in_srgb,var(--accent)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all flex flex-col items-center justify-center gap-3 group ${isHashing ? 'opacity-50 pointer-events-none' : ''}`}
           >
             <span className="material-symbols-outlined !text-4xl text-[var(--accent)]/70 group-hover:text-[var(--accent)] transition-colors">
-              {isHashing ? (t("ui_icon_sync") || "sync") : (t("ui_icon_upload_file") || "upload_file")}
+              {isHashing ? (t("ui_icon_sync")) : (t("ui_icon_upload_file"))}
             </span>
             <span className="text-xs font-black tracking-widest uppercase text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
-              {isHashing ? (t("cmd_scanning") || "SCANNING...") : (t("verify_panel_import_btn") || "IMPORT ARTIFACT")}
+              {isHashing ? (t("cmd_scanning")) : (t("verify_panel_import_btn"))}
             </span>
           </button>
 
@@ -286,16 +287,16 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
             <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
               <div className="theme-glass-inner rounded-2xl p-6 border border-white/5 flex flex-col gap-4">
                 <div className="flex flex-col">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("verify_panel_file_path") || "FILE PATH"}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("verify_panel_file_path")}</span>
                   <span className="text-xs font-mono text-[var(--text)] break-all">{filePath.replace(/^(?:[A-Z]:)?[\/\\]Users[\/\\][^\/\\]+[\/\\]/i, '...\\')}</span>
                 </div>
                 
                 <div className="flex flex-col">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("verify_panel_file_hash") || "DNA HASH"}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("verify_panel_file_hash")}</span>
                   {isHashing ? (
                     <div className="flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
-                      <span className="text-xs font-mono theme-text-accent animate-pulse">{t("cmd_scanning") || "SCANNING..."}</span>
+                      <span className="text-xs font-mono theme-text-accent animate-pulse">{t("cmd_scanning")}</span>
                     </div>
                   ) : (
                     <span className="text-sm font-mono font-bold break-all bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] p-3 rounded-xl border border-white/5 shadow-inner relative overflow-hidden" style={{ color: statusConfig.color }}>
@@ -311,10 +312,10 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                 <div className={`theme-glass-panel rounded-2xl p-6 border flex flex-col gap-4 animate-in zoom-in-95 mt-2 bg-gradient-to-br from-transparent to-transparent ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/5' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/5' : 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[var(--accent)]/5'}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex flex-col">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("registry_label_name") || "Display Name"}</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("registry_label_name")}</span>
                         <span className={`text-sm font-black uppercase tracking-widest ${statusState === 'MALWARE' ? 'text-red-500' : statusState === 'EXPLICIT' ? 'text-yellow-400' : 'theme-text-accent'}`}>{matchedMod.name}</span>
                         <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1 uppercase tracking-widest">
-                          {t("verify_panel_version") || "VERSION"}: {matchedMod.version_label || matchedMod.version_number || "UNKNOWN"}
+                          {t("verify_panel_version")}: {matchedMod.version_label || matchedMod.version_number || "UNKNOWN"}
                         </span>
                       </div>
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-inner ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/10' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/10' : 'border-[var(--accent)]/30 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]'}`}>
@@ -326,7 +327,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                         onClick={() => onJumpToArtifact(matchedMod)}
                         className="w-full py-3 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                       >
-                        {t("modal_btn_link") || "LINK"} <span className="text-sm leading-none">&rarr;</span>
+                        {t("modal_btn_link")} <span className="text-sm leading-none">&rarr;</span>
                       </button>
                     )}
                     {isSeniorArchitect && onManualFlag && (
@@ -334,7 +335,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                         onClick={() => onManualFlag(fileHash)}
                         className="w-full py-3 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                       >
-                        {t("sa_btn_manual_threat_flag") || "MANUAL THREAT FLAG"} <span className="text-sm leading-none">&rarr;</span>
+                        {t("sa_btn_manual_threat_flag")} <span className="text-sm leading-none">&rarr;</span>
                       </button>
                     )}
                 </div>
@@ -345,8 +346,8 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                   onClick={() => setShowFlagForm(true)}
                   className="w-full py-4 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
                 >
-                  <span className="material-symbols-outlined !text-sm">{t("ui_icon_report") || "flag"}</span>
-                  {t("verify_panel_flag_btn") || "FLAG ARTIFACT FOR OVERSIGHT REVIEW"}
+                  <span className="material-symbols-outlined !text-sm">{t("ui_icon_report")}</span>
+                  {t("verify_panel_flag_btn")}
                 </button>
               )}
 
@@ -355,8 +356,8 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                     onClick={() => onManualFlag(fileHash)}
                     className="w-full py-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
                   >
-                    <span className="material-symbols-outlined !text-sm">gavel</span>
-                    {t("sa_btn_manual_threat_flag") || "MANUAL THREAT FLAG"} <span className="text-sm leading-none">&rarr;</span>
+                    <span className="material-symbols-outlined !text-sm">{t("auto_gavel")}</span>
+                    {t("sa_btn_manual_threat_flag")} <span className="text-sm leading-none">&rarr;</span>
                   </button>
               )}
 
@@ -365,7 +366,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                   <textarea
                     value={flagReason}
                     onChange={(e) => setFlagReason(e.target.value)}
-                    placeholder={t("verify_panel_flag_reason_ph") || "ENTER REASON FOR OVERSIGHT..."}
+                    placeholder={t("verify_panel_flag_reason_ph")}
                     className="w-full h-24 theme-glass-inner rounded-xl p-4 text-xs focus:outline-none focus:border-red-500/50 resize-none font-medium"
                   />
                   <div className="flex justify-center items-center gap-4 mt-4 w-full">
@@ -379,7 +380,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                       }}
                       className={standardButtonClass}
                     >
-                      {t("ui_btn_cancel") || "CANCEL"}
+                      {t("ui_btn_cancel")}
                     </button>
                     <button 
                       onClick={() => {
@@ -392,8 +393,8 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                       disabled={isSubmitting || !flagReason.trim()}
                       className={standardDangerButtonClass}
                     >
-                      {isSubmitting ? (t("cmd_scanning") || "SCANNING...") : 
-                       (confirmFlag ? (t("verify_panel_flag_confirm") || "CONFIRM SUBMISSION") : (t("verify_panel_flag_submit") || "SUBMIT FLAG"))}
+                      {isSubmitting ? (t("cmd_scanning")) : 
+                       (confirmFlag ? (t("verify_panel_flag_confirm")) : (t("verify_panel_flag_submit")))}
                     </button>
                   </div>
                 </div>
@@ -409,7 +410,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
 
           {sessionHistory.length > 0 && (
             <div className="mt-4 flex flex-col gap-3 animate-in fade-in">
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">SESSION HISTORY</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("auto_session_history")}</span>
               <div className="flex flex-col gap-2">
                 {sessionHistory.map((item, i) => (
                   <div key={i} 
@@ -430,14 +431,14 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                       <span className="text-[9px] font-mono text-[var(--subtext)] truncate max-w-[150px]" title={item.hash}>{item.hash}</span>
                       {item.matchedMod ? (
                         item.matchedMod.compliance_tier === 3 ? (
-                          <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">MALWARE</span>
+                          <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">{t("auto_malware")}</span>
                         ) : item.matchedMod.compliance_tier === 2 ? (
-                          <span className="text-[9px] font-black text-yellow-400 uppercase tracking-widest">EXPLICIT</span>
+                          <span className="text-[9px] font-black text-yellow-400 uppercase tracking-widest">{t("auto_explicit")}</span>
                         ) : (
-                          <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">VERIFIED</span>
+                          <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">{t("auto_verified")}</span>
                         )
                       ) : (
-                        <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">MISMATCH</span>
+                        <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">{t("auto_mismatch")}</span>
                       )}
                     </div>
                   </div>
@@ -473,9 +474,9 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-32 relative">
       <ViewHeader 
-        title={t("hub_title") || "Architect Console"} 
-        subtitle={t("hub_subtitle") || "Registry review, metadata governance, and conflict triage"} 
-        icon={t("ui_icon_analytics") || "analytics"} 
+        title={t("hub_title")} 
+        subtitle={t("hub_subtitle")} 
+        icon={t("ui_icon_analytics")} 
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" 
       >
         <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
@@ -483,25 +484,26 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
             onClick={() => setIsVerifyPanelOpen(true)}
             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
           >
-            <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_verified") || "verified_user"}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest">{t("architect_btn_verify_hash") || "VERIFY HASH"}</span>
+            <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_verified")}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">{t("architect_btn_verify_hash")}</span>
           </button>
         </div>
       </ViewHeader>
 
         <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
           <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner">
-          <HubTabButton id="command_center" icon={t("ui_icon_pc") || "desktop_windows"} label={t("hub_tab_command_screen") || "COMMAND"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="registry" icon={t("ui_icon_inventory") || "inventory_2"} label={t("hub_tab_registry") || "ARTIFACTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-                    <HubTabButton id="cc_sets" icon={t("ui_icon_folder") || "folder"} label={t("hub_tab_cc_sets") || "COLLECTIONS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="protocols" icon={t("ui_icon_link") || "link"} label={t("hub_tab_protocols") || "PROTOCOLS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="structure" icon={t("ui_icon_architecture") || "architecture"} label={t("hub_tab_structure") || "STRUCTURE"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="matrix" icon={t("ui_icon_security") || "security"} label={t("hub_tab_matrix") || "CONFLICTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="queue" icon={t("ui_icon_search") || "search"} label={t("hub_tab_queue") || "SCOUT"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="mason_queue" icon={t("ui_icon_mason") || "construction"} label={t("hub_tab_mason_queue") || "MASON"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="marketplace_reports" icon={t("ui_icon_report") || "flag"} label={t("hub_tab_marketplace_reports") || "REPORTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="support_tickets" icon={t("ui_icon_local_activity") || "local_activity"} label={(t("hub_tab_support_tickets") || "SUPPORT").replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="lab" icon={t("ui_icon_diagnostics") || "monitor_heart"} label={t("hub_tab_diagnostics") || "DIAGNOSTICS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="command_center" icon={t("ui_icon_pc")} label={t("hub_tab_command_screen") || "COMMAND"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="registry" icon={t("ui_icon_inventory")} label={t("hub_tab_registry") || "ARTIFACTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+                    <HubTabButton id="cc_sets" icon={t("ui_icon_folder")} label={t("hub_tab_cc_sets") || "COLLECTIONS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="protocols" icon={t("ui_icon_link")} label={t("hub_tab_protocols") || "PROTOCOLS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="structure" icon={t("ui_icon_architecture")} label={t("hub_tab_structure") || "STRUCTURE"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="matrix" icon={t("ui_icon_security")} label={t("hub_tab_matrix") || "CONFLICTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="queue" icon={t("ui_icon_search")} label={t("hub_tab_queue") || "SCOUT"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="mason_queue" icon={t("ui_icon_mason")} label={t("hub_tab_mason_queue") || "MASON"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="template_oversight" icon={t("ui_icon_data_object") || "data_object"} label={t("hub_tab_templates") || "TEMPLATES"} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="marketplace_reports" icon={t("ui_icon_report")} label={t("hub_tab_marketplace_reports") || "REPORTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="support_tickets" icon={t("ui_icon_local_activity")} label={(t("hub_tab_support_tickets")).replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="lab" icon={t("ui_icon_diagnostics")} label={t("hub_tab_diagnostics") || "DIAGNOSTICS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
           </div>
         </div>
 
@@ -521,6 +523,7 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         {activeTab === "structure" && <StructureVisualizer isArchitect={true} />}
         {activeTab === "queue" && <ScoutQueue modList={modList || []} setStatus={setStatus} />}
         {activeTab === "mason_queue" && <MasonQueue modList={modList || []} setStatus={setStatus} />}
+        {activeTab === "template_oversight" && <ArchitectTemplateOversight />}
         {activeTab === "marketplace_reports" && <MarketplaceReportsViewer onOpenDossier={onOpenDossier} />}
           {activeTab === "support_tickets" && <ArchitectSupportTickets setStatus={setStatus} onOpenDNA={(hash) => {
              setInspectMod(hash as any);
@@ -687,18 +690,18 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any)
     <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32 mt-8">
       {/* Stat Tiles */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full">
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_search") || "search"}</span>} number={stats.scoutQueue} label="SCOUT QUEUE" colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => onNavigate("queue")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_handyman") || "handyman"}</span>} number={stats.masonQueue} label="MASON QUEUE" colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => onNavigate("mason_queue")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_report") || "flag"}</span>} number={stats.marketplaceReports} label="REPORTS QUEUE" colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => onNavigate("marketplace_reports")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity") || "local_activity"}</span>} number={stats.supportTickets} label="SUPPORT QUEUE" colorClass="border-indigo-500/30 text-indigo-500 hover:border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20" onClick={() => onNavigate("support_tickets")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_nsfw") || "18_up_rating"}</span>} number={stats.nsfw} label="NSFW REPORTS" colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => onNavigate('registry', 'nsfw')} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_explicit") || "block"}</span>} number={stats.explicit} label="EXPLICIT REPORTS" colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => onNavigate('registry', 'explicit')} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_search")}</span>} number={stats.scoutQueue} label={t("auto_scout_queue")} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => onNavigate("queue")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_handyman")}</span>} number={stats.masonQueue} label={t("auto_mason_queue")} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => onNavigate("mason_queue")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_report")}</span>} number={stats.marketplaceReports} label={t("auto_reports_queue")} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => onNavigate("marketplace_reports")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity")}</span>} number={stats.supportTickets} label={t("auto_support_queue")} colorClass="border-indigo-500/30 text-indigo-500 hover:border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20" onClick={() => onNavigate("support_tickets")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_nsfw")}</span>} number={stats.nsfw} label={t("auto_nsfw_reports")} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => onNavigate('registry', 'nsfw')} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_explicit")}</span>} number={stats.explicit} label={t("auto_explicit_reports")} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => onNavigate('registry', 'explicit')} />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8 w-full">
         {/* Left Column - Wayfinder Comms */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wayfinder_comms") || "Latest Dispatch"}</h2>
+          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wayfinder_comms")}</h2>
           
           <div className="flex flex-col gap-8 w-full">
              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
@@ -712,52 +715,52 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any)
                         {extractPostImage(post) ? (
                             <img src={extractPostImage(post)} className="w-full h-full object-cover opacity-60 mix-blend-luminosity group-hover:scale-105 transition-transform duration-1000" />
                         ) : (
-                        <span className="material-symbols-outlined !text-6xl grayscale opacity-30 drop-shadow-lg group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 group-hover:grayscale-0 relative z-10">{t("ui_icon_satellite") || "satellite_alt"}</span>
+                        <span className="material-symbols-outlined !text-6xl grayscale opacity-30 drop-shadow-lg group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 group-hover:grayscale-0 relative z-10">{t("ui_icon_satellite")}</span>
                         )}
                      </div>
                    )}
                    <div className="flex-1 p-8 flex flex-col min-w-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--bg)_40%,transparent)] to-transparent relative z-10">
                       <div className="flex items-center gap-2 mb-4 shrink-0 flex-wrap">
                         <span className="px-3 py-1 bg-[var(--accent)]/20 text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg">{post.category || t("wayfinder_update") || "UPDATE"}</span>
-                        <span className="px-3 py-1 theme-glass-inner text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg">{t("wayfinder_system") || "SYSTEM"}</span>
+                        <span className="px-3 py-1 theme-glass-inner text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg">{t("wayfinder_system")}</span>
                       </div>
                       <h3 className="text-xl font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors mb-4 leading-normal line-clamp-2">{post.title}</h3>
                       {isFeatured && <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 mb-6 line-clamp-3">{stripMarkdown(post.message)}</p>}
                       <div className="mt-auto flex items-center justify-between pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
-                         <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("ui_icon_calendar_today") || "calendar_today"}</span> {new Date(post.created_at).toLocaleDateString()}</span>
-                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more") || "READ MORE"} <span className="material-symbols-outlined !text-lg">{t("arrow_forward") || "arrow_forward"}</span></span>
+                         <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("ui_icon_calendar_today")}</span> {new Date(post.created_at).toLocaleDateString()}</span>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more")} <span className="material-symbols-outlined !text-lg">{t("arrow_forward")}</span></span>
                        </div>
                     </div>
                  </div>
                  );
                }) : (
                  <div className="w-full xl:col-span-2 theme-glass-panel rounded-[2rem] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                   {t("system_no_broadcasts") || "No Recent Broadcasts"}
+                   {t("system_no_broadcasts")}
                  </div>
                )}
              </div>
 
-             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("hub_metrics") || "HUB METRICS"}</h2>
+             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("hub_metrics")}</h2>
              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-orange-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-orange-500">{stats.totalArtifacts}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_total_artifacts") || "ARTIFACTS"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_total_artifacts")}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-blue-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-blue-500">{stats.unverifiedMods}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_unverified") || "UNVERIFIED"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_unverified")}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-red-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-red-500">{stats.tier4Conflicts}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_tier4") || "Collision Severity 4"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_tier4")}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-orange-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-orange-500">{stats.tier3Conflicts}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_tier3") || "Collision Severity 3"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_tier3")}</span>
                 </div>
                 <div className="theme-glass-panel border border-white/5 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 hover:border-blue-500/30 transition-all text-center h-32">
                    <span className="text-3xl font-black text-blue-500">{stats.labQueue}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_lab_queue") || "LAB QUEUE"}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{t("hub_stat_lab_queue")}</span>
                 </div>
              </div>
           </div>
@@ -765,17 +768,17 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any)
         
         {/* Right Column - Quick Links */}
         <div className="w-[380px] shrink-0 flex flex-col">
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6">{t("hub_quick_links") || "QUICK LINKS"}</h2>
+          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6">{t("hub_quick_links")}</h2>
           <div className="flex flex-col gap-4">
              <button onClick={() => onNavigate("protocols")} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[1.5rem] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                <div className="flex items-center gap-5 h-full">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
-                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_link") || "link"}</span>
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_link")}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_protocol") || "PROTOCOL ORCHESTRATOR"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-blue-400 opacity-80 group-hover:text-blue-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]"></span> {t("hub_ql_global_rules") || "GLOBAL RULES"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_protocol")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-blue-400 opacity-80 group-hover:text-blue-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]"></span> {t("hub_ql_global_rules")}</span>
                  </div>
                </div>
              </button>
@@ -784,11 +787,11 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any)
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                <div className="flex items-center gap-5 h-full">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
-                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_architecture") || "architecture"}</span>
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_architecture")}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("structure_title") || "Structure Matrix"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-amber-400 opacity-80 group-hover:text-amber-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> {t("hub_ql_asset_org") || "ASSET ORGANIZATION"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("structure_title")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-amber-400 opacity-80 group-hover:text-amber-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span> {t("hub_ql_asset_org")}</span>
                  </div>
                </div>
              </button>
@@ -797,11 +800,11 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any)
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                <div className="flex items-center gap-5 h-full">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
-                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_security") || "security"}</span>
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_security")}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_conflict") || "CONFLICT MATRIX"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-rose-400 opacity-80 group-hover:text-rose-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.8)]"></span> {t("hub_ql_logical_issues") || "LOGICAL ISSUES"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_conflict")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-rose-400 opacity-80 group-hover:text-rose-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.8)]"></span> {t("hub_ql_logical_issues")}</span>
                  </div>
                </div>
              </button>
@@ -810,11 +813,11 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any)
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                <div className="flex items-center gap-5 h-full">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
-                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_diagnostics") || "monitor_heart"}</span>
+                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_diagnostics")}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_homestead") || "HOMESTEAD DIAGNOSTICS"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-emerald-400 opacity-80 group-hover:text-emerald-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> {t("hub_ql_system_health") || "SYSTEM HEALTH"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_homestead")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-emerald-400 opacity-80 group-hover:text-emerald-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> {t("hub_ql_system_health")}</span>
                  </div>
                </div>
              </button>
@@ -823,11 +826,11 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any)
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                <div className="flex items-center gap-5 h-full">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
-                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_local_activity") || "local_activity"}</span>
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_local_activity")}</span>
                  </div>
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_support") || "SUPPORT QUEUE"}</h3>
-                   <span className="text-[8px] uppercase font-bold text-indigo-400 opacity-80 group-hover:text-indigo-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]"></span> {t("hub_ql_help_requests") || "HELP REQUESTS"}</span>
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_support")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-indigo-400 opacity-80 group-hover:text-indigo-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]"></span> {t("hub_ql_help_requests")}</span>
                  </div>
                </div>
              </button>
@@ -978,14 +981,14 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
 
       if (!error) {
         logArchitectAction(`Updated Mod Metadata`, `mods`, activeMod.name);
-        if (setStatus) setStatus(`${t("ui_icon_success")} [${activeMod.name}] ${t("alert_saved") || "Saved successfully!"}`);
+        if (setStatus) setStatus(`${t("ui_icon_success")} [${activeMod.name}] ${t("alert_saved")}`);
         setPage(0);
         fetchData(true);
       } else {
-        if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("alert_error") || "Error saving:"} ${t(error.message)}`);
+        if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("alert_error")} ${t(error.message)}`);
       }
     } catch (err: any) {
-      if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("alert_error") || "Error saving:"} ${t(err.message)}`);
+      if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("alert_error")} ${t(err.message)}`);
     }
     setIsCommitting(false);
   };
@@ -996,23 +999,23 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
         <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
           <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_inventory") || "inventory_2"}</span>
+              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_inventory")}</span>
             </div>
-            <span className="truncate">{t("hub_tab_registry") || "ARTIFACTS"}</span>
+            <span className="truncate">{t("hub_tab_registry")}</span>
           </h2>
           
           <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search") || "search"}</span>
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search")}</span>
             <input 
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
-              placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
+              placeholder={t("hub_search_queue")} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                <span className="material-symbols-outlined text-sm">{t("ui_icon_close") || "close"}</span>
+                <span className="material-symbols-outlined text-sm">{t("ui_icon_close")}</span>
               </button>
             )}
           </div>
@@ -1022,12 +1025,12 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
               value={activeCategory}
               onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
               options={[
-                { id: "ALL", label: t("vault_cat_all") || "ALL" },
-                { id: "CAS", label: t("vault_cat_cas") || "CAS" },
-                { id: "BuildBuy", label: t("vault_cat_buildbuy") || "BuildBuy" },
-                { id: "Script", label: t("vault_cat_script") || "Script" },
-                { id: "Animation", label: t("vault_cat_animation") || "Animation" },
-                { id: "Core", label: t("vault_cat_core") || "CORE" }
+                { id: "ALL", label: t("vault_cat_all") },
+                { id: "CAS", label: t("vault_cat_cas") },
+                { id: "BuildBuy", label: t("vault_cat_buildbuy") },
+                { id: "Script", label: t("vault_cat_script") },
+                { id: "Animation", label: t("vault_cat_animation") },
+                { id: "Core", label: t("vault_cat_core") }
               ]}
             />
           </div>
@@ -1038,10 +1041,10 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
                 value={activeSubType}
                 onChange={(val: string[]) => setActiveSubType(val[0])}
                 options={[
-                  { id: "ALL", label: t("vault_sub_all") || "ALL" },
-                  { id: "Tattoo", label: t("vault_sub_tattoo") || "Tattoo" },
-                  { id: "Hair", label: t("vault_sub_hair") || "Hair" },
-                  { id: "Clothing", label: t("vault_sub_clothing") || "Clothing" }
+                  { id: "ALL", label: t("vault_sub_all") },
+                  { id: "Tattoo", label: t("vault_sub_tattoo") },
+                  { id: "Hair", label: t("vault_sub_hair") },
+                  { id: "Clothing", label: t("vault_sub_clothing") }
                 ]}
               />
             </div>
@@ -1073,9 +1076,9 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
               className="px-8 py-3 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5 hover:border-[var(--accent)]/50 transition-all font-black text-[10px] uppercase tracking-widest text-[var(--text)] flex items-center gap-2"
             >
               {isLoading ? (
-                <><span className="material-symbols-outlined animate-spin !text-[16px]">sync</span> {t("ui_btn_loading") || "LOADING..."}</>
+                <><span className="material-symbols-outlined animate-spin !text-[16px]">{t("auto_sync")}</span> {t("ui_btn_loading")}</>
               ) : (
-                <><span className="material-symbols-outlined !text-[16px]">expand_more</span> {t("ui_btn_load_more") || "LOAD MORE"}</>
+                <><span className="material-symbols-outlined !text-[16px]">{t("auto_expand_more")}</span> {t("ui_btn_load_more")}</>
               )}
             </button>
           </div>
@@ -1087,16 +1090,16 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
         isOpen={!!activeMod}
         onClose={() => setActiveMod(null)}
         widthClass="w-[600px]"
-        title={t("ui_edit_metadata") || "EDIT METADATA"}
+        title={t("ui_edit_metadata")}
         subtitle={`UUID: ${activeMod?.id}`}
-        icon={t("ui_icon_inventory") || "inventory_2"}
+        icon={t("ui_icon_inventory")}
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
             <button onClick={() => setActiveMod(null)} disabled={isCommitting} className={standardButtonClass}>
-              {t("shared_cancel") || "CANCEL"}
+              {t("shared_cancel")}
             </button>
             <button onClick={handleCommitChanges} disabled={isCommitting} className={standardAccentGlassButtonClass}>
-              {isCommitting ? (t("registry_committing") || "COMMITTING...") : (t("registry_commit_changes") || "Commit Changes")}
+              {isCommitting ? (t("registry_committing")) : (t("registry_commit_changes"))}
             </button>
           </div>
         }
@@ -1106,18 +1109,18 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
             <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mb-2">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
               <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info") || "info"}</span>
-                {t("registry_meta") || "Metadata"}
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info")}</span>
+                {t("registry_meta")}
               </h4>
               
               <div className="flex flex-col gap-2 relative z-10">
-                <input value={activeMod?.name || ""} onChange={e => setActiveMod({...activeMod, name: e.target.value})} placeholder={t("registry_label_name") || "Artifact Name"} className="bg-transparent text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full" />
+                <input value={activeMod?.name || ""} onChange={e => setActiveMod({...activeMod, name: e.target.value})} placeholder={t("registry_label_name")} className="bg-transparent text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full" />
               </div>
             </div>
 
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason") || "MASON ENTITY (AUTHOR)"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason")}</label>
                   <div className="flex gap-2 relative">
                     <div className="flex-1 min-w-0">
                       <CustomMasonDropdown 
@@ -1134,67 +1137,67 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class") || "Category"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
                   <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(newType: string) => setActiveMod({...activeMod, category_override: newType})} />
                 </div>
                 
                 <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "File Extension"}</label>
-                    <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="e.g. .package, .ts4script" />
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext")}</label>
+                    <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_package_ts4script")} />
                 </div>
                 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat") || "SUB-CATEGORY"}</label>
-                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="e.g. Tuning, Object, CAS" />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
+                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_object_cas")} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-2 mt-4">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "Description"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc")}</label>
                   <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
               </div>
 
               <div className="flex flex-col gap-2 mt-4">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image") || "Cover Image URL"}</label>
-                <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="https://..." />
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image")}</label>
+                <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
-                    {t("registry_label_version") || "Master Version (Latest)"} 
+                    {t("registry_label_version")} 
                   </label>
-                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder="e.g. 1.0, 1.1, 1.2" className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
+                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("auto_e_g_1_0_1_1_1_2")} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
-                  <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder="https://..." />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                  <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status") || "Global Status"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status")}</label>
                   <CustomStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({...activeMod, status: newStatus})} />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "SAFETY RATING"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
                   <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({...activeMod, compliance_tier: newTier})} includeTier3={false} />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_uploaded_date") || "UPLOADED DATE"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_uploaded_date")}</label>
                   <div className="w-full">
                     <CustomDatePicker value={activeMod.created_at || null} onChange={(date: any) => setActiveMod({...activeMod, created_at: date})} />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_updated_date") || "LAST UPDATED"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_updated_date")}</label>
                   <div className="w-full">
                     <CustomDatePicker value={activeMod.updated_at || null} onChange={(date: any) => setActiveMod({...activeMod, updated_at: date})} />
                   </div>
@@ -1202,7 +1205,7 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
               </div>
 
               <div className="flex flex-col gap-2 mt-4 pb-25">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions") || "GAME VERSIONS"}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions")}</label>
                 <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({...activeMod, compatible_versions: v})} />
               </div>
           </div>
@@ -1212,23 +1215,23 @@ function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSear
       <SidePanel
         isOpen={isMasonPanelOpen}
         onClose={() => setIsMasonPanelOpen(false)}
-        title={t("mason_create_title") || "New Mason"}
+        title={t("mason_create_title")}
         icon="person_add"
         widthClass="w-[450px]"
         footer={
           <div className="flex justify-end gap-4 w-full">
             <button onClick={() => setIsMasonPanelOpen(false)} className={standardButtonClass}>
-              {t("shared_cancel") || "CANCEL"}
+              {t("shared_cancel")}
             </button>
             <button onClick={handleCreateMason} className={standardAccentGlassButtonClass}>
-              {t("mason_create_btn_create") || "CREATE UUID"}
+              {t("mason_create_btn_create")}
             </button>
           </div>
         }
       >
         <div className="p-6">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name") || "MASON NAME"}</label>
-          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name") || "Enter mason name..."} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name")}</label>
+          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name")} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
       </SidePanel>
     </>
@@ -1345,9 +1348,9 @@ function CCSetForge({ setStatus }: any) {
     if (!error) {
       logArchitectAction("Updated CC Set Metadata", "cc_sets", activeSet.name);
       await fetchSets();
-      if (setStatus) setStatus(`${t("ui_icon_success")} [${activeSet.name}] ${t("alert_saved") || "Saved successfully!"}`);
+      if (setStatus) setStatus(`${t("ui_icon_success")} [${activeSet.name}] ${t("alert_saved")}`);
     } else {
-      if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("alert_error") || "Error saving:"} ${t(error.message)}`);
+      if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("alert_error")} ${t(error.message)}`);
     }
     setTimeout(() => setIsSaving(false), 500);
   };
@@ -1404,17 +1407,17 @@ function CCSetForge({ setStatus }: any) {
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_collections_card") || "collections_bookmark"}</span>
+            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_collections_card")}</span>
           </div>
-          <span className="truncate">{t("hub_tab_cc_sets") || "COLLECTIONS"}</span>
+          <span className="truncate">{t("hub_tab_cc_sets")}</span>
         </h2>
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search") || "search"}</span>
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search")}</span>
             <input 
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
-              placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
+              placeholder={t("hub_search_queue")} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
@@ -1422,14 +1425,14 @@ function CCSetForge({ setStatus }: any) {
              <CustomDropdown disableTint={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{id: "ALL", label: "ALL TIERS"}, {id: "0", label: "TIER 0"}, {id: "1", label: "TIER 1"}, {id: "2", label: "TIER 2"}]} />
           </div>
           <button onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add") || "add"}</span> {t("forge_new_set") || "New Collection"}
+            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("ui_icon_add")}</span> {t("forge_new_set")}
           </button>
         </div>
       </div>
       
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 content-start pr-2">
-          {filteredSets.length === 0 && <div className="p-4 col-span-full text-center text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("mason_cc_no_sets") || "No Collections Found"}</div>}
+          {filteredSets.length === 0 && <div className="p-4 col-span-full text-center text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("mason_cc_no_sets")}</div>}
           {filteredSets.map(setItem => (
               <CollectionCard 
                 key={setItem.id} 
@@ -1445,46 +1448,46 @@ function CCSetForge({ setStatus }: any) {
       <SidePanel
         isOpen={isForgePanelOpen}
         onClose={() => setIsForgePanelOpen(false)}
-        title={t("forge_new_set") || "New Collection"}
-        subtitle={t("mason_create_subtitle") || "Master Registry Insertion"}
+        title={t("forge_new_set")}
+        subtitle={t("mason_create_subtitle")}
         icon="add_circle"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
             <button type="button" onClick={() => setIsForgePanelOpen(false)} className={standardButtonClass}>
-              {t("shared_cancel") || "CANCEL"}
+              {t("shared_cancel")}
             </button>
             <button type="button" onClick={createSet} disabled={!setName.trim()} className={standardAccentGlassButtonClass}>
-              {t("forge_init_set") || "INITIALIZE COLLECTION"}
+              {t("forge_init_set")}
             </button>
           </div>
         }
       >
         <div className="flex flex-col h-full gap-8">
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name") || "Collection Name..."}</label>
-            <input value={setName} onChange={e => setSetName(e.target.value)} placeholder={t("forge_set_name") || "Collection Name..."} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name")}</label>
+            <input value={setName} onChange={e => setSetName(e.target.value)} placeholder={t("forge_set_name")} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
           </div>
           
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_mason") || "MASON / CREATOR"}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_mason")}</label>
             <div className="flex gap-2">
               <div className="flex-1">
                 <CustomMasonDropdown value={setMasonId} options={masonsList} onChange={setSetMasonId} />
               </div>
               <button onClick={() => setIsMasonPanelOpen(true)} className="bg-white/10 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">person_add</span>
+                <span className="material-symbols-outlined text-[18px]">{t("auto_person_add")}</span>
               </button>
             </div>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "SAFETY RATING"}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
             <CustomComplianceDropdown value={setTier} onChange={setSetTier} includeTier3={false} />
           </div>
 
           <div className="flex flex-col gap-2">
-             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
-             <input value={setSetUrl} onChange={e => setSetSetUrl(e.target.value)} placeholder="https://..." className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold opacity-80 focus:opacity-100 focus:outline-none focus:theme-border-accent transition-all" />
+             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+             <input value={setSetUrl} onChange={e => setSetSetUrl(e.target.value)} placeholder={t("auto_https")} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold opacity-80 focus:opacity-100 focus:outline-none focus:theme-border-accent transition-all" />
           </div>
         </div>
       </SidePanel>
@@ -1492,16 +1495,16 @@ function CCSetForge({ setStatus }: any) {
       <SidePanel
         isOpen={!!activeSet}
         onClose={() => setActiveSet(null)}
-        title={t("masonhub_manage_collection") || "Manage Collection"}
+        title={t("masonhub_manage_collection")}
         subtitle={`UUID: ${activeSet?.id}`}
         icon="library_books"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
             <button type="button" onDoubleClick={handleDeleteSet} disabled={isSaving} className={`${standardDangerButtonClass}`}>
-              <span>{t("mason_cc_btn_delete_set") || "DELETE SET"}</span>
+              <span>{t("mason_cc_btn_delete_set")}</span>
             </button>
             <button type="button" onClick={saveSetMeta} disabled={isSaving} className={standardAccentGlassButtonClass}>
-              {isSaving ? (t("ui_btn_loading") || "LOADING...") : (t("mason_cc_save_set") || "Save Collection")}
+              {isSaving ? (t("ui_btn_loading")) : (t("mason_cc_save_set"))}
             </button>
           </div>
         }
@@ -1511,14 +1514,14 @@ function CCSetForge({ setStatus }: any) {
             <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
               <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info") || "info"}</span>
-                {t("registry_meta") || "Metadata"}
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_info")}</span>
+                {t("registry_meta")}
               </h4>
               <div className="flex flex-col gap-2 relative z-10">
                 <input 
                   value={activeSet.name || ""} 
                   onChange={e => setActiveSet({...activeSet, name: e.target.value})} 
-                  placeholder={t("forge_set_name") || "Collection Name..."}
+                  placeholder={t("forge_set_name")}
                   className="bg-transparent text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full"
                 />
               </div>
@@ -1527,42 +1530,42 @@ function CCSetForge({ setStatus }: any) {
 
                 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_mason") || "MASON / CREATOR"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_mason")}</label>
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <CustomMasonDropdown value={activeSet.mason_id || ""} options={masonsList} onChange={(val: string) => setActiveSet({...activeSet, mason_id: val})} />
                     </div>
                     <button onClick={() => setIsMasonPanelOpen(true)} className="bg-white/10 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[18px]">person_add</span>
+                      <span className="material-symbols-outlined text-[18px]">{t("auto_person_add")}</span>
                     </button>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety") || "SAFETY RATING"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
                   <CustomComplianceDropdown value={activeSet.compliance_tier || 0} onChange={(val: number) => setActiveSet({...activeSet, compliance_tier: val})} includeTier3={false} />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_cc_cover_url") || "Cover Image URL"}</label>
-                  <input value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} placeholder={t("mason_cc_cover_url") || "Cover Image URL"} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_cc_cover_url")}</label>
+                  <input value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} placeholder={t("mason_cc_cover_url")} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
                 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
-                  <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("dossier_external_url_placeholder") || "External URL..."} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                  <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("dossier_external_url_placeholder")} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
               </div>
 
               <div className="h-[1px] bg-white/5 my-2 w-full" />
 
               <div className="flex flex-col gap-4 pb-12">
-                <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title") || "Set Contents"}</h4>
+                <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title")}</h4>
                 
                 <div className="flex flex-col gap-2 bg-black/10 p-4 rounded-2xl border border-white/5 relative z-[6000]">
                   <div className="flex items-center gap-3">
-                     <span className={isSearching ? "animate-spin theme-text-accent material-symbols-outlined" : "theme-text-accent material-symbols-outlined"}>{t("registry_icon_search") || "search"}</span>
-                     <input value={assetSearch} onChange={e => setAssetSearch(e.target.value)} placeholder={t("forge_search_assets") || "Search Assets to add..."} className="w-full bg-transparent border-none outline-none text-[var(--text)] text-sm font-bold placeholder:opacity-40" />
+                     <span className={isSearching ? "animate-spin theme-text-accent material-symbols-outlined" : "theme-text-accent material-symbols-outlined"}>{t("registry_icon_search")}</span>
+                     <input value={assetSearch} onChange={e => setAssetSearch(e.target.value)} placeholder={t("forge_search_assets")} className="w-full bg-transparent border-none outline-none text-[var(--text)] text-sm font-bold placeholder:opacity-40" />
                   </div>
                   
                   {assetSearch.length >= 2 && availableAssets.length > 0 && (
@@ -1573,7 +1576,7 @@ function CCSetForge({ setStatus }: any) {
                             <span className="text-[10px] font-black text-[var(--text)] uppercase truncate">{asset.name}</span>
                             <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate">{asset.masons?.name || asset.master_author || "UNKNOWN"}</span>
                           </div>
-                          <span className="text-[9px] font-bold theme-text-accent opacity-0 group-hover:opacity-100 uppercase transition-all">{t("mason_cc_btn_add") || "ADD"}</span>
+                          <span className="text-[9px] font-bold theme-text-accent opacity-0 group-hover:opacity-100 uppercase transition-all">{t("mason_cc_btn_add")}</span>
                         </button>
                       ))}
                     </div>
@@ -1582,7 +1585,7 @@ function CCSetForge({ setStatus }: any) {
 
                 <div className="flex flex-col gap-4 mt-2">
                     <div className="flex items-center justify-between px-2">
-                    <span className="text-[9px] uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("mason_cc_in_set") || "Items in Set"}</span>
+                    <span className="text-[9px] uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("mason_cc_in_set")}</span>
                     <span className="theme-text-accent font-black text-xs">{manifestMembers.length}</span>
                     </div>
                     
@@ -1601,8 +1604,8 @@ function CCSetForge({ setStatus }: any) {
                   
                   {manifestMembers.length === 0 && (
                     <div className="w-full h-32 flex flex-col items-center justify-center opacity-40">
-                      <span className="text-3xl mb-2 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_flask") || "science"}</span></span>
-                      <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t("hub_no_mods_found") || "QUEUE CLEAR / NO ASSETS FOUND"}</span>
+                      <span className="text-3xl mb-2 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_flask")}</span></span>
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t("hub_no_mods_found")}</span>
                     </div>
                   )}
                 </div>
@@ -1614,23 +1617,23 @@ function CCSetForge({ setStatus }: any) {
       <SidePanel
         isOpen={isMasonPanelOpen}
         onClose={() => setIsMasonPanelOpen(false)}
-        title={t("mason_create_title") || "New Mason"}
+        title={t("mason_create_title")}
         icon="person_add"
         widthClass="w-[450px]"
         footer={
           <div className="flex justify-end gap-4 w-full">
             <button onClick={() => setIsMasonPanelOpen(false)} className={standardButtonClass}>
-              {t("shared_cancel") || "CANCEL"}
+              {t("shared_cancel")}
             </button>
             <button onClick={handleCreateMason} className={standardAccentGlassButtonClass}>
-              {t("mason_create_btn_create") || "CREATE UUID"}
+              {t("mason_create_btn_create")}
             </button>
           </div>
         }
       >
         <div className="p-6">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name") || "MASON NAME"}</label>
-          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name") || "Enter mason name..."} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name")}</label>
+          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name")} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
       </SidePanel>
 
@@ -1825,40 +1828,39 @@ function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
         <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
           <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_search") || "search"}</span>
+              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_search")}</span>
             </div>
-            <span className="truncate">{t("hub_scout_queue") || "SCOUT QUEUE"}</span>
+            <span className="truncate">{t("hub_scout_queue")}</span>
           </h2>
           <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
-            <div className="flex items-center gap-1 theme-glass-panel rounded-xl p-1 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex mr-4">
-              <button onClick={() => setFilterTab('pending')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_pending") || "PENDING"}</button>
-              <button onClick={() => setFilterTab('completed')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_completed") || "COMPLETED"}</button>
-            </div>
             <div className="relative flex-1 max-w-[300px]">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">search</span>
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("auto_search")}</span>
               <input 
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
-                placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
+                placeholder={t("hub_search_queue")} 
                 className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
               />
+            </div>            <div className="flex items-center gap-1 theme-glass-panel rounded-xl p-1 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex mr-4">
+              <button onClick={() => setFilterTab('pending')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_pending")}</button>
+              <button onClick={() => setFilterTab('completed')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_completed")}</button>
             </div>
           </div>
         </div>
   
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
           {loading ? (
-              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("scout_intercepting") || "Intercepting Transmissions..."}</div>
+              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("scout_intercepting")}</div>
           ) : filteredSubmissions.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center opacity-30">
-                <span className="text-6xl mb-4 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_museum") || "account_balance"}</span></span>
-                <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">{t("hub_no_pending_submissions") || "No Pending Submissions"}</span>
+                <span className="text-6xl mb-4 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_museum")}</span></span>
+                <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">{t("hub_no_pending_submissions")}</span>
               </div>
           ) : (
               <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                 {filteredSubmissions.slice(0, visibleCount).map((mod: any) => (
-                    <ArtifactCard key={mod.id} mod={{ ...mod, name: mod.suggested_name, category_override: mod.suggested_type || "Scout Suggestion" }} onClick={() => setActiveScout(mod)} masonsList={masonsList} overrideActionLabel={t("mason_bug_inspect_report") || "View"} />
+                    <ArtifactCard key={mod.id} mod={{ ...mod, name: mod.suggested_name, category_override: mod.suggested_type || "Scout Suggestion" }} onClick={() => setActiveScout(mod)} masonsList={masonsList} overrideActionLabel={t("mason_bug_inspect_report")} />
                 ))}
                 </div>
                 {filteredSubmissions.length > visibleCount && (
@@ -1866,7 +1868,7 @@ function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
                     onClick={() => setVisibleCount(v => v + 100)}
                     className="w-full py-4 mt-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] font-black uppercase tracking-widest transition-all"
                   >
-                    {t("ui_btn_load_more") || "LOAD MORE"} ({visibleCount} / {filteredSubmissions.length})
+                    {t("ui_btn_load_more")} ({visibleCount} / {filteredSubmissions.length})
                   </button>
                 )}
               </div>
@@ -1876,16 +1878,16 @@ function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
         <SidePanel
           isOpen={!!activeScout}
           onClose={() => setActiveScout(null)}
-          title={t("scout_reviewing") || "Scout Queue"}
-            icon={t("ui_icon_search") || "search"}
+          title={t("scout_reviewing")}
+            icon={t("ui_icon_search")}
           subtitle={`HASH: ${activeScout?.dna_hash}`}
           actions={
             <>
               <button onClick={() => handleAction('rejected')} disabled={isProcessing} className={standardDangerButtonClass}>
-                {t("scout_discard") || "Discard"}
+                {t("scout_discard")}
               </button>
               <button onClick={() => handleAction('approved')} disabled={isProcessing} className={standardSuccessButtonClass}>
-                {isProcessing ? t("mason_saving") || "SAVING..." : t("scout_approve") || "Approve & Bind"}
+                {isProcessing ? t("mason_saving") : t("scout_approve")}
               </button>
             </>
           }
@@ -1898,18 +1900,18 @@ function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
                   
                   <div className="flex flex-col gap-2 relative z-10">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-2">
-                      <span className="material-symbols-outlined !text-[14px]">account_tree</span>
-                      {t("scout_label_lineage") || "LINK TO LINEAGE (OPTIONAL)"}
+                      <span className="material-symbols-outlined !text-[14px]">{t("auto_account_tree")}</span>
+                      {t("scout_label_lineage")}
                     </label>
                     <ModSearchDropdown 
                       modList={cloudModsList || []} 
                       onSelect={(m: any) => setLineageId(m.id)} 
                       selectedItem={cloudModsList?.find((m: any) => m.id === lineageId)} 
                       onClear={() => setLineageId("")}
-                      placeholder={t("scout_ph_link_lineage") || "Search to link with existing Mod Lineage..."}
+                      placeholder={t("scout_ph_link_lineage")}
                     />
                     <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 mt-1 ml-2">
-                      {t("scout_label_lineage_desc") || "Linking will append this signature to the existing Mod rather than creating a new one."}
+                      {t("scout_label_lineage_desc")}
                     </p>
                   </div>
                 </div>
@@ -1917,18 +1919,18 @@ function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
                 <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                    <span className="material-symbols-outlined !text-[14px]">info</span>
-                    {t("mason_bug_inspect_report") || "View"}
+                    <span className="material-symbols-outlined !text-[14px]">{t("auto_info")}</span>
+                    {t("mason_bug_inspect_report")}
                   </h4>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_label_modname") || "Mod Name"}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_label_modname")}</label>
                       <input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" />
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason") || "MASON ENTITY (AUTHOR)"}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason")}</label>
                       <div className="flex gap-2 relative">
                         <div className="flex-1 min-w-0">
                           <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id: string) => setEditForm({...editForm, mason_id: id})} />
@@ -1942,17 +1944,17 @@ function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
     
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class") || "Category"}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
                       <CustomClassificationDropdown value={editForm.category_override} onChange={(newType: string) => setEditForm({...editForm, category_override: newType})} />
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "File Extension"}</label>
-                        <input value={editForm.file_extension} onChange={e => setEditForm({...editForm, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder="e.g. .package, .ts4script" />
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext")}</label>
+                        <input value={editForm.file_extension} onChange={e => setEditForm({...editForm, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("auto_e_g_package_ts4script")} />
                       </div>
                       <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat") || "SUB-CATEGORY"}</label>
-                      <input value={editForm.sub_type} onChange={e => setEditForm({...editForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder="e.g. Tuning, Object, CAS" />
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
+                      <input value={editForm.sub_type} onChange={e => setEditForm({...editForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("auto_e_g_tuning_object_cas")} />
                     </div>
                   </div>
                 </div>
@@ -1960,22 +1962,22 @@ function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
                 <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                    <span className="material-symbols-outlined !text-[14px]">link</span>
-                    {t("hub_label_resources") || "Resources"}
+                    <span className="material-symbols-outlined !text-[14px]">{t("auto_link")}</span>
+                    {t("hub_label_resources")}
                   </h4>
 
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
                     <input value={editForm.url || ""} onChange={e => setEditForm({...editForm, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image") || "Cover Image URL"}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image")}</label>
                     <input value={editForm.image_url || ""} onChange={e => setEditForm({...editForm, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "Description"}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc")}</label>
                     <textarea value={editForm.description || ""} onChange={e => setEditForm({...editForm, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-28 resize-none focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
                 </div>
@@ -1983,26 +1985,26 @@ function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
                 <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                    <span className="material-symbols-outlined !text-[14px]">verified</span>
-                    {t("masonhub_compliance_tier") || "COMPLIANCE TIER"}
+                    <span className="material-symbols-outlined !text-[14px]">{t("auto_verified")}</span>
+                    {t("masonhub_compliance_tier")}
                   </h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_compliance_tier") || "COMPLIANCE TIER"}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_compliance_tier")}</label>
                       <CustomComplianceDropdown value={editForm.compliance_tier || 0} onChange={(val: number) => setEditForm({...editForm, compliance_tier: val})} includeTier3={false} />
                     </div>
                     
                     <div className="flex flex-col gap-2">
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-1">
-                        {t("registry_label_version") || "Master Version (Latest)"}
+                        {t("registry_label_version")}
                       </label>
-                      <input value={editForm.latest_version} onChange={e => setEditForm({ ...editForm, latest_version: e.target.value })} placeholder="e.g. 1.0, 1.1, 1.2" className="theme-glass-inner rounded-xl px-5 h-12 text-purple-400 text-sm font-bold focus:outline-none focus:border-purple-500/50 bg-black/20" />
+                      <input value={editForm.latest_version} onChange={e => setEditForm({ ...editForm, latest_version: e.target.value })} placeholder={t("auto_e_g_1_0_1_1_1_2")} className="theme-glass-inner rounded-xl px-5 h-12 text-purple-400 text-sm font-bold focus:outline-none focus:border-purple-500/50 bg-black/20" />
                     </div>
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions") || "GAME VERSIONS"}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions")}</label>
                     <GameVersionMultiSelect selectedVersions={editForm.compatible_versions || []} onChange={(v: string[]) => setEditForm({...editForm, compatible_versions: v})} />
                   </div>
                 </div>
@@ -2014,17 +2016,17 @@ function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
         <SidePanel
           isOpen={isMasonPanelOpen}
           onClose={() => setIsMasonPanelOpen(false)}
-          title={t("mason_create_title") || "New Mason"}
-            icon={t("ui_icon_person_add") || "person_add"}
+          title={t("mason_create_title")}
+            icon={t("ui_icon_person_add")}
             actions={
             <button onClick={handleCreateMason} className={standardAccentGlassButtonClass}>
-              {t("mason_create_btn_create") || "CREATE UUID"}
+              {t("mason_create_btn_create")}
             </button>
           }
         >
           <div className="p-6">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name") || "MASON NAME"}</label>
-            <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name") || "Enter mason name..."} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_create_label_name")}</label>
+            <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("mason_create_ph_name")} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
           </div>
         </SidePanel>
       </div>
@@ -2143,40 +2145,39 @@ function MasonQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
         <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
           <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_mason") || "construction"}</span>
+              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_mason")}</span>
             </div>
-            <span className="truncate">{t("hub_title_mason_queue") || "MASON"}</span>
+            <span className="truncate">{t("hub_title_mason_queue")}</span>
           </h2>
           <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
-            <div className="flex items-center gap-1 theme-glass-panel rounded-xl p-1 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex mr-4">
-              <button onClick={() => setFilterTab('pending')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_pending") || "PENDING"}</button>
-              <button onClick={() => setFilterTab('completed')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_completed") || "COMPLETED"}</button>
-            </div>
             <div className="relative flex-1 max-w-[300px]">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">search</span>
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("auto_search")}</span>
               <input 
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
-                placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
+                placeholder={t("hub_search_queue")} 
                 className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
               />
+            </div>            <div className="flex items-center gap-1 theme-glass-panel rounded-xl p-1 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex mr-4">
+              <button onClick={() => setFilterTab('pending')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_pending")}</button>
+              <button onClick={() => setFilterTab('completed')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_completed")}</button>
             </div>
           </div>
         </div>
   
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
           {loading ? (
-              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("hub_loading") || "ESTABLISHING SECURE CONNECTION..."}</div>
+              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("hub_loading")}</div>
           ) : filteredSubmissions.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center opacity-30">
-                <span className="text-6xl mb-4 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_museum") || "account_balance"}</span></span>
-                <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">{t("hub_no_pending_masons") || "No Pending Mason Submissions"}</span>
+                <span className="text-6xl mb-4 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_museum")}</span></span>
+                <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">{t("hub_no_pending_masons")}</span>
               </div>
           ) : (
               <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                 {filteredSubmissions.slice(0, visibleCount).map((mod: any) => (
-                    <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("mason_bug_inspect_report") || "View"} />
+                    <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("mason_bug_inspect_report")} />
                 ))}
                 </div>
                 {filteredSubmissions.length > visibleCount && (
@@ -2184,7 +2185,7 @@ function MasonQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
                     onClick={() => setVisibleCount(v => v + 100)}
                     className="w-full py-4 mt-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] font-black uppercase tracking-widest transition-all"
                   >
-                    {t("ui_btn_load_more") || "LOAD MORE"} ({visibleCount} / {filteredSubmissions.length})
+                    {t("ui_btn_load_more")} ({visibleCount} / {filteredSubmissions.length})
                   </button>
                 )}
               </div>
@@ -2194,13 +2195,13 @@ function MasonQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
         <SidePanel
           isOpen={!!activeMod}
           onClose={() => setActiveMod(null)}
-          title={t("registry_select_master") || "Select a Master Record"}
-            icon={t("ui_icon_construction") || "construction"}
+          title={t("registry_select_master")}
+            icon={t("ui_icon_construction")}
           subtitle={`UUID: ${activeMod?.id}`}
           actions={
             <>
-              <button onClick={handleReject} disabled={isProcessing} className={standardDangerButtonClass}>{t("registry_btn_sever") || "Sever"}</button>
-              <button onClick={handleApprove} disabled={isProcessing} className={standardSuccessButtonClass}>{isProcessing ? t("mason_saving") || "SAVING..." : t("registry_btn_approve") || "Approve"}</button>
+              <button onClick={handleReject} disabled={isProcessing} className={standardDangerButtonClass}>{t("registry_btn_sever")}</button>
+              <button onClick={handleApprove} disabled={isProcessing} className={standardSuccessButtonClass}>{isProcessing ? t("mason_saving") : t("registry_btn_approve")}</button>
             </>
           }
         >
@@ -2210,35 +2211,35 @@ function MasonQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
                 <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                    <span className="material-symbols-outlined !text-[14px]">info</span>
-                    {t("mason_bug_inspect_report") || "View"}
+                    <span className="material-symbols-outlined !text-[14px]">{t("auto_info")}</span>
+                    {t("mason_bug_inspect_report")}
                   </h4>
                   
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_label_modname") || "Mod Name"}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_label_modname")}</label>
                     <input value={editForm.name || ""} onChange={e => setEditForm({...editForm, name: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" />
                   </div>
     
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason") || "MASON ENTITY (AUTHOR)"}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason")}</label>
                       <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id: string) => setEditForm({...editForm, mason_id: id})} />
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class") || "Category"}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
                       <CustomClassificationDropdown value={editForm.category_override} onChange={(newType: string) => setEditForm({...editForm, category_override: newType})} />
                     </div>
                   </div>
     
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext") || "File Extension"}</label>
-                        <input value={editForm.file_extension} onChange={e => setEditForm({...editForm, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder="e.g. .package, .ts4script" />
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("sandbox_label_file_ext")}</label>
+                        <input value={editForm.file_extension} onChange={e => setEditForm({...editForm, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("auto_e_g_package_ts4script")} />
                       </div>
                       <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat") || "SUB-CATEGORY"}</label>
-                      <input value={editForm.sub_type} onChange={e => setEditForm({...editForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder="e.g. Tuning, Object, CAS" />
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
+                      <input value={editForm.sub_type} onChange={e => setEditForm({...editForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("auto_e_g_tuning_object_cas")} />
                     </div>
                   </div>
                 </div>
@@ -2246,22 +2247,22 @@ function MasonQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
                 <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                    <span className="material-symbols-outlined !text-[14px]">link</span>
-                    {t("hub_label_resources") || "Resources"}
+                    <span className="material-symbols-outlined !text-[14px]">{t("auto_link")}</span>
+                    {t("hub_label_resources")}
                   </h4>
 
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url") || "URL"}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
                     <input value={editForm.url || ""} onChange={e => setEditForm({...editForm, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image") || "Cover Image URL"}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_image")}</label>
                     <input value={editForm.image_url || ""} onChange={e => setEditForm({...editForm, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc") || "Description"}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_desc")}</label>
                     <textarea value={editForm.description || ""} onChange={e => setEditForm({...editForm, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-28 resize-none focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
                 </div>
@@ -2269,17 +2270,17 @@ function MasonQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
                 <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                    <span className="material-symbols-outlined !text-[14px]">verified</span>
-                    {t("masonhub_compliance_tier") || "COMPLIANCE TIER"}
+                    <span className="material-symbols-outlined !text-[14px]">{t("auto_verified")}</span>
+                    {t("masonhub_compliance_tier")}
                   </h4>
 
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_compliance_tier") || "COMPLIANCE TIER"}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_compliance_tier")}</label>
                     <CustomComplianceDropdown value={editForm.compliance_tier || 0} onChange={(val: number) => setEditForm({...editForm, compliance_tier: val})} includeTier3={false} />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions") || "GAME VERSIONS"}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("masonhub_game_versions")}</label>
                     <GameVersionMultiSelect selectedVersions={editForm.compatible_versions || []} onChange={(v: string[]) => setEditForm({...editForm, compatible_versions: v})} />
                   </div>
                 </div>
@@ -2294,10 +2295,10 @@ function MasonQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: 
 function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val: number) => void }) {
   const { t } = useLexicon();
   const options = [
-    { id: 4, label: t("nexus_tier4") || "Severity 4: Fatal Collision" },
-    { id: 3, label: t("nexus_tier3") || "Severity 3: Tuning Overlap" },
+    { id: 4, label: t("nexus_tier4") },
+    { id: 3, label: t("nexus_tier3") },
   ];
-  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: any[]) => onChange(v[0])} placeholder="Select Tier" />;
+  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: any[]) => onChange(v[0])} placeholder={t("auto_select_tier")} />;
 }
 
 function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: any }) {
@@ -2639,23 +2640,23 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_diagnostics") || "monitor_heart"}</span>
+            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_diagnostics")}</span>
           </div>
           <span className="truncate">{t("hub_tab_lab") || "Homestead DIAGNOSTICS"?.replace("🧪 ", "") || "Homestead Diagnostics"}</span>
         </h2>
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">search</span>
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("auto_search")}</span>
             <input 
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
-              placeholder={t("lab_search_ph") || "Search mods..."} 
+              placeholder={t("lab_search_ph")} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
           <div className="flex items-center gap-1 theme-glass-panel rounded-xl p-1 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex">
-            <button onClick={() => setFilterTab('pending')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_pending") || "PENDING"}</button>
-            <button onClick={() => setFilterTab('completed')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_completed") || "COMPLETED"}</button>
+            <button onClick={() => setFilterTab('pending')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_pending")}</button>
+            <button onClick={() => setFilterTab('completed')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("status_completed")}</button>
           </div>
         </div>
       </div>
@@ -2668,12 +2669,12 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]"></span>
               </div>
               <h4 className="text-sm font-black text-amber-500 uppercase tracking-widest drop-shadow-md">
-                {t("lab_pending_queue") || "Pending Diagnostics"} ({pendingReports.length})
+                {t("lab_pending_queue")} ({pendingReports.length})
               </h4>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
               {pendingReports.slice(0, visibleCount).map((mod: any) => (
-                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("mason_bug_inspect_report") || "View"} />
+                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("mason_bug_inspect_report")} />
               ))}
             </div>
             {pendingReports.length > visibleCount && (
@@ -2681,7 +2682,7 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                 onClick={() => setVisibleCount(v => v + 100)}
                 className="w-full py-4 mt-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] font-black uppercase tracking-widest transition-all"
               >
-                {t("ui_btn_load_more") || "LOAD MORE"} ({visibleCount} / {pendingReports.length})
+                {t("ui_btn_load_more")} ({visibleCount} / {pendingReports.length})
               </button>
             )}
           </div>
@@ -2690,7 +2691,7 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
         {filterTab === 'pending' && pendingReports.length === 0 && (
           <div className="flex-1 flex flex-col items-center justify-center opacity-30 mt-10">
             <span className="text-8xl mb-6 grayscale"></span>
-            <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">{t("hub_no_pending_reports") || "NO PENDING REPORTS"}</span>
+            <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">{t("hub_no_pending_reports")}</span>
           </div>
         )}
 
@@ -2698,15 +2699,15 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-8 h-8 rounded-lg theme-glass-panel border border-[color-mix(in_srgb,var(--text)_30%,transparent)] flex items-center justify-center shadow-md shrink-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70">check_circle</span>
+                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70">{t("auto_check_circle")}</span>
               </div>
               <h4 className="text-sm font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest drop-shadow-md">
-                {t("lab_completed_queue") || "Completed Diagnostics"} ({completedReports.length})
+                {t("lab_completed_queue")} ({completedReports.length})
               </h4>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
               {completedReports.slice(0, visibleCount).map((mod: any) => (
-                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("mason_bug_inspect_report") || "View"} />
+                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("mason_bug_inspect_report")} />
               ))}
             </div>
             {completedReports.length > visibleCount && (
@@ -2714,7 +2715,7 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                 onClick={() => setVisibleCount(v => v + 100)}
                 className="w-full py-4 mt-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] font-black uppercase tracking-widest transition-all"
               >
-                {t("ui_btn_load_more") || "LOAD MORE"} ({visibleCount} / {completedReports.length})
+                {t("ui_btn_load_more")} ({visibleCount} / {completedReports.length})
               </button>
             )}
           </div>
@@ -2723,7 +2724,7 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
         {filterTab === 'completed' && completedReports.length === 0 && (
           <div className="flex-1 flex flex-col items-center justify-center opacity-30 mt-10">
             <span className="text-8xl mb-6 grayscale"></span>
-            <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">{t("hub_no_completed_reports") || "NO COMPLETED REPORTS"}</span>
+            <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">{t("hub_no_completed_reports")}</span>
           </div>
         )}
       </div>
@@ -2732,7 +2733,7 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
         <SidePanel
           isOpen={!!activeReport}
           onClose={closePanel}
-          title={t("lab_diagnostic_panel_title") || "Diagnostic Report"}
+          title={t("lab_diagnostic_panel_title")}
           icon="monitor_heart"
           footer={
             (!testRun || isLoading) ? (
@@ -2740,10 +2741,10 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                 {isLoading && (
                   <div className="flex gap-4">
                     <button onClick={() => concludeTest(true)} className="flex-1 py-4 bg-white/10 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/20 hover:theme-text-success transition-all shadow-lg border border-white/5 hover:border-green-500/50">
-                      Conclude & Pass
+                      {t("auto_conclude_pass")}
                     </button>
                     <button onClick={() => concludeTest(false)} className="flex-1 py-4 bg-white/10 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/20 hover:theme-text-danger transition-all shadow-lg border border-white/5 hover:border-red-500/50">
-                      Conclude & Fail
+                      {t("auto_conclude_fail")}
                     </button>
                   </div>
                 )}
@@ -2753,23 +2754,23 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                     {isLoading ? (
                       <div className="flex flex-col items-center justify-center p-6 theme-glass-inner rounded-xl gap-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]">
                         <div className="w-8 h-8 border-4 border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
-                        <span className="text-[10px] font-black uppercase tracking-widest animate-pulse mt-1 theme-text-accent">{t("lab_diagnostic_running") || "DIAGNOSING..."}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest animate-pulse mt-1 theme-text-accent">{t("lab_diagnostic_running")}</span>
                       </div>
                     ) : isModMissingLocally(activeReport.name) ? (
                       <button 
                         onClick={() => setIsMissingArtifactPanelOpen(true)} 
                         className="w-full h-14 theme-glass-panel border border-[var(--warning)]/50 text-[var(--warning)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--warning)]/10 transition-all shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] flex items-center justify-center gap-2"
                       >
-                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_download") || "download"}</span>
-                        {t("lab_missing_artifacts") || "Missing Artifacts"}
+                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_download")}</span>
+                        {t("lab_missing_artifacts")}
                       </button>
                     ) : (
                       <button 
                         onClick={runSimulation} 
                         className="w-full h-14 theme-glass-panel border border-[var(--accent)]/50 text-[var(--accent)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--accent)]/10 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2"
                       >
-                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_play") || "play_arrow"}</span>
-                        {t("lab_btn_run_diagnostic") || "RUN DIAGNOSTIC"}
+                        <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_play")}</span>
+                        {t("lab_btn_run_diagnostic")}
                       </button>
                     )}
                   </div>
@@ -2784,8 +2785,8 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
               <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
                 <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                  <span className="material-symbols-outlined !text-[14px]">my_location</span>
-                  {t("nexus_target_artifact") || "TARGET ARTIFACT"}
+                  <span className="material-symbols-outlined !text-[14px]">{t("auto_my_location")}</span>
+                  {t("nexus_target_artifact")}
                 </h4>
                 <div className="flex flex-col gap-2 relative z-10">
                   <span className="theme-glass-inner rounded-xl px-5 h-12 flex items-center text-[var(--text)] text-sm font-bold bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{activeReport?.name}</span>
@@ -2796,10 +2797,10 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
                 <div className="flex flex-col gap-1 border-b border-white/5 pb-4 mb-2">
                   <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2">
-                    <span className="material-symbols-outlined !text-[14px]">account_tree</span>
-                    {t("lab_diagnostic_dependencies") || "Dependencies"}
+                    <span className="material-symbols-outlined !text-[14px]">{t("auto_account_tree")}</span>
+                    {t("lab_diagnostic_dependencies")}
                   </h4>
-                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 uppercase tracking-widest">{t("lab_diagnostic_dependencies_desc") || "Mods required by this artifact."}</p>
+                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 uppercase tracking-widest">{t("lab_diagnostic_dependencies_desc")}</p>
                 </div>
                 
                 <div className="flex flex-col gap-4 relative z-10">
@@ -2807,7 +2808,7 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                     selectedItem={null}
                     onSelect={handleSelectDependency}
                     onClear={() => {}}
-                    placeholder={t("lab_search_dep_ph") || "Search dependencies..."}
+                    placeholder={t("lab_search_dep_ph")}
                     modList={allMods.filter(m => m.id !== activeReport.id && !dependencies.some(d => d.id === m.id))}
                   />
                   {dependencies.length > 0 && (
@@ -2816,7 +2817,7 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                          <div key={d.id} className="flex justify-between items-center px-5 h-12 theme-glass-inner rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-sm font-bold">
                            <span className="truncate pr-4">{d.name}</span>
                            <button onClick={() => handleRemoveDependency(d.id)} className="w-8 h-8 rounded-lg hover:bg-white/10 text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors">
-                             <span className="material-symbols-outlined !text-[16px]">close</span>
+                             <span className="material-symbols-outlined !text-[16px]">{t("auto_close")}</span>
                            </button>
                          </div>
                       ))}
@@ -2829,10 +2830,10 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--warning)]/5 to-transparent pointer-events-none rounded-2xl" />
                 <div className="flex flex-col gap-1 border-b border-white/5 pb-4 mb-2">
                   <h4 className="text-[10px] font-black text-[var(--warning)] uppercase tracking-widest flex items-center gap-2">
-                    <span className="material-symbols-outlined !text-[14px]">warning</span>
-                    {t("lab_diagnostic_conflict_target") || "Target Conflict Matrix"}
+                    <span className="material-symbols-outlined !text-[14px]">{t("auto_warning")}</span>
+                    {t("lab_diagnostic_conflict_target")}
                   </h4>
-                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 uppercase tracking-widest">{t("lab_diagnostic_conflict_target_desc") || "Select a suspected conflicting artifact to simulate their combined injection."}</p>
+                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 uppercase tracking-widest">{t("lab_diagnostic_conflict_target_desc")}</p>
                 </div>
                 
                 <div className="flex flex-col gap-4 relative z-10">
@@ -2840,11 +2841,11 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                     <div className="flex flex-col gap-2">
                       <div className="flex justify-between items-center px-5 h-16 theme-glass-inner rounded-xl border border-[var(--warning)]/30 text-[var(--text)] bg-[var(--warning)]/5 shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)]">
                         <div className="flex flex-col min-w-0">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--warning)] mb-0.5">Testing Conflict With</span>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--warning)] mb-0.5">{t("auto_testing_conflict_with")}</span>
                           <span className="text-sm font-bold truncate">{conflictTarget.name}</span>
                         </div>
                         <button onClick={() => setConflictTarget(null)} className="w-8 h-8 rounded-lg hover:bg-[var(--warning)]/20 text-[var(--warning)] flex items-center justify-center shrink-0 transition-colors">
-                          <span className="material-symbols-outlined !text-[16px]">delete</span>
+                          <span className="material-symbols-outlined !text-[16px]">{t("auto_delete")}</span>
                         </button>
                       </div>
                     </div>
@@ -2853,7 +2854,7 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                       selectedItem={null}
                       onSelect={(m: any) => setConflictTarget(m)}
                       onClear={() => {}}
-                      placeholder={t("lab_search_conflict_ph") || "Select conflict target..."}
+                      placeholder={t("lab_search_conflict_ph")}
                       modList={allMods.filter(m => m.id !== activeReport.id && !dependencies.some(d => d.id === m.id))}
                     />
                   )}
@@ -2864,8 +2865,8 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                 <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative animate-in slide-in-from-bottom-4">
                   <div className={`absolute inset-0 bg-gradient-to-br ${testPassed ? 'from-[var(--success)]/10' : 'from-[var(--danger)]/10'} to-transparent pointer-events-none rounded-2xl`} />
                   <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2 ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                    <span className="material-symbols-outlined !text-[14px]">science</span>
-                    {t("lab_diagnostic_results") || "Diagnostic Results"}
+                    <span className="material-symbols-outlined !text-[14px]">{t("auto_science")}</span>
+                    {t("lab_diagnostic_results")}
                   </h4>
                   
                   <div className="flex flex-col relative z-10">
@@ -2875,10 +2876,10 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
                       </div>
                       <div className="flex flex-col">
                         <span className={`text-lg font-black uppercase tracking-widest ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                          {testPassed ? t("lab_test_passed") || "VERIFIED: STABLE" : t("lab_test_failed") || "VERIFIED: UNSTABLE"}
+                          {testPassed ? t("lab_test_passed") : t("lab_test_failed")}
                         </span>
                         <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text)] opacity-60">
-                           {t("lab_injection_sim") || "Injection Simulation"}
+                           {t("lab_injection_sim")}
                         </span>
                       </div>
                     </div>
@@ -2889,14 +2890,14 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
 
                     {!testPassed && conflictTarget && (
                       <div className="mt-4 border-t border-[var(--danger)]/20 pt-6">
-                        <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">{t("lab_btn_add_to_nexus") || "Add To Nexus"}</h3>
+                        <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">{t("lab_btn_add_to_nexus")}</h3>
                         <form onSubmit={submitToNexus} className="flex flex-col gap-4">
                           <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_resolution_suggestion") || "Resolution Suggestion"}</label>
-                            <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder="e.g. Load Mod A after Mod B" className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_resolution_suggestion")}</label>
+                            <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder={t("auto_e_g_load_mod_a_after_mod_b")} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
                           </div>
                           <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_severity") || "Severity (4 = Fatal, 3 = Minor)"}</label>
+                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_severity")}</label>
                             <CustomTierDropdown value={severity} onChange={(val) => setSeverity(val)} />
                           </div>
                           <button type="submit" disabled={isSubmitting} className="w-full py-4 theme-bg-success text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg disabled:opacity-50 mt-2">
@@ -2917,28 +2918,28 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
       <SidePanel
         isOpen={isMissingArtifactPanelOpen}
         onClose={() => setIsMissingArtifactPanelOpen(false)}
-        title={t("lab_missing_artifacts") || "Missing Artifacts"}
+        title={t("lab_missing_artifacts")}
         icon="download"
         widthClass="w-[450px]"
         footer={
            <div className="flex flex-col gap-4 mt-4 w-full">
               {activeReport?.download_url ? (
                  <button onClick={() => window.open(activeReport.download_url, "_blank")} className="w-full h-14 theme-glass-panel border border-[var(--warning)]/50 text-[var(--warning)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--warning)]/10 transition-all shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined !text-[16px]">download</span> {t("lab_download_source") || "Download from Source"}
+                    <span className="material-symbols-outlined !text-[16px]">{t("auto_download")}</span> {t("lab_download_source")}
                  </button>
               ) : null}
               <button onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((activeReport?.name || '') + ' mod download')}`, "_blank")} className="w-full h-14 theme-glass-panel border border-[var(--accent)]/50 text-[var(--accent)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--accent)]/10 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2">
-                 <span className="material-symbols-outlined !text-[16px]">search</span> {t("lab_search_web") || "Search Web"}
+                 <span className="material-symbols-outlined !text-[16px]">{t("auto_search")}</span> {t("lab_search_web")}
               </button>
            </div>
         }
       >
         <div className="flex flex-col p-8 gap-6">
            <div className="p-6 theme-glass-panel border border-[var(--warning)]/30 rounded-3xl flex flex-col items-center justify-center gap-4 text-center mt-8">
-              <span className="material-symbols-outlined !text-[48px] text-[var(--warning)] opacity-80">extension_off</span>
+              <span className="material-symbols-outlined !text-[48px] text-[var(--warning)] opacity-80">{t("auto_extension_off")}</span>
               <div className="flex flex-col gap-1">
                  <span className="text-sm font-black text-[var(--text)] uppercase tracking-widest">{activeReport?.name}</span>
-                 <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("lab_missing_dependency_desc") || "Missing Dependency or Artifact"}</span>
+                 <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("lab_missing_dependency_desc")}</span>
               </div>
            </div>
         </div>
@@ -2951,14 +2952,14 @@ function ProvingGrounds({ modList, setStatus }: { modList: any[], setStatus?: an
 export function CustomStatusDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const options =[
-    { id: 'stable', label: t("status_dd_stable") || "Stable" },
-    { id: 'unstable', label: t("status_dd_unstable") || "Unstable" },
-    { id: 'broken', label: t("status_dd_broken") || "Broken" },
-    { id: 'under_review', label: t("status_dd_review") || "Under Review" },
-    { id: 'pending', label: t("status_pending") || "PENDING" },
-    { id: 'unverified', label: t("status_dd_unverified") || "Unverified" },
+    { id: 'stable', label: t("status_dd_stable") },
+    { id: 'unstable', label: t("status_dd_unstable") },
+    { id: 'broken', label: t("status_dd_broken") },
+    { id: 'under_review', label: t("status_dd_review") },
+    { id: 'pending', label: t("status_pending") },
+    { id: 'unverified', label: t("status_dd_unverified") },
   ];
-  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder="Select Status" />;
+  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("auto_select_status")} />;
 }
 
 
@@ -2976,12 +2977,12 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
 
   const getTitle = () => {
     switch(mode) {
-      case 'dependency': return t("modal_sel_dep") || "Select Required Master (Dependency)";
-      case 'addon': return t("modal_sel_addon") || "Select Child Artifact (Addon)";
-      case 'twin': return t("modal_sel_twin") || "Select Sync Partner (Twin)";
-      case 'rival': return t("modal_sel_rival") || "Select Invisible Rival (Conflict)";
+      case 'dependency': return t("modal_sel_dep");
+      case 'addon': return t("modal_sel_addon");
+      case 'twin': return t("modal_sel_twin");
+      case 'rival': return t("modal_sel_rival");
       case 'beta': return "Select Beta Protocol";
-      default: return t("modal_sel_artifact") || "Select Artifact";
+      default: return t("modal_sel_artifact");
     }
   };
 
@@ -2998,7 +2999,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
           <input
             autoFocus
             type="text"
-            placeholder={t("modal_search_catalog") || "Search Global Catalog..."}
+            placeholder={t("modal_search_catalog")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent"
@@ -3030,10 +3031,10 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
                   )}
                 </div>
               </div>
-              <span className="theme-text-accent opacity-0 group-hover:opacity-100 transition-opacity font-black text-[10px] uppercase tracking-widest">{t("modal_btn_link") || "LINK"}</span>
+              <span className="theme-text-accent opacity-0 group-hover:opacity-100 transition-opacity font-black text-[10px] uppercase tracking-widest">{t("modal_btn_link")}</span>
             </button>
           )) : (
-            <div className="text-center p-8 text-[var(--subtext)] opacity-60 font-bold text-xs uppercase tracking-widest">{t("modal_no_matches") || "No matching artifacts found."}</div>
+            <div className="text-center p-8 text-[var(--subtext)] opacity-60 font-bold text-xs uppercase tracking-widest">{t("modal_no_matches")}</div>
           )}
         </div>
       </div>
@@ -3071,7 +3072,7 @@ function DLCSearchDropdown({ onSelect, currentDLC =[] }: { onSelect: (pack: stri
             value={query}
             onChange={e => { setQuery(e.target.value); setIsOpen(true); }}
             onFocus={() => setIsOpen(true)}
-            placeholder={t("registry_search_dlc") || "Search DLC (e.g. Seasons)..."}
+            placeholder={t("registry_search_dlc")}
             className="w-full theme-glass-inner rounded-lg px-3 py-1.5 text-[var(--text)] text-sm uppercase font-bold focus:outline-none focus:theme-border-success"
           />
           {query && (
@@ -3091,7 +3092,7 @@ function DLCSearchDropdown({ onSelect, currentDLC =[] }: { onSelect: (pack: stri
               <span className="text-[9px] font-bold text-[var(--subtext)] opacity-80 group-hover:text-[var(--text)] uppercase">{d.name}</span>
             </button>
           )) : (
-            <div className="p-4 text-center text-[9px] font-black text-gray-600 uppercase tracking-widest">{t("registry_no_dlc") || "No Valid DLC Found"}</div>
+            <div className="p-4 text-center text-[9px] font-black text-gray-600 uppercase tracking-widest">{t("registry_no_dlc")}</div>
           )}
         </div>
       )}
@@ -3221,42 +3222,42 @@ function CommandCenter({  onNavigate , setStatus }: any = {}) {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
         <button onClick={() => onNavigate && onNavigate('registry', 'unverified')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(59, 130, 246, 0.3)' } as any}>
           <span className="text-4xl font-black text-[var(--text)] group-hover:theme-text-success transition-colors drop-shadow-md">{stats.unverified}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("status_dd_unverified") || "Unverified"}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("status_dd_unverified")}</span>
         </button>
         
         <button onClick={() => onNavigate && onNavigate('queue')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(59, 130, 246, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-accent transition-colors drop-shadow-[0_0_15px_var(--accent)]">{stats.scoutQueue}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_queue") || "SCOUT"}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_queue")}</span>
         </button>
         
         <button onClick={() => onNavigate && onNavigate('mason_queue')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(192, 132, 252, 0.5)' } as any}>
           <span className="text-4xl font-black text-purple-400 transition-colors drop-shadow-[0_0_15px_rgba(192,132,252,0.5)]">{stats.masonQueue}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_mason_queue") || "MASON"}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_mason_queue")}</span>
         </button>
 
         <button onClick={() => onNavigate && onNavigate('matrix')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(239, 68, 68, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-danger transition-colors drop-shadow-[0_0_15px_var(--danger)]">{stats.conflictPending}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_conflicts_pending") || "CONFLICTS PENDING"}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_conflicts_pending")}</span>
         </button>
 
         <button onClick={() => onNavigate && onNavigate('marketplace_reports')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(245, 158, 11, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-warning transition-colors drop-shadow-[0_0_15px_var(--warning)]">{stats.marketplaceReports}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_marketplace_reports") || "REPORTS"}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_marketplace_reports")}</span>
         </button>
 
         <button onClick={() => onNavigate && onNavigate('lab')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(245, 158, 11, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-warning transition-colors drop-shadow-[0_0_15px_var(--warning)]">{stats.labReports}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("lab_queue") || "Test Queue"}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("lab_queue")}</span>
         </button>
 
         <button onClick={() => onNavigate && onNavigate('registry', 'nsfw')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(245, 158, 11, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-warning transition-colors drop-shadow-[0_0_15px_var(--warning)]">{stats.nsfw}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_nsfw_reported") || "NSFW REPORTED"}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_nsfw_reported")}</span>
         </button>
 
         <button onClick={() => onNavigate && onNavigate('registry', 'explicit')} className="theme-glass-panel border-white/5 p-6 rounded-3xl flex flex-col gap-2 hover:scale-105 hover:z-10 transition-all text-left group shadow-lg" style={{ '--tw-border-opacity': '1', borderColor: 'rgba(249, 115, 22, 0.5)' } as any}>
           <span className="text-4xl font-black theme-text-danger transition-colors drop-shadow-[0_0_15px_var(--danger)]">{stats.explicit}</span>
-          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_explicit_reported") || "EXPLICIT REPORTED"}</span>
+          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("hub_tab_explicit_reported")}</span>
         </button>
       </div>
 
@@ -3266,7 +3267,7 @@ function CommandCenter({  onNavigate , setStatus }: any = {}) {
           <div className="absolute top-[-100px] left-[-100px] w-96 h-96 theme-bg-accent opacity-10 blur-[100px] rounded-full pointer-events-none z-0" />
           <h3 className="text-sm font-black theme-text-accent uppercase tracking-[0.3em] mb-6 flex items-center gap-4 relative z-10 pl-2">
             <span className="w-2.5 h-2.5 rounded-full theme-bg-success animate-pulse shadow-[0_0_15px_var(--success)]"></span>
-            {t("hub_comms_title") || "Latest Dispatch"}
+            {t("hub_comms_title")}
           </h3>
           
           <div className="flex-1 bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] border border-white/5 rounded-[2.5rem] flex flex-col mb-6 overflow-y-auto p-8 gap-5 custom-scrollbar shadow-inner relative z-10 backdrop-blur-[3px]">
@@ -3274,7 +3275,7 @@ function CommandCenter({  onNavigate , setStatus }: any = {}) {
                <div className="flex-1 flex flex-col items-center justify-center opacity-40">
                  <span className="text-5xl mb-6 grayscale drop-shadow-2xl">{t("emote_chat")}</span>
                  <span className="text-xs font-black text-[var(--text)] uppercase tracking-[0.3em] text-center px-8 leading-loose opacity-70">
-                   {t("hub_comms_offline") || "Secure transmission channel currently offline."}<br/>{t("hub_comms_handshake") || "Awaiting Cryptographic Handshake."}
+                   {t("hub_comms_offline")}<br/>{t("hub_comms_handshake")}
                  </span>
                </div>
              ) : (
@@ -3289,7 +3290,7 @@ function CommandCenter({  onNavigate , setStatus }: any = {}) {
                      <div className="flex gap-4 items-center">
                        {currentUserId === msg.sender_id && (
                            <div className="flex gap-3 mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[9px] uppercase font-black tracking-widest hover:theme-text-accent transition-colors hover:scale-110">{t("emote_edit") || "EDIT"}</button>
+                            <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[9px] uppercase font-black tracking-widest hover:theme-text-accent transition-colors hover:scale-110">{t("emote_edit")}</button>
                             <button onClick={() => deleteComm(msg.id)} className="text-[9px] uppercase font-black tracking-widest hover:theme-text-danger transition-colors hover:scale-110">{t("emote_close")}</button>
                           </div>
                        )}
@@ -3309,14 +3310,14 @@ function CommandCenter({  onNavigate , setStatus }: any = {}) {
               onChange={(e) => setCommsInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && sendComm()}
               className="flex-1 bg-transparent rounded-2xl px-6 py-3 text-[var(--text)] text-sm font-bold focus:outline-none transition-all placeholder-[color-mix(in_srgb,var(--subtext)_50%,transparent)]" 
-              placeholder={t("hub_comms_placeholder") || "Channel offline..."} 
+              placeholder={t("hub_comms_placeholder")} 
             />
             <button 
               onClick={sendComm}
               disabled={!commsInput.trim()}
               className="px-10 py-4 theme-bg-accent text-[var(--bg)] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] shrink-0"
             >
-              {editingCommId ? t("hub_comms_btn_update") || "UPDATE" : t("hub_btn_send") || "Send"}
+              {editingCommId ? t("hub_comms_btn_update") : t("hub_btn_send")}
             </button>
           </div>
         </div>
@@ -3487,7 +3488,7 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
         setResolutionReason("");
       } catch (e) {
         console.error(e);
-        if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("hub_failed_action") || "Failed to process action."}`);
+        if (setStatus) setStatus(`${t("log_icon_fatal")} ${t("hub_failed_action")}`);
       }
       
       setIsSubmittingAction(false);
@@ -3508,18 +3509,18 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
           <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_report") || "flag"}</span>
+                <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_report")}</span>
               </div>
               <span className="truncate">{t("hub_title_reports") || "REPORTS QUEUE"?.replace("dY>' ", "") || "Nexus Reports"}</span>
             </h2>
 
             <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
               <div className="relative flex-1 max-w-[300px]">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search") || "search"}</span>
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("ui_icon_search")}</span>
                 <input 
                   value={searchTerm} 
                   onChange={e => setSearchTerm(e.target.value)} 
-                  placeholder={t("registry_search_placeholder") || "Search artifacts..."} 
+                  placeholder={t("hub_search_queue")} 
                   className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
                 />
               </div>
@@ -3534,7 +3535,7 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
                     { id: 'comm-link', label: 'COMM-LINK' }
                   ]}
                   onChange={(v: string[]) => setActiveType(v[0])}
-                  placeholder="Select Type..."
+                  placeholder={t("auto_select_type")}
                 />
               </div>
 
@@ -3543,13 +3544,13 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
                   onClick={() => setActiveStatus("pending" as any)}
                   className={`px-4 py-0 h-full rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center ${activeStatus === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
                 >
-                  Pending
+                  {t("auto_pending")}
                 </button>
                 <button 
                   onClick={() => setActiveStatus("resolved" as any)}
                   className={`px-4 py-0 h-full rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center ${activeStatus === 'resolved' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
                 >
-                  Resolved
+                  {t("auto_resolved")}
                 </button>
               </div>
             </div>
@@ -3557,11 +3558,11 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
         
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
         {loading ? (
-          <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading") || "ESTABLISHING SECURE CONNECTION..."}</div>
+          <div className="theme-glass-panel p-8 rounded-3xl text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading")}</div>
         ) : filteredReports.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center opacity-50 theme-glass-panel rounded-3xl py-20">
-            <span className="text-4xl mb-4 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_shield") || "security"}</span></span>
-            <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">NO TICKETS FOUND IN THIS CATEGORY.</span>
+            <span className="text-4xl mb-4 grayscale"><span className="material-symbols-outlined shrink-0">{t("ui_icon_shield")}</span></span>
+            <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">{t("auto_no_tickets_found_in_this_category")}</span>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
@@ -3607,16 +3608,16 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
                       <div className="flex justify-between items-center mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-4 relative">
                           <div className="flex items-center gap-4 flex-1 min-w-0 group-hover:opacity-0 transition-opacity duration-300">
                               <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
-                                  <span className="material-symbols-outlined !text-[14px] normal-case">{t("ui_icon_calendar_today") || "calendar_today"}</span>
+                                  <span className="material-symbols-outlined !text-[14px] normal-case">{t("ui_icon_calendar_today")}</span>
                                   {new Date(report.created_at).toLocaleDateString()}
                               </span>
                               <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
-                                  <span className="material-symbols-outlined !text-[14px] normal-case">{t("ui_icon_person") || "person"}</span>
+                                  <span className="material-symbols-outlined !text-[14px] normal-case">{t("ui_icon_person")}</span>
                                   {report.reporter_name.substring(0, 8)}
                               </span>
                           </div>
                           <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                              {t("mason_bug_inspect_report") || "View"} <span className="text-lg leading-none">&rarr;</span>
+                              {t("mason_bug_inspect_report")} <span className="text-lg leading-none">&rarr;</span>
                           </button>
                       </div>
                   </div>
@@ -3637,14 +3638,14 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
           footer={selectedReport?.status === 'pending' ? (
             <div className="flex justify-center items-center gap-4 w-full">
               <button type="button" onClick={() => setSelectedReport(null)} className={standardButtonClass}>
-                {t("ui_btn_cancel") || "CANCEL"}
+                {t("ui_btn_cancel")}
               </button>
               <button 
                 onClick={() => handleProcessReport(selectedAction as "dismiss" | "remove" | "ban")} 
                 disabled={isSubmittingAction || !resolutionReason || !selectedAction || (selectedAction === 'ban' && !banDuration)} 
                 className={standardAccentGlassButtonClass}
               >
-                {t("ticket_dossier_btn_save") || "SAVE ACTION"}
+                {t("ticket_dossier_btn_save")}
               </button>
             </div>
           ) : undefined}
@@ -3655,18 +3656,18 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
                 <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                    <span className="material-symbols-outlined !text-[14px]">info</span>
-                    {t("hub_report_details") || "Report Details"}
+                    <span className="material-symbols-outlined !text-[14px]">{t("auto_info")}</span>
+                    {t("hub_report_details")}
                   </h4>
                   
                   <div className="flex flex-col gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_reporter") || "Reporter:"}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_reporter")}</label>
                       <span className="theme-glass-inner rounded-xl px-5 h-12 flex items-center text-[var(--text)] text-sm font-bold bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{selectedReport.reporter_name}</span>
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_reason") || "Reason"}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("hub_reason")}</label>
                       <p className="text-sm font-bold text-[var(--text)] leading-relaxed theme-glass-inner px-5 py-4 min-h-[4rem] rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{selectedReport.description}</p>
                     </div>
                   </div>
@@ -3676,8 +3677,8 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
                   <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mt-2">
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none rounded-2xl" />
                     <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                      <span className="material-symbols-outlined !text-[14px]">link</span>
-                      {t("hub_label_resources") || "Resources"}
+                      <span className="material-symbols-outlined !text-[14px]">{t("auto_link")}</span>
+                      {t("hub_label_resources")}
                     </h4>
                     
                     <div className="flex gap-4 relative z-10">
@@ -3686,8 +3687,8 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
                              onClick={() => setActiveAsset({ id: selectedReport.metadata.asset_full.id, type: selectedReport.metadata.asset_full.asset_type })}
                              className="flex-1 py-3 theme-glass-inner hover:bg-emerald-500/10 text-[var(--text)] hover:text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-emerald-500/30"
                           >
-                             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">visibility</span>
-                             {t("hub_btn_view_nexus") || "View Nexus Asset"}
+                             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("auto_visibility")}</span>
+                             {t("hub_btn_view_nexus")}
                           </button>
                        )}
                        {selectedReport.metadata?.json_data && (
@@ -3695,8 +3696,8 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
                              onClick={() => setActiveCodeSnippet(typeof selectedReport.metadata.json_data === 'string' ? selectedReport.metadata.json_data : JSON.stringify(selectedReport.metadata.json_data, null, 2))}
                              className="flex-1 py-3 theme-glass-inner hover:bg-emerald-500/10 text-[var(--text)] hover:text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-emerald-500/30"
                           >
-                             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">data_object</span>
-                             {t("hub_btn_view_code") || "View Code Snippet"}
+                             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("auto_data_object")}</span>
+                             {t("hub_btn_view_code")}
                           </button>
                        )}
                     </div>
@@ -3707,8 +3708,8 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
                   <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mt-2">
                     <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none rounded-2xl" />
                     <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                       <span className="material-symbols-outlined !text-[14px]">gavel</span>
-                       {t("hub_architect_action") || "Architect Action"}
+                       <span className="material-symbols-outlined !text-[14px]">{t("auto_gavel")}</span>
+                       {t("hub_architect_action")}
                     </h4>
                     
                     <div className="flex flex-col gap-6 relative z-10">
@@ -3716,7 +3717,7 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
                         <textarea 
                           value={resolutionReason}
                           onChange={e => setResolutionReason(e.target.value)}
-                          placeholder={t("hub_resolution_reason_ph") || "Enter resolution or rejection reason..."}
+                          placeholder={t("hub_resolution_reason_ph")}
                           className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-amber-500/50 resize-none custom-scrollbar bg-black/20"
                         />
                       </div>
@@ -3726,11 +3727,11 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
                           value={[selectedAction]}
                           onChange={(val: string[]) => setSelectedAction(val[0] as "dismiss" | "remove" | "ban" | "")}
                           options={[
-                            { id: "dismiss", label: t("hub_btn_dismiss_report") || "DISMISS REPORT" },
-                            { id: "remove", label: t("hub_btn_remove_asset") || "REMOVE ARTIFACT" },
-                            { id: "ban", label: t("hub_btn_revoke_mason") || "Revoke Mason Uplink Privileges" }
+                            { id: "dismiss", label: t("hub_btn_dismiss_report") },
+                            { id: "remove", label: t("hub_btn_remove_asset") },
+                            { id: "ban", label: t("hub_btn_revoke_mason") }
                           ]}
-                          placeholder={t("ui_dropdown_action") || "SELECT ACTION..."}
+                          placeholder={t("ui_dropdown_action")}
                           disableTint={true}
                         />
                         {selectedAction === 'ban' && (
@@ -3738,12 +3739,12 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
                             value={[banDuration]}
                             onChange={(val: string[]) => setBanDuration(val[0])}
                             options={[
-                              { id: "1", label: t("hub_ban_24h") || "24 Hours" },
-                              { id: "7", label: t("hub_ban_7d") || "7 Days" },
-                              { id: "30", label: t("hub_ban_30d") || "30 Days" },
-                              { id: "permanent", label: t("hub_ban_permanent") || "Permanent Revoke" }
+                              { id: "1", label: t("hub_ban_24h") },
+                              { id: "7", label: t("hub_ban_7d") },
+                              { id: "30", label: t("hub_ban_30d") },
+                              { id: "permanent", label: t("hub_ban_permanent") }
                             ]}
-                            placeholder={t("hub_dropdown_ban_time") || "Select Duration"}
+                            placeholder={t("hub_dropdown_ban_time")}
                             disableTint={true}
                           />
                         )}
@@ -3777,6 +3778,6 @@ export function MarketplaceReportsViewer({  onOpenDossier , setStatus }: any) {
 export function CustomMasonDropdown({ value, options, onChange }: { value: string, options: any[], onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const dropdownOptions = options.map(o => ({ id: o.id, label: o.name }));
-  return <CustomDropdown disableTint={true} searchable={true} value={value} options={dropdownOptions} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason_label_select") || "MASON"} />;
+  return <CustomDropdown disableTint={true} searchable={true} value={value} options={dropdownOptions} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason_label_select")} />;
 }
 

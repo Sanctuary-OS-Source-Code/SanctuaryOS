@@ -59,8 +59,8 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
       <div className="flex flex-col gap-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4">
         <div className="flex justify-between items-center">
           <div className="flex flex-col">
-            <h2 className="text-xl font-black uppercase tracking-widest">{t("ticket_your_tickets") || "YOUR TICKETS"}</h2>
-            <p className="text-sm text-[var(--subtext)]">{t("ticket_create_new") || "Manage or create new requests"}</p>
+            <h2 className="text-xl font-black uppercase tracking-widest">{t("ticket_your_tickets")}</h2>
+            <p className="text-sm text-[var(--subtext)]">{t("ticket_create_new")}</p>
           </div>
         </div>
         
@@ -69,7 +69,7 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
              <button 
                key={filter}
                onClick={() => setActiveFilter(filter as any)}
-               className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm backdrop-blur-md ${activeFilter === filter ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border-[var(--accent)] shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.2),0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'theme-glass-panel border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5'}`}
+               className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm backdrop-blur-md ${activeFilter === filter ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-panel border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5'}`}
              >
                {filter}
              </button>
@@ -80,11 +80,11 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
       <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 pr-2">
         {isLoading ? (
           <div className="col-span-full flex justify-center items-center h-32 opacity-50">
-            <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing") || "PROCESSING..."}</span>
+            <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing")}</span>
           </div>
         ) : filteredTickets.length === 0 ? (
           <div className="col-span-full flex justify-center items-center h-32 theme-glass-inner rounded-xl">
-            <span className="text-sm font-bold text-[var(--subtext)] uppercase tracking-widest">{t("ticket_no_tickets") || "NO ACTIVE TICKETS FOUND"}</span>
+            <span className="text-sm font-bold text-[var(--subtext)] uppercase tracking-widest">{t("ticket_no_tickets")}</span>
           </div>
         ) : (
           filteredTickets.map(ticket => (
@@ -93,8 +93,8 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
               className="relative group w-full rounded-[2rem] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-lg hover:shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_10%,transparent)] hover:scale-[1.02] cursor-pointer flex flex-col"
               onClick={() => onSelectTicket && onSelectTicket(ticket)}
             >
-              <div className="absolute inset-0 theme-glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
-              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
+              <div className="absolute inset-0 rounded-[inherit] theme-glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
+              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
               
               <div className="relative p-6 flex flex-col gap-4 z-10 flex-1">
                 <div className="flex justify-between items-start">
@@ -125,7 +125,7 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
                     {new Date(ticket.created_at).toLocaleDateString()}
                   </span>
                   <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-colors flex items-center gap-1">
-                    {t("ticket_view_details") || "VIEW DETAILS"} <span className="material-symbols-outlined !text-[11px]">{t("ui_icon_arrow_right") || "arrow_forward"}</span>
+                    {t("ticket_view_details")} <span className="material-symbols-outlined !text-[11px]">{t("ui_icon_arrow_right")}</span>
                   </button>
                 </div>
               </div>

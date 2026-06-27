@@ -21,14 +21,14 @@ export default function CitizenTicketsSidePanel({ isOpen, onClose, userId }: Cit
       <SidePanel
         isOpen={isOpen}
         onClose={onClose}
-        title={t("ticket_support_desk") || "SANCTUARY SUPPORT"}
-        subtitle={t("ticket_support_desk_sub") || "Manage Your Open Requests"}
-        icon={t("ui_icon_support") || "support_agent"}
+        title={t("ticket_support_desk")}
+        subtitle={t("ticket_support_desk_sub")}
+        icon={t("ui_icon_support")}
         widthClass="w-[700px]"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
             <button onClick={onClose} className={standardButtonClass}>
-              {t("shared_cancel") || "CANCEL"}
+              {t("shared_cancel")}
             </button>
             <button 
               onClick={() => {
@@ -36,7 +36,7 @@ export default function CitizenTicketsSidePanel({ isOpen, onClose, userId }: Cit
               }}
               className={standardAccentGlassButtonClass}
             >
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_add_circle") || "add_circle"}</span> {t("ticket_new_ticket") || "SUBMIT A TICKET"}
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_add_circle")}</span> {t("ticket_new_ticket")}
             </button>
           </div>
         }

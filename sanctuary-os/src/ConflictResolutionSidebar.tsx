@@ -52,8 +52,8 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
     <SidePanel
       isOpen={!!conflict}
       onClose={onClose}
-      title={t("radar_title") || "Conflict Radar"}
-      subtitle={isTier4 ? (t("radar_tier4_title") || "Collision Severity 4"?.replace("dY>` ", "") || "FATAL CLASH") : isTier3 ? (t("radar_tier3_title") || "Collision Severity 3") : (t("scout_duplicate_clones") || "Collision Severity 2")}
+      title={t("radar_title")}
+      subtitle={isTier4 ? (t("radar_tier4_title") || "Collision Severity 4"?.replace("dY>` ", "") || "FATAL CLASH") : isTier3 ? (t("radar_tier3_title")) : (t("scout_duplicate_clones"))}
       icon="warning"
       iconColorClass={isTier4 ? "text-[var(--danger)]" : isTier3 ? "text-[var(--warning)]" : "text-[var(--accent)]"}
       widthClass="w-[500px]"
@@ -73,8 +73,8 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                 }} 
                 className="w-full py-5 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-xl shadow-[0_10px_30px_color-mix(in_srgb,var(--success)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)] hover:scale-105 active:scale-95 text-[11px] font-black tracking-[0.2em] uppercase rounded-[1.5rem] transition-all flex flex-col items-center justify-center gap-1 group"
               >
-                <span className="material-symbols-outlined !text-[24px] group-hover:scale-110 transition-transform">{t("ui_icon_check_circle") || "check_circle"}</span>
-                <span>{t("radar_btn_set_winner") || "SET WINNER"}</span>
+                <span className="material-symbols-outlined !text-[24px] group-hover:scale-110 transition-transform">{t("ui_icon_check_circle")}</span>
+                <span>{t("radar_btn_set_winner")}</span>
               </button>
             </div>
           </div>
@@ -84,19 +84,19 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
       <div className="flex flex-col gap-8 h-full px-2">
         <div className="space-y-4">
           <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-60">
-            {t("radar_conflict_details") || "CONFLICT DETAILS"}
+            {t("radar_conflict_details")}
           </h3>
           {conflict.is_ghost && (
              <div className={`px-4 py-3 border rounded-xl text-xs font-black tracking-wide ${isTier4 ? "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[var(--danger)] text-[var(--danger)]" : "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[var(--warning)] text-[var(--warning)]"}`}>
-               <span className="material-symbols-outlined !text-[12px] opacity-70 mr-1">{t("ui_icon_policy") || "policy"}</span> {t("scout_logical_clash") || "LOGICAL CLASH:"} {conflict.resolution_note}
+               <span className="material-symbols-outlined !text-[12px] opacity-70 mr-1">{t("ui_icon_policy")}</span> {t("scout_logical_clash")} {conflict.resolution_note}
              </div>
           )}
           <p className="text-sm text-[var(--text)] opacity-80 leading-relaxed font-bold">
             {isTier4 
-              ? (t("radar_tier4_desc_winner") || "Only ONE of these artifacts can remain active. Choose the winner to keep in your Blueprint.")
+              ? (t("radar_tier4_desc_winner"))
               : isTier3 
-                ? (t("radar_tier3_desc_winner") || "Both artifacts can remain active. Choose the winner to safely override the other in the Sanctuary.")
-                : (t("scout_identical_assets_winner") || "Identical assets detected. Choose the winner to keep in your Blueprint.")
+                ? (t("radar_tier3_desc_winner"))
+                : (t("scout_identical_assets_winner"))
             }
           </p>
         </div>
@@ -114,7 +114,7 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                       isTier3 ? 'bg-[color-mix(in_srgb,var(--bg)_80%,var(--warning))] border-[var(--warning)] text-[var(--warning)]' : 
                       'bg-[color-mix(in_srgb,var(--bg)_80%,var(--text))] border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--text)]'
                     }`}>
-                      {t("nexus_vs") || "VS"}
+                      {t("nexus_vs")}
                     </div>
                   </div>
                 )}
@@ -138,7 +138,7 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                         : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'
                     }`}>
                       <span className={`material-symbols-outlined !text-[28px] transition-colors duration-300 ${isActive ? 'text-[var(--bg)]' : 'text-[var(--text)] opacity-50 group-hover:opacity-100'}`}>
-                        {t("ui_icon_extension") || "extension"}
+                        {t("ui_icon_extension")}
                       </span>
                     </div>
 
@@ -151,7 +151,7 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                       isActive ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--bg)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent group-hover:border-[color-mix(in_srgb,var(--text)_50%,transparent)]'
                     }`}>
-                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check") || "check"}</span>
+                      <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check")}</span>
                     </div>
                   </div>
                 </div>

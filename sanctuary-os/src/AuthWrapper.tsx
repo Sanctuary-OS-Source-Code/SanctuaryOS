@@ -60,17 +60,17 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
     if (isResetPassword) {
       if (!email) {
-        setStatus(t("auth_err_missing") || "Missing Credentials");
+        setStatus(t("auth_err_missing"));
         return;
       }
       setIsProcessing(true);
-      setStatus(t("auth_status_authenticating") || "Verifying Identity...");
+      setStatus(t("auth_status_authenticating"));
       try {
         const { error } = await supabase.auth.resetPasswordForEmail(email);
         if (error) throw error;
-        setStatus(t("auth_status_reset_sent") || "Reset Link Transmitted. Check your Comms.");
+        setStatus(t("auth_status_reset_sent"));
       } catch (err: any) {
-        setStatus(`${t("auth_err_validation") || "Validation Error:"}${err.message}`);
+        setStatus(`${t("auth_err_validation")}${err.message}`);
       } finally {
         setIsProcessing(false);
       }
@@ -78,12 +78,12 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     }
 
     if (!email || !password || (!isLogin && !username)) {
-      setStatus(t("auth_err_missing") || "Missing Credentials");
+      setStatus(t("auth_err_missing"));
       return;
     }
 
     setIsProcessing(true);
-    setStatus(t("auth_status_authenticating") || "Verifying Identity...");
+    setStatus(t("auth_status_authenticating"));
 
     try {
       if (isLogin) {
@@ -120,7 +120,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         if (error) throw error;
       }
     } catch (err: any) {
-      setStatus(`${t("auth_err_validation") || "Validation Error:"}${err.message}`);
+      setStatus(`${t("auth_err_validation")}${err.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -130,7 +130,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-[var(--bg)]">
         <span className="text-xs font-black uppercase tracking-[0.3em] theme-text-accent animate-pulse">
-          {t("auth_loading_session") || "Restoring Network Connection..."}
+          {t("auth_loading_session")}
         </span>
       </div>
     );
@@ -160,29 +160,29 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             {/* Top decorative header */}
             <div className="h-1 w-full bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
             <div className="w-full flex justify-between p-8 text-red-500/50 text-[10px] font-black uppercase tracking-widest font-mono">
-              <span>{t("auth_err_sys_prefix") || "SYS.ERR"} // 0xDEADBEEF</span>
-              <span>{t("auth_err_sys_severed") || "CONNECTION_SEVERED"}</span>
+              <span>{t("auth_err_sys_prefix")} {t("auto_0xdeadbeef")}</span>
+              <span>{t("auth_err_sys_severed")}</span>
             </div>
 
             <div className="flex-1 flex flex-col md:flex-row items-center justify-center p-8 md:p-16 gap-16">
               
               {/* Left Side: Icon & Title */}
               <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center">
-                <span className="material-symbols-outlined !text-[8rem] md:!text-[12rem] drop-shadow-[0_0_30px_rgba(220,38,38,0.8)] text-red-500 animate-pulse">{t("ui_icon_malware_skull") || "skull"}</span>
+                <span className="material-symbols-outlined !text-[8rem] md:!text-[12rem] drop-shadow-[0_0_30px_rgba(220,38,38,0.8)] text-red-500 animate-pulse">{t("ui_icon_malware_skull")}</span>
                 <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-red-400 to-red-800 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)] leading-none">
-                  {t("auth_err_network") || "NETWORK"}<br/>{t("auth_err_severed") || "SEVERED"}
+                  {t("auth_err_network")}<br/>{t("auth_err_severed")}
                 </h1>
               </div>
 
               {/* Right Side: Details & Action */}
               <div className="flex-1 flex flex-col gap-10">
                 <div className="flex flex-col gap-4">
-                  <h3 className="text-xl font-black uppercase tracking-widest text-red-500 border-b border-red-500/20 pb-4">{t("auth_quarantine_active") || "Quarantine Protocol Active"}</h3>
+                  <h3 className="text-xl font-black uppercase tracking-widest text-red-500 border-b border-red-500/20 pb-4">{t("auth_quarantine_active")}</h3>
                   <p className="text-sm font-bold uppercase tracking-widest text-red-400 opacity-80 leading-relaxed">
-                    {t("auth_quarantine_desc1") || "This hardware signature has been permanently blacklisted from Sanctuary OS global databases."}
+                    {t("auth_quarantine_desc1")}
                   </p>
                   <p className="text-xs font-bold uppercase tracking-widest text-red-500/60 leading-relaxed">
-                    {t("auth_quarantine_desc2") || "Online connectivity, Mod Syncing, and Blueprint Sharing privileges have been revoked. You are restricted to local environment operations only."}
+                    {t("auth_quarantine_desc2")}
                   </p>
                 </div>
                 
@@ -190,7 +190,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                   onClick={() => { setShowLoginUI(false); setSandboxAccepted(true); }}
                   className="w-full py-8 rounded-[2rem] font-black text-sm uppercase tracking-[0.4em] transition-all bg-red-500/10 border border-red-500/40 text-red-400 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500 shadow-[0_0_40px_rgba(220,38,38,0.2)] hover:shadow-[0_0_60px_rgba(220,38,38,0.4)] group flex items-center justify-center gap-4"
                 >
-                  {t("auth_btn_sandbox") || "ENTER LOCAL SANDBOX"}
+                  {t("auth_btn_sandbox")}
                   <span className="opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0 duration-300">
                     &rarr;
                   </span>
@@ -200,7 +200,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
             {/* Bottom decorative footer */}
             <div className="w-full flex justify-center p-8 border-t border-red-500/10">
-               <span className="text-red-500/30 text-[9px] font-black uppercase tracking-[0.5em]">{t("auth_offline_mode") || "Sanctuary OS Offline Mode"}</span>
+               <span className="text-red-500/30 text-[9px] font-black uppercase tracking-[0.5em]">{t("auth_offline_mode")}</span>
             </div>
           </div>
         </div>
@@ -232,17 +232,17 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             <img src="/icon.png" alt="" className="w-12 h-12 object-contain drop-shadow-[0_0_10px_var(--accent)] group-hover/logo:scale-110 transition-transform duration-500" />
           </div>
           <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white to-white/40 drop-shadow-[0_0_20px_rgba(255,255,255,0.1)] mb-2">
-            {t("auth_title") || "Identify"}
+            {t("auth_title")}
           </h1>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] theme-text-accent opacity-80">
-            {t("auth_subtitle") || "Secure Network Access"}
+            {t("auth_subtitle")}
           </p>
         </div>
 
         <form onSubmit={handleAuth} className="flex flex-col gap-5 relative z-20" noValidate>
           {!isLogin && !isResetPassword && (
             <div className="relative group/input">
-              <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 group-focus-within/input:theme-text-accent group-focus-within/input:opacity-100 transition-all !text-[20px]">{t("ui_icon_person") || "person"}</span>
+              <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 group-focus-within/input:theme-text-accent group-focus-within/input:opacity-100 transition-all !text-[20px]">{t("ui_icon_person")}</span>
               <input
                 type="text"
                 value={username}
@@ -250,14 +250,14 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                 autoComplete="off"
                 spellCheck="false"
                 data-1p-ignore
-                placeholder={t("auth_placeholder_username") || "Callsign"}
+                placeholder={t("auth_placeholder_username")}
                 className="w-full theme-glass-inner border border-white/5 bg-black/20 pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] focus:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-30 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px]"
               />
             </div>
           )}
           
           <div className="relative group/input">
-            <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 group-focus-within/input:theme-text-accent group-focus-within/input:opacity-100 transition-all !text-[20px]">{t("ui_icon_email") || "alternate_email"}</span>
+            <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 group-focus-within/input:theme-text-accent group-focus-within/input:opacity-100 transition-all !text-[20px]">{t("ui_icon_email")}</span>
             <input
               type="email"
               value={email}
@@ -265,14 +265,14 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
               autoComplete="off"
               spellCheck="false"
               data-1p-ignore
-              placeholder={t("auth_placeholder_email") || "Comms Address (Email)"}
+              placeholder={t("auth_placeholder_email")}
               className="w-full theme-glass-inner border border-white/5 bg-black/20 pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] focus:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-30 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px]"
             />
           </div>
           
           {!isResetPassword && (
             <div className="relative group/input">
-              <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 group-focus-within/input:theme-text-accent group-focus-within/input:opacity-100 transition-all !text-[20px]">{t("ui_icon_lock") || "lock"}</span>
+              <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 group-focus-within/input:theme-text-accent group-focus-within/input:opacity-100 transition-all !text-[20px]">{t("ui_icon_lock")}</span>
               <input
                 type="password"
                 value={password}
@@ -280,7 +280,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                 autoComplete="new-password"
                 spellCheck="false"
                 data-1p-ignore
-                placeholder={t("auth_placeholder_password") || "Passcode"}
+                placeholder={t("auth_placeholder_password")}
                 className="w-full theme-glass-inner border border-white/5 bg-black/20 pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] focus:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-30 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px]"
               />
             </div>
@@ -291,7 +291,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             disabled={isProcessing}
             className="w-full mt-2 py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
           >
-            {isResetPassword ? t("auth_btn_send_reset") || "Transmit Reset Link" : isLogin ? t("auth_btn_login") || "Access Network" : t("auth_btn_signup") || "Register Callsign"}
+            {isResetPassword ? t("auth_btn_send_reset") : isLogin ? t("auth_btn_login") : t("auth_btn_signup")}
           </button>
         </form>
 
@@ -300,7 +300,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             onClick={() => { localStorage.removeItem("sanctuary_show_login"); setShowLoginUI(false); }}
             className="w-full py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all bg-white/[0.03] backdrop-blur-md border border-white/10 text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20 active:scale-[0.98]"
           >
-            {t("auth_btn_skip") || "Bypass Login"}
+            {t("auth_btn_skip")}
           </button>
         </div>
 
@@ -312,8 +312,8 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                 onClick={() => { setIsResetPassword(true); setStatus(""); }}
                 className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/50 hover:text-white transition-colors flex items-center gap-1.5"
               >
-                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_vpn_key") || "vpn_key"}</span>
-                {t("auth_toggle_to_reset") || "Forgot Passcode? Reset it"}
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_vpn_key")}</span>
+                {t("auth_toggle_to_reset")}
               </button>
             )}
 
@@ -332,8 +332,8 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
               }}
               className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/50 hover:text-white transition-colors flex items-center gap-1.5"
             >
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_switch_account") || "switch_account"}</span>
-              {isResetPassword ? t("auth_toggle_to_login_from_reset") || "Back to Network Access" : isLogin ? t("auth_toggle_to_signup") || "New to Sanctuary? Register here" : t("auth_toggle_to_login") || "Already Registered? Login here"}
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_switch_account")}</span>
+              {isResetPassword ? t("auth_toggle_to_login_from_reset") : isLogin ? t("auth_toggle_to_signup") : t("auth_toggle_to_login")}
             </button>
           </div>
           

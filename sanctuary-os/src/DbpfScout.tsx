@@ -382,11 +382,11 @@ export const DbpfScout = () => {
         </div>
 
         <div className="relative z-10 flex flex-col gap-8 w-full h-full">
-          <ViewHeader title={t("radar_title") || "Conflict Radar"} subtitle={t("radar_subtitle") || "Load-order scans, duplicates, and override conflicts"} icon={t("ui_icon_radar") || "track_changes"} iconColorClass="text-amber-400 border-amber-500/30">
+          <ViewHeader title={t("radar_title")} subtitle={t("radar_subtitle")} icon={t("ui_icon_radar")} iconColorClass="text-amber-400 border-amber-500/30">
             <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
               <button onClick={() => setIsSidePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
-                <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_tune") || "tune"}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_operations") || "OPERATIONS"}</span>
+                <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_tune")}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_operations")}</span>
               </button>
             </div>
           </ViewHeader>
@@ -398,23 +398,23 @@ export const DbpfScout = () => {
                 <div className="absolute inset-4 rounded-full border border-[var(--text)] opacity-10 animate-[spin_15s_linear_infinite_reverse]" />
                 <div className="absolute inset-10 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-10 animate-[spin_25s_linear_infinite]" />
                 <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 drop-shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_50%,transparent)]">
-                  {t("ui_icon_radar") || "track_changes"}
+                  {t("ui_icon_radar")}
                 </span>
               </div>
               <div className="space-y-4 max-w-xl relative z-10">
                 <h2 className="text-4xl font-black text-[var(--text)] uppercase tracking-tighter drop-shadow-lg">
-                  {t("radar_landing_title") || "SYSTEM STANDBY"}
+                  {t("radar_landing_title")}
                 </h2>
                 <p className="text-sm font-medium leading-relaxed text-[var(--subtext)] opacity-80">
-                  {t("radar_landing_desc") || "Deploy the Conflict Radar to scan your active load order for fatal structural clashes, tuning data overlaps, and duplicate asset clones. Neutralize threats before they destabilize your environment."}
+                  {t("radar_landing_desc")}
                 </p>
               </div>
               <button
                 onClick={runRadar}
                 className="px-10 py-5 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-105 transition-all flex items-center gap-3 relative z-10"
               >
-                <span className="material-symbols-outlined !text-xl animate-pulse">{t("ui_icon_radar") || "track_changes"}</span>
-                <span className="text-xs font-black uppercase tracking-widest">{t("radar_btn_sweep") || "Scan Blueprint"}</span>
+                <span className="material-symbols-outlined !text-xl animate-pulse">{t("ui_icon_radar")}</span>
+                <span className="text-xs font-black uppercase tracking-widest">{t("radar_btn_sweep")}</span>
               </button>
             </div>
           )}
@@ -426,15 +426,15 @@ export const DbpfScout = () => {
                  <div className="absolute inset-4 rounded-full border-[4px] border-solid border-transparent border-t-[var(--accent)] opacity-60 animate-[spin_1s_linear_infinite_reverse]" />
                  <div className="absolute inset-8 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-40 animate-[spin_5s_linear_infinite]" />
                  <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] animate-pulse drop-shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_80%,transparent)]">
-                   {t("ui_icon_radar") || "track_changes"}
+                   {t("ui_icon_radar")}
                  </span>
               </div>
               <div className="space-y-4 max-w-xl relative z-10">
                 <h2 className="text-4xl font-black text-[var(--accent)] uppercase tracking-tighter drop-shadow-lg animate-pulse">
-                   {t("radar_scanning_title") || "SCANNING BLUEPRINT..."}
+                   {t("radar_scanning_title")}
                 </h2>
                 <p className="text-sm font-medium leading-relaxed text-[var(--subtext)] opacity-80">
-                   {t("radar_scanning_desc") || "Please stand by. Analyzing target blueprint for duplicate assets and logical conflicts."}
+                   {t("radar_scanning_desc")}
                 </p>
               </div>
             </div>
@@ -447,7 +447,7 @@ export const DbpfScout = () => {
               {/* Packages Card */}
               <div className="theme-glass-panel p-8 rounded-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg relative overflow-hidden flex flex-col justify-center group transition-all hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:-translate-y-1">
                 <div className="absolute right-[-20px] top-1/2 -translate-y-1/2 opacity-[0.03] group-hover:opacity-[0.06] group-hover:scale-110 transition-all duration-700 pointer-events-none">
-                  <span className="material-symbols-outlined !text-[160px]">{t("ui_icon_inventory") || "inventory_2"}</span>
+                  <span className="material-symbols-outlined !text-[160px]">{t("ui_icon_inventory")}</span>
                 </div>
                 
                 <div className="relative z-10">
@@ -455,7 +455,7 @@ export const DbpfScout = () => {
                     {stats.packages}
                   </div>
                   <p className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-[0.2em]">
-                    {t("radar_stat_packages") || "Active Packages"}
+                    {t("radar_stat_packages")}
                   </p>
                 </div>
               </div>
@@ -481,7 +481,7 @@ export const DbpfScout = () => {
                     )}
                   </div>
                   <p className={`text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 ${stats.totalClashes > 0 ? 'text-[var(--danger)] drop-shadow-sm' : 'text-[var(--subtext)] opacity-60'}`}>
-                    {t("radar_stat_clashes") || "Actionable Clashes"}
+                    {t("radar_stat_clashes")}
                   </p>
                 </div>
               </div>
@@ -491,11 +491,11 @@ export const DbpfScout = () => {
               <div className="flex items-center justify-between border-b theme-border-danger pb-4 mb-6">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[var(--danger)]/30 flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
-                    <span className="material-symbols-outlined !text-2xl theme-text-danger drop-shadow-[0_0_8px_rgba(var(--danger-rgb),0.5)]">{t("ui_icon_warning") || "warning_amber"}</span>
+                    <span className="material-symbols-outlined !text-2xl theme-text-danger drop-shadow-[0_0_8px_rgba(var(--danger-rgb),0.5)]">{t("ui_icon_warning")}</span>
                   </div>
                   <div className="flex flex-col gap-0.5">
                     <h2 className="text-2xl font-black theme-text-danger uppercase tracking-tighter italic drop-shadow-md">{t("radar_tier4_title") || "Collision Severity 4"?.replace("dY>` ", "") || "FATAL ENGINE CLASHES"}</h2>
-                    <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("radar_tier4_desc") || "Core Python or Binary overlaps detected. Overrides impossible."}</p>
+                    <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("radar_tier4_desc")}</p>
                   </div>
                 </div>
               </div>
@@ -518,11 +518,11 @@ export const DbpfScout = () => {
               <div className="flex items-center justify-between border-b theme-border-warning pb-4 mb-6">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[var(--warning)]/30 flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]">
-                    <span className="material-symbols-outlined !text-2xl theme-text-warning drop-shadow-[0_0_8px_rgba(var(--warning-rgb),0.5)]">{t("ui_icon_tune") || "tune"}</span>
+                    <span className="material-symbols-outlined !text-2xl theme-text-warning drop-shadow-[0_0_8px_rgba(var(--warning-rgb),0.5)]">{t("ui_icon_tune")}</span>
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <h2 className="text-2xl font-black theme-text-warning uppercase tracking-tighter italic drop-shadow-md">{t("radar_tier3_title") || "Collision Severity 3"}</h2>
-                    <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("radar_tier3_desc") || "XML / SimData overlaps detected. Neutralize via Override."}</p>
+                    <h2 className="text-2xl font-black theme-text-warning uppercase tracking-tighter italic drop-shadow-md">{t("radar_tier3_title")}</h2>
+                    <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("radar_tier3_desc")}</p>
                   </div>
                 </div>
               </div>
@@ -544,11 +544,11 @@ export const DbpfScout = () => {
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b theme-border-accent pb-4 mb-6">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[var(--accent)]/30 flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
-                    <span className="material-symbols-outlined lowercase !text-2xl theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_dna") || "all_inclusive"}</span>
+                    <span className="material-symbols-outlined lowercase !text-2xl theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_dna")}</span>
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <h2 className="text-2xl font-black theme-text-accent uppercase tracking-tighter italic drop-shadow-md">{t("scout_duplicate_clones") || "Collision Severity 2"}</h2>
-                    <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("scout_identical_assets") || "Identical asset signatures. Purge redundant files."}</p>
+                    <h2 className="text-2xl font-black theme-text-accent uppercase tracking-tighter italic drop-shadow-md">{t("scout_duplicate_clones")}</h2>
+                    <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("scout_identical_assets")}</p>
                   </div>
                 </div>
                   
@@ -560,13 +560,13 @@ export const DbpfScout = () => {
                           onClick={targetHq}
                           className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 text-[var(--text)] backdrop-blur-md hover:bg-white/10 hover:shadow-xl text-[10px] font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center shrink-0"
                         >
-                          {t("radar_btn_select_hq") || "SELECT HQ"}
+                          {t("radar_btn_select_hq")}
                         </button>
                         <button
                           onClick={targetNonHq}
                           className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 text-[var(--text)] backdrop-blur-md hover:bg-white/10 hover:shadow-xl text-[10px] font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center shrink-0"
                         >
-                          {t("radar_btn_select_nonhq") || "SELECT NON-HQ"}
+                          {t("radar_btn_select_nonhq")}
                         </button>
                       </>
                     )}
@@ -585,8 +585,8 @@ export const DbpfScout = () => {
                       }`}
                     >
                       {isBulkMode 
-                        ? (selectedForVault.length > 0 ? `${t("scout_btn_yeet") || "YEET"} (${selectedForVault.length})` : t("vault_btn_cancel_selection") || "CANCEL SELECTION")
-                        : "✓ " + (t("vault_btn_select_assets") || "SELECT ASSETS")}
+                        ? (selectedForVault.length > 0 ? `${t("scout_btn_yeet")} (${selectedForVault.length})` : t("vault_btn_cancel_selection"))
+                        : "✓ " + (t("vault_btn_select_assets"))}
                     </button>
                   </div>
                 </div>
@@ -598,10 +598,10 @@ export const DbpfScout = () => {
                   </p>
                   <div className="flex gap-4 w-full md:w-auto">
                     <button onClick={executeMassVault} className="flex-1 md:flex-none px-8 py-3 bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] shadow-lg hover:scale-105 transition-all text-[10px] tracking-widest font-black rounded-xl">
-                      {t("scout_confirm_purge") || "CONFIRM PURGE"}
+                      {t("scout_confirm_purge")}
                     </button>
                     <button onClick={() => setConfirmMassVault(false)} className="flex-1 md:flex-none px-8 py-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 text-[var(--text)] backdrop-blur-md hover:bg-white/10 hover:shadow-xl text-[10px] tracking-widest font-black rounded-xl transition-all">
-                      {t("ui_btn_cancel") || "CANCEL"}
+                      {t("ui_btn_cancel")}
                     </button>
                   </div>
                 </div>
@@ -630,13 +630,13 @@ export const DbpfScout = () => {
               <summary className="flex flex-col gap-1 list-none outline-none">
                 <div className="flex justify-between items-center w-full">
                   <h3 className="text-sm font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest flex items-center gap-3 group-open:text-[var(--text)] transition-colors">
-                    <span className="material-symbols-outlined !text-xl">{t("ui_icon_info") || "info"}</span> {t("scout_minor_overlaps") || "Collision Severity 1 ({count})".replace("{count}", String(softConflicts.length))}
+                    <span className="material-symbols-outlined !text-xl">{t("ui_icon_info")}</span> {t("scout_minor_overlaps") || "Collision Severity 1 ({count})".replace("{count}", String(softConflicts.length))}
                   </h3>
                   <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[var(--subtext)] opacity-60 group-open:rotate-180 transition-transform shrink-0">
-                    <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_expand") || "expand_more"}</span>
+                    <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_expand")}</span>
                   </div>
                 </div>
-                <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest ml-9">{t("scout_safe_textures") || "Usually safe textures or low-impact overrides"}</p>
+                <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest ml-9">{t("scout_safe_textures")}</p>
               </summary>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pt-6 border-t border-white/5 mt-4">
                 {softConflicts.map((c: any) => (
@@ -659,16 +659,16 @@ export const DbpfScout = () => {
                   <div className="absolute inset-0 rounded-full border-[2px] border-dashed border-[color-mix(in_srgb,var(--success)_50%,transparent)] animate-[spin_10s_linear_infinite]" />
                   <div className="absolute inset-2 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[spin_15s_linear_infinite_reverse]" />
                   <span className="material-symbols-outlined !text-[64px] text-[var(--success)] animate-pulse drop-shadow-[0_0_15px_color-mix(in_srgb,var(--success)_80%,transparent)]">
-                    {t("ui_icon_check") || "check"}
+                    {t("ui_icon_check")}
                   </span>
                 </div>
               </div>
               <div className="relative z-10 max-w-lg">
                 <h2 className="text-4xl font-black text-[var(--success)] uppercase tracking-tighter mb-4 drop-shadow-[0_0_10px_color-mix(in_srgb,var(--success)_30%,transparent)]">
-                  {t("radar_clear_title") || "Blueprint Clear"}
+                  {t("radar_clear_title")}
                 </h2>
                 <p className="text-xs font-bold leading-relaxed uppercase tracking-[0.2em] text-[var(--subtext)] opacity-90 border-t border-[color-mix(in_srgb,var(--success)_20%,transparent)] pt-4">
-                  {t("radar_clear_desc") || "No conflicts were detected in your deployed blueprint."}
+                  {t("radar_clear_desc")}
                 </p>
               </div>
             </div>
@@ -679,12 +679,12 @@ export const DbpfScout = () => {
       {hasScanned && stats.packages === 0 && !loading && !error && (
         <div className="py-24 flex flex-col items-center justify-center text-center space-y-6 opacity-60 animate-in fade-in zoom-in-95 duration-500">
           <div className="w-24 h-24 rounded-full theme-panel-accent border flex items-center justify-center">
-            <span className="material-symbols-outlined !text-[48px] grayscale">{t("ui_icon_folder") || "folder"}</span>
+            <span className="material-symbols-outlined !text-[48px] grayscale">{t("ui_icon_folder")}</span>
           </div>
           <div>
-            <h2 className="text-3xl font-black theme-text-accent uppercase tracking-tighter mb-2">{t("radar_empty_title") || "Library Empty"}</h2>
+            <h2 className="text-3xl font-black theme-text-accent uppercase tracking-tighter mb-2">{t("radar_empty_title")}</h2>
             <p className="text-sm font-medium leading-relaxed text-[var(--subtext)] opacity-80 max-w-lg mx-auto">
-              {t("radar_empty_desc") || "No artifacts were found in your active Mods folder. The Conflict Radar scans your actively deployed loadout. Equip a Blueprint from the Command Center first to test it for clashes!"}
+              {t("radar_empty_desc")}
             </p>
           </div>
         </div>
@@ -692,9 +692,9 @@ export const DbpfScout = () => {
 
       {error && (
         <div className="theme-panel-danger border p-8 rounded-3xl flex items-start gap-4">
-          <span className="material-symbols-outlined !text-[32px]">{t("ui_icon_warning") || "warning_amber"}</span>
+          <span className="material-symbols-outlined !text-[32px]">{t("ui_icon_warning")}</span>
           <div>
-            <h3 className="theme-text-danger font-black uppercase tracking-widest mb-1 text-sm">{t("scout_radar_malfunction") || "Radar Malfunction"}</h3>
+            <h3 className="theme-text-danger font-black uppercase tracking-widest mb-1 text-sm">{t("scout_radar_malfunction")}</h3>
             <p className="theme-text-danger opacity-80 font-mono text-xs">{error}</p>
           </div>
         </div>
@@ -724,8 +724,8 @@ export const DbpfScout = () => {
       <SidePanel
         isOpen={isSidePanelOpen}
         onClose={() => setIsSidePanelOpen(false)}
-        title={t("radar_tools_title") || "RADAR OPERATIONS"}
-        subtitle={t("radar_tools_subtitle") || "OPERATIONS & SCOPE"}
+        title={t("radar_tools_title")}
+        subtitle={t("radar_tools_subtitle")}
         icon="tune"
         iconColorClass="text-amber-400 border-amber-500/30"
       >
@@ -734,9 +734,9 @@ export const DbpfScout = () => {
              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none rounded-3xl" />
              <div className="flex items-center gap-4 mb-6 relative z-10">
                <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-amber-400">
-                 <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_my_location") || "my_location"}</span>
+                 <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_my_location")}</span>
                </div>
-               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("scout_sidebar_scope") || "TARGET SCOPE"}</h3>
+               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("scout_sidebar_scope")}</h3>
              </div>
              
              <div className="relative z-10 flex flex-col gap-4">
@@ -746,7 +746,7 @@ export const DbpfScout = () => {
                  options={playSets.map((set: any) => ({ id: set.name, label: set.name }))}
                  onChange={(val: any) => setScanScope(val[0])}
                />
-               <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 text-center px-4 leading-relaxed tracking-wide">{t("scout_sidebar_scope_desc") || "Select which load order the Conflict Radar should analyze."}</p>
+               <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 text-center px-4 leading-relaxed tracking-wide">{t("scout_sidebar_scope_desc")}</p>
              </div>
            </div>
            
@@ -754,14 +754,14 @@ export const DbpfScout = () => {
              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
              <div className="flex items-center gap-4 mb-6 relative z-10">
                <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-amber-400">
-                 <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_bolt") || "bolt"}</span>
+                 <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_bolt")}</span>
                </div>
-               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("scout_sidebar_actions") || "ACTIONS"}</h3>
+               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("scout_sidebar_actions")}</h3>
              </div>
              
              <div className="relative z-10 flex flex-col gap-3">
-               <SidebarActionButton id="SWEEP" icon="track_changes" label={t("radar_btn_sweep") || "Scan Blueprint"} onClick={runRadar} active={false} />
-               <SidebarActionButton id="UNDO" icon="undo" label={t("scout_sidebar_undo_winners") || "REVERT OVERRIDES"} onClick={() => setShowUndoPanel(true)} active={showUndoPanel} />
+               <SidebarActionButton id="SWEEP" icon="track_changes" label={t("radar_btn_sweep")} onClick={runRadar} active={false} />
+               <SidebarActionButton id="UNDO" icon="undo" label={t("scout_sidebar_undo_winners")} onClick={() => setShowUndoPanel(true)} active={showUndoPanel} />
              </div>
            </div>
         </div>

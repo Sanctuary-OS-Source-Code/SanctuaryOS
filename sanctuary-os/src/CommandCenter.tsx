@@ -310,21 +310,21 @@ export default function CommandCenter({
 
   return (
     <div className="flex flex-col gap-8 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <ViewHeader title={t("cmd_center_title") || "Command Center"} subtitle={t("cmd_center_subtitle") || "System status & active deployment overview"} icon={t("ui_icon_pc") || "desktop_windows"} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
+      <ViewHeader title={t("cmd_center_title")} subtitle={t("cmd_center_subtitle")} icon={t("ui_icon_pc")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 w-full">
         <DashboardStatTile 
-           icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_radar3") || "radar"}</span>} 
+           icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_radar3")}</span>} 
            number={
              (radarTier4Count + radarTier3Count + radarBrokenCount + radarUnstableCount) > 0 
                ? (radarTier4Count + radarTier3Count + radarBrokenCount + radarUnstableCount)
                : (radarUpdatesCount > 0 ? radarUpdatesCount : 0)
            }
            label={
-             radarState === 'critical' ? (t("radar_crit_fail") || "critical failures detected") : 
-             radarState === 'warning' ? (t("radar_action_rec") || "Citizen action recommended") : 
-             radarState === 'update' ? (t("radar_updates_avail") || "UPDATES AVAILABLE") :
-             (t("radar_sys_stable") || "System Stable")
+             radarState === 'critical' ? (t("radar_crit_fail")) : 
+             radarState === 'warning' ? (t("radar_action_rec")) : 
+             radarState === 'update' ? (t("radar_updates_avail")) :
+             (t("radar_sys_stable"))
            }
            colorClass={
              radarState === 'critical' ? "border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" :
@@ -335,30 +335,30 @@ export default function CommandCenter({
            onClick={() => setShowRadarSweepPanel(true)} 
         />
         <DashboardStatTile 
-           icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_architect") || "account_balance"}</span>} 
+           icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_architect")}</span>} 
            number={modList?.length || 0} 
-           label={t("dashboard_stat_vault") || "Your Vault"} 
+           label={t("dashboard_stat_vault")} 
            colorClass="border-teal-500/30 text-teal-500 hover:border-teal-500 bg-teal-500/10 hover:bg-teal-500/20" 
            onClick={() => { if(setView) setView("vault"); if(setFilterStatus) setFilterStatus("ALL"); }} 
         />
         <DashboardStatTile 
-           icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_hub") || "hub"}</span>} 
+           icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_hub")}</span>} 
            number={marketplaceCount} 
-           label={t("sidebar_marketplace") || "The Nexus"} 
+           label={t("sidebar_marketplace")} 
            colorClass="border-cyan-500/30 text-cyan-500 hover:border-cyan-500 bg-cyan-500/10 hover:bg-cyan-500/20" 
            onClick={() => { if(setView) setView("marketplace"); }} 
         />
         <DashboardStatTile 
-           icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_map") || "map"}</span>} 
+           icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_map")}</span>} 
            number={playSets?.length || 0} 
-           label={t("dashboard_stat_blueprints") || "Active Blueprints"} 
+           label={t("dashboard_stat_blueprints")} 
            colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" 
            onClick={() => setIsBlueprintSwapOpen(true)} 
         />
         <DashboardStatTile 
-           icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity") || "local_activity"}</span>} 
+           icon={<span className="material-symbols-outlined !text-4xl">{t("ui_icon_local_activity")}</span>} 
            number={ticketCount} 
-           label={t("sidebar_support") || "SANCTUARY SUPPORT"} 
+           label={t("sidebar_support")} 
            colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" 
            onClick={() => { if(setIsCitizenTicketsOpen) setIsCitizenTicketsOpen(true); }} 
         />
@@ -370,25 +370,25 @@ export default function CommandCenter({
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 w-full z-10 pl-2">
             <div className="flex items-center gap-5">
               <div className="w-14 h-14 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] flex items-center justify-center shadow-[0_0_30px_rgba(var(--danger-rgb),0.2)] animate-pulse shrink-0">
-                <span className="material-symbols-outlined !text-[32px]">{t("ui_icon_warning") || "warning_amber"}</span>
+                <span className="material-symbols-outlined !text-[32px]">{t("ui_icon_warning")}</span>
               </div>
               <div className="flex flex-col gap-1">
-                <h3 className="text-xl font-black uppercase text-[var(--danger)] tracking-widest leading-none drop-shadow-md">{t("cmd_perm_restricted") || "PERMISSIONS RESTRICTED"}</h3>
-                <p className="text-xs font-bold text-[var(--subtext)] tracking-wide">{t("cmd_perm_desc") || "Sanctuary OS lacks sufficient clearance to manage your Vault."}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] mt-1">{t("cmd_perm_dev_mode_rec") || "Recommended Fix"} - {t("cmd_perm_dev_mode_nav") || "Enable Developer Mode in Windows Settings"}</p>
+                <h3 className="text-xl font-black uppercase text-[var(--danger)] tracking-widest leading-none drop-shadow-md">{t("cmd_perm_restricted")}</h3>
+                <p className="text-xs font-bold text-[var(--subtext)] tracking-wide">{t("cmd_perm_desc")}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] mt-1">{t("cmd_perm_dev_mode_rec")} - {t("cmd_perm_dev_mode_nav")}</p>
               </div>
             </div>
             
             <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto items-end mt-4 md:mt-0">
               <div className="flex items-stretch gap-3 w-full h-[56px]">
                 <button onClick={() => invoke("open_developer_settings")} className="flex-1 md:flex-none px-8 flex items-center justify-center bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-center backdrop-blur-[3px]">
-                  {t("cmd_perm_btn_dev") || "OPEN DEV SETTINGS"}
+                  {t("cmd_perm_btn_dev")}
                 </button>
                 <button onClick={checkPerms} className="px-6 flex items-center justify-center bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl text-xl transition-all backdrop-blur-[3px]">
-                  <span className="material-symbols-outlined">{t("ui_icon_refresh") || "refresh"}</span>
+                  <span className="material-symbols-outlined">{t("ui_icon_refresh")}</span>
                 </button>
               </div>
-              <p className="text-[9px] text-[var(--subtext)] font-bold tracking-widest text-right mt-1">{t("cmd_perm_admin_rec") || "Alternative Fix"} - {t("cmd_perm_admin") || "Run as Administrator"}</p>
+              <p className="text-[9px] text-[var(--subtext)] font-bold tracking-widest text-right mt-1">{t("cmd_perm_admin_rec")} - {t("cmd_perm_admin")}</p>
             </div>
           </div>
         </div>
@@ -408,35 +408,35 @@ export default function CommandCenter({
               </div>
               <div className="flex flex-col gap-1">
                 <h3 className="text-xl font-black uppercase tracking-widest" style={{ color: alertVar }}>
-                   {radarState === 'critical' ? (t("cmd_critical_action_short") || "CRITICAL ACTION REQUIRED") :
-                    radarState === 'warning' ? (t("cmd_action_suggested") || "Citizen Action Recommended") :
-                    (t("cmd_update_suggested") || "SYSTEM UPDATES AVAILABLE")}
+                   {radarState === 'critical' ? (t("cmd_critical_action_short")) :
+                    radarState === 'warning' ? (t("cmd_action_suggested")) :
+                    (t("cmd_update_suggested"))}
                 </h3>
                 <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">
-                  {radarState === 'critical' ? (t("cmd_action_fatal") || "Severity 4 collisions require resolution before deployment") :
-                   radarState === 'warning' ? (t("cmd_action_incompatibilities") || "INCOMPATIBILITIES MAY AFFECT THIS DEPLOYMENT") :
-                   (t("cmd_attention_required") || "Blueprint-linked artifacts have newer versions available")}
+                  {radarState === 'critical' ? (t("cmd_action_fatal")) :
+                   radarState === 'warning' ? (t("cmd_action_incompatibilities")) :
+                   (t("cmd_attention_required"))}
                 </p>
               </div>
             </div>
             
             <div className="flex items-center gap-4 z-10 flex-wrap">
                <button onClick={() => { if(activeUpdates.length > 0) setShowUpdatesModal(true); }} disabled={!(activeUpdates.length > 0)} className={`px-6 py-3 rounded-xl flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${activeUpdates.length > 0 ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'bg-white/5 border-white/10 text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
-                 <span className="material-symbols-outlined !text-sm">{t("ui_icon_update") || "update"}</span> {activeUpdates.length} {t("cmd_citizen_action_updates") || "UPDATES"}
+                 <span className="material-symbols-outlined !text-sm">{t("ui_icon_update")}</span> {activeUpdates.length} {t("cmd_citizen_action_updates")}
                </button>
                <button onClick={() => { if((radarBrokenCount + radarUnstableCount) > 0) setShowIncompatiblePanel(true); }} disabled={(radarBrokenCount + radarUnstableCount) === 0} className={`px-6 py-3 rounded-xl flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${(radarBrokenCount + radarUnstableCount) > 0 ? (radarBrokenCount > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_30%,transparent)]') : 'bg-white/5 border-white/10 text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
-                 <span className="material-symbols-outlined !text-sm">{radarBrokenCount > 0 ? "gpp_bad" : (radarUnstableCount > 0 ? "gpp_maybe" : "warning_amber")}</span> {radarBrokenCount > 0 && radarUnstableCount > 0 ? `${radarBrokenCount} ${t("label_corrupted") || "Corrupted"} / ${radarUnstableCount} ${t("label_unstable") || "Unstable"}` : radarBrokenCount > 0 ? `${radarBrokenCount} ${t("label_corrupted") || "Corrupted"}` : radarUnstableCount > 0 ? `${radarUnstableCount} ${t("label_unstable") || "Unstable"}` : `0 ${t("cmd_citizen_action_incompatible") || "INCOMPATIBLE"}`}
+                 <span className="material-symbols-outlined !text-sm">{radarBrokenCount > 0 ? "gpp_bad" : (radarUnstableCount > 0 ? "gpp_maybe" : "warning_amber")}</span> {radarBrokenCount > 0 && radarUnstableCount > 0 ? `${radarBrokenCount} ${t("label_corrupted")} / ${radarUnstableCount} ${t("label_unstable")}` : radarBrokenCount > 0 ? `${radarBrokenCount} ${t("label_corrupted")}` : radarUnstableCount > 0 ? `${radarUnstableCount} ${t("label_unstable")}` : `0 ${t("cmd_citizen_action_incompatible")}`}
                </button>
                <button onClick={() => { if(activeConflictCount.total > 0) setShowConflictsPanel(true); }} disabled={activeConflictCount.total === 0} className={`px-6 py-3 rounded-xl flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${activeConflictCount.total > 0 ? (activeConflictCount.tier4 > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_30%,transparent)]') : 'bg-white/5 border-white/10 text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
                  <span className="material-symbols-outlined !text-sm">{activeConflictCount.tier4 > 0 ? "crisis_alert" : (activeConflictCount.tier3 > 0 ? "tune" : "radar")}</span> 
                   {activeConflictCount.total > 0 ? (
                     activeConflictCount.tier4 > 0 && activeConflictCount.tier3 > 0 ?
-                      `${activeConflictCount.tier4} ${t("hub_stat_tier4") || "Severity 4 Collisions"} / ${activeConflictCount.tier3} ${t("hub_stat_tier3") || "Severity 3 Collisions"}` :
+                      `${activeConflictCount.tier4} ${t("hub_stat_tier4")} / ${activeConflictCount.tier3} ${t("hub_stat_tier3")}` :
                     activeConflictCount.tier4 > 0 ? 
-                      `${activeConflictCount.tier4} ${t("hub_stat_tier4") || "Collision Severity 4"}` : 
-                      `${activeConflictCount.tier3} ${t("hub_stat_tier3") || "Collision Severity 3"}`
+                      `${activeConflictCount.tier4} ${t("hub_stat_tier4")}` : 
+                      `${activeConflictCount.tier3} ${t("hub_stat_tier3")}`
                   ) : (
-                    `${activeConflictCount.total} ${t("cmd_citizen_action_conflicts") || "CONFLICTS"}`
+                    `${activeConflictCount.total} ${t("cmd_citizen_action_conflicts")}`
                   )}
                </button>
             </div>
@@ -448,9 +448,9 @@ export default function CommandCenter({
         <div className="flex-1 flex flex-col gap-6 min-w-0">
            <div className="flex items-center gap-3 mb-6 mt-2">
              <div className="w-12 h-12 rounded-xl theme-glass-inner flex items-center justify-center border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)] shrink-0">
-               <span className="material-symbols-outlined !text-2xl text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]">{t("ui_icon_broadcast") || "satellite_alt"}</span>
+               <span className="material-symbols-outlined !text-2xl text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]">{t("ui_icon_broadcast")}</span>
              </div>
-             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] truncate">{t("sidebar_commlink") || "COMM-LINK"}</h2>
+             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] truncate">{t("sidebar_commlink")}</h2>
            </div>
            
            <div className="w-full">
@@ -459,8 +459,8 @@ export default function CommandCenter({
              )}
              {(!session || localStorage.getItem("sanctuary_blacklisted") === "true") && (
                 <div className="w-full p-8 theme-glass-panel border border-white/5 rounded-[2rem] flex flex-col items-center justify-center gap-4 opacity-50 text-center">
-                   <span className="material-symbols-outlined !text-4xl">{t("ui_icon_satellite_alt") || "satellite_alt"}</span>
-                   <p className="text-sm font-bold uppercase">{t("cmd_login_commlink") || "Login to Access Comm-Link"}</p>
+                   <span className="material-symbols-outlined !text-4xl">{t("ui_icon_satellite_alt")}</span>
+                   <p className="text-sm font-bold uppercase">{t("cmd_login_commlink")}</p>
                 </div>
              )}
            </div>
@@ -468,9 +468,9 @@ export default function CommandCenter({
          <div className="w-full lg:w-[420px] shrink-0 flex flex-col gap-6">
            <div className="flex items-center gap-3 mb-6 mt-2">
              <div className="w-12 h-12 rounded-xl theme-glass-inner flex items-center justify-center border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)] shrink-0">
-               <span className="material-symbols-outlined !text-2xl text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]">{t("ui_icon_bolt") || "bolt"}</span>
+               <span className="material-symbols-outlined !text-2xl text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]">{t("ui_icon_bolt")}</span>
              </div>
-             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] shrink-0">{t("cmd_quick_actions") || "Quick Actions"}</h2>
+             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] shrink-0">{t("cmd_quick_actions")}</h2>
            </div>
 
            <div className="flex flex-col gap-4">
@@ -479,13 +479,13 @@ export default function CommandCenter({
                <div className="flex items-center gap-5">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-emerald-500/20 flex items-center justify-center shrink-0">
                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">
-                     {t("ui_icon_radar3") || "radar"}
+                     {t("ui_icon_radar3")}
                    </span>
                  </div>
                  <div className="flex flex-col gap-1">
-                   <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{(t("dashboard_btn_radar") || "RADAR SWEEP").replace(/^[^\w]*/, '').trim()}</span>
+                   <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{(t("dashboard_btn_radar")).replace(/^[^\w]*/, '').trim()}</span>
                    <span className="text-[9px] uppercase font-bold text-emerald-500/80 tracking-widest group-hover:text-emerald-400 transition-colors flex items-center gap-2 mt-1">
-                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span> {t("dashboard_btn_radar_desc") || "SCAN AND SYNC YOUR VAULT "}
+                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span> {t("dashboard_btn_radar_desc")}
                    </span>
                  </div>
                </div>
@@ -496,13 +496,13 @@ export default function CommandCenter({
                <div className="flex items-center gap-5">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-cyan-500/20 flex items-center justify-center shrink-0">
                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]">
-                     {shelterActive ? (t("ui_icon_lock") || "lock") : (t("ui_icon_lock_open") || "lock_open")}
+                     {shelterActive ? (t("ui_icon_lock")) : (t("ui_icon_lock_open"))}
                    </span>
                  </div>
                  <div className="flex flex-col gap-1">
-                   <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{shelterActive ? ((t("dashboard_btn_reclaim") || "RECLAIM VAULT").replace(/^[^\w]*/, '').trim()) : ((t("dashboard_btn_lockdown") || "LOCKDOWN VAULT").replace(/^[^\w]*/, '').trim())}</span>
+                   <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{shelterActive ? ((t("dashboard_btn_reclaim")).replace(/^[^\w]*/, '').trim()) : ((t("dashboard_btn_lockdown")).replace(/^[^\w]*/, '').trim())}</span>
                    <span className="text-[9px] uppercase font-bold text-cyan-500/80 tracking-widest group-hover:text-cyan-400 transition-colors flex items-center gap-2 mt-1">
-                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]"></span> {shelterActive ? (t("dashboard_btn_bunker_unlock_desc") || "DISABLE DEFENSIVE PROTOCOL") : (t("dashboard_btn_bunker_lock_desc") || "EXECUTE DEFENSIVE PROTOCOL")}
+                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]"></span> {shelterActive ? (t("dashboard_btn_bunker_unlock_desc")) : (t("dashboard_btn_bunker_lock_desc"))}
                    </span>
                  </div>
                </div>
@@ -513,13 +513,13 @@ export default function CommandCenter({
                <div className="flex items-center gap-5">
                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-rose-500/20 flex items-center justify-center shrink-0">
                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]">
-                     {t("ui_icon_local_activity") || "local_activity"}
+                     {t("ui_icon_local_activity")}
                    </span>
                  </div>
                  <div className="flex flex-col gap-1">
-                   <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{t("dashboard_btn_submit_ticket") || "SUBMIT A TICKET"}</span>
+                   <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{t("dashboard_btn_submit_ticket")}</span>
                    <span className="text-[9px] uppercase font-bold text-purple-500/80 tracking-widest group-hover:text-purple-400 transition-colors flex items-center gap-2 mt-1">
-                     <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span> {t("dashboard_btn_submit_ticket_desc") || "OPEN SANCTUARY SUPPORT SYSTEM"}
+                     <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span> {t("dashboard_btn_submit_ticket_desc")}
                    </span>
                  </div>
                </div>
@@ -531,9 +531,9 @@ export default function CommandCenter({
       <SidePanel
         isOpen={showUpdatesModal}
         onClose={() => setShowUpdatesModal(false)}
-        title={t("cmd_updates_modal_title") || "UPDATES"}
-        subtitle={t("cmd_system_core") || "System Core & Sub-Systems"}
-        icon={t("ui_icon_update") || "update"}
+        title={t("cmd_updates_modal_title")}
+        subtitle={t("cmd_system_core")}
+        icon={t("ui_icon_update")}
         iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
         widthClass="w-[550px]"
       >
@@ -542,7 +542,7 @@ export default function CommandCenter({
               <div key={update.hash || update.name} className="relative shrink-0 group w-full rounded-[2rem] overflow-hidden transition-all duration-500 border flex items-center border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-lg hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)]">
                 <div className="relative p-6 z-10 flex items-center gap-5 w-full">
                   <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]">
-                    <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">{t("ui_icon_update") || "update"}</span>
+                    <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">{t("ui_icon_update")}</span>
                   </div>
                   
                   <div className="flex-1 min-w-0">
@@ -551,11 +551,11 @@ export default function CommandCenter({
                         <span className="text-sm font-black uppercase tracking-tight text-[var(--text)] truncate">{update.displayName || update.name}</span>
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
                           <span className="text-[10px] font-bold tracking-widest text-[var(--subtext)] opacity-80 flex items-center">
-                             <span className="opacity-50 mr-1">V.</span>{update.version} <span className="opacity-40 mx-2 text-[8px]">- </span> <span className="theme-text-accent font-black">V.{update.newVersion}</span>
+                             <span className="opacity-50 mr-1">{t("auto_v")}</span>{update.version} <span className="opacity-40 mx-2 text-[8px]">- </span> <span className="theme-text-accent font-black">{t("auto_v")}{update.newVersion}</span>
                           </span>
                           {update.newGameVersion && (
                             <span className="px-2 py-0.5 rounded-md bg-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--text)] opacity-80 flex items-center gap-1 shadow-sm">
-                              <span className="material-symbols-outlined !text-[10px] opacity-70">{t("ui_icon_sports_esports") || "sports_esports"}</span>
+                              <span className="material-symbols-outlined !text-[10px] opacity-70">{t("ui_icon_sports_esports")}</span>
                               {update.newGameVersion}
                             </span>
                           )}
@@ -566,15 +566,15 @@ export default function CommandCenter({
                   
                   <div className="shrink-0 ml-4">
                     <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openUrl(update.download_url || update.url || `https://www.google.com/search?q=Sims+4+${encodeURIComponent(update.displayName || (update.name || '').split('/').pop() || "")}`); }} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.2)] flex items-center gap-2 theme-bg-accent/10 border theme-border-accent/30 theme-text-accent hover:theme-bg-accent/20 hover:theme-border-accent/50 backdrop-blur-md active:scale-95`}>
-                      {update.download_url || update.url ? (t("dossier_btn_download") || "Download") : (t("dossier_btn_search_web") || "Smart Search")} <span className="material-symbols-outlined !text-[14px] opacity-70">{update.download_url || update.url ? (t("ui_icon_import") || "download") : (t("ui_icon_search") || "search")}</span>
+                      {update.download_url || update.url ? (t("dossier_btn_download")) : (t("dossier_btn_search_web"))} <span className="material-symbols-outlined !text-[14px] opacity-70">{update.download_url || update.url ? (t("ui_icon_import")) : (t("ui_icon_search"))}</span>
                     </button>
                   </div>
                 </div>
               </div>
           )) : (
           <div className="w-full theme-glass-inner rounded-[1.5rem] p-6 text-center text-[var(--subtext)] opacity-60 text-[10px] font-black uppercase tracking-widest">
-            {t("cmd_no_updates") || "NO UPDATES DETECTED"}<br/>
-            <span className="opacity-50 text-[8px]">{t("cmd_optimal") || "RADAR SWEEP COMPLETE"}</span>
+            {t("cmd_no_updates")}<br/>
+            <span className="opacity-50 text-[8px]">{t("cmd_optimal")}</span>
           </div>
           )}
           <div className="h-32 shrink-0 pointer-events-none" />

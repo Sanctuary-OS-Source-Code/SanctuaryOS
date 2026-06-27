@@ -138,7 +138,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                 id: b.id,
                 name: b.name,
                 author: mData.name,
-                description: (b.artifacts?.length || 0) + (t("modcard_artifacts") || "Artifacts"),
+                description: (b.artifacts?.length || 0) + (t("modcard_artifacts")),
                 created_at: b.created_at,
                 asset_type: 'blueprint',
                 json_data: b
@@ -162,7 +162,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
   }, [masonId]);
 
   const toggleFollow = async () => {
-    if (!userId) { useStore.getState().pushStatus("You must be logged in to follow Masons."); return; }
+    if (!userId) { useStore.getState().pushStatus(t("auto_you_must_be_logged_in_to_follow_masons")); return; }
     if (isFollowing) {
       await supabase.from('mason_followers').delete().match({ user_id: userId, mason_id: masonId });
       setFollowerCount(prev => prev - 1);
@@ -174,8 +174,8 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
     }
   };
 
-  if (loading) return <div className="p-12 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">{t("profile_accessing") || "Accessing Architect Profile..."}</div>;
-  if (!mason) return <div className="p-12 text-center text-[var(--subtext)] opacity-60 font-black tracking-widest uppercase">{t("profile_not_found") || "Architect not found in the Network."}</div>;
+  if (loading) return <div className="p-12 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">{t("profile_accessing")}</div>;
+  if (!mason) return <div className="p-12 text-center text-[var(--subtext)] opacity-60 font-black tracking-widest uppercase">{t("profile_not_found")}</div>;
 
   const filteredMods = mods.filter(m => {
      if (modCategory !== "ALL" && m.category_override !== modCategory) return false;
@@ -189,7 +189,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
-    if (!userId) return useStore.getState().pushStatus(t("feed_login_required") || "LOGIN REQUIRED TO REPLY");
+    if (!userId) return useStore.getState().pushStatus(t("feed_login_required"));
     
     const { error } = await supabase.from('mason_post_likes').insert({ post_id: post.id, user_id: userId });
     let increment = 1;
@@ -219,7 +219,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         <div className="flex items-center gap-4 mb-4">
            <div className="h-0.5 w-12 theme-bg-accent opacity-50" />
            <span className="text-[10px] font-mono text-[var(--subtext)] uppercase tracking-[0.3em] opacity-80">
-              {t("profile_personnel_dossier") || "PERSONNEL DOSSIER"} // {masonId.substring(0,8)}
+              {t("profile_personnel_dossier")} // {masonId.substring(0,8)}
            </span>
            <div className="h-0.5 flex-1 bg-white/5 relative">
               <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[var(--accent)]/50 to-transparent opacity-30" />
@@ -239,15 +239,15 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
             <div className="w-[120px] h-[120px] rounded-[1.5rem] bg-[var(--sidebar)] border border-white/10 flex items-center justify-center overflow-hidden relative shadow-[0_0_30px_rgba(0,0,0,0.8)] z-10 backdrop-blur-xl">
                <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/20 to-transparent z-20 pointer-events-none mix-blend-overlay" />
                {mason.avatar_url ? (
-                 <img src={mason.avatar_url} alt="Avatar" className="w-full h-full object-cover filter contrast-[1.1] group-hover:scale-105 transition-transform duration-700" />
+                 <img src={mason.avatar_url} alt={t("auto_avatar")} className="w-full h-full object-cover filter contrast-[1.1] group-hover:scale-105 transition-transform duration-700" />
                ) : (
-                 <span className="text-5xl opacity-40 grayscale material-symbols-outlined">{t("ui_icon_mason") || "construction"}</span>
+                 <span className="text-5xl opacity-40 grayscale material-symbols-outlined">{t("ui_icon_mason")}</span>
                )}
             </div>
             {mason.is_verified && (
                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[var(--sidebar)] border border-emerald-500/30 px-3 py-1 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)] z-30 flex items-center gap-1 backdrop-blur-md">
-                 <span className="material-symbols-outlined !text-[12px] text-emerald-400">{t("ui_icon_verified") || "verified_user"}</span>
-                 <span className="text-[9px] text-emerald-400 font-black tracking-[0.2em]">{t("status_verified") || "VERIFIED"}</span>
+                 <span className="material-symbols-outlined !text-[12px] text-emerald-400">{t("ui_icon_verified")}</span>
+                 <span className="text-[9px] text-emerald-400 font-black tracking-[0.2em]">{t("status_verified")}</span>
                </div>
             )}
           </div>
@@ -260,19 +260,19 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                   <span className="hidden sm:block h-6 w-px bg-white/10" />
                   <div className="flex gap-4 text-[10px] font-mono uppercase tracking-[0.2em]">
                      <div className="flex items-center gap-2">
-                        <span className="text-[var(--subtext)] opacity-60">{t("profile_followers") || "Followers"}</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("profile_followers")}</span>
                         <span className="theme-text-accent font-black text-sm">{followerCount}</span>
                      </div>
                      <div className="flex items-center gap-2">
-                        <span className="text-[var(--subtext)] opacity-60">{t("profile_status") || "STATUS"}</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("profile_status")}</span>
                         <span className="text-emerald-400 font-black flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                           <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" /> {t("status_active") || "ACTIVE"}
+                           <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" /> {t("status_active")}
                         </span>
                      </div>
                   </div>
                 </div>
                 {!mason.is_verified && (
-                   <span className="text-[10px] text-[var(--subtext)] opacity-50 font-mono tracking-widest">{t("status_standard_clearance") || "STANDARD CLEARANCE"}</span>
+                   <span className="text-[10px] text-[var(--subtext)] opacity-50 font-mono tracking-widest">{t("status_standard_clearance")}</span>
                 )}
              </div>
 
@@ -288,38 +288,38 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
           <div className="shrink-0 flex flex-col gap-3 relative z-10 w-full xl:w-auto xl:min-w-[200px]">
              <button onClick={toggleFollow} className={`w-full h-12 px-6 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl border flex items-center justify-center gap-2 transition-all shadow-lg ${isFollowing ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]' : 'theme-bg-accent text-[var(--bg)] border-transparent hover:scale-105 hover:shadow-[0_0_20px_var(--accent)]'}`}>
                <span className="material-symbols-outlined !text-[16px]">{isFollowing ? 'check_circle' : 'person_add'}</span> 
-               {isFollowing ? (t("profile_btn_unfollow") || "UNFOLLOW") : (t("profile_btn_follow") || "FOLLOW")}
+               {isFollowing ? (t("profile_btn_unfollow")) : (t("profile_btn_follow"))}
              </button>
 
              <div className="flex gap-2">
                 <button onClick={toggleMasonAlert} className={`relative group/btn flex-1 h-10 flex items-center justify-center rounded-xl border transition-all ${masonAlerts[masonId] ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] theme-text-accent' : 'bg-black/20 border-white/5 text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)]'}`}>
                    <span className="material-symbols-outlined !text-[16px]">{masonAlerts[masonId] ? 'notifications_active' : 'notifications_off'}</span>
                    <span className="absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl border border-white/10 text-[9px] font-black uppercase tracking-widest text-[var(--text)] rounded-lg opacity-0 group-hover/btn:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50 shadow-xl translate-y-1 group-hover/btn:translate-y-0">
-                     {t("mason_profile_notify") || "Toggle Notifications"}
+                     {t("mason_profile_notify")}
                    </span>
                 </button>
                 
                 {mason.patreon_url && (
                   <button onClick={() => openUrl(mason.patreon_url)} className="relative group/btn w-10 h-10 rounded-xl bg-[#FF424D]/10 border border-[#FF424D]/20 text-[#FF424D] flex items-center justify-center hover:bg-[#FF424D]/20 transition-all">
-                    <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_favorite") || "favorite"}</span>
+                    <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_favorite")}</span>
                     <span className="absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl border border-white/10 text-[9px] font-black uppercase tracking-widest text-[#FF424D] rounded-lg opacity-0 group-hover/btn:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50 shadow-xl translate-y-1 group-hover/btn:translate-y-0">
-                      {t("profile_link_patreon") || "PATREON"}
+                      {t("profile_link_patreon")}
                     </span>
                   </button>
                 )}
                 {mason.website_url && (
                   <button onClick={() => openUrl(mason.website_url)} className="relative group/btn w-10 h-10 rounded-xl bg-black/20 border border-white/5 text-[var(--text)] flex items-center justify-center hover:bg-white/5 transition-all">
-                    <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_public") || "public"}</span>
+                    <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_public")}</span>
                     <span className="absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl border border-white/10 text-[9px] font-black uppercase tracking-widest text-[var(--text)] rounded-lg opacity-0 group-hover/btn:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50 shadow-xl translate-y-1 group-hover/btn:translate-y-0">
-                      {t("profile_link_website") || "WEBSITE"}
+                      {t("profile_link_website")}
                     </span>
                   </button>
                 )}
                 {mason.discord_url && (
                   <button onClick={() => openUrl(mason.discord_url)} className="relative group/btn w-10 h-10 rounded-xl bg-[#5865F2]/10 border border-[#5865F2]/20 text-[#5865F2] flex items-center justify-center hover:bg-[#5865F2]/20 transition-all">
-                    <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_chat") || "chat"}</span>
+                    <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_chat")}</span>
                     <span className="absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl border border-white/10 text-[9px] font-black uppercase tracking-widest text-[#5865F2] rounded-lg opacity-0 group-hover/btn:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50 shadow-xl translate-y-1 group-hover/btn:translate-y-0">
-                      {t("profile_link_discord") || "DISCORD"}
+                      {t("profile_link_discord")}
                     </span>
                   </button>
                 )}
@@ -332,10 +332,10 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         
         <div className="w-full lg:w-1/3 flex flex-col gap-4">
           <h3 className="text-xs font-black theme-text-accent uppercase tracking-widest ml-4 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_broadcast") || "satellite_alt"}</span> {t("profile_tab_commlink") || "Comm-Link"}
+            <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_broadcast")}</span> {t("profile_tab_commlink")}
           </h3>
           <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-4">
-            {posts.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_posts") || "No transmissions found."}</div>}
+            {posts.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_posts")}</div>}
             <div className="flex flex-col gap-6">
               {posts.map((p, index) => (
                 <div key={p.id} className="break-inside-avoid">
@@ -356,15 +356,15 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         <div className="w-full lg:w-2/3 flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-4 w-full theme-glass-panel p-3 rounded-[2rem] shadow-xl overflow-visible">
              <div className="flex items-center gap-1 overflow-x-auto accent-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner shrink-0 max-w-full">
-               <HubTabButton id="MODS" icon={t("ui_icon_collection") || "inventory_2"} label={t("profile_tab_artifacts") || "Artifacts"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
-               <HubTabButton id="BLUEPRINTS" icon={t("ui_icon_map") || "map"} label={t("market_tab_blueprints") || "BLUEPRINTS"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
-               <HubTabButton id="LEXICONS" icon={t("ui_icon_translate") || "translate"} label={t("market_tab_lexicons") || "Lexicon"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
-               <HubTabButton id="CHAMELEONS" icon={t("ui_icon_theme") || "palette"} label={t("market_tab_chameleons") || "Chameleon"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
-               <HubTabButton id="TEMPLATES" icon="draw" label={t("market_tab_templates") || "Templates"} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+               <HubTabButton id="MODS" icon={t("ui_icon_collection")} label={t("profile_tab_artifacts")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+               <HubTabButton id="BLUEPRINTS" icon={t("ui_icon_map")} label={t("market_tab_blueprints")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+               <HubTabButton id="LEXICONS" icon={t("ui_icon_translate")} label={t("market_tab_lexicons")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+               <HubTabButton id="CHAMELEONS" icon={t("ui_icon_theme")} label={t("market_tab_chameleons")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+               <HubTabButton id="TEMPLATES" icon="draw" label={t("market_tab_templates")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
              </div>
              
               <div className="flex flex-row items-center gap-3 flex-1 justify-end min-w-[300px]">
-                <input value={modSearch} onChange={e => setModSearch(e.target.value)} placeholder={profileTab === 'LEXICONS' ? (t("ui_search_lexicons") || "Search Lexicons...") : profileTab === 'CHAMELEONS' ? (t("ui_search_chameleons") || "Search Chameleons...") : profileTab === 'TEMPLATES' ? (t("market_search_templates") || "Search Templates...") : profileTab === 'BLUEPRINTS' ? (t("market_search_blueprints") || "Search Blueprints...") : (t("profile_search_mods") || "Search Mods...")} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full min-w-[150px] flex-1 transition-all border border-transparent shadow-inner" />
+                <input value={modSearch} onChange={e => setModSearch(e.target.value)} placeholder={profileTab === 'LEXICONS' ? (t("ui_search_lexicons")) : profileTab === 'CHAMELEONS' ? (t("ui_search_chameleons")) : profileTab === 'TEMPLATES' ? (t("market_search_templates")) : profileTab === 'BLUEPRINTS' ? (t("market_search_blueprints")) : (t("profile_search_mods"))} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full min-w-[150px] flex-1 transition-all border border-transparent shadow-inner" />
                 <div className="w-[180px] xl:w-[220px] shrink-0">
                   <CustomDropdown disableTint={true} 
                     value={modCategory} 
@@ -373,32 +373,32 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                       let rawOpts: any[] = [];
                       if (profileTab === 'MODS') {
                         rawOpts = [
-                          { id: "ALL", label: t("profile_all_classes") || "All Categories", icon: t("ui_icon_folder") || "folder" },
-                          { id: "Script", label: t("profile_script") || "Script Mod", icon: t("ui_icon_scroll") || "receipt_long" },
-                          { id: "BuildBuy", label: t("profile_buildbuy") || "Build/Buy Asset", icon: t("ui_icon_couch") || "chair" },
-                          { id: "CAS", label: t("profile_cas") || "CAS Asset", icon: t("ui_icon_shirt") || "checkroom" },
-                          { id: "Animation", label: t("profile_animation") || "Animation Mod", icon: t("ui_icon_clapper") || "movie" }
+                          { id: "ALL", label: t("profile_all_classes"), icon: t("ui_icon_folder") },
+                          { id: "Script", label: t("profile_script"), icon: t("ui_icon_scroll") },
+                          { id: "BuildBuy", label: t("profile_buildbuy"), icon: t("ui_icon_couch") },
+                          { id: "CAS", label: t("profile_cas"), icon: t("ui_icon_shirt") },
+                          { id: "Animation", label: t("profile_animation"), icon: t("ui_icon_clapper") }
                         ];
                       } else if (profileTab === 'LEXICONS') {
                         rawOpts = [
-                          { id: "ALL", label: t("market_filter_type") || "Type", icon: t("ui_icon_folder") || "folder" },
-                          { id: "Default", label: t("market_type_default") || "Default", icon: t("ui_icon_package") || "inventory_2" },
-                          { id: "Theme", label: t("market_type_theme") || "Theme", icon: t("ui_icon_theme") || "palette" }
+                          { id: "ALL", label: t("market_filter_type"), icon: t("ui_icon_folder") },
+                          { id: "Default", label: t("market_type_default"), icon: t("ui_icon_package") },
+                          { id: "Theme", label: t("market_type_theme"), icon: t("ui_icon_theme") }
                         ];
                       } else if (profileTab === 'BLUEPRINTS') {
-                        rawOpts = [ { id: "ALL", label: t("market_filter_all_versions") || "All Versions", icon: t("ui_icon_folder") || "folder" } ];
+                        rawOpts = [ { id: "ALL", label: t("market_filter_all_versions"), icon: t("ui_icon_folder") } ];
                         if (gameVersions && gameVersions.length > 0) {
-                          rawOpts = [ ...rawOpts, ...gameVersions.map((v: string) => ({ id: v, label: v, icon: t("ui_icon_map") || "map" })) ];
+                          rawOpts = [ ...rawOpts, ...gameVersions.map((v: string) => ({ id: v, label: v, icon: t("ui_icon_map") })) ];
                         }
                       } else if (profileTab === 'CHAMELEONS') {
                         rawOpts = [
-                          { id: "ALL", label: t("market_filter_mode") || "Theme Mode", icon: t("ui_icon_folder") || "folder" },
-                          { id: "Dark", label: t("market_mode_dark") || "Dark", icon: "dark_mode" },
-                          { id: "Light", label: t("market_mode_light") || "Light", icon: "light_mode" }
+                          { id: "ALL", label: t("market_filter_mode"), icon: t("ui_icon_folder") },
+                          { id: "Dark", label: t("market_mode_dark"), icon: "dark_mode" },
+                          { id: "Light", label: t("market_mode_light"), icon: "light_mode" }
                         ];
                       } else if (profileTab === 'TEMPLATES') {
                         rawOpts = [
-                          { id: "ALL", label: t("market_filter_type") || "Type", icon: t("ui_icon_folder") || "folder" }
+                          { id: "ALL", label: t("market_filter_type"), icon: t("ui_icon_folder") }
                         ];
                       }
                       
@@ -419,7 +419,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
           <div className="flex-1 theme-glass-panel rounded-[2rem] rounded-[2rem] p-6 shadow-2xl overflow-y-auto custom-scrollbar grid grid-cols-1 md:grid-cols-2 gap-4 content-start">
             {profileTab === 'MODS' && (
               <>
-                {filteredMods.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_mods") || "No artifacts deployed."}</div>}
+                {filteredMods.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_mods")}</div>}
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 
                 {filteredMods.map(mod => (
@@ -452,7 +452,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                       <div className="absolute top-4 right-4 flex gap-2 z-30">
                         {(mod.isVirtual || mod.isParent || mod.familyCount > 1) && (
                           <span className="text-[8px] font-black px-3 py-1.5 theme-bg-accent text-[var(--bg)] rounded-xl shadow-lg uppercase tracking-widest backdrop-blur-md">
-                            {mod.familyCount || (mod.flavors?.length || 0)} VARIANTS
+                            {mod.familyCount || (mod.flavors?.length || 0)} {t("auto_variants")}
                           </span>
                         )}
                         <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
@@ -476,7 +476,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                       
                       <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                         <div />
-                        <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">VIEW &rarr;</span>
+                        <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("auto_view")}</span>
                       </div>
                     </div>
                   </div>
@@ -496,7 +496,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               });
               return (
               <>
-                {filteredBlueprints.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_blueprints") || "No blueprints found."}</div>}
+                {filteredBlueprints.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_blueprints")}</div>}
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredBlueprints.map(asset => (
                   <div key={asset.id} onClick={() => setSelectedBlueprint(asset)} className="relative flex flex-col h-full theme-glass-panel rounded-[2.5rem] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">
@@ -508,12 +508,12 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                           className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
                         />
                       ) : (
-                        <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("ui_icon_map") || "map"}</span>
+                        <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("ui_icon_map")}</span>
                       )}
 
                       <div className="absolute top-4 right-4 flex gap-2 z-30">
                         <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                          {t("market_type_blueprint") || "BLUEPRINT"}
+                          {t("market_type_blueprint")}
                         </span>
                       </div>
                     </div>
@@ -523,7 +523,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                         {asset.name}
                       </h3>
                       <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
-                        {mason.name || "UNKNOWN MASON"} • {(asset.json_data?.artifacts?.length || 0)} MODS
+                        {mason.name || "UNKNOWN MASON"} • {(asset.json_data?.artifacts?.length || 0)} {t("auto_mods")}
                       </p>
                       {asset.description && (
                         <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">
@@ -533,7 +533,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                       
                       <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                         <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                          {asset.downloads || 0} DL
+                          {asset.downloads || 0} {t("auto_dl")}
                         </span>
                         <div className="flex gap-2 relative z-40">
                           <button 
@@ -543,7 +543,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                             }}
                             className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105"
                           >
-                            {t("market_btn_download_install") || "Download & Install"}
+                            {t("market_btn_download_install")}
                           </button>
                         </div>
                       </div>
@@ -564,7 +564,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               });
               return (
               <>
-                {filteredLexicons.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_lexicons") || "No lexicons deployed."}</div>}
+                {filteredLexicons.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_lexicons")}</div>}
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredLexicons.map(asset => (
                   <div key={asset.id} onClick={() => setActiveAsset({ type: 'lexicon', id: asset.id })} className="relative flex flex-col h-full theme-glass-panel rounded-[2.5rem] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">
@@ -576,12 +576,12 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                           className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
                         />
                       ) : (
-                        <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("ui_icon_translate") || "translate"}</span>
+                        <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("ui_icon_translate")}</span>
                       )}
 
                       <div className="absolute top-4 right-4 flex gap-2 z-30">
                         <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                          LEXICON - {asset.language || "Custom"}
+                          {t("auto_lexicon")} {asset.language || "Custom"}
                         </span>
                       </div>
                     </div>
@@ -601,7 +601,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                       
                       <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                         <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                          {asset.downloads || 0} DL
+                          {asset.downloads || 0} {t("auto_dl")}
                         </span>
                         <div className="flex gap-2 relative z-40">
                           <button 
@@ -613,7 +613,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                             }}
                             className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}
                           >
-                            {isInstalled(asset) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "Download & Install")}
+                            {isInstalled(asset) ? (t("market_btn_reinstall")) : (t("market_btn_download_install"))}
                           </button>
                         </div>
                       </div>
@@ -634,7 +634,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               });
               return (
               <>
-                {filteredChameleons.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_chameleons") || "No chameleons deployed."}</div>}
+                {filteredChameleons.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("profile_no_chameleons")}</div>}
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredChameleons.map(asset => (
                   <div key={asset.id} onClick={() => setActiveAsset({ type: 'chameleon', id: asset.id })} className="relative flex flex-col h-full theme-glass-panel rounded-[2.5rem] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">
@@ -646,12 +646,12 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                           className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
                         />
                       ) : (
-                        <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("ui_icon_palette") || "palette"}</span>
+                        <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("ui_icon_palette")}</span>
                       )}
 
                       <div className="absolute top-4 right-4 flex gap-2 z-30">
                         <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                          CHAMELEON - {asset.theme_mode || "Dark"}
+                          {t("auto_chameleon")} {asset.theme_mode || "Dark"}
                         </span>
                       </div>
                     </div>
@@ -671,7 +671,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                       
                       <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                         <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                          {asset.downloads || 0} DL
+                          {asset.downloads || 0} {t("auto_dl")}
                         </span>
                         <div className="flex gap-2 relative z-40">
                           <button 
@@ -682,7 +682,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                             }}
                             className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}
                           >
-                            {isInstalled(asset) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "Download & Install")}
+                            {isInstalled(asset) ? (t("market_btn_reinstall")) : (t("market_btn_download_install"))}
                           </button>
                         </div>
                       </div>
@@ -702,15 +702,15 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               });
               return (
               <>
-                {filteredTemplates.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("market_empty_title_templates") || "NO TEMPLATES FOUND"}</div>}
+                {filteredTemplates.length === 0 && <div className="col-span-full text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("market_empty_title_templates")}</div>}
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredTemplates.map(asset => (
                   <div key={asset.id} onClick={() => setActiveAsset({ type: 'workbench_template', id: asset.id })} className="relative flex flex-col h-full theme-glass-panel rounded-[2.5rem] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">
                     <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
-                      <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>draw</span>
+                      <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("auto_draw")}</span>
                       <div className="absolute top-4 right-4 flex gap-2 z-30">
                         <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                          TEMPLATE
+                          {t("auto_template")}
                         </span>
                       </div>
                     </div>
@@ -730,7 +730,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                       
                       <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                         <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                          {asset.downloads || 0} DL
+                          {asset.downloads || 0} {t("auto_dl")}
                         </span>
                       </div>
                     </div>
@@ -759,12 +759,12 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
           <div className="fixed top-0 right-0 bottom-10 z-[15000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setSelectedBlueprint(null)}></div>
           <div className="fixed top-10 right-0 bottom-10 w-full max-w-4xl theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] rounded-tl-[3rem] rounded-bl-[3rem]" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setSelectedBlueprint(null)} className="absolute top-8 right-8 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close") || "close"}</span>
+              <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close")}</span>
             </button>
             <div className="h-48 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col items-center justify-center overflow-hidden">
               <div className="absolute inset-0 bg-[var(--accent)]/5 blur-[50px] pointer-events-none rounded-full transform scale-150"></div>
               <div className="w-24 h-24 rounded-[2rem] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center relative z-10">
-                <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '48px' }}>{t("ui_icon_map") || "map"}</span>
+                <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '48px' }}>{t("ui_icon_map")}</span>
               </div>
             </div>
 
@@ -772,7 +772,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate">{selectedBlueprint.name || "Blueprint"}</h3>
               <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-2 flex gap-4">
                 <span>{mason?.name || selectedBlueprint.author || "Citizen"} &bull; {selectedBlueprint.created_at ? new Date(selectedBlueprint.created_at).toLocaleDateString() : ""}</span>
-                <span className="text-[var(--accent)] font-mono">{selectedBlueprint.json_data?.game_version ? `${t("market_blueprint_verified") || "Verified Version:"} ${selectedBlueprint.json_data.game_version}` : (t("market_blueprint_verified_unknown") || "Verified Version: Unknown")}</span>
+                <span className="text-[var(--accent)] font-mono">{selectedBlueprint.json_data?.game_version ? `${t("market_blueprint_verified")} ${selectedBlueprint.json_data.game_version}` : (t("market_blueprint_verified_unknown"))}</span>
               </p>
             </div>
 
@@ -785,7 +785,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                  
                  <div className="flex flex-col gap-4">
                     <h3 className="text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-80 flex items-center gap-2">
-                      <span className="theme-text-accent px-2 py-0.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded">{selectedBlueprint.json_data?.artifacts?.length || 0}</span> {t("market_blueprint_included") || "Included Artifacts"}
+                      <span className="theme-text-accent px-2 py-0.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded">{selectedBlueprint.json_data?.artifacts?.length || 0}</span> {t("market_blueprint_included")}
                     </h3>
                     <div className="flex flex-col gap-2">
                       {(selectedBlueprint.json_data?.artifacts || []).map((mod: any, i: number) => (
@@ -811,7 +811,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                       }}
                       className={standardAccentGlassButtonClass + " w-full"}
                    >
-                      {t("market_btn_download_install") || "Download & Install"}
+                      {t("market_btn_download_install")}
                    </button>
                  </div>
               </div>

@@ -46,7 +46,7 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
       const { error } = await supabase.from('mods').update({ folder_structure: targetMod.folder_structure || [] }).eq('id', targetMod.id);
       if (error) throw error;
       if (isArchitect) logArchitectAction(`Updated Mod Structure`, `mods`, targetMod.name);
-      useStore.getState().pushStatus(t("btn_saved") || "SAVED", "success");
+      useStore.getState().pushStatus(t("btn_saved"), "success");
       
       // Update local cloudMods state
       setCloudMods(prev => prev.map(m => m.id === targetMod.id ? { ...m, folder_structure: targetMod.folder_structure } : m));
@@ -62,14 +62,14 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
        <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full z-10 relative">
           <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_architecture") || "architecture"}</span>
+              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_architecture")}</span>
             </div>
-            <span className="truncate">{t("structure_title") || "Structure Matrix"}</span>
+            <span className="truncate">{t("structure_title")}</span>
           </h2>
           
           <div className="relative flex-1 max-w-md ml-auto flex gap-4 items-center justify-end">
             <ModSearchDropdown 
-              placeholder={t("structure_select_artifact") || "Select Artifact to Manage..."}
+              placeholder={t("structure_select_artifact")}
               selectedItem={targetMod}
               onSelect={(mod: any) => setTargetMod(mod)}
               onClear={() => setTargetMod(null)}
@@ -87,12 +87,12 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
              
              <div className="flex items-center gap-6 relative z-10">
                 <div className="w-16 h-16 rounded-2xl theme-glass-inner overflow-hidden shrink-0 border border-white/10 shadow-lg">
-                  {targetMod.image_url ? <img src={targetMod.image_url} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[var(--text)]/10 flex items-center justify-center"><span className="material-symbols-outlined opacity-50">{t("ui_icon_inventory_2") || "inventory_2"}</span></div>}
+                  {targetMod.image_url ? <img src={targetMod.image_url} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[var(--text)]/10 flex items-center justify-center"><span className="material-symbols-outlined opacity-50">{t("ui_icon_inventory_2")}</span></div>}
                 </div>
                 <div className="flex flex-col min-w-0 gap-1">
                   <span className="text-xl font-black text-[var(--text)] uppercase truncate tracking-tight">{targetMod.name}</span>
                   <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest flex items-center gap-2">
-                    <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_person") || "person"}</span>
+                    <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_person")}</span>
                     {targetMod.master_author}
                   </span>
                 </div>
@@ -104,7 +104,7 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
                 className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group disabled:opacity-50 disabled:hover:scale-100"
               >
                 <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{isSaving ? 'sync' : 'save'}</span>
-                {isSaving ? t("btn_saving") || "SAVING..." : t("btn_save_structure") || "SAVE STRUCTURE"}
+                {isSaving ? t("btn_saving") : t("btn_save_structure")}
               </button>
            </div>
            
@@ -120,9 +120,9 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
        ) : (
          <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center relative mt-20">
            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[var(--accent)] rounded-full blur-[120px] opacity-20 pointer-events-none" />
-           <span className="material-symbols-outlined !text-6xl mb-4 text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_account_tree") || "account_tree"}</span>
-           <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.3em] z-10">{t("sv_empty_title") || "SELECT AN ARTIFACT"}</span>
-           <p className="text-[10px] mt-2 font-bold max-w-md z-10">{t("sv_empty_desc") || "Select an artifact from the dropdown above to begin defining its exact deployment folder structure."}</p>
+           <span className="material-symbols-outlined !text-6xl mb-4 text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_account_tree")}</span>
+           <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.3em] z-10">{t("sv_empty_title")}</span>
+           <p className="text-[10px] mt-2 font-bold max-w-md z-10">{t("sv_empty_desc")}</p>
          </div>
        )}
        </div>

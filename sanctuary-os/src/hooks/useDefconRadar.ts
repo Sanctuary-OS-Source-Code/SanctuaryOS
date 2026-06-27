@@ -29,7 +29,7 @@ export function useDefconRadar(t: (key: string) => string, askCustom: any, trigg
             if (pref === 2) {
               localStorage.setItem('sanctuary_defcon_ack', 'true');
             } else if (pref === 1) {
-              askCustom(t("defcon_prompt_patch_detected") || "A game patch has been detected.\n\nWould you like to run an emergency backup now?", false, t("defcon_btn_backup") || "BACKUP", t("defcon_btn_skip") || "SKIP", true, t("defcon_alert_title") || "GLOBAL ALERT").then((proceed: boolean) => {
+              askCustom(t("defcon_prompt_patch_detected"), false, t("defcon_btn_backup"), t("defcon_btn_skip"), true, t("defcon_alert_title")).then((proceed: boolean) => {
                 if (proceed) {
                   setShowDefconAlert(true);
                   triggerPrePatchSnapshot();

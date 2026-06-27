@@ -149,12 +149,12 @@ export default function Blueprints({
   
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full overflow-y-auto custom-scrollbar pr-2 pb-12">
-      <ViewHeader title={t("playsets_title") || "Blueprints"} subtitle={t("playsets_subtitle") || "Load orders, dependency maps, and deployment recipes"} icon={t("ui_icon_playsets") || "map"} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30">
+      <ViewHeader title={t("playsets_title")} subtitle={t("playsets_subtitle")} icon={t("ui_icon_playsets")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30">
           <div className="flex flex-wrap gap-4 items-center justify-end">
             <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner ml-auto shrink-0">
               <button onClick={() => setIsSidePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
-                <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_tune") || "tune"}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_tools") || "TOOLS"}</span>
+                <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_tune")}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_tools")}</span>
               </button>
             </div>
           </div>
@@ -171,11 +171,11 @@ export default function Blueprints({
               value={draftSetName} 
               onChange={(e) => setDraftSetName && setDraftSetName(e.target.value)} 
               className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-xl text-[var(--text)] font-black outline-none text-center shadow-inner focus:border-[var(--accent)] transition-all z-10" 
-              placeholder={t("playsets_draft_placeholder") || "Blueprint Name..."} 
+              placeholder={t("playsets_draft_placeholder")} 
             />
             <div className="flex gap-3 mt-4 z-10">
-              <button onClick={finalizeDraftSet} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md font-black uppercase tracking-widest text-[10px] rounded-xl hover:scale-105 hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]">{t("playsets_btn_save") || "SAVE"}</button>
-              <button onClick={() => setIsDraftingSet && setIsDraftingSet(false)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] font-black uppercase tracking-widest text-[10px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-105 transition-all">{t("playsets_btn_cancel") || "CANCEL"}</button>
+              <button onClick={finalizeDraftSet} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md font-black uppercase tracking-widest text-[10px] rounded-xl hover:scale-105 hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]">{t("playsets_btn_save")}</button>
+              <button onClick={() => setIsDraftingSet && setIsDraftingSet(false)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] font-black uppercase tracking-widest text-[10px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-105 transition-all">{t("playsets_btn_cancel")}</button>
             </div>
           </div>
         ) : (
@@ -184,10 +184,10 @@ export default function Blueprints({
             className="group cursor-pointer theme-glass-panel border-dashed border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-[3rem] flex flex-col items-center justify-center h-full min-h-[18rem] transition-all shadow-xl hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)]"
           >
             <div className="w-20 h-20 rounded-[2rem] theme-glass-inner flex items-center justify-center mb-6 group-hover:scale-110 transition-all group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] border border-white/5 group-hover:border-[var(--accent)]/30 group-hover:bg-[var(--accent)] group-hover:text-[var(--bg)]">
-              <span className="material-symbols-outlined !text-4xl text-[var(--subtext)] opacity-60 group-hover:text-[var(--bg)] group-hover:opacity-100 transition-colors drop-shadow-md">{t("ui_icon_add") || "add"}</span>
+              <span className="material-symbols-outlined !text-4xl text-[var(--subtext)] opacity-60 group-hover:text-[var(--bg)] group-hover:opacity-100 transition-colors drop-shadow-md">{t("ui_icon_add")}</span>
             </div>
             <p className="text-xs font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest group-hover:text-[var(--accent)] group-hover:opacity-100 transition-colors">
-              {t("playsets_draft_new") || "Draft New Blueprint"}
+              {t("playsets_draft_new")}
             </p>
           </div>
         )}
@@ -198,7 +198,7 @@ export default function Blueprints({
             <div className="mb-8 relative group/title z-10 flex flex-col items-start gap-1">
               <div className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border mb-3 flex items-center gap-1.5 ${activeSetName === set.name ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-[0_0_15px_rgba(var(--success-rgb),0.2)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                 <span className="material-symbols-outlined !text-[12px]">{activeSetName === set.name ? "check_circle" : "map"}</span>
-                {activeSetName === set.name ? t("playsets_btn_deployed") || "DEPLOYED" : t("playsets_title") || "Blueprints"}
+                {activeSetName === set.name ? t("playsets_btn_deployed") : t("playsets_title")}
               </div>
               {editingSetName === set.name ? (
                 <input
@@ -232,12 +232,12 @@ export default function Blueprints({
                   }}
                 >
                   <h3 className="text-3xl font-black text-[var(--text)] tracking-tighter truncate leading-normal pb-2 hover:text-[var(--accent)] transition-colors drop-shadow-md">{set.name}</h3>
-                  <span className="material-symbols-outlined !text-lg opacity-0 group-hover/editbtn:opacity-100 transition-opacity text-[var(--subtext)] hover:text-[var(--text)] drop-shadow-md ml-auto shrink-0">{t("ui_icon_edit") || "edit"}</span>
+                  <span className="material-symbols-outlined !text-lg opacity-0 group-hover/editbtn:opacity-100 transition-opacity text-[var(--subtext)] hover:text-[var(--text)] drop-shadow-md ml-auto shrink-0">{t("ui_icon_edit")}</span>
                 </div>
               )}
               <div className="flex items-center gap-2 mt-3">
                 <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 tracking-widest uppercase flex items-center gap-2 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] px-2 py-1 rounded-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                  <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_extension") || "extension"}</span> {(set.mods || []).filter((modName: string) => !modName.startsWith("FOLDER_") && !modName.startsWith("SET_") && !modName.startsWith("LOCAL_SET_")).length} {t("playsets_artifacts_linked") || "Artifacts Linked"}
+                  <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_extension")}</span> {(set.mods || []).filter((modName: string) => !modName.startsWith("FOLDER_") && !modName.startsWith("SET_") && !modName.startsWith("LOCAL_SET_")).length} {t("playsets_artifacts_linked")}
                 </p>
               </div>
             </div>
@@ -247,8 +247,8 @@ export default function Blueprints({
                 onClick={() => equipPlaySet && equipPlaySet(set.name)} 
                 className={`w-full py-4 rounded-xl font-black text-[11px] tracking-widest uppercase transition-all flex items-center justify-center gap-3 ${activeSetName === set.name ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]' : 'theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-md'}`}
               >
-                {activeSetName === set.name ? <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_verified") || "verified_user"}</span> : <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_check_circle") || "check_circle"}</span>}
-                {activeSetName === set.name ? t("playsets_btn_deployed") || "DEPLOYED" : t("playsets_btn_equip") || "EQUIP"}
+                {activeSetName === set.name ? <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_verified")}</span> : <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_check_circle")}</span>}
+                {activeSetName === set.name ? t("playsets_btn_deployed") : t("playsets_btn_equip")}
               </button>
               
               <div className="grid grid-cols-2 gap-3 mt-2">
@@ -257,7 +257,7 @@ export default function Blueprints({
                   const hasAlerts = alertStatus && alertStatus.total > 0;
                   
                   let alertBtnClass = 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)]';
-                  let alertLabel = t("bp_alert") || "Alerts";
+                  let alertLabel = t("bp_alert");
                   
                   if (hasAlerts) {
                       if (alertStatus.tier4 > 0 || alertStatus.broken > 0) {
@@ -277,7 +277,7 @@ export default function Blueprints({
                       onClick={() => { if(setActivePlaySetIndex) setActivePlaySetIndex(idx); setIsArchitectOpen(true); }} 
                       className={`py-3.5 px-4 theme-glass-inner border rounded-xl transition-all flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] ${alertBtnClass}`}
                     >
-                      <span className="material-symbols-outlined !text-[16px] drop-shadow-md">{t("ui_icon_warning") || "warning_amber"}</span> {alertLabel}
+                      <span className="material-symbols-outlined !text-[16px] drop-shadow-md">{t("ui_icon_warning")}</span> {alertLabel}
                     </button>
                   );
                 })()}
@@ -285,13 +285,13 @@ export default function Blueprints({
                   onClick={() => handleOpenMatrix(set.name)} 
                   className="py-3.5 px-4 theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-all flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest hover:scale-[1.02]"
                 >
-                  <span className="material-symbols-outlined !text-[16px] drop-shadow-md">{t("ui_icon_cloud") || "cloud"}</span> {t("playsets_action_uplink") || "Uplink"}
+                  <span className="material-symbols-outlined !text-[16px] drop-shadow-md">{t("ui_icon_cloud")}</span> {t("playsets_action_uplink")}
                 </button>
                 <button 
                   onClick={() => exportPlaySet && exportPlaySet(set.name)} 
                   className="py-3.5 px-4 theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-all flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest hover:scale-[1.02]"
                 >
-                  <span className="material-symbols-outlined !text-[16px] drop-shadow-md">{t("ui_icon_export") || "upload"}</span> {t("playsets_action_export") || "Export"}
+                  <span className="material-symbols-outlined !text-[16px] drop-shadow-md">{t("ui_icon_export")}</span> {t("playsets_action_export")}
                 </button>
                 <button 
                   onClick={() => {
@@ -305,7 +305,7 @@ export default function Blueprints({
                   }} 
                   className={`py-3.5 px-4 transition-all flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-xl border hover:scale-[1.02] ${deleteConfirm === set.name ? "backdrop-blur-md bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-[0_10px_30px_rgba(var(--danger-rgb),0.3)] scale-[1.05] text-[var(--danger)]" : "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"}`}
                 >
-                  <span className="material-symbols-outlined !text-[16px] drop-shadow-md">{deleteConfirm === set.name ? "warning" : t("ui_icon_trash") || "delete"}</span> {deleteConfirm === set.name ? t("ui_btn_confirm") || "CONFIRM" : t("playsets_action_delete") || "Delete"}
+                  <span className="material-symbols-outlined !text-[16px] drop-shadow-md">{deleteConfirm === set.name ? "warning" : t("ui_icon_trash")}</span> {deleteConfirm === set.name ? t("ui_btn_confirm") : t("playsets_action_delete")}
                 </button>
               </div>
             </div>
@@ -341,8 +341,8 @@ export default function Blueprints({
         <SidePanel
           isOpen={isSidePanelOpen}
           onClose={() => setIsSidePanelOpen(false)}
-          title={t("blueprint_tools_title") || "BLUEPRINT TOOLS"}
-          subtitle={t("blueprint_tools_subtitle") || "SYNC & MANAGEMENT"}
+          title={t("blueprint_tools_title")}
+          subtitle={t("blueprint_tools_subtitle")}
           icon="tune"
           iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
         >
@@ -351,9 +351,9 @@ export default function Blueprints({
                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
                <div className="flex items-center gap-4 mb-6 relative z-10">
                  <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--accent)]">
-                   <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_cloud_sync") || "cloud_sync"}</span>
+                   <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_cloud_sync")}</span>
                  </div>
-                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("playsets_sidebar_uplink") || "UPLINK CODE"}</h3>
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("playsets_sidebar_uplink")}</h3>
                </div>
                
                <div className="relative z-10 flex flex-col gap-4">
@@ -362,7 +362,7 @@ export default function Blueprints({
                      type="text" 
                      value={syncCode || ""} 
                      onChange={(e) => setSyncCode && setSyncCode(e.target.value)} 
-                     placeholder={t("playsets_sidebar_uplink_placeholder") || "ENTER SYNC CODE"} 
+                     placeholder={t("playsets_sidebar_uplink_placeholder")} 
                      className="flex-1 bg-black/20 border border-white/10 rounded-2xl px-6 h-14 text-sm font-black tracking-widest text-center text-[var(--accent)] placeholder:text-[var(--subtext)]/30 focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all shadow-inner outline-none" 
                    />
                    <button 
@@ -371,14 +371,14 @@ export default function Blueprints({
                      className="h-14 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shrink-0 border disabled:opacity-50 hover:scale-105 active:scale-95"
                    >
                      {isSearching ? (
-                       <span className="material-symbols-outlined !text-[18px] animate-spin">{t("ui_icon_refresh") || "refresh"}</span>
+                       <span className="material-symbols-outlined !text-[18px] animate-spin">{t("ui_icon_refresh")}</span>
                      ) : (
-                       <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_cloud_download") || "cloud_download"}</span>
+                       <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_cloud_download")}</span>
                      )}
-                     {t("playsets_btn_sync") || "SYNC"}
+                     {t("playsets_btn_sync")}
                    </button>
                  </div>
-                 <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 text-center px-4 leading-relaxed tracking-wide">{t("playsets_sidebar_uplink_desc") || "Enter a synchronization code to download and apply an external blueprint configuration."}</p>
+                 <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 text-center px-4 leading-relaxed tracking-wide">{t("playsets_sidebar_uplink_desc")}</p>
                </div>
              </div>
              
@@ -386,14 +386,14 @@ export default function Blueprints({
                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
                <div className="flex items-center gap-4 mb-6 relative z-10">
                  <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--text)]">
-                   <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_bolt") || "bolt"}</span>
+                   <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_bolt")}</span>
                  </div>
-                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("playsets_sidebar_actions") || "ACTIONS"}</h3>
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("playsets_sidebar_actions")}</h3>
                </div>
                
                 <div className="relative z-10 flex flex-col gap-3">
-                  <SidebarActionButton id="IMPORT" icon="download" label={t("playsets_btn_import") || "IMPORT Blueprint"} subtext={t("blueprint_import_desc") || "Import a Blueprint JSON to load an external Blueprint."} onClick={importPlaySet} active={false} />
-                  <SidebarActionButton id="SNAPSHOT" icon="camera" label={t("playsets_btn_snapshot") || "Snapshot Active Blueprint"} subtext={t("blueprint_snapshot_desc") || "Creates an editable copy of the currently deployed Blueprint."} onClick={() => {
+                  <SidebarActionButton id="IMPORT" icon="download" label={t("playsets_btn_import")} subtext={t("blueprint_import_desc")} onClick={importPlaySet} active={false} />
+                  <SidebarActionButton id="SNAPSHOT" icon="camera" label={t("playsets_btn_snapshot")} subtext={t("blueprint_snapshot_desc")} onClick={() => {
                     const activeSet = playSets[activePlaySetIndex];
                     if (!activeSet) return;
                     let copyIndex = 1;

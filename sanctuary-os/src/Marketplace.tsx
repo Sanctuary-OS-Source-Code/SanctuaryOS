@@ -153,7 +153,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             id: b.id,
             name: b.name,
             author: masonData?.find((m: any) => m.id === b.mason_id)?.name || "Citizen",
-            description: (b.artifacts?.length || 0) + " " + (t("modcard_artifacts") || "Artifacts"),
+            description: (b.artifacts?.length || 0) + " " + (t("modcard_artifacts")),
             created_at: b.created_at,
             asset_type: 'blueprint',
             json_data: b
@@ -192,7 +192,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
       if (session?.user?.id) {
         const { data: profileData } = await supabase.from('user_profiles').select('allow_upload').eq('id', session.user.id).maybeSingle();
         if (profileData && profileData.allow_upload === false) {
-          useStore.getState().pushStatus(t("market_upload_banned") || "Upload access has been revoked.");
+          useStore.getState().pushStatus(t("market_upload_banned"));
           return;
         }
       }
@@ -633,14 +633,14 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
       setCurrentPage(1);
     } catch (err: any) {
       console.error("Marketplace error:", err);
-      onSetStatus(`${t("market_error_prefix") || "MARKET ERROR:"}${err.message}`);
+      onSetStatus(`${t("market_error_prefix")}${err.message}`);
     } finally {
       setLoading(false);
     }
   }
 
   // Get unique categories from category_override field
-  const categories = [t("market_filter_all") || "ALL", ...Array.from(new Set(results.map((m: any) => m.category_override || "Uncategorized").filter(Boolean)))];
+  const categories = [t("market_filter_all"), ...Array.from(new Set(results.map((m: any) => m.category_override || "Uncategorized").filter(Boolean)))];
 
   const ownedHashesSet = useMemo(() => new Set(ownedHashes), [ownedHashes]);
 
@@ -672,7 +672,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
       (mod.description || "").toLowerCase().includes(searchText);
     
     // Category filter
-    const matchesCategory = categoryFilter === (t("market_filter_all") || "ALL") || 
+    const matchesCategory = categoryFilter === (t("market_filter_all")) || 
       categoryFilter === "ALL" || 
       mod.category_override === categoryFilter;
     
@@ -777,10 +777,10 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
     return (
       <div className="flex flex-col gap-8 items-center justify-center h-full text-center animate-in fade-in duration-500">
         <div className="w-24 h-24 rounded-[2rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
-          <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("ui_icon_lock") || "lock"}</span>
+          <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("ui_icon_lock")}</span>
         </div>
-        <h2 className="text-2xl font-black uppercase tracking-tighter text-[var(--text)]">{t("market_access_denied") || "ACCESS DENIED"}</h2>
-        <p className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest">{t("market_access_denied_desc") || "Only citizens that are logged in may access the Nexus."}</p>
+        <h2 className="text-2xl font-black uppercase tracking-tighter text-[var(--text)]">{t("market_access_denied")}</h2>
+        <p className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest">{t("market_access_denied_desc")}</p>
       </div>
     );
   }
@@ -788,9 +788,9 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <ViewHeader 
-        title={t("market_title") || "The Nexus"} 
-        subtitle={`${t("market_subtitle_suffix") || "Community index, artifact discovery, and metadata links"}`} 
-        icon={t("ui_icon_hub") || "hub"} 
+        title={t("market_title")} 
+        subtitle={`${t("market_subtitle_suffix")}`} 
+        icon={t("ui_icon_hub")} 
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" 
       >
         <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
@@ -801,8 +801,8 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             }}
             className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
           >
-            <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_refresh") || "refresh"}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_refresh") || "Refresh"}</span>
+            <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_refresh")}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_refresh")}</span>
           </button>
           
           {marketTab !== 'MODS' && marketTab !== 'BLUEPRINTS' && (
@@ -812,8 +812,8 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 onClick={handleUploadAsset}
                 className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
               >
-                <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_upload") || "upload"}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest">{t("market_btn_upload") || "Upload"}</span>
+                <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_upload")}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">{t("market_btn_upload")}</span>
               </button>
             </>
           )}
@@ -844,11 +844,11 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
         {/* Search Bar */}
         <div className="flex-1 min-w-[250px] relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text)] opacity-50 flex items-center justify-center">
-            <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_search") || "search"}</span>
+            <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_search")}</span>
           </div>
           <input 
             type="text" 
-            placeholder={t("market_search_placeholder") || "Search Artifacts or Masons..."} 
+            placeholder={t("market_search_placeholder")} 
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -895,10 +895,10 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             value={sortBy}
             onChange={(val: string[]) => setSortBy(val[0])}
             options={[
-              { id: "newest", label: t("market_sort_newest") || "NEWEST FIRST" },
-              { id: "oldest", label: t("market_sort_oldest") || "OLDEST FIRST" },
-              { id: "name", label: t("market_sort_name") || "NAME (A-Z)" },
-              { id: "author", label: t("market_sort_author") || "MASON (A-Z)" }
+              { id: "newest", label: t("market_sort_newest") },
+              { id: "oldest", label: t("market_sort_oldest") },
+              { id: "name", label: t("market_sort_name") },
+              { id: "author", label: t("market_sort_author") }
             ]}
           />
         </div>
@@ -923,7 +923,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8 mt-6">
         {loading ? (
           <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest animate-pulse">
-            {t("market_searching") || "Searching The Nexus..."}
+            {t("market_searching")}
           </div>
         ) : paginatedResults.length > 0 ? (
           <>
@@ -966,9 +966,9 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                   {(mod.isVirtual || mod.isParent || mod.familyCount > 1) && (
                     <div className="absolute bottom-3 left-3 z-30 pointer-events-auto group/badge">
                       <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-lg transition-all group-hover/badge:bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]">
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] drop-shadow-sm">{t("ui_icon_layers") || "layers"}</span>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] drop-shadow-sm">{t("ui_icon_layers")}</span>
                         <span className="text-[9px] font-black text-[var(--text)] uppercase tracking-widest drop-shadow-sm">
-                          {mod.familyCount || (mod.flavors?.length || 0)} {t("market_variants") || "VARIANTS"}
+                          {mod.familyCount || (mod.flavors?.length || 0)} {t("market_variants")}
                         </span>
                       </div>
                     </div>
@@ -991,9 +991,9 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                   
                   <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                      {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("market_date_unknown") || "Unknown Date"}
+                      {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("market_date_unknown")}
                     </span>
-                    <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("market_btn_view") || "View"} &rarr;</span>
+                    <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("market_btn_view")} &rarr;</span>
                   </div>
                 </div>
               </div>
@@ -1002,10 +1002,10 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
         ) : (
           <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center justify-center">
             <div className="w-24 h-24 rounded-[2rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
-              <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("ui_icon_marketplace") || "storefront"}</span>
+              <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("ui_icon_marketplace")}</span>
             </div>
-            <p className="font-black uppercase tracking-widest text-xl mb-2">{t("market_empty_title") || "No new artifacts detected."}</p>
-            <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("market_empty_desc") || "Everything in The Nexus is already in Your Vault."}</p>
+            <p className="font-black uppercase tracking-widest text-xl mb-2">{t("market_empty_title")}</p>
+            <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("market_empty_desc")}</p>
           </div>
         )}
       </div>
@@ -1018,7 +1018,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             disabled={currentPage === 1}
             className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
           >
-            {t("nav_prev") || "PREV"}
+            {t("nav_prev")}
           </button>
           <span className="text-[12px] font-black uppercase tracking-widest text-[var(--subtext)] px-4">
             {currentPage} / {totalPages}
@@ -1028,7 +1028,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             disabled={currentPage === totalPages}
             className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
           >
-            {t("nav_next") || "NEXT"}
+            {t("nav_next")}
           </button>
         </div>
       )}
@@ -1040,11 +1040,11 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             {/* Search Bar */}
             <div className="flex-1 min-w-[250px] relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text)] opacity-50 flex items-center justify-center">
-                <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_search") || "search"}</span>
+                <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_search")}</span>
               </div>
               <input 
                 type="text" 
-                placeholder={marketTab === 'LEXICONS' ? (t("market_search_lexicons") || "Search Lexicons or Masons...") : marketTab === 'TEMPLATES' ? (t("market_search_templates") || "Search Templates or Masons...") : marketTab === 'BLUEPRINTS' ? (t("market_search_blueprints") || "Search Blueprints...") : (t("market_search_chameleons") || "Search Chameleons or Masons...")} 
+                placeholder={marketTab === 'LEXICONS' ? (t("market_search_lexicons")) : marketTab === 'TEMPLATES' ? (t("market_search_templates")) : marketTab === 'BLUEPRINTS' ? (t("market_search_blueprints")) : (t("market_search_chameleons"))} 
                 value={assetSearchQuery}
                 onChange={(e) => {
                   setAssetSearchQuery(e.target.value);
@@ -1077,7 +1077,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                     value={languageFilter}
                     onChange={(val: string[]) => { setLanguageFilter(val[0]); setCurrentPage(1); }}
                     options={[
-                      { id: "all", label: t("market_filter_language") || "Lexicon" },
+                      { id: "all", label: t("market_filter_language") },
                       ...availableLanguages.map(l => ({ id: l, label: l }))
                     ]}
                   />
@@ -1087,9 +1087,9 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                     value={lexiconTypeFilter}
                     onChange={(val: string[]) => { setLexiconTypeFilter(val[0]); setCurrentPage(1); }}
                     options={[
-                      { id: "all", label: t("market_filter_type") || "Type" },
-                      { id: "Default", label: t("market_type_default") || "Default" },
-                      { id: "Theme", label: t("market_type_theme") || "Theme" }
+                      { id: "all", label: t("market_filter_type") },
+                      { id: "Default", label: t("market_type_default") },
+                      { id: "Theme", label: t("market_type_theme") }
                     ]}
                   />
                 </div>
@@ -1102,9 +1102,9 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                   value={themeModeFilter}
                   onChange={(val: string[]) => { setThemeModeFilter(val[0]); setCurrentPage(1); }}
                   options={[
-                    { id: "all", label: t("market_filter_mode") || "Theme Mode" },
-                    { id: "Dark", label: t("market_mode_dark") || "Dark" },
-                    { id: "Light", label: t("market_mode_light") || "Light" }
+                    { id: "all", label: t("market_filter_mode") },
+                    { id: "Dark", label: t("market_mode_dark") },
+                    { id: "Light", label: t("market_mode_light") }
                   ]}
                 />
               </div>
@@ -1115,10 +1115,10 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 value={assetSortBy}
                 onChange={(val: string[]) => setAssetSortBy(val[0])}
                 options={[
-                  { id: "newest", label: t("market_sort_newest") || "NEWEST FIRST" },
-                  { id: "oldest", label: t("market_sort_oldest") || "OLDEST FIRST" },
-                  { id: "name", label: t("market_sort_name") || "NAME (A-Z)" },
-                  { id: "author", label: t("market_sort_author") || "MASON (A-Z)" }
+                  { id: "newest", label: t("market_sort_newest") },
+                  { id: "oldest", label: t("market_sort_oldest") },
+                  { id: "name", label: t("market_sort_name") },
+                  { id: "author", label: t("market_sort_author") }
                 ]}
               />
             </div>
@@ -1126,7 +1126,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
             {loading ? (
               <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest animate-pulse">
-                {t("market_searching") || "Searching The Nexus..."}
+                {t("market_searching")}
               </div>
             ) : assetPaginatedResults.length > 0 ? (
               assetPaginatedResults.map((asset: any, index: number) => (
@@ -1148,7 +1148,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                     </span>
                     <div className="absolute top-4 right-4 flex gap-2 z-30">
                       <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                        {marketTab === 'BLUEPRINTS' ? (t("market_type_blueprint") || "BLUEPRINT") : marketTab === 'CHAMELEONS' ? (t("market_type_theme") || "Theme") : marketTab === 'TEMPLATES' ? (t("market_type_template") || "Template") : (t("market_type_lexicon") || "Lexicon")}
+                        {marketTab === 'BLUEPRINTS' ? (t("market_type_blueprint")) : marketTab === 'CHAMELEONS' ? (t("market_type_theme")) : marketTab === 'TEMPLATES' ? (t("market_type_template")) : (t("market_type_lexicon"))}
                       </span>
                     </div>
                   </div>
@@ -1178,7 +1178,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
 
                     <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                       <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                        {asset.downloads || 0} DL
+                        {asset.downloads || 0} {t("auto_dl")}
                       </span>
                       <div className="flex gap-2">
                         {session?.user?.user_metadata?.username === asset.author && (
@@ -1186,7 +1186,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                             onClick={(e) => handleEditAsset(e, asset)}
                             className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                           >
-                            {t("market_btn_edit") || "EDIT"}
+                            {t("market_btn_edit")}
                           </button>
                         )}
                         {marketTab === 'BLUEPRINTS' ? (
@@ -1197,7 +1197,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                             }}
                             className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105"
                           >
-                            {t("market_btn_download_install") || "Download & Install"}
+                            {t("market_btn_download_install")}
                           </button>
                         ) : (
                           <button 
@@ -1219,7 +1219,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                             }}
                             className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}
                           >
-                            {isInstalled(asset) ? (t("market_btn_reinstall") || "REINSTALL") : (t("market_btn_download_install") || "Download & Install")}
+                            {isInstalled(asset) ? (t("market_btn_reinstall")) : (t("market_btn_download_install"))}
                           </button>
                         )}
                       </div>
@@ -1230,18 +1230,18 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             ) : (
               <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center justify-center">
                 <div className="w-24 h-24 rounded-[2rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
-                  <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{marketTab === 'BLUEPRINTS' ? (t("ui_icon_map") || "map") : marketTab === 'TEMPLATES' ? "draw" : (t("ui_icon_theme") || "palette")}</span>
+                  <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{marketTab === 'BLUEPRINTS' ? (t("ui_icon_map")) : marketTab === 'TEMPLATES' ? "draw" : (t("ui_icon_theme"))}</span>
                 </div>
                 <p className="font-black uppercase tracking-widest text-xl mb-2">
                   {marketTab === 'CHAMELEONS' 
-                    ? (t("market_empty_title_chameleons") || "No Chameleon found.") 
+                    ? (t("market_empty_title_chameleons")) 
                     : marketTab === 'TEMPLATES'
-                    ? (t("market_empty_title_templates") || "NO TEMPLATES FOUND")
+                    ? (t("market_empty_title_templates"))
                     : marketTab === 'BLUEPRINTS'
-                    ? (t("market_empty_title_blueprints") || "NO BLUEPRINTS FOUND")
-                    : (t("market_empty_title_lexicons") || "No Lexicons found.")}
+                    ? (t("market_empty_title_blueprints"))
+                    : (t("market_empty_title_lexicons"))}
                 </p>
-                <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("market_empty_desc") || "Everything in The Nexus is already in Your Vault."}</p>
+                <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("market_empty_desc")}</p>
               </div>
             )}
           </div>
@@ -1254,7 +1254,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 disabled={currentPage === 1}
                 className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
               >
-                {t("nav_prev") || "PREV"}
+                {t("nav_prev")}
               </button>
               <span className="text-[12px] font-black uppercase tracking-widest text-[var(--subtext)] px-4">
                 {currentPage} / {assetTotalPages}
@@ -1264,7 +1264,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 disabled={currentPage === assetTotalPages}
                 className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
               >
-                {t("nav_next") || "NEXT"}
+                {t("nav_next")}
               </button>
             </div>
           )}
@@ -1278,7 +1278,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
           <div className="fixed top-0 right-0 bottom-10 z-[15000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setUploadState(s => ({ ...s, isOpen: false }))}></div>
           <div className="fixed top-10 right-0 bottom-10 w-[550px] max-w-[100vw] theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] rounded-tl-[3rem] rounded-bl-[3rem]" onClick={(e) => e.stopPropagation()}>
             <button type="button" onClick={() => setUploadState(s => ({ ...s, isOpen: false }))} className="absolute top-8 right-8 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close") || "close"}</span>
+              <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close")}</span>
             </button>
             <div className="h-48 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col items-center justify-center overflow-hidden">
               <div className="absolute inset-0 bg-[var(--accent)]/5 blur-[50px] pointer-events-none rounded-full transform scale-150"></div>
@@ -1292,18 +1292,18 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
             <div className="px-6 pt-6 pb-2 relative flex-shrink-0">
               <h3 className="text-2xl font-black text-[var(--text)] uppercase truncate">
                 {marketTab === 'LEXICONS' 
-                  ? (t("market_upload_lexicon_title") || "Upload Lexicon")
+                  ? (t("market_upload_lexicon_title"))
                   : marketTab === 'TEMPLATES'
-                  ? (t("market_upload_template_title") || "Upload Template")
-                  : (t("market_upload_chameleon_title") || "Upload Chameleon")}
+                  ? (t("market_upload_template_title"))
+                  : (t("market_upload_chameleon_title"))}
               </h3>
-              <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">Upload New Asset</p>
+              <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("auto_upload_new_asset")}</p>
             </div>
             
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 relative z-10">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
-                  <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_file") || "File Content"}</label>
+                  <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_file")}</label>
                   <div className="flex items-center gap-4">
                     <div className={`flex-1 theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold truncate transition-all ${uploadState.fileName ? 'border-l-4 border-l-[var(--accent)] text-[var(--text)] opacity-100' : 'text-[var(--subtext)] opacity-60 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-dashed'}`}>
                       {uploadState.fileName || "No file selected"}
@@ -1316,20 +1316,20 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                         const parsed = JSON.parse(content);
                         setUploadState(s => ({ ...s, fileContent: parsed, fileName: selected as string, name: s.name || parsed.name || 'Unknown' }));
                       } catch (err: any) {
-                        useStore.getState().pushStatus(`${t("alert_import_failed") || "Import Failed:"} ${err.message || err}`);
+                        useStore.getState().pushStatus(`${t("alert_import_failed")} ${err.message || err}`);
                       }
                     }} className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest rounded-xl hover:scale-105 transition-all shadow-lg whitespace-nowrap ${standardAccentGlassButtonClass}`}>
-                      {uploadState.fileName ? (t("ui_btn_replace") || "REPLACE") : (t("marketplace_btn_import") || "IMPORT")}
+                      {uploadState.fileName ? (t("ui_btn_replace")) : (t("marketplace_btn_import"))}
                     </button>
                   </div>
                 </div>
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">
                   {marketTab === 'LEXICONS' 
-                    ? (t("market_upload_lexicon_name") || "Lexicon Name")
+                    ? (t("market_upload_lexicon_name"))
                     : marketTab === 'TEMPLATES'
-                    ? (t("market_upload_template_name") || "Template Name")
-                    : (t("market_upload_chameleon_name") || "Chameleon Name")}
+                    ? (t("market_upload_template_name"))
+                    : (t("market_upload_chameleon_name"))}
                 </label>
                 <input 
                   type="text" 
@@ -1339,7 +1339,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_desc") || "Description"}</label>
+                <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_desc")}</label>
                 <textarea 
                   value={uploadState.description}
                   onChange={e => setUploadState(s => ({ ...s, description: e.target.value }))}
@@ -1350,36 +1350,36 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
               {marketTab === 'LEXICONS' && (
                 <>
                   <div className="flex flex-col gap-2 relative z-[60]">
-                    <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_language") || "Lexicon"}</label>
+                    <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_language")}</label>
                     <CustomDropdown disableTint={true}  
                       value={uploadState.language}
                       onChange={(val: string[]) => setUploadState(s => ({ ...s, language: val[0] }))}
                       options={[
                         ...availableLanguages.map(l => ({ id: l, label: l })),
-                        { id: "add_new", label: t("market_upload_add_language") || "Add New Lexicon..." }
+                        { id: "add_new", label: t("market_upload_add_language") }
                       ]}
                     />
                   </div>
                   {uploadState.language === 'add_new' && (
                     <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
-                      <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_new_language") || "New Lexicon Name"}</label>
+                      <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_upload_new_language")}</label>
                       <input 
                         type="text" 
                         value={uploadState.newLanguage}
                         onChange={e => setUploadState(s => ({ ...s, newLanguage: e.target.value }))}
                         className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
-                        placeholder={t("market_ph_language") || "e.g. French"}
+                        placeholder={t("market_ph_language")}
                       />
                     </div>
                   )}
                   <div className="flex flex-col gap-2 relative z-[50]">
-                    <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_filter_type") || "Type"}</label>
+                    <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_filter_type")}</label>
                     <CustomDropdown disableTint={true}  
                       value={uploadState.lexiconType}
                       onChange={(val: string[]) => setUploadState(s => ({ ...s, lexiconType: val[0] }))}
                       options={[
-                        { id: "Theme", label: t("market_type_theme") || "Theme" },
-                        { id: "Default", label: t("market_type_default") || "Default" }
+                        { id: "Theme", label: t("market_type_theme") },
+                        { id: "Default", label: t("market_type_default") }
                       ]}
                     />
                   </div>
@@ -1388,13 +1388,13 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
 
               {marketTab === 'CHAMELEONS' && (
                 <div className="flex flex-col gap-2 relative z-[60]">
-                  <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_filter_mode") || "Theme Mode"}</label>
+                  <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("market_filter_mode")}</label>
                   <CustomDropdown disableTint={true}  
                     value={uploadState.themeMode}
                     onChange={(val: string[]) => setUploadState(s => ({ ...s, themeMode: val[0] }))}
                     options={[
-                      { id: "Dark", label: t("market_mode_dark") || "Dark" },
-                      { id: "Light", label: t("market_mode_light") || "Light" }
+                      { id: "Dark", label: t("market_mode_dark") },
+                      { id: "Light", label: t("market_mode_light") }
                     ]}
                   />
                 </div>
@@ -1407,16 +1407,16 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                 onClick={() => setUploadState(s => ({ ...s, isOpen: false }))}
                 className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
               >
-                <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_close") || "close"}</span>
-                {t("market_upload_cancel") || "CANCEL"}
+                <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_close")}</span>
+                {t("market_upload_cancel")}
               </button>
               <button 
                 onClick={submitUpload}
                 disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
                 className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--success-rgb),0.2)] disabled:opacity-50 disabled:hover:scale-100 disabled:pointer-events-none"
               >
-                <span className="material-symbols-outlined !text-[18px]">{uploadState.isEdit ? (t("ui_icon_save") || "save") : (t("ui_icon_upload") || "upload")}</span>
-                {uploadState.isEdit ? (t("market_upload_btn_update") || "UPDATE LISTING") : (t("market_upload_submit") || "SUBMIT UPLOAD")}
+                <span className="material-symbols-outlined !text-[18px]">{uploadState.isEdit ? (t("ui_icon_save")) : (t("ui_icon_upload"))}</span>
+                {uploadState.isEdit ? (t("market_upload_btn_update")) : (t("market_upload_submit"))}
               </button>
             </div>
           </div>
@@ -1431,28 +1431,28 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
           <div className="fixed top-10 right-0 bottom-10 w-[500px] max-w-[100vw] theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[65001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px]" onClick={e => e.stopPropagation()}>
             <div className="h-40 relative bg-black border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0">
               <div className="w-full h-full flex items-center justify-center opacity-40 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-                <span className="material-symbols-outlined text-white" style={{ fontSize: '120px' }}>{t("ui_icon_flag") || "flag"}</span>
+                <span className="material-symbols-outlined text-white" style={{ fontSize: '120px' }}>{t("ui_icon_flag")}</span>
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--danger)_30%,transparent)] to-transparent" />
               <button type="button" onClick={() => setReportState({ isOpen: false, assetId: null, assetType: null, reason: '' })} className="absolute top-12 right-6 z-50 w-10 h-10 bg-black/40 backdrop-blur-[3px] hover:theme-bg-danger text-white/70 hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close") || "close"}</span>
+                <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close")}</span>
               </button>
             </div>
             
             <div className="px-6 pt-6 pb-2 relative flex-shrink-0">
-              <h3 className="text-2xl font-black text-[var(--text)] uppercase truncate">{t("market_report_title") || "Flag Asset"}</h3>
-              <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("market_report_desc") || "Please provide detailed information about why this asset should be removed from the Marketplace. False reports may result in account termination."}</p>
+              <h3 className="text-2xl font-black text-[var(--text)] uppercase truncate">{t("market_report_title")}</h3>
+              <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("market_report_desc")}</p>
             </div>
             
             <form onSubmit={handleReportSubmit} className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative z-10">
               <div className="p-6 flex flex-col gap-6 flex-1">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("market_report_reason") || "Reason"}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("market_report_reason")}</label>
                   <textarea 
                     required
                     value={reportState.reason}
-                    placeholder={t("market_report_placeholder") || "Please fill out this form"}
-                    title={t("market_report_placeholder") || "Please fill out this form"}
+                    placeholder={t("market_report_placeholder")}
+                    title={t("market_report_placeholder")}
                     onChange={(e) => setReportState({...reportState, reason: e.target.value})}
                     className="h-48 theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold resize-none focus:outline-none focus:theme-border-accent"
                   />
@@ -1461,12 +1461,12 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
 
               <div className="p-8 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-xl flex flex-row items-center justify-center gap-4 w-full relative z-50 shrink-0">
                 <button type="button" onClick={() => setReportState({ isOpen: false, assetId: null, assetType: null, reason: '' })} className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_close") || "close"}</span>
-                  {t("market_upload_cancel") || "CANCEL"}
+                  <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_close")}</span>
+                  {t("market_upload_cancel")}
                 </button>
                 <button type="submit" className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--danger-rgb),0.2)]">
-                  <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_flag") || "flag"}</span>
-                  {t("market_report_submit") || "Submit"}
+                  <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_flag")}</span>
+                  {t("market_report_submit")}
                 </button>
               </div>
             </form>
@@ -1480,12 +1480,12 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
           <div className="fixed top-0 right-0 bottom-10 z-[15000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setSelectedBlueprint(null)}></div>
           <div className="fixed top-10 right-0 bottom-10 w-full max-w-4xl theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] rounded-tl-[3rem] rounded-bl-[3rem]" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setSelectedBlueprint(null)} className="absolute top-8 right-8 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close") || "close"}</span>
+              <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close")}</span>
             </button>
             <div className="h-48 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col items-center justify-center overflow-hidden">
               <div className="absolute inset-0 bg-[var(--accent)]/5 blur-[50px] pointer-events-none rounded-full transform scale-150"></div>
               <div className="w-24 h-24 rounded-[2rem] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center relative z-10">
-                <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '48px' }}>{t("ui_icon_map") || "map"}</span>
+                <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '48px' }}>{t("ui_icon_map")}</span>
               </div>
             </div>
 
@@ -1493,7 +1493,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
               <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate">{selectedBlueprint.name}</h3>
               <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-2 flex gap-4">
                 <span>{selectedBlueprint.author || "Citizen"} &bull; {new Date(selectedBlueprint.created_at).toLocaleDateString()}</span>
-                <span className="text-[var(--accent)] font-mono">{selectedBlueprint.json_data.game_version ? `${t("market_blueprint_verified") || "Verified Version:"} ${selectedBlueprint.json_data.game_version}` : (t("market_blueprint_verified_unknown") || "Verified Version: Unknown")}</span>
+                <span className="text-[var(--accent)] font-mono">{selectedBlueprint.json_data.game_version ? `${t("market_blueprint_verified")} ${selectedBlueprint.json_data.game_version}` : (t("market_blueprint_verified_unknown"))}</span>
               </p>
             </div>
 
@@ -1506,7 +1506,7 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                  
                  <div className="flex flex-col gap-4">
                     <h3 className="text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-80 flex items-center gap-2">
-                      <span className="theme-text-accent">{selectedBlueprint.json_data.artifacts?.length || 0}</span> {t("market_blueprint_included") || "Included Artifacts"}
+                      <span className="theme-text-accent">{selectedBlueprint.json_data.artifacts?.length || 0}</span> {t("market_blueprint_included")}
                     </h3>
                     <div className="flex flex-col gap-2">
                       {(selectedBlueprint.json_data.artifacts || []).map((mod: any, i: number) => (
@@ -1529,8 +1529,8 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                       onClick={() => setSelectedBlueprint(null)}
                       className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                    >
-                      <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_close") || "close"}</span>
-                      {t("ui_btn_cancel") || "CANCEL"}
+                      <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_close")}</span>
+                      {t("ui_btn_cancel")}
                    </button>
                    <button 
                       onClick={() => {
@@ -1539,8 +1539,8 @@ export default function Marketplace({ ownedHashes, onSetStatus, onOpenMasonProfi
                       }}
                       className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--accent-rgb),0.2)]"
                    >
-                      <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_download") || "download"}</span>
-                      {t("market_btn_download_install") || "Download & Install"}
+                      <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_download")}</span>
+                      {t("market_btn_download_install")}
                    </button>
                  </div>
               </div>

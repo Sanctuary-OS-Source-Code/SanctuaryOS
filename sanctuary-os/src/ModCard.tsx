@@ -106,7 +106,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
             <div className={`absolute inset-0 bg-gradient-to-t ${isShadowed ? 'from-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'from-[color-mix(in_srgb,orange_30%,transparent)]'} to-transparent opacity-50 z-0 pointer-events-none`} />
             <div className="relative z-10 flex flex-col items-center">
               <div className={`text-[9px] font-black uppercase opacity-90 mb-0.5 ${isShadowed ? 'text-[var(--danger)]' : 'text-orange-500'}`}>
-                {isNemesisEquipped ? t("modcard_fatal_conflict") || "Collision Severity 4 Conflict" : hasMissingDeps ? t("modcard_missing_artifacts") || "Missing Artifacts" : isGameVersionMismatch ? t("vault_unsupported_version") || "UNSUPPORTED VERSION" : isGhosted ? t("modcard_missing_dlc") || "Missing DLC" : t("modcard_artifact_corrupted") || "Artifact marked as Corrupted"}
+                {isNemesisEquipped ? t("modcard_fatal_conflict") : hasMissingDeps ? t("modcard_missing_artifacts") : isGameVersionMismatch ? t("vault_unsupported_version") : isGhosted ? t("modcard_missing_dlc") : t("modcard_artifact_corrupted")}
               </div>
               <div className={`text-[11px] font-black w-full text-center whitespace-normal leading-tight ${isShadowed ? 'text-red-300' : 'text-orange-300'}`}>
               {isNemesisEquipped 
@@ -135,10 +135,10 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
           <div className="flex items-center gap-2 mb-3 shrink-0">
             <div className="flex flex-col">
               <span className={`text-[10px] font-black uppercase tracking-widest ${confirmMode === 'tier3' ? 'text-orange-500' : 'theme-text-danger'}`}>
-                {confirmMode === 'dlc' ? (isGameVersionMismatch ? t("vault_unsupported_version") || "UNSUPPORTED VERSION" : hasMissingDeps ? t("modcard_missing_artifacts") || "Missing Artifacts" : t("modcard_missing_dlc") || "Missing DLC") : confirmMode === 'casualty' ? t("modcard_yeet_cascade") || "Yeet Cascade:" : confirmMode === 'broken' ? t("modcard_broken_artifacts") || "Broken Artifacts" : t("modcard_tier3_conflict") || "Collision Severity 3 Conflict"}
+                {confirmMode === 'dlc' ? (isGameVersionMismatch ? t("vault_unsupported_version") : hasMissingDeps ? t("modcard_missing_artifacts") : t("modcard_missing_dlc")) : confirmMode === 'casualty' ? t("modcard_yeet_cascade") : confirmMode === 'broken' ? t("modcard_broken_artifacts") : t("modcard_tier3_conflict")}
               </span>
               <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-tighter">
-                {confirmMode === 'dlc' ? t("modcard_protocol_override") || "Protocol Override Required" : confirmMode === 'casualty' ? t("modcard_override_exclusive") || "Protocol Override Required" : confirmMode === 'broken' ? t("modcard_review_before") || "Review Before Equipping" : t("modcard_manual_resolution") || "Manual Resolution Required"}
+                {confirmMode === 'dlc' ? t("modcard_protocol_override") : confirmMode === 'casualty' ? t("modcard_override_exclusive") : confirmMode === 'broken' ? t("modcard_review_before") : t("modcard_manual_resolution")}
               </span>
             </div>
           </div>
@@ -148,7 +148,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
               <>
                 {isGameVersionMismatch && (
                   <>
-                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_required_patches") || "REQUIRED PATCH(ES):"}</p>
+                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_required_patches")}</p>
                     <div className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex items-center gap-2 mb-2 shrink-0">
                       {getHighestVersion(requiredVersions || [])}
                     </div>
@@ -156,7 +156,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
                 )}
                 {missingPacks.length > 0 && (
                   <>
-                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_req") || "Req:"}:</p>
+                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_req")}:</p>
                     <div className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex items-center gap-2 mb-2 shrink-0">
                       {missingPacks.map((p: string) => mapDlcCode(p)).join(", ")}
                     </div>
@@ -164,7 +164,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
                 )}
                 {hasMissingDeps && (
                   <>
-                <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_missing_artifacts") || "Missing Artifacts"}:</p>
+                <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_missing_artifacts")}:</p>
                 {missingDeps.map((req: any) => {
                       const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
                       const reqUrl = typeof req === 'string' ? null : req.url;
@@ -178,7 +178,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); openUrl(searchUrl); }}
                         >
                           <span className="truncate">{cleanName}</span>
-                          <span className="text-[10px] opacity-70">{reqUrl ? (t("ui_icon_import") || "download") : (t("ui_icon_search") || "search")}</span>
+                          <span className="text-[10px] opacity-70">{reqUrl ? (t("ui_icon_import")) : (t("ui_icon_search"))}</span>
                         </a>
                       );
                     })}
@@ -187,7 +187,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
               </>
             ) : confirmMode === 'casualty' ? (
               <>
-                <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{anarchyRules?.intercept === false ? t("modcard_known_clashes") || "Known Logical Clashes" : (t("modcard_artifacts_removed") || t("modcard_removes") || "Removes:")}</p>
+                <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{anarchyRules?.intercept === false ? t("modcard_known_clashes") : (t("modcard_artifacts_removed") || t("modcard_removes") || "Removes:")}</p>
                 {casualtyList.map((c: any) => (
                   <div key={c.name || c} className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold text-[var(--text)]/80 truncate flex flex-col items-start gap-0.5 shrink-0">
                     <span className="flex items-center gap-2">{formatDisplayName(c.name || c)}</span>
@@ -197,7 +197,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
               </>
             ) : confirmMode === 'broken' ? (
               <>
-                <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_broken_artifacts") || "Broken Artifacts"}:</p>
+                <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_broken_artifacts")}:</p>
                 {brokenMods.map((b: any) => (
                   <div key={b.name} className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex items-center gap-2 mb-1 shrink-0">
                     {formatDisplayName(b.displayName || b.name)}
@@ -206,7 +206,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
               </>
             ) : (
               <>
-                <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_conflicts_with") || "Conflicts with:"}</p>
+                <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("modcard_conflicts_with")}</p>
                 {tier3List.map((c: any) => (
                   <div key={c.name || c} className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold text-[var(--text)]/80 truncate flex flex-col items-start gap-0.5 shrink-0">
                     <span className="flex items-center gap-2">{formatDisplayName(c.name || c)}</span>
@@ -219,20 +219,20 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
 
           <div className="flex gap-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0">
             {confirmMode === 'tier3' ? (
-               <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-orange-500/20 border border-orange-500/30 text-orange-500 font-black text-[9px] uppercase tracking-widest hover:bg-orange-500/30 hover:scale-105 transition-all shadow-lg">{t("modcard_btn_proceed") || "Proceed Anyway"}</button>
+               <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-orange-500/20 border border-orange-500/30 text-orange-500 font-black text-[9px] uppercase tracking-widest hover:bg-orange-500/30 hover:scale-105 transition-all shadow-lg">{t("modcard_btn_proceed")}</button>
             ) : confirmMode === 'broken' ? (
                <>
-                 <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 transition-all shadow-lg">{t("modcard_btn_proceed") || "Proceed Anyway"}</button>
+                 <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 transition-all shadow-lg">{t("modcard_btn_proceed")}</button>
                  {mod.isParent && (
-                   <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-105 transition-all shadow-lg">{t("modcard_btn_add_not_broken") || "Add Not Broken"}</button>
+                   <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-105 transition-all shadow-lg">{t("modcard_btn_add_not_broken")}</button>
                  )}
                </>
             ) : (
                <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 transition-all shadow-lg">
-                 {t("modcard_btn_proceed") || "Proceed Anyway"}
+                 {t("modcard_btn_proceed")}
                </button>
             )}
-            <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:scale-105 transition-all shadow-lg">{t("modcard_btn_safety") || "Back to Safety"}</button>
+            <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:scale-105 transition-all shadow-lg">{t("modcard_btn_safety")}</button>
           </div>
         </div>
       )}
@@ -255,7 +255,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
       <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 rounded-t-[2.5rem]">
         <div className="absolute inset-0 overflow-hidden z-0 rounded-t-[2.5rem]">
           {(showImages && (mod.image_url || mod.imageUrl)) ? (
-            <img src={mod.image_url || mod.imageUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-700 group-hover:scale-105" alt="Cover" />
+            <img src={mod.image_url || mod.imageUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-700 group-hover:scale-105" alt={t("auto_cover")} />
           ) : (
             <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ fontSize: '120px' }}>
               {(() => {
@@ -308,10 +308,10 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
                 const raw = (mod.status || "");
                 let cleaned = raw.replace(/[[\]"]/g, "");
                 if (cleaned.toUpperCase().includes('SANDBOX')) cleaned = 'SANDBOX';
-                if (isSelfBroken) return t("status_dd_broken") || "BROKEN";
-                if (cleaned.toLowerCase() === 'broken' && !isSelfBroken) return t("badge_stable") || "STABLE";
-                if (cleaned.toLowerCase() === 'unverified') return t("status_unverified") || "UNVERIFIED";
-                if (cleaned.toLowerCase() === 'unstable') return t("status_unstable") || "UNSTABLE";
+                if (isSelfBroken) return t("status_dd_broken");
+                if (cleaned.toLowerCase() === 'broken' && !isSelfBroken) return t("badge_stable");
+                if (cleaned.toLowerCase() === 'unverified') return t("status_unverified");
+                if (cleaned.toLowerCase() === 'unstable') return t("status_unstable");
                 return cleaned.toUpperCase();
               })()}
             </span>
@@ -321,7 +321,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
             <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent opacity-50 z-0 pointer-events-none" />
             <div className="relative z-10 flex flex-col gap-2">
               <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-xl flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-               <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("ui_icon_history") || "history"}</span>{t("dossier_revision") || "Revision"}</span>
+               <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("ui_icon_history")}</span>{t("dossier_revision")}</span>
                <span className="text-[10px] font-mono font-black text-[var(--text)] uppercase truncate">{(() => {
                  let v = mod.latest_version || mod.version;
                  if (!v && mod.isVirtual && mod.flavors) {
@@ -332,23 +332,23 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
                })()}</span>
             </div>
               <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-xl flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-               <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("ui_icon_sports_esports") || "sports_esports"}</span>{t("dossier_label_game_version") || "ENGINE VERSION"}</span>
-               <span className="text-[9px] font-black text-[var(--text)] uppercase truncate">{mod.compatible_versions && mod.compatible_versions.length > 0 ? getHighestVersion(mod.compatible_versions) : t("modcard_all") || "ALL"}</span>
+               <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("ui_icon_sports_esports")}</span>{t("dossier_label_game_version")}</span>
+               <span className="text-[9px] font-black text-[var(--text)] uppercase truncate">{mod.compatible_versions && mod.compatible_versions.length > 0 ? getHighestVersion(mod.compatible_versions) : t("modcard_all")}</span>
             </div>
               <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-xl flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-               <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("ui_icon_calendar_today") || "calendar_today"}</span>{t("dossier_label_last_updated") || "LAST UPDATED"}</span>
+               <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("ui_icon_calendar_today")}</span>{t("dossier_label_last_updated")}</span>
                <span className="text-[9px] font-black text-[var(--text)] uppercase truncate">{(() => {
                  let dt = mod.updated_at;
                  if (!dt && mod.isVirtual && mod.flavors) {
                    const dates = mod.flavors.map((f: any) => f.updated_at).filter(Boolean).sort().reverse();
                    if (dates.length > 0) dt = dates[0];
                  }
-                 return dt ? new Date(dt).toLocaleDateString() : t("modcard_unknown") || "UNKNOWN";
+                 return dt ? new Date(dt).toLocaleDateString() : t("modcard_unknown");
                })()}</span>
             </div>
             {mod.status_reason && (
                <div className="theme-glass-inner bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] px-3 py-2 rounded-xl flex flex-col gap-0.5 border shadow-sm mt-1">
-                 <span className="text-[7px] font-black uppercase theme-text-danger opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("ui_icon_error") || "error"}</span>{t("modcard_directive_note") || "DIRECTIVE NOTE"}</span>
+                 <span className="text-[7px] font-black uppercase theme-text-danger opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("ui_icon_error")}</span>{t("modcard_directive_note")}</span>
                  <span className="text-[9px] font-black theme-text-danger uppercase whitespace-normal leading-tight">{mod.status_reason}</span>
                </div>
             )}
@@ -364,15 +364,15 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
             >
               {isShadowed ? (
                 <span className="material-symbols-outlined !text-[18px]">
-                  {isNemesisEquipped ? (t("ui_icon_conflict") || "swords") 
+                  {isNemesisEquipped ? (t("ui_icon_conflict")) 
                    : hasMissingDeps ? "extension" 
                    : isGameVersionMismatch ? "hourglass_empty" 
                    : "block"}
                 </span>
               ) : hasTier3 && !isInActiveSet ? (
-                <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_warning") || "warning_amber"}</span>
+                <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_warning")}</span>
               ) : (
-                <span className="material-symbols-outlined !text-[20px]">{isInActiveSet ? t("ui_icon_plus") || "add" : t("ui_icon_plus") || "add"}</span>
+                <span className="material-symbols-outlined !text-[20px]">{isInActiveSet ? t("ui_icon_plus") : t("ui_icon_plus")}</span>
               )}
             </button>
           )}
@@ -396,7 +396,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
               <svg className="w-3 h-3 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
               </svg>
-              <span>{mod.flavors?.length || 0} {t("modcard_items") || "ARTIFACTS"}</span>
+              <span>{mod.flavors?.length || 0} {t("modcard_items")}</span>
               <svg className={`w-2 h-2 ml-1 opacity-60 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
@@ -406,7 +406,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
           <div className="flex items-center gap-1.5 ml-auto hidden">
              {reqCount > 0 && (
                <div className="theme-panel-accent border px-1.5 py-0.5 rounded-md text-[7px] font-black theme-text-accent uppercase">
-                 {reqCount} {t("modcard_req_short") || "REQ"}
+                 {reqCount} {t("modcard_req_short")}
                </div>
              )}
              {mod.isFlavorFolder && <span className="text-[10px]">⚡</span>}

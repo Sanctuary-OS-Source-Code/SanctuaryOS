@@ -72,8 +72,8 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("radar_undo_title") || "REVERT OVERRIDES"}
-      subtitle={t("radar_undo_subtitle") || "MANAGE WINNERS"}
+      title={t("radar_undo_title")}
+      subtitle={t("radar_undo_subtitle")}
       icon="history"
       iconColorClass="text-[var(--danger)] border-[var(--danger)]/30"
       backdropZ="z-[50000]"
@@ -90,8 +90,8 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
                 : "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] shadow-lg hover:scale-105"
             }`}
           >
-            <span className="material-symbols-outlined !text-sm">{t("ui_icon_warning") || "warning_amber"}</span>
-            <span>{t("wf_health_clear_all_overrides") || "CLEAR ALL OVERRIDES"}</span>
+            <span className="material-symbols-outlined !text-sm">{t("ui_icon_warning")}</span>
+            <span>{t("wf_health_clear_all_overrides")}</span>
           </button>
         </div>
       }
@@ -99,12 +99,12 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
       <div className="flex flex-col gap-4 h-full px-2">
         {loading ? (
           <div className="flex items-center justify-center p-12 text-white/20">
-            <span className="material-symbols-outlined animate-spin !text-4xl">{t("ui_icon_sync") || "sync"}</span>
+            <span className="material-symbols-outlined animate-spin !text-4xl">{t("ui_icon_sync")}</span>
           </div>
         ) : overrides.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-white/20 text-center">
-            <span className="material-symbols-outlined !text-4xl mb-4">{t("ui_icon_check_circle") || "check_circle"}</span>
-            <p className="text-sm font-black tracking-widest uppercase">{t("radar_no_overrides") || "No Active Overrides"}</p>
+            <span className="material-symbols-outlined !text-4xl mb-4">{t("ui_icon_check_circle")}</span>
+            <p className="text-sm font-black tracking-widest uppercase">{t("radar_no_overrides")}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -112,7 +112,7 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
               <div key={file} className="flex items-center justify-between p-4 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/5 hover:border-white/10 transition-all">
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-xl text-[var(--accent)]">{t("ui_icon_extension") || "extension"}</span>
+                    <span className="material-symbols-outlined !text-xl text-[var(--accent)]">{t("ui_icon_extension")}</span>
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-sm font-bold text-[var(--text)] truncate block">{formatDisplayName(file.replace(/\.(package|ts4script)$/i, ''))}</span>
@@ -125,7 +125,7 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
                   onClick={() => undoOverride(file)}
                   className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text)] opacity-50 hover:opacity-100 hover:text-[var(--accent)] hover:scale-110 transition-all shrink-0"
                 >
-                  <span className="material-symbols-outlined !text-lg">{t("ui_icon_undo") || "undo"}</span>
+                  <span className="material-symbols-outlined !text-lg">{t("ui_icon_undo")}</span>
                 </button>
               </div>
             ))}

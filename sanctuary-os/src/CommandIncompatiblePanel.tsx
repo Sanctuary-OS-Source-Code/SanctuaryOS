@@ -24,10 +24,10 @@ export default function CommandIncompatiblePanel({
          }
       }
       if (isBroken || mod.compliance_tier === 3 || mod.compliance_tier === 4) {
-        reason = t("bp_status_broken_noncompliant") || "Status: Broken / Non-Compliant";
+        reason = t("bp_status_broken_noncompliant");
         alertType = 'red';
       } else if (mod.compatible_versions && selectedVersion && !isVersionMatch(mod.compatible_versions, selectedVersion)) {
-        reason = t("bp_status_version_mismatch") || "Game Version Incompatibility Detected";
+        reason = t("bp_status_version_mismatch");
         alertType = 'red';
       } else {
         if (mod.requiredDLC) {
@@ -45,7 +45,7 @@ export default function CommandIncompatiblePanel({
            });
            if (missing.length > 0) {
               const missingNames = missing.map((m: string) => mapDlcCode(m)).join(", ");
-              reason = `${t("bp_status_missing_dlc") || "Missing Required Expansion Protocol(s):"}${missingNames}`;
+              reason = `${t("bp_status_missing_dlc")}${missingNames}`;
               alertType = 'red';
            }
         }
@@ -61,14 +61,14 @@ export default function CommandIncompatiblePanel({
               const activeModNames = activeMods.map((m: any) => (m._originalSetName || m.name)?.toLowerCase());
               const missing = rawDeps.filter((req: string) => !activeModNames.includes(req.toLowerCase()));
               if (missing.length > 0) {
-                 reason = `${t("vault_missing_deps") || "MISSING DEPENDENCIES"}: ${missing.join(", ")}`;
+                 reason = `${t("vault_missing_deps")}: ${missing.join(", ")}`;
                  alertType = 'red';
               }
            }
         }
 
         if (!reason && typeof mod.status === 'string' && mod.status.toLowerCase() === 'unstable') {
-          reason = t("bp_status_unstable") || "Status: Unstable";
+          reason = t("bp_status_unstable");
           alertType = 'amber';
         }
       }
@@ -93,8 +93,8 @@ export default function CommandIncompatiblePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("cmd_citizen_action_incompatible") || "INCOMPATIBLE"}
-      subtitle={t("cmd_incompatible_broken") || "INCOMPATIBLE ARTIFACTS"}
+      title={t("cmd_citizen_action_incompatible")}
+      subtitle={t("cmd_incompatible_broken")}
       icon={redMods.length > 0 ? "gpp_bad" : "gpp_maybe"}
       iconColorClass={redMods.length > 0 ? "theme-text-danger border-[var(--danger)]/30" : "text-amber-500 border-amber-500/30"}
       widthClass="w-[550px]"
@@ -102,26 +102,26 @@ export default function CommandIncompatiblePanel({
       <div className="flex flex-col gap-4 w-full">
         <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative">
           <div className="flex items-center justify-between w-full relative z-10">
-            <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("cmd_incompatible_broken") || "INCOMPATIBLE ARTIFACTS"}</h3>
+            <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("cmd_incompatible_broken")}</h3>
             {brokenMods.length > 0 ? (
               <div className="flex gap-2">
                 {redMods.length > 0 && (
                   <span className="text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)] animate-pulse" />
-                    {redMods.length} {t("modcard_artifacts") || "Artifacts"}
+                    {redMods.length} {t("modcard_artifacts")}
                   </span>
                 )}
                 {amberMods.length > 0 && (
                   <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    {amberMods.length} {t("modcard_artifacts") || "Artifacts"}
+                    {amberMods.length} {t("modcard_artifacts")}
                   </span>
                 )}
               </div>
             ) : (
               <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
-                0 {t("modcard_artifacts") || "Artifacts"}
+                {t("auto_0")} {t("modcard_artifacts")}
               </span>
             )}
           </div>
@@ -132,16 +132,16 @@ export default function CommandIncompatiblePanel({
                 <button onClick={() => {
                   redMods.forEach((m: any) => toggleInActiveSet && toggleInActiveSet(m._originalSetName || m.name, true, true));
                 }} className={`flex-1 py-3 rounded-xl bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 border border-[var(--danger)]/30 hover:border-[var(--danger)]/50 text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
-                  <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete_sweep") || "delete_sweep"}</span>
-                  {(t("bp_purge_corrupted") || "Yeet {0} Corrupted").replace("{0}", String(redMods.length))}
+                  <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete_sweep")}</span>
+                  {(t("bp_purge_corrupted")).replace("{0}", String(redMods.length))}
                 </button>
               )}
               {amberMods.length > 0 && (
                 <button onClick={() => {
                   amberMods.forEach((m: any) => toggleInActiveSet && toggleInActiveSet(m._originalSetName || m.name, true, true));
                 }} className={`flex-1 py-3 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-500/50 text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
-                  <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete_sweep") || "delete_sweep"}</span>
-                  {(t("bp_purge_unstable") || "Yeet {0} Unstable").replace("{0}", String(amberMods.length))}
+                  <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_delete_sweep")}</span>
+                  {(t("bp_purge_unstable")).replace("{0}", String(amberMods.length))}
                 </button>
               )}
             </div>
@@ -151,8 +151,8 @@ export default function CommandIncompatiblePanel({
         <div className="flex flex-col gap-3 pb-24">
           {brokenMods.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4 py-12">
-              <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_shield") || "security"}</span>
-              <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("cmd_optimal") || "RADAR SWEEP COMPLETE"}</p>
+              <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("ui_icon_shield")}</span>
+              <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("cmd_optimal")}</p>
             </div>
           ) : (
             brokenMods.map((mod: any) => {
@@ -192,7 +192,7 @@ export default function CommandIncompatiblePanel({
                           }}
                           className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 shrink-0 ml-4"
                         >
-                          {isIgnored ? t("bp_restore_alert") || "Restore Alert" : t("bp_ignore_alert") || "Ignore"}
+                          {isIgnored ? t("bp_restore_alert") : t("bp_ignore_alert")}
                         </button>
                       </div>
                       <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest block mt-1">
@@ -205,7 +205,7 @@ export default function CommandIncompatiblePanel({
                         onClick={() => toggleInActiveSet(mod._originalSetName || mod.name, true, true)}
                         className={`shrink-0 w-10 h-10 rounded-full border font-black transition-all backdrop-blur-md active:scale-95 flex items-center justify-center ${isAmber ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/30 hover:border-amber-500/60 hover:text-amber-200 hover:shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-[var(--danger)]/10 border-[var(--danger)]/30 theme-text-danger hover:bg-[var(--danger)]/30 hover:border-[var(--danger)]/60 hover:text-[var(--danger)] hover:shadow-[0_0_15px_rgba(var(--danger-rgb),0.4)]'}`}
                       >
-                        <span className="material-symbols-outlined !text-lg">{t("ui_icon_close") || "close"}</span>
+                        <span className="material-symbols-outlined !text-lg">{t("ui_icon_close")}</span>
                       </button>
                     )}
                   </div>

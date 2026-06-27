@@ -3352,6 +3352,56 @@ fn toggle_pin_version(app: tauri::AppHandle, path: String, timestamp: u64, pinne
     Err("Failed to update pin status".into())
 }
 
+#[tauri::command]
+fn get_workbench_files(vault_path: String) -> Result<Vec<String>, String> {
+    let mut results = Vec::new();
+    let sep = if vault_path.contains('\\') { "\\" } else { "/" };
+    
+    let scan_paths = vec![
+        format!("{}Mods", if vault_path.ends_with(sep) { vault_path.clone() } else { format!("{}{}", vault_path, sep) }),
+        format!("{}Data{}Templates", if vault_path.ends_with(sep) { vault_path.clone() } else { format!("{}{}", vault_path, sep) }, sep),
+    ];
+
+    for p in scan_paths {
+        let root = std::path::Path::new(&p);
+        if !root.exists() { continue; }
+        
+        let mut queue = vec![(root.to_path_buf(), 0)];
+        while let Some((current, depth)) = queue.pop() {
+            if depth > 1 { continue; } // Keep depth at 1 for instant load, covers 99% of configs
+            if let Ok(entries) = std::fs::read_dir(&current) {
+                for entry in entries.flatten() {
+                    if let Ok(ft) = entry.file_type() {
+                        if ft.is_dir() {
+                            queue.push((entry.path(), depth + 1));
+                        } else if ft.is_file() {
+                            if let Some(ext) = entry.path().extension().and_then(|e| e.to_str()) {
+                                let ext_lower = ext.to_lowercase();
+                                if ext_lower == "json" || ext_lower == "cfg" || ext_lower == "ini" {
+                                    if let Some(name) = entry.path().file_name().and_then(|n| n.to_str()) {
+                                        if name.to_lowercase() != "desktop.ini" {
+                                            results.push(entry.path().to_string_lossy().to_string());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Sort
+    results.sort_by(|a, b| {
+        let name_a = std::path::Path::new(a).file_name().unwrap_or_default().to_string_lossy();
+        let name_b = std::path::Path::new(b).file_name().unwrap_or_default().to_string_lossy();
+        name_a.cmp(&name_b)
+    });
+    
+    Ok(results)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
@@ -3364,6 +3414,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            get_workbench_files,
             scan_bunker,
             scan_sandbox,
             import_to_sandbox,

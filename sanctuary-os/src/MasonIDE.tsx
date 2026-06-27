@@ -185,7 +185,7 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
            setOpenFiles([...openFiles, { ...file, content, originalContent: content }]);
            setActiveFileIndex(openFiles.length);
                    } catch (e) {
-           pushStatus(t("ide_err_open") || "Failed to open file.", "error");
+           pushStatus(t("ide_err_open"), "error");
         }
      }
   };
@@ -194,7 +194,7 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
      e.stopPropagation();
      const file = openFiles[index];
      if (file.content !== file.originalContent) {
-        if (!confirm(t("ide_confirm_close") || "You have unsaved changes. Discard?")) return;
+        if (!confirm(t("ide_confirm_close"))) return;
      }
      const newFiles = [...openFiles];
      newFiles.splice(index, 1);
@@ -224,9 +224,9 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
          const newFiles = [...openFiles];
          newFiles[activeFileIndex].originalContent = file.content;
          setOpenFiles(newFiles);
-         pushStatus(t("alert_saved") || "File Saved", "success");
+         pushStatus(t("alert_saved"), "success");
       } catch (e) {
-         pushStatus(t("alert_error") || "Failed to save file.", "error");
+         pushStatus(t("alert_error"), "error");
       }
   };
 
@@ -249,12 +249,12 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
             const fileName = file.substring(file.lastIndexOf('/') + 1).substring(file.lastIndexOf('\\') + 1);
             await writeTextFile(`${sandboxDir}/${fileName}`, content);
          }
-         pushStatus(t("ide_import_success") || "Files imported into Sandbox.", "success");
+         pushStatus(t("ide_import_success"), "success");
          fetchFiles();
       }
     } catch (e) {
       console.error(e);
-      pushStatus(t("ide_import_failed") || "Import failed.", "error");
+      pushStatus(t("ide_import_failed"), "error");
     }
   };
 
@@ -268,19 +268,19 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 relative z-10">
         <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_code") || "code"}</span>
+            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_code")}</span>
           </div>
-          <span className="truncate">{t("masonhub_ide_title") || "MASON IDE"}</span>
+          <span className="truncate">{t("masonhub_ide_title")}</span>
         </h2>
         
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
             {/* Search Input */}
             <div className="relative flex-1 max-w-[300px]">
-               <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("ui_icon_search") || "search"}</span>
+               <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("ui_icon_search")}</span>
                <input
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  placeholder={t("ide_search_files") || "SEARCH FILES..."}
+                  placeholder={t("ide_search_files")}
                   className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
                />
             </div>
@@ -297,13 +297,13 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
                   ]}
                   value={fileTypeFilter}
                   onChange={(val: string[]) => setFileTypeFilter(val[0])}
-                  placeholder="FILE TYPE"
+                  placeholder={t("auto_file_type")}
                />
             </div>
 
             <button onClick={handleImport} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-               <span className="material-symbols-outlined !text-[16px] group-hover:-translate-y-1 transition-transform duration-500">{t("ui_icon_upload") || "upload"}</span> 
-               {t("ide_import_file") || "IMPORT"}
+               <span className="material-symbols-outlined !text-[16px] group-hover:-translate-y-1 transition-transform duration-500">{t("ui_icon_upload")}</span> 
+               {t("ide_import_file")}
             </button>
         </div>
       </div>
@@ -316,10 +316,10 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
              {files.length === 0 ? (
                 <div className="flex flex-col items-center justify-center opacity-50 gap-6 p-12 mt-20">
                     <div className="w-24 h-24 rounded-[2rem] theme-glass-panel flex items-center justify-center shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <span className="material-symbols-outlined !text-5xl text-[var(--text)]">folder_off</span>
+                      <span className="material-symbols-outlined !text-5xl text-[var(--text)]">{t("auto_folder_off")}</span>
                     </div>
-                    <span className="text-2xl font-black uppercase tracking-[0.3em]">{t("masonhub_ide_title") || "MASON IDE"}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-70 text-center max-w-sm leading-relaxed">[{t("ide_no_files_found") || "NO EDITABLE FILES"}]<br/>{t("ide_place_files") || "PLACE FILES IN SANDBOX OR IMPORT"}</span>
+                    <span className="text-2xl font-black uppercase tracking-[0.3em]">{t("masonhub_ide_title")}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-70 text-center max-w-sm leading-relaxed">[{t("ide_no_files_found")}]<br/>{t("ide_place_files")}</span>
                 </div>
              ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
@@ -338,8 +338,8 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
                               <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                               {openFiles.find(o => o.path === file.path && o.content !== o.originalContent) && (
                                  <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-full shadow-inner animate-pulse z-20 pointer-events-none">
-                                    <span className="material-symbols-outlined !text-[12px]">warning</span>
-                                    {t("workbench_unsaved_changes") || "UNSAVED CHANGES"}
+                                    <span className="material-symbols-outlined !text-[12px]">{t("auto_warning")}</span>
+                                    {t("workbench_unsaved_changes")}
                                  </div>
                               )}
                               <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner group-hover:border-[var(--accent)]/50 transition-colors relative z-10">
@@ -363,7 +363,7 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
          isOpen={!!activeFile}
          onClose={() => setActiveFileIndex(-1)}
          title={activeFile?.name || ""}
-         subtitle={activeFile?.name?.endsWith('.json') ? (t("workbench_template_architect") || "JSON EDITOR") : (t("workbench_tab_raw") || "RAW EDITOR")}
+         subtitle={activeFile?.name?.endsWith('.json') ? (t("workbench_template_architect")) : (t("workbench_tab_raw"))}
          icon="code"
          iconColorClass="theme-text-accent"
          isResizable={true}
@@ -374,8 +374,8 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
              disabled={!activeFile}
              className="h-12 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none mr-2 backdrop-blur-md"
            >
-             <span className="material-symbols-outlined !text-[18px]">history</span>
-             {t("workbench_btn_timeline") || "TIMELINE"}
+             <span className="material-symbols-outlined !text-[18px]">{t("auto_history")}</span>
+             {t("workbench_btn_timeline")}
            </button>
          }
          footer={
@@ -383,8 +383,8 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
                <div className="relative group">
                  {isDirty && (
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-amber-500 animate-pulse whitespace-nowrap bg-black/40 px-3 py-1 rounded-full border border-amber-500/30">
-                       <span className="material-symbols-outlined !text-[12px]">warning</span>
-                       {t("workbench_unsaved_changes") || "UNSAVED CHANGES"}
+                       <span className="material-symbols-outlined !text-[12px]">{t("auto_warning")}</span>
+                       {t("workbench_unsaved_changes")}
                     </div>
                  )}
 
@@ -397,8 +397,8 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
                         : standardButtonClass
                    }
                  >
-                   <span className="material-symbols-outlined !text-[18px]">{t("workbench_icon_save") || "save"}</span>
-                   {t("workbench_btn_save") || "SAVE CONFIG"}
+                   <span className="material-symbols-outlined !text-[18px]">{t("workbench_icon_save")}</span>
+                   {t("workbench_btn_save")}
                  </button>
                </div>
             </div>
@@ -420,7 +420,7 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
                                     {file.name.endsWith('.json') ? 'data_object' : 'description'}
                                 </span>
                                 <span>{file.name}</span>
-                                <button onClick={(e) => closeFile(i, e)} className={`material-symbols-outlined !text-[16px] p-0.5 rounded-lg transition-colors ml-1 ${isActive ? (isDirty ? 'text-amber-500 hover:bg-amber-500/20' : 'text-[var(--accent)] hover:bg-[var(--accent)]/20') : 'text-transparent group-hover:text-[var(--subtext)] hover:!text-[var(--danger)] hover:!bg-[var(--danger)]/20'}`}>close</button>
+                                <button onClick={(e) => closeFile(i, e)} className={`material-symbols-outlined !text-[16px] p-0.5 rounded-lg transition-colors ml-1 ${isActive ? (isDirty ? 'text-amber-500 hover:bg-amber-500/20' : 'text-[var(--accent)] hover:bg-[var(--accent)]/20') : 'text-transparent group-hover:text-[var(--subtext)] hover:!text-[var(--danger)] hover:!bg-[var(--danger)]/20'}`}>{t("auto_close")}</button>
                             </div>
                         );
                     })}
@@ -459,20 +459,20 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-[color-mix(in_srgb,var(--danger)_60%,transparent)] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
                  <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
-                     <span className="material-symbols-outlined !text-[16px]">error</span>
-                     {t("ide_problems") || "PROBLEMS"} ({problemsList.length})
+                     <span className="material-symbols-outlined !text-[16px]">{t("auto_error")}</span>
+                     {t("ide_problems")} ({problemsList.length})
                    </span>
                    <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
-                     <span className="material-symbols-outlined !text-[14px]">close</span>
+                     <span className="material-symbols-outlined !text-[14px]">{t("auto_close")}</span>
                    </button>
                  </div>
                  <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
                    {problemsList.map((p: any, i: number) => (
                      <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
-                       <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">cancel</span>
+                       <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("auto_cancel")}</span>
                        <div className="flex flex-col gap-0.5 min-w-0">
                          <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>
-                         <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">Ln {p.line}, Col {p.column}</span>
+                         <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
                        </div>
                      </div>
                    ))}

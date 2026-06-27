@@ -35,20 +35,20 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
         
         {isNew && (
           <div className="absolute top-0 left-0 z-[60] bg-[var(--accent)]/20 backdrop-blur-md border-b border-r border-[var(--accent)]/50 text-[var(--text)] px-4 py-2 rounded-br-2xl text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1">
-            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("ui_icon_new_releases") || "new_releases"}</span>
-            {t("feed_badge_new") || "NEW"}
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("ui_icon_new_releases")}</span>
+            {t("feed_badge_new")}
           </div>
         )}
 
         {post.is_pinned && (
           <div className="absolute top-0 right-0 z-[60] bg-[var(--text)]/10 backdrop-blur-md border-b border-l border-[var(--text)]/20 text-[var(--text)] px-4 py-2 rounded-bl-2xl text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1">
-            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("ui_icon_keep") || "keep"}</span>
-            {t("feed_badge_pinned") || "PINNED"}
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("ui_icon_keep")}</span>
+            {t("feed_badge_pinned")}
           </div>
         )}
       {showImage && (
         <div className={`${isFeatured ? 'w-full lg:w-2/5 h-48 lg:h-auto border-b lg:border-b-0 lg:border-r' : isCompact ? 'w-full h-24 border-b' : 'w-full h-36 border-b'} bg-black/50 relative overflow-hidden shrink-0 border-white/5`}>
-          <img src={imageUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 ease-out" alt="Post Cover" />
+          <img src={imageUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 ease-out" alt={t("auto_post_cover")} />
         </div>
       )}
       
@@ -90,19 +90,19 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
           
           <div className="flex items-center gap-4 text-[10px] font-mono text-[var(--subtext)] opacity-60 group-hover:opacity-100 transition-opacity">
             <span className="relative group/tooltip flex items-center gap-1 hover:theme-text-accent cursor-pointer">
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_visibility") || "visibility"}</span> {(post.views?.[0]?.count || 0).toLocaleString()}
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_visibility")}</span> {(post.views?.[0]?.count || 0).toLocaleString()}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tooltip:flex flex-col bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl border border-white/10 rounded-lg px-2 py-1 shadow-xl z-50 w-max text-[9px] font-black uppercase tracking-widest text-[var(--text)]">
                 {t("ui.views")}
               </div>
             </span>
             <span className="relative group/tooltip flex items-center gap-1 hover:text-emerald-400 cursor-pointer" onClick={(e) => onToggleLike(e, post)}>
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_sync") || "sync"}</span> {(post.likes?.[0]?.count || 0).toLocaleString()}
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_sync")}</span> {(post.likes?.[0]?.count || 0).toLocaleString()}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tooltip:flex flex-col bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl border border-emerald-500/30 rounded-lg px-2 py-1 shadow-[0_0_15px_rgba(16,185,129,0.3)] z-50 w-max text-[9px] font-black uppercase tracking-widest text-emerald-400">
                 {t("ui.syncs")}
               </div>
             </span>
             <span className="relative group/tooltip flex items-center gap-1 hover:text-blue-400 cursor-pointer">
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_chat") || "chat"}</span> {(post.comments?.[0]?.count || 0).toLocaleString()}
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_chat")}</span> {(post.comments?.[0]?.count || 0).toLocaleString()}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tooltip:flex flex-col bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl border border-blue-500/30 rounded-lg px-2 py-1 shadow-[0_0_15px_rgba(59,130,246,0.3)] z-50 w-max text-[9px] font-black uppercase tracking-widest text-blue-400">
                 {t("ui.replies")}
               </div>

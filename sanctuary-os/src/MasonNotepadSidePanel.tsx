@@ -30,15 +30,15 @@ export default function MasonNotepadSidePanel({ isOpen, onClose }: MasonNotepadS
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("mason_notepad_title") || "NOTEPAD"}
-      icon={t("ui_icon_document") || "description"}
+      title={t("mason_notepad_title")}
+      icon={t("ui_icon_document")}
       noPadding={true}
     >
       <div className="flex flex-col h-full w-full">
         <textarea
           value={content}
           onChange={handleChange}
-          placeholder={t("mason_notepad_placeholder") || "Type your notes here..."}
+          placeholder={t("mason_notepad_placeholder")}
           className="flex-1 w-full h-full bg-transparent p-8 text-sm font-mono text-[var(--text)] focus:outline-none focus:bg-white/5 transition-colors resize-none custom-scrollbar"
         />
       </div>

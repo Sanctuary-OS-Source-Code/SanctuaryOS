@@ -64,8 +64,8 @@ export function ImportTemplateSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("workbench_author_import") || "IMPORT TEMPLATE"}
-      subtitle={t("market_upload_import_subtitle") || "Select a base template to load into the Author Editor."}
+      title={t("workbench_author_import")}
+      subtitle={t("market_upload_import_subtitle")}
       icon="drive_folder_upload"
       iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
       widthClass="w-[600px]"
@@ -75,11 +75,11 @@ export function ImportTemplateSidePanel({
           <div className="absolute inset-0 bg-[var(--accent)]/5 rounded-[2rem] blur-xl group-hover:bg-[var(--accent)]/10 transition-colors pointer-events-none"></div>
           <div className="relative flex items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[2rem] shadow-inner overflow-hidden transition-all group-focus-within:border-[var(--accent)] group-focus-within:shadow-[0_0_25px_rgba(var(--accent-rgb),0.1)]">
             <div className="pl-6 pr-2 py-4 flex items-center justify-center">
-               <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">search</span>
+               <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("auto_search")}</span>
             </div>
             <input 
               type="text" 
-              placeholder={t("workbench_search_placeholder") || "Search templates..."}
+              placeholder={t("workbench_search_placeholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-transparent border-none px-4 py-4 text-sm font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-50 tracking-wider"
@@ -90,13 +90,13 @@ export function ImportTemplateSidePanel({
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 pb-8">
           {isLoading ? (
              <div className="flex flex-col items-center justify-center p-12 opacity-40 theme-glass-panel rounded-[2rem] border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
-               <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)] animate-spin">refresh</span>
-               <p className="text-sm font-black uppercase tracking-widest">{t("workbench_loading_templates") || "LOADING TEMPLATES..."}</p>
+               <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)] animate-spin">{t("auto_refresh")}</span>
+               <p className="text-sm font-black uppercase tracking-widest">{t("workbench_loading_templates")}</p>
              </div>
           ) : filteredTemplates.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 opacity-40 theme-glass-panel rounded-[2rem] border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
-              <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)]">search_off</span>
-              <p className="text-sm font-black uppercase tracking-widest">{t("workbench_no_templates_found") || "NO TEMPLATES FOUND"}</p>
+              <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)]">{t("auto_search_off")}</span>
+              <p className="text-sm font-black uppercase tracking-widest">{t("workbench_no_templates_found")}</p>
             </div>
           ) : (
             filteredTemplates.map((template: any, i: number) => (
@@ -112,7 +112,7 @@ export function ImportTemplateSidePanel({
                 <div className="flex items-center justify-between w-full relative z-10">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
-                       <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] drop-shadow-[0_0_5px_rgba(var(--accent-rgb),0.5)]">data_object</span>
+                       <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] drop-shadow-[0_0_5px_rgba(var(--accent-rgb),0.5)]">{t("auto_data_object")}</span>
                     </div>
                     <span className="font-black text-sm text-[var(--text)] tracking-wider drop-shadow-sm">{template.template_id}</span>
                   </div>
@@ -123,20 +123,20 @@ export function ImportTemplateSidePanel({
                    <div className="flex items-center gap-6">
                        {template.mod_author && (
                          <div className="flex items-center gap-2">
-                           <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">person</span>
-                           <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--text)] opacity-80">{t("workbench_author_author_label") || "AUTHOR:"} <span className="text-[var(--accent)]">{template.mod_author}</span></span>
+                           <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">{t("auto_person")}</span>
+                           <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--text)] opacity-80">{t("workbench_author_author_label")} <span className="text-[var(--accent)]">{template.mod_author}</span></span>
                          </div>
                        )}
                        {template.template_version && (
                          <div className="flex items-center gap-2">
-                           <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">tag</span>
-                           <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--text)] opacity-80">{t("workbench_author_version_label") || "VERSION:"} <span className="text-[var(--accent)]">{template.template_version}</span></span>
+                           <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">{t("auto_tag")}</span>
+                           <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--text)] opacity-80">{t("workbench_author_version_label")} <span className="text-[var(--accent)]">{template.template_version}</span></span>
                          </div>
                        )}
                    </div>
                    <div className="flex items-center gap-2 text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0 duration-300">
-                     <span className="text-[9px] font-black uppercase tracking-widest">{t("workbench_author_import_to_editor") || "IMPORT"}</span>
-                     <span className="material-symbols-outlined !text-[14px]">arrow_forward</span>
+                     <span className="text-[9px] font-black uppercase tracking-widest">{t("workbench_author_import_to_editor")}</span>
+                     <span className="material-symbols-outlined !text-[14px]">{t("auto_arrow_forward")}</span>
                    </div>
                 </div>
               </button>

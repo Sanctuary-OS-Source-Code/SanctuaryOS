@@ -213,7 +213,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
         />
         {selectedItem ? (
           <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold flex items-center justify-center" onClick={onClear}>
-            <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_close") || "close"}</span>
+            <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_close")}</span>
           </button>
         ) : (
           <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 flex items-center justify-center" onClick={() => setIsOpen(!isOpen)}>
@@ -256,7 +256,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
                 </span>
               </button>
             ))}
-            {results.length === 0 && <div className="p-5 text-center text-[10px] text-[var(--subtext)] font-bold uppercase">{t("shared_no_signatures") || "No Signatures Found"}</div>}
+            {results.length === 0 && <div className="p-5 text-center text-[10px] text-[var(--subtext)] font-bold uppercase">{t("shared_no_signatures")}</div>}
           </div>
             </>
           );
@@ -307,7 +307,7 @@ export function SidebarActionButton({ id, icon, label, subtext, active, onClick,
         {subtext && <span className="text-[8px] font-bold opacity-60 normal-case tracking-normal whitespace-normal text-left leading-tight mt-0.5 w-full">{subtext}</span>}
       </div>
       
-      <span className={`material-symbols-outlined !text-[16px] shrink-0 absolute right-5 opacity-0 -translate-x-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 ${active ? 'opacity-100 translate-x-0' : ''}`}>{t("ui_icon_chevron_right") || "chevron_right"}</span>
+      <span className={`material-symbols-outlined !text-[16px] shrink-0 absolute right-5 opacity-0 -translate-x-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 ${active ? 'opacity-100 translate-x-0' : ''}`}>{t("ui_icon_chevron_right")}</span>
     </button>
   );
 }
@@ -380,7 +380,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
                    type="text" 
                    value={query} 
                    onChange={e => setQuery(e.target.value)} 
-                   placeholder={t("shared_search") || "Search"} 
+                   placeholder={t("shared_search")} 
                    className="w-full theme-glass-inner rounded-lg px-3 py-2 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all"
                  />
               </div>
@@ -391,12 +391,12 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
                 return (
                   <button type="button" key={`${o.id}-${index}`} onClick={() => handleSelect(o.id)} className={`w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-between ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_2px_0_0_var(--accent)]' : 'text-[var(--text)]'}`}>
                     <span className={`text-[11px] font-black uppercase ${isSelected ? 'text-[var(--accent)]' : o.className || 'text-[var(--text)]'}`}>{o.label}</span>
-                    {isSelected && <span className="text-[12px] shrink-0 ml-2 flex items-center justify-center text-[var(--accent)]"><span className="material-symbols-outlined !text-[16px]">{t("ui_icon_check") || "check"}</span></span>}
+                    {isSelected && <span className="text-[12px] shrink-0 ml-2 flex items-center justify-center text-[var(--accent)]"><span className="material-symbols-outlined !text-[16px]">{t("ui_icon_check")}</span></span>}
                   </button>
                 );
               })}
               {searchable && query && options.filter((opt: any) => opt.label.toLowerCase().includes(query.toLowerCase())).length === 0 && (
-                <div className="p-4 text-center text-xs font-bold text-[var(--subtext)] opacity-60">{t("shared_no_options") || "No options found"}</div>
+                <div className="p-4 text-center text-xs font-bold text-[var(--subtext)] opacity-60">{t("shared_no_options")}</div>
               )}
             </div>
           </div>
@@ -445,11 +445,11 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
     <div className="relative w-full" ref={containerRef}>
       <div className="flex flex-wrap gap-1 mb-2">
         {selectedVersions.map(v => (
-          <span key={v} className="px-2.5 py-1 theme-glass-inner border border-white/10 rounded-md text-[9px] font-black uppercase flex items-center gap-2">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300 flex items-center justify-center"><span className="material-symbols-outlined !text-[12px]">{t("ui_icon_close") || "close"}</span></button></span>
+          <span key={v} className="px-2.5 py-1 theme-glass-inner border border-white/10 rounded-md text-[9px] font-black uppercase flex items-center gap-2">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300 flex items-center justify-center"><span className="material-symbols-outlined !text-[12px]">{t("ui_icon_close")}</span></button></span>
         ))}
       </div>
       <input 
-        placeholder={t("shared_search_versions") || "Search versions..."} 
+        placeholder={t("shared_search_versions")} 
         value={query} 
         onChange={e => { setQuery(e.target.value); setIsOpen(true); }} 
         onFocus={() => setIsOpen(true)}
@@ -478,7 +478,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
               className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black uppercase text-[var(--text)] flex justify-between cursor-pointer"
             >
               <span>{v.version}</span>
-              {selectedVersions.includes(v.version) && <span className="text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check") || "check"}</span></span>}
+              {selectedVersions.includes(v.version) && <span className="text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined !text-[14px]">{t("ui_icon_check")}</span></span>}
             </button>
           ))}
           {query && !versions.some(v => v.version === query) && (
@@ -492,7 +492,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
               }} 
               className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black uppercase text-emerald-400 cursor-pointer"
             >
-              + {t("shared_add_prefix") || "Add"} "{query}"
+              + {t("shared_add_prefix")} "{query}"
             </button>
           )}
         </div>,
@@ -588,7 +588,7 @@ export function CustomComplianceDropdown({ value, onChange, includeTier3 }: { va
         value={value}
         options={options}
         onChange={(v: number[]) => onChange(v[0])}
-        placeholder={t("shared_select_compliance") || "Select Compliance Tier"}
+        placeholder={t("shared_select_compliance")}
         disableTint={true}
       />
     </div>
@@ -616,7 +616,7 @@ export function CustomClassificationDropdown({ value, onChange }: { value: strin
         value={value}
         options={options}
         onChange={(v: string[]) => onChange(v[0])}
-        placeholder={t("shared_select_classification") || "Select Classification"}
+        placeholder={t("shared_select_classification")}
         disableTint={true}
       />
     </div>
@@ -763,7 +763,7 @@ export function SidePanel({
             )}
 
             <button onClick={onClose} className="absolute top-[40px] right-8 z-50 w-12 h-12 rounded-2xl flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
-              <span className="material-symbols-outlined !text-[22px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("ui_icon_close") || "close"}</span>
+              <span className="material-symbols-outlined !text-[22px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("ui_icon_close")}</span>
             </button>
 
             <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-16">

@@ -202,23 +202,23 @@ export default function MasonBugReports({ masonId, onOpenDNA }: { masonId?: stri
             <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
                 <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_bug_report") || "bug_report"}</span>
+                        <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("ui_icon_bug_report")}</span>
                     </div>
-                    <span className="truncate">{t("mason_title_bug_reports") || "BUG REPORTS"}</span>
+                    <span className="truncate">{t("mason_title_bug_reports")}</span>
                 </h2>
                 <div className="flex items-center gap-3 relative flex-1 max-w-2xl ml-auto justify-end">
                     <div className="relative flex-1 h-12 max-w-[400px]">
-                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("ui_icon_search") || "search"}</span>
+                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("ui_icon_search")}</span>
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={t("ui_placeholder_search") || "Search..."}
+                            placeholder={t("ui_placeholder_search")}
                             className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
                         />
                         {searchQuery && (
                           <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                            <span className="material-symbols-outlined text-sm">{t("ui_icon_close") || "close"}</span>
+                            <span className="material-symbols-outlined text-sm">{t("ui_icon_close")}</span>
                           </button>
                         )}
                     </div>
@@ -227,19 +227,19 @@ export default function MasonBugReports({ masonId, onOpenDNA }: { masonId?: stri
                             onClick={() => setActiveTab("pending")}
                             className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
                         >
-                            {t("ui_tab_pending") || "Pending"}
+                            {t("ui_tab_pending")}
                         </button>
                         <button 
                             onClick={() => setActiveTab("open")}
                             className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'open' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
                         >
-                            {t("ui_tab_new") || "New"}
+                            {t("ui_tab_new")}
                         </button>
                         <button 
                             onClick={() => setActiveTab("closed")}
                             className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'closed' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
                         >
-                            {t("ui_tab_closed") || "Closed"}
+                            {t("ui_tab_closed")}
                         </button>
                     </div>
                 </div>
@@ -248,7 +248,7 @@ export default function MasonBugReports({ masonId, onOpenDNA }: { masonId?: stri
             <div className="w-full flex flex-col gap-6 px-6 pb-20">
                 {isLoading ? (
                     <div className="flex justify-center items-center h-32 opacity-50">
-                        <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing") || "PROCESSING..."}</span>
+                        <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing")}</span>
                     </div>
                 ) : (() => {
                     const filteredTickets = tickets.filter(t => {
@@ -265,9 +265,9 @@ export default function MasonBugReports({ masonId, onOpenDNA }: { masonId?: stri
                     
                     if (filteredTickets.length === 0) return (
                         <div className="flex flex-col justify-center items-center h-64 theme-glass-panel rounded-3xl border border-white/5 shadow-xl group">
-                            <span className="material-symbols-outlined !text-6xl mb-4 opacity-30 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:text-emerald-400">{t("ui_icon_celebration") || "celebration"}</span>
+                            <span className="material-symbols-outlined !text-6xl mb-4 opacity-30 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:text-emerald-400">{t("ui_icon_celebration")}</span>
                             <span className="text-sm font-black text-[var(--subtext)] uppercase tracking-widest text-center px-8 leading-relaxed">
-                                {searchQuery ? "NO TICKETS MATCH YOUR SEARCH." : (activeTab === 'open' ? (t("mason_no_bug_reports") || "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : "NO TICKETS FOUND IN THIS CATEGORY.")}
+                                {searchQuery ? "NO TICKETS MATCH YOUR SEARCH." : (activeTab === 'open' ? (t("mason_no_bug_reports")) : "NO TICKETS FOUND IN THIS CATEGORY.")}
                             </span>
                         </div>
                     );
@@ -303,7 +303,7 @@ export default function MasonBugReports({ masonId, onOpenDNA }: { masonId?: stri
                                                 ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' : ''}
                                                 ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' : ''}
                                             `}>
-                                                {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new") || "New") : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
+                                                {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
                                             </span>
                                         </div>
                                         
@@ -318,18 +318,18 @@ export default function MasonBugReports({ masonId, onOpenDNA }: { masonId?: stri
                                         <div className="flex justify-between items-center mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-4">
                                             <div className="flex items-center gap-4 flex-1 min-w-0">
                                                 <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
-                                                    <span className="material-symbols-outlined !text-[14px] normal-case">{t("ui_icon_calendar_today") || "calendar_today"}</span>
+                                                    <span className="material-symbols-outlined !text-[14px] normal-case">{t("ui_icon_calendar_today")}</span>
                                                     {new Date(ticket.created_at).toLocaleDateString()}
                                                 </span>
                                                 {ticket.metadata?.target_mod_id && (
                                                     <span className="text-[10px] font-mono text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity min-w-0 flex-1">
-                                                        <span className="material-symbols-outlined !text-[14px] normal-case shrink-0">{t("ui_icon_extension") || "extension"}</span>
+                                                        <span className="material-symbols-outlined !text-[14px] normal-case shrink-0">{t("ui_icon_extension")}</span>
                                                         <span className="truncate">{ticket.target_mod_name || ticket.metadata.target_mod_id}</span>
                                                     </span>
                                                 )}
                                             </div>
                                             <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                                                {t("mason_bug_inspect_report") || "View"} <span className="text-lg leading-none">&rarr;</span>
+                                                {t("mason_bug_inspect_report")} <span className="text-lg leading-none">&rarr;</span>
                                             </button>
                                         </div>
                                     </div>

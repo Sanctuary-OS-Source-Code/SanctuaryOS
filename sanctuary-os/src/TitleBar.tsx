@@ -45,7 +45,7 @@ export function TitleBar() {
         >
           <div className="absolute inset-0 bg-white/5 rounded border border-white/10 group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_40%,transparent)] transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
           <span className="relative text-[var(--text)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--warning)] transition-all font-black flex items-center justify-center">
-            <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_remove") || "remove"}</span>
+            <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_remove")}</span>
           </span>
         </button>
         
@@ -56,7 +56,7 @@ export function TitleBar() {
         >
           <div className="absolute inset-0 bg-white/5 rounded border border-white/10 group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
           <span className="relative text-[var(--text)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all flex items-center justify-center">
-             <span className="material-symbols-outlined !text-[14px] leading-none">{t("ui_icon_fullscreen") || "fullscreen"}</span>
+             <span className="material-symbols-outlined !text-[14px] leading-none">{t("ui_icon_fullscreen")}</span>
           </span>
         </button>
 
@@ -67,7 +67,7 @@ export function TitleBar() {
         >
           <div className="absolute inset-0 bg-white/5 rounded border border-white/10 group-hover:bg-red-500/20 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
           <span className="relative text-[var(--text)] opacity-40 group-hover:opacity-100 group-hover:text-red-400 transition-all font-black flex items-center justify-center">
-             <span className="material-symbols-outlined !text-[16px] leading-none">{t("ui_icon_close") || "close"}</span>
+             <span className="material-symbols-outlined !text-[16px] leading-none">{t("ui_icon_close")}</span>
           </span>
         </button>
       </div>

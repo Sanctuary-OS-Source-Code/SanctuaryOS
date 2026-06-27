@@ -111,15 +111,15 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
     <SidePanel
       isOpen={true}
       onClose={onClose}
-      title={t("notif_title") || "NOTIFICATIONS"}
-      icon={t("emote_bell") || "notifications"}
+      title={t("notif_title")}
+      icon={t("emote_bell")}
       backdropZ="z-[15000]"
       panelZ="z-[15001]"
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
           {!notifications.some(n => !n.is_read) && (
             <button type="button" onClick={onClose} className={standardButtonClass}>
-              {t("ui_btn_cancel") || "CANCEL"}
+              {t("ui_btn_cancel")}
             </button>
           )}
           {notifications.some(n => !n.is_read) && (
@@ -127,7 +127,7 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
               onClick={markAllRead}
               className={standardButtonClass}
             >
-              {t("notif_mark_read") || "MARK ALL READ"}
+              {t("notif_mark_read")}
             </button>
           )}
           {notifications.length > 0 && (
@@ -135,7 +135,7 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
               onClick={clearAll}
               className={standardDangerButtonClass}
             >
-              {t("notif_clear_all") || "CLEAR ALL"}
+              {t("notif_clear_all")}
             </button>
           )}
         </div>
@@ -144,11 +144,11 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
       <div className="flex flex-col gap-3">
         {loading ? (
            <div className="p-12 text-center text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 theme-glass-panel rounded-3xl">
-             {t("loading") || "Loading"}
+             {t("loading")}
            </div>
         ) : notifications.length === 0 ? (
            <div className="p-12 text-center text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 theme-glass-panel rounded-3xl">
-             {t("notif_empty") || "NO NEW ALERTS"}
+             {t("notif_empty")}
            </div>
         ) : (
            notifications.map((n) => (
@@ -165,7 +165,7 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
                  <div className="flex items-center gap-3">
                    {!n.is_read && <div className="w-2.5 h-2.5 rounded-full theme-bg-accent shadow-[0_0_10px_var(--accent)]" />}
                    <span className={`text-[10px] font-black uppercase tracking-widest ${n.is_read ? 'text-[var(--text)] opacity-80' : 'theme-text-accent'}`}>
-                     {n.type === "reply" ? (t("notif_type_reply") || "REPLY") : n.type === "support_reply" ? (t("notif_type_support") || "SUPPORT REPLY") : n.type === "new_post" ? (t("notif_type_transmission") || "NEW TRANSMISSION") : (t("notif_type_system") || "SYSTEM")}
+                     {n.type === "reply" ? (t("notif_type_reply")) : n.type === "support_reply" ? (t("notif_type_support")) : n.type === "new_post" ? (t("notif_type_transmission")) : (t("notif_type_system"))}
                    </span>
                  </div>
                  <div className="flex items-center gap-4">
@@ -176,7 +176,7 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
                       onClick={(e) => clearNotification(e, n.id)}
                       className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/20 hover:text-red-500 text-[var(--subtext)]"
                     >
-                     <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_close") || "close"}</span>
+                     <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_close")}</span>
                    </button>
                  </div>
                </div>

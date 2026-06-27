@@ -114,7 +114,7 @@ export default function TicketDossierSidePanel({
       setReplies(newMetadata.replies);
       setReplyText("");
       if (onReplyAdded) onReplyAdded(newMetadata);
-      useStore.getState().pushStatus(t("sa_support_success") || "Reply sent successfully", "success");
+      useStore.getState().pushStatus(t("sa_support_success"), "success");
       
       // Notify the ticket author
       if (ticket.author_id && user && ticket.author_id !== user.id) {
@@ -127,7 +127,7 @@ export default function TicketDossierSidePanel({
         });
       }
     } else {
-      useStore.getState().pushStatus("Failed to send reply", "error");
+      useStore.getState().pushStatus(t("auto_failed_to_send_reply"), "error");
     }
   };
 
@@ -137,7 +137,7 @@ export default function TicketDossierSidePanel({
     <SidePanel 
       isOpen={isOpen} 
       onClose={onClose} 
-      title={t("ticket_dossier_subtitle") || "SUPPORT DOSSIER"}
+      title={t("ticket_dossier_subtitle")}
       icon="support_agent"
       footer={
         (!isReadOnly && onTakeAction && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '')) ? (
@@ -147,14 +147,14 @@ export default function TicketDossierSidePanel({
               disabled={isSubmitting}
               className={standardButtonClass}
             >
-              {t("ui_btn_cancel") || "CANCEL"}
+              {t("ui_btn_cancel")}
             </button>
             <button 
               onClick={() => onTakeAction(selectedAction as any, reason)}
               disabled={!selectedAction || !reason.trim() || isSubmitting}
               className={standardAccentGlassButtonClass}
             >
-              {t("ticket_dossier_btn_save") || "SAVE ACTION"}
+              {t("ticket_dossier_btn_save")}
             </button>
           </div>
         ) : undefined
@@ -169,13 +169,13 @@ export default function TicketDossierSidePanel({
             <div className="bg-rose-500/10 border border-rose-500/30 p-5 rounded-2xl flex flex-col gap-3 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
                 <div className="flex items-center gap-3 relative z-10">
-                    <span className="material-symbols-outlined !text-[20px] text-rose-500">warning</span>
-                    <span className="text-rose-400 font-black text-[10px] tracking-widest uppercase">{t("ticket_dossier_restricted_detected") || "RESTRICTED ARTIFACTS DETECTED IN BLUEPRINT"}</span>
+                    <span className="material-symbols-outlined !text-[20px] text-rose-500">{t("auto_warning")}</span>
+                    <span className="text-rose-400 font-black text-[10px] tracking-widest uppercase">{t("ticket_dossier_restricted_detected")}</span>
                 </div>
                 <div className="flex flex-wrap gap-2 relative z-10">
                     {ticket.metadata.restricted_violations.map((v: string, i: number) => (
                         <div key={i} className="flex items-center gap-2 text-rose-200/90 text-[10px] font-mono bg-rose-500/10 py-1.5 px-3 rounded-md border border-rose-500/20">
-                            <span className="material-symbols-outlined !text-[12px] opacity-70">extension</span>
+                            <span className="material-symbols-outlined !text-[12px] opacity-70">{t("auto_extension")}</span>
                             <span>{v.replace(/[-_]/g, ' ')}</span>
                         </div>
                     ))}
@@ -186,7 +186,7 @@ export default function TicketDossierSidePanel({
         <div className="flex flex-col gap-5 pb-8 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_person") || "person"}</span> {(t("ticket_dossier_author") || "Author").replace(/^[^\w]*/, '').trim()}
+              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_person")}</span> {(t("ticket_dossier_author")).replace(/^[^\w]*/, '').trim()}
             </span>
             <span className="text-xs font-black text-[var(--text)] flex items-center gap-2">
               <span className="text-[10px] opacity-50 theme-text-accent font-mono truncate max-w-[100px]">{(ticket.author_username || authorName || "U").charAt(0).toUpperCase()}</span>
@@ -196,7 +196,7 @@ export default function TicketDossierSidePanel({
           
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_info") || "info"}</span> {(t("ticket_dossier_status") || "Status").replace(/^[^\w]*/, '').trim()}
+              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_info")}</span> {(t("ticket_dossier_status")).replace(/^[^\w]*/, '').trim()}
             </span>
             <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-lg border shadow-inner shrink-0 inline-block transition-colors
               ${ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : ''}
@@ -211,7 +211,7 @@ export default function TicketDossierSidePanel({
           
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_label") || "label"}</span> {(t("ticket_dossier_category") || "Category").replace(/^[^\w]*/, '').trim()}
+              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_label")}</span> {(t("ticket_dossier_category")).replace(/^[^\w]*/, '').trim()}
             </span>
             <span className="text-xs font-bold text-[var(--text)] capitalize opacity-90">{(ticket.category || ticket.ticket_type || "general").replace('_', ' ')}</span>
           </div>
@@ -219,7 +219,7 @@ export default function TicketDossierSidePanel({
           {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
             <div className="flex justify-between items-center">
               <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_extension") || "extension"}</span> {t("ticket_dossier_target_mod") || "Target Mod"}
+                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_extension")}</span> {t("ticket_dossier_target_mod")}
               </span>
               <div className="flex items-center gap-2">
                 {onOpenDNA ? (
@@ -228,7 +228,7 @@ export default function TicketDossierSidePanel({
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all active:scale-95 max-w-[250px] shrink-0"
                   >
                     <span className="text-[10px] font-mono font-bold truncate">{ticket.target_mod_name || fetchedTargetModName || ticket.target_mod_id || ticket.metadata?.target_mod_id}</span>
-                    <span className="material-symbols-outlined !text-[14px] shrink-0">{t("ui_icon_open_in_new") || "open_in_new"}</span>
+                    <span className="material-symbols-outlined !text-[14px] shrink-0">{t("ui_icon_open_in_new")}</span>
                   </button>
                 ) : (
                   <span className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] max-w-[250px] shrink-0">
@@ -241,7 +241,7 @@ export default function TicketDossierSidePanel({
 
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_calendar_today") || "calendar_today"}</span> {(t("ticket_dossier_created_at") || "Created At").replace(/^[^\w]*/, '').trim()}
+              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_calendar_today")}</span> {(t("ticket_dossier_created_at")).replace(/^[^\w]*/, '').trim()}
             </span>
             <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80">
               {new Date(ticket.created_at).toLocaleString()}
@@ -251,7 +251,7 @@ export default function TicketDossierSidePanel({
 
         <div className="flex flex-col gap-3 mt-4">
           <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_description") || "description"}</span> {t("ticket_dossier_description") || "Description"}
+            <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_description")}</span> {t("ticket_dossier_description")}
           </label>
           <div className="w-full theme-glass-panel rounded-xl px-5 py-4 text-[var(--text)] text-sm border border-white/5 shadow-inner min-h-32 whitespace-pre-wrap leading-relaxed">
             {ticket.description}
@@ -261,7 +261,7 @@ export default function TicketDossierSidePanel({
           {ticket.metadata?.logs && ticket.metadata.logs !== "null" && ticket.metadata.logs.trim() !== "" && (
             <div className="flex flex-col gap-3 mt-4">
               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_terminal") || "terminal"}</span> {t("ticket_dossier_attached_logs") || "Attached Logs"}
+                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_terminal")}</span> {t("ticket_dossier_attached_logs")}
               </label>
               <TicketLogViewer logs={ticket.metadata.logs} />
             </div>
@@ -270,7 +270,7 @@ export default function TicketDossierSidePanel({
           {replies.length > 0 && (
           <div className="flex flex-col gap-4 mt-6">
             <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 ml-2">
-              <span className="material-symbols-outlined !text-[12px] opacity-70">{t("ui_icon_forum") || "forum"}</span> {t("ticket_dossier_transmissions") || "Transmissions"}
+              <span className="material-symbols-outlined !text-[12px] opacity-70">{t("ui_icon_forum")}</span> {t("ticket_dossier_transmissions")}
             </label>
             {replies.map((r, idx) => (
               <div 
@@ -293,7 +293,7 @@ export default function TicketDossierSidePanel({
                           {r.author}
                         </span>
                         <span className="text-[9px] font-bold opacity-50 text-[var(--text)] uppercase tracking-wider">
-                          {r.time ? new Date(r.time).toLocaleString() : t("ticket_dossier_unknown_date") || "Unknown Date"}
+                          {r.time ? new Date(r.time).toLocaleString() : t("ticket_dossier_unknown_date")}
                         </span>
                       </div>
                     </div>
@@ -311,11 +311,11 @@ export default function TicketDossierSidePanel({
         {canReply && !isReadOnly && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '') && (
           <div className="flex flex-col gap-3 mt-6 theme-glass-panel p-5 rounded-2xl border border-white/5 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-[var(--accent)]" />
-            <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("ticket_dossier_add_reply") || "Add Reply"}</label>
+            <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("ticket_dossier_add_reply")}</label>
             <textarea
               value={replyText}
               onChange={e => setReplyText(e.target.value)}
-              placeholder={t("ticket_dossier_reply_placeholder") || "Transmit your reply here..."}
+              placeholder={t("ticket_dossier_reply_placeholder")}
               className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] transition-all h-24 resize-none custom-scrollbar"
             />
             <div className="flex justify-end mt-2">
@@ -324,7 +324,7 @@ export default function TicketDossierSidePanel({
                 disabled={isSubmitting || !replyText.trim()}
                 className={standardAccentGlassButtonClass}
               >
-                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_send") || "send"}</span> {isSubmitting ? (t("ticket_dossier_btn_transmitting") || "TRANSMITTING...") : (t("ticket_dossier_btn_send_transmission") || "SEND TRANSMISSION")}
+                <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_send")}</span> {isSubmitting ? (t("ticket_dossier_btn_transmitting")) : (t("ticket_dossier_btn_send_transmission"))}
               </button>
             </div>
           </div>
@@ -334,7 +334,7 @@ export default function TicketDossierSidePanel({
           <div className="flex flex-col gap-6 mt-6">
             <div className="flex flex-col gap-3">
               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_task_alt") || "task_alt"}</span> {t("ticket_dossier_action") || "Action"} <span className="text-rose-500">*</span>
+                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_task_alt")}</span> {t("ticket_dossier_action")} <span className="text-rose-500">*</span>
               </label>
               <div className="w-full relative z-50">
                 <CustomDropdown 
@@ -345,19 +345,19 @@ export default function TicketDossierSidePanel({
                     id: action,
                     label: t(`ticket_dossier_action_${action.toLowerCase()}`) || action
                   }))}
-                  placeholder={t("ticket_dossier_select_action") || "Select Action..."}
+                  placeholder={t("ticket_dossier_select_action")}
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-3">
               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_gavel") || "gavel"}</span> {t("ticket_dossier_action_reason") || "Action Reason / Notes"} <span className="text-rose-500">*</span>
+                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_gavel")}</span> {t("ticket_dossier_action_reason")} <span className="text-rose-500">*</span>
               </label>
               <textarea
                 value={reason}
                 onChange={e => setReason(e.target.value)}
-                placeholder={t("ticket_dossier_reason_placeholder") || "Mandatory reasoning for action taken..."}
+                placeholder={t("ticket_dossier_reason_placeholder")}
                 className="w-full theme-glass-panel border-white/10 rounded-xl px-4 py-4 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] transition-all h-32 resize-none custom-scrollbar shadow-inner"
               />
             </div>

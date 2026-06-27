@@ -26,7 +26,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
           }} 
           className={`absolute z-[50] w-8 h-8 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg shadow-black/20 ${confirmDelete ? 'bg-red-500 hover:bg-red-600 border-red-500 scale-110' : 'hover:bg-red-500/30 hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]'} ${layout === 'horizontal' ? 'top-1/2 -translate-y-1/2 right-2' : 'top-4 left-4'}`}
         >
-          <span className="material-symbols-outlined !text-[16px]">{confirmDelete ? (t("ui_icon_warning") || "warning") : (t("ui_icon_close") || "close")}</span>
+          <span className="material-symbols-outlined !text-[16px]">{confirmDelete ? (t("ui_icon_warning")) : (t("ui_icon_close"))}</span>
         </button>
       )}
 
@@ -37,7 +37,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
           <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent group-hover:from-[var(--accent)]/15 transition-colors duration-500 flex items-center justify-center">
               {layout === 'vertical' && <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)]/10 rounded-full blur-[30px] pointer-events-none mix-blend-screen" />}
               <span className={`material-symbols-outlined opacity-60 group-hover:opacity-100 theme-text-accent transition-all duration-500 drop-shadow-lg group-hover:scale-110 relative z-10 ${layout === 'horizontal' ? '!text-[36px]' : '!text-[72px]'}`}>
-                {t("ui_icon_artifact_card") || "deployed_code"}
+                {t("ui_icon_artifact_card")}
               </span>
           </div>
         )}
@@ -111,12 +111,12 @@ export function CollectionCard({ setItem, activeSetId, onClick, masonsList, maso
           <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent group-hover:from-[var(--accent)]/15 transition-colors duration-500 flex items-center justify-center">
               <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)]/10 rounded-full blur-[30px] pointer-events-none mix-blend-screen" />
               <span className="material-symbols-outlined !text-[72px] opacity-60 group-hover:opacity-100 theme-text-accent transition-all duration-500 drop-shadow-lg group-hover:scale-110 relative z-10">
-                {t("ui_icon_collections_card") || "collections_bookmark"}
+                {t("ui_icon_collections_card")}
               </span>
           </div>
         )}
         <div className="absolute top-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-lg uppercase tracking-widest shadow-lg z-20 border bg-amber-500/20 text-amber-400 border-amber-500/20">
-          {t("vault_stat_tier") || "TIER"} {setItem.compliance_tier || 0}
+          {t("vault_stat_tier")} {setItem.compliance_tier || 0}
         </div>
       </div>
       
@@ -137,7 +137,7 @@ export function CollectionCard({ setItem, activeSetId, onClick, masonsList, maso
             {masonName}
           </span>
           <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-            {t("ui_btn_edit") || "EDIT"} <span className="text-lg leading-none">&rarr;</span>
+            {t("ui_btn_edit")} <span className="text-lg leading-none">&rarr;</span>
           </button>
       </div>
     </div>

@@ -36,7 +36,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
   };
 
   const handleAddFolder = (parentId?: string) => {
-    const newFolder: StructureNode = { id: generateId(), name: t("structure_new_folder") || "New Folder", type: "folder", children: [] };
+    const newFolder: StructureNode = { id: generateId(), name: t("structure_new_folder"), type: "folder", children: [] };
     if (!parentId) {
       onChange([...structure, newFolder]);
       return;
@@ -55,7 +55,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
   };
 
   const handleAddFile = (parentId: string) => {
-    const newFile: StructureNode = { id: generateId(), name: t("structure_new_file") || "*.package", type: "file" };
+    const newFile: StructureNode = { id: generateId(), name: t("structure_new_file"), type: "file" };
     const updateNode = (nodes: StructureNode[]): StructureNode[] => {
       return nodes.map(n => {
         if (n.id === parentId) {
@@ -168,7 +168,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                   placeholder={node.type === "folder" ? "Folder Name..." : "File Pattern..."}
                 />
               )}
-              {node.shared && <span className="text-[8px] font-black uppercase tracking-[0.3em] theme-text-success opacity-80 mt-1">{t("builder_shared_volume") || "SHARED VOLUME"}</span>}
+              {node.shared && <span className="text-[8px] font-black uppercase tracking-[0.3em] theme-text-success opacity-80 mt-1">{t("builder_shared_volume")}</span>}
             </div>
           </div>
 
@@ -178,7 +178,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
           <div className="absolute top-[-55px] right-0 flex items-center gap-2 opacity-0 group-hover/card:opacity-100 transition-all scale-95 group-hover/card:scale-100 theme-glass-panel backdrop-blur-2xl p-2 rounded-2xl shadow-2xl border border-white/10 z-50">
             {node.type === "file" && availableMods && (
               <button onClick={() => setActiveDropdown(activeDropdown === node.id ? null : node.id)} className="px-4 py-2.5 rounded-xl bg-[var(--text)]/5 border border-white/5 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--accent)] hover:bg-[var(--accent)]/20 hover:border-[var(--accent)]/50 hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] hover:scale-105 active:scale-95 transition-all">
-                ASSIGN BINDING
+                {t("auto_assign_binding")}
               </button>
             )}
             
@@ -188,16 +188,16 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                   {node.shared ? "SHARED" : "SHARE"}
                 </button>
                 <button onClick={() => handleAddFolder(node.id)} className="px-4 py-2.5 rounded-xl bg-[var(--text)]/5 border border-white/5 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text)] hover:bg-[var(--text)]/10 hover:border-white/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-1">
-                  <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_create_new_folder") || "create_new_folder"}</span> DIRECTORY
+                  <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_create_new_folder")}</span> {t("auto_directory")}
                 </button>
                 <button onClick={() => handleAddFile(node.id)} className="px-4 py-2.5 rounded-xl bg-[var(--text)]/5 border border-white/5 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text)] hover:bg-[var(--text)]/10 hover:border-white/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-1">
-                  <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_note_add") || "note_add"}</span> FILE
+                  <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_note_add")}</span> {t("auto_file")}
                 </button>
               </>
             )}
             
             <button onClick={() => handleDelete(node.id)} className="px-4 py-2.5 rounded-xl bg-[var(--text)]/5 border border-white/5 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--danger)] hover:bg-[var(--danger)]/20 hover:border-[var(--danger)]/50 hover:shadow-[0_0_15px_rgba(var(--danger-rgb),0.3)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center">
-              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete") || "delete"}</span>
+              <span className="material-symbols-outlined !text-[14px]">{t("ui_icon_delete")}</span>
             </button>
           </div>
         </div>
@@ -221,12 +221,12 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
     <div className="flex flex-col gap-8 w-full p-2">
       <div className="flex justify-between items-center bg-black/20 p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
         <div className="flex flex-col">
-          <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("builder_graph_title") || "Graph Builder"}</span>
-          <span className="text-[10px] text-[var(--subtext)] font-bold uppercase tracking-widest mt-1">{t("builder_graph_subtitle") || "Build Graph"}</span>
+          <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("builder_graph_title")}</span>
+          <span className="text-[10px] text-[var(--subtext)] font-bold uppercase tracking-widest mt-1">{t("builder_graph_subtitle")}</span>
         </div>
         <button onClick={() => handleAddFolder()} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-          <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_create_new_folder") || "create_new_folder"}</span>
-          {t("structure_add_root") || "Add Root Directory"}
+          <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_create_new_folder")}</span>
+          {t("structure_add_root")}
         </button>
       </div>
 
@@ -234,8 +234,8 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
         {structure.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center py-20 w-full relative">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[var(--accent)] rounded-full blur-[120px] opacity-20 pointer-events-none" />
-            <span className="material-symbols-outlined !text-6xl mb-4 text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_folder_off") || "folder_off"}</span>
-            <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] relative z-10">{t("structure_no_structure") || "No Structure Defined"}</span>
+            <span className="material-symbols-outlined !text-6xl mb-4 text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_folder_off")}</span>
+            <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] relative z-10">{t("structure_no_structure")}</span>
           </div>
         ) : (
           structure.map(node => renderNode(node, 0))
@@ -244,24 +244,24 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
       <SidePanel
         isOpen={!!activeDropdown}
         onClose={() => { setActiveDropdown(null); setSearchQuery(""); }}
-        title={t("structure_assign_title") || "Assign Artifact"}
-        subtitle={t("structure_assign_desc") || "Select a module to bind"}
+        title={t("structure_assign_title")}
+        subtitle={t("structure_assign_desc")}
         icon="account_tree"
       >
         <div className="flex flex-col h-full overflow-hidden">
           <div className="px-8 py-6 shrink-0 border-b border-white/5 relative z-10">
-            <input type="text" autoFocus placeholder={t("structure_assign_search") || "Search Artifacts..."} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full theme-glass-inner border border-white/10 rounded-xl text-[12px] font-mono text-[var(--text)] px-5 py-4 outline-none focus:theme-border-accent shadow-inner transition-all" />
+            <input type="text" autoFocus placeholder={t("structure_assign_search")} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full theme-glass-inner border border-white/10 rounded-xl text-[12px] font-mono text-[var(--text)] px-5 py-4 outline-none focus:theme-border-accent shadow-inner transition-all" />
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-6 relative z-10">
             {targetMod && (!searchQuery || targetMod.name.toLowerCase().includes(searchQuery.toLowerCase())) && (
               <div className="flex flex-col gap-3">
-                <h4 className="text-[10px] font-black uppercase text-[var(--accent)] tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("ui_icon_stars") || "stars"}</span> {t("structure_assign_primary") || "Primary Artifact"}</h4>
+                <h4 className="text-[10px] font-black uppercase text-[var(--accent)] tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("ui_icon_stars")}</span> {t("structure_assign_primary")}</h4>
                 <div className="flex flex-col theme-glass-inner rounded-xl overflow-hidden border border-[var(--accent)]/30 hover:border-[var(--accent)]/60 transition-all group/item shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]">
                   <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod); setActiveDropdown(null); setSearchQuery(""); }} className="px-5 py-4 text-[12px] font-mono font-bold text-[var(--text)] group-hover/item:bg-[var(--accent)]/10 transition-colors truncate cursor-pointer leading-tight">{targetMod.name}</div>
                   {(targetMod.sub_type === 'TS4SCRIPT' || targetMod.sub_type === 'PACKAGE') && (
                     <div className="flex bg-black/20 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                      {targetMod.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, 'package'); setActiveDropdown(null); setSearchQuery(""); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer border-r border-white/5 transition-all">.PKG</div>}
-                      {targetMod.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, 'ts4script'); setActiveDropdown(null); setSearchQuery(""); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer transition-all">.SCRIPT</div>}
+                      {targetMod.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, 'package'); setActiveDropdown(null); setSearchQuery(""); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer border-r border-white/5 transition-all">{t("auto_pkg")}</div>}
+                      {targetMod.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, 'ts4script'); setActiveDropdown(null); setSearchQuery(""); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer transition-all">{t("auto_script")}</div>}
                     </div>
                   )}
                 </div>
@@ -269,15 +269,15 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
             )}
             {availableMods && availableMods.length > 0 && (
               <div className="flex flex-col gap-3 mt-2">
-                <h4 className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("ui_icon_folder_shared") || "folder_shared"}</span> {t("structure_assign_family") || "Available Family"}</h4>
+                <h4 className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("ui_icon_folder_shared")}</span> {t("structure_assign_family")}</h4>
                 <div className="flex flex-col gap-3">
                   {availableMods.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase())).map(m => (
                     <div key={m.id} className="flex flex-col theme-glass-inner rounded-xl overflow-hidden border border-white/5 hover:border-white/20 transition-all group/item shadow-lg">
                       <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m); setActiveDropdown(null); setSearchQuery(""); }} className="px-5 py-4 text-[12px] font-mono text-[var(--text)] group-hover/item:bg-[var(--text)]/5 transition-colors truncate cursor-pointer leading-tight">{m.name}</div>
                       {(m.sub_type === 'TS4SCRIPT' || m.sub_type === 'PACKAGE') && (
                         <div className="flex bg-black/20 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                          {m.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, 'package'); setActiveDropdown(null); setSearchQuery(""); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer border-r border-white/5 transition-all">.PKG</div>}
-                          {m.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, 'ts4script'); setActiveDropdown(null); setSearchQuery(""); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer transition-all">.SCRIPT</div>}
+                          {m.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, 'package'); setActiveDropdown(null); setSearchQuery(""); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer border-r border-white/5 transition-all">{t("auto_pkg")}</div>}
+                          {m.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, 'ts4script'); setActiveDropdown(null); setSearchQuery(""); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer transition-all">{t("auto_script")}</div>}
                         </div>
                       )}
                     </div>

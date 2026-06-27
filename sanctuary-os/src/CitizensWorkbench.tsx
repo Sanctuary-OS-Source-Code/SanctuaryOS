@@ -3,13 +3,15 @@ import Editor from '@monaco-editor/react';
 import { readDir, readTextFile, writeTextFile, mkdir, exists, remove, rename } from '@tauri-apps/plugin-fs';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { SearchBar, ViewHeader, CustomDropdown, SidePanel, standardButtonClass, standardPrimaryButtonClass, HubTabButton } from './shared';
+import { SearchBar, ViewHeader, CustomDropdown, SidePanel, standardButtonClass, standardPrimaryButtonClass, standardDangerButtonClass, HubTabButton } from './shared';
 import { PushTemplateSidePanel } from "./PushTemplateSidePanel";
 import VersionTimeline from "./VersionTimeline";
 import { invoke } from '@tauri-apps/api/core';
 import workbenchTemplates from './data/workbench_templates.json';
+import { supabaseServices } from './lib/supabase-services';
+import { supabase } from './supabase';
 
-export default function CitizensWorkbench() {
+export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
   const { t } = useLexicon();
   const [isLight, setIsLight] = useState(false);
 
@@ -25,15 +27,22 @@ export default function CitizensWorkbench() {
     }
   }, []);
 
-  const modsPath = useStore(state => state.modsPath);
+  const vaultPath = useStore(state => state.vaultPath);
   const pushStatus = useStore(state => state.pushStatus);
   const setView = useStore(state => state.setView);
   const setMarketSearchQuery = useStore(state => state.setMarketSearchQuery);
   const setMarketTab = useStore(state => state.setMarketTab);
-  
-  const [files, setFiles] = useState<{name: string, path: string}[]>([]);
   const selectedFile = useStore(state => state.cwSelectedFile);
   const setSelectedFile = useStore(state => state.setCwSelectedFile);
+  const activeTab = useStore(state => state.cwActiveTab);
+  const setActiveTab = useStore(state => state.setCwActiveTab);
+  const communityDefaultsRefreshTrigger = useStore(state => state.communityDefaultsRefreshTrigger);
+
+  const [files, setFiles] = useState<{name: string, path: string}[]>([]);
+  const [communityDefaults, setCommunityDefaults] = useState<any[]>([]);
+  const lastLoadedFileRef = useRef<string | null>(null);
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isPushModalOpen, setIsPushModalOpen] = useState(false);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -42,10 +51,6 @@ export default function CitizensWorkbench() {
 
   const [rawText, setRawText] = useState("");
   const [parsedData, setParsedData] = useState<any>(null);
-  
-  const activeTab = useStore(state => state.cwActiveTab);
-  const setActiveTab = useStore(state => state.setCwActiveTab);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   const [activeTemplate, setActiveTemplate] = useState<any>(null);
   const [customAppliedTemplate, setCustomAppliedTemplate] = useState<any>(null);
@@ -56,6 +61,11 @@ export default function CitizensWorkbench() {
   const unsavedEdits = useStore(state => state.cwUnsavedEdits);
   const setUnsavedEdits = useStore(state => state.setCwUnsavedEdits);
   const hasUnsavedChanges = selectedFile && unsavedEdits[selectedFile.path] !== undefined;
+
+  const [isFlagPanelOpen, setIsFlagPanelOpen] = useState(false);
+  const [flagReason, setFlagReason] = useState("");
+  const [isFlagging, setIsFlagging] = useState(false);
+  const [flagSuccess, setFlagSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [mainTab, setMainTab] = useState<"CONFIGS" | "TEMPLATES">("CONFIGS");
@@ -73,32 +83,37 @@ export default function CitizensWorkbench() {
 
   // Initial load
   useEffect(() => {
-    const loadFiles = async () => {
-      if (!modsPath) return;
-      try {
-        if (!(await exists(modsPath))) return;
-        
-        const scanDirectory = async (dirPath: string, depth: number = 0): Promise<any[]> => {
-            if (depth > 2) return [];
-            try {
-               const entries = await readDir(dirPath);
-               const promises = entries.map(async (entry) => {
-                  if (entry.isDirectory && entry.name && !entry.name.startsWith('.')) {
-                     return scanDirectory(`${dirPath}\\${entry.name}`, depth + 1);
-                  } else if (entry.name && (entry.name.endsWith('.cfg') || entry.name.endsWith('.json') || entry.name.endsWith('.ini'))) {
-                     return [{ name: entry.name, path: `${dirPath}\\${entry.name}` }];
-                  }
-                  return [];
-               });
-               const results = await Promise.all(promises);
-               return results.flat();
-            } catch (err) {
-               console.error("Error scanning dir:", dirPath, err);
-               return [];
-            }
-        };
+      const fetchDefaults = async () => {
+          try {
+              const defaults = await supabaseServices.getAllCommunityDefaults();
+              if (defaults) {
+                  setCommunityDefaults(defaults);
+              }
+          } catch (e) {
+              console.error("Failed to fetch community defaults:", e);
+          }
+      };
+      fetchDefaults();
+  }, [communityDefaultsRefreshTrigger]);
 
-        const validFiles = await scanDirectory(modsPath);
+  useEffect(() => {
+    const loadFiles = async () => {
+      if (!vaultPath) return;
+      try {
+        if (!(await exists(vaultPath))) return;
+        
+        let validFiles: any[] = [];
+        try {
+            const results: string[] = await invoke("get_workbench_files", { vaultPath });
+            validFiles = results.map(r => {
+                const sep = r.includes('\\') ? '\\' : '/';
+                const parts = r.split(sep);
+                return { name: parts[parts.length - 1], path: r };
+            });
+        } catch (e) {
+            console.error("Native scanner failed:", e);
+        }
+
         validFiles.sort((a, b) => a.name.localeCompare(b.name));
         setFiles(validFiles);
       } catch (error) {
@@ -106,14 +121,20 @@ export default function CitizensWorkbench() {
       }
     };
     loadFiles();
-  }, [modsPath, refreshTrigger]);
+  }, [vaultPath, refreshTrigger]);
 
   const handleNewTemplate = async () => {
-     if (!modsPath) return;
+     if (!vaultPath) return;
      try {
         const shortId = Math.random().toString(36).substring(2, 6).toUpperCase();
         const newFileName = `TEMPLATE_${shortId}.json`;
-        const newFilePath = `${modsPath}\\${newFileName}`;
+        const sep = vaultPath.includes('\\') ? '\\' : '/';
+        const tmplPath = vaultPath.endsWith(sep) ? `${vaultPath}Data${sep}Templates` : `${vaultPath}${sep}Data${sep}Templates`;
+        
+        if (!(await exists(tmplPath))) {
+            await mkdir(tmplPath, { recursive: true });
+        }
+        const newFilePath = `${tmplPath}${sep}${newFileName}`;
         const defaultContent = {
           "template_id": "custom_template_" + shortId.toLowerCase(),
           "schema_version": 2,
@@ -226,10 +247,10 @@ export default function CitizensWorkbench() {
         };
         await writeTextFile(newFilePath, JSON.stringify(defaultContent, null, 2));
         setRefreshTrigger(prev => prev + 1);
-        pushStatus(t("workbench_msg_template_created") || "New template created.", "success");
+        pushStatus(t("workbench_msg_template_created"), "success");
      } catch (e) {
         console.error("Error creating template", e);
-        pushStatus(t("workbench_msg_template_create_failed") || "Failed to create template.", "error");
+        pushStatus(t("workbench_msg_template_create_failed"), "error");
      }
   };
 
@@ -238,10 +259,10 @@ export default function CitizensWorkbench() {
         await remove(path);
         if (selectedFile?.path === path) setSelectedFile(null);
         setRefreshTrigger(prev => prev + 1);
-        pushStatus(t("workbench_msg_template_deleted") || "Template deleted.", "success");
+        pushStatus(t("workbench_msg_template_deleted"), "success");
      } catch (e) {
         console.error("Error deleting template", e);
-        pushStatus(t("workbench_msg_template_delete_failed") || "Failed to delete template.", "error");
+        pushStatus(t("workbench_msg_template_delete_failed"), "error");
      }
   };
 
@@ -263,10 +284,10 @@ export default function CitizensWorkbench() {
         }
         setRenamingFile(null);
         setRefreshTrigger(prev => prev + 1);
-        pushStatus(t("workbench_msg_template_renamed") || "Template renamed.", "success");
+        pushStatus(t("workbench_msg_template_renamed"), "success");
      } catch (e) {
         console.error("Error renaming template", e);
-        pushStatus(t("workbench_msg_template_rename_failed") || "Failed to rename template.", "error");
+        pushStatus(t("workbench_msg_template_rename_failed"), "error");
      }
   };
 
@@ -291,7 +312,7 @@ export default function CitizensWorkbench() {
            setActiveTab("visual");
        }
     } catch (e) {
-       pushStatus(t("ide_err_open") || "Failed to open file.", "error");
+       pushStatus(t("ide_err_open"), "error");
     }
   };
 
@@ -422,27 +443,40 @@ export default function CitizensWorkbench() {
           delete next[selectedFile.path];
           return next;
       });
-      pushStatus(t("alert_saved") || "Saved successfully!", "success");
+      pushStatus(t("alert_saved"), "success");
     } catch (e) {
-      pushStatus(t("alert_error") || "Error saving:", "error");
+      pushStatus(t("alert_error"), "error");
     } finally {
       setIsSaving(false);
     }
   };
 
-
-
+  // Load matching templates whenever a file is selected
   useEffect(() => {
-    if (selectedFile && !isTemplateMode) {
+    if (selectedFile && files.length > 0) {
         const loadMatchingTemplates = async () => {
-           const jsonFiles = files.filter(f => f.name.toLowerCase().endsWith('.json'));
            const matches: any[] = [];
            
-           const templatesArray = Array.isArray(workbenchTemplates) ? workbenchTemplates : (workbenchTemplates as any).default || [];
-           const builtInMatch = templatesArray.find((t: any) => t.target_file?.toLowerCase() === selectedFile.name.toLowerCase());
-           if (builtInMatch) matches.push({ id: "built_in", label: t("workbench_template_sanctuary_default") || "Sanctuary Default", data: builtInMatch });
+           let hasCommunityDefault = false;
+           if (communityDefaults && communityDefaults.length > 0) {
+               const commTmpl = communityDefaults.find((d: any) => {
+                   const tData = Array.isArray(d.template_data) ? d.template_data[0] : d.template_data;
+                   return tData?.target_file?.toLowerCase() === selectedFile.name.toLowerCase();
+               });
+               if (commTmpl) {
+                   const tData = Array.isArray(commTmpl.template_data) ? commTmpl.template_data[0] : commTmpl.template_data;
+                   matches.push({ id: commTmpl.id, label: t("workbench_template_community_default"), data: tData, isCommunity: true, author: commTmpl.author || tData.template_author || "Unknown Mason", authorId: commTmpl.author_id });
+                   hasCommunityDefault = true;
+               }
+           }
            
-           for (const f of jsonFiles) {
+           if (!hasCommunityDefault) {
+               const templatesArray = Array.isArray(workbenchTemplates) ? workbenchTemplates : (workbenchTemplates as any).default || [];
+               const builtInMatch = templatesArray.find((t: any) => t.target_file?.toLowerCase() === selectedFile.name.toLowerCase());
+               if (builtInMatch) matches.push({ id: "built_in", label: t("workbench_template_sanctuary_default"), data: builtInMatch });
+           }
+           
+           for (const f of files.filter(f => f.name.toLowerCase().endsWith('.json'))) {
                try {
                    const content = await readTextFile(f.path);
                    const parsed = JSON.parse(content);
@@ -457,9 +491,20 @@ export default function CitizensWorkbench() {
            
            setAvailableTemplates(matches);
            if (matches.length > 0) {
-              const toSelect = matches.find(m => m.id === selectedTemplatePath) || matches[0];
+              const prevMatch = matches.find(m => m.id === selectedTemplatePath);
+              let toSelect;
+              
+              if (lastLoadedFileRef.current !== selectedFile.path) {
+                  // user switched files, always pick the highest priority default (matches[0] which is community default if it exists)
+                  toSelect = matches[0];
+                  lastLoadedFileRef.current = selectedFile.path;
+              } else {
+                  // user is on the same file, keep their selected template unless it's gone
+                  toSelect = prevMatch || matches[0];
+              }
+
               setSelectedTemplatePath(toSelect.id);
-              if (toSelect.id === "built_in") {
+              if (toSelect.id === "built_in" || toSelect.isCommunity) {
                  setActiveTemplate(toSelect.data);
                  setCustomAppliedTemplate(null);
               } else {
@@ -476,7 +521,7 @@ export default function CitizensWorkbench() {
     } else {
         setAvailableTemplates([]);
     }
-  }, [selectedFile, isTemplateMode, files]);
+  }, [selectedFile, isTemplateMode, files, vaultPath, communityDefaults]);
 
   const currentVisualTemplate = (selectedTemplatePath && selectedTemplatePath !== "built_in" && customAppliedTemplate)
       ? customAppliedTemplate
@@ -516,7 +561,7 @@ export default function CitizensWorkbench() {
                    <div className="flex flex-wrap items-center gap-3">
                       <span className="text-[12px] font-black uppercase tracking-widest text-[var(--text)]">{t(setting.label_key) || setting.label_key || setting.key}</span>
                       {setting.risk === "advanced" && (
-                         <span className="px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] text-[8px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">{t("workbench_advanced_badge") || "ADVANCED"}</span>
+                         <span className="px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] text-[8px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">{t("workbench_advanced_badge")}</span>
                       )}
                       {!isPreview && setting.type === 'boolean' && (
                          <span className={`text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-md border ${val ? 'text-[var(--success)] border-[var(--success)]/30 bg-[var(--success)]/10' : 'text-[var(--subtext)] border-[var(--text)]/10 bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
@@ -535,11 +580,11 @@ export default function CitizensWorkbench() {
                    {setting.type === "number" && (
                       <div className="flex items-center gap-1 theme-glass-panel rounded-xl p-1 shadow-inner border border-white/10 shrink-0">
                          <button type="button" onClick={() => !isPreview && handleVisualChange(setting.key, (val !== undefined ? val : setting.default || 0) - (setting.step || 1))} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                            <span className="material-symbols-outlined !text-[16px]">remove</span>
+                            <span className="material-symbols-outlined !text-[16px]">{t("auto_remove")}</span>
                          </button>
                          <input type="number" min={setting.min} max={setting.max} step={setting.step} value={val !== undefined ? val : setting.default || 0} onChange={(e) => !isPreview && handleVisualChange(setting.key, parseFloat(e.target.value))} readOnly={isPreview} className="w-16 bg-transparent text-[12px] font-black text-[var(--text)] focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                          <button type="button" onClick={() => !isPreview && handleVisualChange(setting.key, (val !== undefined ? val : setting.default || 0) + (setting.step || 1))} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                            <span className="material-symbols-outlined !text-[16px]">add</span>
+                            <span className="material-symbols-outlined !text-[16px]">{t("auto_add")}</span>
                          </button>
                       </div>
                    )}
@@ -561,38 +606,38 @@ export default function CitizensWorkbench() {
   });
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700 relative">
+    <div className="flex flex-col h-full w-full overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-bottom-4 duration-700 relative pr-4">
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[var(--accent)] opacity-[0.03] blur-[120px] pointer-events-none rounded-full" />
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[var(--accent)] opacity-[0.02] blur-[100px] pointer-events-none rounded-full" />
 
       {/* HEADER ALWAYS VISIBLE */}
       <ViewHeader 
-         title={t("workbench_title") || "CITIZENS WORKBENCH"} 
-         subtitle={t("workbench_subtitle") || "COMMUNITY-POWERED CONFIGURATION EDITOR"}
-         icon={t("ui_icon_design_services") || "design_services"}
+         title={t("workbench_title")} 
+         subtitle={t("workbench_subtitle")}
+         icon={t("ui_icon_design_services")}
          iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
       >
          {mainTab === "TEMPLATES" && (
             <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
                <button onClick={() => setIsTemplateGuideOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
-                  <span className="material-symbols-outlined text-xl normal-case">help</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">{t("workbench_btn_info") || "TEMPLATE GUIDE"}</span>
+                  <span className="material-symbols-outlined text-xl normal-case">{t("auto_help")}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">{t("workbench_btn_info")}</span>
                </button>
                <div className="w-px h-6 bg-white/10 mx-2" />
                <button onClick={handleNewTemplate} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
-                 <span className="material-symbols-outlined text-xl normal-case">add</span>
-                 <span className="text-[10px] font-black uppercase tracking-widest">{t("workbench_btn_new_template") || "NEW TEMPLATE"}</span>
+                 <span className="material-symbols-outlined text-xl normal-case">{t("auto_add")}</span>
+                 <span className="text-[10px] font-black uppercase tracking-widest">{t("workbench_btn_new_template")}</span>
                </button>
             </div>
          )}
       </ViewHeader>
 
-      <div className="flex flex-col gap-6 h-full w-full overflow-hidden p-2">
+      <div className="flex flex-col gap-6 min-h-max w-full p-2">
          {/* Main Tabs */}
          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mx-2 mt-2">
             <div className="flex items-center gap-1 overflow-x-auto accent-scrollbar p-1 theme-glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner shrink-0">
-               <HubTabButton id="CONFIGS" icon="settings" label={t("workbench_configs") || "CONFIGURATIONS"} activeTab={mainTab} setTab={setMainTab as any} />
-               <HubTabButton id="TEMPLATES" icon="data_object" label={t("workbench_templates") || "TEMPLATES"} activeTab={mainTab} setTab={setMainTab as any} />
+               <HubTabButton id="CONFIGS" icon="settings" label={t("workbench_configs")} activeTab={mainTab} setTab={setMainTab as any} />
+               <HubTabButton id="TEMPLATES" icon="data_object" label={t("workbench_templates")} activeTab={mainTab} setTab={setMainTab as any} />
             </div>
 
          </div>
@@ -601,23 +646,23 @@ export default function CitizensWorkbench() {
          <div className="theme-glass-panel p-6 rounded-[2rem] shadow-xl border border-white/10 mb-8 animate-in slide-in-from-top-4 duration-500 flex flex-wrap gap-4 items-center relative z-20 mx-2">
             <div className="flex-1 min-w-[250px] relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--accent)] text-lg flex items-center justify-center">
-                <span className="material-symbols-outlined !text-[20px] drop-shadow-md">{t("ui_icon_search") || "search"}</span>
+                <span className="material-symbols-outlined !text-[20px] drop-shadow-md">{t("ui_icon_search")}</span>
               </div>
               <input 
                 value={mainSearchQuery} 
                 onChange={e => setMainSearchQuery(e.target.value)} 
-                placeholder={t("workbench_search_files") || "Search files..."} 
+                placeholder={t("workbench_search_files")} 
                 className="w-full theme-glass-inner rounded-2xl pl-12 pr-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all shadow-inner"
               />
             </div>
          </div>
 
          {/* GRID VIEW */}
-         <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 pb-32">
+         <div className="flex-1 pb-32">
             {filteredMainFiles.length === 0 ? (
                  <div className="w-full p-12 rounded-[2rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col items-center justify-center gap-4 opacity-60 shadow-inner">
-                    <span className="material-symbols-outlined !text-4xl text-[var(--subtext)]">{mainTab === "CONFIGS" ? (t("ui_icon_settings_off") || "settings_off") : (t("ui_icon_data_object") || "data_object")}</span>
-                    <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)]">{t("workbench_no_files_found") || "No Files Found"}</span>
+                    <span className="material-symbols-outlined !text-4xl text-[var(--subtext)]">{mainTab === "CONFIGS" ? (t("ui_icon_search_off")) : (t("ui_icon_data_object"))}</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)]">{t("workbench_no_files_found")}</span>
                  </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 p-2">
@@ -631,17 +676,17 @@ export default function CitizensWorkbench() {
                            >
                               <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                               <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner group-hover:border-[var(--accent)]/50 transition-colors">
-                                 <span className="material-symbols-outlined !text-2xl text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors">{isTmpl ? (t("ui_icon_data_object") || "data_object") : (t("ui_icon_settings") || "settings")}</span>
+                                 <span className="material-symbols-outlined !text-2xl text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors">{isTmpl ? (t("ui_icon_data_object")) : (t("ui_icon_settings"))}</span>
                               </div>
                               <div className="flex flex-col gap-1 z-10 pr-10">
                                  <span className="text-sm font-black text-[var(--text)] tracking-wider truncate">{file.name}</span>
-                                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60">{isTmpl ? (t("workbench_schema_json") || "JSON Schema") : (t("workbench_schema_system") || "System Configuration")}</span>
+                                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60">{isTmpl ? (t("workbench_schema_json")) : (t("workbench_schema_system"))}</span>
                               </div>
                            </button>
                            {unsavedEdits[file.path] !== undefined && (
                               <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-full shadow-inner animate-pulse z-20 pointer-events-none">
-                                 <span className="material-symbols-outlined !text-[12px]">warning</span>
-                                 {t("workbench_unsaved_changes") || "UNSAVED CHANGES"}
+                                 <span className="material-symbols-outlined !text-[12px]">{t("auto_warning")}</span>
+                                 {t("workbench_unsaved_changes")}
                               </div>
                            )}
                            {isTmpl && (
@@ -649,10 +694,10 @@ export default function CitizensWorkbench() {
                                 {deleteConfirmPath === file.path ? (
                                     <>
                                       <button onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(file.path); setDeleteConfirmPath(null); }} className="w-8 h-8 rounded-xl border border-rose-500/30 text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 hover:border-rose-500/50 backdrop-blur-[3px] flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-30 shadow-[0_4px_12px_rgba(244,63,94,0.15)]">
-                                         <span className="material-symbols-outlined !text-sm drop-shadow-md">check</span>
+                                         <span className="material-symbols-outlined !text-sm drop-shadow-md">{t("auto_check")}</span>
                                       </button>
                                       <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmPath(null); }} className="w-8 h-8 rounded-xl border border-white/10 text-[var(--subtext)] bg-white/5 hover:bg-white/10 hover:text-[var(--text)] hover:border-white/20 backdrop-blur-[3px] flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-30 shadow-lg">
-                                         <span className="material-symbols-outlined !text-sm">close</span>
+                                         <span className="material-symbols-outlined !text-sm">{t("auto_close")}</span>
                                       </button>
                                    </>
                                 ) : (
@@ -660,7 +705,7 @@ export default function CitizensWorkbench() {
                                      onClick={(e) => { e.stopPropagation(); setDeleteConfirmPath(file.path); }} 
                                      className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 shadow-lg z-20"
                                    >
-                                      <span className="material-symbols-outlined !text-sm">delete</span>
+                                      <span className="material-symbols-outlined !text-sm">{t("auto_delete")}</span>
                                    </button>
                                 )}
                              </div>
@@ -677,8 +722,8 @@ export default function CitizensWorkbench() {
         isOpen={!!selectedFile} 
         onClose={() => setSelectedFile(null)} 
         title={selectedFile?.name || ""} 
-        subtitle={isTemplateMode ? (t("workbench_template_architect") || "TEMPLATE ARCHITECT") : (t("workbench_tab_visual") || "VISUAL TUNING")}
-        icon={isTemplateMode ? (t("ui_icon_data_object") || "data_object") : (t("ui_icon_tune") || "tune")}
+        subtitle={isTemplateMode ? (t("workbench_template_architect")) : (t("workbench_tab_visual"))}
+        icon={isTemplateMode ? (t("ui_icon_data_object")) : (t("ui_icon_tune"))}
         iconColorClass="theme-text-accent"
         isResizable={true}
         defaultWidth={isTemplateMode && isPreviewVisible ? 1400 : 900}
@@ -688,8 +733,8 @@ export default function CitizensWorkbench() {
             disabled={!selectedFile}
             className="h-12 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none mr-2 backdrop-blur-md"
           >
-            <span className="material-symbols-outlined !text-[18px]">history</span>
-            {t("workbench_btn_timeline") || "TIMELINE"}
+            <span className="material-symbols-outlined !text-[18px]">{t("auto_history")}</span>
+            {t("workbench_btn_timeline")}
           </button>
         }
          footer={
@@ -697,12 +742,12 @@ export default function CitizensWorkbench() {
              {!isTemplateMode && (
                 <>
                    <button onClick={() => setActiveTab("visual")} className={activeTab === "visual" ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]') : standardButtonClass}>
-                      <span className="material-symbols-outlined !text-[16px]">tune</span>
-                      {t("workbench_tab_visual") || "VISUAL INTERFACE"}
+                      <span className="material-symbols-outlined !text-[16px]">{t("auto_tune")}</span>
+                      {t("workbench_tab_visual")}
                    </button>
                    <button onClick={() => setActiveTab("raw")} className={activeTab === "raw" ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]') : standardButtonClass}>
-                      <span className="material-symbols-outlined !text-[16px]">code</span>
-                      {t("workbench_tab_raw") || "RAW EDITOR"}
+                      <span className="material-symbols-outlined !text-[16px]">{t("auto_code")}</span>
+                      {t("workbench_tab_raw")}
                    </button>
                 </>
              )}
@@ -711,16 +756,16 @@ export default function CitizensWorkbench() {
                 <>
                    <button onClick={() => setIsPreviewVisible(!isPreviewVisible)} className={isPreviewVisible ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]') : standardButtonClass}>
                       <span className="material-symbols-outlined !text-[18px]">{isPreviewVisible ? 'visibility_off' : 'visibility'}</span>
-                      {isPreviewVisible ? (t("workbench_btn_hide_preview") || "HIDE PREVIEW") : (t("workbench_btn_show_preview") || "PREVIEW")}
+                      {isPreviewVisible ? (t("workbench_btn_hide_preview")) : (t("workbench_btn_show_preview"))}
                    </button>
                    <button 
                      onClick={() => setIsPushModalOpen(true)} 
                      disabled={problemsList.length > 0}
                      className={`${standardButtonClass} disabled:opacity-30 disabled:saturate-0`}
-                     title={problemsList.length > 0 ? (t("workbench_err_publish_blocks") || "Cannot publish with errors") : ""}
+                     title={problemsList.length > 0 ? (t("workbench_err_publish_blocks")) : ""}
                    >
-                      <span className="material-symbols-outlined !text-[18px]">cloud_upload</span>
-                      {t("workbench_btn_publish") || "PUBLISH"}
+                      <span className="material-symbols-outlined !text-[18px]">{t("auto_cloud_upload")}</span>
+                      {t("workbench_btn_publish")}
                    </button>
                 </>
              )}
@@ -728,8 +773,8 @@ export default function CitizensWorkbench() {
              <div className="relative group">
                 {hasUnsavedChanges && (
                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-amber-500 animate-pulse whitespace-nowrap bg-black/40 px-3 py-1 rounded-full border border-amber-500/30">
-                      <span className="material-symbols-outlined !text-[12px]">warning</span>
-                      {t("workbench_unsaved_changes") || "UNSAVED CHANGES"}
+                      <span className="material-symbols-outlined !text-[12px]">{t("auto_warning")}</span>
+                      {t("workbench_unsaved_changes")}
                    </div>
                 )}
 
@@ -742,8 +787,8 @@ export default function CitizensWorkbench() {
                        : standardButtonClass
                   }
                 >
-                  <span className={`material-symbols-outlined !text-[18px] ${isSaving ? 'animate-spin' : ''}`}>{t("workbench_icon_save") || "save"}</span>
-                  {isSaving ? (t("workbench_btn_saving") || "SAVING...") : (t("workbench_btn_save") || "SAVE CONFIG")}
+                  <span className={`material-symbols-outlined !text-[18px] ${isSaving ? 'animate-spin' : ''}`}>{t("workbench_icon_save")}</span>
+                  {isSaving ? (t("workbench_btn_saving")) : (t("workbench_btn_save"))}
                 </button>
              </div>
           </div>
@@ -755,71 +800,96 @@ export default function CitizensWorkbench() {
              {/* VISUAL TUNING MODE */}
              {!isTemplateMode && activeTab === "visual" && (
                 <div className="absolute inset-0 flex flex-col gap-6">
-                   {/* Templates Row */}
-                   <div className="flex items-center justify-between shrink-0 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl p-2 pl-4">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                         {t("workbench_active_template") || "ACTIVE TEMPLATE:"}
-                      </span>
-                      {availableTemplates.length > 0 ? (
-                         <div className="w-64">
-                             <CustomDropdown
-                               value={selectedTemplatePath}
-                               options={availableTemplates}
-                               onChange={(val: string[]) => {
-                                   const newPath = val[0];
-                                   setSelectedTemplatePath(newPath);
-                                   const tmpl = availableTemplates.find(t => t.id === newPath);
-                                   if (newPath === "built_in" && tmpl) {
-                                       setActiveTemplate(tmpl.data);
-                                       setCustomAppliedTemplate(null);
-                                   } else if (tmpl) {
-                                       setCustomAppliedTemplate(tmpl.data);
-                                       setActiveTemplate(null);
-                                   }
-                               }}
-                               disableTint={true}
-                             />
-                         </div>
-                      ) : (
-                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] pr-4">
-                           {t("workbench_template_builtin") || "BUILT-IN"}
-                         </span>
-                      )}
-                   </div>
+                   {/* Workbench Controls Header */}
+                   <div className="flex flex-col gap-2 shrink-0 mr-2 mb-4">
+                      {/* Unified Controls Row */}
+                      <div className="flex flex-col md:flex-row items-center gap-3 w-full">
+                          {/* Search Bar */}
+                          <div className="flex-1 w-full relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] flex items-center pointer-events-none">
+                              <span className="material-symbols-outlined !text-[18px]">{t("auto_search")}</span>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder={t("workbench_search_placeholder")}
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl pl-12 pr-5 py-2.5 h-10 text-[var(--text)] text-[11px] font-black tracking-wider focus:outline-none focus:theme-border-accent transition-all shadow-inner"
+                            />
+                          </div>
 
-                   {/* Categories Pills */}
-                   {currentVisualTemplate?.categories && currentVisualTemplate.categories.length > 0 && (
-                      <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-2 shrink-0">
-                         <button 
-                            onClick={() => setSelectedCategory("ALL")} 
-                            className={`shrink-0 h-8 px-5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border flex items-center gap-2 shadow-md ${selectedCategory === "ALL" ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'theme-glass-panel text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
-                         >
-                            {t("workbench_cat_all") || "ALL"}
-                         </button>
-                         {currentVisualTemplate.categories.map((cat: any) => (
-                            <button 
-                               key={cat.id} 
-                               onClick={() => setSelectedCategory(cat.id)} 
-                               className={`shrink-0 h-8 px-5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border flex items-center gap-2 shadow-md ${selectedCategory === cat.id ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'theme-glass-panel text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
-                            >
-                               {t(cat.icon_key) || cat.icon || "folder"} {t(cat.name_key) || cat.name || cat.id}
-                            </button>
-                         ))}
+                          {/* Categories Dropdown */}
+                          {currentVisualTemplate?.categories && currentVisualTemplate.categories.length > 0 && (
+                             <div className="w-full md:w-56 shrink-0 relative z-[40]">
+                                 <CustomDropdown
+                                   value={selectedCategory}
+                                   options={[
+                                      { id: "ALL", label: t("workbench_cat_all") || "All Settings" },
+                                      ...currentVisualTemplate.categories.map((cat: any) => ({
+                                         id: cat.id,
+                                         label: (t(cat.name_key) || cat.name || cat.id) as string,
+                                         icon: t(cat.icon_key) || cat.icon || "folder"
+                                      }))
+                                   ]}
+                                   onChange={(val: string[]) => setSelectedCategory(val[0])}
+                                   disableTint={true}
+                                 />
+                             </div>
+                          )}
+
+                          {/* Template Dropdown */}
+                          {availableTemplates.length > 0 && (
+                             <div className="w-full md:w-64 shrink-0 relative z-[30]">
+                                 <CustomDropdown
+                                   value={selectedTemplatePath}
+                                   options={availableTemplates}
+                                   onChange={(val: string[]) => {
+                                       const newPath = val[0];
+                                       setSelectedTemplatePath(newPath);
+                                       const tmpl = availableTemplates.find(t => t.id === newPath);
+                                       if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
+                                           setActiveTemplate(tmpl.data);
+                                           setCustomAppliedTemplate(null);
+                                       } else if (tmpl) {
+                                           setCustomAppliedTemplate(tmpl.data);
+                                           setActiveTemplate(null);
+                                       }
+                                   }}
+                                   disableTint={true}
+                                 />
+                             </div>
+                          )}
                       </div>
-                   )}
 
-                   {/* Search Bar */}
-                   <div className="shrink-0 relative">
-                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] flex items-center pointer-events-none">
-                       <span className="material-symbols-outlined !text-[18px]">search</span>
-                     </div>
-                     <input
-                       type="text"
-                       placeholder={t("workbench_search_placeholder") || "Search settings..."}
-                       value={searchQuery}
-                       onChange={(e) => setSearchQuery(e.target.value)}
-                       className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl pl-12 pr-5 py-3 text-[var(--text)] text-[11px] font-black tracking-wider focus:outline-none focus:theme-border-accent transition-all shadow-inner"
-                     />
+                        {/* Template Actions Row */}
+                        {availableTemplates.find(t => t.id === selectedTemplatePath)?.isCommunity && (
+                           <div className="flex items-center justify-end gap-3 w-full pr-2">
+                              <button onClick={() => { setIsFlagPanelOpen(true); setFlagSuccess(false); setFlagReason(""); }} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-rose-500/50 hover:text-rose-500 transition-colors">
+                                 <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_flag")}</span>
+                                 {t("ui_btn_flag") || "Flag"}
+                              </button>
+
+                              <span className="text-[color-mix(in_srgb,var(--text)_15%,transparent)]">|</span>
+
+                              <span 
+                                className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--accent)]/60 transition-colors ${availableTemplates.find(t => t.id === selectedTemplatePath)?.author === "Sanctuary OS Community" ? '' : 'cursor-pointer hover:text-[var(--accent)] hover:drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]'}`}
+                                onClick={async () => {
+                                   const author = availableTemplates.find(t => t.id === selectedTemplatePath)?.author;
+                                   if (!author || author === "Sanctuary OS Community") return;
+                                   try {
+                                       const { data } = await supabase.from('masons').select('id').ilike('name', author).maybeSingle();
+                                       if (data?.id && onOpenMasonProfile) onOpenMasonProfile(data.id);
+                                       else alert(t("alert_error_mason_profile_missing") || "This profile is not available.");
+                                   } catch (err) {
+                                       alert(t("alert_error_mason_profile_missing") || "This profile is not available.");
+                                   }
+                                }}
+                              >
+                                 <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_person")}</span>
+                                 {t("ui_label_masoned_by")} {availableTemplates.find(t => t.id === selectedTemplatePath)?.author}
+                              </span>
+                           </div>
+                        )}
                    </div>
 
                    {/* Visual Settings Grid */}
@@ -830,16 +900,16 @@ export default function CitizensWorkbench() {
                          ) : (
                             <div className="flex-1 flex flex-col items-center justify-center py-20 gap-8 min-h-[400px]">
                                <div className="w-24 h-24 rounded-full theme-glass-panel flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-40 shadow-inner">
-                                  <span className="material-symbols-outlined !text-5xl text-[var(--text)]">visibility_off</span>
+                                  <span className="material-symbols-outlined !text-5xl text-[var(--text)]">{t("auto_visibility_off")}</span>
                                </div>
                                <div className="flex flex-col items-center gap-3 text-center opacity-60">
-                                  <span className="text-[14px] font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("workbench_no_visual_template") || "NO VISUAL TEMPLATE AVAILABLE"}</span>
-                                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] max-w-sm leading-relaxed">{t("workbench_author_mode_hint") || "USE THE RAW EDITOR TO EDIT DIRECTLY."}</span>
+                                  <span className="text-[14px] font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("workbench_no_visual_template")}</span>
+                                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] max-w-sm leading-relaxed">{t("workbench_author_mode_hint")}</span>
                                </div>
                                <div className="mt-4 flex items-center gap-4">
                                   <button onClick={() => { window.location.href = '#/marketplace?tab=templates&q=' + encodeURIComponent(selectedFile?.name || ''); }} className="mt-8 h-12 px-6 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:scale-105 transition-all shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)]">
-                              <span className="material-symbols-outlined !text-[16px]">travel_explore</span>
-                              {t("workbench_search_nexus") || "SEARCH THE NEXUS"}
+                              <span className="material-symbols-outlined !text-[16px]">{t("auto_travel_explore")}</span>
+                              {t("workbench_search_nexus")}
                            </button>
                                </div>
                             </div>
@@ -881,20 +951,20 @@ export default function CitizensWorkbench() {
                       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-[color-mix(in_srgb,var(--danger)_60%,transparent)] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
                         <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
                           <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
-                            <span className="material-symbols-outlined !text-[16px]">error</span>
-                            {t("ide_problems") || "PROBLEMS"} ({problemsList.length})
+                            <span className="material-symbols-outlined !text-[16px]">{t("auto_error")}</span>
+                            {t("ide_problems")} ({problemsList.length})
                           </span>
                           <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
-                            <span className="material-symbols-outlined !text-[14px]">close</span>
+                            <span className="material-symbols-outlined !text-[14px]">{t("auto_close")}</span>
                           </button>
                         </div>
                         <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
                           {problemsList.map((p, i) => (
                             <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
-                              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">cancel</span>
+                              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("auto_cancel")}</span>
                               <div className="flex flex-col gap-0.5 min-w-0">
                                 <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>
-                                <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">Ln {p.line}, Col {p.column}</span>
+                                <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
                               </div>
                             </div>
                           ))}
@@ -935,20 +1005,20 @@ export default function CitizensWorkbench() {
                       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-[color-mix(in_srgb,var(--danger)_60%,transparent)] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
                         <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
                           <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
-                            <span className="material-symbols-outlined !text-[16px]">error</span>
-                            {t("ide_problems") || "PROBLEMS"} ({problemsList.length})
+                            <span className="material-symbols-outlined !text-[16px]">{t("auto_error")}</span>
+                            {t("ide_problems")} ({problemsList.length})
                           </span>
                           <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
-                            <span className="material-symbols-outlined !text-[14px]">close</span>
+                            <span className="material-symbols-outlined !text-[14px]">{t("auto_close")}</span>
                           </button>
                         </div>
                         <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
                           {problemsList.map((p, i) => (
                             <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
-                              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">cancel</span>
+                              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("auto_cancel")}</span>
                               <div className="flex flex-col gap-0.5 min-w-0">
                                 <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>
-                                <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">Ln {p.line}, Col {p.column}</span>
+                                <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
                               </div>
                             </div>
                           ))}
@@ -961,14 +1031,14 @@ export default function CitizensWorkbench() {
                    {isPreviewVisible && (
                      <div className="w-[500px] shrink-0 theme-glass-panel rounded-3xl overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative">
                        <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 text-center">
-                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("workbench_preview_title") || "VISUAL PREVIEW"}</span>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("workbench_preview_title")}</span>
                        </div>
                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                          {problemsList.length > 0 ? (
                             <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 opacity-60">
-                               <span className="material-symbols-outlined !text-5xl text-[var(--danger)] mb-2">visibility_off</span>
-                               <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("workbench_preview_unavailable") || "Preview Unavailable"}</h3>
-                               <p className="text-[11px] text-[var(--subtext)] leading-relaxed">{t("workbench_preview_resolve") || "Resolve template errors to regenerate the visual preview."}</p>
+                               <span className="material-symbols-outlined !text-5xl text-[var(--danger)] mb-2">{t("auto_visibility_off")}</span>
+                               <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("workbench_preview_unavailable")}</h3>
+                               <p className="text-[11px] text-[var(--subtext)] leading-relaxed">{t("workbench_preview_resolve")}</p>
                             </div>
                          ) : (
                             <div className="flex flex-col gap-4 pb-10">
@@ -989,8 +1059,8 @@ export default function CitizensWorkbench() {
        <SidePanel
           isOpen={isTemplateGuideOpen}
           onClose={() => setIsTemplateGuideOpen(false)}
-          title={t("workbench_guide_title") || "TEMPLATE ARCHITECTURE"}
-          subtitle={t("workbench_guide_subtitle") || "SCHEMA GUIDE"}
+          title={t("workbench_guide_title")}
+          subtitle={t("workbench_guide_subtitle")}
           icon="help"
           iconColorClass="theme-text-accent"
           defaultWidth={800}
@@ -998,18 +1068,18 @@ export default function CitizensWorkbench() {
           <div className="p-8 flex flex-col gap-6 text-[var(--text)] h-full overflow-y-auto custom-scrollbar">
              <div className="theme-glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] relative overflow-hidden shrink-0">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)] blur-[100px] opacity-20 pointer-events-none"></div>
-                <h3 className="text-lg font-black uppercase tracking-widest text-[var(--accent)] mb-2">{t("workbench_author_guide_intro") || "A workbench template maps an unstructured config file into a beautiful UI. Write your template in JSON."}</h3>
+                <h3 className="text-lg font-black uppercase tracking-widest text-[var(--accent)] mb-2">{t("workbench_author_guide_intro")}</h3>
                 <p className="text-[12px] opacity-80 leading-relaxed font-mono whitespace-pre-wrap">
-                   {t("workbench_author_guide_fields_desc") || "Define the `target_file` (e.g. settings.json), the `parser_type` (json or ini), and map the settings keys to their data types."}
+                   {t("workbench_author_guide_fields_desc")}
                    <br/><br/>
-                   <span className="text-[var(--accent)]">Supported Types:</span> boolean, number, string
+                   <span className="text-[var(--accent)]">{t("auto_supported_types")}</span> {t("auto_boolean_number_string")}
                    <br/>
-                   <span className="text-[var(--accent)]">Organization:</span> Create items in the `categories` array to structure the settings into beautiful UI tabs.
+                   <span className="text-[var(--accent)]">{t("auto_organization")}</span> {t("auto_create_items_in_the_categories_array_to")}
                 </p>
              </div>
              
              <div className="flex flex-col gap-4">
-                <h4 className="text-sm font-black uppercase tracking-widest opacity-60 ml-2">Example Blueprint</h4>
+                <h4 className="text-sm font-black uppercase tracking-widest opacity-60 ml-2">{t("auto_example_blueprint")}</h4>
                 <div className="theme-glass-panel rounded-2xl p-4 overflow-x-auto border border-white/10 font-mono text-[12px] leading-relaxed custom-scrollbar bg-black/20">
                    <pre className="text-[var(--text)]">
 {`{
@@ -1046,6 +1116,64 @@ export default function CitizensWorkbench() {
              </div>
            </div>
        </SidePanel>
+       
+       <SidePanel
+           isOpen={isFlagPanelOpen}
+           onClose={() => setIsFlagPanelOpen(false)}
+           title={t("auto_report") || "Flag Template"}
+           subtitle="Report an issue with this community template"
+           icon="flag"
+           iconColorClass="text-rose-500"
+           footer={
+               flagSuccess ? undefined : (
+                   <div className="flex w-full gap-3 mt-4">
+                       <button
+                           onClick={() => setIsFlagPanelOpen(false)}
+                           className={standardButtonClass + " flex-1"}
+                       >
+                           {t("ui_btn_cancel") || "Cancel"}
+                       </button>
+                       <button
+                           onClick={async () => {
+                               if (!flagReason.trim()) return;
+                               setIsFlagging(true);
+                               const { data: { session } } = await supabase.auth.getSession();
+                               const userId = session?.user?.id || "system";
+                               await supabaseServices.flagTemplate(selectedTemplatePath, flagReason, userId);
+                               setIsFlagging(false);
+                               setFlagSuccess(true);
+                           }}
+                           disabled={isFlagging || !flagReason.trim()}
+                           className={standardDangerButtonClass + " flex-1"}
+                       >
+                           {isFlagging ? <span className="material-symbols-outlined animate-spin">refresh</span> : <span className="material-symbols-outlined">{t("ui_icon_flag")}</span>}
+                           {isFlagging ? t("mason_create_btn_creating") : t("auto_report")}
+                       </button>
+                   </div>
+               )
+           }
+        >
+           <div className="p-8 flex flex-col gap-6">
+              {flagSuccess ? (
+                  <div className="flex flex-col items-center justify-center p-12 text-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center">
+                          <span className="material-symbols-outlined !text-3xl">{t("ui_icon_check")}</span>
+                      </div>
+                      <p className="text-[var(--text)] font-bold">{t("verify_panel_flag_success") || "Template flagged successfully"}</p>
+                  </div>
+              ) : (
+                  <div className="theme-glass-panel p-6 rounded-2xl border border-white/10 flex flex-col gap-4">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("workbench_flag_reason")}</label>
+                      <textarea
+                         value={flagReason}
+                         onChange={(e) => setFlagReason(e.target.value)}
+                         className="w-full h-32 bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 text-[12px] font-bold text-[var(--text)] focus:outline-none focus:border-rose-500/50 resize-none custom-scrollbar"
+                         placeholder="E.g. The configuration fields don't match the mod, it contains invalid types..."
+                      />
+                  </div>
+              )}
+           </div>
+        </SidePanel>
        
        {showTimeline && selectedFile && (
           <VersionTimeline 

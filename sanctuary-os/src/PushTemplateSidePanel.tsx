@@ -85,7 +85,7 @@ export function PushTemplateSidePanel({
         }
         finalJson = JSON.stringify(parsed);
       } catch (err) {
-        throw new Error(t("market_upload_invalid_json") || "Invalid JSON. Please fix syntax errors before uploading.");
+        throw new Error(t("market_upload_invalid_json"));
       }
 
       let authorName = session?.user?.user_metadata?.username || 'Citizen';
@@ -142,7 +142,7 @@ export function PushTemplateSidePanel({
         onClick={onClose}
         className={standardButtonClass}
       >
-        {t("market_upload_cancel") || "CANCEL"}
+        {t("market_upload_cancel")}
       </button>
       <button 
         onClick={() => handleSubmit()}
@@ -150,11 +150,11 @@ export function PushTemplateSidePanel({
         className={standardAccentGlassButtonClass}
       >
         {isUploading ? (
-          <span className="material-symbols-outlined !text-[18px] animate-spin">refresh</span>
+          <span className="material-symbols-outlined !text-[18px] animate-spin">{t("auto_refresh")}</span>
         ) : (
-          <span className="material-symbols-outlined !text-[18px]">publish</span>
+          <span className="material-symbols-outlined !text-[18px]">{t("auto_publish")}</span>
         )}
-        {t("market_upload_btn") || "PUBLISH"}
+        {t("market_upload_btn")}
       </button>
     </div>
   );
@@ -163,8 +163,8 @@ export function PushTemplateSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("market_upload_push_title") || "PUSH TO NEXUS"}
-      subtitle={t("market_upload_push_subtitle") || "Publish your template to the global Nexus to share it with the community."}
+      title={t("market_upload_push_title")}
+      subtitle={t("market_upload_push_subtitle")}
       icon="cloud_upload"
       iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
       widthClass="w-[500px]"
@@ -174,8 +174,8 @@ export function PushTemplateSidePanel({
         
         <div className="flex flex-col gap-3 mt-2">
           <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">sync</span>
-            {t("market_upload_update_existing") || "UPDATE EXISTING (OPTIONAL)"}
+            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("auto_sync")}</span>
+            {t("market_upload_update_existing")}
           </label>
           <div className="theme-glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner p-1">
             <CustomDropdown
@@ -192,8 +192,8 @@ export function PushTemplateSidePanel({
 
         <div className="flex flex-col gap-3">
           <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">data_object</span>
-            {t("market_upload_template_name") || "Template Name"}
+            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("auto_data_object")}</span>
+            {t("market_upload_template_name")}
           </label>
           <div className="relative group">
             <div className="absolute inset-0 bg-[var(--accent)]/5 rounded-2xl blur-md group-focus-within:bg-[var(--accent)]/10 transition-colors pointer-events-none"></div>
@@ -201,7 +201,7 @@ export function PushTemplateSidePanel({
               type="text" 
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder={t("market_upload_template_name_placeholder") || "e.g. My Custom Settings Template"}
+              placeholder={t("market_upload_template_name_placeholder")}
               className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-sm font-black focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all text-[var(--text)] shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
               autoFocus
             />
@@ -210,8 +210,8 @@ export function PushTemplateSidePanel({
 
         <div className="flex flex-col gap-3">
           <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">settings</span>
-            {t("market_upload_target_file") || "TARGET CONFIG FILE"}
+            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("auto_settings")}</span>
+            {t("market_upload_target_file")}
           </label>
           <div className="relative group">
             <div className="absolute inset-0 bg-[var(--accent)]/5 rounded-2xl blur-md group-focus-within:bg-[var(--accent)]/10 transition-colors pointer-events-none"></div>
@@ -219,7 +219,7 @@ export function PushTemplateSidePanel({
               type="text" 
               value={targetFile}
               onChange={e => setTargetFile(e.target.value)}
-              placeholder="e.g. mc_settings.cfg"
+              placeholder={t("auto_e_g_mc_settings_cfg")}
               className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-3 text-sm font-black focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all text-[var(--text)] shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
             />
           </div>
@@ -227,15 +227,15 @@ export function PushTemplateSidePanel({
         
         <div className="flex flex-col gap-3">
           <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">description</span>
-            {t("market_upload_desc") || "Description"}
+            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("auto_description")}</span>
+            {t("market_upload_desc")}
           </label>
           <div className="relative group">
              <div className="absolute inset-0 bg-[var(--accent)]/5 rounded-2xl blur-md group-focus-within:bg-[var(--accent)]/10 transition-colors pointer-events-none"></div>
              <textarea 
                value={description}
                onChange={e => setDescription(e.target.value)}
-               placeholder={t("market_upload_desc_placeholder") || "Describe what this template configures..."}
+               placeholder={t("market_upload_desc_placeholder")}
                className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all min-h-[120px] text-[var(--text)] resize-none shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
              />
           </div>
@@ -251,50 +251,50 @@ export function PushTemplateSidePanel({
            return (
              <div className="flex flex-col gap-4 p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2 mb-1">
-                   <span className="material-symbols-outlined !text-[14px]">info</span>
-                   Detected Architecture
+                   <span className="material-symbols-outlined !text-[14px]">{t("auto_info")}</span>
+                   {t("auto_detected_architecture")}
                 </h4>
                 <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-[10px] font-mono">
                    {parsed.template_id && (
                      <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">TEMPLATE ID</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("auto_template_id")}</span>
                         <span className="text-[var(--text)] font-black truncate">{parsed.template_id}</span>
                      </div>
                    )}
                    {parsed.schema_version && (
                      <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">SCHEMA</span>
-                        <span className="text-[var(--text)] font-black">v{parsed.schema_version}</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("auto_schema")}</span>
+                        <span className="text-[var(--text)] font-black">{t("auto_v")}{parsed.schema_version}</span>
                      </div>
                    )}
                    {parsed.template_version && (
                      <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">VERSION</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("auto_version")}</span>
                         <span className="text-[var(--text)] font-black">{parsed.template_version}</span>
                      </div>
                    )}
                    {parsed.mod_author && (
                      <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">MOD AUTHOR</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("auto_mod_author")}</span>
                         <span className="text-[var(--text)] font-black truncate">{parsed.mod_author}</span>
                      </div>
                    )}
                    {parsed.parser_type && (
                      <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">PARSER</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("auto_parser")}</span>
                         <span className="text-[var(--text)] font-black uppercase">{parsed.parser_type}</span>
                      </div>
                    )}
                    {parsed.write_scope && (
                      <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">WRITE SCOPE</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("auto_write_scope")}</span>
                         <span className="text-[var(--text)] font-black uppercase truncate">{parsed.write_scope}</span>
                      </div>
                    )}
                 </div>
                 {parsed.supported_mod_versions && Array.isArray(parsed.supported_mod_versions) && parsed.supported_mod_versions.length > 0 && (
                   <div className="flex flex-col gap-2 mt-1 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                     <span className="text-[var(--subtext)] opacity-60 text-[9px] font-mono">SUPPORTED VERSIONS</span>
+                     <span className="text-[var(--subtext)] opacity-60 text-[9px] font-mono">{t("auto_supported_versions")}</span>
                      <div className="flex flex-wrap gap-2">
                        {parsed.supported_mod_versions.map((v: string) => (
                          <span key={v} className="px-2 py-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-md text-[9px] font-black text-[var(--text)]">{v}</span>
@@ -308,8 +308,8 @@ export function PushTemplateSidePanel({
 
         <div className="flex flex-col gap-3 relative z-[60]">
           <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">extension</span>
-            {t("market_upload_attach_mod") || "ATTACH TO ARTIFACT (OPTIONAL)"}
+            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("auto_extension")}</span>
+            {t("market_upload_attach_mod")}
           </label>
           <div className="theme-glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner p-1">
             <CustomDropdown
@@ -317,13 +317,13 @@ export function PushTemplateSidePanel({
               value={attachedMod}
               onChange={(val: any) => setAttachedMod(val[0] || "")}
               options={[
-                { id: "", label: t("market_upload_attach_mod_none") || "None" },
+                { id: "", label: t("market_upload_attach_mod_none") },
                 ...modList.filter((m: any) => !m.isVirtual && !m.name?.startsWith('FOLDER_') && !m.name?.startsWith('SET_') && !m.name?.startsWith('LOCAL_SET_')).map((mod: any) => ({
                   id: mod.name || mod.id,
                   label: mod.displayName || mod.name || "Unknown Mod"
                 }))
               ]}
-              placeholder="Select a Mod"
+              placeholder={t("auto_select_a_mod")}
               searchable={true}
             />
           </div>

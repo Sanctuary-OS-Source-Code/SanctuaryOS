@@ -191,17 +191,17 @@ export default function Collection(props: any) {
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 relative">
             <div className="flex flex-col gap-8 animate-in fade-in duration-700">
               <ViewHeader
-                title={t("vault_title") || "Your Vault"}
-                subtitle={t("vault_subtitle") || "Local library, secured assets, and installed artifacts"}
-                icon={t("ui_icon_architect") || "account_balance"}
+                title={t("vault_title")}
+                subtitle={t("vault_subtitle")}
+                icon={t("ui_icon_architect")}
                 iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
               >
                 <div className="flex flex-wrap gap-4 items-center justify-end">
 
                   <div className="flex items-center theme-glass-panel rounded-2xl p-1 border border-white/10 shadow-inner">
                     <button onClick={() => setIsSidePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
-                      <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_tune") || "tune"}</span>
-                      <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_tools") || "TOOLS"}</span>
+                      <span className="material-symbols-outlined text-xl normal-case">{t("ui_icon_tune")}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_tools")}</span>
                     </button>
                   </div>
                 </div>
@@ -210,10 +210,10 @@ export default function Collection(props: any) {
               {/* Main Tabs & Assets Toolbar */}
               <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500">
                 <div className="flex items-center gap-1 overflow-x-auto accent-scrollbar p-1 theme-glass-panel rounded-2xl border border-white/5 shadow-inner shrink-0">
-                  <HubTabButton id="ALL" icon="inventory_2" label={t("vault_filter_all_vault") || "Main"} activeTab={equipFilter} setTab={setEquipFilter} />
-                  <HubTabButton id="EQUIPPED" icon="check_circle" label={t("vault_filter_equipped") || "In Blueprint"} activeTab={equipFilter} setTab={setEquipFilter} />
-                  <HubTabButton id="UNEQUIPPED" icon="cancel" label={t("vault_filter_unequipped") || "Not Equipped"} activeTab={equipFilter} setTab={setEquipFilter} />
-                  <HubTabButton id="ARCHIVES" icon="archive" label={t("vault_filter_archives") || "ARCHIVES"} activeTab={equipFilter} setTab={setEquipFilter} />
+                  <HubTabButton id="ALL" icon="inventory_2" label={t("vault_filter_all_vault")} activeTab={equipFilter} setTab={setEquipFilter} />
+                  <HubTabButton id="EQUIPPED" icon="check_circle" label={t("vault_filter_equipped")} activeTab={equipFilter} setTab={setEquipFilter} />
+                  <HubTabButton id="UNEQUIPPED" icon="cancel" label={t("vault_filter_unequipped")} activeTab={equipFilter} setTab={setEquipFilter} />
+                  <HubTabButton id="ARCHIVES" icon="archive" label={t("vault_filter_archives")} activeTab={equipFilter} setTab={setEquipFilter} />
                 </div>
               </div>
 
@@ -223,11 +223,11 @@ export default function Collection(props: any) {
                 {/* Search Bar */}
                 <div className="flex-1 min-w-[250px] relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--accent)] text-lg flex items-center justify-center">
-                    <span className="material-symbols-outlined !text-[20px] drop-shadow-md">{t("ui_icon_search") || "search"}</span>
+                    <span className="material-symbols-outlined !text-[20px] drop-shadow-md">{t("ui_icon_search")}</span>
                   </div>
                   <input
                     type="text"
-                    placeholder={t("vault_search") || "Search artifacts..."}
+                    placeholder={t("vault_search")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full theme-glass-inner rounded-2xl pl-12 pr-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all shadow-inner"
@@ -240,11 +240,11 @@ export default function Collection(props: any) {
                     value={activeCategory}
                     onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
                     options={[
-                      { id: "ALL", label: t("vault_cat_all") || "ALL" },
-                      { id: "CAS", label: t("vault_cat_cas") || "CAS" },
-                      { id: "BuildBuy", label: t("vault_cat_buildbuy") || "BuildBuy" },
-                      { id: "Script", label: t("vault_cat_script") || "Script" },
-                      { id: "Animation", label: t("vault_cat_animation") || "Animation" }
+                      { id: "ALL", label: t("vault_cat_all") },
+                      { id: "CAS", label: t("vault_cat_cas") },
+                      { id: "BuildBuy", label: t("vault_cat_buildbuy") },
+                      { id: "Script", label: t("vault_cat_script") },
+                      { id: "Animation", label: t("vault_cat_animation") }
                     ]}
                   />
                 </div>
@@ -256,10 +256,10 @@ export default function Collection(props: any) {
                       value={activeSubType}
                       onChange={(val: string[]) => setActiveSubType(val[0])}
                       options={[
-                        { id: "ALL", label: t("vault_sub_all") || "ALL" },
-                        { id: "Tattoo", label: t("vault_sub_tattoo") || "Tattoo" },
-                        { id: "Hair", label: t("vault_sub_hair") || "Hair" },
-                        { id: "Clothing", label: t("vault_sub_clothing") || "Clothing" }
+                        { id: "ALL", label: t("vault_sub_all") },
+                        { id: "Tattoo", label: t("vault_sub_tattoo") },
+                        { id: "Hair", label: t("vault_sub_hair") },
+                        { id: "Clothing", label: t("vault_sub_clothing") }
                       ]}
                     />
                   </div>
@@ -271,10 +271,10 @@ export default function Collection(props: any) {
                     value={filterStatus}
                     onChange={(val: string[]) => setFilterStatus(val[0])}
                     options={[
-                      { id: "ALL", label: t("vault_filter_tag_all") || "ALL" },
-                      { id: "VERIFIED", label: t("vault_filter_tag_verified") || "VERIFIED" },
-                      { id: "REVIEW", label: t("vault_filter_tag_review") || "UNDER REVIEW" },
-                      { id: "UNVERIFIED", label: t("vault_filter_tag_unverified") || "UNVERIFIED" }
+                      { id: "ALL", label: t("vault_filter_tag_all") },
+                      { id: "VERIFIED", label: t("vault_filter_tag_verified") },
+                      { id: "REVIEW", label: t("vault_filter_tag_review") },
+                      { id: "UNVERIFIED", label: t("vault_filter_tag_unverified") }
                     ]}
                   />
                 </div>
@@ -323,7 +323,7 @@ export default function Collection(props: any) {
                             const newVal = Array.isArray(val) ? val[0] : val;
                             setArchiveVersionFilter(newVal || "");
                           }}
-                          placeholder={t("vault_filter_archive_version") || "ARCHIVE VERSION"}
+                          placeholder={t("vault_filter_archive_version")}
                           multiSelect={false}
                         />
                       );
@@ -344,7 +344,7 @@ export default function Collection(props: any) {
                       <span className="material-symbols-outlined !text-[18px]">
                         {hideGhostCards ? "visibility_off" : "visibility"}
                       </span>
-                      {t("vault_btn_hide_ghosts") || "ONLY SHOW ELIGIBLE"}
+                      {t("vault_btn_hide_ghosts")}
                     </button>
                   )}
               </div>
@@ -653,7 +653,7 @@ export default function Collection(props: any) {
                           <div className="col-span-full theme-glass-panel rounded-[3rem] p-8 my-4">
                             <div className="flex items-center justify-between mb-6">
                               <h3 className="text-xl font-black text-[var(--text)] uppercase">
-                                {t("vault_folder_prefix") || "Collection:"}{" "}
+                                {t("vault_folder_prefix")}{" "}
                                 <span className="theme-text-accent">
                                   {renderedMod.displayName}
                                 </span>
@@ -676,7 +676,7 @@ export default function Collection(props: any) {
                                 }}
                                 className="h-10 px-4 rounded-xl theme-glass-inner flex items-center justify-center gap-2 text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:scale-105"
                               >
-                                <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_check_circle") || "check_circle"}</span> {t("vault_btn_equip_all") || "EQUIP ALL"}
+                                <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_check_circle")}</span> {t("vault_btn_equip_all")}
                               </button>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -780,7 +780,7 @@ export default function Collection(props: any) {
                                             <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--danger)_30%,transparent)] to-transparent opacity-50 z-0 pointer-events-none" />
                                             <div className="relative z-10 flex flex-col items-center">
                                               <div className="text-[9px] font-black uppercase opacity-90 mb-0.5 text-[var(--danger)]">
-                                                {hasMissingDeps ? (t("modcard_missing_artifacts") || "Missing Artifacts") : flavorGhostReason === "VERSION_MISMATCH" ? t("vault_unsupported_version") || "UNSUPPORTED VERSION" : (t("modcard_missing_dlc") || "Missing DLC")}
+                                                {hasMissingDeps ? (t("modcard_missing_artifacts")) : flavorGhostReason === "VERSION_MISMATCH" ? t("vault_unsupported_version") : (t("modcard_missing_dlc"))}
                                               </div>
                                               <div className="text-[11px] font-black w-full text-center whitespace-normal leading-tight text-red-300">
                                                 {hasMissingDeps 
@@ -801,17 +801,17 @@ export default function Collection(props: any) {
                                               <div className="flex items-center gap-2 mb-3 shrink-0">
                                                 <div className="flex flex-col">
                                                   <span className="text-[10px] font-black theme-text-danger uppercase tracking-widest">
-                                                    {t("collection_missing_deps") || "MISSING DEPENDENCIES"}
+                                                    {t("collection_missing_deps")}
                                                   </span>
                                                   <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-tighter">
-                                                    {t("collection_proceed_caution") || "PROCEED WITH CAUTION"}
+                                                    {t("collection_proceed_caution")}
                                                   </span>
                                                 </div>
                                               </div>
                                               <div className="flex-1 flex flex-col gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1 mb-4">
                                                 {hasMissingDeps ? (
                                                   <>
-                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("collection_missing_artifacts") || "Missing Artifacts:"}</p>
+                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("collection_missing_artifacts")}</p>
                                                     {flavor.missingReqs.map((req: any) => {
                                                       const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
                                                       const reqUrl = typeof req === 'string' ? null : req.url;
@@ -825,21 +825,21 @@ export default function Collection(props: any) {
                                                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); openUrl(searchUrl); }}
                                                         >
                                                           <span className="truncate">{cleanName}</span>
-                                                          <span className="material-symbols-outlined !text-[14px] opacity-70">{reqUrl ? (t("ui_icon_import") || "download") : (t("ui_icon_search") || "search")}</span>
+                                                          <span className="material-symbols-outlined !text-[14px] opacity-70">{reqUrl ? (t("ui_icon_import")) : (t("ui_icon_search"))}</span>
                                                         </a>
                                                       );
                                                     })}
                                                   </>
                                                 ) : flavorGhostReason === "VERSION_MISMATCH" ? (
                                                   <>
-                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("vault_unsupported_version") || "UNSUPPORTED VERSION"}</p>
+                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("vault_unsupported_version")}</p>
                                                     <div className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex flex-col gap-1 mb-1">
-                                                      <span>{t("hub_label_game_versions") || "GAME VERSIONS"}: {([] as string[]).concat(flavor.compatible_versions || renderedMod.compatible_versions || []).join(", ") || t("shared_version_unknown") || "v.Unknown"}</span>
+                                                      <span>{t("hub_label_game_versions")}: {([] as string[]).concat(flavor.compatible_versions || renderedMod.compatible_versions || []).join(", ") || t("shared_version_unknown") || "v.Unknown"}</span>
                                                     </div>
                                                   </>
                                                 ) : (
                                                   <>
-                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("collection_missing_dlc") || "Missing DLC Packs:"}</p>
+                                                    <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("collection_missing_dlc")}</p>
                                                     {missingPacks.map((p: string) => (
                                                       <div key={p} className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex items-center gap-2 mb-1">
                                                         {mapDlcCode(p)}
@@ -854,16 +854,16 @@ export default function Collection(props: any) {
                                               <div className="flex items-center gap-2 mb-3 shrink-0">
                                                 <div className="flex flex-col">
                                                   <span className="text-[10px] font-black theme-text-danger uppercase tracking-widest">
-                                                    {t("modcard_yeet_cascade") || "Yeet Cascade:"}
+                                                    {t("modcard_yeet_cascade")}
                                                   </span>
                                                   <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-tighter">
-                                                    {t("modcard_override_exclusive") || "Protocol Override Required"}
+                                                    {t("modcard_override_exclusive")}
                                                   </span>
                                                 </div>
                                               </div>
                                               <div className="flex-1 flex flex-col gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1 mb-4">
                                                 <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">
-                                                  {t("modcard_artifacts_removed") || "Artifacts to be Removed:"}
+                                                  {t("modcard_artifacts_removed")}
                                                 </p>
                                                 {drawerCasualties.map((r: any) => (
                                                   <div
@@ -885,7 +885,7 @@ export default function Collection(props: any) {
                                               }}
                                               className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 transition-all shadow-lg"
                                             >
-                                              {t("modcard_btn_proceed") || "Proceed Anyway"}
+                                              {t("modcard_btn_proceed")}
                                             </button>
                                             <button
                                               onClick={(e) => {
@@ -894,7 +894,7 @@ export default function Collection(props: any) {
                                               }}
                                               className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:scale-105 transition-all shadow-lg"
                                             >
-                                              {t("modcard_btn_safety") || "Back to Safety"}
+                                              {t("modcard_btn_safety")}
                                             </button>
                                           </div>
                                         </div>
@@ -903,7 +903,7 @@ export default function Collection(props: any) {
                                           <div className="flex flex-col overflow-hidden pr-2 text-left gap-1">
                                             <div className="flex items-center gap-2">
                                               {flavor.status && (
-                                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border backdrop-blur-md shadow-sm ${flavor.status === (t("status_verified") || "VERIFIED") ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)]" : flavor.status === (t("status_unverified") || "UNVERIFIED") ? "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]" : "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]"}`}>
+                                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border backdrop-blur-md shadow-sm ${flavor.status === (t("status_verified")) ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)]" : flavor.status === (t("status_unverified")) ? "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]" : "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]"}`}>
                                                   {flavor.status.replace(/_/g, ' ')}
                                                 </span>
                                               )}
@@ -921,8 +921,8 @@ export default function Collection(props: any) {
                                               </span>
                                             </div>
                                             <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 mt-1 uppercase tracking-widest flex items-center gap-2">
-                                              {(flavor.relationshipType === 'beta' || (flavor.relationshipType !== 'core' && flavor.sub_type?.toLowerCase() === 'beta')) && <span className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] px-2 py-0.5 rounded text-[8px] font-black backdrop-blur-md shadow-sm">{t("badge_beta") || "BETA"}</span>}
-                                              {((!flavor.relationshipType && flavor.sub_type?.toLowerCase() !== 'beta') || flavor.relationshipType === 'core') && <span className="bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] px-2 py-0.5 rounded text-[8px] font-black backdrop-blur-md shadow-sm">{t("badge_stable") || "STABLE"}</span>}
+                                              {(flavor.relationshipType === 'beta' || (flavor.relationshipType !== 'core' && flavor.sub_type?.toLowerCase() === 'beta')) && <span className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] px-2 py-0.5 rounded text-[8px] font-black backdrop-blur-md shadow-sm">{t("badge_beta")}</span>}
+                                              {((!flavor.relationshipType && flavor.sub_type?.toLowerCase() !== 'beta') || flavor.relationshipType === 'core') && <span className="bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] px-2 py-0.5 rounded text-[8px] font-black backdrop-blur-md shadow-sm">{t("badge_stable")}</span>}
                                               <span className="opacity-50">|</span>
                                               <span>{flavor.mod_versions?.[0]?.version_label || flavor.version || t("dossier_vlocal") || "V.LOCAL"}</span>
                                               <span className="opacity-50">|</span>
@@ -935,7 +935,7 @@ export default function Collection(props: any) {
                                                 <div className="absolute bottom-full right-0 mb-2 hidden group-hover/tooltip:flex flex-col bg-black/95 backdrop-blur-md border border-white/10 rounded-lg p-3 shadow-2xl z-50 w-max max-w-48">
                                                   <span className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-1.5 border-b border-white/10 pb-1">
                                                     {isFlavorEquipped
-                                                      ? t("vault_yeet_cascade") || "Yeet Cascade:"
+                                                      ? t("vault_yeet_cascade")
                                                       : t(
                                                           "vault_auto_removing",
                                                         )}
@@ -978,7 +978,7 @@ export default function Collection(props: any) {
                                             >
                                               {isFlavorGhosted && !isFlavorEquipped
                                                 ? <span className="material-symbols-outlined !text-[14px]">{flavorGhostReason === "VERSION_MISMATCH" ? "hourglass_empty" : hasMissingDeps ? "extension" : "block"}</span>
-                                                : <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_plus") || "add"}</span>}
+                                                : <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_plus")}</span>}
                                             </button>
                                           </div>
                                         </>
@@ -1001,7 +1001,7 @@ export default function Collection(props: any) {
                     disabled={currentPage === 1}
                     className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5"
                   >
-                    {t("nav_prev") || "PREV"}
+                    {t("nav_prev")}
                   </button>
                   <span className="text-[12px] font-black uppercase tracking-widest text-[var(--subtext)] px-4">
                     {currentPage} / {totalPages}
@@ -1011,7 +1011,7 @@ export default function Collection(props: any) {
                     disabled={currentPage === totalPages}
                     className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5"
                   >
-                    {t("nav_next") || "NEXT"}
+                    {t("nav_next")}
                   </button>
                 </div>
               )}
@@ -1022,10 +1022,10 @@ export default function Collection(props: any) {
                 >
                   <div className="flex flex-col gap-1 min-w-0 flex-1">
                     <h3 className="theme-text-danger font-black tracking-tighter text-3xl uppercase leading-none flex items-center gap-3">
-                      {t("vault_quarantine_title") || "Quarantine Sector"}
+                      {t("vault_quarantine_title")}
                     </h3>
                     <p className="theme-text-danger opacity-80 font-bold text-[10px] uppercase tracking-widest pl-12">
-                      {t("vault_quarantine_desc") || "Isolated Signatures Requiring Purge or Restoration"}
+                      {t("vault_quarantine_desc")}
                     </p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
@@ -1044,13 +1044,13 @@ export default function Collection(props: any) {
                             onClick={() => restoreMod(filename)}
                             className="flex-1 px-4 py-2 bg-[var(--success)] !text-black border-none border rounded-xl"
                           >
-                            {t("vault_btn_restore") || "RESTORE"}
+                            {t("vault_btn_restore")}
                           </button>
                           <button
                             onClick={() => purgeMod(filename)}
                             className="flex-1 px-4 py-2 theme-panel-danger theme-btn-danger border rounded-xl"
                           >
-                            {t("vault_btn_purge") || "PURGE"}
+                            {t("vault_btn_purge")}
                           </button>
                         </div>
                       </div>
@@ -1066,15 +1066,15 @@ export default function Collection(props: any) {
                       onClick={() => setIsBulkMode(false)}
                       className="h-12 px-6 rounded-[1.5rem] font-black uppercase tracking-widest transition-all text-[var(--text)]/80 hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-2 relative z-10"
                     >
-                      <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_cancel") || "cancel"}</span>
-                      {t("ui_btn_cancel") || "CANCEL"}
+                      <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_cancel")}</span>
+                      {t("ui_btn_cancel")}
                     </button>
 
                     <div className="w-px h-8 bg-white/10 relative z-10" />
 
                     <div className="flex flex-col items-center justify-center gap-1 px-4 min-w-[100px]">
                       <span className="text-[var(--text)] font-black text-xl leading-none">{selectedMods.length}</span>
-                      <span className="text-[var(--text)] font-black text-[9px] tracking-[0.2em] opacity-80 leading-none mr-[-0.2em]">{t("shared_selected") || "SELECTED"}</span>
+                      <span className="text-[var(--text)] font-black text-[9px] tracking-[0.2em] opacity-80 leading-none mr-[-0.2em]">{t("shared_selected")}</span>
                     </div>
 
                     <div className="w-px h-8 bg-white/10 relative z-10" />
@@ -1084,8 +1084,8 @@ export default function Collection(props: any) {
                       disabled={selectedMods.length === 0}
                       className="h-12 px-6 rounded-[1.5rem] font-black uppercase tracking-widest transition-all shadow-[0_10px_30px_rgba(var(--accent-rgb),0.2)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed relative z-10 hover:scale-105 active:scale-95"
                     >
-                      <span className="material-symbols-outlined !text-[28px]">{t("ui_icon_architecture") || "architecture"}</span>
-                      {t("status_draft_blueprint") || "DRAFT BLUEPRINT"}
+                      <span className="material-symbols-outlined !text-[28px]">{t("ui_icon_architecture")}</span>
+                      {t("status_draft_blueprint")}
                     </button>
 
                     <button
@@ -1093,8 +1093,8 @@ export default function Collection(props: any) {
                       disabled={selectedMods.length === 0}
                       className="h-12 px-6 rounded-[1.5rem] font-black uppercase tracking-widest transition-all shadow-[0_10px_30px_rgba(var(--success-rgb),0.2)] text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed relative z-10 hover:scale-105 active:scale-95"
                     >
-                      <span className="material-symbols-outlined !text-[28px]">{t("ui_icon_create_new_folder") || "create_new_folder"}</span>
-                      {t("vault_btn_group_folder") || "GROUP FOLDER"}
+                      <span className="material-symbols-outlined !text-[28px]">{t("ui_icon_create_new_folder")}</span>
+                      {t("vault_btn_group_folder")}
                     </button>
 
                     <div className="w-px h-8 bg-white/10 relative z-10" />
@@ -1117,8 +1117,8 @@ export default function Collection(props: any) {
                       }}
                       className="h-12 px-6 rounded-[1.5rem] font-black uppercase tracking-widest transition-all shadow-[0_10px_30px_rgba(var(--danger-rgb),0.2)] text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed relative z-10 hover:scale-105 active:scale-95"
                     >
-                      <span className="material-symbols-outlined !text-[28px]">{t("ui_icon_delete_forever") || "delete_forever"}</span>
-                      {t("vault_btn_purge_archives") || "PURGE ARCHIVES"}
+                      <span className="material-symbols-outlined !text-[28px]">{t("ui_icon_delete_forever")}</span>
+                      {t("vault_btn_purge_archives")}
                     </button>
                   </div>
                 </div>, document.body
@@ -1131,20 +1131,20 @@ export default function Collection(props: any) {
                       onClick={() => setPurgeTargetFiles(null)}
                       className="absolute top-12 right-6 z-50 w-12 h-12 bg-black/40 backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--text)]/70 hover:text-[var(--danger)] rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:scale-110 active:scale-95"
                     >
-                      <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close") || "close"}</span>
+                      <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_close")}</span>
                     </button>
 
                     <div className="h-40 relative bg-black border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden">
                       <div className="w-full h-full flex items-center justify-center opacity-40 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-                        <span className="material-symbols-outlined text-[var(--danger)] !leading-none translate-y-6" style={{ fontSize: '100px' }}>{t("ui_icon_delete_forever") || "delete_forever"}</span>
+                        <span className="material-symbols-outlined text-[var(--danger)] !leading-none translate-y-6" style={{ fontSize: '100px' }}>{t("ui_icon_delete_forever")}</span>
                       </div>
                       <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--danger)_30%,transparent)] to-transparent pointer-events-none" />
                     </div>
                     
                     <div className="px-10 pt-8 pb-4 relative shrink-0">
-                      <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate">{(!isBulkMode || selectedMods.length === 0) ? (t("vault_btn_purge_artifacts") || "PURGE ARCHIVES") : (t("vault_btn_purge_selected") || "PURGE SELECTED")}</h3>
+                      <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate">{(!isBulkMode || selectedMods.length === 0) ? (t("vault_btn_purge_artifacts")) : (t("vault_btn_purge_selected"))}</h3>
                       <p className="text-[10px] font-black text-[var(--danger)] opacity-80 uppercase tracking-widest mt-2 whitespace-pre-wrap leading-relaxed">
-                        {t("confirm_mass_purge_archive") || "Are you sure you want to PERMANENTLY DELETE the following Archive(s)?\n\nThis cannot be undone."}
+                        {t("confirm_mass_purge_archive")}
                       </p>
                     </div>
 
@@ -1160,12 +1160,12 @@ export default function Collection(props: any) {
                                 <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-2 shrink-0">
                                   <span>{filename.toLowerCase().endsWith('.ts4script') ? 'SCRIPT' : filename.toLowerCase().endsWith('.zip') ? 'ARCHIVE' : 'PACKAGE'}</span>
                                   <span className="opacity-50">•</span>
-                                  <span>{t("dossier_vlocal") || "V.LOCAL"}</span>
+                                  <span>{t("dossier_vlocal")}</span>
                                 </span>
                               </div>
                             </div>
                             <div className="absolute top-1/2 -translate-y-1/2 right-4 w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center font-black transition-all shadow-lg backdrop-blur-md border bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                              <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_delete_forever") || "delete_forever"}</span>
+                              <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_delete_forever")}</span>
                             </div>
                           </div>
                         ))}
@@ -1175,26 +1175,26 @@ export default function Collection(props: any) {
                     <div className="px-8 pb-8 pt-4 flex justify-center items-center gap-4 shrink-0 relative z-20 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                       <button
                         onClick={async () => {
-                          setStatus(t("status_purging_artifacts") || "Purging artifacts...");
+                          setStatus(t("status_purging_artifacts"));
                           try {
                             const config: any = await invoke("get_saved_coordinates");
                             const msg = await invoke("purge_vault_artifacts", {
                               vaultPath: config.vault_path,
                               filenames: purgeTargetFiles,
                             });
-                            setStatus(`${t("ui_icon_success") || "check_circle"} ${msg}`);
+                            setStatus(`${t("ui_icon_success")} ${msg}`);
                             setIsBulkMode(false);
                             setSelectedMods([]);
                             setPurgeTargetFiles(null);
                             runRadarSweep(false);
                           } catch (err) {
-                            setStatus(`${t("status_error") || "Error:"}${err}`);
+                            setStatus(`${t("status_error")}${err}`);
                           }
                         }}
                         className={`px-16 py-4 transition-all hover:scale-[1.02] flex items-center justify-center gap-2 ${standardDangerButtonClass}`}
                       >
-                        <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_delete_forever") || "delete_forever"}</span>
-                        {t("scout_confirm_purge") || "CONFIRM PURGE"}
+                        <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_delete_forever")}</span>
+                        {t("scout_confirm_purge")}
                       </button>
                     </div>
                   </div>
@@ -1204,8 +1204,8 @@ export default function Collection(props: any) {
       <SidePanel
         isOpen={isSidePanelOpen}
         onClose={() => setIsSidePanelOpen(false)}
-        title={t("vault_tools_title") || "VAULT TOOLS"}
-        subtitle={t("vault_tools_subtitle") || "ACTIONS & FILTERS"}
+        title={t("vault_tools_title")}
+        subtitle={t("vault_tools_subtitle")}
         icon="tune"
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
       >
@@ -1215,9 +1215,9 @@ export default function Collection(props: any) {
                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
                <div className="flex items-center gap-4 mb-6 relative z-10">
                  <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--accent)]">
-                   <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_layers") || "layers"}</span>
+                   <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_layers")}</span>
                  </div>
-                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("vault_active_blueprint") || "Blueprint"}</h3>
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("vault_active_blueprint")}</h3>
                </div>
                
                <div className="flex gap-2 relative z-10">
@@ -1233,7 +1233,7 @@ export default function Collection(props: any) {
                    onClick={() => equipPlaySet && equipPlaySet(playSets[props.activePlaySetIndex]?.name)}
                    className="h-14 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] text-[10px] font-black uppercase tracking-widest shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-2 shrink-0"
                  >
-                   <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_success") || "check_circle"}</span> {t("playsets_btn_save") || "SAVE"}
+                   <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_success")}</span> {t("playsets_btn_save")}
                  </button>
                </div>
              </div>
@@ -1243,17 +1243,17 @@ export default function Collection(props: any) {
              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
              <div className="flex items-center gap-4 mb-6 relative z-10">
                <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--text)]">
-                 <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_bolt") || "bolt"}</span>
+                 <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_bolt")}</span>
                </div>
-               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("vault_sidebar_actions") || "ACTIONS"}</h3>
+               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("vault_sidebar_actions")}</h3>
              </div>
              
              <div className="flex flex-col gap-3 relative z-10">
-               <SidebarActionButton id="REFRESH" icon="refresh" label={t("vault_btn_refresh") || "Radar Sweep"} onClick={() => { runRadarSweep(true); setIsSidePanelOpen(false); }} active={false} />
+               <SidebarActionButton id="REFRESH" icon="refresh" label={t("vault_btn_refresh")} onClick={() => { runRadarSweep(true); setIsSidePanelOpen(false); }} active={false} />
                <SidebarActionButton 
                  id="SELECT_ASSETS" 
                  icon={isBulkMode ? "cancel" : "checklist"} 
-                 label={isBulkMode ? t("ui_btn_cancel") || "CANCEL" : t("vault_btn_select_assets") || "SELECT ASSETS"} 
+                 label={isBulkMode ? t("ui_btn_cancel") : t("vault_btn_select_assets")} 
                  onClick={() => { setIsBulkMode(!isBulkMode); setIsSidePanelOpen(false); }} 
                  active={isBulkMode} 
                  danger={isBulkMode}
@@ -1261,7 +1261,7 @@ export default function Collection(props: any) {
                <SidebarActionButton 
                  id="SELECT_ALL" 
                  icon="library_add_check" 
-                 label={t("vault_btn_select_all") || "SELECT ALL"} 
+                 label={t("vault_btn_select_all")} 
                  onClick={() => {
                    if (!isBulkMode) setIsBulkMode(true);
                    const allNames = finalVisibleMods.map((m: any) => m.name);
@@ -1283,7 +1283,7 @@ export default function Collection(props: any) {
                    id="PURGE_FOLDER" 
                    icon="delete_sweep" 
                    danger={true} 
-                   label={t("vault_btn_purge_folder") || "PURGE ARCHIVES"} 
+                   label={t("vault_btn_purge_folder")} 
                    onClick={() => {
                       const allFilesToPurge = new Set<string>();
                       finalVisibleMods.forEach((mod: any) => {
@@ -1314,9 +1314,9 @@ export default function Collection(props: any) {
                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
                  <div className="flex items-center gap-4 mb-6 relative z-10">
                    <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--accent)]">
-                     <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_folder") || "folder"}</span>
+                     <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_folder")}</span>
                    </div>
-                   <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("vault_local_folders") || "LOCAL FOLDERS"}</h3>
+                   <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("vault_local_folders")}</h3>
                  </div>
                  
                  <div className="flex gap-2 relative z-10">
@@ -1336,7 +1336,7 @@ export default function Collection(props: any) {
                      }}
                      className="h-14 px-4 rounded-2xl bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-white/10 text-[var(--text)]/70 backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:text-[var(--text)] font-black shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center shrink-0"
                    >
-                     <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_edit") || "edit"}</span>
+                     <span className="material-symbols-outlined !text-[18px]">{t("ui_icon_edit")}</span>
                    </button>
                  </div>
                </div>
@@ -1352,8 +1352,8 @@ export default function Collection(props: any) {
           setConfirmDeleteId(null);
           setRenameFolderInput("");
         }}
-        title={t("vault_local_folders_edit") || "EDIT FOLDER"}
-        subtitle={t("vault_local_folders") || "LOCAL FOLDERS"}
+        title={t("vault_local_folders_edit")}
+        subtitle={t("vault_local_folders")}
         icon="folder_managed"
         iconColorClass="theme-text-accent"
         widthClass="w-[525px]"
@@ -1379,7 +1379,7 @@ export default function Collection(props: any) {
                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
                  <div className="flex flex-col gap-3 relative z-10">
                    <label className="text-[9px] font-black uppercase text-[var(--subtext)] tracking-widest pl-2 opacity-60">
-                     {t("vault_local_folders_rename_prompt") || "RENAME FOLDER"}
+                     {t("vault_local_folders_rename_prompt")}
                    </label>
                    <div className="flex gap-2">
                      <input
@@ -1400,7 +1400,7 @@ export default function Collection(props: any) {
                        }}
                        className="h-14 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] font-black shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center shrink-0 uppercase tracking-widest text-[10px]"
                      >
-                       {t("ui_btn_save") || "SAVE"}
+                       {t("ui_btn_save")}
                      </button>
                    </div>
                  </div>
@@ -1410,9 +1410,9 @@ export default function Collection(props: any) {
                  <div className="absolute inset-0 bg-gradient-to-tl from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
                  <div className="flex items-center gap-4 mb-6 relative z-10 shrink-0">
                    <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--text)]">
-                     <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_inventory") || "inventory_2"}</span>
+                     <span className="material-symbols-outlined !text-[20px]">{t("ui_icon_inventory")}</span>
                    </div>
-                   <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("vault_local_folders_contents") || "FOLDER CONTENTS"}</h3>
+                   <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("vault_local_folders_contents")}</h3>
                  </div>
                  
                  <div className="flex-1 flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-2 relative z-10">
@@ -1438,15 +1438,15 @@ export default function Collection(props: any) {
                            }}
                            className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border border-white/5 text-[var(--text)]/50 flex items-center justify-center shrink-0 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:text-[var(--danger)] transition-all hover:scale-110"
                          >
-                           <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_close") || "close"}</span>
+                           <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_close")}</span>
                          </button>
                        </div>
                      );
                    })}
                    {targetSet.items.length === 0 && (
                      <div className="text-center py-12 opacity-50 font-bold uppercase text-[10px] tracking-widest flex flex-col items-center gap-2">
-                       <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_inbox") || "inbox"}</span>
-                       {t("vault_local_folders_empty") || "FOLDER IS EMPTY"}
+                       <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_inbox")}</span>
+                       {t("vault_local_folders_empty")}
                      </div>
                    )}
                  </div>
@@ -1467,7 +1467,7 @@ export default function Collection(props: any) {
                      }}
                      className={`w-full h-14 rounded-2xl border backdrop-blur-md font-black shadow-sm transition-all flex items-center justify-center uppercase tracking-widest text-[11px] ${confirmDeleteId === target ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] shadow-[0_0_20px_rgba(220,38,38,0.2)] animate-pulse' : 'bg-transparent border-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)]/60 hover:bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)]'}`}
                    >
-                     {confirmDeleteId === target ? (t("vault_local_folders_confirm_delete") || "CONFIRM DELETE?") : (t("vault_local_folders_delete") || "DELETE FOLDER")}
+                     {confirmDeleteId === target ? (t("vault_local_folders_confirm_delete")) : (t("vault_local_folders_delete"))}
                    </button>
                  </div>
               </div>
