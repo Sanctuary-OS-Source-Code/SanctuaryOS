@@ -3,98 +3,14 @@ import { useLexicon } from './LexiconContext';
 
 export const ICON_CATEGORIES = [
   {
-    "name": "General",
-    "icons": [
-      "star",
-      "favorite",
-      "warning",
-      "info",
-      "check_circle",
-      "cancel",
-      "bolt",
-      "local_fire_department",
-      "rocket_launch",
-      "diamond",
-      "science",
-      "construction",
-      "bug_report",
-      "verified",
-      "public",
-      "language",
-      "terminal",
-      "memory",
-      "dns",
-      "hub",
-      "api",
-      "code",
-      "database",
-      "cloud",
-      "security",
-      "shield",
-      "lock",
-      "key",
-      "fingerprint",
-      "admin_panel_settings",
-      "settings",
-      "build",
-      "gavel",
-      "policy",
-      "health_and_safety",
-      "monitor_heart",
-      "healing",
-      "medication",
-      "biotech",
-      "crisis_alert",
-      "notifications_active",
-      "flag",
-      "tour",
-      "explore",
-      "map",
-      "location_on",
-      "my_location",
-      "flight_takeoff",
-      "sports_esports",
-      "smart_toy",
-      "psychology",
-      "group",
-      "person",
-      "engineering",
-      "architecture",
-      "precision_manufacturing",
-      "inventory_2",
-      "conveyor_belt",
-      "factory",
-      "warehouse",
-      "support_agent",
-      "help",
-      "article",
-      "description",
-      "assignment",
-      "task_alt",
-      "event",
-      "schedule",
-      "update",
-      "history",
-      "lightbulb",
-      "emoji_objects",
-      "wb_sunny",
-      "nightlight",
-      "palette",
-      "brush",
-      "format_paint",
-      "imagesmode",
-      "photo_camera",
-      "videocam",
-      "mic",
-      "volume_up",
-      "music_note",
-      "play_arrow",
-      "pause"
-    ]
-  },
-  {
     "name": "UI Navigation",
     "icons": [
+      "update",
+      "task_alt",
+      "settings",
+      "verified",
+      "cancel",
+      "check_circle",
       "menu",
       "search",
       "home",
@@ -123,6 +39,8 @@ export const ICON_CATEGORIES = [
   {
     "name": "Communication",
     "icons": [
+      "help",
+      "support_agent",
       "email",
       "mail",
       "chat",
@@ -143,6 +61,7 @@ export const ICON_CATEGORIES = [
   {
     "name": "Files & Storage",
     "icons": [
+      "database",
       "folder",
       "folder_open",
       "folder_shared",
@@ -162,6 +81,8 @@ export const ICON_CATEGORIES = [
   {
     "name": "E-Commerce & Finance",
     "icons": [
+      "inventory_2",
+      "diamond",
       "shopping_cart",
       "shopping_bag",
       "store",
@@ -183,6 +104,7 @@ export const ICON_CATEGORIES = [
   {
     "name": "Devices & Hardware",
     "icons": [
+      "memory",
       "computer",
       "smartphone",
       "laptop",
@@ -221,6 +143,9 @@ export const ICON_CATEGORIES = [
   {
     "name": "Social & People",
     "icons": [
+      "person",
+      "group",
+      "favorite",
       "person_add",
       "person_remove",
       "people",
@@ -240,6 +165,9 @@ export const ICON_CATEGORIES = [
   {
     "name": "Transportation & Travel",
     "icons": [
+      "flight_takeoff",
+      "tour",
+      "rocket_launch",
       "directions_car",
       "local_taxi",
       "directions_bus",
@@ -329,6 +257,9 @@ export const ICON_CATEGORIES = [
   {
     "name": "Weather",
     "icons": [
+      "nightlight",
+      "wb_sunny",
+      "bolt",
       "cloudy",
       "rainy",
       "thunderstorm",
@@ -346,6 +277,7 @@ export const ICON_CATEGORIES = [
   {
     "name": "Time & Scheduling",
     "icons": [
+      "history",
       "calendar_month",
       "calendar_today",
       "timer",
@@ -441,6 +373,9 @@ export const ICON_CATEGORIES = [
   {
     "name": "Photography",
     "icons": [
+      "videocam",
+      "photo_camera",
+      "imagesmode",
       "camera",
       "camera_roll",
       "flash_on",
@@ -459,6 +394,8 @@ export const ICON_CATEGORIES = [
   {
     "name": "Maps & Navigation",
     "icons": [
+      "map",
+      "explore",
       "pin_drop",
       "navigation",
       "route",
@@ -506,6 +443,8 @@ export const ICON_CATEGORIES = [
   {
     "name": "Gaming",
     "icons": [
+      "smart_toy",
+      "sports_esports",
       "gamepad",
       "toys",
       "casino",
@@ -538,6 +477,9 @@ export const ICON_CATEGORIES = [
   {
     "name": "Development",
     "icons": [
+      "code",
+      "api",
+      "bug_report",
       "integration_instructions",
       "data_object",
       "data_array",
@@ -572,6 +514,12 @@ export const ICON_CATEGORIES = [
   {
     "name": "Privacy & Security",
     "icons": [
+      "admin_panel_settings",
+      "fingerprint",
+      "key",
+      "lock",
+      "shield",
+      "security",
       "vpn_key",
       "privacy_tip",
       "enhanced_encryption",
@@ -588,6 +536,9 @@ export const ICON_CATEGORIES = [
   {
     "name": "File Types",
     "icons": [
+      "assignment",
+      "description",
+      "article",
       "picture_as_pdf",
       "text_snippet",
       "folder_zip",
@@ -602,6 +553,8 @@ export const ICON_CATEGORIES = [
   {
     "name": "Playlist Controls",
     "icons": [
+      "pause",
+      "play_arrow",
       "playlist_play",
       "playlist_add",
       "playlist_add_check",
@@ -636,6 +589,8 @@ export const ICON_CATEGORIES = [
   {
     "name": "AI & Automation",
     "icons": [
+      "emoji_objects",
+      "lightbulb",
       "auto_awesome",
       "auto_awesome_mosaic",
       "auto_awesome_motion",
@@ -680,6 +635,12 @@ export const ICON_CATEGORIES = [
   {
     "name": "Construction",
     "icons": [
+      "conveyor_belt",
+      "precision_manufacturing",
+      "architecture",
+      "engineering",
+      "build",
+      "construction",
       "roofing",
       "foundation",
       "fence",
@@ -731,6 +692,9 @@ export const ICON_CATEGORIES = [
   {
     "name": "Alerts & Feedback",
     "icons": [
+      "notifications_active",
+      "info",
+      "warning",
       "notification_important",
       "add_alert",
       "auto_delete",
@@ -762,6 +726,10 @@ export const ICON_CATEGORIES = [
   {
     "name": "Workplace",
     "icons": [
+      "warehouse",
+      "factory",
+      "policy",
+      "gavel",
       "work",
       "work_outline",
       "work_off",
@@ -779,6 +747,8 @@ export const ICON_CATEGORIES = [
   {
     "name": "Science & Math",
     "icons": [
+      "biotech",
+      "science",
       "calculate",
       "functions",
       "exposure",
@@ -802,6 +772,9 @@ export const ICON_CATEGORIES = [
   {
     "name": "Audio Production",
     "icons": [
+      "music_note",
+      "volume_up",
+      "mic",
       "graphic_eq",
       "surround_sound",
       "spatial_audio",
@@ -819,6 +792,9 @@ export const ICON_CATEGORIES = [
   {
     "name": "Network & Cloud",
     "icons": [
+      "cloud",
+      "hub",
+      "dns",
       "network_check",
       "cell_tower",
       "satellite_alt",
@@ -882,6 +858,8 @@ export const ICON_CATEGORIES = [
   {
     "name": "Emergency",
     "icons": [
+      "crisis_alert",
+      "local_fire_department",
       "fire_extinguisher",
       "fire_hydrant",
       "car_crash",
@@ -913,6 +891,7 @@ export const ICON_CATEGORIES = [
   {
     "name": "System Commands",
     "icons": [
+      "terminal",
       "keyboard_command_key",
       "keyboard_control_key",
       "keyboard_option_key",
@@ -930,6 +909,9 @@ export const ICON_CATEGORIES = [
   {
     "name": "Drawing & Inking",
     "icons": [
+      "format_paint",
+      "brush",
+      "palette",
       "draw",
       "color_lens",
       "polyline",
@@ -940,7 +922,7 @@ export const ICON_CATEGORIES = [
       "ink_eraser",
       "ink_pen",
       "ink_highlighter",
-      "opacity",
+      "opacity"
     ]
   },
   {
@@ -979,6 +961,8 @@ export const ICON_CATEGORIES = [
   {
     "name": "Scheduling",
     "icons": [
+      "schedule",
+      "event",
       "event_available",
       "event_busy",
       "event_note",
@@ -994,6 +978,8 @@ export const ICON_CATEGORIES = [
   {
     "name": "Web Browsing",
     "icons": [
+      "language",
+      "public",
       "web",
       "web_asset",
       "web_asset_off",
@@ -1025,6 +1011,7 @@ export const ICON_CATEGORIES = [
   {
     "name": "Reviews & Ratings",
     "icons": [
+      "star",
       "stars",
       "star_rate",
       "reviews",
@@ -1054,6 +1041,11 @@ export const ICON_CATEGORIES = [
   {
     "name": "Wellness",
     "icons": [
+      "psychology",
+      "medication",
+      "healing",
+      "monitor_heart",
+      "health_and_safety",
       "blood_pressure",
       "dentistry",
       "dermatology",
@@ -1337,6 +1329,9 @@ export const ICON_CATEGORIES = [
   {
     "name": "Location Pins",
     "icons": [
+      "my_location",
+      "location_on",
+      "flag",
       "push_pin",
       "wrong_location",
       "location_searching",

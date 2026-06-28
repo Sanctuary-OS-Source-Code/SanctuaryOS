@@ -71,6 +71,8 @@ interface ModalState {
   setConfirmDialog: (val: any) => void;
   updatePayload: any;
   setUpdatePayload: (val: any) => void;
+  isUpdatePanelOpen: boolean;
+  setIsUpdatePanelOpen: (val: boolean) => void;
 }
 
 export const useModalStore = create<ModalState>((set) => ({
@@ -146,4 +148,6 @@ export const useModalStore = create<ModalState>((set) => ({
   setConfirmDialog: (confirmDialog) => set({ confirmDialog }),
   updatePayload: null,
   setUpdatePayload: (updatePayload) => set({ updatePayload }),
+  isUpdatePanelOpen: false,
+  setIsUpdatePanelOpen: (isUpdatePanelOpen) => set({ isUpdatePanelOpen }),
 }));

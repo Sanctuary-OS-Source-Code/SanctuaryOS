@@ -125,7 +125,6 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           <HubTabButton id="structure" icon={t("ui_icon_architecture")} label={(t("masonhub_structures_tab")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="conflicts" icon={t("ui_icon_security")} label={(t("masonhub_tab_conflicts")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="posts" icon={t("ui_icon_edit_document")} label={(t("mason_tab_posts")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <div className="w-px h-6 bg-[var(--text)]/10 mx-2" />
           <HubTabButton id="sandbox" icon={t("ui_icon_sandbox")} label={(t("mason_tab_sandbox")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="ide" icon={t("ui_icon_code")} label={(t("masonhub_ide_tab")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
         </div>

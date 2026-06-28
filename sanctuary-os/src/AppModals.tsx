@@ -9,9 +9,11 @@ import { supabase } from "./supabase";
 import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, standardSuccessButtonClass } from "./shared";
 import { useModalStore } from "./store/modalStore";
 import { useStore } from './store';
+import { SystemStatusPanel } from './SystemStatusPanel';
 
 export function AppModals(props: any) {
   const [isLogExpanded, setIsLogExpanded] = React.useState(false);
+  const [isSystemStatusOpen, setIsSystemStatusOpen] = React.useState(false);
   const { t } = useLexicon();
   const {
     snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, executeSnapshot, playSets, activePlaySetIndex, toggleInActiveSet,
@@ -818,7 +820,7 @@ export function AppModals(props: any) {
             })()}
           </span>
           
-          {isScanning && (
+          {isScanning ? (
             <div className={`flex items-center gap-4 h-full ml-auto pl-6 border-l shrink-0 w-80 animate-in fade-in duration-300 ${isErrorStatus ? 'border-red-500/20' : isSuccessStatus ? 'border-emerald-500/20' : 'border-white/5'}`}>
               <div className="flex items-center gap-2">
                 <span className={`material-symbols-outlined text-lg animate-spin-slow ${statusIconClass}`}>{t("ui_icon_radar3")}</span>
@@ -826,15 +828,26 @@ export function AppModals(props: any) {
               </div>
               <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isErrorStatus ? 'bg-red-900/50' : isSuccessStatus ? 'bg-emerald-900/50' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                 <div className={`h-full transition-all duration-300 relative ${statusAccentClass}`} style={{ width: `${scanProgress.total > 0 ? (scanProgress.current / scanProgress.total) * 100 : 0}%` }}>
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent w-[200%] animate-pulse" />
+                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent w-[200%] animate-pulse" />
+                  </div>
                 </div>
+                <span className={`text-[9px] font-mono font-bold w-8 text-right ${statusTextClass}`}>{scanProgress.total > 0 ? Math.round((scanProgress.current / scanProgress.total) * 100) : 0}%</span>
               </div>
-              <span className={`text-[9px] font-mono font-bold w-8 text-right ${statusTextClass}`}>{scanProgress.total > 0 ? Math.round((scanProgress.current / scanProgress.total) * 100) : 0}%</span>
-            </div>
-          )}
+            ) : (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsSystemStatusOpen(true); }}
+                className={`flex items-center gap-2 h-full ml-auto px-5 border-l border-white/5 shrink-0 cursor-pointer transition-colors hover:bg-white/5 group
+                  ${isErrorStatus ? 'text-red-500 hover:bg-red-500/10' : 
+                    isSuccessStatus ? 'text-emerald-500 hover:bg-emerald-500/10' : 
+                    'text-[var(--text)] opacity-90 hover:opacity-100'}`}
+              >
+                <span className={`material-symbols-outlined !text-[16px] transition-transform duration-500 group-hover:rotate-90 ${isErrorStatus ? 'animate-pulse' : ''}`}>settings</span>
+                <span className="text-[10px] font-black uppercase tracking-widest ml-1">{t("system_status")}</span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-      {showDefconAlert && (
+        {showDefconAlert && (
           <DefconAlert 
             showDefconAlert={showDefconAlert} setShowDefconAlert={setShowDefconAlert} triggerFullEngineBackup={triggerFullEngineBackup} triggerPrePatchSnapshot={triggerPrePatchSnapshot}
           />
@@ -1008,6 +1021,8 @@ export function AppModals(props: any) {
           ))}
         </div>
       </SidePanel>
+
+      <SystemStatusPanel isOpen={isSystemStatusOpen} onClose={() => setIsSystemStatusOpen(false)} />
     </>
   );
 }

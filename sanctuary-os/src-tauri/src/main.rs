@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod parser;
+mod telemetry;
 
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
@@ -2318,6 +2319,11 @@ fn initialize_airgap_watch(app_handle: tauri::AppHandle, docs_path: String, vaul
             if let Ok(event) = res {
                 if event.kind.is_modify() || event.kind.is_create() {
                     for path in event.paths {
+                        if let Some(parent) = path.parent() {
+                            if parent != path_to_watch.as_path() {
+                                continue;
+                            }
+                        }
                         if let Some(ext) = path.extension() {
                             if ext == "cfg" || ext == "ini" || ext == "json" {
                                 if let Some(filename) = path.file_name() {
@@ -3478,8 +3484,6 @@ fn main() {
             initialize_settings_watch,
             mark_explicitly_local,
             move_mod_to_priority_folder,
-            update_mod_game_version,
-            update_mod_history_entry,
             get_hardware_id,
             open_developer_settings,
             check_symlink_permissions,
@@ -3488,8 +3492,9 @@ fn main() {
             save_heuristic_signatures,
             save_file_with_history,
             get_file_history,
-            toggle_pin_version
-        ])
+            toggle_pin_version,
+            telemetry::fetch_system_telemetry,
+            telemetry::get_directory_size])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -3507,22 +3512,6 @@ fn delete_local_file(path: String) -> Result<String, String> {
     } else {
         Err("File not found".into())
     }
-}
-
-#[tauri::command]
-async fn update_mod_game_version(mod_id: String, game_version: String) -> Result<(), String> {
-    // Update game version in Supabase
-    // This is a placeholder - implement your actual Supabase update logic here
-    println!("Updating mod {} to game version {}", mod_id, game_version);
-    Ok(())
-}
-
-#[tauri::command]
-async fn update_mod_history_entry(history_id: String, label: String, game_version: String) -> Result<(), String> {
-    // Update mod version history entry in Supabase
-    // This is a placeholder - implement your actual Supabase update logic here
-    println!("Updating history entry {} with label: {}, game_version: {}", history_id, label, game_version);
-    Ok(())
 }
 
 #[tauri::command]
