@@ -4,7 +4,7 @@ import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import MarkdownRenderer from "./MarkdownRenderer";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
-import { SidePanel, standardButtonClass, standardDangerButtonClass } from "./shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, extractPostImage, renderTextWithIcons } from "./shared";
 import FlagContentSidePanel from "./FlagContentSidePanel";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useStore } from './store';
@@ -358,7 +358,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
       <SidePanel
         isOpen={true}
         onClose={onClose}
-        title={post.title}
+        title={renderTextWithIcons(post.title)}
         icon="forum"
         widthClass="w-[55vw] max-w-5xl"
         panelZ="z-[50001]"

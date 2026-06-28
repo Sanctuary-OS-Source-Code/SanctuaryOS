@@ -38,7 +38,7 @@ export function AppModals(props: any) {
     malwareAlert, setMalwareAlert, setPlaySets
   } = props;
 
-  const { backupType, restoreType } = useModalStore();
+  const { backupType, restoreType, updatePayload } = useModalStore();
 
   const logModalRef = React.useRef<HTMLDivElement>(null);
   const logDragRef = React.useRef({ isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, initOffsetX: 0, initOffsetY: 0 });
@@ -837,12 +837,15 @@ export function AppModals(props: any) {
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsSystemStatusOpen(true); }}
                 className={`flex items-center gap-2 h-full ml-auto px-5 border-l border-white/5 shrink-0 cursor-pointer transition-colors hover:bg-white/5 group
-                  ${isErrorStatus ? 'text-red-500 hover:bg-red-500/10' : 
+                  ${updatePayload ? 'theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] font-bold' : 
+                    isErrorStatus ? 'text-red-500 hover:bg-red-500/10' : 
                     isSuccessStatus ? 'text-emerald-500 hover:bg-emerald-500/10' : 
                     'text-[var(--text)] opacity-90 hover:opacity-100'}`}
               >
-                <span className={`material-symbols-outlined !text-[16px] transition-transform duration-500 group-hover:rotate-90 ${isErrorStatus ? 'animate-pulse' : ''}`}>settings</span>
-                <span className="text-[10px] font-black uppercase tracking-widest ml-1">{t("system_status")}</span>
+                <span className={`material-symbols-outlined !text-[16px] transition-transform duration-500 group-hover:rotate-90 ${updatePayload || isErrorStatus ? 'animate-pulse' : ''}`}>
+                  {updatePayload ? 'system_update_alt' : 'settings'}
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-widest ml-1">{updatePayload ? t("sys_stat_update_available") : t("system_status")}</span>
               </button>
             )}
           </div>
@@ -974,16 +977,6 @@ export function AppModals(props: any) {
         subtitle={t("scout_queue_desc")}
         icon={t("ui_icon_radar")}
         widthClass="w-[550px]"
-        footer={
-          <div className="flex justify-center items-center gap-4 w-full">
-            <button
-              onClick={() => setScoutQueue([])}
-              className={standardButtonClass}
-            >
-              {t("modal_btn_close")}
-            </button>
-          </div>
-        }
       >
         <div className="flex flex-col gap-4">
           {scoutQueue && scoutQueue.map((mod: any, index: number) => (

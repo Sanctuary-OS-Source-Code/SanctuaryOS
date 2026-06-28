@@ -624,9 +624,34 @@ export function CustomClassificationDropdown({ value, onChange }: { value: strin
 }
 
 
+export const renderTextWithIcons = (text: string) => {
+  if (!text || typeof text !== 'string') return text;
+  
+  // Split the text by the ICON pattern (with optional backslash escapes)
+  const parts = text.split(/(\\?\[ICON:[a-zA-Z0-9_-]+\\?\])/gi);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const match = part.match(/\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]/i);
+        if (match) {
+          // ensure the icon name is lowercase for material symbols
+          const iconName = match[1].toLowerCase();
+          return (
+            <span key={i} className="material-symbols-outlined !text-[inherit] align-middle px-1 leading-none -mt-1 inline-block">
+              {iconName}
+            </span>
+          );
+        }
+        return part;
+      })}
+    </>
+  );
+};
+
 export const stripMarkdown = (text: string) => {
   if (!text) return '';
   return text
+    .replace(/\\?\[ICON:[a-zA-Z0-9_-]+\\?\]/gi, (match) => match.replace(/\\/g, '')) // Unescape icons so renderTextWithIcons can parse them
     .replace(/\[ASSET:[^\]]+\]/g, '')
     .replace(/\[IMG:[^\]]+\]/g, '')
     .replace(/!\[([^\]]*)\]\([^\)]+\)/g, '') // Strip images completely
@@ -669,7 +694,7 @@ export function SidePanel({
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
-  title: string, 
+  title: React.ReactNode | string, 
   subtitle?: React.ReactNode, 
   icon?: string,
   iconColorClass?: string,

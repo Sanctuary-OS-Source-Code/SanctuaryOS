@@ -92,16 +92,16 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
       title={t("sys_panel_title")}
       subtitle={t("sys_panel_desc")}
       icon="memory"
-      widthClass="w-[550px]"
+      widthClass="w-[575px]"
     >
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8">
         
         {/* App Info */}
         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10">
-          <SectionHeader icon="terminal" title={t("sys_info_app")} glowColor="rgba(56,189,248,0.8)" />
+          <SectionHeader icon="terminal" title={t("sys_info_app")} glowColor="rgba(var(--accent-rgb),0.8)" />
           <div className="grid grid-cols-2 gap-4">
             {updatePayload ? (
-              <StatBox onClick={() => { onClose(); setIsUpdatePanelOpen(true); }} label={t("sys_stat_update_available")} value={`V${updatePayload.version}`} icon="system_update_alt" accent pulseIcon glowColor="rgba(56,189,248,0.8)" />
+              <StatBox onClick={() => { onClose(); setIsUpdatePanelOpen(true); }} label={t("sys_stat_update_available")} value={`V${updatePayload.version}`} icon="system_update_alt" accent pulseIcon glowColor="rgba(var(--accent-rgb),0.8)" />
             ) : (
               <StatBox label={t("sys_stat_version")} value={`V${packageJson.version}`} icon="new_releases" glowColor="rgba(255,255,255,0.2)" />
             )}

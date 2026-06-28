@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { SidePanel } from "./shared";
+import React, { useState, useRef, useEffect } from "react";
+import { SidePanel, standardAccentGlassButtonClass } from "./shared";
 import { useModalStore } from "./store/modalStore";
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";
@@ -24,6 +24,22 @@ export function UpdateSidePanel() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const [liveReleaseNotes, setLiveReleaseNotes] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (updatePayload && isUpdatePanelOpen) {
+      const version = updatePayload.version;
+      const tag = version.startsWith('v') ? version : `v${version}`;
+      fetch(`https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/${tag}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.body) {
+            setLiveReleaseNotes(data.body);
+          }
+        })
+        .catch(err => console.error("Failed to fetch live release notes:", err));
+    }
+  }, [updatePayload, isUpdatePanelOpen]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!boxRef.current) return;
@@ -94,8 +110,8 @@ export function UpdateSidePanel() {
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
             
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 relative z-10 prose prose-invert prose-sm max-w-none text-[var(--text)]/80 marker:text-[var(--accent)]">
-              {updatePayload.body ? (
-                <ReactMarkdown>{updatePayload.body}</ReactMarkdown>
+              {(liveReleaseNotes && liveReleaseNotes !== "See the assets to download this version and install.") || (updatePayload.body && updatePayload.body !== "See the assets to download this version and install.") ? (
+                <ReactMarkdown>{liveReleaseNotes || updatePayload.body}</ReactMarkdown>
               ) : (
                 <div className="text-center py-12 opacity-50 font-bold uppercase text-[10px] tracking-widest flex flex-col items-center gap-2">
                   <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_visibility_off")}</span>
@@ -126,7 +142,7 @@ export function UpdateSidePanel() {
                 setIsInstalling(false);
               }
             }}
-            className="w-full h-14 rounded-xl font-black uppercase tracking-[0.2em] transition-all theme-glass-inner theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_4px_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 theme-text-accent"
+            className={`${standardAccentGlassButtonClass} w-full h-16 !text-sm`}
           >
             {isInstalling ? (
               <>

@@ -10,7 +10,7 @@ interface MarkdownRendererProps {
 
 export default function MarkdownRenderer({ content, onAssetClick }: MarkdownRendererProps) {
   // Preprocess [ICON:name] to an image markdown with a special protocol so we can intercept it in the img component
-  const processedContent = content.replace(/\[ICON:([a-zA-Z0-9_-]+)\]/gi, '![](icon://$1)');
+  const processedContent = content.replace(/\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]/gi, '![](icon://$1)');
 
   return (
     <div className="prose prose-invert max-w-none text-[var(--text)] opacity-90 leading-relaxed marker:text-[var(--accent)]">

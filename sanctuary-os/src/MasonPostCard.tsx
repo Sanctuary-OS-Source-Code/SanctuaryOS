@@ -1,6 +1,6 @@
 import React from "react";
 import { useLexicon } from "./LexiconContext";
-import { stripMarkdown } from "./shared";
+import { stripMarkdown, renderTextWithIcons } from "./shared";
 
 export default function MasonPostCard({ post, index, onPostClick, onToggleLike, onOpenMasonProfile, isFeatured, isCompact }: any) {
   const { t } = useLexicon();
@@ -53,12 +53,12 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
       )}
       
       <div className={`p-6 flex flex-col flex-1 relative z-10 ${isFeatured ? 'justify-center' : ''}`}>
-        <h4 className={`${isFeatured ? 'text-2xl mb-2' : 'text-lg mb-1'} font-black text-[var(--text)] uppercase tracking-tighter leading-tight group-hover:theme-text-accent transition-colors`}>
-            {post.title}
+          <h4 className={`${isFeatured ? 'text-2xl mb-2' : 'text-lg mb-1'} font-black text-[var(--text)] uppercase tracking-tighter leading-tight group-hover:theme-text-accent transition-colors`}>
+            {renderTextWithIcons(post.title)}
           </h4>
         
         <p className={`text-xs text-[var(--text)] opacity-70 leading-relaxed font-medium mb-4 ${isCompact ? 'line-clamp-2' : (isFeatured ? 'line-clamp-4' : 'line-clamp-3')}`}>
-          {stripMarkdown(content).replace(/#[a-zA-Z0-9_]+/g, '').trim()}
+          {renderTextWithIcons(stripMarkdown(content).replace(/#[a-zA-Z0-9_]+/g, '').trim())}
         </p>
 
         {hashtags.length > 0 && !isCompact && (
