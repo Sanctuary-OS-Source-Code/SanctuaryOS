@@ -4365,6 +4365,7 @@ function App() {
       <SupportDeskSidePanel isOpen={isSupportModalOpen} onClose={() => setIsSupportModalOpen(false)} />
 
       <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
+      <UpdateSidePanel />
     </div>
   );
 }

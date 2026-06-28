@@ -45,6 +45,8 @@ export default function SeniorArchitect({ onOpenMasonProfile }: any) {
   const [initialManualFlagQuery, setInitialManualFlagQuery] = useState("");
   const [initialHeuristicEdit, setInitialHeuristicEdit] = useState<any>(null);
   const [defconLevel, setDefconLevel] = useState<number>(5);
+  const [isMetadataEditorOpen, setIsMetadataEditorOpen] = useState(false);
+  const [metadataEditorInitialId, setMetadataEditorInitialId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -126,9 +128,9 @@ export default function SeniorArchitect({ onOpenMasonProfile }: any) {
         {activeTab === "game_versions" && <GameManagementOversight />}
         {activeTab === "oversight_reports" && <SAOversightReports />}
         {activeTab === "audit_logs" && <AuditLogViewer />}
-        {activeTab === "sanctuary_tickets" && <ArchitectSupportTickets userRole="senior_architect" onOpenDNA={(hash) => {
-           setVerifyPanelInitialHash(hash);
-           setIsVerifyPanelOpen(true);
+        {activeTab === "sanctuary_tickets" && <ArchitectSupportTickets userRole="senior_architect" onEditMetadata={(hash) => {
+           setMetadataEditorInitialId(hash);
+           setIsMetadataEditorOpen(true);
         }} />}
         {activeTab === "support_settings" && <SASupportSettings />}
       </div>

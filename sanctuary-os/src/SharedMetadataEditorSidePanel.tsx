@@ -8,26 +8,60 @@ export function SharedMetadataEditorSidePanel({
   isOpen,
   onClose,
   activeMod,
+  initialModId,
   masonsList,
   onModUpdated
 }: {
   isOpen: boolean;
   onClose: () => void;
-  activeMod: any;
-  masonsList: any[];
+  activeMod?: any;
+  initialModId?: string;
+  masonsList?: any[];
   onModUpdated?: () => void;
 }) {
   const { t } = useLexicon();
   const [modForm, setModForm] = useState<any>(null);
   const [isCommitting, setIsCommitting] = useState(false);
+  const [localMasonsList, setLocalMasonsList] = useState<any[]>(masonsList || []);
 
   useEffect(() => {
     if (activeMod) {
       setModForm({ ...activeMod });
-    } else {
+    } else if (initialModId && isOpen) {
+      const fetchMod = async () => {
+        let modId = initialModId;
+        if (initialModId.length === 64) {
+          const { data: mvData } = await supabase.from('mod_versions').select('mod_id').eq('dna_hash', initialModId).single();
+          if (mvData && mvData.mod_id) {
+            modId = mvData.mod_id;
+          } else {
+            setModForm({ _error: true, id: initialModId });
+            return;
+          }
+        }
+        
+        const { data, error } = await supabase.from('mods').select('*').eq('id', modId).single();
+        if (data) {
+          setModForm(data);
+        } else {
+          setModForm({ _error: true, id: initialModId });
+        }
+      };
+      fetchMod();
+    } else if (!isOpen) {
       setModForm(null);
     }
-  }, [activeMod]);
+  }, [activeMod, initialModId, isOpen]);
+
+  useEffect(() => {
+    if (!masonsList && isOpen) {
+      supabase.from('masons').select('id, name').then(({ data }) => {
+        if (data) setLocalMasonsList(data);
+      });
+    } else if (masonsList) {
+      setLocalMasonsList(masonsList);
+    }
+  }, [masonsList, isOpen]);
 
   const handleCommitChanges = async () => {
     if (!modForm) return;
@@ -60,9 +94,11 @@ export function SharedMetadataEditorSidePanel({
 
   return (
     <SidePanel
-      isOpen={isOpen && !!modForm}
+      isOpen={isOpen}
       onClose={onClose}
-      widthClass="w-[600px]"
+      panelZ="z-[60000]"
+      backdropZ="z-[59999]"
+      widthClass="w-[550px]"
       title={t("ui_edit_metadata")}
       subtitle={`UUID: ${modForm?.id}`}
       icon={t("ui_icon_inventory")}
@@ -77,7 +113,17 @@ export function SharedMetadataEditorSidePanel({
         </div>
       }
     >
-      {modForm && (
+      {!modForm ? (
+        <div className="flex items-center justify-center h-48 opacity-50 font-black tracking-widest text-[var(--text)] text-[10px] uppercase">
+          {t("ui_loading") || "Loading..."}
+        </div>
+      ) : modForm._error ? (
+        <div className="flex flex-col items-center justify-center h-48 opacity-80 font-black tracking-widest text-red-400 text-[10px] uppercase gap-2 text-center">
+          <span className="material-symbols-outlined !text-[32px] text-red-500">error</span>
+          <span>Failed to load Mod Metadata.</span>
+          <span className="opacity-50 text-[8px] mt-2">ID: {modForm.id || "Unknown"}</span>
+        </div>
+      ) : (
         <div className="flex flex-col gap-6 pb-8">
           <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mb-2">
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
@@ -98,8 +144,8 @@ export function SharedMetadataEditorSidePanel({
               <div className="flex-1 min-w-0">
                 <CustomMasonDropdown 
                   value={modForm.mason_id} 
-                  options={masonsList} 
-                  onChange={(id: string) => setModForm({...modForm, mason_id: id})} 
+                  onChange={(val: string) => setModForm({...modForm, mason_id: val})}
+                  options={localMasonsList} 
                 />
               </div>
             </div>

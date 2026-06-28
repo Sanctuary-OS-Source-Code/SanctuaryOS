@@ -1,4 +1,4 @@
-﻿{
+{
   "_": "",
   "workbench_template_community_default": "Community Default",
   "workbench_filter_category": "Category Filter",
@@ -633,6 +633,8 @@
   "hub_ql_system_health": "SYSTEM HEALTH",
   "hub_ql_system_history": "SYSTEM HISTORY",
   "hub_ql_targeting": "TARGETING",
+  "hub_ql_templates": "TEMPLATES",
+  "hub_ql_templates_desc": "MANAGE METADATA FORMATS",
   "hub_quick_links": "QUICK LINKS",
   "hub_reason": "Reason",
   "hub_report_details": "REPORT DETAILS",
@@ -1955,7 +1957,7 @@
   "status_dd_unverified": "Unverified",
   "status_dd_verified": "Verified Safe",
   "status_deploy_failed": "DEPLOYMENT FAILED:",
-  "status_deploying_prefix": "DEPLOYING: Projecting Blueprint [",
+  "status_deploying_prefix": "DEPLOYING: Blueprint [",
   "status_deploying_suffix": "]...",
   "status_dna_secured_prefix": "DNA SECURED:",
   "status_dna_secured_suffix": "is now in the Lab.",

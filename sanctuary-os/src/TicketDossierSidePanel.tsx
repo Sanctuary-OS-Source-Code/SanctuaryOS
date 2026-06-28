@@ -12,7 +12,7 @@ interface TicketDossierProps {
   ticket: any | null;
   onTakeAction?: (actionType: "RESOLVED" | "REJECTED" | "ESCALATED" | "PENDING", reason: string) => void;
   onReplyAdded?: (newMetadata?: any) => void;
-  onOpenDNA?: (hash: string) => void;
+  onEditMetadata?: (hash: string) => void;
   isReadOnly?: boolean;
   canReply?: boolean;
   availableActions?: ("RESOLVED" | "REJECTED" | "ESCALATED" | "PENDING")[];
@@ -27,7 +27,7 @@ export default function TicketDossierSidePanel({
   canReply = false, 
   availableActions = ["RESOLVED", "REJECTED", "ESCALATED", "PENDING"], 
   onReplyAdded,
-  onOpenDNA
+  onEditMetadata
 }: TicketDossierProps) {
   const { t } = useLexicon();
   const [reason, setReason] = useState("");
@@ -222,13 +222,13 @@ export default function TicketDossierSidePanel({
                 <span className="material-symbols-outlined !text-[14px] opacity-70">{t("ui_icon_extension")}</span> {t("ticket_dossier_target_mod")}
               </span>
               <div className="flex items-center gap-2">
-                {onOpenDNA ? (
+                {onEditMetadata ? (
                   <button 
-                    onClick={() => onOpenDNA(ticket.target_mod_id || ticket.metadata?.target_mod_id)}
+                    onClick={() => onEditMetadata(ticket.target_mod_id || ticket.metadata?.target_mod_id)}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all active:scale-95 max-w-[250px] shrink-0"
                   >
                     <span className="text-[10px] font-mono font-bold truncate">{ticket.target_mod_name || fetchedTargetModName || ticket.target_mod_id || ticket.metadata?.target_mod_id}</span>
-                    <span className="material-symbols-outlined !text-[14px] shrink-0">{t("ui_icon_open_in_new")}</span>
+                    <span className="material-symbols-outlined !text-[14px] shrink-0">{t("ui_icon_edit")}</span>
                   </button>
                 ) : (
                   <span className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] max-w-[250px] shrink-0">

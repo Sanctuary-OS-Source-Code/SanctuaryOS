@@ -1,8 +1,8 @@
 [package]
 name = "sanctuary-os"
-version = "0.1.0"
+version = "0.4.30"
 description = "Sanctuary OS"
-authors = ["Wayfinder"]
+authors = ["Sanctuary OS"]
 edition = "2021"
 
 [build-dependencies]

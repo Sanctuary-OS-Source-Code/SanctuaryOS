@@ -5,7 +5,7 @@ import { useLexicon } from "./LexiconContext";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import { useStore } from "./store";
 
-export default function MasonBugReports({ masonId, onOpenDNA }: { masonId?: string, onOpenDNA?: (hash: string) => void }) {
+export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?: string, onEditMetadata?: (hash: string) => void }) {
     const { t } = useLexicon();
     const [tickets, setTickets] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -348,7 +348,7 @@ export default function MasonBugReports({ masonId, onOpenDNA }: { masonId?: stri
                 canReply={true}
                 availableActions={['RESOLVED', 'REJECTED', 'ESCALATED', 'PENDING']}
                 onTakeAction={handleTakeAction}
-                onOpenDNA={onOpenDNA}
+                onEditMetadata={onEditMetadata}
                 onReplyAdded={(newMetadata) => {
                     setSelectedTicket({...selectedTicket, metadata: newMetadata});
                 }}

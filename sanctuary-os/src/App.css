@@ -32,10 +32,14 @@
   height: 6px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track:vertical {
   background: transparent;
-  margin: 30px 0;
-  /* Keeps the scrollbar away from the very top/bottom rounded edges */
+  margin: 4px 0;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track:horizontal {
+  background: transparent;
+  margin: 0 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
@@ -52,9 +56,14 @@
   height: 6px;
 }
 
-.accent-scrollbar::-webkit-scrollbar-track {
+.accent-scrollbar::-webkit-scrollbar-track:vertical {
   background: transparent;
-  margin: 10px 0;
+  margin: 4px 0;
+}
+
+.accent-scrollbar::-webkit-scrollbar-track:horizontal {
+  background: transparent;
+  margin: 0 4px;
 }
 
 .accent-scrollbar::-webkit-scrollbar-thumb {

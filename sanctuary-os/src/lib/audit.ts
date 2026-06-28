@@ -9,7 +9,7 @@ export async function logArchitectAction(action: string, target_table: string, t
       target_table,
       target_name,
       actor_id: user.id,
-      reason: customReason || "Automated from Architect Hub"
+      reason: customReason || "Automated from Architect Console"
     });
   } catch (err) {
     console.error("Audit log error:", err);

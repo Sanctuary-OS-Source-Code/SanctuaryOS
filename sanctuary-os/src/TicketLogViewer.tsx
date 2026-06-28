@@ -172,16 +172,28 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                         else if (tLower === 'warning') { typeColor = "text-amber-400"; bgTypeColor = "bg-amber-500/20 border-amber-500/30"; }
                         else if (tLower === 'info') { typeColor = "text-blue-400"; bgTypeColor = "bg-blue-500/20 border-blue-500/30"; }
 
+                        const knownIcons = ['check_circle', 'warning', 'error', 'info', 'sync', 'flight_takeoff', 'radar', 'terminal', 'bug_report', 'extension', 'block', 'update', 'done', 'download', 'delete', 'close', 'add', 'verified', 'new_releases', 'local_fire_department', 'health_and_safety', 'folder_open', 'inventory_2', 'account_tree', 'priority_high'];
+                        const firstWord = msg.split(' ')[0];
+                        let logIcon = '';
+                        let displayMessage = msg;
+                        if (knownIcons.includes(firstWord)) {
+                            logIcon = firstWord;
+                            displayMessage = msg.substring(firstWord.length).trim();
+                        }
+
                         return (
                             <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-black/20 border border-transparent hover:border-white/5 transition-all group">
                                 <div className={`flex flex-col items-end shrink-0 w-[80px] pt-0.5`}>
                                     <span className="text-[10px] font-black tracking-wider text-[var(--text)] opacity-80">{date.toLocaleTimeString()}</span>
                                     <span className="text-[8px] font-bold tracking-widest uppercase text-[var(--subtext)] opacity-60 group-hover:opacity-100 transition-opacity">{date.toLocaleDateString()}</span>
                                 </div>
-                                <div className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest shrink-0 mt-0.5 ${typeColor} ${bgTypeColor} border shadow-inner`}>
+                                <div className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest shrink-0 mt-0.5 ${typeColor} ${bgTypeColor} border shadow-inner flex items-center justify-center`}>
                                     {type}
                                 </div>
-                                <span className="text-[11px] font-bold text-[var(--text)] opacity-90 break-words pt-0.5 flex-1 leading-relaxed">{msg}</span>
+                                <span className="text-[11px] font-bold text-[var(--text)] opacity-90 break-words pt-0.5 flex-1 leading-relaxed flex items-start gap-2">
+                                    {logIcon && <span className={`material-symbols-outlined !text-[14px] ${typeColor}`}>{logIcon}</span>}
+                                    <span>{displayMessage}</span>
+                                </span>
                             </div>
                         );
                     }
@@ -218,21 +230,24 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
 
   return (
     <div className="flex flex-col w-full mt-4 gap-4">
-       {/* Classic Minimalist Tabs */}
-       <div className="flex items-center gap-4 border-b border-white/5 overflow-x-auto scrollbar-hide">
+       {/* IDE-Style Tabs */}
+       <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar p-1.5 shrink-0 theme-glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner w-full mb-4">
           {sections.map((sec, idx) => {
              const isActive = activeTab === idx;
              return (
                  <button 
                     key={idx} 
                     onClick={() => setActiveTab(idx)}
-                    className={`pb-2 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all border-b-2 ${
+                    className={`h-8 px-4 flex items-center gap-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                         isActive 
-                        ? "text-[var(--text)] border-[var(--accent)]/50" 
-                        : "text-[var(--subtext)] border-transparent hover:text-[var(--text)]"
+                           ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' 
+                           : 'text-[var(--subtext)] border border-transparent hover:text-[var(--text)] hover:bg-white/5 opacity-70 hover:opacity-100'
                     }`}
                  >
-                   {sec.title.endsWith('Logs') ? sec.title.slice(0, -1) : sec.title}
+                   <span className={`material-symbols-outlined !text-[14px] ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>
+                       {sec.title.includes('Log') || sec.title.includes('Blueprint') ? 'description' : 'data_object'}
+                   </span>
+                   <span>{sec.title.endsWith('Logs') ? sec.title.slice(0, -1) : sec.title.replace(' (OS)', '')}</span>
                  </button>
              );
           })}

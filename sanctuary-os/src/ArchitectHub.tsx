@@ -17,6 +17,7 @@ import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { ArtifactCard, CollectionCard } from "./Cards";
 import ArchitectTemplateOversight from "./ArchitectTemplateOversight";
+import { SharedMetadataEditorSidePanel } from "./SharedMetadataEditorSidePanel";
 
 const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = []; let from = 0; const step = 999; while (true) { const { data, error } = await queryFn().range(from, from + step); if (error || !data || data.length === 0) break; allData = [...allData, ...data]; if (data.length <= step) break; from += step + 1; } return { data: allData, error: null }; };
 
@@ -464,6 +465,8 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
   const [registryTargetMod, setRegistryTargetMod] = useState<any>(null);
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [inspectMod, setInspectMod] = useState<any>(null);
+  const [isMetadataEditorOpen, setIsMetadataEditorOpen] = useState(false);
+  const [metadataEditorInitialId, setMetadataEditorInitialId] = useState<string | undefined>(undefined);
 
   const handleNavigate = (tab: string, search: string = "", targetMod: any = null) => {
     setActiveTab(tab);
@@ -525,14 +528,20 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         {activeTab === "mason_queue" && <MasonQueue modList={modList || []} setStatus={setStatus} />}
         {activeTab === "template_oversight" && <ArchitectTemplateOversight />}
         {activeTab === "marketplace_reports" && <MarketplaceReportsViewer onOpenDossier={onOpenDossier} />}
-          {activeTab === "support_tickets" && <ArchitectSupportTickets setStatus={setStatus} onOpenDNA={(hash) => {
-             setInspectMod(hash as any);
+          {activeTab === "support_tickets" && <ArchitectSupportTickets setStatus={setStatus} onEditMetadata={(hash) => {
+             setMetadataEditorInitialId(hash);
+             setIsMetadataEditorOpen(true);
           }} />}
           {activeTab === "lab" && <ProvingGrounds modList={modList || []} setStatus={setStatus} />}
           {activeTab === "matrix" && <ArchitectConflictMatrix modList={modList || []} />}
         </div>
       {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId="architect" onOpenMasonProfile={onOpenMasonProfile} />}
 
+      <SharedMetadataEditorSidePanel 
+        isOpen={isMetadataEditorOpen}
+        onClose={() => setIsMetadataEditorOpen(false)}
+        initialModId={metadataEditorInitialId}
+      />
     </div>
   );
 }
@@ -805,6 +814,19 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any)
                  <div className="flex flex-col gap-1 flex-1 min-w-0">
                    <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_conflict")}</h3>
                    <span className="text-[8px] uppercase font-bold text-rose-400 opacity-80 group-hover:text-rose-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.8)]"></span> {t("hub_ql_logical_issues")}</span>
+                 </div>
+               </div>
+             </button>
+
+             <button onClick={() => onNavigate("template_oversight")} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[1.5rem] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
+               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
+               <div className="flex items-center gap-5 h-full">
+                 <div className="w-12 h-12 rounded-xl theme-glass-inner border border-white/10 flex items-center justify-center shrink-0 group-hover:border-[var(--accent)]/30 transition-colors">
+                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("ui_icon_data_object") || "data_object"}</span>
+                 </div>
+                 <div className="flex flex-col gap-1 flex-1 min-w-0">
+                   <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">{t("hub_ql_templates")}</h3>
+                   <span className="text-[8px] uppercase font-bold text-fuchsia-400 opacity-80 group-hover:text-fuchsia-300 tracking-widest flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-fuchsia-400 shadow-[0_0_8px_rgba(232,121,249,0.8)]"></span> {t("hub_ql_templates_desc")}</span>
                  </div>
                </div>
              </button>

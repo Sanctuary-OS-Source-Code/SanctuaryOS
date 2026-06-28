@@ -19,9 +19,10 @@ interface Ticket {
   logs?: string;
   metadata?: any;
   author_username?: string;
+  onEditMetadata?: (hash: string) => void;
 }
 
-export default function ArchitectSupportTickets({ userRole = "architect", masonProfileId, onOpenDNA, setStatus }: { userRole?: string, masonProfileId?: string, onOpenDNA?: (hash: string) => void, setStatus?: any }) {
+export default function ArchitectSupportTickets({ userRole = "architect", masonProfileId, onEditMetadata, setStatus }: { userRole?: string, masonProfileId?: string, onEditMetadata?: (hash: string) => void, setStatus?: any }) {
   const { t } = useLexicon();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -404,7 +405,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
         canReply={true}
         availableActions={["RESOLVED", "REJECTED", "ESCALATED", "PENDING"]}
         onTakeAction={handleTakeAction}
-        onOpenDNA={onOpenDNA}
+        onEditMetadata={onEditMetadata}
         onReplyAdded={() => {
           fetchTickets(); // Refresh list to get updated reply count
         }}
