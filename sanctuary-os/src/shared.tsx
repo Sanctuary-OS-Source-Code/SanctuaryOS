@@ -835,6 +835,13 @@ export const extractPostImage = (markdown: any): string | undefined => {
   }
   if (typeof text !== 'string') return undefined;
   
+  if (text.startsWith('[IMG:')) {
+    const endIdx = text.indexOf(']');
+    if (endIdx !== -1) {
+      return text.substring(5, endIdx);
+    }
+  }
+  
   const imgMatch = text.match(/!\[.*?\]\((.*?)\)/);
   if (imgMatch && imgMatch[1]) {
     return imgMatch[1];

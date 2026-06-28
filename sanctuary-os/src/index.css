@@ -1,2 +1,9 @@
 
 @keyframes shimmer { 100% { transform: translateX(100%); } }
+
+/* Hide raw [ICON:xyz] tags in tiptap editor */
+.icon-tag-hidden {
+  font-size: 0 !important;
+  color: transparent !important;
+  user-select: all !important;
+}

@@ -52,7 +52,7 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
   };
 
   const feedContent = (
-    <div className={`grid ${gridCols || 'grid-cols-1 md:grid-cols-2'} gap-6 flex-1 overflow-y-auto custom-scrollbar pr-2 pb-4`}>
+    <div className={`grid ${gridCols || 'grid-cols-1 md:grid-cols-2'} gap-6 flex-1 overflow-y-auto custom-scrollbar p-6 -m-6`}>
       {loading ? (
         <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
       ) : posts.length === 0 ? (

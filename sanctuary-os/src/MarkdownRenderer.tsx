@@ -9,6 +9,9 @@ interface MarkdownRendererProps {
 }
 
 export default function MarkdownRenderer({ content, onAssetClick }: MarkdownRendererProps) {
+  // Preprocess [ICON:name] to an image markdown with a special protocol so we can intercept it in the img component
+  const processedContent = content.replace(/\[ICON:([a-zA-Z0-9_-]+)\]/gi, '![](icon://$1)');
+
   return (
     <div className="prose prose-invert max-w-none text-[var(--text)] opacity-90 leading-relaxed marker:text-[var(--accent)]">
       <ReactMarkdown urlTransform={(uri) => uri}
@@ -40,6 +43,10 @@ export default function MarkdownRenderer({ content, onAssetClick }: MarkdownRend
             );
           },
           img: ({ node, src, alt, ...props }) => {
+            if (src && src.startsWith('icon://')) {
+              const iconName = src.replace('icon://', '');
+              return <span className="material-symbols-outlined !text-[inherit] align-middle opacity-90 mx-0.5" title={alt || iconName}>{iconName}</span>;
+            }
             return (
               <span className="block my-6 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg theme-glass-inner relative">
                 <img src={src} alt={alt} className="w-full h-auto object-cover max-h-96" {...props} />
@@ -73,7 +80,7 @@ export default function MarkdownRenderer({ content, onAssetClick }: MarkdownRend
           }
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );

@@ -62,7 +62,7 @@
   "auth_toggle_to_login_from_reset": "Back to Network Access",
   "auth_toggle_to_reset": "Forgot Passcode? Reset it",
   "auth_toggle_to_signup": "New to Sanctuary? Register here",
-  "auto_": "••••••••••••",
+  "auto_": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
   "auto_0": "0",
   "auto_0xdeadbeef": "// 0xDEADBEEF",
   "auto_1": "1",
@@ -516,10 +516,10 @@
   "editor_code": "<>",
   "editor_h1": "H1",
   "editor_h2": "H2",
-  "editor_image": "🖼️",
+  "editor_image": "\ud83d\uddbc\ufe0f",
   "editor_italic": "I",
   "editor_ol": "1.",
-  "editor_ul": "•",
+  "editor_ul": "\u2022",
   "emote_bell": "notifications",
   "emote_broadcast": "",
   "emote_chat": "",
@@ -2558,7 +2558,7 @@
   "workbench_author_guide_title": "TEMPLATE AUTHORING GUIDE",
   "workbench_author_import": "IMPORT",
   "workbench_author_import_success": "Template successfully loaded into Editor!",
-  "workbench_author_import_to_editor": "IMPORT TO EDITOR →",
+  "workbench_author_import_to_editor": "IMPORT TO EDITOR \u2192",
   "workbench_author_mode_hint": "Use the Author Mode by selecting a .json file to create one.",
   "workbench_author_push": "PUSH TO NEXUS",
   "workbench_author_rename_desc": "The target config file to overwrite.",
@@ -2685,5 +2685,6 @@
   "template_available": "AVAILABLE TEMPLATES",
   "template_search_tmpl": "SEARCH TEMPLATES...",
   "template_sort_newest": "NEWEST",
-  "template_unknown_author": "UNKNOWN"
+  "template_unknown_author": "UNKNOWN",
+  "masonhub_search": "Search icons..."
 }

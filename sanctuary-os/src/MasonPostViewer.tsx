@@ -376,24 +376,6 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
             </span>
           </div>
         }
-        footer={
-          <div className="flex items-center justify-center w-full gap-8">
-             <div className="flex items-center gap-4">
-               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50">{t("feed_creator_links")}</span>
-               {post.mason_id !== 'system' && (
-                 <button onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }} className={standardButtonClass}>{t("feed_btn_view_profile")}</button>
-               )}
-               {post.masons?.patreon_url && <button onClick={() => openUrl(post.masons.patreon_url)} className="px-8 py-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-black uppercase tracking-[0.2em] rounded-[1.5rem] hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300 hover:-translate-y-1 hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--rose-500)_20%,transparent)] transition-all duration-300 flex items-center justify-center gap-2">{t("feed_btn_patreon")}</button>}
-               {post.masons?.discord_url && <button onClick={() => openUrl(post.masons.discord_url)} className="px-8 py-4 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-black uppercase tracking-[0.2em] rounded-[1.5rem] hover:bg-indigo-500/20 hover:border-indigo-500/60 hover:text-indigo-300 hover:-translate-y-1 hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--indigo-500)_20%,transparent)] transition-all duration-300 flex items-center justify-center gap-2">{t("feed_btn_discord")}</button>}
-             </div>
-             {userId && !isPostAuthor && (
-               <button onClick={() => setFlagTarget({id: post.id, type: 'post'})} className={standardDangerButtonClass}>
-                 <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_flag")}</span>
-                 {t("feed_btn_flag")}
-               </button>
-             )}
-          </div>
-        }
       >
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative p-10 gap-8">
           {imageUrl && (
@@ -432,6 +414,8 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 </div>
               </div>
             )}
+
+
           </div>
 
           <div className="mt-8 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-10 flex flex-col gap-8">
@@ -502,7 +486,23 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 buildCommentTree(comments).map(c => renderCommentNode(c))
               )}
             </div>
-            
+          </div>
+
+          <div className="mt-12 pt-8 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center w-full gap-8">
+             <div className="flex items-center gap-4">
+               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50">{t("feed_creator_links")}</span>
+               {post.mason_id !== 'system' && (
+                 <button onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }} className={standardButtonClass}>{t("feed_btn_view_profile")}</button>
+               )}
+               {post.masons?.patreon_url && <button onClick={() => openUrl(post.masons.patreon_url)} className="px-8 py-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-black uppercase tracking-[0.2em] rounded-[1.5rem] hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300 hover:-translate-y-1 hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--rose-500)_20%,transparent)] transition-all duration-300 flex items-center justify-center gap-2">{t("feed_btn_patreon")}</button>}
+               {post.masons?.discord_url && <button onClick={() => openUrl(post.masons.discord_url)} className="px-8 py-4 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-black uppercase tracking-[0.2em] rounded-[1.5rem] hover:bg-indigo-500/20 hover:border-indigo-500/60 hover:text-indigo-300 hover:-translate-y-1 hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--indigo-500)_20%,transparent)] transition-all duration-300 flex items-center justify-center gap-2">{t("feed_btn_discord")}</button>}
+             </div>
+             {userId && !isPostAuthor && (
+               <button onClick={() => setFlagTarget({id: post.id, type: 'post'})} className={standardDangerButtonClass}>
+                 <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_flag")}</span>
+                 {t("feed_btn_flag")}
+               </button>
+             )}
           </div>
         </div>
       </SidePanel>
