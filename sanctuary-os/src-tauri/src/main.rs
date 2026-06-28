@@ -233,6 +233,7 @@ fn launch_game(live_path: String, mods_path: String) -> Result<String, String> {
                         || (name.starts_with("lastuiexception") && name.ends_with(".txt"))
                         || (name.starts_with("lastcleanexception") && name.ends_with(".txt"))
                         || (name.starts_with("be-exceptionreport") && name.ends_with(".html"))
+                        || name == "lastcrash.txt"
                         || name == "mc_lastexception.html"
                         || name == "localthumbcache.package"
                         || name == "avatarcache.package"
