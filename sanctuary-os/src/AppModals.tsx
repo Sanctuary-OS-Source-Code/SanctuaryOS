@@ -842,9 +842,16 @@ export function AppModals(props: any) {
                     isSuccessStatus ? 'text-emerald-500 hover:bg-emerald-500/10' : 
                     'text-[var(--text)] opacity-90 hover:opacity-100'}`}
               >
-                <span className={`material-symbols-outlined !text-[16px] transition-transform duration-500 group-hover:rotate-90 ${updatePayload || isErrorStatus ? 'animate-pulse' : ''}`}>
-                  {updatePayload ? 'system_update_alt' : 'settings'}
-                </span>
+                <div className="relative flex items-center justify-center">
+                  <span className={`material-symbols-outlined !text-[16px] transition-transform duration-500 group-hover:scale-110 ${updatePayload || isErrorStatus ? 'animate-pulse' : ''}`}>
+                    memory
+                  </span>
+                  {updatePayload && (
+                    <span className="material-symbols-outlined absolute -bottom-1 -right-1 !text-[10px] text-[var(--accent)] drop-shadow-[0_0_5px_rgba(var(--accent-rgb),1)]">
+                      download
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] font-black uppercase tracking-widest ml-1">{updatePayload ? t("sys_stat_update_available") : t("system_status")}</span>
               </button>
             )}

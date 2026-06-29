@@ -55,7 +55,7 @@ export function UpdateSidePanel() {
       onClose={() => setIsUpdatePanelOpen(false)}
       title={t("update_panel_title")}
       subtitle={t("update_panel_subtitle")}
-      icon="system_update"
+      icon="system_update_alt"
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[550px]"
       backdropZ="z-[50000]"
@@ -72,7 +72,7 @@ export function UpdateSidePanel() {
             onMouseMove={handleMouseMove}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            className="theme-glass-inner p-8 rounded-xl border flex flex-col items-center justify-center gap-4 transition-all duration-300 relative overflow-hidden group theme-border-accent bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-[0_4px_20px_rgba(var(--accent-rgb),0.1)] text-center"
+            className="bg-black/20 backdrop-blur-md p-8 rounded-2xl border flex flex-col items-center justify-center gap-4 transition-all duration-300 relative overflow-hidden group border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-[0_4px_30px_rgba(var(--accent-rgb),0.15)] text-center"
           >
             {/* Spotlight Effect */}
             <div 
@@ -106,7 +106,7 @@ export function UpdateSidePanel() {
         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150 ease-out fill-mode-both relative z-10 flex-1 min-h-0">
           <SectionHeader icon="subject" title={t("update_panel_notes")} glowColor="rgba(255,255,255,0.8)" />
           
-          <div className="theme-glass-inner p-6 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group flex-1 flex flex-col">
+          <div className="bg-black/20 backdrop-blur-md p-6 rounded-2xl border border-white/5 transition-all hover:border-white/10 hover:bg-black/40 hover:shadow-lg relative overflow-hidden group flex-1 flex flex-col">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
             
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 relative z-10 prose prose-invert prose-sm max-w-none text-[var(--text)]/80 marker:text-[var(--accent)]">

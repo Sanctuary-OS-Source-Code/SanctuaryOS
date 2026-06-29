@@ -1633,28 +1633,28 @@ function App() {
       let allCloudData: any[] = [];
       const isOfflineMode = !session || localStorage.getItem("sanctuary_blacklisted") === "true";
       if (!isOfflineMode) {
-        for (let i = 0; i < hashes.length; i += 20) {
-        const chunk = hashes.slice(i, i + 20);
-        let { data, error } = await supabase
-          .from("mod_versions")
-          .select(
-            "dna_hash, version_label, game_version, download_url, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, folder_structure, masons(name))",
-          )
-          .in("dna_hash", chunk);
-        if (error) {
-          console.warn(
-            "Schema mismatch detected, falling back to safe query...",
-          );
-          const fallback = await supabase
-            .from("mod_versions")
-            .select(
-              "dna_hash, version_label, game_version, download_url, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, mason_id, created_at, updated_at, folder_structure, masons(name))",
-            )
-            .in("dna_hash", chunk);
-          data = fallback.data as any;
+        const promises = [];
+        for (let i = 0; i < hashes.length; i += 200) {
+          const chunk = hashes.slice(i, i + 200);
+          promises.push((async () => {
+            let { data, error } = await supabase
+              .from("mod_versions")
+              .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, folder_structure, masons(name))")
+              .in("dna_hash", chunk);
+            
+            if (error) {
+              console.warn("Schema mismatch detected, falling back to safe query...");
+              const fallback = await supabase
+                .from("mod_versions")
+                .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, mason_id, created_at, updated_at, folder_structure, masons(name))")
+                .in("dna_hash", chunk);
+              data = fallback.data as any;
+            }
+            return data || [];
+          })());
         }
-        if (data) allCloudData = [...allCloudData, ...data];
-        }
+        const results = await Promise.all(promises);
+        allCloudData = results.flat();
       }
       const getDbMod = (sig: any) =>
         Array.isArray(sig?.mods) ? sig.mods[0] : sig?.mods;
@@ -1680,42 +1680,56 @@ function App() {
         ccSetsMetadata = sets || [];
         globalConflicts = rawConflicts || [];
         if (hashes.length > 0) {
-          for (let i = 0; i < hashes.length; i += 20) {
-            const chunk = hashes.slice(i, i + 20);
-            const { data: fData } = await supabase
-              .from("flavor_group_members")
-              .select("group_id, mod_hash")
-              .in("mod_hash", chunk);
-            if (fData) flavorData = [...flavorData, ...fData];
+          const fPromises = [];
+          for (let i = 0; i < hashes.length; i += 200) {
+            const chunk = hashes.slice(i, i + 200);
+            fPromises.push(
+              supabase
+                .from("flavor_group_members")
+                .select("group_id, mod_hash")
+                .in("mod_hash", chunk)
+                .then((r) => r.data || [])
+            );
           }
+          const fResults = await Promise.all(fPromises);
+          flavorData = fResults.flat();
           const uniqueGroupIds = [
             ...new Set(flavorData.map((f) => f.group_id)),
           ];
           if (uniqueGroupIds.length > 0) {
-            for (let i = 0; i < uniqueGroupIds.length; i += 20) {
-              const chunk = uniqueGroupIds.slice(i, i + 20);
-              const { data: gData } = await supabase
-                .from("flavor_groups")
-                .select("id, name")
-                .in("id", chunk);
-              if (gData)
-                gData.forEach((g) => {
-                  flavorGroupNames[String(g.id)] = g.name;
-                });
-              const { data: pMods } = await supabase
-                .from("mods")
-                .select("id, name, master_author, image_url, url")
-                .in("id", chunk);
-              if (pMods)
-                pMods.forEach((pm) => {
-                  parentNameMap[String(pm.id)] = {
-                    name: pm.name,
-                    author: pm.master_author || "Unknown",
-                    image_url: pm.image_url,
-                    url: pm.url,
-                  };
-                });
+            const gPromises = [];
+            const pPromises = [];
+            for (let i = 0; i < uniqueGroupIds.length; i += 200) {
+              const chunk = uniqueGroupIds.slice(i, i + 200);
+              gPromises.push(
+                supabase
+                  .from("flavor_groups")
+                  .select("id, name")
+                  .in("id", chunk)
+                  .then((r) => r.data || [])
+              );
+              pPromises.push(
+                supabase
+                  .from("mods")
+                  .select("id, name, master_author, image_url, url")
+                  .in("id", chunk)
+                  .then((r) => r.data || [])
+              );
             }
+            const gResults = await Promise.all(gPromises);
+            const pResults = await Promise.all(pPromises);
+
+            gResults.flat().forEach((g) => {
+              flavorGroupNames[String(g.id)] = g.name;
+            });
+            pResults.flat().forEach((pm) => {
+              parentNameMap[String(pm.id)] = {
+                name: pm.name,
+                author: pm.master_author || "Unknown",
+                image_url: pm.image_url,
+                url: pm.url,
+              };
+            });
           }
         }
         }
@@ -1723,29 +1737,52 @@ function App() {
         console.error("Bridge Error:", err);
       }
       if (identifiedIds.length > 0 && !isOfflineMode) {
-        for (let i = 0; i < identifiedIds.length; i += 20) {
-          const chunk = identifiedIds.slice(i, i + 20);
-          const { data: relsChild } = await supabase
-            .from("mod_relationships")
-            .select("*")
-            .in("child_id", chunk);
-          const { data: relsParent } = await supabase
-            .from("mod_relationships")
-            .select("*")
-            .in("parent_id", chunk);
-          if (relsChild) allRels = [...allRels, ...relsChild];
-          if (relsParent) allRels = [...allRels, ...relsParent];
-          const { data: depsChild } = await supabase
-            .from("mod_dependencies")
-            .select("*")
-            .in("child_id", chunk);
-          const { data: depsParent } = await supabase
-            .from("mod_dependencies")
-            .select("*")
-            .in("parent_id", chunk);
-          if (depsChild) allDeps = [...allDeps, ...depsChild];
-          if (depsParent) allDeps = [...allDeps, ...depsParent];
+        const relChildPromises = [];
+        const relParentPromises = [];
+        const depChildPromises = [];
+        const depParentPromises = [];
+
+        for (let i = 0; i < identifiedIds.length; i += 200) {
+          const chunk = identifiedIds.slice(i, i + 200);
+          relChildPromises.push(
+            supabase
+              .from("mod_relationships")
+              .select("*")
+              .in("child_id", chunk)
+              .then((r) => r.data || [])
+          );
+          relParentPromises.push(
+            supabase
+              .from("mod_relationships")
+              .select("*")
+              .in("parent_id", chunk)
+              .then((r) => r.data || [])
+          );
+          depChildPromises.push(
+            supabase
+              .from("mod_dependencies")
+              .select("*")
+              .in("child_id", chunk)
+              .then((r) => r.data || [])
+          );
+          depParentPromises.push(
+            supabase
+              .from("mod_dependencies")
+              .select("*")
+              .in("parent_id", chunk)
+              .then((r) => r.data || [])
+          );
         }
+        
+        const [rC, rP, dC, dP] = await Promise.all([
+          Promise.all(relChildPromises),
+          Promise.all(relParentPromises),
+          Promise.all(depChildPromises),
+          Promise.all(depParentPromises)
+        ]);
+        
+        allRels = [...rC.flat(), ...rP.flat()];
+        allDeps = [...dC.flat(), ...dP.flat()];
         const pIds = [
           ...new Set([
             ...allRels.map((r) => String(r.parent_id)),
@@ -1755,22 +1792,26 @@ function App() {
           ]),
         ];
         if (pIds.length > 0) {
-          for (let i = 0; i < pIds.length; i += 20) {
-            const chunk = pIds.slice(i, i + 20);
-            const { data: pMods } = await supabase
-              .from("mods")
-              .select("id, name, master_author, image_url, url")
-              .in("id", chunk);
-            if (pMods)
-              pMods.forEach((pm) => {
-                parentNameMap[String(pm.id)] = {
-                  name: pm.name,
-                  author: pm.master_author || "Unknown",
-                  image_url: pm.image_url,
-                  url: pm.url,
-                };
-              });
+          const pPromises = [];
+          for (let i = 0; i < pIds.length; i += 200) {
+            const chunk = pIds.slice(i, i + 200);
+            pPromises.push(
+              supabase
+                .from("mods")
+                .select("id, name, master_author, image_url, url")
+                .in("id", chunk)
+                .then((r) => r.data || [])
+            );
           }
+          const pResults = await Promise.all(pPromises);
+          pResults.flat().forEach((pm) => {
+            parentNameMap[String(pm.id)] = {
+              name: pm.name,
+              author: pm.master_author || "Unknown",
+              image_url: pm.image_url,
+              url: pm.url,
+            };
+          });
         }
       }
       const cloudMap = new Map();

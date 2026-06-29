@@ -102,6 +102,10 @@ struct CacheEntry {
     explicitly_local: bool,
     #[serde(default)]
     quarantined: bool,
+    #[serde(default)]
+    heuristic_malware_sig: Option<String>,
+    #[serde(default)]
+    heuristic_sigs_mtime: u64,
 }
 
 type BunkerCache = HashMap<String, CacheEntry>;
@@ -1106,6 +1110,15 @@ fn scan_bunker(
     state: tauri::State<'_, SecurityState>,
 ) -> Result<Vec<ModData>, String> {
     let heuristic_sigs = get_heuristic_signatures(vault_path.clone()).unwrap_or_else(|_| vec![]);
+    
+    let sigs_path = PathBuf::from(&vault_path).join("Data").join(".malware_signatures.json");
+    let current_sigs_mtime = std::fs::metadata(&sigs_path)
+        .and_then(|m| m.modified())
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+        
     let vault_dir = PathBuf::from(&vault_path);
     let mods_lane = if vault_dir.ends_with("Mods") {
         vault_dir.clone()
@@ -1154,6 +1167,12 @@ fn scan_bunker(
     let progress_counter = Arc::new(AtomicUsize::new(0));
     let mut results = Vec::new();
     let mut last_emit = std::time::Instant::now();
+    
+    let malware_hashes_set: std::collections::HashSet<String> = if let Ok(m) = state.malware_hashes.lock() {
+        m.iter().cloned().collect()
+    } else {
+        std::collections::HashSet::new()
+    };
 
     for path in paths {
         let path_str = path.to_string_lossy().to_string();
@@ -1185,9 +1204,14 @@ fn scan_bunker(
 
         let is_script = path.extension().map_or(false, |ext| ext == "ts4script");
         
-        let (dna_hash, explicitly_local) = if let Some(cached) = cache.get(&path_str) {
+        let (dna_hash, explicitly_local, mut cached_heuristic_sig) = if let Some(cached) = cache.get(&path_str) {
             if cached.mtime == mtime {
-                (cached.dna_hash.clone(), cached.explicitly_local)
+                let heuristic_sig = if cached.heuristic_sigs_mtime == current_sigs_mtime {
+                    Some(cached.heuristic_malware_sig.clone())
+                } else {
+                    None
+                };
+                (cached.dna_hash.clone(), cached.explicitly_local, heuristic_sig)
             } else {
                 let hash = calculate_hash(&path).unwrap_or_default();
                 let explicit = check_is_explicitly_local(&path, is_script);
@@ -1198,10 +1222,12 @@ fn scan_bunker(
                         dna_hash: hash.clone(),
                         explicitly_local: explicit,
                         quarantined: false,
+                        heuristic_malware_sig: None,
+                        heuristic_sigs_mtime: 0,
                     },
                 );
                 cache_updated = true;
-                (hash, explicit)
+                (hash, explicit, None)
             }
         } else {
             let hash = calculate_hash(&path).unwrap_or_default();
@@ -1213,26 +1239,38 @@ fn scan_bunker(
                     dna_hash: hash.clone(),
                     explicitly_local: explicit,
                     quarantined: false,
+                    heuristic_malware_sig: None,
+                    heuristic_sigs_mtime: 0,
                 },
             );
             cache_updated = true;
-            (hash, explicit)
+            (hash, explicit, None)
         };
-
 
         let mut is_malware = false;
         let mut signature_name = "NO SIGNATURE MATCH".to_string();
 
-        if let Ok(m) = state.malware_hashes.lock() {
-            if m.contains(&dna_hash) {
-                is_malware = true;
-            }
+        if malware_hashes_set.contains(&dna_hash) {
+            is_malware = true;
         }
 
         if !is_malware && is_script {
-            if let Some(sig) = check_heuristic_malware(&path, &heuristic_sigs) {
-                is_malware = true;
-                signature_name = sig;
+            if let Some(cached_sig_opt) = cached_heuristic_sig {
+                if let Some(sig) = cached_sig_opt {
+                    is_malware = true;
+                    signature_name = sig;
+                }
+            } else {
+                let sig_opt = check_heuristic_malware(&path, &heuristic_sigs);
+                if let Some(sig) = sig_opt.clone() {
+                    is_malware = true;
+                    signature_name = sig;
+                }
+                if let Some(entry) = cache.get_mut(&path_str) {
+                    entry.heuristic_malware_sig = sig_opt;
+                    entry.heuristic_sigs_mtime = current_sigs_mtime;
+                    cache_updated = true;
+                }
             }
         }
 
@@ -1247,7 +1285,7 @@ fn scan_bunker(
             let manifest = QuarantineManifest {
                 artifact_name: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
                 detected_hash: dna_hash.clone(),
-                signature: signature_name,
+                signature: signature_name.clone(),
                 quarantine_path: obscure_username(&target.to_string_lossy()),
                 original_path: None,
                 original_hash_at_import: None,
@@ -1285,6 +1323,8 @@ fn scan_bunker(
                     dna_hash: dna_hash.clone(),
                     explicitly_local: false,
                     quarantined: true,
+                    heuristic_malware_sig: Some(signature_name.clone()),
+                    heuristic_sigs_mtime: current_sigs_mtime,
                 }
             );
             cache_updated = true;

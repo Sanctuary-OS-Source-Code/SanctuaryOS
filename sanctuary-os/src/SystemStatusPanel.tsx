@@ -34,7 +34,7 @@ function AnimatedNumber({ value, suffix = '' }: { value: number, suffix?: string
 
 export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { t } = useLexicon();
-  const { updatePayload, setIsUpdatePanelOpen } = useModalStore();
+  const { updatePayload, setIsUpdatePanelOpen, setUpdatePayload } = useModalStore();
   const [telemetry, setTelemetry] = useState<any>(null);
   const [vaultSize, setVaultSize] = useState<number | null>(null);
   const [artifactsSize, setArtifactsSize] = useState<number | null>(null);
@@ -99,12 +99,42 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
         {/* App Info */}
         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10">
           <SectionHeader icon="terminal" title={t("sys_info_app")} glowColor="rgba(var(--accent-rgb),0.8)" />
+          {updatePayload && (
+            <button onClick={() => { setIsUpdatePanelOpen(true); }} className="w-full theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.3)] flex items-center justify-between overflow-hidden relative group hover:-translate-y-1 mt-2">
+                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10" />
+                 <div className="flex items-center gap-4 relative z-10">
+                     <div className="w-12 h-12 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">
+                         <span className="material-symbols-outlined theme-text-accent text-[24px] animate-bounce">downloading</span>
+                     </div>
+                     <div className="flex flex-col items-start">
+                         <span className="text-[10px] font-black uppercase tracking-[0.2em] theme-text-accent opacity-90 drop-shadow-sm">{t("sys_stat_update_available")}</span>
+                         <span className="text-2xl font-black uppercase tracking-tighter theme-text-accent drop-shadow-md">V{updatePayload.version}</span>
+                     </div>
+                 </div>
+                 <div className="relative z-10 opacity-50 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 duration-300 flex items-center pr-2">
+                     <span className="material-symbols-outlined theme-text-accent text-3xl">arrow_right_alt</span>
+                 </div>
+            </button>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
-            {updatePayload ? (
-              <StatBox onClick={() => { onClose(); setIsUpdatePanelOpen(true); }} label={t("sys_stat_update_available")} value={`V${updatePayload.version}`} icon="system_update_alt" accent pulseIcon glowColor="rgba(var(--accent-rgb),0.8)" />
-            ) : (
-              <StatBox label={t("sys_stat_version")} value={`V${packageJson.version}`} icon="new_releases" glowColor="rgba(255,255,255,0.2)" />
-            )}
+            <StatBox 
+              label={t("sys_stat_version")} 
+              value={`V${packageJson.version}`} 
+              icon="new_releases" 
+              glowColor="rgba(255,255,255,0.2)"
+              onClick={(e) => {
+                if (e.altKey) {
+                  setUpdatePayload({
+                    version: "9.9.9",
+                    date: new Date().toISOString(),
+                    body: "This is a simulated update payload for UI testing.",
+                    downloadAndInstall: async () => { console.log("Simulating install..."); }
+                  } as any);
+                }
+              }} 
+            />
             <StatBox 
               label={t("sys_stat_online")} 
               value={
@@ -115,7 +145,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
                   </span>
                 </div>
               } 
-              icon="satellite_alt" 
+              icon="cloud" 
               glowColor="rgba(16,185,129,0.4)"
             />
           </div>
@@ -233,7 +263,7 @@ function SectionHeader({ icon, title, glowColor }: { icon: string, title: string
   );
 }
 
-function StatBox({ label, value, icon, accent = false, pulseIcon = false, glowColor, onClick }: { label: string, value: React.ReactNode, icon: string, accent?: boolean, pulseIcon?: boolean, glowColor: string, onClick?: () => void }) {
+function StatBox({ label, value, icon, accent = false, pulseIcon = false, glowColor, onClick }: { label: string, value: React.ReactNode, icon: string, accent?: boolean, pulseIcon?: boolean, glowColor: string, onClick?: (e: React.MouseEvent<HTMLDivElement>) => void }) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
