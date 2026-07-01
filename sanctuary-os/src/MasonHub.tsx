@@ -980,6 +980,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
   const [imageUrl, setImageUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<any>(null);
   const [previewPost, setPreviewPost] = useState<any>(null);
   const [codeSnippet, setCodeSnippet] = useState("");
   const [showCodeInput, setShowCodeInput] = useState(false);
@@ -990,6 +991,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
   const [assets, setAssets] = useState<any[]>([]);
   const [masonName, setMasonName] = useState<string>("");
   const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
   const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -998,6 +1000,55 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [isPinned, setIsPinned] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const masonHubDrafts = useStore(state => state.masonHubDrafts);
+  const setMasonHubDrafts = useStore(state => state.setMasonHubDrafts);
+
+  useEffect(() => {
+    if (isEditorOpen) {
+      const draftId = editingPostId || 'new';
+      
+      let isUnchanged = false;
+      if (editingPost) {
+        let rawContent = editingPost.content || '';
+        let parsedImage = extractPostImage(editingPost) || "";
+        if (rawContent.startsWith('[IMG:')) {
+          const endIdx = rawContent.indexOf(']');
+          if (endIdx !== -1) {
+            rawContent = rawContent.substring(endIdx + 1).trim();
+          }
+        }
+        
+        isUnchanged = 
+          title === editingPost.title &&
+          content === rawContent &&
+          imageUrl === parsedImage &&
+          codeSnippet === (editingPost.code_snippet || "") &&
+          isPinned === !!editingPost.is_pinned;
+      } else {
+        isUnchanged = 
+          title === "" &&
+          content === "" &&
+          imageUrl === "" &&
+          codeSnippet === "" &&
+          isPinned === false;
+      }
+
+      if (isUnchanged) {
+        setMasonHubDrafts(prev => {
+          if (!prev[draftId]) return prev;
+          const next = { ...prev };
+          delete next[draftId];
+          return next;
+        });
+      } else {
+        setMasonHubDrafts(prev => ({
+          ...prev,
+          [draftId]: { title, content, imageUrl, codeSnippet, isPinned }
+        }));
+      }
+    }
+  }, [isEditorOpen, editingPostId, editingPost, title, content, imageUrl, codeSnippet, isPinned]);
 
   const editor = useEditor({
     extensions: [
@@ -1069,17 +1120,16 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
     setIsAssetPanelOpen(false);
     setAssetSearchQuery("");
   };
-
   const filteredAssets = assets.filter(a => a.name.toLowerCase().includes(assetSearchQuery.toLowerCase()));
 
   const openEditor = (post?: any) => {
     setViewMode('edit');
+    const draftId = post ? post.id : 'new';
+    const draft = useStore.getState().masonHubDrafts[draftId];
+
     if (post) {
       setEditingPostId(post.id);
-      setTitle(post.title);
-      setCodeSnippet(post.code_snippet || "");
-      setShowCodeInput(!!post.code_snippet);
-      setIsPinned(!!post.is_pinned);
+      setEditingPost(post);
       let rawContent = post.content || '';
       let parsedImage = extractPostImage(post) || "";
       if (rawContent.startsWith('[IMG:')) {
@@ -1088,24 +1138,31 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
           rawContent = rawContent.substring(endIdx + 1).trim();
         }
       }
-      setContent(rawContent);
+      
+      setTitle(draft?.title ?? post.title);
+      setCodeSnippet(draft?.codeSnippet ?? (post.code_snippet || ""));
+      setShowCodeInput(!!(draft?.codeSnippet ?? post.code_snippet));
+      setIsPinned(draft?.isPinned ?? !!post.is_pinned);
+      
+      const contentToSet = draft?.content ?? rawContent;
+      setContent(contentToSet);
       if (editor) {
-        editor.commands.setContent(rawContent);
+        editor.commands.setContent(contentToSet);
       }
-      setImageUrl(parsedImage);
+      setImageUrl(draft?.imageUrl ?? parsedImage);
     } else {
       setEditingPostId(null);
-      setTitle("");
-      setContent("");
+      setEditingPost(null);
+      setTitle(draft?.title ?? "");
+      const contentToSet = draft?.content ?? "";
+      setContent(contentToSet);
       if (editor) {
-        editor.commands.setContent("");
+        editor.commands.setContent(contentToSet);
       }
-      setImageUrl("");
-      setCodeSnippet("");
-      setShowCodeInput(false);
-    setShowImageInput(false);
-    setShowIconPicker(false);
-      setIsPinned(false);
+      setImageUrl(draft?.imageUrl ?? "");
+      setCodeSnippet(draft?.codeSnippet ?? "");
+      setShowCodeInput(!!draft?.codeSnippet);
+      setIsPinned(draft?.isPinned ?? false);
     }
     setIsEditorOpen(true);
   };
@@ -1113,6 +1170,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
   const closeEditor = () => {
     setIsEditorOpen(false);
     setEditingPostId(null);
+    setEditingPost(null);
     setTitle("");
     setContent("");
     if (editor) {
@@ -1121,7 +1179,25 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
     setImageUrl("");
     setCodeSnippet("");
     setShowCodeInput(false);
+    setShowImageInput(false);
+    setShowIconPicker(false);
     setIsPinned(false);
+  };
+
+  const handleDiscardChanges = () => {
+    if (!confirmDiscard) {
+      setConfirmDiscard(true);
+      setTimeout(() => setConfirmDiscard(false), 3000);
+      return;
+    }
+    const draftId = editingPostId || 'new';
+    setMasonHubDrafts(prev => {
+      const next = { ...prev };
+      delete next[draftId];
+      return next;
+    });
+    setConfirmDiscard(false);
+    closeEditor();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1194,6 +1270,11 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
         }
       }
       
+      useStore.getState().setMasonHubDrafts(prev => {
+        const next = { ...prev };
+        delete next[editingPostId || 'new'];
+        return next;
+      });
       closeEditor();
       fetchPostsAndAssets();
       useStore.getState().pushStatus(editingPostId ? "Transmission Updated!" : t("mason_post_success"), 'success');
@@ -1251,7 +1332,7 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
       <div className="p-8 flex flex-col gap-10 pb-32">
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
            {filteredPosts.map(post => (
-             <div key={post.id} className={`theme-glass-panel p-5 rounded-3xl relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden ${post.is_pinned ? 'border-[var(--accent)]/30 bg-[var(--accent)]/5 shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)]' : 'border border-white/5 hover:border-white/10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
+             <div key={post.id} className={`theme-glass-panel p-5 rounded-3xl relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden ${!!masonHubDrafts[post.id] ? '!border-amber-500/30 text-amber-500 !bg-amber-500/10 hover:!bg-amber-500/20 hover:!border-amber-500/50 shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : post.is_pinned ? '!border-[var(--accent)]/30 !bg-[var(--accent)]/5 shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)]' : 'border border-white/5 hover:border-white/10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
                 {extractPostImage(post) && (
                   <div className="-mx-5 -mt-5 rounded-t-3xl overflow-hidden h-36 bg-black/40 relative border-b border-white/5 shrink-0 z-10">
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none" />
@@ -1270,6 +1351,12 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
                   </div>
                   <h4 className="text-lg font-black text-[var(--text)] uppercase tracking-tighter line-clamp-1">{post.title}</h4>
                 </div>
+                {!!masonHubDrafts[post.id] && (
+                  <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-[var(--warning)] bg-[var(--warning)]/20 border border-[var(--warning)]/40 px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none backdrop-blur-xl">
+                     <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_edit_note")}</span>
+                     {t("ph_unsaved_changes") || "UNSAVED EDITS"}
+                  </div>
+                )}
                 <div className="flex-1 relative z-10 -mx-1">
                   <p className="text-[11px] font-mono text-[var(--subtext)] opacity-70 leading-relaxed whitespace-pre-wrap break-words line-clamp-5">
                     {stripMarkdown(post.content).length > 300 ? stripMarkdown(post.content).substring(0, 300) + '...' : stripMarkdown(post.content)}
@@ -1316,10 +1403,24 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
             subtitle={editingPostId ? (t("masonhub_editing_record")) : (t("masonhub_composing_broadcast"))}
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
-                <button onClick={closeEditor} disabled={isSubmitting} className={standardButtonClass}>{t("ui_btn_cancel")}</button>
-                <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className={standardAccentGlassButtonClass}>
-                  {isSubmitting ? t("mason_saving") : (editingPostId ? t("masonhub_update_transmission") : t("mason_btn_post"))}
-                </button>
+                {((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? (
+                   <button onClick={handleDiscardChanges} disabled={isSubmitting} className={standardButtonClass + (confirmDiscard ? " !border-[var(--danger)] !text-[var(--danger)] !bg-[var(--danger)]/20 shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_40%,transparent)]" : " !border-[var(--danger)]/30 !text-[var(--danger)] hover:!border-[var(--danger)]/60 hover:!bg-[var(--danger)]/10")}>
+                     {confirmDiscard ? (t("ui_confirm_discard") || "Confirm Discard") : (t("ui_btn_discard_edits") || "DISCARD EDITS")}
+                   </button>
+                ) : (
+                   <button onClick={closeEditor} disabled={isSubmitting} className={standardButtonClass}>{t("ui_btn_cancel")}</button>
+                )}
+                <div className="relative group/btn flex">
+                  <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className={((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? standardAccentGlassButtonClass.replace('bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--accent)_30%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]').replace('text-[var(--accent)]', 'text-[var(--warning)]').replace('hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]', 'hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]') : standardAccentGlassButtonClass}>
+                    {isSubmitting ? t("mason_saving") : (editingPostId ? t("masonhub_update_transmission") : t("mason_btn_post"))}
+                  </button>
+                  {((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) && (
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[var(--warning)] whitespace-nowrap bg-[var(--bg)]/90 px-3 py-1.5 rounded-full border border-[var(--warning)]/40 opacity-0 group-hover/btn:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg backdrop-blur-xl">
+                      <span className="material-symbols-outlined !text-[12px]">{t("auto_warning")}</span>
+                      {t("ph_unsaved_changes") || "UNSAVED EDITS"}
+                    </div>
+                  )}
+                </div>
               </div>
             }
           >
@@ -1433,6 +1534,18 @@ function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: {
                           />
                         </div>
                       )}
+                      
+                      <div className="flex items-center justify-between p-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-b-2xl shrink-0">
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest flex items-center gap-1.5 ${showCodeInput ? 'theme-bg-accent/20 theme-text-accent' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">{t("auto_data_object")}</span> {showCodeInput ? (t("masonhub_hide_code")) : (t("masonhub_add_code"))}
+                          </button>
+                          <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 flex items-center gap-1.5">
+                            <span className="material-symbols-outlined !text-[14px]">{t("auto_link")}</span> {t("masonhub_link_asset")}
+                          </button>
+                        </div>
+                        <div className="text-[9px] font-black tracking-widest uppercase opacity-40 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("auto_markdown")}</span> {t("auto_markdown")}</div>
+                      </div>
                       
                     </div>
                   </div>
@@ -1710,6 +1823,9 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
   const [existingHashes, setExistingHashes] = useState<Set<string>>(new Set());
   const [linkSearch, setLinkSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [sandboxTabFilter, setSandboxTabFilter] = useState<'local' | 'synced'>('local');
+  const [sandboxTypeFilter, setSandboxTypeFilter] = useState<'ALL' | 'ARTIFACTS' | 'CONFIGS' | 'TEMPLATES'>('ALL');
+  const [confirmPurge, setConfirmPurge] = useState(false);
   
   const [isEditorOpen, setIsEditorOpen] = useState(!!initialSandboxMod);
 
@@ -1861,7 +1977,47 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
     setIsCommitting(false);
   };
   
-  const searchFilter = (m: any) => !searchTerm || m.name?.toLowerCase().includes(searchTerm.toLowerCase());
+  const handlePurge = async () => {
+    if (!activeMod) return;
+    if (!confirmPurge) {
+       setConfirmPurge(true);
+       setTimeout(() => setConfirmPurge(false), 3000);
+       return;
+    }
+    
+    try {
+      let vDir = vaultPath || "";
+      let devLane = vDir.endsWith("Mods") || vDir.endsWith("Mods/") || vDir.endsWith("Mods\\") 
+         ? vDir.replace(/[\\/]Mods[\\/]?$/, "") + "/Dev/Sandbox"
+         : vDir + "/Dev/Sandbox";
+      
+      const fullPath = `${devLane}/${activeMod.name}`;
+      await invoke("delete_local_file", { path: fullPath });
+      useStore.getState().pushStatus((t("ui_btn_delete") || "Deleted") + " " + activeMod.name, "success");
+      setIsEditorOpen(false);
+      setConfirmPurge(false);
+      fetchSandboxMods();
+    } catch (e: any) {
+      useStore.getState().pushStatus(`Failed to delete: ${e}`, "error");
+    }
+  };
+
+  const searchFilter = (m: any) => {
+    if (searchTerm && !m.name?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    
+    const nameLower = m.name?.toLowerCase() || "";
+    if (sandboxTypeFilter === 'ARTIFACTS') {
+       return !nameLower.endsWith('.ini') && !nameLower.endsWith('.cfg') && !nameLower.endsWith('.json');
+    }
+    if (sandboxTypeFilter === 'CONFIGS') {
+       return nameLower.endsWith('.ini') || nameLower.endsWith('.cfg');
+    }
+    if (sandboxTypeFilter === 'TEMPLATES') {
+       return nameLower.endsWith('.json');
+    }
+    
+    return true;
+  };
   const syncedMods = sandboxMods.filter(m => existingHashes.has(m.hash) && searchFilter(m));
   const unlinkedMods = sandboxMods.filter(m => !existingHashes.has(m.hash) && searchFilter(m));
 
@@ -1889,6 +2045,23 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
               </button>
             )}
           </div>
+          <div className="w-[180px] shrink-0">
+             <CustomDropdown 
+               disableTint={true} 
+               value={sandboxTypeFilter} 
+               onChange={(v: string[]) => setSandboxTypeFilter(v[0] as any)} 
+               options={[
+                 {id: "ALL", label: t("auto_all") || "ALL"}, 
+                 {id: "ARTIFACTS", label: t("sandbox_type_artifacts") || "ARTIFACTS"}, 
+                 {id: "CONFIGS", label: t("sandbox_type_configs") || "CONFIGS"}, 
+                 {id: "TEMPLATES", label: t("sandbox_type_templates") || "TEMPLATES"}
+               ]} 
+             />
+          </div>
+          <div className="flex items-center gap-1 theme-glass-panel rounded-xl p-1 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex mr-4">
+            <button onClick={() => setSandboxTabFilter('local')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("auto_unlinked_artifacts") || "LOCAL"}</button>
+            <button onClick={() => setSandboxTabFilter('synced')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}>{t("auto_synced_artifacts") || "SYNCED"}</button>
+          </div>
           <button 
             onClick={handleImportToSandbox} 
             disabled={isImporting}
@@ -1908,8 +2081,9 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
         ) : (
           <>
             {/* Unlinked Section */}
+            {sandboxTabFilter === 'local' && (
             <div className="flex flex-col gap-6">
-              <h3 className="text-lg font-black theme-text-accent uppercase tracking-widest px-2 border-b border-white/10 pb-2">
+              <h3 className="text-lg font-black text-[var(--text)] uppercase tracking-widest px-2 opacity-80">
                 {t("auto_unlinked_artifacts")}
               </h3>
               {unlinkedMods.length === 0 ? (
@@ -1921,7 +2095,7 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
                   {unlinkedMods.map(mod => (
                     <button 
                       key={mod.hash} 
-                      onClick={() => { setActiveMod(mod); setIsEditorOpen(true); }} 
+                      onClick={() => { setActiveMod(mod); setIsEditorOpen(true); setConfirmPurge(false); }} 
                       className="theme-glass-panel rounded-[1.5rem] relative group flex flex-col text-left overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-orange-500/50 hover:shadow-[0_0_40px_rgba(249,115,22,0.15)] transition-all duration-500 hover:-translate-y-1.5 bg-gradient-to-br from-white/5 to-transparent min-h-[160px]"
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
@@ -1946,10 +2120,12 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
                 </div>
               )}
             </div>
+            )}
 
             {/* Synced Section */}
-            <div className="flex flex-col gap-6 mt-4">
-              <h3 className="text-lg font-black text-[var(--text)] opacity-80 uppercase tracking-widest px-2 border-b border-white/10 pb-2">
+            {sandboxTabFilter === 'synced' && (
+            <div className="flex flex-col gap-6">
+              <h3 className="text-lg font-black text-[var(--text)] uppercase tracking-widest px-2 opacity-80">
                 {t("auto_synced_artifacts")}
               </h3>
               {syncedMods.length === 0 ? (
@@ -1961,7 +2137,7 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
                   {syncedMods.map(mod => (
                     <button 
                       key={mod.hash} 
-                      onClick={() => { setActiveMod(mod); setIsEditorOpen(true); }} 
+                      onClick={() => { setActiveMod(mod); setIsEditorOpen(true); setConfirmPurge(false); }} 
                       className="theme-glass-panel rounded-[1.5rem] relative group flex flex-col text-left overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-emerald-500/50 hover:shadow-[0_0_40px_rgba(16,185,129,0.15)] transition-all duration-500 hover:-translate-y-1.5 bg-gradient-to-br from-white/5 to-transparent min-h-[160px] opacity-80 hover:opacity-100"
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
@@ -1986,6 +2162,7 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
                 </div>
               )}
             </div>
+            )}
           </>
         )}
       </div>
@@ -2004,8 +2181,8 @@ function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { maso
             panelZ="z-[50001]"
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
-                <button onClick={() => setIsEditorOpen(false)} className={standardButtonClass}>
-                  {t("shared_cancel")}
+                <button onClick={handlePurge} disabled={isCommitting} className={standardButtonClass + (confirmPurge ? " !border-[var(--danger)] !text-[var(--danger)] !bg-[var(--danger)]/20 shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_40%,transparent)]" : " !border-[var(--danger)]/30 !text-[var(--danger)] hover:!border-[var(--danger)]/60 hover:!bg-[var(--danger)]/10")}>
+                  {confirmPurge ? (t("ui_confirm_delete") || "ARE YOU SURE?") : (t("ui_btn_purge") || "PURGE")}
                 </button>
                 <button onClick={handleSyncToNetwork} disabled={isCommitting} className={standardSuccessButtonClass}>
                   {isCommitting ? t("sandbox_btn_syncing") : (t("sandbox_btn_sync"))}

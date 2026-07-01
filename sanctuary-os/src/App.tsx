@@ -412,7 +412,7 @@ function App() {
         }));
       }
       
-      setStatus(`${t("ui_icon_success")} Local overrides saved successfully.`);
+      setStatus(`${t("log_icon_success")} ${t("status_local_overrides_saved")}`);
       setIsEditingMeta(false);
       setEditMode(false);
       runRadarSweep(true);
@@ -451,7 +451,7 @@ function App() {
         }
       }
       
-      setStatus(`${t("ui_icon_success")} Local overrides reset to database defaults.`);
+      setStatus(`${t("log_icon_success")} ${t("status_local_overrides_reset")}`);
       setIsEditingMeta(false);
       setEditMode(false);
       setIsCorrectingMeta(false);
@@ -839,7 +839,7 @@ function App() {
     }
     
     // Check for cached unsaved edits
-    let editNames: string[] = [];
+    let fileEditNames: string[] = [];
     const cwEdits = localStorage.getItem("sanctuary_cw_unsaved_edits");
     if (cwEdits) {
       try {
@@ -847,7 +847,7 @@ function App() {
         Object.keys(parsed).forEach(k => {
           if (Object.keys(parsed[k]).length > 0) {
              const name = k.split(/[\\/]/).pop();
-             if (name && !editNames.includes(name)) editNames.push(name);
+             if (name && !fileEditNames.includes(name)) fileEditNames.push(name);
           }
         });
       } catch (e) {}
@@ -859,24 +859,60 @@ function App() {
         const parsed = JSON.parse(ideEdits);
         if (Array.isArray(parsed)) {
            parsed.forEach((f: any) => {
-              if (f.content !== f.originalContent && !editNames.includes(f.name)) {
-                 editNames.push(f.name);
+              if (f.content !== f.originalContent && !fileEditNames.includes(f.name)) {
+                 fileEditNames.push(f.name);
               }
            });
         }
       } catch(e) {}
     }
 
-    if (editNames.length > 0) {
+    let postEditNames: string[] = [];
+
+    const masonHubDrafts = localStorage.getItem("sanctuary_mason_hub_drafts");
+    if (masonHubDrafts) {
+       try {
+         const parsed = JSON.parse(masonHubDrafts);
+         Object.keys(parsed).forEach(k => {
+            const name = (parsed[k].title || `Draft ${k}`) + ".masonhub";
+            if (!postEditNames.includes(name)) postEditNames.push(name);
+         });
+       } catch (e) {}
+    }
+
+    const wayfinderDrafts = localStorage.getItem("sanctuary_wayfinder_drafts");
+    if (wayfinderDrafts) {
+       try {
+         const parsed = JSON.parse(wayfinderDrafts);
+         Object.keys(parsed).forEach(k => {
+            const name = (parsed[k].title || `Draft ${k}`) + ".wayfinder";
+            if (!postEditNames.includes(name)) postEditNames.push(name);
+         });
+       } catch (e) {}
+    }
+
+    if (fileEditNames.length > 0) {
        setTimeout(() => {
-         if (editNames.length === 1) {
-            useStore.getState().setStatus(`${editNames[0]} has cached changes from your last session.`);
-         } else if (editNames.length <= 3) {
-            useStore.getState().setStatus(`${editNames.join(", ")} have cached changes from your last session.`);
+         if (fileEditNames.length === 1) {
+            useStore.getState().setStatus(`${fileEditNames[0]} has cached changes from your last session.`);
+         } else if (fileEditNames.length <= 3) {
+            useStore.getState().setStatus(`${fileEditNames.join(", ")} have cached changes from your last session.`);
          } else {
-            useStore.getState().setStatus(`${editNames.slice(0, 2).join(", ")} and ${editNames.length - 2} other files have cached changes from your last session.`);
+            useStore.getState().setStatus(`${fileEditNames.slice(0, 2).join(", ")} and ${fileEditNames.length - 2} other files have cached changes from your last session.`);
          }
-       }, 2000); // Small delay so it appears after the cache load message
+       }, 2000); 
+    }
+
+    if (postEditNames.length > 0) {
+       setTimeout(() => {
+         if (postEditNames.length === 1) {
+            useStore.getState().setStatus(`${postEditNames[0]} has cached changes from your last session.`);
+         } else if (postEditNames.length <= 3) {
+            useStore.getState().setStatus(`${postEditNames.join(", ")} have cached changes from your last session.`);
+         } else {
+            useStore.getState().setStatus(`${postEditNames.slice(0, 2).join(", ")} and ${postEditNames.length - 2} other drafts have cached changes from your last session.`);
+         }
+       }, 2500); 
     }
   }, []);
 
@@ -1472,7 +1508,7 @@ function App() {
       });
       setActiveSetName(setName);
       localStorage.setItem("sanctuary_active_set", setName);
-      setStatus(`${t("ui_icon_success")} ${t("backend_deployed_prefix")} ${msg as string} ${t("backend_deployed_suffix")}`);
+      setStatus(`${t("log_icon_success")} ${t("backend_deployed_prefix")} ${msg as string} ${t("backend_deployed_suffix")}`);
     } catch (err) {
       setStatus(`${t("status_deploy_failed")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
     }
@@ -2627,7 +2663,7 @@ function App() {
     setPlaySets(updatedSets);
     localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
     setStatus(
-      `${t("ui_icon_success")} ${t("status_profile_imported")}${setToAdd.name}`,
+      `${t("log_icon_success")} ${t("status_profile_imported")}${setToAdd.name}`,
     );
     setMissingImportMods(null);
     setPendingImportSet(null);
@@ -2767,7 +2803,7 @@ function App() {
       const msg = await invoke<string>("sanitize_vault", {
         vaultPath: config.vault_path,
       });
-      setStatus(`${t("ui_icon_success")} ${t("backend_sanitize_prefix")} ${msg} ${t("backend_sanitize_suffix")}`);
+      setStatus(`${t("log_icon_success")} ${t("backend_sanitize_prefix")} ${msg} ${t("backend_sanitize_suffix")}`);
       await runRadarSweep(false);
     } catch (err) {
       setStatus(`${t("status_sanitize_error")}${err}`);
@@ -3139,7 +3175,7 @@ function App() {
   const triggerPrePatchSnapshot = async () => {
     const config: any = await invoke("get_saved_coordinates");
     const docsBase = config.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
-    setStatus(`${t("log_icon_backups")} Executing Pre-Patch Snapshot...`);
+    setStatus(`${t("log_icon_backups")} ${t("status_executing_prepatch_snapshot")}`);
     useModalStore.getState().setBackupType('world');
     setIsBackingUp(true);
     try {
@@ -3148,7 +3184,7 @@ function App() {
         version: selectedVersion,
       });
       fetchBackups();
-      setStatus(`${t("ui_icon_success")} Pre-Patch Snapshot Secured.`);
+      setStatus(`${t("log_icon_success")} ${t("status_prepatch_snapshot_secured")}`);
     } catch (err) {
       console.error(err);
       alert(`${t("alert_backup_failed")}${err}`);
@@ -3311,7 +3347,7 @@ function App() {
         path: fullPath,
         content: configContent,
       });
-      setStatus(`${t("ui_icon_success")} ${msg}`);
+      setStatus(`${t("log_icon_success")} ${msg}`);
       setEditMode(false);
     } catch (err) {
       setStatus(`${t("status_save_failure")}${err}`);
@@ -4287,7 +4323,7 @@ function App() {
               await invoke("purge_quarantined_file", {
                 filename: filename.split("/").pop() || filename,
               });
-              setStatus(`${t("ui_icon_success")} ${t("status_file_shredded")}`);
+              setStatus(`${t("log_icon_success")} ${t("status_file_shredded")}`);
               runRadarSweep();
             } catch (err: any) {
               setStatus(` Error: ${err}`);

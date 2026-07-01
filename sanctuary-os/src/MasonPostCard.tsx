@@ -1,6 +1,7 @@
 import React from "react";
 import { useLexicon } from "./LexiconContext";
 import { stripMarkdown, renderTextWithIcons } from "./shared";
+import { useStore } from "./store";
 
 export default function MasonPostCard({ post, index, onPostClick, onToggleLike, onOpenMasonProfile, isFeatured, isCompact }: any) {
   const { t } = useLexicon();
@@ -22,6 +23,9 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
   const isNew = new Date(post.created_at).getTime() > Date.now() - 86400000;
   const hashtags = (post.content.match(/#[a-zA-Z0-9_]+/g) || []).slice(0, 3);
   
+  const masonCommentDrafts = useStore(state => state.masonCommentDrafts);
+  const hasUnsavedReply = !!masonCommentDrafts[post.id];
+  
   // Decide if we show the image at all
   const showImage = !!imageUrl;
 
@@ -40,12 +44,20 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
           </div>
         )}
 
-        {post.is_pinned && (
-          <div className="absolute top-0 right-0 z-[60] bg-[var(--text)]/10 backdrop-blur-md border-b border-l border-[var(--text)]/20 text-[var(--text)] px-4 py-2 rounded-bl-2xl text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1">
-            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("ui_icon_keep")}</span>
-            {t("feed_badge_pinned")}
-          </div>
-        )}
+        <div className="absolute top-0 right-0 z-[60] flex items-start">
+          {hasUnsavedReply && (
+            <div className="bg-[var(--warning)]/20 backdrop-blur-md border-b border-l border-[var(--warning)]/30 text-[var(--warning)] px-4 py-2 text-[9px] font-black uppercase tracking-widest shadow-[0_0_10px_rgba(var(--warning-rgb),0.2)] flex items-center gap-1 rounded-bl-2xl">
+              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("ui_icon_edit_note")}</span>
+              UNSAVED REPLY
+            </div>
+          )}
+          {post.is_pinned && (
+            <div className={`bg-[var(--text)]/10 backdrop-blur-md border-b border-[var(--text)]/20 border-l text-[var(--text)] px-4 py-2 text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1 ${hasUnsavedReply ? 'rounded-bl-none' : 'rounded-bl-2xl'}`}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("ui_icon_keep")}</span>
+              {t("feed_badge_pinned")}
+            </div>
+          )}
+        </div>
       {showImage && (
         <div className={`${isFeatured ? 'w-full lg:w-2/5 h-48 lg:h-auto border-b lg:border-b-0 lg:border-r' : isCompact ? 'w-full h-24 border-b' : 'w-full h-36 border-b'} bg-black/50 relative overflow-hidden shrink-0 border-white/5`}>
           <img src={imageUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 ease-out" alt={t("auto_post_cover")} />

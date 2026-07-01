@@ -49,6 +49,30 @@ const loadNetworkUpdates = () => {
   return { broken: [], obsolete: [], updated: [] };
 };
 
+const loadWayfinderDrafts = () => {
+  try {
+    const cached = localStorage.getItem('sanctuary_wayfinder_drafts');
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  return {};
+};
+
+const loadMasonCommentDrafts = () => {
+  try {
+    const cached = localStorage.getItem('sanctuary_mason_comment_drafts');
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  return {};
+};
+
+const loadMasonHubDrafts = () => {
+  try {
+    const cached = localStorage.getItem('sanctuary_mason_hub_drafts');
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  return {};
+};
+
 interface GlobalState {
   view: string;
   setView: (view: string) => void;
@@ -127,6 +151,16 @@ interface GlobalState {
   setMasonActiveTab: (tab: string) => void;
   communityDefaultsRefreshTrigger: number;
   incrementCommunityDefaultsRefreshTrigger: () => void;
+  wayfinderDrafts: Record<string, any>;
+  setWayfinderDrafts: (drafts: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => void;
+  masonCommentDrafts: Record<string, any>;
+  setMasonCommentDrafts: (drafts: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => void;
+  masonHubDrafts: Record<string, any>;
+  setMasonHubDrafts: (drafts: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => void;
+  cwMainTab: "CONFIGS" | "TEMPLATES";
+  setCwMainTab: (tab: "CONFIGS" | "TEMPLATES") => void;
+  wayfinderActiveTab: string;
+  setWayfinderActiveTab: (tab: string) => void;
 }
 
 export const useStore = create<GlobalState>((set) => ({
@@ -137,6 +171,8 @@ export const useStore = create<GlobalState>((set) => ({
     let type: 'info' | 'error' | 'success' | 'warning' = 'info';
     if (status.toLowerCase().includes('error') || status.toLowerCase().includes('fail') || status.includes('❌')) type = 'error';
     if (status.toLowerCase().includes('success') || status.toLowerCase().includes('done') || status.includes('✅') || status.includes('ui_icon_success')) type = 'success';
+    if (state.statusLog.length > 0 && state.statusLog[0].message === status && (Date.now() - state.statusLog[0].timestamp) < 500) return state;
+    
     const newEntry = { id: Math.random().toString(36).substr(2, 9), message: status, type, timestamp: Date.now() };
     
     if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
@@ -146,6 +182,10 @@ export const useStore = create<GlobalState>((set) => ({
 
     return { status, statusLog: [newEntry, ...state.statusLog].slice(0, 50) };
   }),
+  wayfinderActiveTab: "command_center",
+  setWayfinderActiveTab: (tab) => set({ wayfinderActiveTab: tab }),
+  cwMainTab: "CONFIGS",
+  setCwMainTab: (tab) => set({ cwMainTab: tab }),
   statusLog: [],
   pushStatus: (message, type = 'info') => set((state) => {
     let finalType = type;
@@ -154,6 +194,8 @@ export const useStore = create<GlobalState>((set) => ({
       if (lower.includes('error') || lower.includes('fail') || lower.includes('blocked') || lower.includes('revoked') || lower.includes('missing')) finalType = 'error';
       else if (lower.includes('success') || lower.includes('cleared') || lower.includes('done')) finalType = 'success';
     }
+    if (state.statusLog.length > 0 && state.statusLog[0].message === message && (Date.now() - state.statusLog[0].timestamp) < 500) return state;
+
     const newEntry = { id: Math.random().toString(36).substr(2, 9), message, type: finalType, timestamp: Date.now() };
     
     if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
@@ -257,5 +299,23 @@ export const useStore = create<GlobalState>((set) => ({
   masonActiveTab: "command_center",
   setMasonActiveTab: (tab) => set({ masonActiveTab: tab }),
   communityDefaultsRefreshTrigger: 0,
-  incrementCommunityDefaultsRefreshTrigger: () => set((state) => ({ communityDefaultsRefreshTrigger: state.communityDefaultsRefreshTrigger + 1 }))
+  incrementCommunityDefaultsRefreshTrigger: () => set((state) => ({ communityDefaultsRefreshTrigger: state.communityDefaultsRefreshTrigger + 1 })),
+  wayfinderDrafts: loadWayfinderDrafts(),
+  setWayfinderDrafts: (drafts) => set((state) => {
+      const newDrafts = typeof drafts === 'function' ? drafts(state.wayfinderDrafts) : drafts;
+      localStorage.setItem('sanctuary_wayfinder_drafts', JSON.stringify(newDrafts));
+      return { wayfinderDrafts: newDrafts };
+  }),
+  masonCommentDrafts: loadMasonCommentDrafts(),
+  setMasonCommentDrafts: (drafts) => set((state) => {
+      const newDrafts = typeof drafts === 'function' ? drafts(state.masonCommentDrafts) : drafts;
+      localStorage.setItem('sanctuary_mason_comment_drafts', JSON.stringify(newDrafts));
+      return { masonCommentDrafts: newDrafts };
+  }),
+  masonHubDrafts: loadMasonHubDrafts(),
+  setMasonHubDrafts: (drafts) => set((state) => {
+      const newDrafts = typeof drafts === 'function' ? drafts(state.masonHubDrafts) : drafts;
+      localStorage.setItem('sanctuary_mason_hub_drafts', JSON.stringify(newDrafts));
+      return { masonHubDrafts: newDrafts };
+  })
 }));

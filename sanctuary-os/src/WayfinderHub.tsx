@@ -32,7 +32,8 @@ import SAOversightReports from './SAOversightReports';
 export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfile?: (id: string) => void }) {
   const { t } = useLexicon();
   const { session } = useStore();
-  const [activeTab, setActiveTab] = useState("command_center");
+  const activeTab = useStore(state => state.wayfinderActiveTab);
+  const setActiveTab = useStore(state => state.setWayfinderActiveTab);
   const [complianceFilter, setComplianceFilter] = useState("ALL");
   const [showManualFlagModal, setShowManualFlagModal] = useState(false);
   const [initialManualFlagQuery, setInitialManualFlagQuery] = useState("");

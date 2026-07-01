@@ -750,15 +750,26 @@ export function AppModals(props: any) {
                           <React.Fragment key={f}>
                              <button onClick={(e) => {
                                 e.stopPropagation();
-                                if (f.endsWith('.json') || useStore.getState().userRole === 'citizen') {
+                                const lower = f.toLowerCase();
+                                if (lower.endsWith('.json')) {
+                                   useStore.getState().setCwMainTab('TEMPLATES');
                                    useStore.getState().setView('CitizensWorkbench');
+                                } else if (lower.endsWith('.cfg') || lower.endsWith('.ini')) {
+                                   useStore.getState().setCwMainTab('CONFIGS');
+                                   useStore.getState().setView('CitizensWorkbench');
+                                } else if (lower.endsWith('.wayfinder')) {
+                                   useStore.getState().setWayfinderActiveTab('wayfinder_comms');
+                                   useStore.getState().setView('WayfinderHub');
+                                } else if (lower.endsWith('.masonhub')) {
+                                   useStore.getState().setMasonActiveTab('posts');
+                                   useStore.getState().setView('MasonHub');
                                 } else {
                                    useStore.getState().setView('MasonHub');
                                    useStore.getState().setMasonActiveTab('ide');
                                 }
                                 setIsLogExpanded(false);
                              }} className="px-2 py-0.5 bg-black/20 border border-white/5 hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-md transition-all uppercase tracking-widest cursor-pointer">
-                                {f}
+                                {f.replace(/\.wayfinder$/i, '').replace(/\.masonhub$/i, '')}
                              </button>
                              {idx < fileNames.length - 1 && <span className="opacity-50">,</span>}
                           </React.Fragment>

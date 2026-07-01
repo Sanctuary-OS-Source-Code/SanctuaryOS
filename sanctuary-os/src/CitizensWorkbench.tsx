@@ -68,7 +68,8 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
   const [flagSuccess, setFlagSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [mainTab, setMainTab] = useState<"CONFIGS" | "TEMPLATES">("CONFIGS");
+  const mainTab = useStore(state => state.cwMainTab);
+  const setMainTab = useStore(state => state.setCwMainTab);
   const [mainSearchQuery, setMainSearchQuery] = useState("");
   const [problemsList, setProblemsList] = useState<any[]>([]);
   const [editorRef, setEditorRef] = useState<any>(null);
@@ -684,7 +685,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                               </div>
                            </button>
                            {unsavedEdits[file.path] !== undefined && (
-                              <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-full shadow-inner animate-pulse z-20 pointer-events-none">
+                              <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-[var(--warning)] bg-[var(--warning)]/20 border border-[var(--warning)]/40 px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none backdrop-blur-xl">
                                  <span className="material-symbols-outlined !text-[12px]">{t("auto_warning")}</span>
                                  {t("workbench_unsaved_changes")}
                               </div>
@@ -772,7 +773,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
              <div className="relative group">
                 {hasUnsavedChanges && (
-                   <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-amber-500 animate-pulse whitespace-nowrap bg-black/40 px-3 py-1 rounded-full border border-amber-500/30">
+                   <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[var(--warning)] whitespace-nowrap bg-[var(--bg)]/90 px-3 py-1.5 rounded-full border border-[var(--warning)]/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg backdrop-blur-xl">
                       <span className="material-symbols-outlined !text-[12px]">{t("auto_warning")}</span>
                       {t("workbench_unsaved_changes")}
                    </div>

@@ -5,6 +5,8 @@ import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";
 import { relaunch } from "@tauri-apps/plugin-process";
 import ReactMarkdown from "react-markdown";
+import { openUrl } from '@tauri-apps/plugin-opener';
+import remarkGfm from 'remark-gfm';
 
 function SectionHeader({ icon, title, glowColor }: { icon: string, title: string, glowColor: string }) {
   return (
@@ -111,7 +113,28 @@ export function UpdateSidePanel() {
             
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 relative z-10 prose prose-invert prose-sm max-w-none text-[var(--text)]/80 marker:text-[var(--accent)]">
               {(liveReleaseNotes && liveReleaseNotes !== "See the assets to download this version and install.") || (updatePayload.body && updatePayload.body !== "See the assets to download this version and install.") ? (
-                <ReactMarkdown>{liveReleaseNotes || updatePayload.body}</ReactMarkdown>
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    a: ({ node, ...props }) => (
+                      <a
+                        {...props}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (props.href) {
+                            openUrl(props.href);
+                          }
+                        }}
+                        className="text-[var(--accent)] hover:underline cursor-pointer"
+                      />
+                    ),
+                    ul: ({ node, ...props }) => <ul {...props} className="list-disc pl-5 my-2 space-y-1" />,
+                    ol: ({ node, ...props }) => <ol {...props} className="list-decimal pl-5 my-2 space-y-1" />,
+                    li: ({ node, ...props }) => <li {...props} className="pl-1" />
+                  }}
+                >
+                  {liveReleaseNotes || updatePayload.body}
+                </ReactMarkdown>
               ) : (
                 <div className="text-center py-12 opacity-50 font-bold uppercase text-[10px] tracking-widest flex flex-col items-center gap-2">
                   <span className="material-symbols-outlined !text-[24px]">{t("ui_icon_visibility_off")}</span>

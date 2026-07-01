@@ -4026,6 +4026,7 @@ dependencies = [
  "tauri-plugin-updater",
  "uuid",
  "walkdir",
+ "windows 0.62.2",
  "zip 8.6.0",
  "zstd",
 ]

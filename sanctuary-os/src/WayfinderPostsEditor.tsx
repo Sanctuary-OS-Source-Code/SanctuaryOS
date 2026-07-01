@@ -23,6 +23,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   const [imageUrl, setImageUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<any>(null);
   const [previewPost, setPreviewPost] = useState<any>(null);
   const [codeSnippet, setCodeSnippet] = useState("");
   const [showCodeInput, setShowCodeInput] = useState(false);
@@ -39,8 +40,62 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   const [searchTerm, setSearchTerm] = useState("");
   
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const wayfinderDrafts = useStore(state => state.wayfinderDrafts);
+  const setWayfinderDrafts = useStore(state => state.setWayfinderDrafts);
+
+  useEffect(() => {
+    if (isEditorOpen) {
+      const draftId = editingPostId || 'new';
+      
+      let isUnchanged = false;
+      if (editingPost) {
+        let rawContent = editingPost.message || editingPost.content || '';
+        let parsedImage = extractPostImage(editingPost) || "";
+        if (rawContent.startsWith('[IMG:')) {
+          const endIdx = rawContent.indexOf(']');
+          if (endIdx !== -1) {
+            rawContent = rawContent.substring(endIdx + 1).trim();
+          }
+        }
+        
+        isUnchanged = 
+          title === editingPost.title &&
+          content === rawContent &&
+          targetAudience === (editingPost.target_audience || "All") &&
+          category === (editingPost.category || "Update") &&
+          imageUrl === parsedImage &&
+          codeSnippet === (editingPost.code_snippet || "") &&
+          isPinned === !!editingPost.is_pinned;
+      } else {
+        isUnchanged = 
+          title === "" &&
+          content === "" &&
+          targetAudience === "All" &&
+          category === "Update" &&
+          imageUrl === "" &&
+          codeSnippet === "" &&
+          isPinned === false;
+      }
+
+      if (isUnchanged) {
+        setWayfinderDrafts(prev => {
+          if (!prev[draftId]) return prev;
+          const next = { ...prev };
+          delete next[draftId];
+          return next;
+        });
+      } else {
+        setWayfinderDrafts(prev => ({
+          ...prev,
+          [draftId]: { title, content, targetAudience, category, imageUrl, codeSnippet, isPinned }
+        }));
+      }
+    }
+  }, [isEditorOpen, editingPostId, editingPost, title, content, targetAudience, category, imageUrl, codeSnippet, isPinned]);
 
   const editor = useEditor({
     extensions: [
@@ -117,14 +172,12 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
 
   const openEditor = (post?: any) => {
     setViewMode('edit');
+    const draftId = post ? post.id : 'new';
+    const draft = useStore.getState().wayfinderDrafts[draftId];
+
     if (post) {
       setEditingPostId(post.id);
-      setTitle(post.title);
-      setTargetAudience(post.target_audience || "All");
-      setCategory(post.category || "Update");
-      setCodeSnippet(post.code_snippet || "");
-      setShowCodeInput(!!post.code_snippet);
-      setIsPinned(!!post.is_pinned);
+      setEditingPost(post);
       let rawContent = post.message || post.content || '';
       let parsedImage = extractPostImage(post) || "";
       if (rawContent.startsWith('[IMG:')) {
@@ -133,44 +186,85 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           rawContent = rawContent.substring(endIdx + 1).trim();
         }
       }
-      setContent(rawContent);
+      
+      setTitle(draft?.title ?? post.title);
+      setTargetAudience(draft?.targetAudience ?? (post.target_audience || "All"));
+      setCategory(draft?.category ?? (post.category || "Update"));
+      setCodeSnippet(draft?.codeSnippet ?? (post.code_snippet || ""));
+      setShowCodeInput(!!(draft?.codeSnippet ?? post.code_snippet));
+      setIsPinned(draft?.isPinned ?? !!post.is_pinned);
+      
+      const contentToSet = draft?.content ?? rawContent;
+      setContent(contentToSet);
       if (editor) {
-        editor.commands.setContent(rawContent);
+        editor.commands.setContent(contentToSet);
       }
-      setImageUrl(parsedImage);
+      setImageUrl(draft?.imageUrl ?? parsedImage);
     } else {
       setEditingPostId(null);
-      setTitle("");
-      setTargetAudience("All");
-      setCategory("Update");
-      setContent("");
+      setEditingPost(null);
+      setTitle(draft?.title ?? "");
+      setTargetAudience(draft?.targetAudience ?? "All");
+      setCategory(draft?.category ?? "Update");
+      
+      const contentToSet = draft?.content ?? "";
+      setContent(contentToSet);
       if (editor) {
-        editor.commands.setContent("");
+        editor.commands.setContent(contentToSet);
       }
-      setImageUrl("");
-      setCodeSnippet("");
-      setShowCodeInput(false);
-      setIsPinned(false);
+      setImageUrl(draft?.imageUrl ?? "");
+      setCodeSnippet(draft?.codeSnippet ?? "");
+      setShowCodeInput(!!draft?.codeSnippet);
+      setIsPinned(draft?.isPinned ?? false);
     }
     setIsEditorOpen(true);
   };
 
   const closeEditor = () => {
     setIsEditorOpen(false);
-    setEditingPostId(null);
-    setTitle("");
-    setTargetAudience("All");
-    setCategory("Update");
-    setContent("");
-    if (editor) {
-      editor.commands.setContent("");
+    // Reset to defaults or selected post
+    if (editingPostId) {
+       const post = posts.find(p => p.id === editingPostId);
+       if (post) {
+         setTitle(post.title);
+         setContent(post.content);
+         setTargetAudience(post.target_audience || 'All');
+         setCategory(post.category || 'Update');
+       }
+    } else {
+       setTitle("");
+       setContent("");
+       setTargetAudience("All");
+       setCategory("Update");
     }
+    setTimeout(() => {
+      setEditingPostId(null);
+      setIsSubmitting(false);
+      setPreviewPost(null);
+      setViewMode('edit');
+    }, 300);
     setImageUrl("");
     setCodeSnippet("");
     setShowCodeInput(false);
     setShowImageInput(false);
     setShowIconPicker(false);
     setIsPinned(false);
+  };
+
+  const handleDiscardChanges = () => {
+    if (!confirmDiscard) {
+      setConfirmDiscard(true);
+      setTimeout(() => setConfirmDiscard(false), 3000);
+      return;
+    }
+    const draftId = editingPostId || 'new';
+    setWayfinderDrafts(prev => {
+      const next = { ...prev };
+      delete next[draftId];
+      return next;
+    });
+    setConfirmDiscard(false);
+    closeEditor();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -215,6 +309,12 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           }
         }
       }
+      
+      useStore.getState().setWayfinderDrafts(prev => {
+        const next = { ...prev };
+        delete next[editingPostId || 'new'];
+        return next;
+      });
       
       closeEditor();
       fetchPostsAndAssets();
@@ -263,8 +363,11 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           </div>
           <button 
             onClick={() => openEditor()} 
-            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
+            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group relative"
           >
+            {wayfinderDrafts['new'] && (
+              <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-[var(--warning)] border-2 border-[var(--bg)] shadow-md animate-pulse"></span>
+            )}
             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("ui_icon_cell_tower")}</span> {t("mason_post_broadcast")}
           </button>
         </div>     
@@ -272,8 +375,10 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
 
       <div className="p-8 flex flex-col gap-10 pb-32">
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
-           {filteredPosts.map(post => (
-             <div key={post.id} className={`theme-glass-panel p-5 rounded-3xl relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden ${post.is_pinned ? 'border-[var(--accent)]/30 bg-[var(--accent)]/5 shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)]' : 'border border-white/5 hover:border-white/10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
+           {filteredPosts.map(post => {
+             const hasUnsavedEdits = !!wayfinderDrafts[post.id];
+             return (
+             <div key={post.id} className={`theme-glass-panel p-5 rounded-3xl relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden ${hasUnsavedEdits ? '!border-amber-500/30 text-amber-500 !bg-amber-500/10 hover:!bg-amber-500/20 hover:!border-amber-500/50 shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : post.is_pinned ? '!border-[var(--accent)]/30 !bg-[var(--accent)]/5 shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)]' : 'border border-white/5 hover:border-white/10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
                 <div className={`absolute -top-32 -right-32 w-64 h-64 blur-[80px] rounded-full pointer-events-none transition-opacity duration-700 z-0 ${post.is_pinned ? 'bg-[var(--accent)] opacity-20' : 'bg-[var(--text)] opacity-0 group-hover:opacity-[0.03]'}`} />
                 {extractPostImage(post) && (
                   <div className="-mx-5 -mt-5 rounded-t-3xl overflow-hidden h-36 bg-black/40 relative border-b border-white/5 shrink-0 z-10">
@@ -293,6 +398,12 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                   </div>
                   <h4 className="text-lg font-black text-[var(--text)] uppercase tracking-tighter line-clamp-1">{post.title}</h4>
                 </div>
+                {hasUnsavedEdits && (
+                  <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-[var(--warning)] bg-[var(--warning)]/20 border border-[var(--warning)]/40 px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none backdrop-blur-xl">
+                     <span className="material-symbols-outlined !text-[12px]">{t("ui_icon_edit_note")}</span>
+                     {t("ph_unsaved_changes") || "UNSAVED EDITS"}
+                  </div>
+                )}
                 <div className="flex-1 relative z-10 -mx-1">
                   <p className="text-[11px] font-mono text-[var(--subtext)] opacity-70 leading-relaxed whitespace-pre-wrap break-words line-clamp-5">
                     {stripMarkdown(post.message || post.content || '').length > 300 ? stripMarkdown(post.message || post.content || '').substring(0, 300) + '...' : stripMarkdown(post.message || post.content || '')}
@@ -316,7 +427,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                   )}
                 </div>
              </div>
-          ))}
+           )})}
           {filteredPosts.length === 0 && (
             <div className="col-span-full flex flex-col items-center justify-center opacity-30 mt-20">
               <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-[0.2em] text-center px-8 leading-relaxed">
@@ -339,12 +450,24 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
             subtitle={editingPostId ? (t("masonhub_editing_record")) : (t("masonhub_composing_broadcast"))}
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
-                <button onClick={closeEditor} className={standardButtonClass}>
-                  {t("shared_cancel")}
-                </button>
-                <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className={standardAccentGlassButtonClass}>
-                  {isSubmitting ? t("mason_saving") : (editingPostId ? t("masonhub_update_transmission") : t("mason_btn_post"))}
-                </button>
+                {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? (
+                   <button onClick={handleDiscardChanges} disabled={isSubmitting} className={standardButtonClass + (confirmDiscard ? " !border-[var(--danger)] !text-[var(--danger)] !bg-[var(--danger)]/20 shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_40%,transparent)]" : " !border-[var(--danger)]/30 !text-[var(--danger)] hover:!border-[var(--danger)]/60 hover:!bg-[var(--danger)]/10")}>
+                     {confirmDiscard ? (t("ui_confirm_discard") || "Confirm Discard") : (t("ui_btn_discard_edits") || "DISCARD EDITS")}
+                   </button>
+                ) : (
+                   <button onClick={closeEditor} disabled={isSubmitting} className={standardButtonClass}>{t("ui_btn_cancel")}</button>
+                )}
+                <div className="relative group/btn flex">
+                  <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? standardAccentGlassButtonClass.replace('bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--accent)_30%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]').replace('text-[var(--accent)]', 'text-[var(--warning)]').replace('hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]', 'hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]') : standardAccentGlassButtonClass}>
+                    {isSubmitting ? t("mason_saving") : (editingPostId ? t("masonhub_update_transmission") : t("mason_btn_post"))}
+                  </button>
+                  {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[var(--warning)] whitespace-nowrap bg-[var(--bg)]/90 px-3 py-1.5 rounded-full border border-[var(--warning)]/40 opacity-0 group-hover/btn:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg backdrop-blur-xl">
+                      <span className="material-symbols-outlined !text-[12px]">{t("auto_warning")}</span>
+                      {t("ph_unsaved_changes") || "UNSAVED EDITS"}
+                    </div>
+                  )}
+                </div>
               </div>
             }
           >
@@ -581,5 +704,4 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     </>
   );
 }
-
 

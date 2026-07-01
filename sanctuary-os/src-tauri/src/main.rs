@@ -1410,14 +1410,15 @@ fn scan_sandbox(vault_path: String) -> Result<Vec<ModData>, String> {
     Ok(results)
 }
 
+use rayon::prelude::*;
+
 #[tauri::command]
-fn run_conflict_radar(
+async fn run_conflict_radar(
     mods_path: String,
     target_files: Option<Vec<String>>,
 ) -> Result<serde_json::Value, String> {
-    let mut resource_map: HashMap<(u32, u32, u64), String> = HashMap::new();
-    let mut conflicts: HashMap<String, Conflict> = HashMap::new();
-    let mods_dir = Path::new(&mods_path);
+    tauri::async_runtime::spawn_blocking(move || {
+        let mods_dir = Path::new(&mods_path);
     let mut packages = Vec::new();
     walk_packages(mods_dir, &mut packages);
 
@@ -1432,164 +1433,181 @@ fn run_conflict_radar(
         });
     }
 
-    let mut installed_files = Vec::new();
-    for path in packages {
-        let file_name = path
-            .strip_prefix(mods_dir)
-            .unwrap_or(&path)
+    let installed_files: Vec<String> = packages.iter().map(|path| {
+        path.strip_prefix(mods_dir)
+            .unwrap_or(path)
             .to_string_lossy()
-            .replace("\\", "/");
-        installed_files.push(file_name.clone());
+            .replace("\\", "/")
+    }).collect();
 
-        if let Ok(file) = std::fs::File::open(&path) {
-            let mut reader = BufReader::new(file);
-            let mut buffer = [0u8; 72];
-            if reader.read_exact(&mut buffer).is_ok() && &buffer[0..4] == b"DBPF" {
-                let major = u32::from_le_bytes(buffer[4..8].try_into().unwrap());
-                let minor = u32::from_le_bytes(buffer[8..12].try_into().unwrap());
-                let index_count = u32::from_le_bytes(buffer[36..40].try_into().unwrap());
+    let (tx, rx) = std::sync::mpsc::channel();
 
-                let (index_size, index_offset) = if major == 2 && minor == 0 {
-                    let offset = u32::from_le_bytes(buffer[40..44].try_into().unwrap()) as u64;
-                    let size = u32::from_le_bytes(buffer[44..48].try_into().unwrap());
-                    (size, offset)
+    let merge_thread = std::thread::spawn(move || {
+        let mut resource_map: HashMap<(u32, u32, u64), String> = HashMap::new();
+        let mut conflicts: HashMap<String, Conflict> = HashMap::new();
+
+        while let Ok((file_name, resources)) = rx.recv() {
+            let file_name: String = file_name;
+            let resources: Vec<(u32, u32, u64)> = resources;
+            for key in resources {
+                if let Some(clash) = resource_map.get(&key) {
+                    if clash != &file_name {
+                        let mut pair = vec![clash.clone(), file_name.clone()];
+                        pair.sort();
+                        let pair_key = format!("{}  ⚔️  {}", pair[0], pair[1]);
+
+                        let entry = conflicts.entry(pair_key.clone()).or_insert(Conflict {
+                            mod_pair: pair_key,
+                            shared_assets: 0,
+                            severity_rank: 0,
+                        });
+                        entry.shared_assets += 1;
+
+                        let rank = match key.0 {
+                            0x02D5DF13 => 4,
+                            0x03B33DDF | 0x545AC67A | 0x62E94D38 => 3,
+                            _ => 1,
+                        };
+                        if rank > entry.severity_rank {
+                            entry.severity_rank = rank;
+                        }
+                    }
                 } else {
-                    let size = u32::from_le_bytes(buffer[40..44].try_into().unwrap());
-                    let offset = u64::from_le_bytes(buffer[64..72].try_into().unwrap());
-                    (size, offset)
-                };
+                    resource_map.insert(key, file_name.clone());
+                }
+            }
+        }
+        conflicts
+    });
 
-                if index_count > 0 && index_count < 1_000_000 {
-                    if reader.seek(SeekFrom::Start(index_offset)).is_ok() {
-                        let mut flags_buf = [0u8; 4];
-                        if reader.read_exact(&mut flags_buf).is_ok() {
-                            let flags = u32::from_le_bytes(flags_buf);
-                            let mut const_bytes = 4;
-                            let mut const_type = 0u32;
-                            let mut const_group = 0u32;
-                            let mut const_inst_ex = 0u32;
+    let pool = rayon::ThreadPoolBuilder::new().build().unwrap();
+    pool.install(|| {
+        packages
+            .into_par_iter()
+            .for_each_with(tx, |s, path| {
+                let file_name = path
+                .strip_prefix(mods_dir)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace("\\", "/");
 
-                            if flags & 0x01 != 0 {
-                                let mut b = [0u8; 4];
-                                reader.read_exact(&mut b).unwrap_or_default();
-                                const_type = u32::from_le_bytes(b);
-                                const_bytes += 4;
-                            }
-                            if flags & 0x02 != 0 {
-                                let mut b = [0u8; 4];
-                                reader.read_exact(&mut b).unwrap_or_default();
-                                const_group = u32::from_le_bytes(b);
-                                const_bytes += 4;
-                            }
-                            if flags & 0x04 != 0 {
-                                let mut b = [0u8; 4];
-                                reader.read_exact(&mut b).unwrap_or_default();
-                                const_inst_ex = u32::from_le_bytes(b);
-                                const_bytes += 4;
-                            }
+            let mut resources = Vec::new();
+            if let Ok(file) = std::fs::File::open(&path) {
+                let mut reader = BufReader::new(file);
+                let mut buffer = [0u8; 72];
+                if reader.read_exact(&mut buffer).is_ok() && &buffer[0..4] == b"DBPF" {
+                    let major = u32::from_le_bytes(buffer[4..8].try_into().unwrap());
+                    let minor = u32::from_le_bytes(buffer[8..12].try_into().unwrap());
+                    let index_count = u32::from_le_bytes(buffer[36..40].try_into().unwrap());
 
-                            let record_size = if index_count > 0 {
-                                index_size.saturating_sub(const_bytes) / index_count
-                            } else {
-                                0
-                            };
+                    let (index_size, index_offset) = if major == 2 && minor == 0 {
+                        let offset = u32::from_le_bytes(buffer[40..44].try_into().unwrap()) as u64;
+                        let size = u32::from_le_bytes(buffer[44..48].try_into().unwrap());
+                        (size, offset)
+                    } else {
+                        let size = u32::from_le_bytes(buffer[40..44].try_into().unwrap());
+                        let offset = u64::from_le_bytes(buffer[64..72].try_into().unwrap());
+                        (size, offset)
+                    };
 
-                            for _ in 0..index_count {
-                                let mut bytes_read = 0;
-                                let mut t = const_type;
-                                let mut g = const_group;
-                                let mut i_ex = const_inst_ex;
+                    if index_count > 0 && index_count < 1_000_000 {
+                        if reader.seek(SeekFrom::Start(index_offset)).is_ok() {
+                            let mut flags_buf = [0u8; 4];
+                            if reader.read_exact(&mut flags_buf).is_ok() {
+                                let flags = u32::from_le_bytes(flags_buf);
+                                let mut const_bytes = 4;
+                                let mut const_type = 0u32;
+                                let mut const_group = 0u32;
+                                let mut const_inst_ex = 0u32;
 
-                                if flags & 0x01 == 0 {
+                                if flags & 0x01 != 0 {
                                     let mut b = [0u8; 4];
-                                    if reader.read_exact(&mut b).is_err() {
-                                        break;
-                                    }
-                                    t = u32::from_le_bytes(b);
-                                    bytes_read += 4;
+                                    reader.read_exact(&mut b).unwrap_or_default();
+                                    const_type = u32::from_le_bytes(b);
+                                    const_bytes += 4;
                                 }
-                                if flags & 0x02 == 0 {
+                                if flags & 0x02 != 0 {
                                     let mut b = [0u8; 4];
-                                    if reader.read_exact(&mut b).is_err() {
-                                        break;
-                                    }
-                                    g = u32::from_le_bytes(b);
-                                    bytes_read += 4;
+                                    reader.read_exact(&mut b).unwrap_or_default();
+                                    const_group = u32::from_le_bytes(b);
+                                    const_bytes += 4;
                                 }
-                                if flags & 0x04 == 0 {
+                                if flags & 0x04 != 0 {
                                     let mut b = [0u8; 4];
-                                    if reader.read_exact(&mut b).is_err() {
-                                        break;
-                                    }
-                                    i_ex = u32::from_le_bytes(b);
-                                    bytes_read += 4;
+                                    reader.read_exact(&mut b).unwrap_or_default();
+                                    const_inst_ex = u32::from_le_bytes(b);
+                                    const_bytes += 4;
                                 }
 
-                                let mut b4 = [0u8; 4];
-                                if reader.read_exact(&mut b4).is_err() {
-                                    break;
-                                }
-                                let i_low = u32::from_le_bytes(b4);
-                                bytes_read += 4;
-
-                                let skip_bytes = record_size.saturating_sub(bytes_read);
-                                if skip_bytes > 0 {
-                                    if reader.seek(SeekFrom::Current(skip_bytes as i64)).is_err() {
-                                        break;
-                                    }
-                                }
-
-                                let i = ((i_ex as u64) << 32) | (i_low as u64);
-                                let key = (t, g, i);
-
-                                let is_harmless = match t {
-                                    0x00B2D882 | 0x034AEECB | 0x220557DA | 0x00000000 => true,
-                                    _ => false,
+                                let record_size = if index_count > 0 {
+                                    index_size.saturating_sub(const_bytes) / index_count
+                                } else {
+                                    0
                                 };
 
-                                if is_harmless {
-                                    continue;
-                                }
+                                for _ in 0..index_count {
+                                    let mut bytes_read = 0;
+                                    let mut t = const_type;
+                                    let mut g = const_group;
+                                    let mut i_ex = const_inst_ex;
 
-                                if let Some(clash) = resource_map.get(&key) {
-                                    if clash != &file_name {
-                                        let mut pair = vec![clash.clone(), file_name.clone()];
-                                        pair.sort();
-                                        let pair_key = format!("{}  ΓÜö∩╕Å  {}", pair[0], pair[1]);
-
-                                        let entry =
-                                            conflicts.entry(pair_key.clone()).or_insert(Conflict {
-                                                mod_pair: pair_key,
-                                                shared_assets: 0,
-                                                severity_rank: 0,
-                                            });
-                                        entry.shared_assets += 1;
-
-                                        let rank = match t {
-                                            0x02D5DF13 => 4,
-                                            0x03B33DDF | 0x545AC67A | 0x62E94D38 => 3,
-                                            _ => 1,
-                                        };
-                                        if rank > entry.severity_rank {
-                                            entry.severity_rank = rank;
-                                        }
+                                    if flags & 0x01 == 0 {
+                                        let mut b = [0u8; 4];
+                                        if reader.read_exact(&mut b).is_err() { break; }
+                                        t = u32::from_le_bytes(b);
+                                        bytes_read += 4;
                                     }
-                                } else {
-                                    resource_map.insert(key, file_name.clone());
+                                    if flags & 0x02 == 0 {
+                                        let mut b = [0u8; 4];
+                                        if reader.read_exact(&mut b).is_err() { break; }
+                                        g = u32::from_le_bytes(b);
+                                        bytes_read += 4;
+                                    }
+                                    if flags & 0x04 == 0 {
+                                        let mut b = [0u8; 4];
+                                        if reader.read_exact(&mut b).is_err() { break; }
+                                        i_ex = u32::from_le_bytes(b);
+                                        bytes_read += 4;
+                                    }
+
+                                    let mut b4 = [0u8; 4];
+                                    if reader.read_exact(&mut b4).is_err() { break; }
+                                    let i_low = u32::from_le_bytes(b4);
+                                    bytes_read += 4;
+
+                                    let skip_bytes = record_size.saturating_sub(bytes_read);
+                                    if skip_bytes > 0 {
+                                        if reader.seek(SeekFrom::Current(skip_bytes as i64)).is_err() { break; }
+                                    }
+
+                                    let i = ((i_ex as u64) << 32) | (i_low as u64);
+                                    
+                                    let is_harmless = match t {
+                                        0x00B2D882 | 0x034AEECB | 0x220557DA | 0x00000000 => true,
+                                        _ => false,
+                                    };
+
+                                    if !is_harmless {
+                                        resources.push((t, g, i));
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
-    }
+            let _ = s.send((file_name, resources));
+        });
+    });
+
+    let conflicts = merge_thread.join().unwrap();
 
     Ok(serde_json::json!({
         "total_packages": installed_files.len(),
         "installed_mods": installed_files,
         "conflicts": conflicts.into_values().collect::<Vec<Conflict>>()
     }))
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -1874,13 +1892,12 @@ async fn backup_universe(
         let mut last_emit = std::time::Instant::now();
         for (i, file_path) in files_to_backup.iter().enumerate() {
             // Use path difference instead of strict prefix to avoid case mismatch on Windows
-            let mut stripped = PathBuf::new();
-            if let Ok(rel) = file_path.strip_prefix(&sims_docs_path) {
-                stripped = rel.to_path_buf();
+            let stripped = if let Ok(rel) = file_path.strip_prefix(&sims_docs_path) {
+                rel.to_path_buf()
             } else {
                 // Fallback: just use the file name if prefix fails (though it shouldn't)
-                stripped = PathBuf::from(file_path.file_name().unwrap());
-            }
+                PathBuf::from(file_path.file_name().unwrap())
+            };
 
             if let Ok(mut f) = std::fs::File::open(file_path) {
                 if let Err(e) = builder.append_file(&stripped, &mut f) {
@@ -2016,12 +2033,11 @@ async fn backup_engine_full(
 
         let mut last_emit = std::time::Instant::now();
         for (i, file_path) in files_to_backup.iter().enumerate() {
-            let mut stripped = PathBuf::new();
-            if let Ok(rel) = file_path.strip_prefix(&base_path) {
-                stripped = rel.to_path_buf();
+            let stripped = if let Ok(rel) = file_path.strip_prefix(&base_path) {
+                rel.to_path_buf()
             } else {
-                stripped = PathBuf::from(file_path.file_name().unwrap());
-            }
+                PathBuf::from(file_path.file_name().unwrap())
+            };
 
             if let Ok(mut f) = std::fs::File::open(file_path) {
                 if let Err(e) = builder.append_file(&stripped, &mut f) {
@@ -2371,11 +2387,14 @@ fn initialize_airgap_watch(app_handle: tauri::AppHandle, docs_path: String, vaul
                                     let backup_dest = v_path.join(filename);
                                     let vault_file = vault_mods_lane.join(filename);
                                     
-                                    if vault_file.exists() && !backup_dest.exists() {
-                                        let _ = std::fs::copy(&vault_file, &backup_dest);
+                                    if vault_file.exists() {
+                                        if !backup_dest.exists() {
+                                            let _ = std::fs::copy(&vault_file, &backup_dest);
+                                        }
+                                        let _ = std::fs::remove_file(&vault_file);
                                     }
 
-                                    let _ = std::fs::copy(&path, &vault_file);
+                                    let _ = std::fs::copy(&path, &backup_dest);
                                     
                                     let _ = app_handle.emit(
                                         "airgap_secured",
@@ -3535,6 +3554,7 @@ fn main() {
             get_file_history,
             toggle_pin_version,
             telemetry::fetch_system_telemetry,
+            telemetry::fetch_app_footprint,
             telemetry::get_directory_size])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

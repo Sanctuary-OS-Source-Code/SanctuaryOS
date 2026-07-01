@@ -25,6 +25,13 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
   const [activeCodeSnippet, setActiveCodeSnippet] = useState<string | null>(null);
   const [flagTarget, setFlagTarget] = useState<{id: string, type: 'post' | 'comment' | 'broadcast'} | null>(null);
   
+  const [assets, setAssets] = useState<any[]>([]);
+  const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
+  const [assetSearchQuery, setAssetSearchQuery] = useState("");
+
+  const masonCommentDrafts = useStore(state => state.masonCommentDrafts);
+  const setMasonCommentDrafts = useStore(state => state.setMasonCommentDrafts);
+  
   const [userCollapsed, setUserCollapsed] = useState<Set<string>>(new Set());
   const [userExpanded, setUserExpanded] = useState<Set<string>>(new Set());
   const [repliesExpanded, setRepliesExpanded] = useState<Set<string>>(new Set());
@@ -64,8 +71,73 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
   };
 
   useEffect(() => {
-    if (post) fetchComments();
-  }, [post]);
+    if (post?.id) {
+      const draft = useStore.getState().masonCommentDrafts[post.id];
+      if (draft) {
+        setNewComment(draft.newComment || "");
+        setCodeSnippet(draft.codeSnippet || "");
+        setShowCodeInput(!!draft.codeSnippet);
+      }
+      fetchComments();
+    }
+  }, [post?.id]);
+
+  useEffect(() => {
+    if (post?.id && (newComment || codeSnippet)) {
+      setMasonCommentDrafts(prev => ({
+        ...prev,
+        [post.id]: { newComment, codeSnippet }
+      }));
+    } else if (post?.id && !newComment && !codeSnippet) {
+      setMasonCommentDrafts(prev => {
+        const next = { ...prev };
+        delete next[post.id];
+        return next;
+      });
+    }
+  }, [newComment, codeSnippet, post?.id]);
+
+  useEffect(() => {
+    if (editingCommentId && editCommentContent) {
+      setMasonCommentDrafts(prev => ({
+        ...prev,
+        ['edit-' + editingCommentId]: { editCommentContent }
+      }));
+    }
+  }, [editCommentContent, editingCommentId]);
+
+  useEffect(() => {
+    const fetchAssets = async () => {
+      if (!userId) return;
+      const { data: profileData } = await supabase.from('profiles').select('username').eq('id', userId).single();
+      const mName = profileData?.username || '';
+      
+      const { data: modsData } = await supabase.from('mods').select('id, name').eq('mason_id', userId);
+      const { data: marketAssetsData } = await supabase.from('marketplace_assets').select('id, name, asset_type').eq('author', mName);
+      const { data: blueprintsData } = await supabase.from('blueprints').select('id, name').eq('mason_id', userId);
+      
+      let combinedAssets: any[] = [];
+      if (modsData) combinedAssets.push(...modsData.map(m => ({ id: m.id, name: m.name, type: 'mod' })));
+      if (blueprintsData) combinedAssets.push(...blueprintsData.map(b => ({ id: b.id, name: b.name, type: 'blueprint' })));
+      if (marketAssetsData) combinedAssets.push(...marketAssetsData.map(a => ({ id: a.id, name: a.name, type: a.asset_type })));
+      setAssets(combinedAssets);
+    };
+    fetchAssets();
+  }, [userId]);
+
+  const handleLinkAsset = (asset: any) => {
+    const linkStr = `asset://${asset.type}/${asset.id}`;
+    const typeKey = `masonhub_asset_type_${asset.type}`;
+    const translatedType = t(typeKey) !== typeKey ? t(typeKey) : (asset.type === 'mod' ? 'Artifact' : asset.type === 'blueprint' ? 'Blueprint' : asset.type === 'chameleon' ? 'Theme' : 'Lexicon');
+    
+    const textToInsert = `[${translatedType}: ${asset.name}](${linkStr})`;
+    setNewComment(prev => prev + (prev.length > 0 && !prev.endsWith(' ') ? ' ' : '') + textToInsert + ' ');
+    
+    setIsAssetPanelOpen(false);
+    setAssetSearchQuery("");
+  };
+
+  const filteredAssets = assets.filter(a => a.name.toLowerCase().includes(assetSearchQuery.toLowerCase()));
 
   useEffect(() => {
     if (post?.scrollToCommentId && comments.length > 0) {
@@ -113,6 +185,11 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
           message: `${senderName} replied to your comment.`
         });
       }
+      useStore.getState().setMasonCommentDrafts(prev => {
+        const next = { ...prev };
+        delete next[post.id];
+        return next;
+      });
       setNewComment("");
       setCodeSnippet("");
       setShowCodeInput(false);
@@ -158,6 +235,11 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
     if (!editCommentContent.trim()) return;
     const { error } = await supabase.from('mason_post_comments').update({ content: editCommentContent.trim() }).eq('id', commentId);
     if (!error) {
+      useStore.getState().setMasonCommentDrafts(prev => {
+        const next = { ...prev };
+        delete next['edit-' + commentId];
+        return next;
+      });
       setEditingCommentId(null);
       fetchComments();
     } else {
@@ -289,7 +371,11 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 </div>
                 <div className="flex items-center gap-3">
                   {isMyComment && !c.is_hidden && (
-                    <button onClick={() => setEditingCommentId(c.id)} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] hover:text-[var(--text)] transition-colors group">
+                    <button onClick={() => {
+                        setEditingCommentId(c.id);
+                        const draft = useStore.getState().masonCommentDrafts['edit-' + c.id];
+                        setEditCommentContent(draft?.editCommentContent ?? c.content);
+                      }} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] hover:text-[var(--text)] transition-colors group">
                       <span className="material-symbols-outlined !text-[14px] opacity-70 group-hover:opacity-100">{t("ui_icon_edit")}</span>
                       {t("ui_btn_edit")}
                     </button>
@@ -463,9 +549,14 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                   </div>
                 )}
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
-                  <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all border ${showCodeInput ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                    <span className="material-symbols-outlined !text-[16px]">{showCodeInput ? 'close' : 'data_object'}</span> {showCodeInput ? "HIDE CODE PASTE" : (t("feed_add_code"))}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all border ${showCodeInput ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                      <span className="material-symbols-outlined !text-[16px]">{showCodeInput ? 'close' : 'data_object'}</span> {showCodeInput ? "HIDE CODE PASTE" : (t("feed_add_code"))}
+                    </button>
+                    <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all border bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                      <span className="material-symbols-outlined !text-[16px]">link</span> {t("masonhub_link_asset")}
+                    </button>
+                  </div>
                   <button type="submit" disabled={!newComment.trim() && !codeSnippet.trim()} className="px-8 py-3 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent font-black uppercase tracking-[0.2em] text-[10px] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2">
                     <span className="material-symbols-outlined !text-[16px]">{t("ui_icon_send")}</span> {t("feed_btn_send")}
                   </button>
@@ -516,6 +607,40 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
           userId={userId}
         />
       )}
+
+      {/* Asset Linking Sub-Panel */}
+      <SidePanel
+        isOpen={isAssetPanelOpen}
+        onClose={() => setIsAssetPanelOpen(false)}
+        title={t("masonhub_link_asset")}
+        icon="link"
+        backdropZ="z-[50000]"
+        panelZ="z-[50001]"
+      >
+        <div className="flex flex-col gap-6">
+          <div className="animate-in slide-in-from-top-2">
+            <div className="relative w-full">
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("ui_icon_search")}</span>
+              <input 
+                value={assetSearchQuery} 
+                onChange={(e) => setAssetSearchQuery(e.target.value)} 
+                placeholder={t("masonhub_search_assets")} 
+                className="w-full theme-glass-panel rounded-2xl pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 shadow-inner"
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {filteredAssets.length === 0 && <span className="text-center text-[10px] font-black uppercase tracking-widest opacity-50 p-4">{t("masonhub_no_assets")}</span>}
+            {filteredAssets.map(asset => (
+              <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl theme-glass-inner hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
+                <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("ui_icon_extension")) : asset.type === 'blueprint' ? (t("ui_icon_architecture")) : asset.type === 'lexicon' ? (t("ui_icon_translate")) : (t("ui_icon_palette"))}</span>
+                <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </SidePanel>
 
       {activeCodeSnippet && (
         <CodeSnippetSidebar code={activeCodeSnippet} onClose={() => setActiveCodeSnippet(null)} />

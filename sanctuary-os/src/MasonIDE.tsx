@@ -337,7 +337,7 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
                            >
                               <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                               {openFiles.find(o => o.path === file.path && o.content !== o.originalContent) && (
-                                 <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-full shadow-inner animate-pulse z-20 pointer-events-none">
+                                 <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-[var(--warning)] bg-[var(--warning)]/20 border border-[var(--warning)]/40 px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none backdrop-blur-xl">
                                     <span className="material-symbols-outlined !text-[12px]">{t("auto_warning")}</span>
                                     {t("workbench_unsaved_changes")}
                                  </div>
@@ -382,10 +382,10 @@ export default function MasonIDE({ vaultPath }: { vaultPath?: string }) {
             <div className="flex items-center justify-center gap-3 w-full shrink-0">
                <div className="relative group">
                  {isDirty && (
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-amber-500 animate-pulse whitespace-nowrap bg-black/40 px-3 py-1 rounded-full border border-amber-500/30">
-                       <span className="material-symbols-outlined !text-[12px]">{t("auto_warning")}</span>
-                       {t("workbench_unsaved_changes")}
-                    </div>
+                   <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[var(--warning)] whitespace-nowrap bg-[var(--bg)]/90 px-3 py-1.5 rounded-full border border-[var(--warning)]/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg backdrop-blur-xl">
+                      <span className="material-symbols-outlined !text-[12px]">{t("auto_warning")}</span>
+                      {t("workbench_unsaved_changes")}
+                   </div>
                  )}
 
                  <button 

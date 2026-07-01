@@ -41,12 +41,47 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
   const [dataSize, setDataSize] = useState<number | null>(null);
   const [sandboxSize, setSandboxSize] = useState<number | null>(null);
   const [timeCapsuleSize, setTimeCapsuleSize] = useState<number | null>(null);
+  const [appFootprint, setAppFootprint] = useState<any>(null);
+  const [usePrivateMemory, setUsePrivateMemory] = useState(true);
+  const prevFootprintRef = useRef<any>(null);
+  const prevTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (isOpen) {
       invoke('fetch_system_telemetry').then((res: any) => {
         setTelemetry(res);
       }).catch(err => console.error("Failed to get telemetry", err));
+
+      const fetchFootprint = () => {
+        invoke('fetch_app_footprint').then((res: any) => {
+          const now = performance.now();
+          const prev = prevFootprintRef.current;
+          
+          if (prev && prevTimeRef.current > 0) {
+            const timeDelta = (now - prevTimeRef.current) / 1000;
+            const readSpeed = Math.max(0, (res.disk_read - prev.disk_read) / timeDelta);
+            const writeSpeed = Math.max(0, (res.disk_written - prev.disk_written) / timeDelta);
+            
+            setAppFootprint({
+              ...res,
+              disk_read_speed: readSpeed,
+              disk_write_speed: writeSpeed
+            });
+          } else {
+            setAppFootprint({
+              ...res,
+              disk_read_speed: 0,
+              disk_write_speed: 0
+            });
+          }
+          
+          prevFootprintRef.current = res;
+          prevTimeRef.current = now;
+        }).catch(err => console.error("Failed to get footprint", err));
+      };
+      
+      fetchFootprint();
+      const interval = setInterval(fetchFootprint, 3000);
 
       invoke('get_saved_coordinates').then(async (config: any) => {
         if (config && config.vault_path) {
@@ -74,6 +109,8 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
           }
         }
       }).catch(err => console.error("Failed to get config", err));
+
+      return () => clearInterval(interval);
     }
   }, [isOpen]);
 
@@ -176,6 +213,57 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
               value={telemetry ? <AnimatedNumber value={Math.round(telemetry.total_memory / (1024 ** 3))} suffix={t("sys_stat_gb_suffix")} /> : t("sys_stat_scanning_dots")} 
               icon="speed" 
               glowColor="rgba(59,130,246,0.4)"
+            />
+          </div>
+        </div>
+
+        {/* App Footprint */}
+        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-200 ease-out fill-mode-both relative z-10">
+          <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-2">
+            <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-[var(--subtext)] opacity-70 flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[16px]" style={{ color: "rgba(234,88,12,0.8)" }}>{t("ui_icon_monitoring") || "monitoring"}</span>
+              <span className="drop-shadow-sm">{t("sys_info_app_footprint")}</span>
+            </h3>
+            
+            <div className="flex items-center gap-1 theme-glass-panel rounded-xl p-1 border border-white/5 shadow-inner shrink-0 scale-90 origin-right">
+              <button 
+                onClick={() => setUsePrivateMemory(false)} 
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${!usePrivateMemory ? 'bg-[rgba(234,88,12,0.2)] text-[rgba(234,88,12,1)] border border-[rgba(234,88,12,0.3)] shadow-[0_0_15px_rgba(234,88,12,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
+              >
+                {t("sys_stat_working_set")}
+              </button>
+              <button 
+                onClick={() => setUsePrivateMemory(true)} 
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${usePrivateMemory ? 'bg-[rgba(234,88,12,0.2)] text-[rgba(234,88,12,1)] border border-[rgba(234,88,12,0.3)] shadow-[0_0_15px_rgba(234,88,12,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 border border-transparent'}`}
+              >
+                {t("sys_stat_private_set")}
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <StatBox 
+              label={usePrivateMemory ? t("sys_stat_mem_private_set") : t("sys_stat_mem_working_set")} 
+              value={appFootprint ? (() => { const s = parseBytes(usePrivateMemory ? appFootprint.memory_private : appFootprint.memory_used); return <AnimatedNumber value={s.val} suffix={s.unit} />; })() : t("sys_stat_scanning_dots")} 
+              icon={t("ui_icon_memory") || "memory"} 
+              glowColor="rgba(234,88,12,0.4)"
+            />
+            <StatBox 
+              label={t("sys_stat_cpu")} 
+              value={appFootprint ? <AnimatedNumber value={appFootprint.cpu_usage} suffix="%" /> : t("sys_stat_scanning_dots")} 
+              icon={t("ui_icon_speed") || "speed"} 
+              glowColor="rgba(234,88,12,0.4)"
+            />
+            <StatBox 
+              label={t("sys_stat_total_disk_read") || "Disk Read"} 
+              value={appFootprint ? (() => { const s = parseBytes(appFootprint.disk_read_speed); return <AnimatedNumber value={s.val} suffix={`${s.unit}/s`} />; })() : t("sys_stat_scanning_dots")} 
+              icon={t("ui_icon_download") || "download"} 
+              glowColor="rgba(234,88,12,0.4)"
+            />
+            <StatBox 
+              label={t("sys_stat_total_disk_write") || "Disk Write"} 
+              value={appFootprint ? (() => { const s = parseBytes(appFootprint.disk_write_speed); return <AnimatedNumber value={s.val} suffix={`${s.unit}/s`} />; })() : t("sys_stat_scanning_dots")} 
+              icon={t("ui_icon_upload") || "upload"} 
+              glowColor="rgba(234,88,12,0.4)"
             />
           </div>
         </div>
