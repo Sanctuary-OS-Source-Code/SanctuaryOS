@@ -1,11 +1,18 @@
-# Sanctuary OS - Official Documentation
+# Sanctuary OS 
+
+![Version](https://img.shields.io/badge/version-0.4.64-blue)
+![Last Updated](https://img.shields.io/badge/last_updated-July_11,_2026-brightgreen)
+![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+![Alpha](https://img.shields.io/badge/Alpha-Early_Access-red)
+
+> **Official Citizen Guide**
 
 This repository contains the official guides for Sanctuary OS, covering both standard Citizen operations and Elevated Clearances.
 
 ---
 
-## 📖 Table of Contents
-- [Part 1: Official Citizen Guide](#part-1-official-citizen-guide)
+## Table of Contents
+- [Part 1: Official Citizen Guide](#official-citizen-guide)
   - [Cartographer Initialization (Initial Setup)](#cartographer-initialization-initial-setup)
   - [The Command Center](#the-command-center)
   - [Your Vault](#your-vault)
@@ -20,7 +27,7 @@ This repository contains the official guides for Sanctuary OS, covering both sta
   - [Compliance, DEFCON & Malware Security](#compliance-defcon--malware-security)
   - [System Preferences](#system-preferences)
   - [Quick Tips for Citizens](#quick-tips-for-citizens)
-- [Part 2: Elevated Clearances](#part-2-elevated-clearances)
+- [Part 2: Elevated Clearances](#elevated-clearances)
   - [Masons (Mod Creators)](#masons-mod-creators)
   - [Architects (Moderators)](#architects-moderators)
   - [Oversight (System Administrators)](#oversight-system-administrators)
@@ -29,7 +36,7 @@ This repository contains the official guides for Sanctuary OS, covering both sta
 
 ---
 
-# Part 1: Official Citizen Guide
+# Official Citizen Guide
 
 **Version:** 0.4.6 | **Last Updated:** July 8, 2026
 
@@ -197,7 +204,7 @@ Your System. Your Sovereignty. Your Preferences.
 
 ---
 
-# Part 2: Elevated Clearances
+# Elevated Clearances
 
 **Version:** 0.4.5 | **Last Updated:** July 7, 2026
 
