@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "game_id": "stardew-valley",
+  "display_name": "Stardew Valley",
+  "executable_names": [
+    "Stardew Valley.exe",
+    "StardewModdingAPI.exe"
+  ],
+  "mod_categories": [
+    {
+      "id": "Unknown",
+      "lexicon_key": "class_dd_unknown",
+      "icon_key": "ui_icon_unknown"
+    },
+    {
+      "id": "Core",
+      "lexicon_key": "class_dd_core",
+      "icon_key": "ui_icon_core"
+    },
+    {
+      "id": "Script",
+      "lexicon_key": "class_dd_script",
+      "icon_key": "ui_icon_scroll"
+    }
+  ],
+  "paths": {
+    "default_mod_dir_windows": "Steam/steamapps/common/Stardew Valley/Mods",
+    "default_mod_dir_mac": "Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Mods",
+    "manifest_file": "manifest.json"
+  },
+  "extensions": {
+    "supported": [
+      ".dll",
+      ".json",
+      ".xnb",
+      ".png",
+      ".zip"
+    ],
+    "vault_visible": [
+      ".dll"
+    ],
+    "parsers": {
+      ".dll": "binary_parser",
+      ".json": "text_parser",
+      ".xnb": "binary_parser",
+      ".png": "image_parser",
+      ".zip": "archive_extractor"
+    },
+    "labels": {
+      ".dll": "DLL",
+      ".json": "JSON",
+      ".xnb": "XNB",
+      ".png": "IMAGE",
+      ".zip": "ARCHIVE"
+    },
+    "cache_files": []
+  },
+  "conflict_radar": {
+    "tier_4_fatal": [],
+    "tier_3_tuning": []
+  },
+  "constraints": {
+    "max_folder_depth": 10,
+    "requires_script_unzipping": true
+  },
+  "taxonomy": {
+    "source": "database",
+    "table": "stardew_taxonomy"
+  },
+  "time_capsule": {
+    "world_state_targets": [
+      {
+        "name": "Saves",
+        "path": "Saves"
+      }
+    ],
+    "engine_state_targets": [
+      {
+        "name": "Mods",
+        "path": "Mods"
+      }
+    ]
+  },
+  "exception_logs": [],
+  "version_extraction": null
+}

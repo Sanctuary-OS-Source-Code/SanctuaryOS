@@ -1,0 +1,65 @@
+import React, { useState } from "react";
+import { SidePanel, standardAccentGlassButtonClass, standardButtonClass } from "../shared";
+import CitizenTickets from "../CitizenTickets";
+import TicketDossierSidePanel from "./TicketDossierSidePanel";
+import { useLexicon } from "../LexiconContext";
+
+interface CitizenTicketsSidePanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+  userId: string;
+}
+
+export default function CitizenTicketsSidePanel({ isOpen, onClose, userId }: CitizenTicketsSidePanelProps) {
+  const { t } = useLexicon();
+  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      <SidePanel
+        isOpen={isOpen}
+        onClose={onClose}
+        title={t("sidebar_support")}
+        subtitle={t("support_desk_sub")}
+        icon={t("icon_support_agent")}
+        widthClass="w-[700px]"
+        footer={
+          <div className="flex justify-center items-center gap-4 w-full">
+            <button onClick={onClose} className={standardButtonClass}>
+              {t("shared_cancel")}
+            </button>
+            <button 
+              onClick={() => {
+                document.dispatchEvent(new CustomEvent('open-support-modal'));
+              }}
+              className={standardAccentGlassButtonClass}
+            >
+              <span className="material-symbols-outlined !text-[14px]">{t("icon_add_circle")}</span> {t("support_title")}
+            </button>
+          </div>
+        }
+      >
+        <div className="h-full relative pb-10">
+          <CitizenTickets 
+            userId={userId} 
+            onSelectTicket={setSelectedTicket}
+          />
+        </div>
+      </SidePanel>
+
+      <TicketDossierSidePanel 
+        isOpen={!!selectedTicket}
+        onClose={() => setSelectedTicket(null)}
+        ticket={selectedTicket}
+        isReadOnly={false}
+        canReply={true}
+        availableActions={[]}
+        onReplyAdded={(newMetadata) => {
+          setSelectedTicket({...selectedTicket, metadata: newMetadata});
+        }}
+      />
+    </>
+  );
+}

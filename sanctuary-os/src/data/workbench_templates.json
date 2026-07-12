@@ -1,0 +1,70 @@
+{
+  "template_id": "custom_template_abcd",
+  "schema_version": 2,
+  "supported_mod_versions": [
+    "1.0.0"
+  ],
+  "target_file": "my_mod_settings.cfg",
+  "parser_type": "json",
+  "write_scope": "active_mod_folder",
+  "mod_author": "Unknown",
+  "template_author": "Sanctuary OS Citizen",
+  "template_version": "1.0.0",
+  "categories": [
+    {
+      "id": "general",
+      "name_key": "workbench_category_general",
+      "icon_key": "workbench_icon_tune"
+    }
+  ],
+  "settings": [
+    {
+      "key": "My_Boolean_Setting",
+      "path": "My_Boolean_Setting",
+      "type": "boolean",
+      "label_key": "Boolean Setting",
+      "desc_key": "True or False",
+      "category": "general",
+      "default": false
+    },
+    {
+      "key": "My_Number_Setting",
+      "path": "My_Number_Setting",
+      "type": "number",
+      "label_key": "Number Settings",
+      "desc_key": "Perdefinded Number Range",
+      "category": "general",
+      "min": 0,
+      "max": 100,
+      "default": 50
+    },
+    {
+      "key": "My_String_Setting",
+      "path": "My_String_Setting",
+      "type": "string",
+      "label_key": "String Settings",
+      "desc_key": "Custom Text Input",
+      "category": "general",
+      "default": "Default Text"
+    },
+    {
+      "key": "My_Dropdown_Setting",
+      "path": "My_Dropdown_Setting",
+      "type": "dropdown",
+      "label_key": "Dropdown Settings",
+      "desc_key": "Predefined Dropdown Options",
+      "category": "general",
+      "options": [
+        {
+          "value": "A",
+          "label_key": "Option A"
+        },
+        {
+          "value": "B",
+          "label_key": "Option B"
+        }
+      ],
+      "default": "A"
+    }
+  ]
+}

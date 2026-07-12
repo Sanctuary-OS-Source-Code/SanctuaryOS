@@ -1,0 +1,278 @@
+{
+  "paths": {
+    "manifest_file": "Resource.cfg",
+    "auto_scan_paths_mac": [],
+    "default_mod_dir_mac": "Documents/Electronic Arts/The Sims 4/Mods",
+    "auto_scan_paths_windows": [
+      "C:\\Program Files\\EA Games\\The Sims 4",
+      "C:\\Program Files\\EA\\Origin Games\\The Sims 4\\Bin",
+      "C:\\Program Files (x86)\\Origin Games\\The Sims 4\\Game\\Bin",
+      "C:\\Program Files\\EA Games\\The Sims 4\\Game\\Bin",
+      "D:\\Program Files\\EA Games\\The Sims 4",
+      "D:\\Program Files\\EA\\Origin Games\\The Sims 4\\Bin",
+      "D:\\Program Files (x86)\\Origin Games\\The Sims 4\\Game\\Bin",
+      "D:\\Program Files\\EA Games\\The Sims 4\\Game\\Bin",
+      "E:\\Program Files\\EA Games\\The Sims 4",
+      "E:\\Program Files\\EA\\Origin Games\\The Sims 4\\Bin",
+      "E:\\Program Files (x86)\\Origin Games\\The Sims 4\\Game\\Bin",
+      "E:\\Program Files\\EA Games\\The Sims 4\\Game\\Bin",
+      "F:\\Program Files\\EA Games\\The Sims 4",
+      "F:\\Program Files\\EA\\Origin Games\\The Sims 4\\Bin",
+      "F:\\Program Files (x86)\\Origin Games\\The Sims 4\\Game\\Bin",
+      "F:\\Program Files\\EA Games\\The Sims 4\\Game\\Bin",
+      "G:\\Program Files\\EA Games\\The Sims 4",
+      "G:\\Program Files\\EA\\Origin Games\\The Sims 4\\Bin",
+      "G:\\Program Files (x86)\\Origin Games\\The Sims 4\\Game\\Bin",
+      "G:\\Program Files\\EA Games\\The Sims 4\\Game\\Bin",
+      "C:\\Program Files (x86)\\Steam\\steamapps\\common\\The Sims 4\\Game\\Bin",
+      "D:\\Program Files (x86)\\Steam\\steamapps\\common\\The Sims 4\\Game\\Bin",
+      "E:\\Program Files (x86)\\Steam\\steamapps\\common\\The Sims 4\\Game\\Bin",
+      "F:\\Program Files (x86)\\Steam\\steamapps\\common\\The Sims 4\\Game\\Bin",
+      "G:\\Program Files (x86)\\Steam\\steamapps\\common\\The Sims 4\\Game\\Bin"
+    ],
+    "default_mod_dir_windows": "Documents/Electronic Arts/The Sims 4/Mods"
+  },
+  "game_id": "the-sims-4",
+  "taxonomy": {
+    "obj_def_type": "0x319E4F1D",
+    "cas_part_type": "0x034AEECB",
+    "warning_types": [
+      "0x03B33DDF",
+      "0x545AC67A",
+      "0x62E94D38"
+    ],
+    "critical_types": [
+      "0x02D5DF13"
+    ],
+    "harmless_types": [
+      "0x00B2D882",
+      "0x034AEECB",
+      "0x220557DA",
+      "0x00000000"
+    ],
+    "explicit_local_types": [
+      "0x54533453",
+      "0x01357924"
+    ]
+  },
+  "extensions": {
+    "labels": {
+      ".cfg": "CONFIG",
+      ".rar": "ARCHIVE",
+      ".zip": "ARCHIVE",
+      ".package": "PACKAGE",
+      ".tmdelta": "DELTA",
+      ".tmcatalog": "CATALOG",
+      ".ts4script": "SCRIPT"
+    },
+    "parsers": {
+      ".cfg": "text_parser",
+      ".rar": "archive_extractor",
+      ".zip": "archive_extractor",
+      ".package": "dbpf_parser",
+      ".tmdelta": "dbpf_parser",
+      ".tmcatalog": "dbpf_parser",
+      ".ts4script": "zip_parser"
+    },
+    "supported": [
+      ".package",
+      ".ts4script",
+      ".zip",
+      ".rar",
+      ".tmcatalog",
+      ".cfg",
+      ".tmdelta",
+      ".tmbin",
+      ".dat"
+    ],
+    "cache_files": [
+      "localthumbcache.package",
+      "avatarcache.package",
+      "localsimtexturecache.package"
+    ],
+    "vault_visible": [
+      ".package",
+      ".ts4script"
+    ]
+  },
+  "constraints": {
+    "max_folder_depth": 5,
+    "requires_script_unzipping": false
+  },
+  "magic_bytes": {
+    "PACKAGE": "DBPF"
+  },
+  "display_name": "The Sims 4",
+  "time_capsule": {
+    "world_state_targets": [
+      {
+        "name": "Saves",
+        "path": "Saves"
+      },
+      {
+        "name": "Tray",
+        "path": "Tray"
+      },
+      {
+        "name": "Mods",
+        "path": "Mods"
+      },
+      {
+        "name": "ConfigOverride",
+        "path": "ConfigOverride"
+      },
+      {
+        "name": "CustomMusic",
+        "path": "CustomMusic"
+      },
+      {
+        "name": "Recorded Videos",
+        "path": "Recorded Videos"
+      },
+      {
+        "name": "Screenshots",
+        "path": "Screenshots"
+      },
+      {
+        "name": "Options.ini",
+        "path": "Options.ini"
+      }
+    ],
+    "engine_state_targets": [
+      {
+        "name": "Data",
+        "path": "Data"
+      },
+      {
+        "name": "Delta",
+        "path": "Delta"
+      },
+      {
+        "name": "Game",
+        "path": "Game"
+      }
+    ]
+  },
+  "conflict_radar": {
+    "tier_4_fatal": [
+      ".pyc",
+      ".pyo"
+    ],
+    "tier_3_tuning": [
+      "xml",
+      "simdata"
+    ]
+  },
+  "exception_logs": [
+    {
+      "ends_with": ".txt",
+      "starts_with": "lastexception"
+    },
+    {
+      "ends_with": ".txt",
+      "starts_with": "lastuiexception"
+    },
+    {
+      "ends_with": ".txt",
+      "starts_with": "lastcleanexception"
+    },
+    {
+      "ends_with": ".html",
+      "starts_with": "be-exceptionreport"
+    },
+    {
+      "exact": "lastcrash.txt"
+    },
+    {
+      "exact": "mc_lastexception.html"
+    }
+  ],
+  "mod_categories": [
+    {
+      "id": "Unknown",
+      "icon_key": "ui_icon_unknown",
+      "lexicon_key": "class_dd_unknown"
+    },
+    {
+      "id": "Core",
+      "icon_key": "ui_icon_core",
+      "lexicon_key": "class_dd_core"
+    },
+    {
+      "id": "Script",
+      "icon_key": "ui_icon_scroll",
+      "lexicon_key": "class_dd_script"
+    },
+    {
+      "id": "Tuning",
+      "icon_key": "ui_icon_tuning",
+      "lexicon_key": "class_dd_tuning"
+    },
+    {
+      "id": "Override",
+      "icon_key": "ui_icon_override",
+      "lexicon_key": "class_dd_override"
+    },
+    {
+      "id": "BuildBuy",
+      "icon_key": "ui_icon_couch",
+      "lexicon_key": "class_dd_buildbuy"
+    },
+    {
+      "id": "CAS",
+      "icon_key": "ui_icon_shirt",
+      "lexicon_key": "class_dd_cas",
+      "subcategories": [
+        {
+          "id": "Tattoo",
+          "lexicon_key": "vault_sub_tattoo"
+        },
+        {
+          "id": "Hair",
+          "lexicon_key": "vault_sub_hair"
+        },
+        {
+          "id": "Clothing",
+          "lexicon_key": "vault_sub_clothing"
+        }
+      ]
+    },
+    {
+      "id": "Animation",
+      "icon_key": "ui_icon_clapper",
+      "lexicon_key": "class_dd_animation"
+    },
+    {
+      "id": "Trait",
+      "icon_key": "ui_icon_trait",
+      "lexicon_key": "class_dd_trait"
+    },
+    {
+      "id": "Career",
+      "icon_key": "ui_icon_career",
+      "lexicon_key": "class_dd_career"
+    }
+  ],
+  "schema_version": 2,
+  "executable_names": [
+    "TS4_x64.exe",
+    "TS4.exe",
+    "TS4_DX9_x64.exe"
+  ],
+  "manifest_content": "Priority 500\nPackedFile *.package\nPackedFile */*.package\nPackedFile */*/*.package\nPackedFile */*/*/*.package\nPackedFile */*/*/*/*.package\nPackedFile */Delta/tmscenario1.tmdelta\nPackedFile Data/*Strings.tmcatalog\nPackedFile */Data/*Strings.tmcatalog\n\nPriority 1000\nPackedFile Sanctuary/*.package\nPackedFile Sanctuary/*/*.package\nPackedFile Sanctuary/*/*/*.package\n\nPriority 1500\nPackedFile Sanctuary2/*.package\nPackedFile Sanctuary2/*/*.package\nPackedFile Sanctuary2/*/*/*.package\n\nPriority 2000\nPackedFile Sanctuary3/*.package\nPackedFile Sanctuary3/*/*.package\nPackedFile Sanctuary3/*/*/*.package",
+  "version_extraction": {
+    "line_prefix": "gameversion",
+    "relative_path": "Game/Bin/Default.ini"
+  },
+  "dlc_folder_prefixes": [
+    "EP",
+    "GP",
+    "SP",
+    "FP"
+  ],
+  "local_mod_heuristics": [
+    "customchallenge",
+    "simmatic",
+    "simmattic"
+  ]
+}
