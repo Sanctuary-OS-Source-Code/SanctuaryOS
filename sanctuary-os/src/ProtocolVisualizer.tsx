@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import { logArchitectAction } from "./lib/audit";
 import { useLexicon } from "./LexiconContext";
-import { SidePanel, ModSearchDropdown, DLC_MAP, formatDisplayName, CustomDropdown, GameVersionMultiSelect, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, EmptyState } from "./shared";
+import { HubTabDropdown, HubTabButton, SidePanel, CustomDropdown, HoverTooltip, FilterTabs, FilterTabButton, ModSearchDropdown, DLC_MAP, formatDisplayName, GameVersionMultiSelect, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, EmptyState } from "./shared";
 import ModLineageTree from "./ModLineageTree";
 import { useStore } from './store';
 
@@ -389,22 +389,23 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                   className="w-full theme-glass-inner rounded-2xl px-5 py-3 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent border border-[var(--text)]/10 shadow-inner"
                 />
               </div>
-              <div className="flex bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-1 relative z-10 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+              <FilterTabs className="w-full">
                 {[
                   { id: 'Expansion Pack', label: 'Expansions' },
                   { id: 'Game Pack', label: 'Game Packs' },
                   { id: 'Stuff Pack', label: 'Stuff Packs' },
                   { id: 'KIT', label: 'Kits' }
                 ].map(tab => (
-                  <button
+                  <FilterTabButton
                     key={tab.id}
-                    onClick={() => setDlcTab(tab.id)}
-                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-xl ${dlcTab === tab.id ? 'bg-[var(--accent)]/20 border border-[var(--accent)]/50 backdrop-blur-md shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] text-white scale-[1.02]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[var(--text)]/5'}`}
-                  >
-                    {tab.label}
-                  </button>
+                    id={tab.id}
+                    label={tab.label}
+                    activeTab={dlcTab}
+                    setTab={setDlcTab}
+                    className="flex-1"
+                  />
                 ))}
-              </div>
+              </FilterTabs>
               <div className="flex flex-col gap-6 mt-4 relative z-10">
                 {(() => {
                    const typeDlcs = dlcRegistry.filter(d => d.type === dlcTab && (!dlcSearch || d.name.toLowerCase().includes(dlcSearch.toLowerCase()))).sort((a,b) => a.id.localeCompare(b.id));

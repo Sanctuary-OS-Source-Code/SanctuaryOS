@@ -7,7 +7,7 @@ import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker, StatTile,
-  HubTabButton, ModSearchDropdown, EmptyState,
+  HubTabButton, ModSearchDropdown, EmptyState, FilterTabs, FilterTabButton,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion } from "./shared";
@@ -266,10 +266,20 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
               ]}
             />
           </div>
-          <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex mr-4 divide-x divide-white/5">
-            <button onClick={() => setSandboxTabFilter('local')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("unlinked_badge") || "LOCAL"}</button>
-            <button onClick={() => setSandboxTabFilter('synced')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("synced_badge") || "SYNCED"}</button>
-          </div>
+          <FilterTabs className="h-12 hidden md:flex mr-4">
+            <FilterTabButton
+              id="local"
+              label={t("unlinked_badge") || "LOCAL"}
+              activeTab={sandboxTabFilter}
+              setTab={setSandboxTabFilter}
+            />
+            <FilterTabButton
+              id="synced"
+              label={t("synced_badge") || "SYNCED"}
+              activeTab={sandboxTabFilter}
+              setTab={setSandboxTabFilter}
+            />
+          </FilterTabs>
           <button
             onClick={handleImportToSandbox}
             disabled={isImporting}

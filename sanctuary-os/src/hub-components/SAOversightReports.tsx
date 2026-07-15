@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { ViewHeader, CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel } from "../shared";
+import { ViewHeader, CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, FilterTabs, FilterTabButton } from "../shared";
 
 export default function SAOversightReports() {
   const { t } = useLexicon();
@@ -106,20 +106,20 @@ export default function SAOversightReports() {
               />
             </div>
             
-            <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 h-12 shrink-0 z-40">
-              <button 
-                onClick={() => setFilterTab("new")}
-                className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'new' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
-              >
-                {t("ui_tab_new")}
-              </button>
-              <button 
-                onClick={() => setFilterTab("archive")}
-                className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'archive' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
-              >
-                {t("oversight_tab_archive")}
-              </button>
-            </div>
+            <FilterTabs className="h-12 z-40">
+              <FilterTabButton
+                id="new"
+                label={t("ui_tab_new")}
+                activeTab={filterTab}
+                setTab={setFilterTab}
+              />
+              <FilterTabButton
+                id="archive"
+                label={t("oversight_tab_archive")}
+                activeTab={filterTab}
+                setTab={setFilterTab}
+              />
+            </FilterTabs>
 
           <div className="flex items-center gap-2 text-[var(--subtext)] z-30 shrink-0">
              <div className="w-40">
@@ -224,26 +224,26 @@ export default function SAOversightReports() {
                  />
                </div>
                
-               <div className="flex items-center gap-1 theme-glass-panel rounded-lg p-1 border border-white/5 h-10 shrink-0">
-                 <button 
-                   onClick={() => setGroupFilterTab("all")}
-                   className={`px-3 py-0 h-full rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center ${groupFilterTab === 'all' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
-                 >
-                   {t("ql_all")}
-                 </button>
-                 <button 
-                   onClick={() => setGroupFilterTab("new")}
-                   className={`px-3 py-0 h-full rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center ${groupFilterTab === 'new' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
-                 >
-                   {t("badge_new")}
-                 </button>
-                 <button 
-                   onClick={() => setGroupFilterTab("archive")}
-                   className={`px-3 py-0 h-full rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center ${groupFilterTab === 'archive' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
-                 >
-                   {t("auto_archive")}
-                 </button>
-               </div>
+               <FilterTabs className="h-10">
+                 <FilterTabButton
+                   id="all"
+                   label={t("ql_all")}
+                   activeTab={groupFilterTab}
+                   setTab={setGroupFilterTab}
+                 />
+                 <FilterTabButton
+                   id="new"
+                   label={t("badge_new")}
+                   activeTab={groupFilterTab}
+                   setTab={setGroupFilterTab}
+                 />
+                 <FilterTabButton
+                   id="archive"
+                   label={t("auto_archive")}
+                   activeTab={groupFilterTab}
+                   setTab={setGroupFilterTab}
+                 />
+               </FilterTabs>
 
                <div className="w-max min-w-[144px] max-w-xs z-30 shrink-0">
                  <CustomDropdown 

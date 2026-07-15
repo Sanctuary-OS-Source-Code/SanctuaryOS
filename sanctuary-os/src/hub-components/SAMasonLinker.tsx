@@ -3,13 +3,15 @@ import { createPortal } from "react-dom";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+import {
+  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown } from "../shared";
+  fetchAllPaginated, CustomTierDropdown
+} from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -315,7 +317,6 @@ export function MasonLinker() {
 
             <div className="flex items-center justify-between mt-4">
               <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest ml-2 flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${isVerified ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-gray-500'}`}></span>
                 {t("mark_verified")}
               </label>
               <button
@@ -367,8 +368,8 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
           className={`w-full h-12 theme-glass-inner rounded-xl px-5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all relative cursor-text ${value ? 'theme-text-accent' : ''}`}
         />
         {value ? (
-          <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold" onClick={() => { onChange(""); setQuery(""); setIsOpen(true); inputRef.current?.focus(); }}>
-            {t("_")}
+          <button className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold" onClick={() => { onChange(""); setQuery(""); setIsOpen(true); inputRef.current?.focus(); }}>
+            {t("icon_close")}
           </button>
         ) : (
           <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60" onClick={() => setIsOpen(!isOpen)}>

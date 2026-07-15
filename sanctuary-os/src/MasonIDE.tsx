@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Editor from "@monaco-editor/react";
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardGlassButtonClass, standardAccentGlassButtonClass, standardPrimaryButtonClass, EmptyState, HoverTooltip } from "./shared";
+import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardGlassButtonClass, standardAccentGlassButtonClass, standardPrimaryButtonClass, EmptyState, HoverTooltip, FilterTabs, FilterTabButton } from "./shared";
 import { readDir, readTextFile, writeTextFile, exists, remove, rename } from '@tauri-apps/plugin-fs';
 import { open } from "@tauri-apps/plugin-dialog";
 import VersionTimeline from './VersionTimeline';
@@ -665,26 +665,26 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
       >
          <div className="flex flex-col h-full relative">
             <div className="flex flex-col relative z-20 shrink-0 px-6 pt-6 pb-2 pointer-events-none">
-                <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar p-2 shrink-0 theme-glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[0_10px_30px_rgba(0,0,0,0.3)] w-full pointer-events-auto">
+                <FilterTabs className="h-12 w-full custom-scrollbar p-2 overflow-x-auto shadow-[0_10px_30px_rgba(0,0,0,0.3)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl pointer-events-auto">
                     {openFiles.map((file: any, i) => {
                         if (file.isHidden) return null;
                         const isActive = activeFileIndex === i;
                         const isDirty = file.content !== file.originalContent;
                         return (
-                            <div key={file.path} onClick={() => setActiveFileIndex(i)} className={`h-10 px-5 flex items-center gap-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all whitespace-nowrap cursor-pointer group shrink-0 ${
-                                isActive 
-                                   ? (isDirty ? 'bg-amber-500/10 border border-amber-500/50 text-amber-500 shadow-[inset_0_0_20px_rgba(245,158,11,0.15)]' : 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]') 
-                                   : (isDirty ? 'text-amber-500/70 border border-amber-500/30 hover:border-amber-500/50 hover:text-amber-500 bg-amber-500/5' : 'text-[var(--subtext)] border border-transparent hover:text-[var(--text)] hover:bg-white/5 opacity-70 hover:opacity-100')
-                            }`}>
-                                <span className={`material-symbols-outlined !text-[16px] ${isActive && !isDirty ? 'text-[var(--accent)]' : (isDirty ? 'text-amber-500' : 'text-[var(--subtext)]')}`}>
-                                    {file.name.endsWith('.json') ? 'data_object' : 'description'}
-                                </span>
-                                <span>{file.name}</span>
-                                <button onClick={(e) => closeFile(i, e)} className={`material-symbols-outlined !text-[16px] p-0.5 rounded-lg transition-colors ml-1 ${isActive ? (isDirty ? 'text-amber-500 hover:bg-amber-500/20' : 'text-[var(--accent)] hover:bg-[var(--accent)]/20') : 'text-transparent group-hover:text-[var(--subtext)] hover:!text-[var(--danger)] hover:!bg-[var(--danger)]/20'}`}>{t("icon_close")}</button>
-                            </div>
+                            <FilterTabButton
+                                key={file.path}
+                                id={i}
+                                activeTab={activeFileIndex}
+                                setTab={setActiveFileIndex}
+                                icon={file.name.endsWith('.json') ? 'data_object' : 'description'}
+                                label={file.name}
+                                className={isDirty ? 'bg-amber-500/10 border border-amber-500/50 text-amber-500 shadow-[inset_0_0_20px_rgba(245,158,11,0.15)]' : ''}
+                            >
+                                <div onClick={(e) => closeFile(i, e)} className={`material-symbols-outlined !text-[16px] p-0.5 rounded-lg transition-colors ml-1 ${isActive ? (isDirty ? 'text-amber-500 hover:bg-amber-500/20' : 'text-[var(--accent)] hover:bg-[var(--accent)]/20') : 'text-transparent group-hover:text-[var(--subtext)] hover:!text-[var(--danger)] hover:!bg-[var(--danger)]/20'}`}>{t("icon_close")}</div>
+                            </FilterTabButton>
                         );
                     })}
-                </div>
+                </FilterTabs>
             </div>
 
             <div className="flex-1 relative">

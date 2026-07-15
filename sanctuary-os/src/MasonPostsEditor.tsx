@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import IconPicker from "./IconPicker";
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
@@ -7,7 +7,7 @@ import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker, StatTile,
-  HubTabButton, ModSearchDropdown, EmptyState,
+  HubTabButton, HubTabs, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, HoverTooltip,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion } from "./shared";
@@ -21,7 +21,6 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
-import Link from '@tiptap/extension-link';
 import { IconPlugin } from './IconPlugin';
 
 
@@ -106,17 +105,35 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     }
   }, [isEditorOpen, editingPostId, editingPost, title, description, content, imageUrl, codeSnippet, isPinned]);
 
+  useEffect(() => {
+    if (masonHubDrafts && Object.keys(masonHubDrafts).length > 0) {
+      Object.keys(masonHubDrafts).forEach(id => {
+        if (!masonHubDrafts[id].content && !masonHubDrafts[id].title) {
+          setMasonHubDrafts(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          });
+        }
+      });
+    }
+  }, [isEditorOpen]);
+
+  const updateTimeoutRef = useRef<any>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
       Markdown,
       IconPlugin,
-      Image,
-      Link.configure({ HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' }, protocols: ['asset'] })
+      Image
     ],
     content: content,
     onUpdate: ({ editor }) => {
-      setContent((editor.storage as any).markdown.getMarkdown());
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      updateTimeoutRef.current = setTimeout(() => {
+        setContent((editor.storage as any).markdown.getMarkdown());
+      }, 500);
     },
     editorProps: {
       attributes: {
@@ -175,7 +192,10 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     setIsAssetPanelOpen(false);
     setAssetSearchQuery("");
   };
-  const filteredAssets = assets.filter(a => a.name.toLowerCase().includes(assetSearchQuery.toLowerCase()));
+  const filteredAssets = useMemo(() => {
+    if (!isAssetPanelOpen) return [];
+    return assets.filter(a => a.name.toLowerCase().includes(assetSearchQuery.toLowerCase()));
+  }, [assets, assetSearchQuery, isAssetPanelOpen]);
 
   const openEditor = (post?: any) => {
     setViewMode('edit');
@@ -260,7 +280,14 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
+    
+    let finalContent = content;
+    if (editor) {
+      finalContent = (editor.storage as any).markdown.getMarkdown();
+      setContent(finalContent);
+    }
+    
+    if (!title.trim() || !finalContent.trim()) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -282,9 +309,15 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     }
 
     setIsSubmitting(true);
-    let payload: any = { mason_id: masonId, title: title.trim(), description: description.trim() || null, content: content.trim(), is_pinned: isPinned };
+    let payload: any = {
+      mason_id: masonId,
+      title: title.trim(),
+      description: description.trim() || null,
+      content: finalContent.trim(),
+      code_snippet: codeSnippet.trim() || null,
+      is_pinned: isPinned,
+    };
     if (imageUrl.trim()) payload.image_url = imageUrl.trim();
-    if (codeSnippet.trim()) payload.code_snippet = codeSnippet.trim();
 
     let error = null;
     let newPostId: string | null = null;
@@ -346,12 +379,68 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     fetchPostsAndAssets();
   };
 
-  const filteredPosts = posts.filter(p =>
-    p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.content?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPosts = useMemo(() => {
+    return posts.filter(p =>
+      p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.content?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [posts, searchTerm]);
 
+  const draftKeysStr = useMemo(() => Object.keys(masonHubDrafts).sort().join(','), [masonHubDrafts]);
 
+  const postCards = useMemo(() => {
+    const draftSet = new Set(draftKeysStr.split(','));
+    return filteredPosts.map(post => (
+      <div key={post.id} className={`theme-glass-panel p-5 rounded-[var(--radius)] relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden ${draftSet.has(post.id) ? '!border-amber-500/30 text-amber-500 !bg-amber-500/10 hover:!bg-amber-500/20 hover:!border-amber-500/50 shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : post.is_pinned ? '!border-[var(--accent)]/30 !bg-[var(--accent)]/5 shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)]' : 'border border-white/5 hover:border-white/10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
+        {extractPostImage(post) && (
+        <div className="-mx-5 -mt-5 rounded-t-3xl overflow-hidden h-36 bg-black/40 relative border-b border-white/5 shrink-0 z-10">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none" />
+          <img src={extractPostImage(post)} alt={t("auto_cover")} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
+        </div>
+      )}
+      <div className="flex flex-col gap-1 pr-4 z-10">
+        <div className="flex items-center gap-2 mb-1">
+          {post.is_pinned && (
+            <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 backdrop-blur-md">
+              <span className="material-symbols-outlined !text-[10px]">{t("icon_push_pin")}</span>
+              {t("pinned") || "PINNED"}
+            </span>
+          )}
+          <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{new Date(post.created_at).toLocaleDateString()}</span>
+        </div>
+        <h4 className="text-lg font-black text-[var(--text)] uppercase tracking-tighter line-clamp-1">{post.title}</h4>
+      </div>
+      {draftSet.has(post.id) && (
+        <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-[var(--warning)] bg-[var(--warning)]/20 border border-[var(--warning)]/40 px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none backdrop-blur-xl">
+          <span className="material-symbols-outlined !text-[12px]">{t("icon_edit_note")}</span>
+          {t("ph_unsaved_changes") || "UNSAVED EDITS"}
+        </div>
+      )}
+      <div className="flex-1 relative z-10 -mx-1">
+        <p className="text-[11px] font-mono text-[var(--subtext)] opacity-70 leading-relaxed whitespace-pre-wrap break-words line-clamp-5">
+          {post.description ? post.description : (stripMarkdown(post.content).length > 300 ? stripMarkdown(post.content).substring(0, 300) + '...' : stripMarkdown(post.content))}
+        </p>
+      </div>
+      <div className={`mt-auto pt-4 border-t border-white/5 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 relative z-20 ${confirmDelete === post.id ? 'justify-center w-full' : 'justify-end'}`}>
+        {confirmDelete === post.id ? (
+          <>
+            <span className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
+              <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
+            </span>
+            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("shared_cancel")}</button>
+            <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span> {t("purge")}</button>
+          </>
+        ) : (
+          <>
+            <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("ui_btn_view")}</button>
+            <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span> {t("emote_edit")}</button>
+            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span> {t("purge")}</button>
+          </>
+        )}
+      </div>
+    </div>
+  ));
+  }, [filteredPosts, draftKeysStr, confirmDelete, t, setPreviewPost]);
 
   return (
     <>
@@ -388,56 +477,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
       <div className="p-8 flex flex-col gap-10 pb-32">
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
-          {filteredPosts.map(post => (
-            <div key={post.id} className={`theme-glass-panel p-5 rounded-[var(--radius)] relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden ${!!masonHubDrafts[post.id] ? '!border-amber-500/30 text-amber-500 !bg-amber-500/10 hover:!bg-amber-500/20 hover:!border-amber-500/50 shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : post.is_pinned ? '!border-[var(--accent)]/30 !bg-[var(--accent)]/5 shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)]' : 'border border-white/5 hover:border-white/10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
-              {extractPostImage(post) && (
-                <div className="-mx-5 -mt-5 rounded-t-3xl overflow-hidden h-36 bg-black/40 relative border-b border-white/5 shrink-0 z-10">
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none" />
-                  <img src={extractPostImage(post)} alt={t("auto_cover")} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
-                </div>
-              )}
-              <div className="flex flex-col gap-1 pr-4 z-10">
-                <div className="flex items-center gap-2 mb-1">
-                  {post.is_pinned && (
-                    <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 backdrop-blur-md">
-                      <span className="material-symbols-outlined !text-[10px]">{t("icon_push_pin")}</span>
-                      {t("pinned") || "PINNED"}
-                    </span>
-                  )}
-                  <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{new Date(post.created_at).toLocaleDateString()}</span>
-                </div>
-                <h4 className="text-lg font-black text-[var(--text)] uppercase tracking-tighter line-clamp-1">{post.title}</h4>
-              </div>
-              {!!masonHubDrafts[post.id] && (
-                <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-[var(--warning)] bg-[var(--warning)]/20 border border-[var(--warning)]/40 px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none backdrop-blur-xl">
-                  <span className="material-symbols-outlined !text-[12px]">{t("icon_edit_note")}</span>
-                  {t("ph_unsaved_changes") || "UNSAVED EDITS"}
-                </div>
-              )}
-              <div className="flex-1 relative z-10 -mx-1">
-                <p className="text-[11px] font-mono text-[var(--subtext)] opacity-70 leading-relaxed whitespace-pre-wrap break-words line-clamp-5">
-                  {post.description ? post.description : (stripMarkdown(post.content).length > 300 ? stripMarkdown(post.content).substring(0, 300) + '...' : stripMarkdown(post.content))}
-                </p>
-              </div>
-              <div className={`mt-auto pt-4 border-t border-white/5 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 relative z-20 ${confirmDelete === post.id ? 'justify-center w-full' : 'justify-end'}`}>
-                {confirmDelete === post.id ? (
-                  <>
-                    <span className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
-                      <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
-                    </span>
-                    <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("shared_cancel")}</button>
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span> {t("purge")}</button>
-                  </>
-                ) : (
-                  <>
-                    <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("ui_btn_view")}</button>
-                    <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span> {t("emote_edit")}</button>
-                    <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span> {t("purge")}</button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
+          {postCards}
           {filteredPosts.length === 0 && (
             <EmptyState icon={t("icon_cell_tower") || "cell_tower"} title={t("no_transmissions")} className="col-span-full py-16" />
           )}
@@ -475,15 +515,16 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
           >
             <div className="flex flex-col gap-6">
 
-              <div className="flex border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-2 p-1 bg-black/40 rounded-2xl theme-glass-inner">
-                <button onClick={() => setViewMode('edit')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'edit' ? 'bg-[var(--accent)]/20 border border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] backdrop-blur-md' : 'bg-transparent border border-transparent text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:bg-white/5 hover:opacity-100 backdrop-blur-md'}`}>
-                  {t("editor")}
-                </button>
-                <button onClick={() => setViewMode('preview')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'preview' ? 'bg-[var(--accent)]/20 border border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] backdrop-blur-md' : 'bg-transparent border border-transparent text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:bg-white/5 hover:opacity-100 backdrop-blur-md'}`}>
-                  {t("preview")}
-                </button>
+              <div className="flex border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-4 pb-4">
+                <div className="w-96 shrink-0">
+                  <HubTabs 
+                    tabs={[{id: 'edit', label: t("editor")}, {id: 'preview', label: t("preview")}]} 
+                    activeTab={viewMode} 
+                    setTab={setViewMode} 
+                  />
+                </div>
 
-                <label className="ml-4 pr-4 flex items-center gap-2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity">
+                <label className="ml-auto pr-4 flex items-center gap-2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity">
                   <input type="checkbox" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} className="hidden" />
                   <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shadow-inner backdrop-blur-md ${isPinned ? 'bg-[var(--accent)]/20 border-[var(--accent)]/50 shadow-[0_0_10px_rgba(var(--accent-rgb),0.3)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-black/40'}`}>
                     {isPinned && <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_check")}</span>}
@@ -651,13 +692,22 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported") || "image_not_supported"} title={t("no_assets")} className="col-span-full py-16" />}
-            {filteredAssets.map(asset => (
-              <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl theme-glass-inner hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
-                <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("icon_extension")) : asset.type === 'blueprint' ? (t("icon_architecture")) : asset.type === 'lexicon' ? (t("icon_translate")) : (t("icon_palette"))}</span>
-                <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
-              </button>
-            ))}
+            {isAssetPanelOpen && (
+              <>
+                {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported") || "image_not_supported"} title={t("no_assets")} className="col-span-full py-16" />}
+                {filteredAssets.slice(0, 100).map(asset => (
+                  <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl theme-glass-inner hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
+                    <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("icon_extension")) : asset.type === 'blueprint' ? (t("icon_architecture")) : asset.type === 'lexicon' ? (t("icon_translate")) : (t("icon_palette"))}</span>
+                    <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
+                  </button>
+                ))}
+                {filteredAssets.length > 100 && (
+                  <div className="text-center text-[var(--subtext)] text-xs py-4 opacity-50 font-black uppercase tracking-widest">
+                    {t("search_to_see_more_results") || `+ ${filteredAssets.length - 100} MORE ASSETS`}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </SidePanel>

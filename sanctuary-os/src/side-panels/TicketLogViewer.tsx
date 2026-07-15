@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { SidePanel , getExtensionRegex} from "../shared";
+import { SidePanel , getExtensionRegex, FilterTabs, FilterTabButton} from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 
 interface LogSection {
@@ -230,27 +230,20 @@ export default function TicketLogViewer({
 
   return (
     <div className="flex flex-col w-full mt-4 gap-4">
-       <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar p-1.5 shrink-0 theme-glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner w-full mb-4">
+       <FilterTabs className="mb-4">
           {sections.map((sec, idx) => {
-             const isActive = activeTab === idx;
              return (
-                 <button 
+                 <FilterTabButton 
                     key={idx} 
-                    onClick={() => setActiveTab(idx)}
-                    className={`h-8 px-4 flex items-center gap-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                        isActive 
-                           ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' 
-                           : 'text-[var(--subtext)] border border-transparent hover:text-[var(--text)] hover:bg-white/5 opacity-70 hover:opacity-100'
-                    }`}
-                 >
-                   <span className={`material-symbols-outlined !text-[14px] ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>
-                       {sec.title.includes('Log') || sec.title.includes('Blueprint') ? 'description' : 'data_object'}
-                   </span>
-                   <span>{sec.title.endsWith('Logs') ? sec.title.slice(0, -1) : sec.title.replace(' (OS)', '')}</span>
-                 </button>
+                    id={idx}
+                    activeTab={activeTab}
+                    setTab={setActiveTab}
+                    icon={sec.title.includes('Log') || sec.title.includes('Blueprint') ? 'description' : 'data_object'}
+                    label={sec.title.endsWith('Logs') ? sec.title.slice(0, -1) : sec.title.replace(' (OS)', '')}
+                 />
              );
           })}
-       </div>
+       </FilterTabs>
 
        <div className="w-full">
            {renderContent(sections[activeTab])}

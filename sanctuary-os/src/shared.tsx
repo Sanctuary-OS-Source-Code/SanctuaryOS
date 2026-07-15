@@ -364,6 +364,42 @@ export function HubTabButton({ id, icon, label, activeTab, setTab }: any) {
   );
 }
 
+export function HubTabs({ tabs, activeTab, setTab, className = "" }: any) {
+  return (
+    <div className={`flex items-center overflow-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 shrink-0 w-full ${className}`}>
+      {tabs.map((tab: any) => (
+        <HubTabButton key={tab.id} {...tab} activeTab={activeTab} setTab={setTab} />
+      ))}
+    </div>
+  );
+}
+
+export function FilterTabs({ children, className = "" }: any) {
+  return (
+    <div className={`flex items-center overflow-hidden theme-glass-panel rounded-full p-1 border border-white/5 shadow-inner shrink-0 gap-1 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+export function FilterTabButton({ id, icon, label, activeTab, setTab, className = "", children }: any) {
+  const isActive = activeTab === id;
+  return (
+    <button
+      onClick={() => setTab(id)}
+      className={`h-full px-4 py-1.5 rounded-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+        isActive
+          ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md'
+          : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 opacity-70 hover:opacity-100'
+      } ${className}`}
+    >
+      {icon && <span className="material-symbols-outlined !text-[14px]">{icon}</span>}
+      {label}
+      {children}
+    </button>
+  );
+}
+
 export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -897,7 +933,7 @@ export function SidePanel({
         <div className={`absolute bottom-[-10%] left-[-20%] w-[80%] h-[50%] bg-current opacity-[0.03] blur-[120px] rounded-full pointer-events-none ${iconColorClass?.split(' ')[0] || ''}`} />
 
         {ambientGlows && (
-          <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[3rem] rounded-bl-[3rem]">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-l-[var(--radius)]">
             {ambientGlows}
           </div>
         )}
