@@ -241,7 +241,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
               <EmptyState icon={t("icon_account_balance") || "account_balance"} title={t("no_pending_submissions")} className="col-span-full py-16" />
           ) : (
               <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                 {filteredSubmissions.slice(0, visibleCount).map((mod: any) => (
                     <ArtifactCard key={mod.id} mod={{ ...mod, name: mod.suggested_name, category_override: mod.suggested_type || "Scout Suggestion" }} onClick={() => setActiveScout(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view")} />
                 ))}
@@ -306,7 +306,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                     {t("btn_view")}
                   </h4>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_modname")}</label>
                       <input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" />
@@ -325,7 +325,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                     </div>
                   </div>
     
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
                       <CustomClassificationDropdown value={editForm.category_override} onChange={(newType: string) => setEditForm({...editForm, category_override: newType})} />
@@ -372,7 +372,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                     {t("compliance_tier")}
                   </h4>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("compliance_tier")}</label>
                       <CustomComplianceDropdown value={editForm.compliance_tier || 0} onChange={(val: number) => setEditForm({...editForm, compliance_tier: val})} includeTier3={false} />

@@ -140,7 +140,7 @@ export default function SAOversightReports() {
           ) : groupedReports.length === 0 ? (
             <EmptyState icon={t("icon_threat_intelligence") || "policy"} title={t("sa_no_reports")} className="col-span-full py-16" />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {groupedReports.map(group => {
                 const report = group[0];
                 const isMalware = report.status === 'blacklisted';

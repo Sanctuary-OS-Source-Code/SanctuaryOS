@@ -261,7 +261,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
         {filterTab === 'pending' && (
           <div className="mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {filteredPendingGhosts.length === 0 ? (
                 <EmptyState icon={searchTerm ? "search_off" : t("icon_verified_user") || "verified"} title={searchTerm ? t("no_matches") : t("no_pending_conflicts") || "No pending conflicts"} className="col-span-full py-16" />
               ) : filteredPendingGhosts.slice(0, visibleCount).map((g) => {
@@ -323,7 +323,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
         {filterTab === 'completed' && (
           <div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {loading ? (
                 <div className="col-span-full p-12 text-center">
                   <span className="theme-text-accent font-black uppercase tracking-widest text-xs animate-pulse">{t("syncing")}</span>

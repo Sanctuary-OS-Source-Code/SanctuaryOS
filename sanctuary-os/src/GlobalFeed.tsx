@@ -135,7 +135,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
       <div className="flex flex-col gap-6 h-full w-full overflow-hidden p-2">
 
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mx-2 mt-2">
-          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 shrink-0">
+          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
             <HubTabButton id="DISCOVER" icon="explore" label={t("tab_discover")} activeTab={activeTab} setTab={setActiveTab as any} />
             <HubTabButton id="FOLLOWING" icon="diversity_1" label={t("tab_following")} activeTab={activeTab} setTab={setActiveTab as any} />
           </div>

@@ -71,10 +71,24 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
     return null;
   };
 
+  const getAssetDisplayVersion = (asset: any) => {
+    let version = asset.version || '1.0.0';
+    if (assetType === 'workbench_template' && asset.json_data) {
+      try {
+        const parsedRaw = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
+        const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
+        if (parsed && parsed.template_version) {
+          version = parsed.template_version;
+        }
+      } catch (e) {}
+    }
+    return version;
+  };
+
   const isOutdated = (asset: any) => {
     if (!isInstalled(asset)) return false;
     const localVersion = getLocalVersion(asset);
-    return compareVersions(asset.version || '1.0.0', localVersion) > 0;
+    return compareVersions(getAssetDisplayVersion(asset), localVersion) > 0;
   };
 
   useEffect(() => {
@@ -267,7 +281,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                     e.stopPropagation();
                     if (assetType === 'lexicon') {
                       const parsedData = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
-                      importLexicon({ ...parsedData, _meta_language: data.language || "Custom" }, data.name);
+                      importLexicon({ ...parsedData, _meta_language: data.language || "Custom", _meta_version: data.version || '1.0.0' }, data.name);
                       useStore.getState().pushStatus(`Successfully Installed Lexicon: ${data.name}`);
                     } else if (assetType === 'chameleon') {
                       importTheme(data.json_data);
@@ -292,7 +306,9 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                       }
                     }
 
-                    await supabase.rpc('increment_asset_downloads', { asset_id: assetId });
+                    try {
+                      await supabase.rpc('increment_asset_downloads', { asset_id: assetId });
+                    } catch (e) { console.error("Could not increment downloads", e); }
                   }}
                   className={`flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all shadow-lg text-xs hover:scale-[1.02] active:scale-95 ${isInstalled(data)
                       ? isOutdated(data)

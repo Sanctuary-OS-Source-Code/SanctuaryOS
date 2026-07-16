@@ -266,20 +266,10 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
               ]}
             />
           </div>
-          <FilterTabs className="h-12 hidden md:flex mr-4">
-            <FilterTabButton
-              id="local"
-              label={t("unlinked_badge") || "LOCAL"}
-              activeTab={sandboxTabFilter}
-              setTab={setSandboxTabFilter}
-            />
-            <FilterTabButton
-              id="synced"
-              label={t("synced_badge") || "SYNCED"}
-              activeTab={sandboxTabFilter}
-              setTab={setSandboxTabFilter}
-            />
-          </FilterTabs>
+            <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl border border-white/5 shadow-inner h-12 shrink-0 divide-x divide-white/5 mr-4 hidden md:flex">
+              <button onClick={() => setSandboxTabFilter('local')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("unlinked_badge") || "LOCAL"}</button>
+              <button onClick={() => setSandboxTabFilter('synced')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("synced_badge") || "SYNCED"}</button>
+            </div>
           <button
             onClick={handleImportToSandbox}
             disabled={isImporting}
@@ -306,7 +296,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                 {unlinkedMods.length === 0 ? (
                   <EmptyState icon={t("icon_folder_off") || "folder_off"} title={t("empty")} className="col-span-full py-16" />
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                     {unlinkedMods.map(mod => (
                       <button
                         key={mod.hash}

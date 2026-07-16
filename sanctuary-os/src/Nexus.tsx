@@ -223,7 +223,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           setMasonMap(masonData.reduce((acc: any, m: any) => { acc[m.name.toLowerCase()] = m.id; return acc; }, {}));
         }
 
-        if (marketTab === 'LEXICONS') {
+        if (marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') {
           const dbLangs = data?.map(d => d.language).filter(Boolean) || [];
           const commonLangs = ["English", "Spanish", "French", "German", "Italian", "Portuguese", "Russian", "Japanese", "Korean", "Chinese"];
           const langs = Array.from(new Set([...commonLangs, ...dbLangs])) as string[];
@@ -369,10 +369,24 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     }
   };
 
+  const getAssetDisplayVersion = (asset: any) => {
+    let version = asset.version || '1.0.0';
+    if (asset.asset_type === 'workbench_template' && asset.json_data) {
+      try {
+        const parsedRaw = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
+        const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
+        if (parsed && parsed.template_version) {
+          version = parsed.template_version;
+        }
+      } catch (e) {}
+    }
+    return version;
+  };
+
   const isOutdated = (asset: any) => {
     if (!isInstalled(asset)) return false;
     const localVersion = getLocalVersion(asset);
-    return compareVersions(asset.version || '1.0.0', localVersion) > 0;
+    return compareVersions(getAssetDisplayVersion(asset), localVersion) > 0;
   };
 
   const importTemplate = async (templateJson: any) => {
@@ -781,9 +795,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     let matchesType = true;
     let matchesMode = true;
 
-    if (marketTab === 'LEXICONS') {
+    if (marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') {
       if (languageFilter !== 'all') matchesLang = asset.language === languageFilter;
-      if (lexiconTypeFilter !== 'all') matchesType = asset.lexicon_type === lexiconTypeFilter;
+      if (marketTab === 'LEXICONS' && lexiconTypeFilter !== 'all') matchesType = asset.lexicon_type === lexiconTypeFilter;
     } else if (marketTab === 'CHAMELEONS') {
       if (themeModeFilter !== 'all') matchesMode = asset.theme_mode === themeModeFilter;
     }
@@ -868,8 +882,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       </ViewHeader>
 
       <div className="flex flex-col">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mb-8">
-          <div className="flex items-center overflow-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 shrink-0">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mb-8 w-full">
+          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
             {['MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
               <HubTabButton
                 key={tab}
@@ -959,7 +973,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8 mt-6">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loading ? (
                 <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest animate-pulse">
                   {t("searching")}
@@ -1104,18 +1118,19 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 </div>
               )}
 
-              {marketTab === 'LEXICONS' && (
-                <>
+              {(marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') && (
                   <div className="w-max min-w-[180px] max-w-xs">
                     <CustomDropdown disableTint={true}
                       value={languageFilter}
                       onChange={(val: string[]) => { setLanguageFilter(val[0]); setCurrentPage(1); }}
                       options={[
-                        { id: "all", label: t("tab_lexicons") },
+                        { id: "all", label: marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("tab_templates") || "Templates") },
                         ...availableLanguages.map(l => ({ id: l, label: l }))
                       ]}
                     />
                   </div>
+              )}
+              {marketTab === 'LEXICONS' && (
                   <div className="w-max min-w-[180px] max-w-xs">
                     <CustomDropdown disableTint={true}
                       value={lexiconTypeFilter}
@@ -1127,7 +1142,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       ]}
                     />
                   </div>
-                </>
               )}
 
               {marketTab === 'CHAMELEONS' && (
@@ -1157,7 +1171,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8">
               {loading ? (
                 <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest animate-pulse">
                   {t("searching")}
@@ -1219,9 +1233,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 {asset.asset_type === 'lexicon' ? (t("tab_lexicons")) : asset.asset_type === 'workbench_template' ? (t("tab_templates")) : (t("tab_chameleons"))}
                               </span>
                             )}
-                            {asset.version && (
+                            {getAssetDisplayVersion(asset) && (
                               <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest bg-[color-mix(in_srgb,var(--subtext)_15%,transparent)] px-2 py-0.5 rounded-md">
-                                v{asset.version}
+                                v{getAssetDisplayVersion(asset)}
                               </span>
                             )}
                           </div>
@@ -1262,7 +1276,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   importLexicon({ ...parsedData, _meta_language: asset.language || "Custom", _meta_version: asset.version || '1.0.0' }, asset.name);
                                   onSetStatus(`Successfully Installed Lexicon: ${asset.name}`);
                                 }
-                                await supabase.rpc('increment_asset_downloads', { asset_id: asset.id });
+                                try {
+                                  await supabase.rpc('increment_asset_downloads', { asset_id: asset.id });
+                                } catch (e) { console.error("Could not increment downloads", e); }
                                 setAssetResults(prev => prev.map(a => a.id === asset.id ? { ...a, downloads: (a.downloads || 0) + 1 } : a));
                               }}
                               className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? isOutdated(asset) ? 'bg-[color-mix(in_srgb,#3b82f6_15%,transparent)] border border-[color-mix(in_srgb,#3b82f6_30%,transparent)] text-[#3b82f6] hover:bg-[color-mix(in_srgb,#3b82f6_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--subtext)_10%,transparent)] border border-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--subtext)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--subtext)_15%,transparent)] backdrop-blur-md' : 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]'}`}

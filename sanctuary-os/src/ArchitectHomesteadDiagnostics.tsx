@@ -412,7 +412,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
       <div className="p-6 flex flex-col gap-10 pb-32">
         {filterTab === 'pending' && pendingReports.length > 0 && (
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {pendingReports.length === 0 ? (
                 <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart") || "healing"} title={searchTerm ? t("no_matches") : t("no_diagnostics") || "No Pending Diagnostics"} className="col-span-full py-16" />
               ) : pendingReports.slice(0, visibleCount).map((mod: any) => (
@@ -436,7 +436,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
 
         {filterTab === 'completed' && completedReports.length > 0 && (
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {completedReports.length === 0 ? (
                 <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart") || "healing"} title={searchTerm ? t("no_matches") : t("no_diagnostics") || "No Completed Diagnostics"} className="col-span-full py-16" />
               ) : completedReports.slice(0, visibleCount).map((mod: any) => (

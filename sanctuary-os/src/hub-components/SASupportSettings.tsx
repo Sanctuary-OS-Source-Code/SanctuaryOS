@@ -172,7 +172,7 @@ export default function SASupportSettings() {
 
             {activeTab === 'CATEGORIES' && (
                 <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                         {filteredCategories.map(cat => (
                             <button key={cat.id || cat.category_code} onClick={() => openEditor(cat)} className="theme-glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px] text-left">
                                 <div className={`absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 ${cat.is_active ? 'bg-gradient-to-br from-[var(--accent)]/5 to-transparent' : 'bg-gradient-to-br from-red-500/5 to-transparent'}`} />
@@ -236,7 +236,7 @@ export default function SASupportSettings() {
 
             {activeTab === 'TELEMETRY' && (
                 <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 auto-rows-fr">
                         {telemetrySources.map(source => (
                             <button
                                 key={source.id}

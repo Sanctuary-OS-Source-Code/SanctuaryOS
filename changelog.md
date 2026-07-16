@@ -1,3 +1,32 @@
+ **Date: July 15, 2026**
+ **Version: 0.4.66**
+
+## **UI/UX & Platform Polish**
+
+### Citizens Workbench Overhaul
+- **Modular Refactoring**: Exploded the massive, monolithic `CitizensWorkbench.tsx` file into smaller, highly focused components (`WorkbenchVisualEditor`, `WorkbenchFileGrid`, `WorkbenchTemplateGuide`), dramatically improving codebase maintainability.
+- **Tabbed Navigation**: Implemented a sleek 3-tab navigation system inside the Workbench (Visual Interface, Raw Editor, Template Guide) using fully localized strings, providing dedicated screen space for configurations versus documentation.
+- **Template Menu Groups**: Introduced a brand new menu grouping system for template categorization, keeping custom and default templates cleanly separated and easily accessible.
+- **Insert Buttons**: Added localized insert buttons to streamline adding blocks directly into raw and visual configuration editors.
+- **Resize Glitching**: Resolved a jittery resizing glitch when dragging the preview panel edge, ensuring smooth fluid resizing constraints.
+
+### The Nexus & Upload Polish
+- **Nexus Updates Fixed**: Repaired a broken update flow in the Nexus, ensuring that downloading updates correctly tracks versioning and registers locally without falling out of sync.
+- **Upload Process Polish**: Smoothed out the mod and blueprint upload flows, refining error handling and standardizing the UI state transitions for a much cleaner publishing experience.
+
+### Version Timeline Refactor
+- **True Time Travel**: Completely overhauled the "Restore" logic. Previously, restoring an old version instantly created a brand-new duplicate snapshot at the top of the timeline. Now, restoring an old version silently rewrites the active file and *properly applies* the "Active Version" badge directly to that specific historical snapshot. A new snapshot is only created when you physically make new edits and save them.
+- **Backend File History Management**: Engineered new Rust-powered backend commands (`delete_version`, `toggle_pin_version`, `rename_version`) allowing deep manipulation of `.json` file history backups.
+- **Double-Inline Confirm Deletions**: Built a sleek, glassmorphic double-inline confirm delete button into the Version Timeline, allowing users to safely purge unwanted backups without leaving the panel.
+- **Badge Sorting Fixes**: Fixed a persistent glitch where the "Active Version" badge was stubbornly hardcoded to the top of the list (`idx === 0`). The Timeline now accurately reads the precise timestamp of your active state and sorts pinned items correctly above unpinned history.
+
+### Component Polish
+- **HubTabs**: Workbench interior navigation tabs now dynamically stretch the full width of the interface.
+- **Navbar Dropdowns**: Addressed various layout and clipping bugs in the global Navbar dropdowns, ensuring content fits perfectly without spilling over.
+- **Card Grids**: App-wide resize to remove hard-coded 4-column locks, allowing grids to naturally scale and respond dynamically to all screen widths without artificial overflow constraints.
+
+---
+
  **Date: July 11, 2026**
  **Version: 0.4.64**
 

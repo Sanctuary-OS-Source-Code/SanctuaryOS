@@ -156,7 +156,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
         {filteredAssets.length === 0 ? (
           <EmptyState icon={t("ui_icon_storefront") || "storefront"} title={t("market_no_assets")} className="col-span-full py-16" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
             {filteredAssets.map(asset => (
               <div key={asset.id} onClick={() => handleEditAsset(asset)} className="theme-glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden relative">
 

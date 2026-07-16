@@ -26,6 +26,8 @@ export function PushTemplateSidePanel({
   const [releaseNotes, setReleaseNotes] = useState("");
   const [attachedMod, setAttachedMod] = useState("");
   const [targetFile, setTargetFile] = useState("");
+  const [version, setVersion] = useState("1.0.0");
+  const [language, setLanguage] = useState("English");
   const [existingTemplates, setExistingTemplates] = useState<any[]>([]);
   const [selectedUpdateId, setSelectedUpdateId] = useState<string>("new");
 
@@ -33,8 +35,11 @@ export function PushTemplateSidePanel({
      try {
         const parsed = JSON.parse(templateContent);
         if (parsed.target_file) setTargetFile(parsed.target_file);
+        if (parsed.version || parsed.template_version) setVersion(parsed.version || parsed.template_version);
+        if (parsed.language) setLanguage(parsed.language);
+        if (parsed.name && !initialName) setName(parsed.name);
      } catch(e) {}
-  }, [templateContent]);
+  }, [templateContent, initialName]);
 
   React.useEffect(() => {
       const fetchTemplates = async () => {
@@ -50,7 +55,23 @@ export function PushTemplateSidePanel({
             .select('*')
             .or(`author.ilike.%${authorName}%,author.ilike.%Citizen%,author.ilike.%Sanctuary%,author.ilike.%${fallbackName}%`)
             .eq('asset_type', 'workbench_template');
-         if (data) setExistingTemplates(data);
+         if (data) {
+            setExistingTemplates(data);
+            
+            let parsedName = initialName;
+            try {
+               const parsed = JSON.parse(templateContent);
+               if (parsed.name) parsedName = parsed.name;
+            } catch(e) {}
+            const match = data.find(t => t.name === parsedName || t.name === initialName);
+            if (match) {
+                setSelectedUpdateId(match.id);
+                setName(match.name || "");
+                setDescription(match.description || "");
+                setReleaseNotes(match.release_notes || "");
+                if (match.language) setLanguage(match.language);
+            }
+         }
       };
       fetchTemplates();
   }, [session]);
@@ -68,6 +89,7 @@ export function PushTemplateSidePanel({
               setName(tmpl.name || "");
               setDescription(tmpl.description || "");
               setReleaseNotes(tmpl.release_notes || "");
+              if (tmpl.language) setLanguage(tmpl.language);
           }
       }
   };
@@ -87,7 +109,10 @@ export function PushTemplateSidePanel({
         if (targetFile.trim()) {
           parsed.target_file = targetFile.trim();
         }
-        finalJson = JSON.stringify(parsed);
+        parsed.version = version.trim();
+        parsed.language = language;
+        parsed.name = name.trim();
+        finalJson = JSON.stringify(parsed, null, 2);
       } catch (err) {
         throw new Error(t("upload_invalid_json"));
       }
@@ -107,6 +132,7 @@ export function PushTemplateSidePanel({
         description: description.trim() || "A custom workbench template.",
         release_notes: releaseNotes.trim(),
         json_data: finalJson,
+        language: language,
       };
 
       const { data: existingList, error: checkError } = await supabase
@@ -225,6 +251,49 @@ export function PushTemplateSidePanel({
               placeholder={t("auto_e_g_mc_settings_cfg")}
               className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-3 text-sm font-black focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all text-[var(--text)] shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-3">
+            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_translate") || "translate"}</span>
+              {t("upload_language") || "Language"}
+            </label>
+            <CustomDropdown
+              disableTint={true}
+              value={language}
+              onChange={(val: string[]) => setLanguage(val[0])}
+              options={[
+                { id: "English", label: "English" },
+                { id: "Spanish", label: "Spanish" },
+                { id: "French", label: "French" },
+                { id: "German", label: "German" },
+                { id: "Italian", label: "Italian" },
+                { id: "Portuguese", label: "Portuguese" },
+                { id: "Russian", label: "Russian" },
+                { id: "Japanese", label: "Japanese" },
+                { id: "Korean", label: "Korean" },
+                { id: "Chinese", label: "Chinese" }
+              ]}
+            />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">tag</span>
+              {t("upload_version") || "Version"}
+            </label>
+            <div className="relative group">
+              <div className="absolute inset-0 bg-[var(--accent)]/5 rounded-2xl blur-md group-focus-within:bg-[var(--accent)]/10 transition-colors pointer-events-none"></div>
+              <input 
+                type="text" 
+                value={version}
+                onChange={e => setVersion(e.target.value)}
+                placeholder="e.g. 1.0.0"
+                className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-3 text-sm font-black focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all text-[var(--text)] shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
+              />
+            </div>
           </div>
         </div>
         

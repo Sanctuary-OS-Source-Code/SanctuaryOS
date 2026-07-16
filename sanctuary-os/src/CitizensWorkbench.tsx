@@ -10,6 +10,12 @@ import { invoke } from '@tauri-apps/api/core';
 import workbenchTemplates from './data/workbench_templates.json';
 import { supabaseServices } from './lib/supabase-services';
 import { supabase } from './supabase';
+import { WorkbenchTemplateGuide } from './workbench/WorkbenchTemplateGuide';
+import { WorkbenchRawEditor } from './workbench/WorkbenchRawEditor';
+import { WorkbenchVisualEditor } from './workbench/WorkbenchVisualEditor';
+import { WorkbenchFileGrid } from './workbench/WorkbenchFileGrid';
+import { WorkbenchEmptyVisualState } from './workbench/WorkbenchEmptyVisualState';
+import { WorkbenchTemplateTools } from './workbench/WorkbenchTemplateTools';
 
 export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
    const { t } = useLexicon();
@@ -67,6 +73,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
    const [isFlagging, setIsFlagging] = useState(false);
    const [flagSuccess, setFlagSuccess] = useState(false);
    const [isSaving, setIsSaving] = useState(false);
+   const [activeVersionTimestamp, setActiveVersionTimestamp] = useState<number | null>(null);
    const [searchQuery, setSearchQuery] = useState("");
    const mainTab = useStore(state => state.cwMainTab);
    const setMainTab = useStore(state => state.setCwMainTab);
@@ -76,7 +83,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
    const [previewMode, setPreviewMode] = useState<'preview' | 'file' | 'off'>('preview');
    const [targetFileContent, setTargetFileContent] = useState<string>("");
    const [isFullscreen, setIsFullscreen] = useState(false);
-   const [previewWidth, setPreviewWidth] = useState(500);
+   const [previewWidth, setPreviewWidth] = useState(600);
    const [isResizingPreview, setIsResizingPreview] = useState(false);
    const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
    const [isTemplateGuideOpen, setIsTemplateGuideOpen] = useState(false);
@@ -270,19 +277,19 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
       }
    };
 
-   const handleDeleteTemplate = async (path: string) => {
+   const handleDeleteTemplate = React.useCallback(async (path: string) => {
       try {
          await remove(path);
-         if (selectedFile?.path === path) setSelectedFile(null);
+         if (useStore.getState().cwSelectedFile?.path === path) useStore.getState().setCwSelectedFile(null);
          setRefreshTrigger(prev => prev + 1);
-         pushStatus(t("msg_template_deleted"), "success");
+         useStore.getState().pushStatus("Template deleted", "success");
       } catch (e) {
          console.error("Error deleting template", e);
-         pushStatus(t("msg_template_delete_failed"), "error");
+         useStore.getState().pushStatus("Failed to delete template", "error");
       }
-   };
+   }, []);
 
-   const handleRenameSubmit = async (oldPath: string, oldName: string) => {
+   const handleRenameSubmit = React.useCallback(async (oldPath: string, oldName: string) => {
       const lastDot = oldName.lastIndexOf('.');
       const ext = lastDot > 0 ? oldName.substring(lastDot) : '.json';
       const baseOldName = lastDot > 0 ? oldName.substring(0, lastDot) : oldName;
@@ -297,30 +304,32 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
          const oldContent = await readTextFile(oldPath);
          await writeTextFile(newPath, oldContent);
          await remove(oldPath);
-         if (selectedFile?.path === oldPath) {
-            setSelectedFile({ name: newName, path: newPath });
+         if (useStore.getState().cwSelectedFile?.path === oldPath) {
+            useStore.getState().setCwSelectedFile({ name: newName, path: newPath });
          }
          setRenamingFile(null);
          setRefreshTrigger(prev => prev + 1);
-         pushStatus(t("msg_template_renamed"), "success");
+         useStore.getState().pushStatus("Template renamed", "success");
       } catch (e) {
          console.error("Error renaming template", e);
-         pushStatus(t("msg_template_rename_failed"), "error");
+         useStore.getState().pushStatus("Failed to rename template", "error");
       }
-   };
+   }, [renameInput]);
 
-   const openFile = async (file: { name: string, path: string }) => {
+   const openFile = React.useCallback(async (file: { name: string, path: string }) => {
       try {
+         const unsaved = useStore.getState().cwUnsavedEdits;
          let currentContent = '';
-         if (unsavedEdits[file.path] !== undefined) {
-            currentContent = unsavedEdits[file.path];
+         if (unsaved[file.path] !== undefined) {
+            currentContent = unsaved[file.path];
             setRawText(currentContent);
          } else {
             currentContent = await readTextFile(file.path);
             setRawText(currentContent);
          }
          setSelectedFile(file);
-
+         setActiveVersionTimestamp(null);
+         setProblemsList([]);
          try {
             setParsedData(JSON.parse(currentContent));
          } catch (e) {
@@ -330,9 +339,26 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             setActiveTab("visual");
          }
       } catch (e) {
-         pushStatus(t("err_open"), "error");
+         useStore.getState().pushStatus("Error opening file", "error");
       }
-   };
+   }, []);
+
+   // Hydrate on mount if the store remembered a selected file
+   useEffect(() => {
+      if (selectedFile && rawText === "") {
+         openFile(selectedFile);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, []);
+
+   useEffect(() => {
+      if (rawText === undefined) return;
+      if (editorRef && (window as any).monaco) {
+         validateContent(rawText, (window as any).monaco, editorRef.getModel());
+      } else {
+         validateContent(rawText, null, null);
+      }
+   }, [rawText, editorRef]);
 
    const handleRawChange = (value: string | undefined) => {
       if (value === undefined) return;
@@ -340,14 +366,26 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
       if (selectedFile) {
          setUnsavedEdits(prev => ({ ...prev, [selectedFile.path]: value }));
       }
-
-      if (editorRef && (window as any).monaco) {
-         validateContent(value, (window as any).monaco, editorRef.getModel());
-      }
       try {
          setParsedData(JSON.parse(value));
       } catch (e) {
          setParsedData(null);
+      }
+   };
+
+   const handleInsertSnippet = (snippet: string) => {
+      if (editorRef) {
+         const position = editorRef.getPosition() || { lineNumber: 1, column: 1 };
+         if (position.lineNumber === 1 && position.column === 1) {
+            pushStatus(t("err_no_focus") || "Please click inside the Raw Code editor to place your cursor first.", "warning");
+            return;
+         }
+         editorRef.executeEdits("insert-snippet", [{
+            range: { startLineNumber: position.lineNumber, startColumn: position.column, endLineNumber: position.lineNumber, endColumn: position.column },
+            text: snippet,
+            forceMoveMarkers: true
+         }]);
+         editorRef.focus();
       }
    };
 
@@ -368,16 +406,21 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                const p = model.getPositionAt(pos);
                line = p.lineNumber;
                col = p.column;
+            } else if (err.message.includes("Unexpected end of JSON input") && model) {
+               line = model.getLineCount() || 1;
+               col = model.getLineMaxColumn(line) || 1;
             }
             problems.push({ line, column: col, message: err.message });
-            markers.push({
-               startLineNumber: line,
-               startColumn: col,
-               endLineNumber: line,
-               endColumn: col + 1,
-               message: err.message,
-               severity: monaco.MarkerSeverity.Error
-            });
+            if (monaco) {
+               markers.push({
+                  startLineNumber: line,
+                  startColumn: col,
+                  endLineNumber: line,
+                  endColumn: col + 1,
+                  message: err.message,
+                  severity: monaco.MarkerSeverity.Error
+               });
+            }
          }
       }
       if (model && monaco) {
@@ -386,70 +429,6 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
       setProblemsList(problems);
    };
 
-   const handleEditorWillMount = (monaco: any) => {
-      monaco.editor.defineTheme('sanctuary-glass-dark', {
-         base: 'vs-dark',
-         inherit: true,
-         rules: [
-            { token: 'string', foreground: '#e2e8f0' },
-            { token: 'string.key.json', foreground: '#38bdf8' },
-            { token: 'string.value.json', foreground: '#f8fafc' },
-            { token: 'keyword', foreground: '#38bdf8' },
-            { token: 'number', foreground: '#a78bfa' },
-            { token: 'boolean', foreground: '#818cf8' },
-            { token: 'comment', foreground: '#64748b', fontStyle: 'italic' },
-            { token: 'type', foreground: '#2dd4bf' },
-            { token: 'identifier', foreground: '#f8fafc' },
-         ],
-         colors: {
-            'editor.background': '#00000000',
-            'editor.lineHighlightBackground': '#ffffff0a',
-            'editorLineNumber.foreground': '#ffffff40',
-            'editorLineNumber.activeForeground': '#38bdf8',
-            'editorIndentGuide.background': '#ffffff10',
-            'editorSuggestWidget.background': '#0f172a',
-            'editorSuggestWidget.border': '#334155',
-            'minimap.background': '#00000000',
-            'minimapSlider.background': '#ffffff10',
-            'minimapSlider.hoverBackground': '#ffffff20',
-            'minimapSlider.activeBackground': '#ffffff30',
-            'scrollbarSlider.background': '#ffffff00',
-            'scrollbarSlider.hoverBackground': '#ffffff10',
-            'scrollbarSlider.activeBackground': '#ffffff20',
-         }
-      });
-      monaco.editor.defineTheme('sanctuary-glass-light', {
-         base: 'vs',
-         inherit: true,
-         rules: [
-            { token: 'string', foreground: '#475569' },
-            { token: 'string.key.json', foreground: '#0284c7' },
-            { token: 'string.value.json', foreground: '#0f172a' },
-            { token: 'keyword', foreground: '#0284c7' },
-            { token: 'number', foreground: '#7c3aed' },
-            { token: 'boolean', foreground: '#4f46e5' },
-            { token: 'comment', foreground: '#94a3b8', fontStyle: 'italic' },
-            { token: 'type', foreground: '#0d9488' },
-            { token: 'identifier', foreground: '#0f172a' },
-         ],
-         colors: {
-            'editor.background': '#00000000',
-            'editor.lineHighlightBackground': '#0000000a',
-            'editorLineNumber.foreground': '#00000040',
-            'editorLineNumber.activeForeground': '#0284c7',
-            'editorIndentGuide.background': '#00000010',
-            'editorSuggestWidget.background': '#f8fafc',
-            'editorSuggestWidget.border': '#cbd5e1',
-            'minimap.background': '#00000000',
-            'minimapSlider.background': '#00000010',
-            'minimapSlider.hoverBackground': '#00000020',
-            'minimapSlider.activeBackground': '#00000030',
-            'scrollbarSlider.background': '#00000000',
-            'scrollbarSlider.hoverBackground': '#00000010',
-            'scrollbarSlider.activeBackground': '#00000020',
-         }
-      });
-   };
 
    const saveConfig = async () => {
       if (!selectedFile) return;
@@ -461,6 +440,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             delete next[selectedFile.path];
             return next;
          });
+         setActiveVersionTimestamp(null);
          pushStatus(t("alert_saved"), "success");
       } catch (e) {
          pushStatus(t("alert_error"), "error");
@@ -541,16 +521,28 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
       ? customAppliedTemplate
       : activeTemplate;
 
-   const handleVisualChange = (key: string, value: any) => {
-      if (!parsedData) return;
-      const newData = { ...parsedData, [key]: value };
-      setParsedData(newData);
-      const newRaw = JSON.stringify(newData, null, 2);
-      setRawText(newRaw);
-      if (selectedFile) {
-         setUnsavedEdits(prev => ({ ...prev, [selectedFile.path]: newRaw }));
-      }
-   };
+   const handleVisualChange = React.useCallback((dataPath: string, value: any) => {
+      const sf = useStore.getState().cwSelectedFile;
+      if (!sf) return;
+
+      setParsedData((prev: any) => {
+         const newData = JSON.parse(JSON.stringify(prev || {}));
+         
+         const parts = dataPath.split('.');
+         let current = newData;
+         for (let i = 0; i < parts.length - 1; i++) {
+            if (!current[parts[i]]) current[parts[i]] = {};
+            current = current[parts[i]];
+         }
+         current[parts[parts.length - 1]] = value;
+
+         const newRaw = JSON.stringify(newData, null, 2);
+         setRawText(newRaw);
+         useStore.getState().setCwUnsavedEdits(prevUnsaved => ({ ...prevUnsaved, [sf.path]: newRaw }));
+         
+         return newData;
+      });
+   }, []);
 
    const resolveText = (k?: string, fallback?: string) => {
       if (!k) return fallback || "";
@@ -559,91 +551,18 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
       return tr;
    };
 
-   const renderVisualSettingsList = (settings: any[], dataSource: any, isPreview = false) => {
-      if (!settings) return null;
 
-      let filteredSettings = settings;
-      if (selectedCategory !== "ALL" && !isPreview) {
-         filteredSettings = filteredSettings.filter(s => s.category === selectedCategory);
-      }
-
-      if (searchQuery && !isPreview) {
-         filteredSettings = filteredSettings.filter(s => {
-            const lbl = resolveText(s.label_key, s.key);
-            const desc = resolveText(s.desc_key, "");
-            return lbl.toLowerCase().includes(searchQuery.toLowerCase()) || desc.toLowerCase().includes(searchQuery.toLowerCase());
-         });
-      }
-
-      return filteredSettings.map((setting, idx) => {
-         const val = dataSource ? dataSource[setting.key] : undefined;
-         return (
-            <div key={idx} className={`theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-6 shadow-inner flex justify-between group hover:border-white/30 transition-colors duration-300 gap-6 ${isPreview ? 'flex-col' : 'flex-col xl:flex-row xl:items-center'}`}>
-               <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-3">
-                     <span className="text-[12px] font-black uppercase tracking-widest text-[var(--text)]">{resolveText(setting.label_key, setting.key)}</span>
-                     {setting.risk === "advanced" && (
-                        <span className="px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] text-[8px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">{t("advanced_badge")}</span>
-                     )}
-                     {!isPreview && setting.type === 'boolean' && (
-                        <span className={`text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-md border ${val ? 'text-[var(--success)] border-[var(--success)]/30 bg-[var(--success)]/10' : 'text-[var(--subtext)] border-[var(--text)]/10 bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                           {val ? 'ENABLED' : 'DISABLED'}
-                        </span>
-                     )}
-                  </div>
-                  <span className="text-[10px] text-[var(--subtext)] opacity-80 font-medium leading-relaxed max-w-2xl">{resolveText(setting.desc_key, "No description provided.")}</span>
-               </div>
-               <div className="shrink-0 flex items-center justify-end">
-                  {setting.type === "boolean" && (
-                     <div className={`w-14 h-8 rounded-full transition-all duration-300 relative flex items-center px-1 border cursor-pointer shadow-inner ${val ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'theme-glass-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`} onClick={() => !isPreview && handleVisualChange(setting.key, !val)}>
-                        <div className={`w-6 h-6 rounded-full shadow-md transition-all duration-300 ${val ? 'translate-x-6 bg-[var(--accent)]' : 'translate-x-0 bg-[var(--text)] opacity-40'}`}></div>
-                     </div>
-                  )}
-                  {setting.type === "number" && (
-                     <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 shadow-inner border border-white/10 shrink-0">
-                        <button type="button" onClick={() => !isPreview && handleVisualChange(setting.key, (val !== undefined ? val : setting.default || 0) - (setting.step || 1))} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                           <span className="material-symbols-outlined !text-[16px]">{t("icon_remove")}</span>
-                        </button>
-                        <input type="number" min={setting.min} max={setting.max} step={setting.step} value={val !== undefined ? val : setting.default || 0} onChange={(e) => !isPreview && handleVisualChange(setting.key, parseFloat(e.target.value))} readOnly={isPreview} className="w-16 bg-transparent text-[12px] font-black text-[var(--text)] focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                        <button type="button" onClick={() => !isPreview && handleVisualChange(setting.key, (val !== undefined ? val : setting.default || 0) + (setting.step || 1))} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                           <span className="material-symbols-outlined !text-[16px]">{t("icon_add")}</span>
-                        </button>
-                     </div>
-                  )}
-                  {setting.type === "string" && (
-                     <input type="text" value={val || setting.default || ""} onChange={(e) => !isPreview && handleVisualChange(setting.key, e.target.value)} readOnly={isPreview} className={`h-10 theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-4 text-[11px] font-black text-[var(--text)] focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] focus:outline-none transition-colors shadow-inner hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] w-full ${!isPreview && 'sm:w-48 xl:w-64'}`} />
-                  )}
-                  {setting.type === "dropdown" && (
-                     <div className={`w-full ${!isPreview && 'sm:w-48 xl:w-64'}`}>
-                        <CustomDropdown
-                           disableTint={true}
-                           value={val !== undefined ? val : setting.default || ""}
-                           options={setting.options?.map((opt: any) => ({
-                              id: opt.value,
-                              label: resolveText(opt.label_key, opt.value)
-                           })) || []}
-                           onChange={(v: string[]) => !isPreview && handleVisualChange(setting.key, v[0])}
-                        />
-                     </div>
-                  )}
-               </div>
-            </div>
-         );
-      });
-   };
-
-   const filteredMainFiles = files.filter(f => {
+   const filteredMainFiles = React.useMemo(() => files.filter(f => {
       const isTmpl = f.name.toLowerCase().endsWith('.json');
       if (mainTab === "CONFIGS" && isTmpl) return false;
       if (mainTab === "TEMPLATES" && !isTmpl) return false;
       if (mainSearchQuery && !f.name.toLowerCase().includes(mainSearchQuery.toLowerCase())) return false;
       return true;
-   });
+   }), [files, mainTab, mainSearchQuery]);
 
    return (
-      <div className="flex flex-col h-full w-full overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-bottom-4 duration-700 relative pr-4">
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[var(--accent)] opacity-[0.03] blur-[120px] pointer-events-none rounded-full" />
-         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[var(--accent)] opacity-[0.02] blur-[100px] pointer-events-none rounded-full" />
+      <div className="flex flex-col h-full w-full overflow-y-scroll custom-scrollbar animate-in fade-in slide-in-from-bottom-4 duration-700 relative pr-4">
+
 
          <ViewHeader
             title={t("workbench_title")}
@@ -657,7 +576,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                      <span className="material-symbols-outlined text-xl normal-case">{t("icon_help")}</span>
                      <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_info")}</span>
                   </button>
-                  
+
                   <button onClick={handleNewTemplate} className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
                      <span className="material-symbols-outlined text-xl normal-case">{t("icon_add")}</span>
                      <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_new_template")}</span>
@@ -668,7 +587,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
          <div className="flex flex-col gap-6 min-h-max w-full p-2">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mx-2 mt-2">
-               <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 shrink-0">
+               <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
                   <HubTabButton id="CONFIGS" icon="settings" label={t("configs")} activeTab={mainTab} setTab={setMainTab as any} />
                   <HubTabButton id="TEMPLATES" icon="data_object" label={t("tab_templates")} activeTab={mainTab} setTab={setMainTab as any} />
                </div>
@@ -690,126 +609,53 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             </div>
 
             <div className="flex-1 pb-32">
-               {filteredMainFiles.length === 0 ? (
-                  <div className="w-full p-12 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col items-center justify-center gap-4 opacity-60 shadow-inner">
-                     <span className="material-symbols-outlined !text-4xl text-[var(--subtext)]">{mainTab === "CONFIGS" ? (t("icon_search_off")) : (t("icon_data_object"))}</span>
-                     <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)]">{t("workbench_no_files_found")}</span>
-                  </div>
-               ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 p-2">
-                     {filteredMainFiles.map(file => {
-                        const isTmpl = file.name.toLowerCase().endsWith('.json');
-                        return (
-                           <div key={file.path} className="group relative break-inside-avoid">
-                              <button
-                                 onClick={() => openFile(file)}
-                                 className={`w-full text-left p-6 rounded-[var(--radius)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative group-hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] ${unsavedEdits[file.path] !== undefined ? 'border border-amber-500/30 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-500/50 backdrop-blur-[3px] shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}
-                              >
-                                 <div className="absolute inset-0 rounded-[var(--radius)] bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                 <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner group-hover:border-[var(--accent)]/50 transition-colors">
-                                    <span className="material-symbols-outlined !text-2xl text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors">{isTmpl ? (t("icon_data_object")) : (t("icon_settings"))}</span>
-                                 </div>
-                                 <div className={`flex flex-col gap-1 z-10 w-full ${renamingFile !== file.path ? 'pr-10' : ''}`} onClick={(e) => renamingFile === file.path ? e.stopPropagation() : undefined}>
-                                    {renamingFile === file.path ? (
-                                       <div className="flex items-center gap-2 w-full mt-1">
-                                          <input
-                                             autoFocus
-                                             value={renameInput}
-                                             onChange={e => setRenameInput(e.target.value)}
-                                             onKeyDown={e => {
-                                                if (e.key === 'Enter') handleRenameSubmit(file.path, file.name);
-                                                if (e.key === 'Escape') setRenamingFile(null);
-                                             }}
-                                             className="h-8 w-full min-w-0 px-3 rounded-xl text-[12px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] text-[var(--text)] focus:outline-none focus:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all placeholder:text-[var(--subtext)] shadow-inner"
-                                             placeholder={file.name}
-                                          />
-                                          <button onClick={() => handleRenameSubmit(file.path, file.name)} className="shrink-0 w-8 h-8 rounded-xl border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] flex items-center justify-center transition-all shadow-md hover:scale-110 active:scale-95">
-                                             <span className="material-symbols-outlined !text-sm">{t("icon_check")}</span>
-                                          </button>
-                                          <button onClick={() => setRenamingFile(null)} className="shrink-0 w-8 h-8 rounded-xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] flex items-center justify-center transition-all shadow-md hover:scale-110 active:scale-95">
-                                             <span className="material-symbols-outlined !text-sm">{t("icon_close")}</span>
-                                          </button>
-                                       </div>
-                                    ) : (
-                                       <>
-                                          <span className="text-sm font-black text-[var(--text)] tracking-wider truncate">{file.name.lastIndexOf('.') > 0 ? file.name.substring(0, file.name.lastIndexOf('.')) : file.name}</span>
-                                          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60">{file.name.lastIndexOf('.') > 0 ? file.name.substring(file.name.lastIndexOf('.')) : (isTmpl ? (t("schema_json")) : (t("schema_system")))}</span>
-                                       </>
-                                    )}
-                                 </div>
-                              </button>
-                              {unsavedEdits[file.path] !== undefined && (
-                                 <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-[var(--warning)] bg-[var(--warning)]/20 border border-[var(--warning)]/40 px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none backdrop-blur-xl">
-                                    <span className="material-symbols-outlined !text-[12px]">{t("icon_warning")}</span>
-                                    {t("unsaved_changes")}
-                                 </div>
-                              )}
-                              {isTmpl && renamingFile !== file.path && (
-                                 <div onClick={(e) => e.stopPropagation()} className="absolute bottom-6 right-6 flex items-center gap-2 z-20">
-                                    {deleteConfirmPath === file.path ? (
-                                       <>
-                                          <button onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(file.path); setDeleteConfirmPath(null); }} className="w-8 h-8 rounded-xl border border-rose-500/30 text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 hover:border-rose-500/50 backdrop-blur-[3px] flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-[0_4px_12px_rgba(244,63,94,0.15)]">
-                                             <span className="material-symbols-outlined !text-sm drop-shadow-md">{t("icon_check")}</span>
-                                          </button>
-                                          <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmPath(null); }} className="w-8 h-8 rounded-xl border border-white/10 text-[var(--subtext)] bg-white/5 hover:bg-white/10 hover:text-[var(--text)] hover:border-white/20 backdrop-blur-[3px] flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg">
-                                             <span className="material-symbols-outlined !text-sm">{t("icon_close")}</span>
-                                          </button>
-                                       </>
-                                    ) : (
-                                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <button
-                                             onClick={(e) => { e.stopPropagation(); setRenamingFile(file.path); const d = file.name.lastIndexOf('.'); setRenameInput(d > 0 ? file.name.substring(0, d) : file.name); }}
-                                             className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[var(--subtext)] hover:bg-white/10 hover:border-white/20 hover:text-[var(--text)] transition-all hover:scale-110 active:scale-95 shadow-lg"
-                                          >
-                                             <span className="material-symbols-outlined !text-sm">{t("icon_edit")}</span>
-                                          </button>
-                                          <button
-                                             onClick={(e) => { e.stopPropagation(); setDeleteConfirmPath(file.path); }}
-                                             className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all hover:scale-110 active:scale-95 shadow-lg"
-                                          >
-                                             <span className="material-symbols-outlined !text-sm">{t("icon_delete")}</span>
-                                          </button>
-                                       </div>
-                                    )}
-                                 </div>
-                              )}
-                           </div>
-                        )
-                     })}
-                  </div>
-               )}
+               <WorkbenchFileGrid
+                  filteredMainFiles={filteredMainFiles}
+                  mainTab={mainTab}
+                  renamingFile={renamingFile}
+                  renameInput={renameInput}
+                  deleteConfirmPath={deleteConfirmPath}
+                  setRenameInput={setRenameInput}
+                  setRenamingFile={setRenamingFile}
+                  setDeleteConfirmPath={setDeleteConfirmPath}
+                  handleRenameSubmit={handleRenameSubmit}
+                  handleDeleteTemplate={handleDeleteTemplate}
+                  openFile={openFile}
+               />
             </div>
          </div>
 
          <SidePanel
             isOpen={!!selectedFile}
             onClose={() => setSelectedFile(null)}
-            title={isTemplateMode ? (t("author_mode") || "Author Mode") : (t("tab_visual") || "Visual Tuning")}
-            subtitle={selectedFile?.name || ""}
+            title={isTemplateMode ? (t("author_mode") || "AUTHOR MODE") : (t("editor_mode") || "EDITOR MODE")}
+            subtitle={selectedFile ? selectedFile.name : (t("workbench_subtitle") || "CITIZENS WORKBENCH")}
             icon={isTemplateMode ? (t("icon_data_object")) : (t("icon_tune"))}
             iconColorClass="theme-text-accent"
-            isResizable={true}
-            defaultWidth={isFullscreen ? window.innerWidth : (isTemplateMode && previewMode !== 'off' ? 1400 : 900)}
-            panelClass={isFullscreen ? "!right-0 !border-r-0 !rounded-none" : ""}
+            isResizable={!isFullscreen}
+            defaultWidth={isFullscreen ? window.innerWidth : ((isTemplateMode && previewMode !== 'off') || activeTab === 'dual' ? 1400 : 900)}
+            panelClass={isFullscreen ? "!w-full !max-w-[100vw] !border-r-0 !rounded-none" : ""}
             headerActions={
                <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/10 shadow-inner mr-2 backdrop-blur-md">
-                  <button
-                     onClick={() => setIsFullscreen(!isFullscreen)}
-                     className="h-12 px-4 rounded-none transition-all flex items-center justify-center text-[var(--text)] hover:bg-white/10 hover:text-white"
-                  >
-                     <span className="material-symbols-outlined text-xl">{isFullscreen ? "fullscreen_exit" : "fullscreen"}</span>
-                  </button>
-                  
+                  <div className="relative group flex">
+                     <button
+                        onClick={() => setIsFullscreen(!isFullscreen)}
+                        className="w-12 h-12 flex items-center justify-center text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shrink-0"
+                     >
+                        <span className="material-symbols-outlined !text-[18px]">{isFullscreen ? 'fullscreen_exit' : 'fullscreen'}</span>
+                     </button>
+                     <HoverTooltip title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"} variant="info" className="z-[100] top-[120%]" />
+                  </div>
+
                   {isTemplateMode && (
                      <div className="flex items-center">
                         <button
                            onClick={() => setIsTemplateGuideOpen(true)}
-                           className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black disabled:opacity-50 disabled:pointer-events-none"
+                           className="h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent font-black"
                         >
                            <span className="material-symbols-outlined text-xl normal-case">{t("icon_help")}</span>
                            <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_info")}</span>
                         </button>
-                        
                      </div>
                   )}
                   <button
@@ -823,64 +669,32 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                </div>
             }
             footer={
-               <div className="flex items-center justify-center gap-3 w-full shrink-0 relative">
-                  {!isTemplateMode && (
-                     <>
-                        <button onClick={() => setActiveTab("visual")} className={activeTab === "visual" ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]') : standardButtonClass}>
-                           <span className="material-symbols-outlined !text-[16px]">{t("icon_tune")}</span>
-                           {t("tab_visual")}
-                        </button>
-                        <button onClick={() => setActiveTab("raw")} className={activeTab === "raw" ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]') : standardButtonClass}>
-                           <span className="material-symbols-outlined !text-[16px]">{t("icon_code")}</span>
-                           {t("tab_raw")}
-                        </button>
-                     </>
-                  )}
-
+               <div className="flex items-center justify-center w-full gap-4">
                   {isTemplateMode && (
-                     <>
-                        <button onClick={() => setPreviewMode('preview')} className={previewMode === 'preview' ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]') : standardButtonClass}>
-                           <span className="material-symbols-outlined !text-[16px]">visibility</span>
-                           {t("workbench_preview_title")}
+                     <div className="relative group/publishbtn">
+                        {(!useStore.getState().session || localStorage.getItem("sanctuary_blacklisted") === "true") && (
+                           <HoverTooltip
+                              variant="danger"
+                              title={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("alert_guest_mode_uploads")}
+                              subtitle={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
+                              className="group-hover/publishbtn:flex z-[1000] right-0 translate-x-0 left-auto bottom-[120%]"
+                           />
+                        )}
+                        <button
+                           onClick={() => setIsPushModalOpen(true)}
+                           disabled={problemsList.length > 0 || !useStore.getState().session || localStorage.getItem("sanctuary_blacklisted") === "true"}
+                           className={`${standardButtonClass} disabled:opacity-30 disabled:saturate-0`}
+                           title={problemsList.length > 0 ? (t("err_publish_blocks")) : ""}
+                        >
+                           <span className="material-symbols-outlined !text-[18px]">{t("icon_cloud_upload")}</span>
+                           {t("btn_publish")}
                         </button>
-                        <button onClick={() => setPreviewMode('file')} className={previewMode === 'file' ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]') : standardButtonClass}>
-                           <span className="material-symbols-outlined !text-[16px]">description</span>
-                           Target File
-                        </button>
-                        <button onClick={() => setPreviewMode('off')} className={previewMode === 'off' ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_10%,transparent)]') : standardButtonClass}>
-                           <span className="material-symbols-outlined !text-[16px]">visibility_off</span>
-                           Off
-                        </button>
-
-                        
-
-                        <div className="relative group/publishbtn">
-                           {(!useStore.getState().session || localStorage.getItem("sanctuary_blacklisted") === "true") && (
-                              <HoverTooltip 
-                                 variant="danger"
-                                 title={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("alert_guest_mode_uploads")}
-                                 subtitle={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
-                                 className="group-hover/publishbtn:flex z-[1000]"
-                              />
-                           )}
-                           <button
-                              onClick={() => setIsPushModalOpen(true)}
-                              disabled={problemsList.length > 0 || !useStore.getState().session || localStorage.getItem("sanctuary_blacklisted") === "true"}
-                              className={`${standardButtonClass} disabled:opacity-30 disabled:saturate-0`}
-                              title={problemsList.length > 0 ? (t("err_publish_blocks")) : ""}
-                           >
-                              <span className="material-symbols-outlined !text-[18px]">{t("icon_cloud_upload")}</span>
-                              {t("btn_publish")}
-                           </button>
-                        </div>
-                     </>
+                     </div>
                   )}
-
                   <div className="relative group">
                      {hasUnsavedChanges && (
-                        <HoverTooltip title={t("unsaved_changes")} variant="warning" className="z-[100]" />
+                        <HoverTooltip title={t("unsaved_changes")} variant="warning" className="z-[100] right-0 translate-x-0 left-auto bottom-[120%]" />
                      )}
-
                      <button
                         onClick={saveConfig}
                         disabled={!hasUnsavedChanges || isSaving}
@@ -897,594 +711,265 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                </div>
             }
          >
-            <div className="flex-1 min-h-0 flex flex-col gap-6 h-full w-full relative">
+            <div className="flex-1 min-h-0 flex flex-col h-full w-full relative">
 
-               {!isTemplateMode && activeTab === "visual" && (
-                  <div className="absolute inset-0 flex flex-col gap-6">
-                     <div className="flex flex-col gap-2 shrink-0 mr-2 mb-4">
-                        <div className="flex flex-col md:flex-row items-center gap-3 w-full">
-                           <div className="flex-1 w-full relative">
-                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] flex items-center pointer-events-none">
-                                 <span className="material-symbols-outlined !text-[18px]">{t("icon_search")}</span>
+               <div className="flex-1 relative min-h-0 mx-2 mb-2 flex flex-col gap-4">
+                  {!isTemplateMode && (
+                     <div className="flex justify-start items-center px-2 mt-2 shrink-0 z-[100]">
+                        <div className="flex items-center overflow-x-auto overflow-y-hidden custom-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
+                           <HubTabButton id="visual" activeTab={activeTab} setTab={setActiveTab} label={t("tab_visual") || "Visual"} icon={t("icon_tune") || "tune"} />
+                           <HubTabButton id="raw" activeTab={activeTab} setTab={setActiveTab} label={t("tab_raw") || "Raw"} icon={t("icon_code") || "code"} />
+                           <HubTabButton id="dual" activeTab={activeTab} setTab={setActiveTab} label={t("tab_dual_vision") || "Dual Vision"} icon="splitscreen" />
+                        </div>
+                     </div>
+                  )}
+
+                  {!isTemplateMode && (
+                     <div className={`flex-1 flex gap-4 min-w-0 min-h-0 ${activeTab === 'dual' ? 'flex-row' : 'flex-col'}`}>
+                        {(activeTab === "visual" || activeTab === "dual") && (
+                           <div className={`flex flex-col gap-6 flex-1 relative min-w-0 min-h-0`}>
+                              <div className="flex flex-col gap-2 shrink-0 mb-4">
+                                 <div className="flex flex-row items-center gap-2 w-full">
+                                    <div className="flex-[2] min-w-[120px] relative">
+                                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] flex items-center pointer-events-none">
+                                          <span className="material-symbols-outlined !text-[18px]">{t("icon_search")}</span>
+                                       </div>
+                                       <input
+                                          type="text"
+                                          placeholder={t("workbench_search_placeholder")}
+                                          value={searchQuery}
+                                          onChange={(e) => setSearchQuery(e.target.value)}
+                                          className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl pl-12 pr-5 py-2.5 h-10 text-[var(--text)] text-[11px] font-black tracking-wider focus:outline-none focus:theme-border-accent transition-all shadow-inner"
+                                       />
+                                    </div>
+
+                                    {!isTemplateMode && availableTemplates.length > 0 && (
+                                       <div className="w-max shrink-0 relative z-[100]">
+                                          <CustomDropdown
+                                             value={selectedTemplatePath}
+                                             options={availableTemplates}
+                                             onChange={(val: string[]) => {
+                                                const newPath = val[0];
+                                                setSelectedTemplatePath(newPath);
+                                                const tmpl = availableTemplates.find(t => t.id === newPath);
+                                                if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
+                                                   setActiveTemplate(tmpl.data);
+                                                   setCustomAppliedTemplate(null);
+                                                } else if (tmpl) {
+                                                   setCustomAppliedTemplate(tmpl.data);
+                                                   setActiveTemplate(null);
+                                                }
+                                             }}
+                                             disableTint={true}
+                                          />
+                                       </div>
+                                    )}
+
+                                    {currentVisualTemplate?.categories && currentVisualTemplate.categories.length > 0 && (
+                                       <div className="w-max shrink-0 relative z-[40]">
+                                          <CustomDropdown
+                                             value={selectedCategory}
+                                             options={[
+                                                { id: "ALL", label: t("cat_all") || "All Settings" },
+                                                ...currentVisualTemplate.categories.map((cat: any) => ({
+                                                   id: cat.id,
+                                                   label: resolveText(cat.name_key, cat.name || cat.id) as string,
+                                                   icon: resolveText(cat.icon_key, cat.icon || "folder") as string
+                                                }))
+                                             ]}
+                                             onChange={(val: string[]) => setSelectedCategory(val[0])}
+                                             disableTint={true}
+                                          />
+                                       </div>
+                                    )}
+                                 </div>
                               </div>
-                              <input
-                                 type="text"
-                                 placeholder={t("workbench_search_placeholder")}
-                                 value={searchQuery}
-                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                 className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl pl-12 pr-5 py-2.5 h-10 text-[var(--text)] text-[11px] font-black tracking-wider focus:outline-none focus:theme-border-accent transition-all shadow-inner"
+
+                              <div className="flex-1 overflow-y-scroll custom-scrollbar pr-2 relative z-10 pb-20">
+                                 <div className="flex flex-col gap-4">
+                                    {currentVisualTemplate?.settings ? (
+                                       <WorkbenchVisualEditor
+                                          settings={currentVisualTemplate.settings}
+                                          dataSource={parsedData}
+                                          isPreview={false}
+                                          selectedCategory={selectedCategory}
+                                          searchQuery={searchQuery}
+                                          onVisualChange={handleVisualChange}
+                                       />
+                                    ) : (
+                                       <WorkbenchEmptyVisualState t={t} selectedFile={selectedFile} />
+                                    )}
+                                 </div>
+                              </div>
+                           </div>
+                        )}
+                        {activeTab === 'dual' && (
+                           <>
+                              {isResizingPreview && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
+                              <div
+                                 className="w-2 rounded-full cursor-col-resize hover:bg-[var(--accent)]/50 transition-colors flex items-center justify-center shrink-0 z-10"
+                                 onMouseDown={(e) => { e.preventDefault(); setIsResizingPreview(true); }}
+                              >
+                                 <div className="h-12 w-1 rounded-full bg-[var(--accent)]/30" />
+                              </div>
+                           </>
+                        )}
+
+                        {(activeTab === "raw" || activeTab === "dual") && (
+                           <div className={`monaco-wrapper relative flex flex-col theme-glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${activeTab === 'dual' ? 'shrink-0' : 'flex-1 min-w-0 min-h-0'}`} style={activeTab === 'dual' ? { width: previewWidth } : {}}>
+                               <WorkbenchRawEditor
+                                  value={rawText}
+                                  onChange={handleRawChange}
+                                  language={selectedFile?.name.endsWith('.json') || (rawText && (rawText.trim().startsWith('{') || rawText.trim().startsWith('['))) ? 'json' : 'ini'}
+                                  isLight={isLight}
+                                  problemsList={problemsList}
+                                  setProblemsList={setProblemsList}
+                                  isResizingPreview={isResizingPreview}
+                                  onEditorMount={(editor, monaco) => setEditorRef(editor)}
+                               />
+                           </div>
+                        )}
+                     </div>
+                  )}
+
+
+                  {isTemplateMode && (
+                     <div className="flex justify-start items-center px-2 mt-2 mb-2 shrink-0 z-[100]">
+                        <div className="flex items-center overflow-x-auto overflow-y-hidden custom-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
+                           <HubTabButton id="preview" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_preview") || "Preview"} icon="visibility" />
+                           <HubTabButton id="file" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_file") || "File"} icon="description" />
+                           <HubTabButton id="off" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_off") || "Off"} icon="visibility_off" />
+                        </div>
+                     </div>
+                  )}
+
+                  {isTemplateMode && (
+                     <div className={`flex-1 flex gap-4 min-w-0 min-h-0 ${previewMode === 'off' ? 'flex-col' : 'flex-row'}`}>
+                        <div className="flex-1 theme-glass-panel rounded-[var(--radius)] overflow-visible shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative flex flex-col min-h-0 min-w-0 z-[110]">
+                           <div className="p-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 flex items-center justify-between z-10 w-full overflow-visible flex-wrap rounded-t-[var(--radius)]">
+                              <WorkbenchTemplateTools 
+                                 parsedData={parsedData}
+                                 rawText={rawText}
+                                 setRawText={setRawText}
+                                 files={files}
+                                 t={t}
+                                 handleInsertSnippet={handleInsertSnippet}
                               />
                            </div>
 
-                           {currentVisualTemplate?.categories && currentVisualTemplate.categories.length > 0 && (
-                              <div className="w-full md:w-max md:min-w-56 max-w-xs shrink-0 relative z-[40]">
-                                 <CustomDropdown
-                                    value={selectedCategory}
-                                    options={[
-                                       { id: "ALL", label: t("cat_all") || "All Settings" },
-                                       ...currentVisualTemplate.categories.map((cat: any) => ({
-                                          id: cat.id,
-                                          label: resolveText(cat.name_key, cat.name || cat.id) as string,
-                                          icon: resolveText(cat.icon_key, cat.icon || "folder") as string
-                                       }))
-                                    ]}
-                                    onChange={(val: string[]) => setSelectedCategory(val[0])}
-                                    disableTint={true}
-                                 />
-                              </div>
-                           )}
+                           <div className="flex-1 relative w-full min-w-0 min-h-0 overflow-hidden rounded-b-[var(--radius)]">
+                              <WorkbenchRawEditor
+                                 value={rawText}
+                                 onChange={handleRawChange}
+                                 language="json"
+                                 isLight={isLight}
+                                 problemsList={problemsList}
+                                 setProblemsList={setProblemsList}
+                                 isResizingPreview={isResizingPreview}
+                                 onEditorMount={(editor, monaco) => {
+                                    setEditorRef(editor);
+                                    (window as any).monaco = monaco;
 
-                           {availableTemplates.length > 0 && (
-                              <div className="w-full md:w-max md:min-w-64 max-w-xs shrink-0 relative z-[30]">
-                                 <CustomDropdown
-                                    value={selectedTemplatePath}
-                                    options={availableTemplates}
-                                    onChange={(val: string[]) => {
-                                       const newPath = val[0];
-                                       setSelectedTemplatePath(newPath);
-                                       const tmpl = availableTemplates.find(t => t.id === newPath);
-                                       if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
-                                          setActiveTemplate(tmpl.data);
-                                          setCustomAppliedTemplate(null);
-                                       } else if (tmpl) {
-                                          setCustomAppliedTemplate(tmpl.data);
-                                          setActiveTemplate(null);
+                                    editor.onContextMenu((e: any) => {
+                                       if (e.event) {
+                                          if (e.event.browserEvent) e.event.browserEvent.preventDefault();
+                                          window.dispatchEvent(new CustomEvent('sanctuary-monaco-contextmenu', {
+                                             detail: {
+                                                x: e.event.posx,
+                                                y: e.event.posy,
+                                                target: e.target?.element || document.body
+                                             }
+                                          }));
                                        }
-                                    }}
-                                    disableTint={true}
-                                 />
-                              </div>
-                           )}
-                        </div>
-
-                        {availableTemplates.find(t => t.id === selectedTemplatePath)?.isCommunity && (
-                           <div className="flex items-center justify-end gap-3 w-full pr-2">
-                              <button onClick={() => { setIsFlagPanelOpen(true); setFlagSuccess(false); setFlagReason(""); }} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-rose-500/50 hover:text-rose-500 transition-colors">
-                                 <span className="material-symbols-outlined !text-[12px]">{t("icon_flag")}</span>
-                                 {t("ui_btn_flag") || "Flag"}
-                              </button>
-
-                              <span className="text-[color-mix(in_srgb,var(--text)_15%,transparent)]">|</span>
-
-                              <span
-                                 className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--accent)]/60 transition-colors ${availableTemplates.find(t => t.id === selectedTemplatePath)?.author === "Sanctuary OS Community" ? '' : 'cursor-pointer hover:text-[var(--accent)] hover:drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]'}`}
-                                 onClick={async () => {
-                                    const author = availableTemplates.find(t => t.id === selectedTemplatePath)?.author;
-                                    if (!author || author === "Sanctuary OS Community") return;
-                                    try {
-                                       const { data } = await supabase.from('masons').select('id').ilike('name', author).maybeSingle();
-                                       if (data?.id && onOpenMasonProfile) onOpenMasonProfile(data.id);
-                                       else alert(t("alert_error_mason_profile_missing") || "This profile is not available.");
-                                    } catch (err) {
-                                       alert(t("alert_error_mason_profile_missing") || "This profile is not available.");
-                                    }
+                                    });
                                  }}
+                              />
+                           </div>
+
+                        </div>
+
+                        {previewMode !== 'off' && (
+                           <>
+                              {isResizingPreview && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
+                              <div
+                                 className="w-2 rounded-full cursor-col-resize hover:bg-[var(--accent)]/50 transition-colors flex items-center justify-center shrink-0 z-10"
+                                 onMouseDown={(e) => { e.preventDefault(); setIsResizingPreview(true); }}
                               >
-                                 <span className="material-symbols-outlined !text-[12px]">{t("icon_person")}</span>
-                                 {t("ui_label_masoned_by")} {availableTemplates.find(t => t.id === selectedTemplatePath)?.author}
-                              </span>
-                           </div>
-                        )}
-                     </div>
-
-                     <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 relative z-10 pb-20">
-                        <div className="flex flex-col gap-4">
-                           {currentVisualTemplate?.settings ? (
-                              renderVisualSettingsList(currentVisualTemplate.settings, parsedData, false)
-                           ) : (
-                              <div className="flex-1 flex flex-col items-center justify-center py-20 gap-8 min-h-[400px]">
-                                 <div className="w-24 h-24 rounded-full theme-glass-panel flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-40 shadow-inner">
-                                    <span className="material-symbols-outlined !text-5xl text-[var(--text)]">{t("icon_visibility_off")}</span>
-                                 </div>
-                                 <div className="flex flex-col items-center gap-3 text-center opacity-60">
-                                    <span className="text-[14px] font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("no_visual_template")}</span>
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] max-w-sm leading-relaxed">{t("author_mode_hint")}</span>
-                                 </div>
-                                 <div className="mt-4 flex items-center gap-4">
-                                    <button onClick={() => { window.location.href = '#/nexus?tab=templates&q=' + encodeURIComponent(selectedFile?.name || ''); }} className="mt-8 h-12 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:scale-105 transition-all shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)]">
-                                       <span className="material-symbols-outlined !text-[16px]">{t("icon_travel_explore")}</span>
-                                       {t("search_nexus")}
-                                    </button>
-                                 </div>
+                                 <div className="h-12 w-1 rounded-full bg-[var(--accent)]/30" />
                               </div>
-                           )}
-                        </div>
-                     </div>
-                  </div>
-               )}
-
-               {!isTemplateMode && activeTab === "raw" && (
-                  <div className="monaco-wrapper absolute inset-0 flex flex-col theme-glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                     <style>{`
-                        .monaco-editor .quick-input-widget,
-                        .quick-input-widget {
-                            --vscode-focusBorder: transparent !important;
-                            --vscode-inputOption-activeBorder: transparent !important;
-                            --vscode-inputValidation-infoBorder: transparent !important;
-                            
-                            --vscode-quickInput-background: rgba(15, 23, 42, 0.85) !important;
-                            --vscode-quickInput-foreground: var(--text) !important;
-                            --vscode-quickInputList-focusBackground: transparent !important;
-                            --vscode-list-activeSelectionBackground: transparent !important;
-                            --vscode-list-hoverBackground: transparent !important;
-                            
-                            backdrop-filter: blur(24px) !important;
-                            -webkit-backdrop-filter: blur(24px) !important;
-                            border: 1px solid var(--glass-border) !important;
-                            border-radius: 12px !important;
-                            overflow: hidden !important;
-                            box-shadow: 0 30px 60px rgba(0,0,0,0.5) !important;
-                        }
-                        .monaco-editor .quick-input-widget .monaco-list,
-                        .monaco-editor .quick-input-widget .monaco-list-rows,
-                        .monaco-editor .quick-input-widget .quick-input-list,
-                        .quick-input-widget .monaco-list,
-                        .quick-input-widget .monaco-list-rows,
-                        .quick-input-widget .quick-input-list {
-                            background: transparent !important;
-                        }
-                        .monaco-editor .quick-input-widget .monaco-list-row,
-                        .quick-input-widget .monaco-list-row {
-                            box-sizing: border-box !important;
-                            font-size: 13px !important;
-                            padding: 0 12px !important;
-                            background: transparent !important;
-                            z-index: 1 !important;
-                        }
-                        .monaco-editor .quick-input-widget .monaco-list-row::before,
-                        .quick-input-widget .monaco-list-row::before {
-                            content: "";
-                            position: absolute;
-                            top: 2px;
-                            bottom: 2px;
-                            left: 6px;
-                            right: 6px;
-                            border-radius: 6px;
-                            z-index: -1;
-                            background: transparent;
-                            pointer-events: none;
-                        }
-                        .monaco-editor .quick-input-widget .monaco-list-row:hover::before,
-                        .monaco-editor .quick-input-widget .monaco-list-row.focused::before,
-                        .quick-input-widget .monaco-list-row:hover::before,
-                        .quick-input-widget .monaco-list-row.focused::before {
-                            background: var(--accent) !important;
-                            opacity: 0.15;
-                        }
-                        .monaco-editor .quick-input-filter .monaco-inputbox,
-                        .monaco-editor .quick-input-filter .monaco-inputbox.synthetic-focus,
-                        .monaco-editor .quick-input-filter .monaco-inputbox input,
-                        .monaco-editor .quick-input-filter .monaco-inputbox input:focus,
-                        .quick-input-filter .monaco-inputbox,
-                        .quick-input-filter .monaco-inputbox.synthetic-focus,
-                        .quick-input-filter .monaco-inputbox input,
-                        .quick-input-filter .monaco-inputbox input:focus {
-                            background: color-mix(in srgb, var(--text) 5%, transparent) !important;
-                            border: none !important;
-                            outline: none !important;
-                            box-shadow: none !important;
-                        }
-                        .monaco-editor .quick-input-filter .monaco-inputbox,
-                        .quick-input-filter .monaco-inputbox {
-                            border-radius: 8px !important;
-                            padding: 6px 12px !important;
-                        }
-                        .monaco-editor .quick-input-filter .monaco-inputbox input,
-                        .quick-input-filter .monaco-inputbox input {
-                            color: inherit !important;
-                        }
-                        .monaco-list-row {
-                            border-radius: 8px !important;
-                            padding: 0 12px !important;
-                        }
-                        .monaco-list-row:hover, .monaco-list-row.focused {
-                            background: color-mix(in srgb, var(--accent) 15%, transparent) !important;
-                            color: var(--accent) !important;
-                        }
-                        .monaco-keybinding {
-                            background: color-mix(in srgb, var(--text) 10%, transparent) !important;
-                            border: 1px solid color-mix(in srgb, var(--text) 15%, transparent) !important;
-                            border-radius: 6px !important;
-                            color: color-mix(in srgb, var(--text) 70%, transparent) !important;
-                        }
-                    `}</style>
-                     <div className={`flex-1 relative ${isResizingPreview ? 'pointer-events-none select-none' : ''}`}>
-                        <Editor
-                           height="100%"
-                           language={selectedFile?.name.endsWith('.json') || (rawText && (rawText.trim().startsWith('{') || rawText.trim().startsWith('['))) ? 'json' : 'ini'}
-                           theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
-                           beforeMount={handleEditorWillMount}
-                           value={rawText}
-                           onChange={handleRawChange}
-                           onMount={(editor, monaco) => {
-                              setEditorRef(editor);
-                              (window as any).monaco = monaco;
-                              validateContent(rawText, monaco, editor.getModel());
-
-                              editor.onContextMenu((e: any) => {
-                                 if (e.event) {
-                                    if (e.event.browserEvent) e.event.browserEvent.preventDefault();
-                                    window.dispatchEvent(new CustomEvent('sanctuary-monaco-contextmenu', {
-                                       detail: {
-                                          x: e.event.posx,
-                                          y: e.event.posy,
-                                          target: e.target?.element || document.body
-                                       }
-                                    }));
-                                 }
-                              });
-                           }}
-                           options={{
-                              minimap: { enabled: true },
-                              fontSize: 14,
-                              fontFamily: "var(--font-mono), Consolas, monospace",
-                              padding: { top: 24, bottom: 24 },
-                              smoothScrolling: true,
-                              cursorBlinking: "smooth",
-                              lineHeight: 24,
-                              contextmenu: false,
-                              renderLineHighlight: "none",
-                              selectionHighlight: false,
-                              occurrencesHighlight: "off",
-                              matchBrackets: "never"
-                           }}
-                        />
-                     </div>
-
-                     {problemsList.length > 0 && (
-                        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[var(--radius)] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-[color-mix(in_srgb,var(--danger)_60%,transparent)] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
-                           <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
-                                 <span className="material-symbols-outlined !text-[16px]">{t("icon_error")}</span>
-                                 {t("problems")} ({problemsList.length})
-                              </span>
-                              <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
-                                 <span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span>
-                              </button>
-                           </div>
-                           <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
-                              {problemsList.map((p, i) => (
-                                 <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
-                                    <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("lineage_cancel")}</span>
-                                    <div className="flex flex-col gap-0.5 min-w-0">
-                                       <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>
-                                       <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
-                                    </div>
+                              <div className={`shrink-0 theme-glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: previewWidth }}>
+                                 <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 text-center flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">{previewMode === 'preview' ? t("workbench_preview_title") : (parsedData?.target_file || 'Target File')}</span>
                                  </div>
-                              ))}
-                           </div>
-                        </div>
-                     )}
-
-                  </div>
-               )}
-
-               {isTemplateMode && (
-                  <div className={`absolute inset-0 flex gap-4 ${previewMode !== 'off' ? 'flex-row' : 'flex-col'}`}>
-                     <div className="flex-1 theme-glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                        <Editor
-                           height="100%"
-                           language="json"
-                           theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
-                           beforeMount={handleEditorWillMount}
-                           value={rawText}
-                           onChange={handleRawChange}
-                           onMount={(editor, monaco) => {
-                              setEditorRef(editor);
-                              (window as any).monaco = monaco;
-                              validateContent(rawText, monaco, editor.getModel());
-
-                              editor.onContextMenu((e: any) => {
-                                 if (e.event) {
-                                    if (e.event.browserEvent) e.event.browserEvent.preventDefault();
-                                    window.dispatchEvent(new CustomEvent('sanctuary-monaco-contextmenu', {
-                                       detail: {
-                                          x: e.event.posx,
-                                          y: e.event.posy,
-                                          target: e.target?.element || document.body
-                                       }
-                                    }));
-                                 }
-                              });
-                           }}
-                           options={{
-                              minimap: { enabled: true },
-                              scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
-                              fontSize: 14,
-                              fontFamily: "var(--font-mono), Consolas, monospace",
-                              padding: { top: 24, bottom: 24 },
-                              smoothScrolling: true,
-                              cursorBlinking: "smooth",
-                              lineHeight: 24,
-                              contextmenu: false
-                           }}
-                        />
-                        {problemsList.length > 0 && (
-                           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[var(--radius)] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-[color-mix(in_srgb,var(--danger)_60%,transparent)] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
-                              <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
-                                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
-                                    <span className="material-symbols-outlined !text-[16px]">{t("icon_error")}</span>
-                                    {t("problems")} ({problemsList.length})
-                                 </span>
-                                 <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
-                                    <span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span>
-                                 </button>
-                              </div>
-                              <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
-                                 {problemsList.map((p, i) => (
-                                    <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
-                                       <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("lineage_cancel")}</span>
-                                       <div className="flex flex-col gap-0.5 min-w-0">
-                                          <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>
-                                          <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
-                                       </div>
-                                    </div>
-                                 ))}
-                              </div>
-                           </div>
-                        )}
-                     </div>
-
-                     {previewMode !== 'off' && (
-                        <>
-                           {isResizingPreview && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
-                           <div 
-                              className="w-2 rounded-full cursor-col-resize hover:bg-[var(--accent)]/50 transition-colors flex items-center justify-center shrink-0 z-10"
-                              onMouseDown={(e) => { e.preventDefault(); setIsResizingPreview(true); }}
-                           >
-                              <div className="h-12 w-1 rounded-full bg-[var(--accent)]/30" />
-                           </div>
-                           <div className={`shrink-0 theme-glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: previewWidth }}>
-                              <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 text-center flex items-center justify-between">
-                                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">{previewMode === 'preview' ? t("workbench_preview_title") : (parsedData?.target_file || 'Target File')}</span>
-                              </div>
-                              <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-                                 {previewMode === 'preview' ? (
-                                    problemsList.length > 0 ? (
-                                       <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 opacity-60">
-                                          <span className="material-symbols-outlined !text-5xl text-[var(--danger)] mb-2">{t("icon_visibility_off")}</span>
-                                          <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("preview_unavailable")}</h3>
-                                          <p className="text-[11px] text-[var(--subtext)] leading-relaxed">{t("preview_resolve")}</p>
-                                       </div>
+                                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                                    {previewMode === 'preview' ? (
+                                       problemsList.length > 0 ? (
+                                          <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 opacity-60">
+                                             <span className="material-symbols-outlined !text-5xl text-[var(--danger)] mb-2">{t("icon_visibility_off")}</span>
+                                             <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("preview_unavailable")}</h3>
+                                             <p className="text-[11px] text-[var(--subtext)] leading-relaxed">{t("preview_resolve")}</p>
+                                          </div>
+                                       ) : (
+                                          <div className="flex flex-col gap-4 pb-10">
+                                             <WorkbenchVisualEditor
+                                                settings={parsedData?.settings || (parsedData?.length ? parsedData[0]?.settings : [])}
+                                                dataSource={null}
+                                                isPreview={true}
+                                                selectedCategory="ALL"
+                                                searchQuery=""
+                                                onVisualChange={() => {}}
+                                             />
+                                          </div>
+                                       )
                                     ) : (
-                                       <div className="flex flex-col gap-4 pb-10">
-                                          {renderVisualSettingsList(parsedData?.settings || (parsedData?.length ? parsedData[0]?.settings : []), null, true)}
+                                       <div className="h-full w-full">
+                                          <Editor
+                                             height="100%"
+                                             language={parsedData?.target_file?.endsWith('.json') ? 'json' : 'ini'}
+                                             theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
+                                             value={targetFileContent}
+                                             onMount={(editor, monaco) => {
+                                                editor.onContextMenu((e: any) => {
+                                                   if (e.event) {
+                                                      if (e.event.browserEvent) e.event.browserEvent.preventDefault();
+                                                      window.dispatchEvent(new CustomEvent('sanctuary-monaco-contextmenu', {
+                                                         detail: {
+                                                            x: e.event.posx,
+                                                            y: e.event.posy,
+                                                            target: e.target?.element || document.body
+                                                         }
+                                                      }));
+                                                   }
+                                                });
+                                             }}
+                                             options={{
+                                                automaticLayout: true,
+                                                readOnly: true,
+                                                minimap: { enabled: false },
+                                                fontSize: 12,
+                                                wordWrap: "on",
+                                                renderLineHighlight: "none",
+                                                selectionHighlight: false,
+                                                occurrencesHighlight: "off",
+                                                matchBrackets: "never",
+                                                contextmenu: false
+                                             }}
+                                          />
                                        </div>
-                                    )
-                                 ) : (
-                                    <div className="h-full w-full">
-                                       <Editor
-                                          height="100%"
-                                          language={parsedData?.target_file?.endsWith('.json') ? 'json' : 'ini'}
-                                          theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
-                                          value={targetFileContent}
-                                          onMount={(editor, monaco) => {
-                                             editor.onContextMenu((e: any) => {
-                                                if (e.event) {
-                                                   if (e.event.browserEvent) e.event.browserEvent.preventDefault();
-                                                   window.dispatchEvent(new CustomEvent('sanctuary-monaco-contextmenu', {
-                                                      detail: {
-                                                         x: e.event.posx,
-                                                         y: e.event.posy,
-                                                         target: e.target?.element || document.body
-                                                      }
-                                                   }));
-                                                }
-                                             });
-                                          }}
-                                          options={{
-                                             readOnly: true,
-                                             minimap: { enabled: false },
-                                             fontSize: 12,
-                                             wordWrap: "on",
-                                             renderLineHighlight: "none",
-                                             selectionHighlight: false,
-                                             occurrencesHighlight: "off",
-                                             matchBrackets: "never",
-                                             contextmenu: false
-                                          }}
-                                       />
-                                    </div>
-                                 )}
+                                    )}
+                                 </div>
                               </div>
-                           </div>
-                        </>
-                     )}
-                  </div>
-               )}
+                           </>
+                        )}
+                     </div>
+                  )}
+               </div>
             </div>
          </SidePanel>
 
          <PushTemplateSidePanel isOpen={isPushModalOpen} onClose={() => setIsPushModalOpen(false)} templateContent={rawText} />
 
-         <SidePanel
-            isOpen={isTemplateGuideOpen}
-            onClose={() => setIsTemplateGuideOpen(false)}
-            title={t("guide_title")}
-            subtitle={t("guide_subtitle")}
-            icon="help"
-            iconColorClass="theme-text-accent"
-            defaultWidth={800}
-         >
-            <div className="p-8 flex flex-col gap-6 text-[var(--text)] h-full overflow-y-auto custom-scrollbar">
-               <div className="theme-glass-panel p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] relative overflow-hidden shrink-0">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)] blur-[100px] opacity-20 pointer-events-none"></div>
-                  <h3 className="text-md font-black uppercase tracking-widest text-[var(--accent)] mb-2">{t("author_guide_intro")}</h3>
-                  <p className="text-[12px] opacity-80 leading-relaxed font-mono whitespace-pre-wrap">
-                     {t("author_guide_fields_desc")}
-                     <br /><br />
-                     <span className="text-[var(--accent)]">{t("auto_supported_types")}</span> {t("auto_boolean_number_string")}
-                     <br />
-                     <span className="text-[var(--accent)]">{t("auto_organization")}</span> {t("auto_create_items_in_the_categories_array_to")}
-                  </p>
-               </div>
-
-               <div className="flex flex-col gap-4">
-                  <h4 className="text-sm font-black uppercase tracking-widest opacity-60 ml-2">{t("auto_example_blueprint")}</h4>
-                  <div className="theme-glass-panel rounded-2xl p-4 overflow-x-auto border border-white/10 font-mono text-[12px] leading-relaxed custom-scrollbar bg-black/20 group relative">
-                     <button
-                        onClick={() => {
-                           navigator.clipboard.writeText(`{
-  "template_id": "custom_template_abcd",
-  "schema_version": 2,
-  "supported_mod_versions": [
-    "1.0.0"
-  ],
-  "target_file": "my_mod_settings.cfg",
-  "parser_type": "json",
-  "write_scope": "active_mod_folder",
-  "mod_author": "Unknown",
-  "template_author": "Sanctuary OS Citizen",
-  "template_version": "1.0.0",
-  "categories": [
-    {
-      "id": "general",
-      "name_key": "category_general",
-      "icon_key": "icon_tune"
-    }
-  ],
-  "settings": [
-    {
-      "key": "My_Boolean_Setting",
-      "path": "My_Boolean_Setting",
-      "type": "boolean",
-      "label_key": "Boolean Setting",
-      "desc_key": "True or False",
-      "category": "general",
-      "default": false
-    },
-    {
-      "key": "My_Number_Setting",
-      "path": "My_Number_Setting",
-      "type": "number",
-      "label_key": "Number Settings",
-      "desc_key": "Perdefinded Number Range",
-      "category": "general",
-      "min": 0,
-      "max": 100,
-      "default": 50
-    },
-    {
-      "key": "My_String_Setting",
-      "path": "My_String_Setting",
-      "type": "string",
-      "label_key": "String Settings",
-      "desc_key": "Custom Text Input",
-      "category": "general",
-      "default": "Default Text"
-    },
-    {
-      "key": "My_Dropdown_Setting",
-      "path": "My_Dropdown_Setting",
-      "type": "dropdown",
-      "label_key": "Dropdown Settings",
-      "desc_key": "Predefined Dropdown Options",
-      "category": "general",
-      "options": [
-        { "value": "A", "label_key": "Option A" },
-        { "value": "B", "label_key": "Option B" }
-      ],
-      "default": "A"
-    }
-  ]
-}`);
-                           pushStatus(t("alert_copied") || "COPIED", "success");
-                        }}
-                        className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity h-8 px-3 rounded-lg bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 border border-[var(--accent)]/30 text-[var(--accent)] text-[10px] font-black uppercase tracking-widest flex items-center gap-2 backdrop-blur-md shadow-lg"
-                     >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_content_copy")}</span>
-                        {t("matrix_btn_copy") || "COPY"}
-                     </button>
-                     <pre className="text-[var(--text)]">
-                        {`{
-  "template_id": "custom_template_abcd",
-  "schema_version": 2,
-  "supported_mod_versions": [
-    "1.0.0"
-  ],
-  "target_file": "my_mod_settings.cfg",
-  "parser_type": "json",
-  "write_scope": "active_mod_folder",
-  "mod_author": "Unknown",
-  "template_author": "Sanctuary OS Citizen",
-  "template_version": "1.0.0",
-  "categories": [
-    {
-      "id": "general",
-      "name_key": "category_general",
-      "icon_key": "icon_tune"
-    }
-  ],
-  "settings": [
-    {
-      "key": "My_Boolean_Setting",
-      "path": "My_Boolean_Setting",
-      "type": "boolean",
-      "label_key": "Boolean Setting",
-      "desc_key": "True or False",
-      "category": "general",
-      "default": false
-    },
-    {
-      "key": "My_Number_Setting",
-      "path": "My_Number_Setting",
-      "type": "number",
-      "label_key": "Number Settings",
-      "desc_key": "Perdefinded Number Range",
-      "category": "general",
-      "min": 0,
-      "max": 100,
-      "default": 50
-    },
-    {
-      "key": "My_String_Setting",
-      "path": "My_String_Setting",
-      "type": "string",
-      "label_key": "String Settings",
-      "desc_key": "Custom Text Input",
-      "category": "general",
-      "default": "Default Text"
-    },
-    {
-      "key": "My_Dropdown_Setting",
-      "path": "My_Dropdown_Setting",
-      "type": "dropdown",
-      "label_key": "Dropdown Settings",
-      "desc_key": "Predefined Dropdown Options",
-      "category": "general",
-      "options": [
-        { "value": "A", "label_key": "Option A" },
-        { "value": "B", "label_key": "Option B" }
-      ],
-      "default": "A"
-    }
-  ]
-}`}
-                     </pre>
-                  </div>
-               </div>
-            </div>
-         </SidePanel>
+         <WorkbenchTemplateGuide isOpen={isTemplateGuideOpen} onClose={() => setIsTemplateGuideOpen(false)} />
 
          <SidePanel
             isOpen={isFlagPanelOpen}
@@ -1546,18 +1031,31 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
          {showTimeline && selectedFile && (
             <VersionTimeline
+               key={selectedFile.path}
                filePath={selectedFile.path}
                hasUnsavedChanges={!!hasUnsavedChanges}
-               onRestore={(content) => {
+               activeVersionTimestamp={activeVersionTimestamp}
+               onRestore={async (content, timestamp) => {
                   setRawText(content);
-                  setUnsavedEdits(prev => ({ ...prev, [selectedFile.path]: content }));
-                  if (editorRef && (window as any).monaco) {
-                     validateContent(content, (window as any).monaco, editorRef.getModel());
-                  }
                   try {
                      setParsedData(JSON.parse(content));
                   } catch (e) {
                      setParsedData(null);
+                  }
+                  
+                  setUnsavedEdits(prev => {
+                     const next = { ...prev };
+                     delete next[selectedFile.path];
+                     return next;
+                  });
+                  
+                  try {
+                     await invoke('save_file_silently', { path: selectedFile.path, content });
+                     setActiveVersionTimestamp(timestamp);
+                     pushStatus(t("alert_saved"), "success");
+                  } catch (e) {
+                     console.error(e);
+                     pushStatus("Failed to save restored version", "error");
                   }
                }}
                onClose={() => setShowTimeline(false)}

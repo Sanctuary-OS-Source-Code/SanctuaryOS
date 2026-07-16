@@ -191,7 +191,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
       </div>
       
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 mt-6 pb-24">
           {loading ? (
             <div className="col-span-full py-12 flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("hub_loading")}</div>
           ) : filteredGhosts.length === 0 ? (

@@ -169,7 +169,7 @@ export default function Blueprints({
           </div>
       </ViewHeader>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-32">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-32">
         
         {isDraftingSet ? (
           <div className="theme-glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-8 rounded-[var(--radius)] flex flex-col gap-4 animate-in zoom-in-95 shadow-[0_0_30px_rgba(var(--accent-rgb),0.1)] h-full min-h-[18rem] justify-center relative overflow-hidden bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]">

@@ -128,7 +128,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
       </div>
       
       <div className="w-full p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 pr-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pr-2">
           {displayMods.length === 0 && <EmptyState icon={t("icon_deployed_code") || "inventory"} title={t("registry_no_mods")} className="col-span-full py-16" />}
           {displayMods.map((mod: any) => (
               <ArtifactCard 
@@ -472,7 +472,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
       </div>
 
       <div className="p-6 w-full">
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 pr-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pr-2">
           {cloudMods.length === 0 ? (
                 <EmptyState icon={searchTerm ? "search_off" : t("icon_inventory_2") || "inventory"} title={searchTerm ? t("no_matches") : t("no_artifacts") || "No Artifacts Found"} className="col-span-full py-16" />
             ) : cloudMods.map((mod: any) => (

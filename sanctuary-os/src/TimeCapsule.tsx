@@ -242,7 +242,7 @@ export default function TimeCapsule({
                   </div>
                   {t("section_world")}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                   {worldBackups.map(renderBackupCard)}
                 </div>
               </div>
@@ -256,7 +256,7 @@ export default function TimeCapsule({
                   </div>
                   {t("section_engine")}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                   {engineBackups.map(renderBackupCard)}
                 </div>
               </div>

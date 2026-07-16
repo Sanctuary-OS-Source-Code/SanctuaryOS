@@ -159,7 +159,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
               <EmptyState icon={t("icon_account_balance") || "account_balance"} title={t("no_pending_masons")} className="col-span-full py-16" />
           ) : (
               <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                 {filteredSubmissions.slice(0, visibleCount).map((mod: any) => (
                     <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view")} />
                 ))}

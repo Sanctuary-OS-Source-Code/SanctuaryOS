@@ -65,12 +65,12 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
           </div>
         </div>
         
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl border border-white/5 shadow-inner h-12 shrink-0 divide-x divide-white/5 w-full">
           {["all", "open", "pending", "closed"].map(filter => (
              <button 
                key={filter}
                onClick={() => setActiveFilter(filter as any)}
-               className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm backdrop-blur-md ${activeFilter === filter ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-panel border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5'}`}
+               className={`h-full flex-1 px-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === filter ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
              >
                {filter}
              </button>

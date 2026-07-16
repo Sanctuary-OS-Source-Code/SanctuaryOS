@@ -496,7 +496,7 @@ export const DbpfScout = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                 {fatalConflicts.map((c: any) => (
                   <ConflictCard 
                     key={c.mod_pair} 
@@ -523,7 +523,7 @@ export const DbpfScout = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                 {tuningConflicts.map((c: any) => (
                   <ConflictCard 
                     key={c.mod_pair} 
@@ -602,7 +602,7 @@ export const DbpfScout = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                 {cloneConflicts.map((c: any) => (
                   <ConflictCard 
                     key={c.mod_pair} 

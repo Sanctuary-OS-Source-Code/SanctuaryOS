@@ -167,8 +167,8 @@ interface GlobalState {
   setCwUnsavedEdits: (edits: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   cwSelectedFile: {name: string, path: string} | null;
   setCwSelectedFile: (file: {name: string, path: string} | null) => void;
-  cwActiveTab: "visual" | "raw";
-  setCwActiveTab: (tab: "visual" | "raw") => void;
+  cwActiveTab: "visual" | "raw" | "dual";
+  setCwActiveTab: (tab: "visual" | "raw" | "dual") => void;
   masonActiveTab: string;
   setMasonActiveTab: (tab: string) => void;
   communityDefaultsRefreshTrigger: number;
@@ -342,9 +342,8 @@ export const useStore = create<GlobalState>((set) => ({
       localStorage.setItem('sanctuary_cw_unsaved_edits', JSON.stringify(newEdits));
       return { cwUnsavedEdits: newEdits };
   }),
-  cwSelectedFile: loadCwSelectedFile(),
+  cwSelectedFile: null,
   setCwSelectedFile: (file) => set((state) => {
-      localStorage.setItem('sanctuary_cw_selected_file', JSON.stringify(file));
       return { cwSelectedFile: file };
   }),
   cwActiveTab: loadCwActiveTab(),

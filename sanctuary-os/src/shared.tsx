@@ -500,15 +500,16 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
 
   return (
     <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className}`}>
-      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full ${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} transition-all shadow-inner flex justify-between items-center text-sm font-bold focus:outline-none group relative z-[10] backdrop-blur-[3px] ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`}>
+      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full ${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} transition-all shadow-inner flex justify-between items-center text-sm font-bold focus:outline-none group relative z-[10] backdrop-blur-[3px] ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`}>
         <span className="truncate pr-4">{getSelectedLabel()}</span>
         <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)]'}`}><span className="material-symbols-outlined !text-[20px]">{isOpen ? 'expand_less' : 'expand_more'}</span></span>
       </button>
       {isOpen && createPortal(
         <>
           <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-          <div className="fixed mt-2 theme-glass-panel border border-white/10 rounded-[calc(var(--radius)-4px)] shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto custom-scrollbar flex flex-col backdrop-blur-[3px]" style={{
-            top: btnRef.current?.getBoundingClientRect().bottom,
+          <div className="fixed theme-glass-panel border border-white/10 rounded-[calc(var(--radius)-4px)] shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden z-[200001] animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col backdrop-blur-[3px]" style={{
+            top: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 ? undefined : (btnRef.current?.getBoundingClientRect().bottom || 0) + 8,
+            bottom: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 ? window.innerHeight - (btnRef.current?.getBoundingClientRect().top || 0) + 8 : undefined,
             left: btnRef.current?.getBoundingClientRect().left,
             minWidth: btnRef.current?.getBoundingClientRect().width,
             width: 'max-content',
@@ -912,14 +913,14 @@ export function SidePanel({
   return createPortal(
     <>
       {isResizing && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
-      {isResizing && <style>{`* { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }`}</style>}
       <div className={`fixed top-[50px] bottom-[40px] right-0 ${backdropZ} ${noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[2px]'} animate-in fade-in duration-500 transition-all`} style={{ left: "var(--sidebar-width, 288px)" }} onClick={onClose} />
       <div
         ref={panelRef}
-        className={`fixed top-[50px] bottom-[40px] right-0 overflow-hidden ${isResizable ? '' : widthClass} theme-glass-panel !rounded-l-[var(--radius)] !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] flex flex-col ${panelZ} animate-in slide-in-from-right duration-500 ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${noPanelBlur ? '!backdrop-blur-none' : ''} ${panelClass || ''}`}
+        className={`fixed top-[50px] bottom-[40px] right-0 overflow-hidden ${isResizable ? '' : widthClass} !rounded-l-[var(--radius)] !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] flex flex-col ${panelZ} animate-in slide-in-from-right duration-500 ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''}`}
         style={isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined } : undefined}
         onClick={(e) => e.stopPropagation()}
       >
+        <div className={`absolute inset-0 pointer-events-none z-[-2] theme-glass-panel !border-none !shadow-none !rounded-none ${noPanelBlur ? '!backdrop-blur-none' : ''}`} />
         {isResizable && (
           <div
             className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[var(--accent)]/30 z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
@@ -929,8 +930,7 @@ export function SidePanel({
           </div>
         )}
 
-        <div className={`absolute top-0 right-[-10%] w-[100%] h-[40%] bg-current opacity-[0.04] blur-[100px] rounded-full pointer-events-none ${iconColorClass?.split(' ')[0] || ''}`} />
-        <div className={`absolute bottom-[-10%] left-[-20%] w-[80%] h-[50%] bg-current opacity-[0.03] blur-[120px] rounded-full pointer-events-none ${iconColorClass?.split(' ')[0] || ''}`} />
+
 
         {ambientGlows && (
           <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-l-[var(--radius)]">
@@ -940,8 +940,8 @@ export function SidePanel({
 
         {!hideHeader && (
           <div className="pt-[40px] px-10 pb-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
-            <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_3%,transparent)] to-transparent pointer-events-none" />
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_0%,transparent)] via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-[color-mix(in_srgb,var(--text)_0%,transparent)] opacity-50" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_3%,transparent)] to-[color-mix(in_srgb,var(--text)_0%,transparent)] pointer-events-none" />
 
             {headerActions && (
               <div className="absolute top-[40px] right-[88px] flex items-center gap-3 z-50">
@@ -956,7 +956,7 @@ export function SidePanel({
             <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-16">
               <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-6 min-w-0 w-full">
                 {icon && (
-                  <div className={`w-16 h-16 rounded-[1.25rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden group/iconbox ${iconColorClass ? '' : 'theme-text-accent'}`}>
+                  <div className={`w-16 h-16 rounded-[1.25rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden group/iconbox ${iconColorClass || ''}`}>
                     <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
                     <span className={`material-symbols-outlined !text-[32px] opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
                       {icon}
@@ -1103,12 +1103,27 @@ export function DashboardStatTile({ icon, number, label, colorClass, onClick, se
 
 export function HoverTooltip({ title, subtitle, variant = 'danger', className = '' }: any) {
   const isDanger = variant === 'danger';
+  const isInfo = variant === 'info';
+
+  let borderColorClass = 'border-orange-500/40';
+  let textColorClass = 'text-orange-500';
+  let iconName = 'warning';
+
+  if (isDanger) {
+    borderColorClass = 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]';
+    textColorClass = 'text-[var(--danger)]';
+    iconName = 'error';
+  } else if (isInfo) {
+    borderColorClass = 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]';
+    textColorClass = 'text-[var(--text)]';
+    iconName = 'info';
+  }
 
   return (
-    <div className={`absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-[70] hidden group-hover:flex flex-col items-start justify-center theme-glass-panel backdrop-blur-3xl bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] border px-5 py-3 rounded-[var(--radius)] max-w-[320px] w-max pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ${isDanger ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'border-orange-500/40'} ${className}`}>
+    <div className={`absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-[70] hidden group-hover:flex flex-col items-start justify-center theme-glass-panel backdrop-blur-3xl bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] border px-5 py-3 rounded-[var(--radius)] max-w-[320px] w-max pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ${borderColorClass} ${className}`}>
       <div className="relative z-10 flex flex-col items-start gap-1 w-full">
-        <div className={`text-[10px] font-black uppercase tracking-[0.2em] flex items-start text-left gap-2 whitespace-pre-line ${isDanger ? 'text-[var(--danger)]' : 'text-orange-500'}`}>
-          <span className="material-symbols-outlined !text-[14px] shrink-0 mt-[1px]">{isDanger ? 'error' : 'warning'}</span>
+        <div className={`text-[10px] font-black uppercase tracking-[0.2em] flex items-start text-left gap-2 whitespace-pre-line ${textColorClass}`}>
+          <span className="material-symbols-outlined !text-[14px] shrink-0 mt-[1px]">{iconName}</span>
           <span>{title}</span>
         </div>
         {subtitle && (
@@ -1138,5 +1153,187 @@ export const compareVersions = (v1: string, v2: string) => {
     if (n1 < n2) return -1;
   }
   return 0;
+};
+
+
+export const processModsIntoCollections = (
+  modsData: any[],
+  flavorGroups: any[],
+  collections: any[],
+  relationships: any[],
+  allFlavorMembers: any[],
+  allSetMembers: any[]
+) => {
+  let allItems: any[] = [];
+  const modsById = new Map<string, any>();
+  if (modsData) {
+    modsData.forEach((mod: any) => {
+      modsById.set(String(mod.id), mod);
+    });
+  }
+
+  const familyMap = new Map<string, Set<string>>();
+  const processedMods = new Set<string>();
+
+  if (relationships) {
+    relationships.forEach((rel: any) => {
+      const parentId = String(rel.parent_id);
+      const childId = String(rel.child_id);
+
+      if (modsById.has(parentId) && modsById.has(childId)) {
+        if (!familyMap.has(parentId)) {
+          familyMap.set(parentId, new Set([parentId]));
+        }
+        familyMap.get(parentId)!.add(childId);
+      }
+    });
+
+    familyMap.forEach((memberIds, parentId) => {
+      if (memberIds.size > 1) {
+        const members = Array.from(memberIds)
+          .map(id => modsById.get(id))
+          .filter(Boolean);
+
+        const parentMod = modsById.get(parentId);
+        const isValidName = parentMod?.name && !parentMod.name.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+
+        if (members.length > 1 && parentMod && isValidName) {
+          allItems.push({
+            ...parentMod,
+            isVirtual: true,
+            isParent: true,
+            familyId: parentId,
+            flavors: members,
+            familyCount: members.length
+          });
+          memberIds.forEach(id => processedMods.add(id));
+        }
+      }
+    });
+  }
+
+  if (flavorGroups) {
+    const membersByGroup = new Map<string, any[]>();
+    if (allFlavorMembers) {
+      for (const fm of allFlavorMembers) {
+        if (!membersByGroup.has(fm.group_id)) membersByGroup.set(fm.group_id, []);
+        membersByGroup.get(fm.group_id)!.push(fm);
+      }
+    }
+
+    for (const group of flavorGroups) {
+      const flavorMembers = membersByGroup.get(group.id) || [];
+      const members: any[] = [];
+      const memberIds = new Set<string>();
+
+      if (flavorMembers.length > 0) {
+        for (const fm of flavorMembers) {
+          for (const [modId, mod] of modsById.entries()) {
+            if (mod.mod_versions?.some((v: any) => v.dna_hash === fm.mod_hash)) {
+              if (!memberIds.has(modId)) {
+                members.push(mod);
+                memberIds.add(modId);
+                processedMods.add(modId);
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      if (members.length > 0) {
+        allItems.push({
+          id: `flavor_${group.id}`,
+          name: group.name,
+          category_override: "Exclusives",
+          image_url: group.image_url || null,
+          master_author: "Flavor Group",
+          description: null,
+          created_at: group.created_at,
+          isFlavorGroup: true,
+          flavorGroupId: group.id,
+          flavors: members,
+          familyCount: members.length,
+          isVirtual: true,
+          isParent: true
+        });
+      }
+    }
+  }
+
+  if (collections) {
+    const membersBySet = new Map<string, any[]>();
+    if (allSetMembers) {
+      for (const sm of allSetMembers) {
+        if (!membersBySet.has(sm.set_id)) membersBySet.set(sm.set_id, []);
+        membersBySet.get(sm.set_id)!.push(sm);
+      }
+    }
+
+    for (const set of collections) {
+      const setMembers = membersBySet.get(set.id) || [];
+      const members = setMembers
+        .map((sm: any) => modsById.get(String(sm.mod_id)))
+        .filter(Boolean) || [];
+
+      if (setMembers.length > 0) {
+        setMembers.forEach((sm: any) => processedMods.add(String(sm.mod_id)));
+      }
+
+      if (members.length > 0) {
+        allItems.push({
+          id: `ccset_${set.id}`,
+          name: set.name,
+          category_override: "Collection",
+          image_url: set.image_url || null,
+          master_author: set.creator_name || "Unknown Creator",
+          description: null,
+          created_at: set.created_at,
+          url: set.url || null,
+          isCollection: true,
+          collectionId: set.id,
+          flavors: members,
+          familyCount: members.length,
+          isVirtual: true,
+          isParent: true
+        });
+      }
+    }
+  }
+
+  modsById.forEach((mod, id) => {
+    if (!processedMods.has(id)) {
+      allItems.push(mod);
+    }
+  });
+
+  const nameMap = new Map<string, any>();
+  allItems.forEach(item => {
+    const name = item.name?.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!name) return;
+
+    const existing = nameMap.get(name);
+    if (!existing) {
+      nameMap.set(name, item);
+    } else {
+      if ((existing.isVirtual || existing.isParent) && (item.isVirtual || item.isParent)) return;
+      if (item.isVirtual || item.isParent) {
+        nameMap.set(name, item);
+      } else if (existing.isVirtual || existing.isParent) {
+        return;
+      } else {
+        const existingVersions = existing.compatible_versions || [];
+        const itemVersions = item.compatible_versions || [];
+        const mergedVersions = Array.from(new Set([...existingVersions, ...itemVersions]));
+        if (itemVersions.length > existingVersions.length) {
+          nameMap.set(name, { ...item, compatible_versions: mergedVersions });
+        } else {
+          nameMap.set(name, { ...existing, compatible_versions: mergedVersions });
+        }
+      }
+    }
+  });
+
+  return Array.from(nameMap.values());
 };
 

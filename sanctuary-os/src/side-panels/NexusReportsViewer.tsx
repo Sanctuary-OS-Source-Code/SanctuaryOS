@@ -239,7 +239,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
         ) : filteredReports.length === 0 ? (
           <EmptyState icon={t("icon_security") || "shield"} title={t("auto_no_tickets_found_in_this_category")} className="col-span-full py-16" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
             {filteredReports.map(report => (
               <div
                 key={report.id}

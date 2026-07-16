@@ -31,6 +31,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
   const [searchQuery, setSearchQuery] = useState("");
   const [fileTypeFilter, setFileTypeFilter] = useState("all");
   const [problemsList, setProblemsList] = useState<any[]>([]);
+  const [activeVersionTimestamp, setActiveVersionTimestamp] = useState<number | null>(null);
   const [editorRef, setEditorRef] = useState<any>(null);
   
   const [renamingFile, setRenamingFile] = useState<string | null>(null);
@@ -225,6 +226,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
            setOpenFiles(newFiles);
         }
         setActiveFileIndex(idx);
+        setActiveVersionTimestamp(null);
      } else {
         try {
            let content = "";
@@ -242,6 +244,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
            }
            setOpenFiles([...openFiles, { ...file, content, originalContent: content }]);
            setActiveFileIndex(openFiles.length);
+           setActiveVersionTimestamp(null);
         } catch (e) {
            pushStatus(t("err_open") || "Error opening file", "error");
         }
@@ -272,6 +275,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
              }
          }
          setActiveFileIndex(newActive);
+         setActiveVersionTimestamp(null);
      } else {
          if (isRemoving && activeFileIndex > index) {
              setActiveFileIndex(activeFileIndex - 1);
@@ -408,6 +412,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
             newFiles[activeFileIndex].content = updatedContent;
             newFiles[activeFileIndex].originalContent = updatedContent;
             setOpenFiles(newFiles);
+            setActiveVersionTimestamp(null);
             pushStatus(t("alert_saved") || "Saved to Cloud", "success");
          } else {
             const normalizedPath = file.path.replace(/\//g, '\\');
@@ -415,6 +420,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
             const newFiles = [...openFiles];
             newFiles[activeFileIndex].originalContent = file.content;
             setOpenFiles(newFiles);
+            setActiveVersionTimestamp(null);
             pushStatus(t("alert_saved") || "Saved successfully", "success");
          }
       } catch (e) {
@@ -520,7 +526,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
                 }
                 
                 return (
-                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                   <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">
                       {filteredFiles.map(file => {
                          const isTmpl = file.name.toLowerCase().endsWith('.json');
                       return (
@@ -762,12 +768,22 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
       
       {showTimeline && activeFile && (
          <VersionTimeline 
+            key={activeFile.path}
             filePath={activeFile.path.replace(/\//g, '\\')}
             hasUnsavedChanges={activeFile.content !== activeFile.originalContent}
-            onRestore={(content) => {
-               setOpenFiles(prev => prev.map((f, i) => i === activeFileIndex ? { ...f, content } : f));
+            activeVersionTimestamp={activeVersionTimestamp}
+            onRestore={async (content, timestamp) => {
+               setOpenFiles(prev => prev.map((f, i) => i === activeFileIndex ? { ...f, content, originalContent: content } : f));
                if (editorRef && (window as any).monaco) {
                   validateContent(content, (window as any).monaco, editorRef.getModel());
+               }
+               try {
+                  await invoke('save_file_silently', { path: activeFile.path.replace(/\//g, '\\'), content });
+                  setActiveVersionTimestamp(timestamp);
+                  pushStatus(t("alert_saved"), "success");
+               } catch (e) {
+                  console.error(e);
+                  pushStatus("Failed to save restored version", "error");
                }
             }}
             onClose={() => setShowTimeline(false)}

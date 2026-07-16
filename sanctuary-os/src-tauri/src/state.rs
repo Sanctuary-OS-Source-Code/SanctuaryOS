@@ -134,6 +134,8 @@ pub struct HistoryEntry {
     pub content: String,
     #[serde(default)]
     pub pinned: Option<bool>,
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
 

@@ -222,7 +222,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           {loading ? (
             <div className="theme-glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("comp_scanning")}</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {filteredMods.map(mod => {
                 const td = getTierDetails(mod.compliance_tier);
                 return (

@@ -313,7 +313,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
         ) : (
           <>
             <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                 {filteredProfiles.length === 0 && <EmptyState icon={t("ui_icon_person_off") || "person_off"} title={t("no_profiles")} className="col-span-full py-16" />}
                 {filteredProfiles.map((p: any) => (
                   <div
@@ -355,7 +355,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_var(--danger)]"></span>
                   {(t("banned_identities")).replace("{count}", blacklistedProfiles.length.toString())}
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                   {blacklistedProfiles.map((p: any) => (
                     <div
                       key={p.id}

@@ -391,7 +391,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
                  {reqCount} {t("req_short")}
                </div>
              )}
-             {mod.isFlavorFolder && <span className="text-[10px]">ΓÜí</span>}
+             {mod.isFlavorFolder && <span className="material-symbols-outlined !text-[14px]">folder</span>}
           </div>
         </div>
       </div>

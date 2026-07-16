@@ -522,7 +522,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       </div>
 
       <div className="p-8 flex flex-col gap-10 pb-32">
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-8">
           {postCards}
         </div>
         {filteredPosts.length === 0 && (

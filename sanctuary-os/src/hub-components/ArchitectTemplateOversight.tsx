@@ -192,7 +192,7 @@ export default function ArchitectTemplateOversight() {
         ) : processedFiles.length === 0 ? (
           <EmptyState icon={t("icon_architecture") || "architecture"} title={t("no_tracked_files") || "No Tracked Files"} className="col-span-full py-16" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 px-6">
             {processedFiles.map((tf) => {
                 const groupTemplates = templates.filter(t => t.targetFile === tf.file_name);
                 const defaultTmpl = groupTemplates.find(t => t.is_community_default);

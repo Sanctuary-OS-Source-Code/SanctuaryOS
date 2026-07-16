@@ -7,7 +7,7 @@ const CORE_THEMES: any = {
     name: "Architect", bg: "#02040a", sidebar: "#060913", sidebartext: "#fafafa", accent: "#38bdf8",
     text: "#fafafa", subtext: "#a1a1aa", success: "#30d158", warning: "#ffd60a", danger: "#ff453a",
     panelTint: "#ffffff", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "6%", glassBlur: "32px", radius: "1.25rem", bgGradient: "linear-gradient(to bottom right, #080c1a, #02040a)",
+    glassOpacity: "6%", glassBlur: "16px", radius: "1.25rem", bgGradient: "#02040a",
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
@@ -23,10 +23,10 @@ const CORE_THEMES: any = {
     name: "Aurora", bg: "#020617", sidebar: "#060913", sidebartext: "#fafafa", accent: "#38bdf8",
     text: "#fafafa", subtext: "#a1a1aa", success: "#30d158", warning: "#ffd60a", danger: "#ff453a",
     panelTint: "#ffffff", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "4%", glassBlur: "24px", radius: "1.25rem", bgGradient: "radial-gradient(ellipse at 0% 0%, #1e1b4b 0%, transparent 60%), radial-gradient(ellipse at 100% 100%, #064e3b 0%, transparent 60%), #020617",
+    glassOpacity: "4%", glassBlur: "24px", radius: "1.25rem", bgGradient: "radial-gradient(ellipse at 0% 0%, #1e1b4b 0%, #1e1b4b00 60%), radial-gradient(ellipse at 100% 100%, #064e3b 0%, #064e3b00 60%), #020617",
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  }, er: {
+  }, bunker: {
     name: "Bunker", bg: "#051005", sidebar: "#0a1f0a", sidebartext: "#00ff41", accent: "#00ff41",
     text: "#00ff41", subtext: "#008f11", success: "#0ce471", warning: "#ffea00", danger: "#ff003c",
     panelTint: "#00ff41", headerText: "#00ff41", fontFamily: "'Space Mono', monospace", fontSizeBase: "16px",
@@ -59,7 +59,11 @@ export const ThemeProvider = ({ children }: any) => {
   const [activeThemeId, setActiveThemeId] = useState(() => localStorage.getItem("sanctuary_active_theme") || "architect");
 
   const allThemes = { ...customThemes, ...CORE_THEMES };
-  const currentTheme = allThemes[activeThemeId] || CORE_THEMES.architect;
+  const currentThemeRaw = customThemes[activeThemeId] || CORE_THEMES[activeThemeId] || CORE_THEMES.architect;
+  const currentTheme = { ...currentThemeRaw };
+  if (currentTheme.name === "Architect" && currentTheme.bgGradient && currentTheme.bgGradient.includes("linear-gradient")) {
+    currentTheme.bgGradient = "#02040a";
+  }
 
   useEffect(() => {
     const scanVault = async () => {

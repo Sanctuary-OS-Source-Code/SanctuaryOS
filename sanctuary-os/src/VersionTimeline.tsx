@@ -1,17 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLexicon } from './LexiconContext';
 import { SidePanel, standardPrimaryButtonClass, SearchBar } from './shared';
 import { useTheme } from './ThemeContext';
 
-export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsavedChanges = false }: { filePath: string, onRestore: (content: string) => void, onClose: () => void, hasUnsavedChanges?: boolean }) {
+export default function VersionTimeline({ 
+  filePath, 
+  onRestore, 
+  onClose, 
+  hasUnsavedChanges = false,
+  activeVersionTimestamp
+}: { 
+  filePath: string, 
+  onRestore: (content: string, timestamp: number) => void, 
+  onClose: () => void, 
+  hasUnsavedChanges?: boolean,
+  activeVersionTimestamp?: number | null
+}) {
   const { t } = useLexicon();
   const { currentTheme } = useTheme();
-  const [history, setHistory] = useState<{ timestamp: number, content: string, pinned?: boolean }[]>([]);
+  const [history, setHistory] = useState<{ timestamp: number, content: string, pinned?: boolean, name?: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEntry, setSelectedEntry] = useState<{ timestamp: number, content: string, pinned?: boolean } | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<{ timestamp: number, content: string, pinned?: boolean, name?: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [confirmRestore, setConfirmRestore] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [editingTimestamp, setEditingTimestamp] = useState<number | null>(null);
+  const [editNameValue, setEditNameValue] = useState("");
 
   async function togglePin(timestamp: number, pinned: boolean) {
     try {
@@ -30,6 +45,30 @@ export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsav
     }
   }
 
+  async function saveName(timestamp: number) {
+    if (editingTimestamp !== timestamp) return;
+    try {
+      await invoke('rename_version', { path: filePath, timestamp, name: editNameValue });
+      setHistory(prev => prev.map(h => h.timestamp === timestamp ? { ...h, name: editNameValue } : h));
+    } catch (e) {
+      console.error("Failed to rename version", e);
+    }
+    setEditingTimestamp(null);
+  }
+
+  async function deleteVersion(timestamp: number) {
+    try {
+      await invoke('delete_version', { path: filePath, timestamp });
+      setHistory(prev => prev.filter(h => h.timestamp !== timestamp));
+      setConfirmDelete(null);
+      if (selectedEntry?.timestamp === timestamp) {
+        setSelectedEntry(null);
+      }
+    } catch (e) {
+      console.error("Failed to delete version", e);
+    }
+  }
+
   useEffect(() => {
     async function fetchHistory() {
       setLoading(true);
@@ -43,6 +82,8 @@ export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsav
     }
     fetchHistory();
   }, [filePath]);
+
+
 
   return (
     <SidePanel
@@ -83,6 +124,9 @@ export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsav
             return d.toLocaleDateString().toLowerCase().includes(q) || d.toLocaleTimeString().toLowerCase().includes(q);
           });
 
+          const latestTimestamp = history.length > 0 ? Math.max(...history.map(h => h.timestamp)) : 0;
+          const currentActiveTs = activeVersionTimestamp || latestTimestamp;
+
           if (filteredHistory.length === 0) {
             return (
               <div className="flex flex-col items-center justify-center h-40 opacity-40 gap-4">
@@ -100,26 +144,78 @@ export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsav
                 <div
                   key={entry.timestamp}
                   className={`p-5 rounded-2xl border flex flex-col gap-4 transition-all cursor-pointer ${selectedEntry?.timestamp === entry.timestamp ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_10px_30px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:-translate-y-1 hover:shadow-lg'} ${entry.pinned && selectedEntry?.timestamp !== entry.timestamp ? '!border-[color-mix(in_srgb,var(--accent)_15%,transparent)]' : ''}`}
-                  onClick={() => setSelectedEntry(entry)}
+                  onClick={() => {
+                    setSelectedEntry(entry);
+                  }}
                 >
-                  <div className="flex justify-between items-center">
-                    <div className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center w-full">
+                    <div className="flex flex-col gap-1 flex-1 min-w-0 mr-4">
                       <div className="flex items-center gap-2">
-                        {entry.pinned && <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_push_pin")}</span>}
-                        <span className={`text-xs font-black uppercase tracking-widest ${selectedEntry?.timestamp === entry.timestamp ? 'theme-text-accent' : 'opacity-80'}`}>
-                          {new Date(entry.timestamp * 1000).toLocaleDateString()}
-                        </span>
+                        {entry.pinned && <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] shrink-0">{t("icon_push_pin")}</span>}
+                        {editingTimestamp === entry.timestamp ? (
+                          <input
+                            autoFocus
+                            value={editNameValue}
+                            onChange={(e) => setEditNameValue(e.target.value)}
+                            onBlur={() => saveName(entry.timestamp)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveName(entry.timestamp);
+                              else if (e.key === 'Escape') setEditingTimestamp(null);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-transparent border-b border-[var(--accent)] text-xs font-black uppercase tracking-widest outline-none text-[var(--text)] w-full placeholder:opacity-30"
+                            placeholder={t("rename_snapshot")}
+                          />
+                        ) : (
+                          <span
+                            className={`text-xs font-black uppercase tracking-widest cursor-text ${selectedEntry?.timestamp === entry.timestamp ? 'theme-text-accent' : 'opacity-80'} hover:opacity-100 flex items-center gap-2 group min-w-0`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingTimestamp(entry.timestamp);
+                              setEditNameValue(entry.name || "");
+                            }}
+                          >
+                            <span className="truncate block" style={{ maxWidth: '200px' }}>{entry.name || t("unnamed_snapshot")}</span>
+                            <span className="material-symbols-outlined !text-[14px] opacity-0 group-hover:opacity-50 transition-opacity">edit</span>
+                          </span>
+                        )}
                       </div>
-                      <span className="text-[10px] font-bold font-mono tracking-widest opacity-50">
-                        {new Date(entry.timestamp * 1000).toLocaleTimeString()}
+                      <span className="text-[10px] font-bold font-mono tracking-widest opacity-50 flex items-center gap-2">
+                        <span>{new Date(entry.timestamp * 1000).toLocaleDateString()}</span>
+                        <span>{new Date(entry.timestamp * 1000).toLocaleTimeString()}</span>
                       </span>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      {idx === 0 && !searchQuery && (
+                      {entry.timestamp === currentActiveTs && !searchQuery && (
                         <div className="px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-[0.2em] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center gap-1">
                           {t("active_version")}
                         </div>
+                      )}
+                      {!entry.pinned && (
+                        confirmDelete === entry.timestamp ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }}
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text)] bg-black/20 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">close</span>
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); deleteVersion(entry.timestamp); }}
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-red-400 bg-red-500/10 backdrop-blur-md border border-red-500/30 hover:bg-red-500/30 hover:text-white hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">delete</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirmDelete(entry.timestamp); }}
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--subtext)] hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
+                          >
+                            <span className="material-symbols-outlined !text-[16px]">delete</span>
+                          </button>
+                        )
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePin(entry.timestamp, !entry.pinned); }}
@@ -135,19 +231,19 @@ export default function VersionTimeline({ filePath, onRestore, onClose, hasUnsav
                       <div className="bg-black/20 p-4 rounded-xl max-h-48 overflow-y-auto custom-scrollbar border border-white/10 shadow-inner backdrop-blur-sm">
                         <pre className="text-[11px] font-mono opacity-80 whitespace-pre-wrap leading-relaxed text-[var(--text)]">{entry.content.substring(0, 500)}{entry.content.length > 500 ? '\n\n... [TRUNCATED] ...' : ''}</pre>
                       </div>
-                      {!(idx === 0 && !searchQuery) && (
+                      {!(entry.timestamp === currentActiveTs && !searchQuery) && (
                         confirmRestore === entry.timestamp ? (
                           <div className="flex flex-col gap-2 mt-2">
                             {hasUnsavedChanges && <div className="text-[10px] font-black uppercase text-[var(--danger)] text-center tracking-widest">{t("unsaved_warning")}</div>}
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 w-full">
                               <button
                                 onClick={(e) => { e.stopPropagation(); setConfirmRestore(null); }}
-                                className={`h-12 flex-1 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center gap-2`}
+                                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl text-[var(--text)] hover:bg-white/10 transition-all`}
                               >
-                                {t("shared_cancel")}
+                                {t("cancel")}
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); onRestore(entry.content); onClose(); }}
+                                onClick={(e) => { e.stopPropagation(); onRestore(entry.content, entry.timestamp); onClose(); }}
                                 className={`h-12 flex-[2] rounded-2xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center gap-2`}
                               >
                                 {hasUnsavedChanges ? (t("confirm_nuke")) : (t("confirm_restore"))}

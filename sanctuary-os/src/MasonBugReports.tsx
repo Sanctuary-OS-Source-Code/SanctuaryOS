@@ -266,7 +266,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                     );
 
                     return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                             {filteredTickets.map(ticket => (
                                 <div
                                     key={ticket.id}

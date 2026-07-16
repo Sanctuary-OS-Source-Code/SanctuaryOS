@@ -215,11 +215,11 @@ pub fn save_file_with_history(app: tauri::AppHandle, path: String, content: Stri
 
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
         let history_file = file_history_dir.join(format!("{}.json", timestamp));
-        
         let entry = HistoryEntry {
             timestamp,
             content,
             pinned: Some(false),
+            name: None,
         };
 
         if let Ok(json) = serde_json::to_string(&entry) {
@@ -260,6 +260,12 @@ pub fn save_file_with_history(app: tauri::AppHandle, path: String, content: Stri
         }
     }
     
+    Ok("Saved successfully".into())
+}
+
+#[tauri::command]
+pub fn save_file_silently(path: String, content: String) -> Result<String, String> {
+    std::fs::write(&path, &content).map_err(|e| format!("Failed to save file: {}", e))?;
     Ok("Saved successfully".into())
 }
 
@@ -314,8 +320,45 @@ pub fn toggle_pin_version(app: tauri::AppHandle, path: String, timestamp: u64, p
                     }
                 }
             }
+            }
+        }
+    Err("Failed to update pin status".into())
+}
+
+#[tauri::command]
+pub fn delete_version(app: tauri::AppHandle, path: String, timestamp: u64) -> Result<(), String> {
+    use tauri::Manager;
+    if let Ok(app_dir) = app.path().app_data_dir() {
+        let path_hash = format!("{:x}", md5::compute(&path));
+        let history_file = app_dir.join("file_history").join(path_hash).join(format!("{}.json", timestamp));
+        
+        if history_file.exists() {
+            let _ = std::fs::remove_file(history_file);
+            return Ok(());
         }
     }
-    Err("Failed to update pin status".into())
+    Err("Failed to delete version".into())
+}
+
+#[tauri::command]
+pub fn rename_version(app: tauri::AppHandle, path: String, timestamp: u64, name: String) -> Result<(), String> {
+    use tauri::Manager;
+    if let Ok(app_dir) = app.path().app_data_dir() {
+        let path_hash = format!("{:x}", md5::compute(&path));
+        let history_file = app_dir.join("file_history").join(path_hash).join(format!("{}.json", timestamp));
+        
+        if history_file.exists() {
+            if let Ok(content) = std::fs::read_to_string(&history_file) {
+                if let Ok(mut h) = serde_json::from_str::<HistoryEntry>(&content) {
+                    h.name = Some(name);
+                    if let Ok(json) = serde_json::to_string(&h) {
+                        let _ = std::fs::write(&history_file, json);
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    }
+    Err("Failed to rename version".into())
 }
 

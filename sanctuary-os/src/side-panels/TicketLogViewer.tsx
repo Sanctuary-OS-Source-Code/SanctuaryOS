@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { SidePanel , getExtensionRegex, FilterTabs, FilterTabButton} from "../shared";
+import { SidePanel , getExtensionRegex, HubTabButton } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 
 interface LogSection {
@@ -230,20 +230,24 @@ export default function TicketLogViewer({
 
   return (
     <div className="flex flex-col w-full mt-4 gap-4">
-       <FilterTabs className="mb-4">
-          {sections.map((sec, idx) => {
-             return (
-                 <FilterTabButton 
-                    key={idx} 
-                    id={idx}
-                    activeTab={activeTab}
-                    setTab={setActiveTab}
-                    icon={sec.title.includes('Log') || sec.title.includes('Blueprint') ? 'description' : 'data_object'}
-                    label={sec.title.endsWith('Logs') ? sec.title.slice(0, -1) : sec.title.replace(' (OS)', '')}
-                 />
-             );
-          })}
-       </FilterTabs>
+         <div className="flex items-stretch overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-xl border border-white/5 shadow-inner h-10 shrink-0 divide-x divide-white/5 w-full mb-4">
+            {sections.map((sec, idx) => {
+               const isActive = activeTab.toString() === idx.toString();
+               const icon = sec.title.includes('Log') || sec.title.includes('Blueprint') ? 'description' : 'data_object';
+               const label = sec.title.endsWith('Logs') ? sec.title.slice(0, -1) : sec.title.replace(' (OS)', '');
+               
+               return (
+                 <button 
+                   key={idx}
+                   onClick={() => setActiveTab(idx)}
+                   className={`h-full flex-1 shrink-0 px-4 rounded-none flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${isActive ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+                 >
+                   <span className="material-symbols-outlined !text-[14px]">{icon}</span>
+                   {label}
+                 </button>
+               );
+            })}
+         </div>
 
        <div className="w-full">
            {renderContent(sections[activeTab])}

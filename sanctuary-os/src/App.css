@@ -390,7 +390,6 @@ textarea,
   color: var(--accent);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  transform: translateZ(0);
   box-shadow: 0 8px 32px color-mix(in srgb, var(--accent) 5%, transparent);
 }
 
@@ -409,7 +408,6 @@ textarea,
   color: var(--success);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  transform: translateZ(0);
   box-shadow: 0 8px 32px color-mix(in srgb, var(--success) 5%, transparent);
 }
 
@@ -428,7 +426,6 @@ textarea,
   color: var(--warning);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  transform: translateZ(0);
   box-shadow: 0 8px 32px color-mix(in srgb, var(--warning) 5%, transparent);
 }
 
@@ -447,7 +444,6 @@ textarea,
   color: var(--danger);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  transform: translateZ(0);
   box-shadow: 0 8px 32px color-mix(in srgb, var(--danger) 5%, transparent);
 }
 
@@ -461,24 +457,18 @@ textarea,
 }
 
 .theme-glass-panel {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--panelTint, var(--text)) var(--glassOpacity, 3%), transparent) 0%, color-mix(in srgb, var(--panelTint, var(--text)) calc(var(--glassOpacity, 3%) * 0.2), transparent) 100%);
+  background: color-mix(in srgb, var(--panelTint, var(--text)) calc(var(--glassOpacity, 3%) * 0.6), transparent);
   border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
   color: var(--text);
   -webkit-backdrop-filter: blur(var(--glassBlur, 16px));
   backdrop-filter: blur(var(--glassBlur, 16px));
-  transform: translateZ(0);
   box-shadow: 0 8px 32px color-mix(in srgb, #000000 12%, transparent), inset 0 1px 1px color-mix(in srgb, #ffffff 30%, transparent);
   border-radius: var(--radius, 1.5rem);
 }
 
 .theme-glass-inner {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--panelTint, var(--text)) calc(var(--glassOpacity, 3%) * 1.5), transparent) 0%, color-mix(in srgb, var(--panelTint, var(--text)) calc(var(--glassOpacity, 3%) * 0.5), transparent) 100%);
-  border: 1px solid color-mix(in srgb, var(--text) 6%, transparent);
+  background: color-mix(in srgb, var(--panelTint, var(--text)) calc(var(--glassOpacity, 3%) * 1.0), transparent);
   color: var(--text);
-  -webkit-backdrop-filter: blur(calc(var(--glassBlur, 12px) * 0.75));
-  backdrop-filter: blur(calc(var(--glassBlur, 12px) * 0.75));
-  transform: translateZ(0);
-  box-shadow: inset 0 2px 8px color-mix(in srgb, #000000 5%, transparent), inset 0 1px 0px color-mix(in srgb, #ffffff 20%, transparent);
   border-radius: calc(var(--radius, 1.5rem) * 0.75);
 }
 

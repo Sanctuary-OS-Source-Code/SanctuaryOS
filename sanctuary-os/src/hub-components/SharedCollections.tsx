@@ -145,7 +145,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
       </div>
       
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 content-start pr-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 content-start pr-2">
           {filteredSets.length === 0 && <EmptyState icon={t("icon_extension_off") || "extension_off"} title={t("cc_no_sets")} className="col-span-full py-16" />}
           {filteredSets.map(setItem => (
               <VaultCard 
@@ -472,7 +472,7 @@ export function CollectionForge({ setStatus }: any) {
       </div>
       
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 content-start pr-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 content-start pr-2">
           {filteredSets.length === 0 ? (
                 <EmptyState icon={searchTerm ? "search_off" : t("icon_folder") || "folder"} title={searchTerm ? t("no_matches") : t("no_vaults") || "No Vaults Found"} className="col-span-full py-16" />
             ) : filteredSets.map(setItem => (

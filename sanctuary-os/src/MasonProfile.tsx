@@ -1,4 +1,4 @@
-import { handleOpenUrl, getFileLabel, formatDisplayName, getModIcon } from './shared';
+import { handleOpenUrl, getFileLabel, formatDisplayName, getModIcon, processModsIntoCollections } from './shared';
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
@@ -101,10 +101,24 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
     return null;
   };
 
+  const getAssetDisplayVersion = (asset: any) => {
+    let version = asset.version || '1.0.0';
+    if (asset.asset_type === 'workbench_template' && asset.json_data) {
+      try {
+        const parsedRaw = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
+        const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
+        if (parsed && parsed.template_version) {
+          version = parsed.template_version;
+        }
+      } catch (e) {}
+    }
+    return version;
+  };
+
   const isOutdated = (asset: any) => {
     if (!isInstalled(asset)) return false;
     const localVersion = getLocalVersion(asset);
-    return compareVersions(asset.version || '1.0.0', localVersion) > 0;
+    return compareVersions(getAssetDisplayVersion(asset), localVersion) > 0;
   };
 
   const [mason, setMason] = useState<any>(null);
@@ -165,14 +179,40 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
       const { data: mData } = await supabase.from('masons').select('*').eq('id', masonId).single();
       if (mData) setMason(mData);
 
-      const { data: modsData } = await supabase.from('mods').select('*').eq('mason_id', masonId).order('name');
-      if (modsData) {
+      const { data: modsDataRaw } = await supabase.from('mods').select('*').eq('mason_id', masonId).order('name');
+      
+      const [
+        flavorGroupsRes,
+        collectionsRes,
+        relationshipsRes,
+        flavorMembersRes,
+        setMembersRes
+      ] = await Promise.all([
+        supabase.from("flavor_groups").select("*"),
+        supabase.from("collections").select("*"),
+        supabase.from("mod_relationships").select("parent_id, child_id, relationship_type").in("relationship_type", ["twin", "addon", "flavor", "set_item", "beta"]),
+        supabase.from("flavor_group_members").select("group_id, mod_hash"),
+        supabase.from("collection_members").select("set_id, mod_id")
+      ]);
+
+      if (modsDataRaw) {
         const matureEnabled = localStorage.getItem("sanctuary_mature_transmissions") === "true";
-        setMods(modsData.filter((m: any) => {
+        const filteredModsRaw = modsDataRaw.filter((m: any) => {
           if (m.compliance_tier > 1) return false;
           if (!matureEnabled && m.compliance_tier > 0) return false;
           return true;
-        }));
+        });
+        
+        const groupedMods = processModsIntoCollections(
+          filteredModsRaw,
+          flavorGroupsRes?.data || [],
+          collectionsRes?.data || [],
+          relationshipsRes?.data || [],
+          flavorMembersRes?.data || [],
+          setMembersRes?.data || []
+        );
+        
+        setMods(groupedMods);
       }
 
       const { data: postsData } = await supabase.from('mason_posts').select('*, masons(name, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)').eq('mason_id', masonId).order('created_at', { ascending: false });
@@ -518,7 +558,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                           {mod.name}
                         </h3>
                         <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
-                          {mason.name || "UNKNOWN MASON"}{(mod.latest_version) ? ` ΓÇó ${mod.latest_version}` : ""}
+                          {mason.name || "UNKNOWN MASON"}{(mod.latest_version) ? ` • ${mod.latest_version}` : ""}
                         </p>
                         {mod.description && (
                           <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">
@@ -575,7 +615,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                             {asset.name}
                           </h3>
                           <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
-                            {mason.name || "UNKNOWN MASON"} ΓÇó {(asset.json_data?.artifacts?.length || 0)} {t("auto_mods")}
+                            {mason.name || "UNKNOWN MASON"} • {(asset.json_data?.artifacts?.length || 0)} {t("auto_mods")}
                           </p>
                           {asset.description && (
                             <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">
@@ -816,7 +856,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                                     if (!(await exists(templatesDir))) await import("@tauri-apps/plugin-fs").then(m => m.mkdir(templatesDir, { recursive: true }));
                                     await import("@tauri-apps/plugin-fs").then(m => m.writeTextFile(`${templatesDir}\\${asset.name}_template.json`, JSON.stringify(parsed, null, 2)));
                                     useStore.getState().pushStatus(`Successfully Installed Template: ${asset.name}`);
-                                    setInstalledTemplates(prev => ({ ...prev, [asset.name]: asset.version || '1.0.0' }));
+                                    setInstalledTemplates(prev => ({ ...prev, [asset.name]: getAssetDisplayVersion(asset) }));
                                   }
                                 }}
                                 className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset)

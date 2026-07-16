@@ -114,24 +114,8 @@
         "path": "Tray"
       },
       {
-        "name": "Mods",
-        "path": "Mods"
-      },
-      {
         "name": "ConfigOverride",
         "path": "ConfigOverride"
-      },
-      {
-        "name": "CustomMusic",
-        "path": "CustomMusic"
-      },
-      {
-        "name": "Recorded Videos",
-        "path": "Recorded Videos"
-      },
-      {
-        "name": "Screenshots",
-        "path": "Screenshots"
       },
       {
         "name": "Options.ini",
@@ -253,7 +237,7 @@
       "lexicon_key": "class_dd_career"
     }
   ],
-  "schema_version": 2,
+  "schema_version": 3,
   "executable_names": [
     "TS4_x64.exe",
     "TS4.exe",

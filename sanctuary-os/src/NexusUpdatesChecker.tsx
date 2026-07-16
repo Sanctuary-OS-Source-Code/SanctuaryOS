@@ -18,7 +18,7 @@ export function NexusUpdatesChecker() {
       try {
         const { data: assets, error } = await supabase
           .from('nexus_assets')
-          .select('name, asset_type, version');
+          .select('name, asset_type, version, json_data');
         if (error || !assets) return;
 
         let templatesMap: Record<string, string> = {};
@@ -66,7 +66,18 @@ export function NexusUpdatesChecker() {
           }
 
           if (localVersion) {
-            if (compareVersions(asset.version || '1.0.0', localVersion) > 0) {
+            let assetDisplayVersion = asset.version || '1.0.0';
+            if (asset.asset_type === 'workbench_template' && asset.json_data) {
+              try {
+                const parsedRaw = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
+                const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
+                if (parsed && parsed.template_version) {
+                  assetDisplayVersion = parsed.template_version;
+                }
+              } catch (e) {}
+            }
+
+            if (compareVersions(assetDisplayVersion, localVersion) > 0) {
               updatesCount++;
               updateTabs.add(mappedTab);
             }
