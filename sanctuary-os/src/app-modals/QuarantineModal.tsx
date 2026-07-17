@@ -27,7 +27,7 @@ export function QuarantineModal({ showQuarantineModal, setShowQuarantineModal, q
         </div>
 
         <div className="flex justify-end pt-2">
-          <button onClick={() => setShowQuarantineModal(false)} className="px-8 h-12 theme-btn-standard text-[var(--text)] font-black text-xs tracking-widest rounded-2xl transition-colors">{t("shared_cancel")}</button>
+          <button onClick={() => setShowQuarantineModal(false)} className="px-8 h-12 theme-btn-standard text-[var(--text)] font-black text-xs tracking-widest rounded-2xl transition-colors">{t("nav_cancel")}</button>
         </div>
       </div>
     </div>

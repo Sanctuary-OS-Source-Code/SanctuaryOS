@@ -271,7 +271,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
             <button onClick={onClose} className={standardButtonClass}>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
           <button 
             onClick={activeTab === 'registry' ? handleManualFlag : handleAddHeuristic} 

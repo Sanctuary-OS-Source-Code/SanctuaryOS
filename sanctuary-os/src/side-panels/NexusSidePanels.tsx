@@ -11,14 +11,16 @@ export function MarketUploadPanel({
   setUploadState,
   marketTab,
   availableLanguages,
-  submitUpload
+  submitUpload,
+  backdropZ = "z-[15000]",
+  panelZ = "z-[15001]"
 }: any) {
   const { t } = useLexicon();
   if (!uploadState.isOpen) return null;
   return createPortal(
     <>
-      <div className="fixed top-0 right-0 bottom-10 z-[15000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setUploadState((s: any) => ({ ...s, isOpen: false }))}></div>
-      <div className="fixed top-10 right-0 bottom-10 w-[550px] max-w-[100vw] theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] rounded-tl-[3rem] rounded-bl-[3rem]" onClick={(e) => e.stopPropagation()}>
+      <div className={`fixed top-0 right-0 bottom-10 ${backdropZ} bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300`} style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setUploadState((s: any) => ({ ...s, isOpen: false }))}></div>
+      <div className={`fixed top-10 right-0 bottom-10 w-[550px] max-w-[100vw] theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col ${panelZ} animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] rounded-tl-[3rem] rounded-bl-[3rem]`} onClick={(e) => e.stopPropagation()}>
         <button type="button" onClick={() => setUploadState((s: any) => ({ ...s, isOpen: false }))} className="absolute top-8 right-8 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <span className="material-symbols-outlined !text-[24px]">{t("icon_close")}</span>
         </button>
@@ -47,29 +49,31 @@ export function MarketUploadPanel({
             <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
               <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("upload_file")}</label>
               <div className="flex items-center gap-4">
-                <div className={`flex-1 theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold truncate transition-all ${uploadState.fileName ? 'border-l-4 border-l-[var(--accent)] text-[var(--text)] opacity-100' : 'text-[var(--subtext)] opacity-60 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-dashed'}`}>
+                <div className={`flex-1 theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold truncate transition-all ${uploadState.fileName ? 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--subtext)] opacity-60 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-dashed'}`}>
                   {uploadState.fileName || "No file selected"}
                 </div>
-                <button onClick={async () => {
-                  try {
-                    const filters = [{ name: 'JSON', extensions: ['json'] }];
-                    const vaultPath = useStore.getState().vaultPath;
-                    const defaultPath = vaultPath ? `${vaultPath}/Data` : undefined;
-                    const selected = await open({ filters, defaultPath });
-                    if (!selected) return;
-                    const content = await readTextFile(selected as string);
-                    let parsed;
-                    try { parsed = JSON.parse(content); } catch { parsed = content; }
-                    let newVersion = '1.0.0';
-                    if (parsed.version) newVersion = parsed.version;
-                    else if (parsed._meta_version) newVersion = parsed._meta_version;
-                    setUploadState((s: any) => ({ ...s, fileContent: parsed, fileName: selected as string, name: s.name || parsed.name || 'Unknown', version: newVersion }));
-                  } catch (err: any) {
-                    useStore.getState().pushStatus(`${t("alert_import_failed")} ${err.message || err}`);
-                  }
-                }} className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest rounded-xl hover:scale-105 transition-all shadow-lg whitespace-nowrap ${standardAccentGlassButtonClass}`}>
-                  {uploadState.fileName ? (t("ui_btn_replace")) : (t("btn_import"))}
-                </button>
+                {!(uploadState.id && ['TEMPLATES', 'templates', 'CHAMELEONS', 'chameleons'].includes(marketTab)) && marketTab !== 'LEXICONS' && marketTab !== 'lexicons' && marketTab !== 'CHAMELEONS' && marketTab !== 'TEMPLATES' && (
+                  <button onClick={async () => {
+                    try {
+                      const filters = [{ name: 'JSON', extensions: ['json'] }];
+                      const vaultPath = useStore.getState().vaultPath;
+                      const defaultPath = vaultPath ? `${vaultPath}/Data` : undefined;
+                      const selected = await open({ filters, defaultPath });
+                      if (!selected) return;
+                      const content = await readTextFile(selected as string);
+                      let parsed;
+                      try { parsed = JSON.parse(content); } catch { parsed = content; }
+                      let newVersion = '1.0.0';
+                      if (parsed.version) newVersion = parsed.version;
+                      else if (parsed._meta_version) newVersion = parsed._meta_version;
+                      setUploadState((s: any) => ({ ...s, fileContent: parsed, fileName: selected as string, name: s.name || parsed.name || 'Unknown', version: newVersion }));
+                    } catch (err: any) {
+                      useStore.getState().pushStatus(`${t("alert_import_failed")} ${err.message || err}`);
+                    }
+                  }} className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest rounded-xl hover:scale-105 transition-all shadow-lg whitespace-nowrap ${standardAccentGlassButtonClass}`}>
+                    {uploadState.fileName ? (t("ui_btn_replace")) : (t("btn_import"))}
+                  </button>
+                )}
               </div>
             </div>
             <div className="flex gap-4">
@@ -125,8 +129,9 @@ export function MarketUploadPanel({
                     value={uploadState.language}
                     onChange={(val: string[]) => setUploadState((s: any) => ({ ...s, language: val[0] }))}
                     options={[
+                      ...(uploadState.language && uploadState.language !== 'add_new' && !availableLanguages.includes(uploadState.language) ? [{ id: uploadState.language, label: uploadState.language.toUpperCase() }] : []),
                       ...availableLanguages.map((l: any) => ({ id: l, label: l })),
-                      { id: "add_new", label: t("upload_add_language") }
+                      { id: "add_new", label: t("upload_add_language") || "Add New..." }
                     ]}
                   />
                 </div>
@@ -178,7 +183,7 @@ export function MarketUploadPanel({
             className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
           >
             <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-            {t("shared_cancel")}
+            {t("nav_cancel")}
           </button>
           <button
             onClick={submitUpload}
@@ -239,7 +244,7 @@ export function MarketReportPanel({
           <div className="p-8 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-xl flex flex-row items-center justify-center gap-4 w-full relative z-50 shrink-0">
             <button type="button" onClick={() => setReportState({ isOpen: false, assetId: null, assetType: null, reason: '' })} className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]">
               <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
             <button type="submit" className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--danger-rgb),0.2)]">
               <span className="material-symbols-outlined !text-[18px]">{t("icon_flag")}</span>
@@ -317,7 +322,7 @@ export function MarketBlueprintPanel({
             className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
           >
             <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-            {t("shared_cancel")}
+            {t("nav_cancel")}
           </button>
           <button
             onClick={() => {

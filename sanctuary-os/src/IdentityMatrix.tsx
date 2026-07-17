@@ -113,7 +113,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
           )}
           <div className="flex justify-center items-center gap-4 w-full">
             <button type="button" onClick={onClose} disabled={isSubmitting} className={standardButtonClass}>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
             <button
               onClick={handleUpdateRole}

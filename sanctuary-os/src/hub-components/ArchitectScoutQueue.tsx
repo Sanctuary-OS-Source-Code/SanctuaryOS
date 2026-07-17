@@ -313,7 +313,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_select")}</label>
                       <div className="flex gap-2 relative">
                         <div className="flex-1 min-w-0">
                           <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id: string) => setEditForm({...editForm, mason_id: id})} />

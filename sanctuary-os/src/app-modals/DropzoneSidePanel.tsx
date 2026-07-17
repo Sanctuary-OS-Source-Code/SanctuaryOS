@@ -39,7 +39,7 @@ export function DropzoneSidePanel({
           <div className="w-full">
             {dropzoneState === "ingesting" ? (
               <div className="w-full py-4 theme-bg-accent/20 text-[var(--text)] rounded-xl border border-[var(--accent)]/50 shadow-lg flex flex-col items-center justify-center gap-1 backdrop-blur-md">
-                <span className="text-sm font-black uppercase tracking-widest animate-pulse">{t("modal_ingesting")}</span>
+                <span className="text-sm font-black uppercase tracking-widest animate-pulse">{t("btn_importing")}</span>
                 <span className="text-[9px] font-bold opacity-70 uppercase tracking-widest">{ingestProgress?.current || 0} / {ingestProgress?.total || 0} {t("modal_files")}</span>
               </div>
             ) : (

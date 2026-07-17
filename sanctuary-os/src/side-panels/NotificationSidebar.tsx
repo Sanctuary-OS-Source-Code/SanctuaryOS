@@ -122,7 +122,7 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
         <div className="flex justify-center items-center gap-4 w-full">
           {!notifications.some(n => !n.is_read) && (
             <button type="button" onClick={onClose} className={standardButtonClass}>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
           )}
           {notifications.some(n => !n.is_read) && (

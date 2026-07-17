@@ -13,6 +13,8 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
   const [selectedKid, setSelectedKid] = useState<any | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
+  const isNexusView = mod.isNexusView;
+  const targetDbId = mod.dbId || (isNexusView && mod.id && String(mod.id).match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) ? mod.id : null);
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState("");
 
@@ -52,7 +54,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
   const activeMods = activePlaySet?.mods || [];
   const kids = mod.flavors || [];
   const isCollection = mod.isCollection;
-  const isNexusView = mod.isNexusView || false;
 
   const localOverrides = JSON.parse(localStorage.getItem('sanctuary_local_overrides') || '{}');
   const hasOverrides = !!localOverrides[mod.hash];
@@ -215,7 +216,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       return;
     }
 
-    if (!mod.dbId) {
+    if (!targetDbId) {
       useStore.getState().pushStatus(t("auto_cannot_flag_local_only_mods"));
       return;
     }
@@ -245,7 +246,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
     }
     else payload = { status: 'unverified' };
 
-    const { error } = await supabase.from('mods').update(payload).eq('id', mod.dbId);
+    const { error } = await supabase.from('mods').update(payload).eq('id', targetDbId);
     if (!error) {
       useStore.getState().pushStatus(`Mod flagged for: ${reason}. It has been updated pending review.`);
       setShowFlagModal(false);
@@ -417,20 +418,12 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 {!editMode && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
                   <>
                     <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
-                    {isNexusView && mod.hash && (
+                    {targetDbId && session && !isBanned && (
                     <div className="relative group/flag">
-                      <button onClick={() => { if (session && !isBanned) setShowFlagModal(true); }} disabled={!session || isBanned} className={`shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent ${session && !isBanned ? 'hover:bg-orange-500/10 text-orange-400 opacity-80 hover:opacity-100 hover:border-orange-500/30 cursor-pointer' : 'opacity-40 grayscale cursor-not-allowed'} border border-transparent`}>
+                      <button onClick={() => setShowFlagModal(true)} className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-orange-500/10 text-orange-400 opacity-80 hover:opacity-100 hover:border-orange-500/30 cursor-pointer border border-transparent">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_flag")}</span>
                         {t("btn_flag")}
                       </button>
-                      {(!session || isBanned) && (
-                        <HoverTooltip
-                           title={t("access_denied")}
-                           subtitle={isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_uploads_and_global_fla")}
-                           variant="danger"
-                           className="group-hover/flag:flex group-hover/flag:opacity-100"
-                        />
-                      )}
                     </div>
                   )}
                   </>
@@ -487,6 +480,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         const raw = (mod.status || "");
                         const cleaned = raw.replace(/[\[\]]/g, "");
                         if (cleaned.toLowerCase() === 'broken') return mod.status_reason ? `BROKEN: ${mod.status_reason}` : t("status_broken");
+                        if (cleaned.toLowerCase().includes('sandbox')) return t("filter_dev") || "SANDBOX";
                         const translated = cleaned.includes('status_') ? t(cleaned) : cleaned.replace(/_/g, " ");
                         return translated || t("status_local_only") || "LOCAL";
                       })()}
@@ -652,9 +646,17 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                           </span>
                           <div className="flex flex-wrap items-center gap-2 mt-1.5">
                             <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 shrink-0 bg-black/20 px-2 py-0.5 rounded-md">
-                              <span>{getFileLabel(kid.name, activeGameSchema)}</span>
+                              {kid.name?.includes('.') ? (
+                                <>
+                                  <span>{getFileLabel(kid.name, activeGameSchema)}</span>
+                                  <span className="opacity-50">•</span>
+                                  <span className="truncate max-w-[200px] normal-case tracking-normal">{(kid.name || '').split(/[/\\]/).pop()}</span>
+                                </>
+                              ) : (
+                                <span>{(kid.type || kid.category_override || "MOD").toUpperCase()}</span>
+                              )}
                               <span className="opacity-50">•</span>
-                              <span className="truncate max-w-[140px]">{kid.mod_versions?.[0]?.version_label || kid.version || t("vlocal") || "V.LOCAL"}</span>
+                              <span className="truncate max-w-[140px] uppercase">{kid.mod_versions?.[0]?.version_label || kid.version || t("vlocal") || "V.LOCAL"}</span>
                             </span>
 
                             <div className={`backdrop-blur-xl border px-2 py-0.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all shrink-0 ${(() => {
@@ -833,7 +835,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
             <div className="flex-shrink-0 p-8 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-xl flex flex-row items-center justify-center gap-4 w-full relative z-50">
               <button onClick={() => setSelectedKid(null)} className={standardButtonClass}>
                 <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-                {t("shared_cancel")}
+                {t("nav_cancel")}
               </button>
               {!isNexusView && (
                 <button

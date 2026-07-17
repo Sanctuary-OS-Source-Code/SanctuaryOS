@@ -251,7 +251,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                   className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_5px_20px_rgba(0,0,0,0.2)]"
                 >
                   <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-                  {t("shared_cancel")}
+                  {t("nav_cancel")}
                 </button>
               ) : onFlag ? (
                 <button

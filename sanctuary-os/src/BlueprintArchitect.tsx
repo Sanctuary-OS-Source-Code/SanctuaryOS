@@ -309,7 +309,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
         <div className="flex justify-center items-center gap-4 w-full">
           <button onClick={onClose} className={standardButtonClass}>
             <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-            {t("shared_cancel")}
+            {t("nav_cancel")}
           </button>
           <button onClick={onClose} className={standardAccentGlassButtonClass}>
             <span className="material-symbols-outlined !text-[18px]">{allow_write ? "done_all" : "logout"}</span>

@@ -410,8 +410,8 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                       className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--danger)]/50 transition-all text-[var(--text)] placeholder:opacity-40 border border-[var(--danger)]/20"
                     />
                     <div className="flex gap-3">
-                      <button type="button" onClick={handleConfirmSidePanelDelete} className="flex-1 py-3 bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/50 rounded-xl uppercase font-black text-[10px] tracking-widest hover:bg-[var(--danger)] hover:text-white transition-all disabled:opacity-50 disabled:pointer-events-none">{t("matrix_btn_confirm_delete")}</button>
-                      <button type="button" onClick={() => { setIsDeleting(false); setDeleteReason(""); }} className="flex-1 py-3 bg-white/5 text-[var(--text)] rounded-xl uppercase font-black text-[10px] tracking-widest border border-white/10 hover:bg-white/10 transition-all">{t("shared_cancel")}</button>
+                      <button type="button" onClick={handleConfirmSidePanelDelete} className="flex-1 py-3 bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/50 rounded-xl uppercase font-black text-[10px] tracking-widest hover:bg-[var(--danger)] hover:text-white transition-all disabled:opacity-50 disabled:pointer-events-none">{t("yeet_btn_confirm")}</button>
+                      <button type="button" onClick={() => { setIsDeleting(false); setDeleteReason(""); }} className="flex-1 py-3 bg-white/5 text-[var(--text)] rounded-xl uppercase font-black text-[10px] tracking-widest border border-white/10 hover:bg-white/10 transition-all">{t("nav_cancel")}</button>
                     </div>
                   </div>
                 ) : (
@@ -427,7 +427,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                     <div className="flex justify-center items-center gap-4 mt-2 w-full">
                       {!editConflictId && (
                         <button type="button" onClick={() => setIsSidePanelOpen(false)} className={standardButtonClass}>
-                          {t("shared_cancel")}
+                          {t("nav_cancel")}
                         </button>
                       )}
                       {editConflictId && (

@@ -240,7 +240,7 @@ export default function TimeCapsule({
                   <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shadow-sm">
                     <span className="text-indigo-500 text-[20px] material-symbols-outlined">{t("icon_public")}</span>
                   </div>
-                  {t("section_world")}
+                  {t("world_state")}
                 </h3>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                   {worldBackups.map(renderBackupCard)}
@@ -323,7 +323,7 @@ export default function TimeCapsule({
                     <span className="material-symbols-outlined !text-sm">{t("icon_check_circle")}</span> {t("ui_btn_confirm")}
                   </button>
                   <button onClick={() => setConfirmSealWorld(false)} className="flex-[1] h-full rounded-2xl bg-white/5 hover:bg-white/10 text-[var(--subtext)] hover:text-[var(--text)] border border-white/10 font-black text-[10px] tracking-widest flex items-center justify-center">
-                    {t("shared_cancel")}
+                    {t("nav_cancel")}
                   </button>
                 </div>
               )}
@@ -342,7 +342,7 @@ export default function TimeCapsule({
                     <span className="material-symbols-outlined !text-sm">{t("icon_warning_amber")}</span> {t("ui_btn_confirm")}
                   </button>
                   <button onClick={() => setConfirmSealEngine(false)} className="flex-[1] h-full rounded-2xl bg-white/5 hover:bg-white/10 text-[var(--subtext)] hover:text-[var(--text)] border border-white/10 font-black text-[10px] tracking-widest flex items-center justify-center">
-                    {t("shared_cancel")}
+                    {t("nav_cancel")}
                   </button>
                 </div>
               )}

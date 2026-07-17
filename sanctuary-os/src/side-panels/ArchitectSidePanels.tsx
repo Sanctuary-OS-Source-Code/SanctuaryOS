@@ -52,7 +52,7 @@ export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOp
         </div>
 
         <div className="p-6 pb-12 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:scale-[1.02] text-[var(--text)] font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all">{t("shared_cancel")}</button>
+          <button onClick={onClose} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:scale-[1.02] text-[var(--text)] font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all">{t("nav_cancel")}</button>
           <button onClick={handleCreate} disabled={isCreating || !newMasonName.trim()} className="flex-1 py-4 theme-bg-accent hover:opacity-90 text-[var(--bg)] font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg disabled:opacity-50">
             {isCreating ? t("create_btn_creating") : t("create_btn_create")}
           </button>
@@ -371,7 +371,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                       }}
                       className={standardButtonClass}
                     >
-                      {t("shared_cancel")}
+                      {t("nav_cancel")}
                     </button>
                     <button 
                       onClick={() => {

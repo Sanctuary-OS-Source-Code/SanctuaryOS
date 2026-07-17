@@ -109,7 +109,7 @@ export default function ArchitectTemplateOversight() {
 
   const processedTemplates = useMemo(() => {
       if (!selectedFileGroup) return [];
-      let filtered = templates.filter(t => t.targetFile === selectedFileGroup);
+      let filtered = templates.filter(t => t.targetFile === selectedFileGroup && t.is_public !== false);
       if (activeFilterTab === "flagged") {
           filtered = filtered.filter(t => flaggedTemplateIds.includes(t.id));
       }
@@ -121,6 +121,7 @@ export default function ArchitectTemplateOversight() {
       }
       return filtered.sort((a, b) => {
           if (tmplSort === "name") return (a.name || "").localeCompare(b.name || "");
+          if (tmplSort === "downloads") return (b.downloads || 0) - (a.downloads || 0);
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
   }, [templates, selectedFileGroup, tmplSearch, tmplSort, activeFilterTab, flaggedTemplateIds]);
@@ -238,7 +239,7 @@ export default function ArchitectTemplateOversight() {
          actions={
              <>
                  <button onClick={() => setIsAddPanelOpen(false)} className={standardButtonClass}>
-                     {t("shared_cancel") || "Cancel"}
+                     {t("nav_cancel") || "Cancel"}
                  </button>
                  <button onClick={handleAddSubmit} disabled={!newFileName.trim()} className={standardSuccessButtonClass}>
                      Save File
@@ -328,7 +329,11 @@ export default function ArchitectTemplateOversight() {
                        <CustomDropdown 
                           disableTint={true} 
                           value={tmplSort} 
-                          options={[{id: "date", label: t("template_sort_newest") || "NEWEST"}, {id: "name", label: t("sort_name") || "NAME (A-Z)"}]} 
+                          options={[
+                            {id: "date", label: t("template_sort_newest") || "NEWEST"}, 
+                            {id: "name", label: t("sort_name") || "NAME (A-Z)"},
+                            {id: "downloads", label: t("sort_downloads") || "DOWNLOADS"}
+                          ]} 
                           onChange={(val: string[]) => setTmplSort(val[0])} 
                        />
                     </div>
@@ -343,7 +348,6 @@ export default function ArchitectTemplateOversight() {
                             onClick={() => setSelectedTemplateForPreview(tmpl)}
                             className="flex flex-col theme-glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 bg-black/20 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg group"
                         >
-                            <div className="h-1 w-full rounded-t-2xl bg-transparent transition-colors group-hover:bg-[var(--accent)]/50" />
                             <div className="p-5 flex flex-col gap-4">
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] text-[var(--accent)] group-hover:bg-[var(--accent)]/10 transition-colors">
@@ -381,7 +385,7 @@ export default function ArchitectTemplateOversight() {
             selectedTemplateForPreview ? (
                 <>
                     <button onClick={() => setSelectedTemplateForPreview(null)} className={standardButtonClass}>
-                        {t("shared_cancel") || "Cancel"}
+                        {t("nav_cancel") || "Cancel"}
                     </button>
                     {selectedTemplateForPreview.is_community_default ? (
                         <button disabled={true} className="px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">

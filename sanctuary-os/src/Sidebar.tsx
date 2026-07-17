@@ -83,7 +83,7 @@ export function Sidebar({
     >
       <div
         className="absolute inset-x-0 bottom-0 z-[-1] backdrop-blur-3xl border-r border-black/5 dark:border-white/10 transition-all duration-500 shadow-[4px_0_30px_rgba(0,0,0,0.05)]"
-        style={{ top: "80px", backgroundColor: "var(--sidebar)", opacity: "var(--glassOpacity, 30%)" }}
+        style={{ top: "80px", backgroundColor: "color-mix(in srgb, var(--sidebar) 40%, transparent)" }}
       />
 
       <div className="h-[75px] shrink-0" />
@@ -128,7 +128,7 @@ export function Sidebar({
             active={view === "GlobalFeed"}
             onClick={() => setView("GlobalFeed")}
             icon={t("icon_satellite_alt")}
-            label={t("sidebar_commlink")}
+            label={t("feed_title")}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
           />
@@ -203,7 +203,7 @@ export function Sidebar({
           <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!isSidebarCollapsed && (
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
-                {t("sidebar_oversight")}
+                {t("stat_oversight")}
               </p>
             )}
             <NavButton

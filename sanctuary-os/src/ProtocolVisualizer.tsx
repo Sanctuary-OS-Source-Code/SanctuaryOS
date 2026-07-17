@@ -385,7 +385,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                 <input 
                   value={dlcSearch} 
                   onChange={e => setDlcSearch(e.target.value)} 
-                  placeholder={t("vault_search")}
+                  placeholder={t("search_ph")}
                   className="w-full theme-glass-inner rounded-2xl px-5 py-3 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent border border-[var(--text)]/10 shadow-inner"
                 />
               </div>
@@ -484,7 +484,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
           <input 
             value={modalSearch} 
             onChange={e => setModalSearch(e.target.value)} 
-            placeholder={t("vault_search")}
+            placeholder={t("search_ph")}
             className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] outline-none focus:theme-border-accent mb-2"
           />
           <div className="flex flex-col gap-3">
@@ -533,7 +533,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
               </div>
             ))}
             {(showLinkModal?.type === 'dependency' ? allModsForDependencies : cloudMods).filter(m => m.id !== targetMod?.id && (!modalSearch || m.name.toLowerCase().includes(modalSearch.toLowerCase()))).length === 0 && (
-              <div className="text-center p-8 text-[10px] font-bold text-[var(--subtext)] opacity-50 uppercase">{t("modal_no_artifacts")}</div>
+              <div className="text-center p-8 text-[10px] font-bold text-[var(--subtext)] opacity-50 uppercase">{t("link_no_results")}</div>
             )}
           </div>
         </div>

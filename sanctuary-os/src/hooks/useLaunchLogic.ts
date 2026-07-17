@@ -25,7 +25,7 @@ export function useLaunchLogic(
             t("defcon_lonewolf_warning"),
             false,
             t("defcon_btn_launch_danger"),
-            t("shared_cancel"),
+            t("nav_cancel"),
             true,
             "DEFCON 1 INTERCEPT!",
           );
@@ -52,7 +52,7 @@ export function useLaunchLogic(
               t("defcon_prompt_confirm_danger"),
               false,
               t("defcon_btn_launch_danger"),
-              t("shared_cancel"),
+              t("nav_cancel"),
               true,
               "CONFIRM DANGER",
             );
@@ -63,7 +63,7 @@ export function useLaunchLogic(
             t("defcon_launch_intercept"),
             false,
             t("defcon_btn_launch_danger"),
-            t("shared_cancel"),
+            t("nav_cancel"),
             true,
             "DEFCON 1 INTERCEPT!",
           );

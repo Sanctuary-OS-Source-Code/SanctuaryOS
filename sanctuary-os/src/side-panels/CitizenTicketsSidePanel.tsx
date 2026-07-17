@@ -28,7 +28,7 @@ export default function CitizenTicketsSidePanel({ isOpen, onClose, userId }: Cit
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
             <button onClick={onClose} className={standardButtonClass}>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
             <button 
               onClick={() => {

@@ -40,7 +40,7 @@ export default function SystemTab({ config, updateConfig, pickPath, pathMap }: a
                   <input
                     readOnly value={dir.value || ""}
                     style={{ paddingLeft: isHovered ? '4.5rem' : '1.5rem' }}
-                    className={`w-full py-6 pr-32 rounded-[var(--radius)] border text-[10px] font-black uppercase tracking-widest text-[var(--text)] shadow-inner transition-all duration-500 pointer-events-none outline-none backdrop-blur-xl group-hover/input:border-[color-mix(in_srgb,var(--text)_20%,transparent)] ${isHovered ? 'theme-border-accent theme-glass-inner' : 'theme-glass-inner'}`}
+                    className={`w-full py-6 pr-32 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] shadow-inner transition-all duration-500 pointer-events-none outline-none backdrop-blur-xl group-hover/input:border-[color-mix(in_srgb,var(--text)_20%,transparent)] ${isHovered ? 'theme-border-accent theme-glass-inner' : 'theme-glass-inner'}`}
                     placeholder={t("path_not_set")}
                   />
                   <div className="absolute right-3 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all duration-300 theme-glass-inner border border-white/20 hover:scale-105 active:scale-95 flex items-center gap-2 shadow-lg hover:theme-border-accent bg-black/40 text-[var(--text)]">

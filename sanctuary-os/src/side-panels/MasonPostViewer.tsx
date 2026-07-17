@@ -343,7 +343,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 className="w-full bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] p-3 text-xs text-[var(--text)] outline-none focus:theme-border-accent transition-all resize-none h-20 custom-scrollbar"
               />
               <div className="flex gap-2 justify-end mt-2">
-                <button onClick={() => setEditingCommentId(null)} className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)]">{t("shared_cancel")}</button>
+                <button onClick={() => setEditingCommentId(null)} className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)]">{t("nav_cancel")}</button>
                 <button onClick={() => handleSaveEdit(c.id)} className="text-[8px] font-black uppercase tracking-widest theme-text-accent hover:underline">{t("ui_btn_save")}</button>
               </div>
             </div>

@@ -88,7 +88,7 @@ export default function VersionTimeline({
   return (
     <SidePanel
       isOpen={true}
-      title={t("timeline_title")}
+      title={t("btn_timeline")}
       onClose={onClose}
       icon={t("icon_history")}
       iconColorClass="theme-text-accent"

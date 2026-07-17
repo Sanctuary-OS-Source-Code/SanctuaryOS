@@ -937,7 +937,7 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMasonProfil
 
           <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("metrics")}</h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
-             <CommandScreenMetricTile value={stats.citizens} label={t("stat_citizens")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
+             <CommandScreenMetricTile value={stats.citizens} label={t("stat_users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
              <CommandScreenMetricTile value={stats.masons} label={t("stat_masons")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
              <CommandScreenMetricTile value={stats.architects} label={t("stat_architects")} valueColorClass="text-purple-400" hoverBorderClass="hover:border-purple-500/30" />
              <CommandScreenMetricTile value={stats.oversights} label={t("hub_stat_oversights")} valueColorClass="text-indigo-400" hoverBorderClass="hover:border-indigo-500/30" />

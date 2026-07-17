@@ -88,6 +88,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
    const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
    const [isTemplateGuideOpen, setIsTemplateGuideOpen] = useState(false);
    const [showTimeline, setShowTimeline] = useState(false);
+   const [confirmSaveWithErrors, setConfirmSaveWithErrors] = useState(false);
 
    const isTemplateMode = selectedFile?.name.toLowerCase().endsWith('.json');
 
@@ -672,19 +673,24 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                <div className="flex items-center justify-center w-full gap-4">
                   {isTemplateMode && (
                      <div className="relative group/publishbtn">
-                        {(!useStore.getState().session || localStorage.getItem("sanctuary_blacklisted") === "true") && (
+                        {(!useStore.getState().session || localStorage.getItem("sanctuary_blacklisted") === "true") ? (
                            <HoverTooltip
-                              variant="danger"
-                              title={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("alert_guest_mode_uploads")}
+                              title={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("alert_guest_mode")}
                               subtitle={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
-                              className="group-hover/publishbtn:flex z-[1000] right-0 translate-x-0 left-auto bottom-[120%]"
+                              className="group-hover/publishbtn:flex z-[1000] left-1/2 -translate-x-1/2 bottom-[120%]"
                            />
-                        )}
+                        ) : problemsList.length > 0 ? (
+                           <HoverTooltip
+                              title={t("err_publish_blocks")}
+                              subtitle={t("publish_disabled_errors_desc")}
+                              variant="danger"
+                              className="group-hover/publishbtn:flex z-[1000] left-1/2 -translate-x-1/2 bottom-[120%]"
+                           />
+                        ) : null}
                         <button
                            onClick={() => setIsPushModalOpen(true)}
                            disabled={problemsList.length > 0 || !useStore.getState().session || localStorage.getItem("sanctuary_blacklisted") === "true"}
                            className={`${standardButtonClass} disabled:opacity-30 disabled:saturate-0`}
-                           title={problemsList.length > 0 ? (t("err_publish_blocks")) : ""}
                         >
                            <span className="material-symbols-outlined !text-[18px]">{t("icon_cloud_upload")}</span>
                            {t("btn_publish")}
@@ -692,21 +698,60 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                      </div>
                   )}
                   <div className="relative group">
-                     {hasUnsavedChanges && (
-                        <HoverTooltip title={t("unsaved_changes")} variant="warning" className="z-[100] right-0 translate-x-0 left-auto bottom-[120%]" />
+                     {problemsList.length > 0 && hasUnsavedChanges ? (
+                        confirmSaveWithErrors ? (
+                           <div className="flex items-center gap-2">
+                              <button
+                                 onClick={() => setConfirmSaveWithErrors(false)}
+                                 className="px-6 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all hover:scale-105 active:scale-95 group"
+                              >
+                                 <span className="material-symbols-outlined !text-[20px] opacity-60 group-hover:opacity-100 transition-opacity">close</span>
+                                 {t("nav_cancel")}
+                              </button>
+                              <button
+                                 onClick={() => {
+                                    setConfirmSaveWithErrors(false);
+                                    saveConfig();
+                                 }}
+                                 disabled={isSaving}
+                                 className={`${standardDangerButtonClass} shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)]`}
+                              >
+                                 <span className="material-symbols-outlined !text-[18px]">check</span>
+                                 {t("btn_confirm_save_errors") || "FORCE SAVE"}
+                              </button>
+                           </div>
+                        ) : (
+                           <div className="relative group">
+                              <HoverTooltip title={t("save_with_errors_warning") || "Saving not recommended until errors resolved"} variant="danger" className="z-[100] right-0 translate-x-0 left-auto bottom-[120%]" />
+                              <button
+                                 onClick={() => setConfirmSaveWithErrors(true)}
+                                 disabled={isSaving}
+                                 className={standardDangerButtonClass}
+                              >
+                                 <span className={`material-symbols-outlined !text-[18px] ${isSaving ? 'animate-spin' : ''}`}>warning</span>
+                                 {isSaving ? (t("btn_saving")) : (t("btn_save_with_errors") || "SAVE WITH ERRORS")}
+                              </button>
+                           </div>
+                        )
+                     ) : (
+                        <div className="relative group">
+                           {hasUnsavedChanges && (
+                              <HoverTooltip title={t("unsaved_changes")} variant="warning" className="z-[100] right-0 translate-x-0 left-auto bottom-[120%]" />
+                           )}
+                           <button
+                              onClick={saveConfig}
+                              disabled={!hasUnsavedChanges || isSaving}
+                              className={
+                                 hasUnsavedChanges
+                                    ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_25%,transparent)] hover:shadow-[0_5px_20px_rgba(245,158,11,0.4)]')
+                                    : standardButtonClass
+                              }
+                           >
+                              <span className={`material-symbols-outlined !text-[18px] ${isSaving ? 'animate-spin' : ''}`}>{t("icon_save")}</span>
+                              {isSaving ? (t("btn_saving")) : (t("btn_save"))}
+                           </button>
+                        </div>
                      )}
-                     <button
-                        onClick={saveConfig}
-                        disabled={!hasUnsavedChanges || isSaving}
-                        className={
-                           hasUnsavedChanges
-                              ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_25%,transparent)] hover:shadow-[0_5px_20px_rgba(245,158,11,0.4)]')
-                              : standardButtonClass
-                        }
-                     >
-                        <span className={`material-symbols-outlined !text-[18px] ${isSaving ? 'animate-spin' : ''}`}>{t("icon_save")}</span>
-                        {isSaving ? (t("btn_saving")) : (t("btn_save"))}
-                     </button>
                   </div>
                </div>
             }
@@ -785,21 +830,31 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                                  </div>
                               </div>
 
-                              <div className="flex-1 overflow-y-scroll custom-scrollbar pr-2 relative z-10 pb-20">
-                                 <div className="flex flex-col gap-4">
-                                    {currentVisualTemplate?.settings ? (
-                                       <WorkbenchVisualEditor
-                                          settings={currentVisualTemplate.settings}
-                                          dataSource={parsedData}
-                                          isPreview={false}
-                                          selectedCategory={selectedCategory}
-                                          searchQuery={searchQuery}
-                                          onVisualChange={handleVisualChange}
-                                       />
-                                    ) : (
-                                       <WorkbenchEmptyVisualState t={t} selectedFile={selectedFile} />
-                                    )}
-                                 </div>
+                              <div className="flex-1 relative min-h-0 min-w-0">
+                                 {problemsList.length > 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 opacity-60">
+                                       <span className="material-symbols-outlined !text-5xl text-[var(--danger)] mb-2">warning</span>
+                                       <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("syntax_error_title")}</h3>
+                                       <p className="text-[11px] text-[var(--subtext)] leading-relaxed">{t("syntax_error_desc")}</p>
+                                    </div>
+                                 ) : (
+                                    <div className="absolute inset-0 overflow-y-scroll custom-scrollbar pr-2 z-10 pb-20">
+                                       <div className="flex flex-col gap-4 min-h-[300px] transition-all duration-300">
+                                          {currentVisualTemplate?.settings ? (
+                                             <WorkbenchVisualEditor
+                                                settings={currentVisualTemplate.settings}
+                                                dataSource={parsedData}
+                                                isPreview={false}
+                                                selectedCategory={selectedCategory}
+                                                searchQuery={searchQuery}
+                                                onVisualChange={handleVisualChange}
+                                             />
+                                          ) : (
+                                             <WorkbenchEmptyVisualState t={t} selectedFile={selectedFile} />
+                                          )}
+                                       </div>
+                                    </div>
+                                 )}
                               </div>
                            </div>
                         )}
@@ -836,7 +891,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                   {isTemplateMode && (
                      <div className="flex justify-start items-center px-2 mt-2 mb-2 shrink-0 z-[100]">
                         <div className="flex items-center overflow-x-auto overflow-y-hidden custom-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
-                           <HubTabButton id="preview" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_preview") || "Preview"} icon="visibility" />
+                           <HubTabButton id="preview" activeTab={previewMode} setTab={setPreviewMode} label={t("preview") || "Preview"} icon="visibility" />
                            <HubTabButton id="file" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_file") || "File"} icon="description" />
                            <HubTabButton id="off" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_off") || "Off"} icon="visibility_off" />
                         </div>
@@ -967,7 +1022,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             </div>
          </SidePanel>
 
-         <PushTemplateSidePanel isOpen={isPushModalOpen} onClose={() => setIsPushModalOpen(false)} templateContent={rawText} />
+         <PushTemplateSidePanel isOpen={isPushModalOpen} onClose={() => setIsPushModalOpen(false)} templateContent={rawText} onChange={handleRawChange} />
 
          <WorkbenchTemplateGuide isOpen={isTemplateGuideOpen} onClose={() => setIsTemplateGuideOpen(false)} />
 
@@ -985,7 +1040,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                         onClick={() => setIsFlagPanelOpen(false)}
                         className={standardButtonClass + " flex-1"}
                      >
-                        {t("shared_cancel") || "Cancel"}
+                        {t("nav_cancel") || "Cancel"}
                      </button>
                      <button
                         onClick={async () => {

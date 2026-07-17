@@ -181,7 +181,7 @@ export function CartographerSetup() {
             <div className="grid grid-cols-2 gap-4">
               <div className="theme-glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 relative overflow-hidden group/stat shadow-xl">
                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--success)]/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500" />
-                 <span className="text-[9px] font-black tracking-[0.2em] theme-text-accent uppercase opacity-80 relative z-10 transition-colors duration-500">{t("title_scout_status") || "STATUS"}</span>
+                 <span className="text-[9px] font-black tracking-[0.2em] theme-text-accent uppercase opacity-80 relative z-10 transition-colors duration-500">{t("status") || "STATUS"}</span>
                  <div className="flex items-center gap-2.5 relative z-10">
                     <div className="w-2 h-2 rounded-full theme-bg-success shadow-[0_0_10px_var(--success)]" />
                     <span className="text-sm font-bold text-[var(--text)] tracking-wide">{t("status_operational") || "OPERATIONAL"}</span>

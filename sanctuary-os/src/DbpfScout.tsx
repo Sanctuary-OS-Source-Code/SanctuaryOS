@@ -580,7 +580,7 @@ export const DbpfScout = () => {
                       }`}
                     >
                       {isBulkMode 
-                        ? (selectedForVault.length > 0 ? `${t("scout_btn_yeet")} (${selectedForVault.length})` : t("btn_cancel_selection"))
+                        ? (selectedForVault.length > 0 ? `${t("purge")} (${selectedForVault.length})` : t("btn_cancel_selection"))
                         : "✓ " + (t("btn_select_assets"))}
                     </button>
                   </div>
@@ -596,7 +596,7 @@ export const DbpfScout = () => {
                       {t("confirm_purge")}
                     </button>
                     <button onClick={() => setConfirmMassVault(false)} className="flex-1 md:flex-none px-8 py-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 text-[var(--text)] backdrop-blur-md hover:bg-white/10 hover:shadow-xl text-[10px] tracking-widest font-black rounded-xl transition-all">
-                      {t("shared_cancel")}
+                      {t("nav_cancel")}
                     </button>
                   </div>
                 </div>

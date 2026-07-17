@@ -38,7 +38,7 @@ export function GlobalConfirmDialog() {
                {confirmDialog.confirmText || t("btn_proceed") || "PROCEED"}
              </button>
              <button onClick={() => { if (confirmDialog.cancelAction) confirmDialog.cancelAction(); else setConfirmDialog(null); }} className="flex-1 py-5 bg-white/[0.03] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-white/[0.08] text-[var(--subtext)] hover:text-[var(--text)] rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] shadow-sm active:scale-95">
-               {confirmDialog.cancelText || t("shared_cancel") || "CANCEL"}
+               {confirmDialog.cancelText || t("nav_cancel") || "CANCEL"}
              </button>
           </div>
         </div>
@@ -64,7 +64,7 @@ export function GlobalConfirmDialog() {
             ) : (
               <>
                 <button onClick={() => { confirmDialog.action(); setConfirmDialog(null); }} className={`flex-1 py-4 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg hover:scale-[1.02] active:scale-95`}>{confirmDialog.confirmText || t("btn_proceed") || "PROCEED"}</button>
-                <button onClick={() => { if (confirmDialog.cancelAction) confirmDialog.cancelAction(); else setConfirmDialog(null); }} className="flex-1 py-4 bg-white/[0.03] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-white/[0.08] text-[var(--text)] rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-95">{confirmDialog.cancelText || t("shared_cancel") || "CANCEL"}</button>
+                <button onClick={() => { if (confirmDialog.cancelAction) confirmDialog.cancelAction(); else setConfirmDialog(null); }} className="flex-1 py-4 bg-white/[0.03] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-white/[0.08] text-[var(--text)] rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-95">{confirmDialog.cancelText || t("nav_cancel") || "CANCEL"}</button>
               </>
             )}
           </div>

@@ -62,7 +62,7 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
           <button onClick={onClose} className={standardButtonClass}>
-             {t("shared_cancel")}
+             {t("nav_cancel")}
           </button>
           <button onClick={handleSave} disabled={isSaving} className={standardAccentGlassButtonClass}>
             {isSaving ? t("saving_settings") : t("save_configuration")}

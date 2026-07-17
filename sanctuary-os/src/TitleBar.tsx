@@ -15,7 +15,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
         {/* Background & Glass */}
         <div
           className="absolute inset-0 z-[-1] backdrop-blur-md transition-all duration-500 pointer-events-none"
-          style={{ backgroundColor: "var(--sidebar)", opacity: "var(--glassOpacity, 30%)" }}
+          style={{ backgroundColor: "color-mix(in srgb, var(--sidebar) 40%, transparent)" }}
         />
 
         {/* Giant Watermark Background Icon */}
@@ -62,7 +62,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
         {/* TitleBar Glass Background */}
         <div 
           className="absolute inset-0 z-[-1] backdrop-blur-md transition-all duration-500 pointer-events-none"
-          style={{ backgroundColor: "var(--sidebar)", opacity: "var(--glassOpacity, 30%)" }}
+          style={{ backgroundColor: "color-mix(in srgb, var(--sidebar) 40%, transparent)" }}
         />
 
         {/* Title Bar Bottom Borders */}

@@ -132,7 +132,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
           <button onClick={onClose} className={standardButtonClass}>
-            {t("shared_cancel")}
+            {t("nav_cancel")}
           </button>
           <div className="relative group/uplinkbtn">
             {isUploadBlocked && (

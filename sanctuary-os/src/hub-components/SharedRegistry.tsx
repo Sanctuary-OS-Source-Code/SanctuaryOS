@@ -112,7 +112,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
             <input 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
-              placeholder={t("vault_search")} 
+              placeholder={t("search_ph")} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50"
             />
             {searchTerm && (
@@ -154,7 +154,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
             <button onClick={() => setActiveMod(null)} disabled={isCommitting} className={standardButtonClass}>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
             <button onClick={handleCommitChanges} disabled={isCommitting} className={standardAccentGlassButtonClass}>
               {isCommitting ? t("btn_saving") : t("save_meta")}
@@ -513,7 +513,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
             <button onClick={() => setActiveMod(null)} disabled={isCommitting} className={standardButtonClass}>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
             <button onClick={handleCommitChanges} disabled={isCommitting} className={standardAccentGlassButtonClass}>
               {isCommitting ? (t("dossier_btn_saving")) : (t("registry_commit_changes"))}
@@ -537,7 +537,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
 
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_mason")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_select")}</label>
                   <div className="flex gap-2 relative">
                     <div className="flex-1 min-w-0">
                       <CustomMasonDropdown 
@@ -638,7 +638,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         footer={
           <div className="flex justify-end gap-4 w-full">
             <button onClick={() => setIsMasonPanelOpen(false)} className={standardButtonClass}>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
             <button onClick={handleCreateMason} className={standardAccentGlassButtonClass}>
               {t("create_btn_create")}

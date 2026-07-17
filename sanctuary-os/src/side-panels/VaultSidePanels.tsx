@@ -77,7 +77,7 @@ export function VaultToolsSidePanel({
                <SidebarActionButton 
                  id="SELECT_ASSETS" 
                  icon={isBulkMode ? "cancel" : "checklist"} 
-                 label={isBulkMode ? t("shared_cancel") : t("btn_select_assets")} 
+                 label={isBulkMode ? t("nav_cancel") : t("btn_select_assets")} 
                  onClick={() => { setIsBulkMode(!isBulkMode); setIsSidePanelOpen(false); }} 
                  active={isBulkMode} 
                  danger={isBulkMode}

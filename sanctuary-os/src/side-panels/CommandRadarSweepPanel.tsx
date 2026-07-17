@@ -211,7 +211,7 @@ export default function CommandRadarSweepPanel({
               </button>
               <button onClick={() => { onClose(); localStorage.setItem("sanctuary_settings_tab", "CHAMELEON"); useStore.getState().setView("settings"); window.dispatchEvent(new CustomEvent('navigateSettings', { detail: { tab: 'CHAMELEON' } })); }} className="theme-glass-inner p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-white/5 active:scale-95 transition-all">
                  <span className="material-symbols-outlined !text-lg opacity-50">{t("icon_palette")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("tab_chameleons")}</span>
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("type_theme")}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">{chameleonCount}</span>
               </button>
             </div>

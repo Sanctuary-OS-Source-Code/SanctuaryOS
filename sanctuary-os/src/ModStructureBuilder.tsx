@@ -277,7 +277,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
       >
         <div className="flex flex-col h-full overflow-hidden">
           <div className="px-8 py-6 shrink-0 border-b border-white/5 relative z-10">
-            <input type="text" autoFocus placeholder={t("comp_search_mods")} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full theme-glass-inner border border-white/10 rounded-xl text-[12px] font-mono text-[var(--text)] px-5 py-4 outline-none focus:theme-border-accent shadow-inner transition-all" />
+            <input type="text" autoFocus placeholder={t("search_mods")} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full theme-glass-inner border border-white/10 rounded-xl text-[12px] font-mono text-[var(--text)] px-5 py-4 outline-none focus:theme-border-accent shadow-inner transition-all" />
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-6 relative z-10">
             {targetMod && (!searchQuery || targetMod.name.toLowerCase().includes(searchQuery.toLowerCase())) && (

@@ -126,7 +126,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
             <input 
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
-              placeholder={t("vault_search")} 
+              placeholder={t("search_ph")} 
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchTerm && (
@@ -168,7 +168,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
             <button type="button" onClick={() => setIsForgePanelOpen(false)} className={standardButtonClass}>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
             <button type="button" onClick={handleCreateSet} disabled={!newSetName.trim()} className={standardAccentGlassButtonClass}>
               {t("forge_init_set")}
@@ -240,7 +240,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
                 <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title")}</h4>
                 
                 <div className="flex flex-col gap-2 bg-black/10 p-4 rounded-2xl border border-white/5 relative z-[6000]">
-                  <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t("cc_search_assets")} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                  <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t("link_search")} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
                   
                   {searchQuery.length >= 2 && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--sidebar)] border border-white/10 rounded-2xl shadow-2xl z-[7000] overflow-hidden flex flex-col max-h-[250px] overflow-y-auto custom-scrollbar">
@@ -496,7 +496,7 @@ export function CollectionForge({ setStatus }: any) {
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
             <button type="button" onClick={() => setIsForgePanelOpen(false)} className={standardButtonClass}>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
             <button type="button" onClick={createSet} disabled={!setName.trim()} className={standardAccentGlassButtonClass}>
               {t("forge_init_set")}
@@ -511,7 +511,7 @@ export function CollectionForge({ setStatus }: any) {
           </div>
           
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_mason")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_select")}</label>
             <div className="flex gap-2">
               <div className="flex-1">
                 <CustomMasonDropdown value={setMasonId} options={masonsList} onChange={setSetMasonId} />
@@ -572,7 +572,7 @@ export function CollectionForge({ setStatus }: any) {
 
                 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_mason")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_select")}</label>
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <CustomMasonDropdown value={activeSet.mason_id || ""} options={masonsList} onChange={(val: string) => setActiveSet({...activeSet, mason_id: val})} />
@@ -665,7 +665,7 @@ export function CollectionForge({ setStatus }: any) {
         footer={
           <div className="flex justify-end gap-4 w-full">
             <button onClick={() => setIsMasonPanelOpen(false)} className={standardButtonClass}>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
             <button onClick={handleCreateMason} className={standardAccentGlassButtonClass}>
               {t("create_btn_create")}

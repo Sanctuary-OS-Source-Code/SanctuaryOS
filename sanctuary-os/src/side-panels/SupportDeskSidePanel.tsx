@@ -258,7 +258,7 @@ export default function SupportDeskSidePanel({
       footer={
         <div className="flex flex-row items-center justify-center gap-4 w-full">
            <button onClick={onClose} className={standardButtonClass}>
-             {t("shared_cancel")}
+             {t("nav_cancel")}
            </button>
            <button onClick={submitTicket} disabled={isSubmitting} className={`${standardAccentGlassButtonClass} disabled:opacity-50`}>
              {isSubmitting ? (t("scanning")) : (t("support_submit"))}

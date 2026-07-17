@@ -1,3 +1,30 @@
+ **Date: July 17, 2026**
+ **Version: 0.4.67**
+
+## **UI/UX & Platform Polish**
+
+### Lexicon IDE Buildout [New Feature]
+- **Dedicated Language Editor**: Built a new IDE environment specifically for viewing, editing, and managing localization files (Lexicon Packs).
+- **Live Translation Stats**: Added a floating action bar that tracks translation progress and surfaces missing or completely absent strings in real-time.
+- **Quick Actions**: Introduced `Next Empty` and `Add Missing Keys` functionality to rapidly tab through and complete partial translations.
+
+### Chameleon Theme Forge (Mason Version) [New]
+- **Theme Creator Tools**: Implemented the "Chameleon Forge" for creators to build, edit, and publish platform-wide themes.
+- **Holographic Sandbox**: Integrated a live preview component that instantly updates typography, glass effects, and semantic colors as you drag sliders.
+- **Live Theme Synchronization**: Changing values in the Forge automatically previews them across the entire OS interface in real-time.
+
+### Component Polish & Consistency
+- **Workbench Visual Block**: Rethemed the Workbench layout to closely match the new glassmorphic OS design patterns.
+- **Mason IDE Enhancements**: Unified card styles and headers across `MasonIDE` and `MasonChameleons` for a cohesive layout.
+- **Theme Cards Update**: Restyled custom theme cards with vertical layouts and subtle hover gradients to match IDE file cards.
+- **Sandbox Cards**: Stripped legacy color-bars from Sandbox artifact cards to align with modern glass UI.
+
+### The Nexus & Upload Polish
+- **Nexus Upload Flow Rework**: Completely refactored the artifact upload flow in the Nexus to provide a smoother, more guided experience for all asset types (Mods, Lexicons, Themes, Templates).
+- **Nexus Visibility Toggles**: Added the ability to hide assets from public view (making them active but unlisted).
+
+---
+
  **Date: July 15, 2026**
  **Version: 0.4.66**
 
@@ -8,6 +35,8 @@
 - **Tabbed Navigation**: Implemented a sleek 3-tab navigation system inside the Workbench (Visual Interface, Raw Editor, Template Guide) using fully localized strings, providing dedicated screen space for configurations versus documentation.
 - **Template Menu Groups**: Introduced a brand new menu grouping system for template categorization, keeping custom and default templates cleanly separated and easily accessible.
 - **Insert Buttons**: Added localized insert buttons to streamline adding blocks directly into raw and visual configuration editors.
+- **Visual Interface Lockout**: Integrated a real-time syntax parser. If syntax errors (like missing commas or brackets) are detected in the raw editor, the visual interface is instantly locked behind a warning overlay, preventing destructive slider/toggle inputs from corrupting the raw layout until the typo is resolved.
+- **Save Diagnostics**: The primary save button now actively monitors for active syntax errors. If an error is detected, the button turns a stark danger-red and forces you into a double-inline confirmation (`SAVE WITH ERRORS` -> `FORCE OVERRIDE`) before letting you overwrite the file with broken code.
 - **Resize Glitching**: Resolved a jittery resizing glitch when dragging the preview panel edge, ensuring smooth fluid resizing constraints.
 
 ### The Nexus & Upload Polish

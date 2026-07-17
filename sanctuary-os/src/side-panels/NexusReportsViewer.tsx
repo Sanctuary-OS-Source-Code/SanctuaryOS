@@ -133,9 +133,9 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
         logArchitectAction(`Dismissed report for ${selectedReport.title}`, table, selectedReport.id);
       } else if (action === 'remove') {
         if (selectedReport.source === 'nexus') {
-          await supabase.rpc('admin_remove_asset', { target_asset_id: selectedReport.target_id });
+          await supabase.from('nexus_assets').update({ is_public: false }).eq('id', selectedReport.target_id);
           await supabase.from(table).update({ status: 'resolved' }).eq('id', selectedReport.id);
-          logArchitectAction(`Removed Asset: ${selectedReport.title} due to: ${resolutionReason}`, `nexus_assets`, selectedReport.target_id);
+          logArchitectAction(`Removed Asset (Hidden from Public): ${selectedReport.title} due to: ${resolutionReason}`, `nexus_assets`, selectedReport.target_id);
         } else if (selectedReport.source === 'blueprint') {
           await supabase.from('blueprints').update({ is_public: false }).eq('id', selectedReport.target_id);
           await supabase.from(table).update({ status: 'resolved' }).eq('id', selectedReport.id);
@@ -209,7 +209,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                 { id: 'ALL', label: t("ui_tab_all_types") },
                 { id: 'nexus', label: t("tab_nexus") },
                 { id: 'blueprint', label: t("tab_blueprints") },
-                { id: 'comm-link', label: t("sidebar_commlink") }
+                { id: 'comm-link', label: t("feed_title") }
               ]}
               onChange={(v: string[]) => setActiveType(v[0])}
               placeholder={t("auto_select_type")}
@@ -312,7 +312,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
         footer={selectedReport?.status === 'pending' ? (
           <div className="flex justify-center items-center gap-4 w-full">
             <button type="button" onClick={() => setSelectedReport(null)} className={standardButtonClass}>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
             <button
               onClick={() => handleProcessReport(selectedAction as "dismiss" | "remove" | "ban")}

@@ -507,7 +507,7 @@ export default function CommandCenter({
             <div className="w-12 h-12 rounded-xl theme-glass-inner flex items-center justify-center border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)] shrink-0">
               <span className="material-symbols-outlined !text-2xl text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]">{t("icon_satellite_alt")}</span>
             </div>
-            <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] truncate">{t("sidebar_commlink")}</h2>
+            <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] truncate">{t("feed_title")}</h2>
           </div>
 
           <div className="w-full">

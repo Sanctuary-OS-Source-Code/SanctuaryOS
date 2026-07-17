@@ -427,7 +427,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
             <span className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
             </span>
-            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("shared_cancel")}</button>
+            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("nav_cancel")}</button>
             <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span> {t("purge")}</button>
           </>
         ) : (
@@ -500,7 +500,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                     {confirmDiscard ? (t("ui_confirm_discard") || "Confirm Discard") : (t("ui_btn_discard_edits") || "DISCARD EDITS")}
                   </button>
                 ) : (
-                  <button onClick={closeEditor} disabled={isSubmitting} className={standardButtonClass}>{t("shared_cancel")}</button>
+                  <button onClick={closeEditor} disabled={isSubmitting} className={standardButtonClass}>{t("nav_cancel")}</button>
                 )}
                 <div className="relative group/btn flex">
                   <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className={((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? standardAccentGlassButtonClass.replace('bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--accent)_30%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]').replace('text-[var(--accent)]', 'text-[var(--warning)]').replace('hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]', 'hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]') : standardAccentGlassButtonClass}>

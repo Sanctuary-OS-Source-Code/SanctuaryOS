@@ -146,7 +146,7 @@ export default function TicketDossierSidePanel({
               disabled={isSubmitting}
               className={standardButtonClass}
             >
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
             <button
               onClick={() => onTakeAction(selectedAction as any, reason)}

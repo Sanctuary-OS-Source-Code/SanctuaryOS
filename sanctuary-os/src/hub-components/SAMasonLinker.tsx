@@ -266,7 +266,7 @@ export function MasonLinker() {
             )}
             <div className="flex justify-center items-center gap-4 w-full">
               <button type="button" onClick={handleClosePanel} disabled={isSubmitting} className={standardButtonClass}>
-                {t("shared_cancel")}
+                {t("nav_cancel")}
               </button>
               <button
                 onClick={handleSave}

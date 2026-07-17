@@ -214,6 +214,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           .from('nexus_assets')
           .select('*')
           .eq('asset_type', marketTab === 'CHAMELEONS' ? 'chameleon' : marketTab === 'TEMPLATES' ? 'workbench_template' : 'lexicon')
+          .or('is_public.eq.true,is_public.is.null')
           .order('created_at', { ascending: false });
         if (error) throw error;
         setAssetResults(data || []);
@@ -866,18 +867,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_refresh")}</span>
           </button>
 
-          {marketTab !== 'MODS' && marketTab !== 'BLUEPRINTS' && (
-            <>
-              
-              <button
-                onClick={handleUploadAsset}
-                className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
-              >
-                <span className="material-symbols-outlined text-xl normal-case">{t("icon_upload")}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_upload")}</span>
-              </button>
-            </>
-          )}
+
         </div>
       </ViewHeader>
 
@@ -1020,7 +1010,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-lg transition-all group-hover/badge:bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]">
                               <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] drop-shadow-sm">{t("icon_layers")}</span>
                               <span className="text-[9px] font-black text-[var(--text)] uppercase tracking-widest drop-shadow-sm">
-                                {mod.familyCount || (mod.flavors?.length || 0)} {t("variants")}
+                                {mod.familyCount || (mod.flavors?.length || 0)} {t("tab_mods")}
                               </span>
                             </div>
                           </div>
@@ -1032,7 +1022,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           {cleanModName(mod.name || mod.id).name}
                         </h3>
                         <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
-                          {mod.master_author || t("unknown_creator") || "Unknown Creator"}{(mod.latest_version) ? ` • ${mod.latest_version}` : ""}
+                          {mod.master_author || t("unknown_mason") || "Unknown Creator"}{(mod.latest_version) ? ` • ${mod.latest_version}` : ""}
                         </p>
                         {mod.description && (
                           <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">
@@ -1230,7 +1220,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           <div className="flex flex-wrap gap-1">
                             {marketTab !== 'MODS' && marketTab !== 'BLUEPRINTS' && (
                               <span className="text-[10px] font-bold text-[var(--accent)] opacity-80 uppercase tracking-widest bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2 py-0.5 rounded-md">
-                                {asset.asset_type === 'lexicon' ? (t("tab_lexicons")) : asset.asset_type === 'workbench_template' ? (t("tab_templates")) : (t("tab_chameleons"))}
+                                {asset.asset_type === 'lexicon' ? (t("tab_lexicons")) : asset.asset_type === 'workbench_template' ? (t("tab_templates")) : (t("type_theme"))}
                               </span>
                             )}
                             {getAssetDisplayVersion(asset) && (

@@ -28,7 +28,7 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
               />
               <div className="flex gap-3 mt-2">
                 <button onClick={() => setRenameModal(null)} className="flex-1 py-3 theme-btn-standard font-black text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/5">
-                  {t("shared_cancel")}
+                  {t("nav_cancel")}
                 </button>
                 <button onClick={executeRename} className="flex-1 py-3 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 shadow-lg transition-all">
                   {t("btn_rename")}
@@ -41,7 +41,7 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
       {renameTarget && (
         <div className="fixed inset-0 z-10000 flex items-center justify-center bg-[var(--bg)]/10 backdrop-blur-[2px] animate-in fade-in duration-200">
           <div className="w-full max-w-md theme-glass-panel border theme-border-accent rounded-[var(--radius)] p-8 shadow-2xl">
-            <h3 className="text-xs font-black tracking-[0.3em] theme-text-accent uppercase mb-6 flex items-center gap-2"><span className="w-2 h-2 theme-bg-accent rounded-full animate-pulse"></span>{t("redesignate_title")}</h3>
+            <h3 className="text-xs font-black tracking-[0.3em] theme-text-accent uppercase mb-6 flex items-center gap-2"><span className="w-2 h-2 theme-bg-accent rounded-full animate-pulse"></span>{t("rename_title")}</h3>
             <div className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] text-[var(--text)]/40 uppercase tracking-widest ml-1">{t("redesignate_label")}</label>

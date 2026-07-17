@@ -304,7 +304,7 @@ export function GameManagementOversight() {
           <div className="flex justify-center items-center gap-4 w-full">
             {(sidePanelMode === 'add_version' || sidePanelMode === 'add_dlc') && (
               <button onClick={() => setSidePanelMode(null)} className={standardButtonClass}>
-                {t("shared_cancel")}
+                {t("nav_cancel")}
               </button>
             )}
             {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && (

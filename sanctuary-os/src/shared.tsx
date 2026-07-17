@@ -851,7 +851,8 @@ export function SidePanel({
   noBackdropDim = false,
   noPanelBlur = false,
   footerClass,
-  panelClass
+  panelClass,
+  panelStyle
 }: {
   isOpen: boolean,
   onClose: () => void,
@@ -876,7 +877,8 @@ export function SidePanel({
   noBackdropDim?: boolean,
   noPanelBlur?: boolean,
   footerClass?: string,
-  panelClass?: string
+  panelClass?: string,
+  panelStyle?: React.CSSProperties
 }) {
   const { t } = useLexicon();
   const [panelWidth, setPanelWidth] = useState<number>(defaultWidth || 800);
@@ -917,7 +919,7 @@ export function SidePanel({
       <div
         ref={panelRef}
         className={`fixed top-[50px] bottom-[40px] right-0 overflow-hidden ${isResizable ? '' : widthClass} !rounded-l-[var(--radius)] !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] flex flex-col ${panelZ} animate-in slide-in-from-right duration-500 ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''}`}
-        style={isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined } : undefined}
+        style={isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined, ...panelStyle } : panelStyle}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={`absolute inset-0 pointer-events-none z-[-2] theme-glass-panel !border-none !shadow-none !rounded-none ${noPanelBlur ? '!backdrop-blur-none' : ''}`} />

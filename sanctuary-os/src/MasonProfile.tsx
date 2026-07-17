@@ -200,6 +200,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         const filteredModsRaw = modsDataRaw.filter((m: any) => {
           if (m.compliance_tier > 1) return false;
           if (!matureEnabled && m.compliance_tier > 0) return false;
+          if (m.hash?.startsWith('dev_sandbox_') || m.status?.toLowerCase().includes('sandbox')) return false;
           return true;
         });
         
@@ -224,7 +225,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         if (fallbackName) {
           orQuery += `,author.ilike.%${fallbackName}%`;
         }
-        const { data: assetsData } = await supabase.from('nexus_assets').select('*').or(orQuery).order('created_at', { ascending: false });
+        const { data: assetsData } = await supabase.from('nexus_assets').select('*').or(orQuery).or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false });
         const { data: blueprintsData } = await supabase.from('blueprints').select('*').eq('mason_id', masonId).eq('is_market_listed', true).order('created_at', { ascending: false });
 
         let newAssets = assetsData || [];
@@ -450,7 +451,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               <HubTabButton id="MODS" icon={t("icon_account_balance")} label={t("tab_mods")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
               <HubTabButton id="BLUEPRINTS" icon={t("icon_map")} label={t("bp_blueprint_swap")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
               <HubTabButton id="LEXICONS" icon={t("icon_translate")} label={t("tab_lexicons")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
-              <HubTabButton id="CHAMELEONS" icon={t("icon_palette")} label={t("tab_chameleons")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+              <HubTabButton id="CHAMELEONS" icon={t("icon_palette")} label={t("type_theme")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
               <HubTabButton id="TEMPLATES" icon="draw" label={t("tab_templates")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
             </div>
 
@@ -515,7 +516,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
 
                   {filteredMods.map(mod => (
-                    <div key={mod.id} onClick={() => onModClick({ ...mod, author: mason.name })} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">
+                    <div key={mod.id} onClick={() => onModClick({ ...mod, author: mason.name, isNexusView: true })} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">
                       <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
                         {mod.image_url ? (
                           <img
@@ -542,11 +543,6 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                           </div>
                         </div>
                         <div className="absolute top-4 right-4 flex gap-2 z-30">
-                          {(mod.isVirtual || mod.isParent || mod.familyCount > 1) && (
-                            <span className="text-[8px] font-black px-3 py-1.5 theme-bg-accent text-[var(--bg)] rounded-xl shadow-lg uppercase tracking-widest backdrop-blur-md">
-                              {mod.familyCount || (mod.flavors?.length || 0)} {t("variants")}
-                            </span>
-                          )}
                           <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
                             {mod.category_override || "MOD"}
                           </span>
@@ -567,7 +563,14 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                         )}
 
                         <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                          <div />
+                          <div className="flex items-center gap-2">
+                             {(mod.isVirtual || mod.isParent || mod.familyCount > 1) && (
+                                <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] rounded-lg uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
+                                    <span className="material-symbols-outlined !text-[10px]">folder</span>
+                                    {mod.familyCount || (mod.flavors?.length || 0)} {t("tab_mods")}
+                                </span>
+                             )}
+                          </div>
                           <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("ui_btn_view")}</span>
                         </div>
                       </div>
@@ -615,7 +618,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                             {asset.name}
                           </h3>
                           <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
-                            {mason.name || "UNKNOWN MASON"} • {(asset.json_data?.artifacts?.length || 0)} {t("auto_mods")}
+                            {mason.name || "UNKNOWN MASON"} • {(asset.json_data?.artifacts?.length || 0)} {t("items")}
                           </p>
                           {asset.description && (
                             <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">

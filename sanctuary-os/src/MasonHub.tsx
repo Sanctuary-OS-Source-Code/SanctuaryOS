@@ -38,6 +38,7 @@ import { MasonPostsEditor } from "./MasonPostsEditor";
 import { MasonSettingsSidePanel } from './side-panels/MasonSettingsSidePanel';
 import { MasonSandbox } from "./MasonSandbox";
 import { MasonNexus } from "./MasonNexus";
+import { MasonChameleons } from "./MasonChameleons";
 export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handleOpenMasonProfile }: { sandboxMod?: any, clearSandboxMod?: () => void, vaultPath?: string, handleOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
   const { t } = useLexicon();
   const { session, masonActiveTab, setMasonActiveTab } = useStore();
@@ -126,6 +127,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           <HubTabButton id="registry" icon={t("icon_deployed_code")} label={(t("items")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="nexus" icon={t("icon_hub")} label={(t("tab_nexus")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="sandbox" icon={t("icon_handyman")} label={(t("tab_sandbox")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <HubTabButton id="chameleons" icon="palette" label={(t("tab_chameleons") || "CHAMELEONS").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="ide" icon={t("icon_code")} label={(t("ide_tab")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           
           
@@ -162,6 +164,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         {masonActiveTab === "sandbox" && <MasonSandbox masonId={masonProfile.id} initialSandboxMod={sandboxMod} onClear={clearSandboxMod} vaultPath={vaultPath} />}
         {masonActiveTab === "conflicts" && <MasonConflictsManager masonId={masonProfile.id} />}
         {masonActiveTab === "ide" && <MasonIDE vaultPath={vaultPath} />}
+        {masonActiveTab === "chameleons" && <MasonChameleons masonProfile={masonProfile} />}
       </div>
 
       <MasonSettingsSidePanel

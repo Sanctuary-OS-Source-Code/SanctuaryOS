@@ -332,7 +332,7 @@ export default function SAOversightReports() {
                 
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-col gap-2 w-full">
-                     <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("oversight_lbl_artifact_name")}</span>
+                     <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("label_modname")}</span>
                      <div className="w-full p-3.5 theme-glass-panel rounded-xl border border-white/5 shadow-inner flex items-center min-h-[48px]">
                        <span className="text-sm font-bold text-[var(--text)] break-all">{viewingReport.artifact_name || t("oversight_unknown_artifact") || "UNKNOWN ARTIFACT"}</span>
                      </div>
@@ -354,7 +354,7 @@ export default function SAOversightReports() {
                      </div>
                   </div>
                   <div className="flex flex-col gap-2 w-full">
-                     <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("oversight_lbl_dna_hash")}</span>
+                     <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("dna_hash")}</span>
                      <div className="w-full p-3.5 theme-glass-panel rounded-xl border border-white/5 shadow-inner flex items-center min-h-[48px]">
                        <span className="text-sm font-bold text-[var(--text)] break-all opacity-90">{viewingReport.detected_hash || t("oversight_na") || "NO SIGNATURE MATCH"}</span>
                      </div>

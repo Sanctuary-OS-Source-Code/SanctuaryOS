@@ -253,7 +253,7 @@ export default function Vault(props: any) {
             </div>
             <input
               type="text"
-              placeholder={t("vault_search")}
+              placeholder={t("search_ph")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full theme-glass-inner rounded-[var(--radius)] pl-12 pr-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all shadow-inner"
@@ -1082,7 +1082,7 @@ export default function Vault(props: any) {
                       onClick={() => purgeMod(filename)}
                       className="flex-1 px-4 py-2 theme-panel-danger theme-btn-danger border rounded-xl"
                     >
-                      {t("ui_btn_purge")}
+                      {t("purge")}
                     </button>
                   </div>
                 </div>
@@ -1099,7 +1099,7 @@ export default function Vault(props: any) {
               className="h-12 px-6 rounded-[var(--radius)] font-black uppercase tracking-widest transition-all text-[var(--text)]/80 hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-2 relative z-10"
             >
               <span className="material-symbols-outlined !text-[24px]">{t("icon_cancel")}</span>
-              {t("shared_cancel")}
+              {t("nav_cancel")}
             </button>
 
             <div className="w-px h-8 bg-white/10 relative z-10" />

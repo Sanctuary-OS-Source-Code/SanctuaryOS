@@ -8,11 +8,13 @@ export function PushTemplateSidePanel({
   isOpen, 
   onClose, 
   templateContent, 
+  onChange,
   initialName = "" 
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   templateContent: string;
+  onChange?: (newContent: string) => void;
   initialName?: string;
 }) {
   const { t } = useLexicon();
@@ -32,14 +34,16 @@ export function PushTemplateSidePanel({
   const [selectedUpdateId, setSelectedUpdateId] = useState<string>("new");
 
   React.useEffect(() => {
-     try {
-        const parsed = JSON.parse(templateContent);
-        if (parsed.target_file) setTargetFile(parsed.target_file);
-        if (parsed.version || parsed.template_version) setVersion(parsed.version || parsed.template_version);
-        if (parsed.language) setLanguage(parsed.language);
-        if (parsed.name && !initialName) setName(parsed.name);
-     } catch(e) {}
-  }, [templateContent, initialName]);
+     if (isOpen) {
+       try {
+          const parsed = JSON.parse(templateContent);
+          if (parsed.target_file) setTargetFile(parsed.target_file);
+          if (parsed.version || parsed.template_version) setVersion(parsed.version || parsed.template_version);
+          if (parsed.language) setLanguage(parsed.language);
+          if (parsed.name && !initialName) setName(parsed.name);
+       } catch(e) {}
+     }
+  }, [isOpen]);
 
   React.useEffect(() => {
       const fetchTemplates = async () => {
@@ -59,11 +63,22 @@ export function PushTemplateSidePanel({
             setExistingTemplates(data);
             
             let parsedName = initialName;
+            let parsedTemplateId = "";
             try {
                const parsed = JSON.parse(templateContent);
                if (parsed.name) parsedName = parsed.name;
+               if (parsed.template_id) parsedTemplateId = parsed.template_id;
             } catch(e) {}
-            const match = data.find(t => t.name === parsedName || t.name === initialName);
+            const match = data.find(t => {
+               if (parsedTemplateId && t.json_data) {
+                  try {
+                     const tParsed = typeof t.json_data === 'string' ? JSON.parse(t.json_data) : t.json_data;
+                     const tId = tParsed.template_id || (Array.isArray(tParsed) ? tParsed[0]?.template_id : undefined);
+                     if (tId === parsedTemplateId) return true;
+                  } catch(e) {}
+               }
+               return t.name === parsedName || t.name === initialName;
+            });
             if (match) {
                 setSelectedUpdateId(match.id);
                 setName(match.name || "");
@@ -173,7 +188,7 @@ export function PushTemplateSidePanel({
         onClick={onClose}
         className={standardButtonClass}
       >
-        {t("shared_cancel")}
+        {t("nav_cancel")}
       </button>
       <button 
         onClick={() => handleSubmit()}
@@ -258,7 +273,7 @@ export function PushTemplateSidePanel({
           <div className="flex flex-col gap-3">
             <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_translate") || "translate"}</span>
-              {t("upload_language") || "Language"}
+              {t("tab_lexicons") || "Language"}
             </label>
             <CustomDropdown
               disableTint={true}
@@ -289,7 +304,21 @@ export function PushTemplateSidePanel({
               <input 
                 type="text" 
                 value={version}
-                onChange={e => setVersion(e.target.value)}
+                onChange={e => {
+                  const newVersion = e.target.value;
+                  setVersion(newVersion);
+                  if (onChange) {
+                    try {
+                      const parsed = JSON.parse(templateContent);
+                      if (parsed.template_version !== undefined) {
+                        parsed.template_version = newVersion;
+                      } else {
+                        parsed.version = newVersion;
+                      }
+                      onChange(JSON.stringify(parsed, null, 2));
+                    } catch(err) {}
+                  }
+                }}
                 placeholder="e.g. 1.0.0"
                 className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-3 text-sm font-black focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all text-[var(--text)] shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
               />

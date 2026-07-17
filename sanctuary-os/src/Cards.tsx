@@ -99,7 +99,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
 export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonNameFallback }: { setItem: any, activeSetId?: string, onClick: () => void, masonsList?: any[], masonNameFallback?: string }) {
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
-  const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("registry_col_mason") || "MASON / CREATOR";
+  const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("label_select") || "MASON / CREATOR";
 
   return (
     <div onClick={onClick} className={`theme-glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden relative ${activeSetId === setItem.id ? 'theme-border-accent ring-2 ring-[var(--accent)]/50' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>

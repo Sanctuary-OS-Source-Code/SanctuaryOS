@@ -114,7 +114,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     { id: 'AUTH', icon: t("icon_lock"), label: t("tab_identities") },
     { id: 'NETWORK', icon: t("icon_public"), label: t("settings_tab_network") },
     { id: 'NOTIFICATIONS', icon: t("icon_notifications"), label: t("tab_notifs") },
-    { id: 'CHAMELEON', icon: t("icon_palette"), label: t("tab_chameleons") },
+    { id: 'CHAMELEON', icon: t("icon_palette"), label: t("type_theme") },
     { id: 'LEXICON', icon: t("icon_language"), label: t("tab_lexicons") },
     { id: 'LOGIC', icon: t("icon_flag"), label: t("tab_logic") }
   ];

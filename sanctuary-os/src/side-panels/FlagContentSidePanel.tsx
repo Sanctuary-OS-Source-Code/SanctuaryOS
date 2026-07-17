@@ -61,7 +61,7 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
             className={standardButtonClass}
             disabled={isSubmitting}
           >
-            {t("shared_cancel")}
+            {t("nav_cancel")}
           </button>
           <button 
             type="submit" 

@@ -318,7 +318,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
                 glowColor="rgba(16,185,129,0.4)"
               />
               <StatBox
-                label={t("sys_stat_sandbox")}
+                label={t("filter_dev")}
                 value={(() => { const s = parseBytes(sandboxSize || 0); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
                 icon="science"
                 glowColor="rgba(245,158,11,0.4)"

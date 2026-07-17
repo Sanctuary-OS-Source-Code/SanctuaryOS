@@ -180,7 +180,7 @@ export function MassUpdateOversight() {
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
                 <input
                   type="text"
-                  placeholder={t("comp_search_mods")}
+                  placeholder={t("search_mods")}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"

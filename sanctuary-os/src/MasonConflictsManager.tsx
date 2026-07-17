@@ -282,14 +282,14 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                      />
                      <div className="flex gap-3">
                        <button type="button" disabled={!deleteReason.trim()} onClick={() => handleDeleteConflict(editConflictId)} className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--danger)] bg-[var(--danger)]/20 border border-[var(--danger)]/50 hover:bg-[var(--danger)]/30 backdrop-blur-md transition-all shadow-[0_0_20px_rgba(var(--danger-rgb),0.3)] uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none">{t("purge")}</button>
-                       <button type="button" onClick={() => { setDeleteConfirmId(null); setDeleteReason(""); }} className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--text)] bg-white/5 border border-white/10 hover:bg-white/10 backdrop-blur-md transition-all shadow-sm uppercase tracking-widest flex items-center justify-center gap-2">{t("shared_cancel")}</button>
+                       <button type="button" onClick={() => { setDeleteConfirmId(null); setDeleteReason(""); }} className="flex-1 h-9 rounded-xl text-[10px] font-black text-[var(--text)] bg-white/5 border border-white/10 hover:bg-white/10 backdrop-blur-md transition-all shadow-sm uppercase tracking-widest flex items-center justify-center gap-2">{t("nav_cancel")}</button>
                      </div>
                    </div>
                 ) : (
                   <div className="flex justify-center items-center gap-4 w-full">
                     {!editConflictId && (
                       <button type="button" onClick={() => setIsSidePanelOpen(false)} className={standardButtonClass}>
-                        {t("shared_cancel")}
+                        {t("nav_cancel")}
                       </button>
                     )}
                     {editConflictId && (

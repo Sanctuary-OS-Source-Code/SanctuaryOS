@@ -5,12 +5,14 @@ import { CustomClassificationDropdown } from "./hub-components/SharedRegistry";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
-import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+import {
+  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, ModSearchDropdown, EmptyState, FilterTabs, FilterTabButton,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion } from "./shared";
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
+} from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
 import { MasonStatusDropdown } from "./MasonHub";
@@ -116,7 +118,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
       setIsImporting(true);
       const selected = await open({
         multiple: true,
-        filters: [{ name: "Artifacts & Configs", extensions: [...(useStore.getState().activeGameSchema?.extensions?.supported?.map((e: string) => e.replace('.','')) || ["package", "ts4script"]), "zip", "txt", "js", "ts", "xml", "json", "cfg", "ini", "html", "css"] }]
+        filters: [{ name: "Artifacts & Configs", extensions: [...(useStore.getState().activeGameSchema?.extensions?.supported?.map((e: string) => e.replace('.', '')) || ["package", "ts4script"]), "zip", "txt", "js", "ts", "xml", "json", "cfg", "ini", "html", "css"] }]
       });
 
       if (!selected || (Array.isArray(selected) && selected.length === 0)) {
@@ -244,7 +246,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             <input
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              placeholder={t("vault_search")}
+              placeholder={t("search_ph")}
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchTerm && (
@@ -266,10 +268,10 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
               ]}
             />
           </div>
-            <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl border border-white/5 shadow-inner h-12 shrink-0 divide-x divide-white/5 mr-4 hidden md:flex">
-              <button onClick={() => setSandboxTabFilter('local')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("unlinked_badge") || "LOCAL"}</button>
-              <button onClick={() => setSandboxTabFilter('synced')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("synced_badge") || "SYNCED"}</button>
-            </div>
+          <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl border border-white/5 shadow-inner h-12 shrink-0 divide-x divide-white/5 mr-4 hidden md:flex">
+            <button onClick={() => setSandboxTabFilter('local')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("unlinked_badge") || "LOCAL"}</button>
+            <button onClick={() => setSandboxTabFilter('synced')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("synced_badge") || "SYNCED"}</button>
+          </div>
           <button
             onClick={handleImportToSandbox}
             disabled={isImporting}
@@ -290,9 +292,6 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
           <>
             {sandboxTabFilter === 'local' && (
               <div className="flex flex-col gap-6">
-                <h3 className="text-lg font-black text-[var(--text)] uppercase tracking-widest px-2 opacity-80">
-                  {t("unlinked_badge")}
-                </h3>
                 {unlinkedMods.length === 0 ? (
                   <EmptyState icon={t("icon_folder_off") || "folder_off"} title={t("empty")} className="col-span-full py-16" />
                 ) : (
@@ -304,7 +303,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                         className="theme-glass-panel rounded-[var(--radius)] relative group flex flex-col text-left overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-orange-500/50 hover:shadow-[0_0_40px_rgba(249,115,22,0.15)] transition-all duration-500 hover:-translate-y-1.5 bg-gradient-to-br from-white/5 to-transparent min-h-[160px]"
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                        <div className="absolute top-0 left-0 w-full h-1 bg-orange-500/50 transition-all duration-500 group-hover:bg-orange-500 group-hover:shadow-[0_0_20px_rgba(249,115,22,0.5)]" />
+
 
                         <div className="p-6 flex flex-col gap-4 relative z-10 w-full h-full">
                           <div className="flex justify-between items-start w-full">
@@ -329,9 +328,6 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
             {sandboxTabFilter === 'synced' && (
               <div className="flex flex-col gap-6">
-                <h3 className="text-lg font-black text-[var(--text)] uppercase tracking-widest px-2 opacity-80">
-                  {t("synced_badge")}
-                </h3>
                 {syncedMods.length === 0 ? (
                   <EmptyState icon={t("ui_icon_sync_disabled") || "sync_disabled"} title={t("no_synced")} className="col-span-full py-16" />
                 ) : (
@@ -343,7 +339,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                         className="theme-glass-panel rounded-[var(--radius)] relative group flex flex-col text-left overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-emerald-500/50 hover:shadow-[0_0_40px_rgba(16,185,129,0.15)] transition-all duration-500 hover:-translate-y-1.5 bg-gradient-to-br from-white/5 to-transparent min-h-[160px] opacity-80 hover:opacity-100"
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                        <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500/50 transition-all duration-500 group-hover:bg-emerald-500 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.5)]" />
+
 
                         <div className="p-6 flex flex-col gap-4 relative z-10 w-full h-full">
                           <div className="flex justify-between items-start w-full">
@@ -383,7 +379,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
                 <button onClick={handlePurge} disabled={isCommitting} className={standardButtonClass + (confirmPurge ? " !border-[var(--danger)] !text-[var(--danger)] !bg-[var(--danger)]/20 shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_40%,transparent)]" : " !border-[var(--danger)]/30 !text-[var(--danger)] hover:!border-[var(--danger)]/60 hover:!bg-[var(--danger)]/10")}>
-                  {confirmPurge ? (t("ui_confirm_delete") || "ARE YOU SURE?") : (t("ui_btn_purge") || "PURGE")}
+                  {confirmPurge ? (t("ui_confirm_delete") || "ARE YOU SURE?") : (t("purge") || "PURGE")}
                 </button>
                 <button onClick={handleSyncToNetwork} disabled={isCommitting} className={standardSuccessButtonClass}>
                   {isCommitting ? t("btn_syncing") : (t("sandbox_btn_sync"))}
