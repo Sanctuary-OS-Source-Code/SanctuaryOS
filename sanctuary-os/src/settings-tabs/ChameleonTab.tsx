@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
@@ -41,7 +41,7 @@ const SEMANTIC_SHADES: Record<string, string[]> = {
   ]
 };
 
-const standardButtonClass = "px-6 py-3 rounded-xl theme-glass-panel text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-[inset_0_0_20px_rgba(255,255,255,0.02),0_4px_15px_rgba(0,0,0,0.2)] hover:shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1),0_4px_15px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50 hover:scale-105 active:scale-95 border border-white/5 flex items-center justify-center gap-2";
+const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
 
 export default function ChameleonTab({ config }: any) {
   const { t } = useLexicon();
@@ -50,6 +50,7 @@ export default function ChameleonTab({ config }: any) {
   const setMarketTab = useStore(state => state.setMarketTab);
 
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | false>(false);
   const [newThemeName, setNewThemeName] = useState("");
   const [activeColorPicker, setActiveColorPicker] = useState<string | null>(null);
   const colorPickerRefs = useRef<any>({});
@@ -96,7 +97,7 @@ export default function ChameleonTab({ config }: any) {
         </>
       }
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
         {Object.entries({ ...CORE_THEMES, ...customThemes }).map(([id, data]: any) => (
           <button 
             key={id} 
@@ -133,7 +134,17 @@ export default function ChameleonTab({ config }: any) {
               {!CORE_THEMES[id] && (
                 <>
                   <div onClick={(e) => { e.stopPropagation(); setNewThemeName(data.name); setEditingThemeId(id); }} className="p-2 rounded-full hover:bg-white/10 text-sm theme-text-accent material-symbols-outlined lowercase">{t("icon_edit")}</div>
-                  <div onClick={(e) => { e.stopPropagation(); deleteTheme(id); }} className="p-2 rounded-full hover:bg-white/10 text-sm theme-text-danger material-symbols-outlined lowercase">{t("icon_delete")}</div>
+                  <div 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      if (confirmDelete === id) { deleteTheme(id); setConfirmDelete(false); }
+                      else { setConfirmDelete(id); }
+                    }} 
+                    onMouseLeave={() => setConfirmDelete(false)}
+                    className={`p-2 rounded-full text-sm material-symbols-outlined lowercase transition-all ${confirmDelete === id ? 'bg-red-500/20 text-red-500 scale-110 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'hover:bg-white/10 theme-text-danger'}`}
+                  >
+                    {confirmDelete === id ? t("icon_warning") || 'warning' : t("icon_delete") || 'delete'}
+                  </div>
                 </>
               )}
             </div>
@@ -141,7 +152,7 @@ export default function ChameleonTab({ config }: any) {
         ))}
       </div>
 
-      <div className="mt-8 pt-10 border-t border-white/5">
+      <div className="mt-16 pt-12 border-t border-white/5">
         <h3 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-8 flex items-center gap-3">
           <span className="material-symbols-outlined text-2xl theme-text-accent">{t("icon_tune")}</span>
           {t("forge_live")}
@@ -261,7 +272,7 @@ export default function ChameleonTab({ config }: any) {
           ))}
         </div>
 
-        <div className="mt-14 mb-8 flex items-center gap-4 border-b border-white/5 pb-4">
+        <div className="mt-20 mb-12 flex items-center gap-4 border-b border-white/5 pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
           <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_typography") || "Typography"}</h2>
         </div>
@@ -313,7 +324,7 @@ export default function ChameleonTab({ config }: any) {
           </div>
         </div>
 
-        <div className="mt-14 mb-8 flex items-center gap-4 border-b border-white/5 pb-4">
+        <div className="mt-20 mb-12 flex items-center gap-4 border-b border-white/5 pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
           <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_glass") || "Glass & Material"}</h2>
         </div>
@@ -346,7 +357,7 @@ export default function ChameleonTab({ config }: any) {
           </div>
         </div>
 
-        <div className="mt-14 mb-8 flex items-center gap-4 border-b border-white/5 pb-4">
+        <div className="mt-20 mb-12 flex items-center gap-4 border-b border-white/5 pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
           <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_geometry") || "Shape Geometry"}</h2>
         </div>
@@ -364,7 +375,7 @@ export default function ChameleonTab({ config }: any) {
           />
         </div>
         
-        <div className="mt-14 mb-8 flex items-center gap-4 border-b border-white/5 pb-4">
+        <div className="mt-20 mb-12 flex items-center gap-4 border-b border-white/5 pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
           <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_background") || "Background Override"}</h2>
         </div>

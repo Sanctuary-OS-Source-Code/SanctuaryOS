@@ -7,7 +7,7 @@ const CORE_THEMES: any = {
     name: "Architect", bg: "#02040a", sidebar: "#060913", sidebartext: "#fafafa", accent: "#38bdf8",
     text: "#fafafa", subtext: "#a1a1aa", success: "#30d158", warning: "#ffd60a", danger: "#ff453a",
     panelTint: "#ffffff", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "6%", glassBlur: "16px", radius: "1.25rem", bgGradient: "#02040a",
+    glassOpacity: "6%", glassBlur: "16px", radius: "1.25rem", bgGradient: "radial-gradient(circle at top right, #02040a, #060913)",
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
@@ -71,10 +71,10 @@ export const ThemeProvider = ({ children }: any) => {
       try {
         const config: any = await invoke('get_saved_coordinates');
         if (!config?.vault_path) return;
-        
+
         const themesDir = `${config.vault_path}\\Data\\Themes`;
         const devThemesDir = `${config.vault_path}\\Data\\Dev\\Themes`;
-        
+
         let updatedCustoms = { ...customThemes };
         let updatedDevs = { ...devThemes };
         let hasCustomUpdates = false;
@@ -240,7 +240,7 @@ export const ThemeProvider = ({ children }: any) => {
     localStorage.setItem("sanctuary_custom_themes", JSON.stringify(updated));
   };
 
-    const createNewDevTheme = (baseTheme: any = null) => {
+  const createNewDevTheme = (baseTheme: any = null) => {
     const id = `dev_${Date.now()}`;
     const newTheme = baseTheme ? { ...baseTheme, name: `${baseTheme.name} (Copy)` } : {
       name: "NEW SIGNATURE", bg: "#0f172a", sidebar: "#0f172a", sidebartext: "#ffffff", accent: "#ffffff",
@@ -278,7 +278,7 @@ export const ThemeProvider = ({ children }: any) => {
       setCustomThemes(remaining);
       localStorage.setItem("sanctuary_custom_themes", JSON.stringify(remaining));
     }
-    
+
     if (activeThemeId === id) setActiveThemeId("architect");
 
     (async () => {
@@ -315,8 +315,8 @@ export const ThemeProvider = ({ children }: any) => {
 
   return (
     <ThemeContext.Provider value={{
-      activeThemeId, setActiveThemeId, currentTheme, CORE_THEMES, customThemes, devThemes, 
-      updateActiveTheme, updateTheme, renameTheme, createNewTheme, createNewDevTheme, exportDevThemeToCustom, deleteTheme, 
+      activeThemeId, setActiveThemeId, currentTheme, CORE_THEMES, customThemes, devThemes,
+      updateActiveTheme, updateTheme, renameTheme, createNewTheme, createNewDevTheme, exportDevThemeToCustom, deleteTheme,
       importTheme: (json: any) => {
         const id = `import_${Date.now()}`;
         setCustomThemes((prev: any) => ({ ...prev, [id]: json }));

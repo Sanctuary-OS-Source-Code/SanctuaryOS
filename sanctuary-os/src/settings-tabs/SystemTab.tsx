@@ -9,7 +9,7 @@ export default function SystemTab({ config, updateConfig, pickPath, pathMap }: a
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
   return (
-    <div className="flex flex-col gap-8 w-full pb-48">
+    <div className="flex flex-col gap-30 w-full pb-48">
       <TabContainer
         title={t("sys_coords")}
         icon="push_pin"

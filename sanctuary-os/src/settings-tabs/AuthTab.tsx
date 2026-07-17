@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import { supabase } from '../supabase';
 import { TabContainer } from './shared';
 
-const standardButtonClass = "px-6 py-3 rounded-xl theme-glass-panel text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-[inset_0_0_20px_rgba(255,255,255,0.02),0_4px_15px_rgba(0,0,0,0.2)] hover:shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1),0_4px_15px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50 hover:scale-105 active:scale-95 border border-white/5 flex items-center justify-center gap-2";
+const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
 
 export default function AuthTab() {
   const { t } = useLexicon();

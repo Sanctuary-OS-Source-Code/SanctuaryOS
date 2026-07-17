@@ -6,7 +6,7 @@ import { useStore } from '../store';
 import { supabase } from '../supabase';
 import { TabContainer } from './shared';
 
-const standardButtonClass = "px-6 py-3 rounded-xl theme-glass-panel text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-[inset_0_0_20px_rgba(255,255,255,0.02),0_4px_15px_rgba(0,0,0,0.2)] hover:shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1),0_4px_15px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50 hover:scale-105 active:scale-95 border border-white/5 flex items-center justify-center gap-2";
+const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
 
 export default function LexiconTab() {
   const { t, registry, activeLang, setActiveLang, importLexicon, deleteLexicon } = useLexicon();
@@ -17,6 +17,7 @@ export default function LexiconTab() {
   const [lexiconSearch, setLexiconSearch] = useState("");
   const [selectedLibraryLang, setSelectedLibraryLang] = useState<string | null>(null);
   const [favoriteLexicons, setFavoriteLexicons] = useState<string[]>(() => JSON.parse(localStorage.getItem("sanctuary_favorite_lexicons") || '["en-sanctuary", "en-default", "en-sims", "de-default"]'));
+  const [confirmDelete, setConfirmDelete] = useState<string | false>(false);
 
   useEffect(() => {
     async function fetchLanguages() {
@@ -83,7 +84,7 @@ export default function LexiconTab() {
 
         <div className="flex flex-col gap-6">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("installed_lexicons")}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
             {favoriteLexicons.map(code => (
               <button 
                 key={code} 
@@ -115,7 +116,7 @@ export default function LexiconTab() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-6 mt-8 pt-10 border-t border-white/5">
+        <div className="flex flex-col gap-6 mt-16 pt-12 border-t border-white/5">
           <h3 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-2 flex items-center gap-3">
             <span className="material-symbols-outlined text-2xl theme-text-accent">{t("icon_menu_book")}</span>
             {t("library")}
@@ -143,7 +144,7 @@ export default function LexiconTab() {
             <span className="absolute right-6 top-1/2 -translate-y-1/2 opacity-50 text-xl material-symbols-outlined">{t("icon_search")}</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8 mt-6">
             {allLexiconCodes
               .filter(code => !favoriteLexicons.includes(code))
               .filter(code => !selectedLibraryLang || getLexiconMetadata(code).language === selectedLibraryLang)
@@ -174,8 +175,16 @@ export default function LexiconTab() {
                       <span className="material-symbols-outlined !text-[16px]">star</span>
                     </button>
                     {code !== 'en-sanctuary' && code !== 'en-default' && code !== 'en-sims' && code !== 'de-default' && (
-                      <button onClick={(e) => { e.stopPropagation(); deleteLexicon(code); }} className="p-2 rounded-full hover:bg-red-500/20 text-sm theme-text-danger shadow-sm transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <span className="material-symbols-outlined !text-lg">{t("icon_delete")}</span>
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          if (confirmDelete === code) { deleteLexicon(code); setConfirmDelete(false); }
+                          else { setConfirmDelete(code); }
+                        }} 
+                        onMouseLeave={() => setConfirmDelete(false)}
+                        className={`p-2 rounded-full text-sm transition-all shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 ${confirmDelete === code ? 'bg-red-500/20 text-red-500 scale-110 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'hover:bg-red-500/20 theme-text-danger'}`}
+                      >
+                        <span className="material-symbols-outlined !text-lg">{confirmDelete === code ? t("icon_warning") || 'warning' : t("icon_delete")}</span>
                       </button>
                     )}
                   </div>

@@ -40,15 +40,15 @@ export function CustomSettingsDropdown({ value, options, onChange }: any) {
 }
 
 export const TabContainer = ({ title, icon, actions, children }: any) => (
-  <div className="flex flex-col gap-12 animate-in slide-in-from-right-8 duration-500 w-full max-w-7xl theme-glass-panel p-10 rounded-[var(--radius)] shadow-2xl backdrop-blur-3xl border border-white/5 relative overflow-hidden">
+  <div className="flex flex-col gap-16 animate-in slide-in-from-right-8 duration-500 w-full relative">
     <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--accent)] opacity-[0.02] blur-[100px] pointer-events-none rounded-full" />
-    <div className="flex justify-between items-center border-b border-white/10 pb-8 relative z-10">
+    <div className="flex justify-between items-center border-b border-white/10 pb-6 relative z-10">
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-white/20 to-transparent" />
       <h2 className="text-2xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-4 drop-shadow-lg">
         {icon && <span className="material-symbols-outlined !text-4xl opacity-50 theme-text-accent">{icon}</span>}
         {title}
       </h2>
-      {actions && <div className="absolute right-0 bottom-8 flex gap-3 z-10">{actions}</div>}
+      {actions && <div className="absolute right-0 bottom-4 flex gap-3 z-10">{actions}</div>}
     </div>
     <div className="flex flex-col gap-10 w-full relative z-10">
       {children}

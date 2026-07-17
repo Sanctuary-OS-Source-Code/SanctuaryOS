@@ -924,8 +924,8 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
          <SidePanel
             isOpen={!!activeFile}
             onClose={() => setActiveFileIndex(-1)}
-            title={activeFile?.name || ""}
-            subtitle={activeFile?.name?.endsWith('.json') ? (t("template_architect")) : (t("tab_raw"))}
+            title={t("tools_ide") || "MASON IDE"}
+            subtitle={t("mason_ide_subtitle") || "DEVELOPMENT & LOCALIZATION ENVIRONMENT"}
             icon="code"
             iconColorClass="theme-text-accent"
             isResizable={!isFullscreen}
