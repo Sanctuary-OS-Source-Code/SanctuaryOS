@@ -85,7 +85,7 @@ export function ContextMenu() {
       const target = e.detail.target as HTMLElement;
       
       setTargetElement(target);
-      setIsReadOnly(false);
+      setIsReadOnly(e.detail.isReadOnly === true);
       setIsMonacoTarget(true);
       
       let x = e.detail.x || 0;
