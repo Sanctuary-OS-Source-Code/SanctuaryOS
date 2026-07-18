@@ -212,7 +212,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
               <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                {t("registry_meta")}
+                {t("metadata")}
               </h4>
               <div className="flex flex-col gap-2 relative z-10">
                 <input 
@@ -511,7 +511,7 @@ export function CollectionForge({ setStatus }: any) {
           </div>
           
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_select")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("architect")}</label>
             <div className="flex gap-2">
               <div className="flex-1">
                 <CustomMasonDropdown value={setMasonId} options={masonsList} onChange={setSetMasonId} />
@@ -557,7 +557,7 @@ export function CollectionForge({ setStatus }: any) {
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
               <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                {t("registry_meta")}
+                {t("metadata")}
               </h4>
               <div className="flex flex-col gap-2 relative z-10">
                 <input 
@@ -572,7 +572,7 @@ export function CollectionForge({ setStatus }: any) {
 
                 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_select")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("architect")}</label>
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <CustomMasonDropdown value={activeSet.mason_id || ""} options={masonsList} onChange={(val: string) => setActiveSet({...activeSet, mason_id: val})} />

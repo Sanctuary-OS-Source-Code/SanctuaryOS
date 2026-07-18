@@ -39,7 +39,7 @@ export default function NetworkTab() {
   };
 
   return (
-    <TabContainer title={t("settings_tab_network")} icon="public">
+    <TabContainer title={t("tab_network")} icon="public">
       <div className="grid xl:grid-cols-2 gap-8">
         <div className="flex items-center justify-between p-8 rounded-[var(--radius)] theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={toggleLocalOnly}>
           <div className="flex flex-col gap-2">
@@ -87,7 +87,7 @@ export default function NetworkTab() {
           {(!session || isBanned) && (
             <HoverTooltip
               title={t("access_denied")}
-              subtitle={isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_uploads_and_global_fla")}
+              subtitle={isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45")}
               variant="danger"
               className="group-hover/malware:flex group-hover/malware:opacity-100 !-top-20"
             />

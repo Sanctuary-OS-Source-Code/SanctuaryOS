@@ -328,7 +328,7 @@ export default function CommandConflictsPanel({
                         </span>
                         {isIgnored
                           ? t("bp_restore_alert")
-                          : t("bp_ignore_alert")}
+                          : t("btn_ignore")}
                       </button>
                     </div>
 

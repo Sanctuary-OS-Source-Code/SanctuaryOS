@@ -282,7 +282,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
         )}
 
         <div className="theme-glass-panel p-8 rounded-[var(--radius)] border border-white/10 flex flex-col gap-4 shadow-xl">
-          <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-80">{t("matrix_uplink_code_label")}</span>
+          <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-80">{t("sidebar_uplink")}</span>
           <div className="flex items-center gap-3">
             <input
               readOnly
@@ -299,7 +299,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
               disabled={!generatedCode}
               className={`px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${generatedCode ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--text)]' : 'bg-white/5 text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}
             >
-              {t("matrix_btn_copy")}
+              {t("ctx_copy")}
             </button>
           </div>
           {uploadError && <span className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center justify-center gap-2 mt-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_error")}</span> {uploadError}</span>}

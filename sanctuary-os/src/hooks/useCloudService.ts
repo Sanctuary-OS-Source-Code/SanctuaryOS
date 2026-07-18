@@ -164,7 +164,7 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
     );
     if (ghosts.length === 0) {
       setStatus(t("status_bunker_synced"));
-      useStore.getState().pushStatus(t("auto_all_mods_are_already_synced_no_unknown_m"));
+      useStore.getState().pushStatus(t("auto_all_mods_are_45"));
       return;
     }
     setIngestProgress({ current: 0, total: ghosts.length, active: true });

@@ -112,13 +112,13 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   const TABS = [
     { id: 'SYSTEM', icon: t("icon_push_pin"), label: t("tab_system") },
     { id: 'AUTH', icon: t("icon_lock"), label: t("tab_identities") },
-    { id: 'NETWORK', icon: t("icon_public"), label: t("settings_tab_network") },
+    { id: 'NETWORK', icon: t("icon_public"), label: t("tab_network") },
     { id: 'NOTIFICATIONS', icon: t("icon_notifications"), label: t("tab_notifs") },
     { id: 'CHAMELEON', icon: t("icon_palette"), label: t("type_theme") },
     { id: 'LEXICON', icon: t("icon_language"), label: t("tab_lexicons") },
     { id: 'LOGIC', icon: t("icon_flag"), label: t("tab_logic") }
   ];
-  if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull") || "skull", label: t("tab_malware") });
+  if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull") || "skull", label: t("malware_btn") });
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">

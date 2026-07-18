@@ -262,7 +262,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                   "desc_key": "author_boilerplate_desc",
                   "category": "general",
                   "options": [
-                     { "value": "A", "label_key": "category_all" },
+                     { "value": "A", "label_key": "cat_all" },
                      { "value": "B", "label_key": "category_system" }
                   ],
                   "default": "A"
@@ -590,7 +590,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mx-2 mt-2">
                <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
                   <HubTabButton id="CONFIGS" icon="settings" label={t("configs")} activeTab={mainTab} setTab={setMainTab as any} />
-                  <HubTabButton id="TEMPLATES" icon="data_object" label={t("tab_templates")} activeTab={mainTab} setTab={setMainTab as any} />
+                  <HubTabButton id="TEMPLATES" icon="data_object" label={t("ql_templates")} activeTab={mainTab} setTab={setMainTab as any} />
                </div>
 
             </div>
@@ -748,7 +748,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                               }
                            >
                               <span className={`material-symbols-outlined !text-[18px] ${isSaving ? 'animate-spin' : ''}`}>{t("icon_save")}</span>
-                              {isSaving ? (t("btn_saving")) : (t("btn_save"))}
+                              {isSaving ? (t("btn_saving")) : (t("save"))}
                            </button>
                         </div>
                      )}

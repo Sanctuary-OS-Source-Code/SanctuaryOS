@@ -97,7 +97,7 @@ export default function Oversight({ onOpenMasonProfile }: any) {
 
       <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
         <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 shrink-0">
-          <HubTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("sidebar_command")} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="oversight_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch") || "DISPATCH"} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="compliance" icon={t("icon_policy")} label={t("tab_compliance")} activeTab={activeTab} setTab={setActiveTab} />
@@ -111,7 +111,7 @@ export default function Oversight({ onOpenMasonProfile }: any) {
             setTab={(id: string) => { if (id === 'malware_oversight') setComplianceFilter('pending'); setActiveTab(id); }}
             options={[
               { id: "linker", icon: t("icon_link"), label: t("tab_linker") },
-              { id: "malware_oversight", icon: t("icon_coronavirus"), label: t("tab_malware_oversight") },
+              { id: "malware_oversight", icon: t("icon_coronavirus"), label: t("rating_malware") },
               { id: "oversight_reports", icon: t("icon_threat_intelligence"), label: t("tab_malware_logs") },
               { id: "sanctuary_tickets", icon: t("icon_local_activity"), label: t("wf_tab_tickets") }
             ]} 

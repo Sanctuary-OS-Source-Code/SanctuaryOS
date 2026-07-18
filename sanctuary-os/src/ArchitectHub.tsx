@@ -93,8 +93,8 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
             activeTab={activeTab} 
             setTab={setActiveTab}
             options={[
-              { id: "mason_queue", icon: t("icon_construction"), label: t("label_select") || "MASON"?.replace(/^[^\w]*/, '').trim() },
-              { id: "template_oversight", icon: t("icon_data_object") || "data_object", label: t("tab_templates") || "TEMPLATES" },
+              { id: "mason_queue", icon: t("icon_construction"), label: t("architect") || "MASON"?.replace(/^[^\w]*/, '').trim() },
+              { id: "template_oversight", icon: t("icon_data_object") || "data_object", label: t("ql_templates") || "TEMPLATES" },
               { id: "nexus_reports", icon: t("icon_flag"), label: t("stat_bugs") || "REPORTS"?.replace(/^[^\w]*/, '').trim() },
               { id: "support_tickets", icon: t("icon_local_activity"), label: (t("wf_tab_tickets")).replace(/^[^\w]*/, '').trim() }
             ]} 
@@ -147,7 +147,7 @@ export function CustomStatusDropdown({ value, onChange }: { value: string, onCha
     { id: 'unstable', label: t("label_unstable") },
     { id: 'broken', label: t("status_broken") },
     { id: 'under_review', label: t("status_dd_review") },
-    { id: 'pending', label: t("status_pending") },
+    { id: 'pending', label: t("pending") },
     { id: 'unverified', label: t("unverified") },
   ];
   return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("auto_select_status")} />;
@@ -304,5 +304,5 @@ interface UnifiedReport {
 export function CustomMasonDropdown({ value, options, onChange }: { value: string, options: any[], onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const dropdownOptions = options.map(o => ({ id: o.id, label: o.name }));
-  return <CustomDropdown disableTint={true} searchable={true} value={value} options={dropdownOptions} onChange={(v: string[]) => onChange(v[0])} placeholder={t("label_select")} />;
+  return <CustomDropdown disableTint={true} searchable={true} value={value} options={dropdownOptions} onChange={(v: string[]) => onChange(v[0])} placeholder={t("architect")} />;
 }

@@ -70,7 +70,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
                 </div>
               )}
               <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate font-mono">
-                {mod?.category_override || mod?.suggested_type || t("unknown") || "Unknown"}
+                {mod?.category_override || mod?.suggested_type || t("vlocal") || "Unknown"}
               </span>
               {mod?.file_extension && (
                 <div className="text-[8px] font-black px-1.5 py-0.5 backdrop-blur-md rounded-md uppercase tracking-widest border shrink-0 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] ml-2">
@@ -85,7 +85,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
       {layout === 'vertical' && (
         <div className="p-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-white/5 flex gap-2 relative z-10 items-center justify-between">
             <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
-              {mod?.category_override || mod?.suggested_type || t("unknown") || "Unknown"}
+              {mod?.category_override || mod?.suggested_type || t("vlocal") || "Unknown"}
             </span>
             <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
               {overrideActionLabel || t("emote_edit") || "EDIT"} <span className="text-lg leading-none">&rarr;</span>
@@ -99,7 +99,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
 export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonNameFallback }: { setItem: any, activeSetId?: string, onClick: () => void, masonsList?: any[], masonNameFallback?: string }) {
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
-  const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("label_select") || "MASON / CREATOR";
+  const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("architect") || "MASON / CREATOR";
 
   return (
     <div onClick={onClick} className={`theme-glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden relative ${activeSetId === setItem.id ? 'theme-border-accent ring-2 ring-[var(--accent)]/50' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>

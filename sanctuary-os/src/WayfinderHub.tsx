@@ -89,7 +89,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
             options={[
               { id: "linker", icon: t("icon_link"), label: t("tab_linker") },
               { id: "compliance", icon: t("icon_policy"), label: t("tab_compliance") },
-              { id: "malware_oversight", icon: t("icon_coronavirus"), label: t("tab_malware_oversight") },
+              { id: "malware_oversight", icon: t("icon_coronavirus"), label: t("rating_malware") },
               { id: "oversight_reports", icon: t("icon_threat_intelligence"), label: t("tab_malware_logs") },
               { id: "reports", icon: t("icon_flag"), label: t("stat_bugs") },
               { id: "audit_logs", icon: t("icon_history"), label: t("tab_audit") }
@@ -102,7 +102,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
             setTab={setActiveTab}
             options={[
               { id: "support_settings", icon: t("icon_support_agent"), label: t("wf_tab_support") },
-              { id: "schemas", icon: t("icon_data_object") || "data_object", label: t("tab_schemas") || "MASTER SCHEMAS" }
+              { id: "ide", icon: "code", label: "WAYFINDER IDE" }
             ]} 
           />
         </div>
@@ -128,8 +128,8 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
         {activeTab === "sanctuary_tickets" && <ArchitectSupportTickets userRole="wayfinder" />}
         {activeTab === "support_settings" && <SASupportSettings />}
         {activeTab === "audit_logs" && <AuditLogViewer />}
-        {activeTab === "schemas" && <MasonIDE isCloudMode={true} />}
-        {activeTab !== "command_center" && activeTab !== "wf_comms_title" && activeTab !== "identities" && activeTab !== "linker" && activeTab !== "compliance" && activeTab !== "malware_oversight" && activeTab !== "reports" && activeTab !== "oversight_reports" && activeTab !== "sanctuary_tickets" && activeTab !== "support_settings" && activeTab !== "audit_logs" && activeTab !== "schemas" && (
+        {activeTab === "ide" && <MasonIDE isCloudMode={true} cloudTarget="sanctuary_schemas" />}
+        {activeTab !== "command_center" && activeTab !== "wf_comms_title" && activeTab !== "identities" && activeTab !== "linker" && activeTab !== "compliance" && activeTab !== "malware_oversight" && activeTab !== "reports" && activeTab !== "oversight_reports" && activeTab !== "sanctuary_tickets" && activeTab !== "support_settings" && activeTab !== "audit_logs" && activeTab !== "ide" && (
           <EmptyState icon={t("icon_construction") || "construction"} title={t("wf_under_construction")} className="col-span-full py-16" />
         )}
       </div>

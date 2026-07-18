@@ -96,7 +96,7 @@ pub fn write_os_log(app_handle: tauri::AppHandle, message: String, level: String
         if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_file) {
             let timestamp = match SystemTime::now().duration_since(UNIX_EPOCH) {
                 Ok(n) => n.as_secs().to_string(),
-                Err(_) => "unknown".to_string(),
+                Err(_) => "vlocal".to_string(),
             };
             let _ = writeln!(file, "[{}] [{}]: {}", timestamp, level, message);
         }

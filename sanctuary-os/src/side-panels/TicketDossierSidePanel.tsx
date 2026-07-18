@@ -126,7 +126,7 @@ export default function TicketDossierSidePanel({
         });
       }
     } else {
-      useStore.getState().pushStatus(t("auto_failed_to_send_reply"), "error");
+      useStore.getState().pushStatus(t("auto_failed_to_send_25"), "error");
     }
   };
 
@@ -195,7 +195,7 @@ export default function TicketDossierSidePanel({
 
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_info")}</span> {(t("sys_log")).replace(/^[^\w]*/, '').trim()}
+              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_info")}</span> {(t("status")).replace(/^[^\w]*/, '').trim()}
             </span>
             <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-lg border shadow-inner shrink-0 inline-block transition-colors
               ${ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : ''}
@@ -210,7 +210,7 @@ export default function TicketDossierSidePanel({
 
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_label")}</span> {(t("registry_label_class")).replace(/^[^\w]*/, '').trim()}
+              <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_label")}</span> {(t("category")).replace(/^[^\w]*/, '').trim()}
             </span>
             <span className="text-xs font-bold text-[var(--text)] capitalize opacity-90">{(ticket.category || ticket.ticket_type || "general").replace('_', ' ')}</span>
           </div>
@@ -218,7 +218,7 @@ export default function TicketDossierSidePanel({
           {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
             <div className="flex justify-between items-center">
               <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_extension")}</span> {t("support_target_mod_label")}
+                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_extension")}</span> {t("target_artifact")}
               </span>
               <div className="flex items-center gap-2">
                 {onEditMetadata ? (

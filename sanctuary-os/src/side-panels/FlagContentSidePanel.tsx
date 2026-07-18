@@ -47,7 +47,7 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("feed_flag_title")}
+      title={t("flag_title")}
       subtitle={t("flag_subtitle")}
       icon={t("icon_flag")}
       widthClass="w-[450px]"
@@ -78,7 +78,7 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
         <div className="flex-1 flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
-              {t("flag_reason_label")}
+              {t("flag_reason")}
             </label>
             <textarea
               value={reason}

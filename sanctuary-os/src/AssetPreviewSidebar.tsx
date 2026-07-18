@@ -292,7 +292,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
 
                         let parsed = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
                         const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
-                        const templateId = displayData?.template_id || "unknown";
+                        const templateId = displayData?.template_id || "vlocal";
 
                         const templatesDir = `${vaultPath}\\Data\\Templates`;
                         if (!(await exists(templatesDir))) {

@@ -76,7 +76,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
       if (versionError) throw versionError;
 
       await invoke('mark_mod_synced', { hash: activeMod.hash, dbId: modId });
-      useStore.getState().pushStatus(t("auto_mod_successfully_linked_to_existing_reco"), "success");
+      useStore.getState().pushStatus(t("auto_mod_successfully_linked_45"), "success");
       setIsLinkModalOpen(false);
       setIsEditorOpen(false);
       fetchExistingMods();
@@ -110,7 +110,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
   const handleImportToSandbox = async () => {
     if (!vaultPath) {
-      useStore.getState().pushStatus(t("auto_vault_path_not_configured"), "error");
+      useStore.getState().pushStatus(t("auto_vault_path_not_30"), "error");
       return;
     }
 
@@ -142,7 +142,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
   const handleSyncToNetwork = async () => {
     if (!activeMod || !activeMod.hash) {
-      useStore.getState().pushStatus(t("auto_no_valid_sandbox_mod_selected_or_missing"), "error");
+      useStore.getState().pushStatus(t("auto_no_valid_sandbox_45"), "error");
       return;
     }
     setIsCommitting(true);
@@ -177,7 +177,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
       if (versionError) throw versionError;
 
-      useStore.getState().pushStatus(t("auto_mod_synced_to_network_successfully"), "success");
+      useStore.getState().pushStatus(t("auto_mod_synced_to_39"), "success");
       setIsEditorOpen(false);
       fetchExistingMods();
       if (onClear) onClear();
@@ -389,13 +389,13 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
           >
             <div className="flex flex-col gap-8">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("placeholder_name")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_modname")}</label>
                 <input value={activeMod.name || ""} onChange={e => setActiveMod({ ...activeMod, name: e.target.value })} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 shadow-inner" />
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
                   <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(val: string) => setActiveMod({ ...activeMod, category_override: val })} />
                 </div>
 

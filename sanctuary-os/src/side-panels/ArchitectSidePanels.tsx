@@ -283,7 +283,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                 </div>
                 
                 <div className="flex flex-col">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("verify_panel_file_hash")}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("dna_hash")}</span>
                   {isHashing ? (
                     <div className="flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
@@ -326,7 +326,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                         onClick={() => onManualFlag(fileHash)}
                         className="w-full py-3 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                       >
-                        {t("btn_manual_threat_flag")} <span className="text-sm leading-none">&rarr;</span>
+                        {t("comp_manual_title")} <span className="text-sm leading-none">&rarr;</span>
                       </button>
                     )}
                 </div>
@@ -348,7 +348,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                     className="w-full py-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
                   >
                     <span className="material-symbols-outlined !text-sm">{t("icon_gavel")}</span>
-                    {t("btn_manual_threat_flag")} <span className="text-sm leading-none">&rarr;</span>
+                    {t("comp_manual_title")} <span className="text-sm leading-none">&rarr;</span>
                   </button>
               )}
 
@@ -426,7 +426,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                         ) : item.matchedMod.compliance_tier === 2 ? (
                           <span className="text-[9px] font-black text-yellow-400 uppercase tracking-widest">{t("rating_explicit")}</span>
                         ) : (
-                          <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">{t("status_verified")}</span>
+                          <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">{t("verified")}</span>
                         )
                       ) : (
                         <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">{t("auto_mismatch")}</span>

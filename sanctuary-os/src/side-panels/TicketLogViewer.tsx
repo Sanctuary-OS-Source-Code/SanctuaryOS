@@ -280,7 +280,7 @@ export default function TicketLogViewer({
                         className="w-full h-14 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] rounded-2xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]"
                     >
                         <span className="material-symbols-outlined !text-[18px]">{t("icon_download")}</span>
-                        {t("support_import_library")}
+                        {t("playsets_btn_import")}
                     </button>
                 </div>
              </div>

@@ -82,7 +82,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
         {filteredCC.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full opacity-50">
             <span className="text-6xl mb-4 grayscale">{t("_")}</span>
-            <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.3em]">{t("cc_no_assets")}</span>
+            <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.3em]">{t("no_assets")}</span>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-4">

@@ -103,7 +103,7 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience }: { isOpen
                 />
               </div>
               <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl border border-white/5 shadow-inner h-12 shrink-0 divide-x divide-white/5">
-                <button onClick={() => setFilterStatus('Active')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'Active' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("masonhub_status_active") || "Active"}</button>
+                <button onClick={() => setFilterStatus('Active')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'Active' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_active") || "Active"}</button>
                 <button onClick={() => setFilterStatus('Inactive')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'Inactive' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_inactive") || "Inactive"}</button>
               </div>
             </div>

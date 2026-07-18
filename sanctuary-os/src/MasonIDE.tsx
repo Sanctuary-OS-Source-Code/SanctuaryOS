@@ -11,7 +11,116 @@ import enDefault from './lexicons/en-default.json';
 import { supabase } from "./supabase";
 import { MarketUploadPanel } from "./side-panels/NexusSidePanels";
 
-export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: string, isCloudMode?: boolean }) {
+function deepCountKeys(obj: any): number {
+   let count = 0;
+   if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      for (const k in obj) {
+         if (k.startsWith('_meta')) continue;
+         count += 1 + deepCountKeys(obj[k]);
+      }
+   }
+   return count;
+}
+
+function deepCompare(base: any, target: any, isLexicon: boolean): { missing: number, completelyMissing: number, deprecated: number } {
+   let missing = 0;
+   let completelyMissing = 0;
+   let deprecated = 0;
+
+   const compare = (b: any, t: any) => {
+      if (b && typeof b === 'object' && !Array.isArray(b)) {
+         for (const k in b) {
+            if (k.startsWith('_meta')) continue;
+            if (!t || typeof t[k] === 'undefined') {
+               missing += 1 + deepCountKeys(b[k]);
+               completelyMissing += 1 + deepCountKeys(b[k]);
+            } else {
+               if ((typeof t[k] === 'string' && t[k] === "") || (isLexicon && typeof t[k] !== 'string')) {
+                  missing++;
+               }
+               compare(b[k], t[k]);
+            }
+         }
+      }
+   };
+
+   const findDeprecated = (b: any, t: any) => {
+      if (t && typeof t === 'object' && !Array.isArray(t)) {
+         for (const k in t) {
+            if (k.startsWith('_meta')) continue;
+            if (!b || typeof b[k] === 'undefined') {
+               deprecated += 1 + deepCountKeys(t[k]);
+            } else {
+               findDeprecated(b[k], t[k]);
+            }
+         }
+      }
+   };
+
+   compare(base, target);
+   findDeprecated(base, target);
+
+   return { missing, completelyMissing, deprecated };
+}
+
+function createEmptyClone(val: any): any {
+   if (typeof val === 'string') return "";
+   if (typeof val === 'number') return 0;
+   if (typeof val === 'boolean') return false;
+   if (Array.isArray(val)) return [];
+   if (val && typeof val === 'object') {
+      const obj: any = {};
+      for (const k in val) {
+         obj[k] = createEmptyClone(val[k]);
+      }
+      return obj;
+   }
+   return null;
+}
+
+function deepAddMissing(base: any, target: any): any {
+   if (!base || typeof base !== 'object' || Array.isArray(base)) {
+      return base;
+   }
+   if (!target || typeof target !== 'object' || Array.isArray(target)) {
+      return base;
+   }
+   const result: any = { ...target };
+   for (const k in base) {
+      if (k.startsWith('_meta')) continue;
+      if (typeof target[k] === 'undefined') {
+         result[k] = createEmptyClone(base[k]);
+      } else {
+         if (base[k] && typeof base[k] === 'object' && !Array.isArray(base[k])) {
+            result[k] = deepAddMissing(base[k], target[k]);
+         }
+      }
+   }
+   return result;
+}
+
+function deepPurgeDeprecated(base: any, target: any): any {
+   if (!target || typeof target !== 'object' || Array.isArray(target)) {
+      return target;
+   }
+   const result: any = {};
+   for (const k in target) {
+      if (k.startsWith('_meta')) {
+         result[k] = target[k];
+         continue;
+      }
+      if (base && typeof base[k] !== 'undefined') {
+         if (base[k] && typeof base[k] === 'object' && !Array.isArray(base[k])) {
+            result[k] = deepPurgeDeprecated(base[k], target[k]);
+         } else {
+            result[k] = target[k];
+         }
+      }
+   }
+   return result;
+}
+
+export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas" }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons" }) {
    const { t } = useLexicon();
    const session = useStore(state => state.session);
    const pushStatus = useStore(state => state.pushStatus);
@@ -48,6 +157,9 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
    const [createFileName, setCreateFileName] = useState("");
    const [createFileExt, setCreateFileExt] = useState(".json");
    const [showReference, setShowReference] = useState(false);
+   const [referenceData, setReferenceData] = useState<any>(enDefault);
+   const [referenceLabel, setReferenceLabel] = useState<string>("en-default.json Reference");
+   const [internalCloudTarget, setInternalCloudTarget] = useState<"sanctuary_schemas" | "sanctuary_lexicons">(cloudTarget);
    const [splitRatio, setSplitRatio] = useState(50);
    const isResizing = useRef(false);
    const [isFullscreen, setIsFullscreen] = useState(false);
@@ -108,7 +220,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
       try {
          if (isCloudMode) {
             const { supabase } = await import('./supabase');
-            const { data, error } = await supabase.from('sanctuary_schemas').select('id');
+            const { data, error } = await supabase.from(internalCloudTarget).select('id');
             if (!error && data) {
                setFiles(data.map(r => ({ name: r.id + ".json", path: "cloud://" + r.id })));
             }
@@ -152,7 +264,34 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
 
    useEffect(() => {
       fetchFiles();
-   }, [vaultPath]);
+   }, [vaultPath, internalCloudTarget]);
+
+   useEffect(() => {
+      if (isCloudMode) {
+         const fetchRef = async () => {
+            const currentFile = (isCloudMode ? cloudOpenFiles : localOpenFiles)[isCloudMode ? cloudActiveFileIndex : localActiveFileIndex];
+            if (!currentFile) return;
+
+            const isLexicon = currentFile.content?.includes('_meta_lang') || currentFile.content?.includes('"a_citizen"') || currentFile.name.startsWith('en-') || currentFile.name.startsWith('de-') || currentFile.name.startsWith('es-') || currentFile.name.startsWith('fr-');
+
+            const { supabase } = await import('./supabase');
+            if (isLexicon) {
+               const { data } = await supabase.from('sanctuary_lexicons').select('lexicon_data').eq('id', 'en-default').single();
+               if (data) {
+                  setReferenceData((data as any).lexicon_data);
+                  setReferenceLabel("en-default.json Reference");
+               }
+            } else {
+               const { data } = await supabase.from('sanctuary_schemas').select('schema_data').eq('id', 'sims4').single();
+               if (data) {
+                  setReferenceData((data as any).schema_data);
+                  setReferenceLabel("sims4.json Reference");
+               }
+            }
+         };
+         fetchRef();
+      }
+   }, [isCloudMode ? cloudActiveFileIndex : localActiveFileIndex, isCloudMode]);
 
    const handleEditorWillMount = (monaco: any) => {
       monaco.editor.defineTheme('sanctuary-glass-dark', {
@@ -282,10 +421,9 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
             let content = "";
             if (isCloudMode) {
                const { supabase } = await import('./supabase');
-               const schemaId = file.name.replace(".json", "");
-               const { data, error } = await supabase.from('sanctuary_schemas').select('schema_data').eq('id', schemaId).single();
-               if (!error && data && data.schema_data) {
-                  content = JSON.stringify(data.schema_data, null, 2);
+               const { data, error } = await supabase.from(internalCloudTarget).select(internalCloudTarget === 'sanctuary_lexicons' ? 'lexicon_data' : 'schema_data').eq('id', file.name.replace('.json', '')).single();
+               if (!error && data) {
+                  content = internalCloudTarget === 'sanctuary_lexicons' ? JSON.stringify((data as any).lexicon_data, null, 2) : JSON.stringify((data as any).schema_data, null, 2);
                } else {
                   content = "{\n  \"schema_version\": 1\n}";
                }
@@ -396,15 +534,16 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
       if (createMode === 'lexicon' && !lexiconLang.trim()) return;
       try {
          if (isCloudMode) {
-            const newName = createFileName.trim();
-            const schemaId = newName;
+            const fileId = createFileName.trim();
             const { supabase } = await import('./supabase');
-            const { error } = await supabase.from('sanctuary_schemas').insert({
-               id: schemaId,
-               schema_data: { schema_version: 1, metadata: {} },
-               version: 1,
-               updated_at: new Date().toISOString()
-            });
+            const contentToSave = (isCloudMode && internalCloudTarget === 'sanctuary_lexicons') || (!isCloudMode && createMode === 'lexicon')
+               ? { _meta_lang: lexiconLang.toLowerCase(), _meta_name: fileId } 
+               : { schema_version: 1, metadata: {} };
+            const payload = internalCloudTarget === 'sanctuary_lexicons' 
+               ? { id: fileId, name: fileId, badge: 'Sanctuary', version: 1, lexicon_data: contentToSave }
+               : { id: fileId, schema_data: contentToSave, version: 1, updated_at: new Date().toISOString() };
+            
+            const { error } = await supabase.from(internalCloudTarget).insert(payload);
             if (error) {
                pushStatus(t("alert_error") || "File already exists or error", "error");
                return;
@@ -412,7 +551,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
             setIsCreatePanelOpen(false);
             setCreateFileName("");
             fetchFiles();
-            openFile({ name: newName + ".json", path: "cloud://" + newName });
+            openFile({ name: fileId + ".json", path: "cloud://" + fileId });
             return;
          }
          if (!vaultPath) return;
@@ -461,20 +600,31 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
       try {
          if (isCloudMode) {
             const parsed = JSON.parse(file.content);
-            parsed.schema_version = (parsed.schema_version || 0) + 1;
+            const isLex = file.name.match(/^[a-z]{2}-.+\.json$/i);
+            if (isLex) {
+               if (!parsed._meta_version || typeof parsed._meta_version !== 'number') parsed._meta_version = 0;
+               parsed._meta_version++;
+               if (typeof parsed.schema_version !== 'undefined') delete parsed.schema_version; // Purge the accidental injection!
+            } else {
+               if (!parsed.schema_version || typeof parsed.schema_version !== 'number') parsed.schema_version = 0;
+               parsed.schema_version++;
+            }
+            
             const updatedContent = JSON.stringify(parsed, null, 2);
 
             const { supabase } = await import('./supabase');
-            const schemaId = file.name.replace(".json", "");
-            const { error } = await supabase.from('sanctuary_schemas').upsert({
-               id: schemaId,
-               schema_data: parsed,
-               version: parsed.schema_version,
-               updated_at: new Date().toISOString()
-            });
+            const fileId = file.name.replace(".json", "");
+            
+            const actualCloudTarget = isLex ? 'sanctuary_lexicons' : 'sanctuary_schemas';
+
+            const payload = actualCloudTarget === 'sanctuary_lexicons'
+               ? { id: fileId, name: fileId, badge: parsed._meta_badge || 'Sanctuary', version: parsed._meta_version || 1, lexicon_data: parsed, updated_at: new Date().toISOString() }
+               : { id: fileId, schema_data: parsed, version: parsed.schema_version || 1, updated_at: new Date().toISOString() };
+               
+            const { error } = await supabase.from(actualCloudTarget).upsert(payload);
             if (error) throw error;
 
-            if (schemaId === 'sims4') {
+            if (fileId === 'sims4') {
                useStore.getState().setActiveGameSchema(parsed);
             }
 
@@ -623,30 +773,20 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
    const activeFile = activeFileIndex >= 0 ? openFiles[activeFileIndex] : null;
    const isDirty = activeFile ? activeFile.content !== activeFile.originalContent : false;
 
-   let lexiconStats: { total: number, missing: number, completelyMissing: number, deprecated: number } | null = null;
-   if (activeFile && activeFile.name.match(/^[a-z]{2}-.+\.json$/i)) {
+   let validationStats: { total: number, missing: number, completelyMissing: number, deprecated: number } | null = null;
+   const isLexicon = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.startsWith('en-') || activeFile?.name.startsWith('de-') || activeFile?.name.startsWith('es-') || activeFile?.name.startsWith('fr-');
+   const isSchema = activeFile?.content?.includes('"schema_version"') || (isCloudMode && !isLexicon);
+
+   if (activeFile && (isLexicon || isSchema)) {
       try {
          const parsed = JSON.parse(activeFile.content);
-         const baseKeys = Object.keys(enDefault).filter(k => !k.startsWith('_meta'));
-         const parsedKeys = Object.keys(parsed).filter(k => !k.startsWith('_meta'));
-         let total = baseKeys.length;
-         let missing = 0;
-         let completelyMissing = 0;
-         let deprecated = 0;
-         for (const key of baseKeys) {
-            if (typeof parsed[key] === 'undefined') {
-               missing++;
-               completelyMissing++;
-            } else if (typeof parsed[key] !== 'string' || parsed[key] === "") {
-               missing++;
-            }
+         const reference = isLexicon ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null);
+
+         if (reference) {
+            const total = deepCountKeys(reference);
+            const stats = deepCompare(reference, parsed, !!isLexicon);
+            validationStats = { total, ...stats };
          }
-         for (const key of parsedKeys) {
-            if (typeof (enDefault as any)[key] === 'undefined') {
-               deprecated++;
-            }
-         }
-         lexiconStats = { total, missing, completelyMissing, deprecated };
       } catch (e) {
          // Ignore invalid JSON parsing for stats
       }
@@ -656,25 +796,12 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
       if (!editorRef || !activeFile) return;
       try {
          const parsed = JSON.parse(activeFile.content);
-         const newObj: any = {};
-         // Keep _meta keys first
-         for (const k of Object.keys(parsed)) {
-            if (k.startsWith('_meta')) newObj[k] = parsed[k];
-         }
-         // Add all base keys in order
-         for (const key of Object.keys(enDefault)) {
-            if (key.startsWith('_meta')) continue;
-            if (typeof parsed[key] !== 'undefined') {
-               newObj[key] = parsed[key];
-            } else {
-               newObj[key] = "";
-            }
-         }
-         // Keep any extra keys
-         for (const k of Object.keys(parsed)) {
-            if (typeof newObj[k] === 'undefined') newObj[k] = parsed[k];
-         }
+         const isLexiconActive = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.startsWith('en-') || activeFile?.name.startsWith('de-') || activeFile?.name.startsWith('es-') || activeFile?.name.startsWith('fr-');
+         const reference = isLexiconActive ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null);
+         
+         if (!reference) return;
 
+         const newObj = deepAddMissing(reference, parsed);
          const newContent = JSON.stringify(newObj, null, 2);
          const model = editorRef.getModel();
          if (model) {
@@ -696,12 +823,12 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
       if (!editorRef || !activeFile) return;
       try {
          const parsed = JSON.parse(activeFile.content);
-         const newObj: any = {};
-         for (const k of Object.keys(parsed)) {
-            if (k.startsWith('_meta') || typeof (enDefault as any)[k] !== 'undefined') {
-               newObj[k] = parsed[k];
-            }
-         }
+         const isLexiconActive = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.startsWith('en-') || activeFile?.name.startsWith('de-') || activeFile?.name.startsWith('es-') || activeFile?.name.startsWith('fr-');
+         const reference = isLexiconActive ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null);
+
+         if (!reference) return;
+
+         const newObj = deepPurgeDeprecated(reference, parsed);
          const newContent = JSON.stringify(newObj, null, 2);
          const model = editorRef.getModel();
          if (model) {
@@ -717,14 +844,14 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
       if (!editorRef) return;
       const model = editorRef.getModel();
       if (!model) return;
-      const matches = model.findMatches('""', false, false, false, null, true);
+      const matches = model.findMatches(':\\s*(""|\\[\\]|\\{\\})', false, true, false, null, true);
       if (matches && matches.length > 0) {
          const position = editorRef.getPosition();
          if (!position) return;
          let nextMatch = matches.find((m: any) => m.range.startLineNumber > position.lineNumber || (m.range.startLineNumber === position.lineNumber && m.range.startColumn > position.column));
          if (!nextMatch) nextMatch = matches[0]; // Wrap around
          editorRef.revealLineInCenter(nextMatch.range.startLineNumber);
-         editorRef.setPosition({ lineNumber: nextMatch.range.startLineNumber, column: nextMatch.range.startColumn + 1 });
+         editorRef.setPosition({ lineNumber: nextMatch.range.endLineNumber, column: nextMatch.range.endColumn - 1 });
          editorRef.focus();
       }
    };
@@ -747,7 +874,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
                <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_code")}</span>
                </div>
-               <span className="truncate">{isCloudMode ? (t("schema_ide") || "MASTER SCHEMA EDITOR") : t("tools_ide")}</span>
+               <span className="truncate">{isCloudMode ? "WAYFINDER IDE" : t("tools_ide")}</span>
             </h2>
 
             <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
@@ -762,19 +889,31 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
                </div>
 
                <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-12">
-                  <CustomDropdown
-                     disableTint={true}
-                     options={[
-                        { id: "all", label: "ALL FILES" },
-                        { id: "json", label: "JSON DATA" },
-                        { id: "cfg", label: "CONFIG (.CFG)" },
-                        { id: "ini", label: "SETTINGS (.INI)" },
-                        { id: "lexicon", label: "LEXICON PACK" }
-                     ]}
-                     value={fileTypeFilter}
-                     onChange={(val: string[]) => setFileTypeFilter(val[0])}
-                     placeholder={t("auto_file_type")}
-                  />
+                  {isCloudMode ? (
+                     <CustomDropdown
+                        disableTint={true}
+                        options={[
+                           { id: "sanctuary_schemas", label: "MASTER SCHEMAS" },
+                           { id: "sanctuary_lexicons", label: "MASTER LEXICONS" }
+                        ]}
+                        value={internalCloudTarget}
+                        onChange={(v: string[]) => setInternalCloudTarget(v[0] as any)}
+                     />
+                  ) : (
+                     <CustomDropdown
+                        disableTint={true}
+                        options={[
+                           { id: "all", label: "ALL FILES" },
+                           { id: "json", label: "JSON DATA" },
+                           { id: "cfg", label: "CONFIG (.CFG)" },
+                           { id: "ini", label: "SETTINGS (.INI)" },
+                           { id: "lexicon", label: "LEXICON PACK" }
+                        ]}
+                        value={fileTypeFilter}
+                        onChange={(val: string[]) => setFileTypeFilter(val[0])}
+                        placeholder={t("auto_file_type")}
+                     />
+                  )}
                </div>
 
                <div className="flex items-center gap-4 shrink-0">
@@ -924,7 +1063,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
          <SidePanel
             isOpen={!!activeFile}
             onClose={() => setActiveFileIndex(-1)}
-            title={t("tools_ide") || "MASON IDE"}
+            title={isCloudMode ? "WAYFINDER IDE" : (t("tools_ide") || "MASON IDE")}
             subtitle={t("mason_ide_subtitle") || "DEVELOPMENT & LOCALIZATION ENVIRONMENT"}
             icon="code"
             iconColorClass="theme-text-accent"
@@ -963,13 +1102,15 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
             footer={
                <div className="flex items-center justify-center gap-3 w-full shrink-0">
                   <div className="relative group">
-                     {isDirty && (
+                     {(problemsList.length > 0 || (validationStats && validationStats.missing > 0)) ? (
+                        <HoverTooltip title={problemsList.length > 0 ? t("publish_disabled_errors_desc") : t("lexicon_missing_keys_btn")} variant="error" className="z-[100]" />
+                     ) : isDirty && (
                         <HoverTooltip title={t("unsaved_changes")} variant="warning" className="z-[100]" />
                      )}
 
                      <button
                         onClick={saveFile}
-                        disabled={!activeFile || !isDirty}
+                        disabled={!activeFile || !isDirty || problemsList.length > 0 || (validationStats ? validationStats.missing > 0 : false)}
                         className={
                            isDirty
                               ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_25%,transparent)] hover:shadow-[0_5px_20px_rgba(245,158,11,0.4)]')
@@ -977,26 +1118,26 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
                         }
                      >
                         <span className="material-symbols-outlined !text-[18px]">{t("icon_save")}</span>
-                        {t("btn_save")}
+                        {t("save")}
                      </button>
                   </div>
 
-                  {activeFile && activeFile.name.match(/^[a-z]{2}-.+\.json$/i) && (
+                  {activeFile && activeFile.name.match(/^[a-z]{2}-.+\.json$/i) && !isCloudMode && (
                      <div className="relative group">
-                        {(problemsList.length > 0 || (lexiconStats && lexiconStats.missing > 0)) && (
+                        {(problemsList.length > 0 || (validationStats && validationStats.missing > 0)) && (
                            <HoverTooltip title={problemsList.length > 0 ? t("publish_disabled_errors_desc") : t("lexicon_missing_keys_btn")} variant="error" className="z-[100]" />
                         )}
                         <button
                            onClick={() => handlePublishLexicon(activeFile)}
-                           disabled={problemsList.length > 0 || (lexiconStats ? lexiconStats.missing > 0 : false)}
+                           disabled={problemsList.length > 0 || (validationStats ? validationStats.missing > 0 : false)}
                            className={
-                              (problemsList.length > 0 || (lexiconStats ? lexiconStats.missing > 0 : false))
+                              (problemsList.length > 0 || (validationStats ? validationStats.missing > 0 : false))
                                  ? standardButtonClass.replace('hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', '').replace('active:scale-95', '') + ' opacity-50 cursor-not-allowed grayscale'
                                  : standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)]')
                            }
                         >
                            <span className="material-symbols-outlined !text-[18px]">{t("icon_upload") || "cloud_upload"}</span>
-                           {t("sandbox_btn_sync") || "SYNC LEXICON"}
+                           {activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? (t("sandbox_btn_sync") || "SYNC LEXICON") : "SYNC SCHEMA"}
                         </button>
                      </div>
                   )}
@@ -1033,24 +1174,41 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
                 `}</style>
 
                   <div style={{ width: showReference ? `${splitRatio}%` : '100%' }} className="flex-shrink-0 relative h-full min-w-0 transition-none">
-                     {lexiconStats && (
-                        <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-6 theme-glass-panel rounded-full border px-6 py-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all ${lexiconStats.missing === 0 ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--success)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_10%,transparent)]'}`}>
+                     {validationStats && (
+                        <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-6 theme-glass-panel rounded-full border px-6 py-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all ${validationStats.missing === 0 ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--success)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_10%,transparent)]'}`}>
                            <div className="flex items-center gap-3">
 
                               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap opacity-90">
-                                 <strong>{lexiconStats.total - lexiconStats.missing}</strong> {t("lexicon_translated_count")?.replace("{translated} / {total}", `/ ${lexiconStats.total}`) || `/ ${lexiconStats.total} Translated`}
+                                 <strong>{validationStats.total - validationStats.missing}</strong> {
+                                    activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) 
+                                       ? (t("lexicon_translated_count")?.replace("{translated} / {total}", `/ ${validationStats.total}`) || `/ ${validationStats.total} Translated`)
+                                       : `/ ${validationStats.total} Validated`
+                                 }
                               </span>
                            </div>
-                           {lexiconStats.missing > 0 && (
+                           {validationStats.missing > 0 || validationStats.deprecated > 0 ? (
                               <>
                                  <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
-                                 <div className="flex items-center gap-2">
+                                 <div className="flex items-center gap-2 relative group">
+                                    {!activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) && validationStats.deprecated === 0 && (
+                                       <HoverTooltip title="Tip: You can set any value to the JSON 'null' literal (without quotes) to legitimately leave it blank without triggering missing key errors!" variant="info" className="z-[100] bottom-[120%]" />
+                                    )}
                                     <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2 opacity-90 whitespace-nowrap">
                                        <span className="material-symbols-outlined !text-[16px] text-[var(--warning)]">warning</span>
-                                       {t("lexicon_missing_count")?.replace("{missing}", lexiconStats.missing.toString()) || `${lexiconStats.missing} Missing Strings`}
+                                       {validationStats.deprecated > 0 
+                                          ? `${validationStats.deprecated} ${activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? 'Deprecated Strings' : 'Unrecognized Fields'}` 
+                                          : (activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? t("lexicon_missing_count")?.replace("{missing}", validationStats.missing.toString()) || `${validationStats.missing} Missing Strings` : `${validationStats.missing} Missing Schema Keys`)}
                                     </span>
                                  </div>
-                                 {lexiconStats.completelyMissing > 0 ? (
+                                 {validationStats.deprecated > 0 ? (
+                                    <button
+                                       onClick={purgeDeprecatedStrings}
+                                       className="ml-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
+                                    >
+                                       <span className="material-symbols-outlined !text-[14px]">delete</span>
+                                       <span>{t("lexicon_purge_keys") || "Purge Keys"} ({validationStats.deprecated})</span>
+                                    </button>
+                                 ) : validationStats.completelyMissing > 0 ? (
                                     <button
                                        onClick={addMissingStrings}
                                        className="ml-2 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
@@ -1058,7 +1216,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
                                        <span className="material-symbols-outlined !text-[14px]">add_circle</span>
                                        <span>{t("lexicon_add_missing") || "Add Missing Keys"}</span>
                                     </button>
-                                 ) : lexiconStats.missing > 0 ? (
+                                 ) : (
                                     <button
                                        onClick={jumpToNextEmpty}
                                        className="ml-2 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
@@ -1066,18 +1224,9 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
                                        <span>{t("lexicon_next_empty") || "Next Empty"}</span>
                                        <span className="material-symbols-outlined !text-[14px]">arrow_downward</span>
                                     </button>
-                                 ) : null}
+                                 )}
                               </>
-                           )}
-                           {lexiconStats.deprecated > 0 && (
-                              <button
-                                 onClick={purgeDeprecatedStrings}
-                                 className="ml-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
-                              >
-                                 <span className="material-symbols-outlined !text-[14px]">delete</span>
-                                 <span>{t("lexicon_purge_keys") || "Purge Keys"} ({lexiconStats.deprecated})</span>
-                              </button>
-                           )}
+                           ) : null}
                         </div>
                      )}
                      {activeFile && (
@@ -1129,13 +1278,27 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
                            <div className="w-[2px] h-12 bg-[var(--text)]/20 group-hover:bg-[var(--accent)] transition-colors rounded-full" />
                         </div>
                         <div style={{ width: `${100 - splitRatio}%` }} className="flex-1 relative h-full min-w-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] pl-2 transition-none">
-                           <div className="absolute top-4 right-6 z-10 theme-glass-panel px-4 py-1.5 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] shadow-md">en-default.json Reference</div>
+                           <div className="absolute top-4 right-6 z-10 theme-glass-panel px-4 py-1.5 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] shadow-md">{referenceLabel}</div>
                            <Editor
                               height="100%"
                               language="json"
                               theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
-                              value={JSON.stringify(enDefault, null, 2)}
-                              options={{ readOnly: true, minimap: { enabled: false }, fontSize: 13, fontFamily: "var(--font-mono)", padding: { top: 24, bottom: 24 } }}
+                              value={JSON.stringify(referenceData, null, 2)}
+                              onMount={(editor) => {
+                                 editor.onContextMenu((e: any) => {
+                                    if (e.event) {
+                                       if (e.event.browserEvent) e.event.browserEvent.preventDefault();
+                                       window.dispatchEvent(new CustomEvent('sanctuary-monaco-contextmenu', {
+                                          detail: {
+                                             x: e.event.posx,
+                                             y: e.event.posy,
+                                             target: e.target?.element || document.body
+                                          }
+                                       }));
+                                    }
+                                 });
+                              }}
+                              options={{ contextmenu: false, readOnly: true, minimap: { enabled: false }, fontSize: 13, fontFamily: "var(--font-mono)", padding: { top: 24, bottom: 24 } }}
                            />
                         </div>
                      </>
@@ -1156,7 +1319,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
                      <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
                         {problemsList.map((p: any, i: number) => (
                            <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
-                              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("lineage_cancel")}</span>
+                              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("nav_cancel")}</span>
                               <div className="flex flex-col gap-0.5 min-w-0">
                                  <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>
                                  <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
@@ -1206,7 +1369,7 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
                      onClick={() => { setIsCreatePanelOpen(false); setCreateFileName(""); }}
                      className={standardGlassButtonClass}
                   >
-                     {t("lineage_cancel") || "Cancel"}
+                     {t("nav_cancel") || "Cancel"}
                   </button>
                   <button
                      onClick={handleCreateSubmit}
@@ -1219,23 +1382,31 @@ export default function MasonIDE({ vaultPath, isCloudMode }: { vaultPath?: strin
             }
          >
             <div className="p-6 flex flex-col gap-6 h-full">
-               <div className="flex p-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shadow-inner mb-2">
-                  <button
-                     onClick={() => setCreateMode("standard")}
-                     className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${createMode === "standard" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
-                  >
-                     {t("auto_standard_file") || "Standard File"}
-                  </button>
-                  <button
-                     onClick={() => setCreateMode("lexicon")}
-                     className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${createMode === "lexicon" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
-                  >
-                     <span className="material-symbols-outlined !text-[14px] align-middle mr-2">translate</span>
-                     {t("auto_lexicon_pack") || "Lexicon Pack"}
-                  </button>
-               </div>
+               {!isCloudMode && (
+                  <div className="flex p-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shadow-inner mb-2">
+                     <button
+                        onClick={() => setCreateMode("standard")}
+                        className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${createMode === "standard" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
+                     >
+                        {t("auto_standard_file") || "Standard File"}
+                     </button>
+                     <button
+                        onClick={() => setCreateMode("lexicon")}
+                        className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${createMode === "lexicon" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
+                     >
+                        <span className="material-symbols-outlined !text-[14px] align-middle mr-2">translate</span>
+                        {t("auto_lexicon_pack") || "Lexicon Pack"}
+                     </button>
+                  </div>
+               )}
 
-               {createMode === "lexicon" ? (
+               {isCloudMode && (
+                  <div className="text-center text-[var(--accent)] font-black text-[12px] tracking-widest uppercase mb-2">
+                     CREATING {internalCloudTarget === 'sanctuary_lexicons' ? 'MASTER LEXICON' : 'MASTER SCHEMA'}
+                  </div>
+               )}
+
+               {(!isCloudMode && createMode === "lexicon") || (isCloudMode && internalCloudTarget === 'sanctuary_lexicons') ? (
                   <div className="flex gap-4">
                      <div className="flex flex-col gap-2 w-30">
                         <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">{t("label_lang_code") || "Lang Code"}</label>

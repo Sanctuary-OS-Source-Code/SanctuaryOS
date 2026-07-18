@@ -166,7 +166,7 @@ export default function SupportDeskSidePanel({
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error(t("auto_guest_mode_active_uploads_and_global_fla"));
+        throw new Error(t("auto_guest_mode_active_45"));
       }
 
       const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', user.id).single();
@@ -239,7 +239,7 @@ export default function SupportDeskSidePanel({
             <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_lock")}</span>
           </div>
           <h2 className="text-2xl font-black uppercase tracking-tighter text-[var(--text)]">{t("access_denied")}</h2>
-          <p className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest">{isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_uploads_and_global_fla")}</p>
+          <p className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest">{isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45")}</p>
         </div>
       </SidePanel>
     );
@@ -287,7 +287,7 @@ export default function SupportDeskSidePanel({
                 </div>
                 {policyViolations.length > 0 && (
                     <div className="bg-black/30 p-4 border-t border-rose-500/20 flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                        <span className="text-[9px] font-black tracking-widest text-rose-400/80 uppercase">{t("auto_restricted_artifacts_detected")}</span>
+                        <span className="text-[9px] font-black tracking-widest text-rose-400/80 uppercase">{t("auto_restricted_artifacts_detected_34")}</span>
                         <div className="flex flex-col gap-2">
                             {policyViolations.map((mod, i) => (
                                 <div key={i} className="flex items-center gap-2 text-rose-200/90 text-[10px] font-mono bg-rose-500/10 py-1.5 px-3 rounded-md border border-rose-500/20">
@@ -312,7 +312,7 @@ export default function SupportDeskSidePanel({
 
           {String(activeCategory?.show_title_box) !== "false" && (
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("support_ticket_title")}</label>
+              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("ql_support")}</label>
               <input
                 type="text"
                 value={title}
@@ -325,7 +325,7 @@ export default function SupportDeskSidePanel({
 
           {activeCategory?.requires_target_mod && (
             <div className="flex flex-col gap-2 relative z-[60]">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("support_target_mod_label")}</label>
+              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("target_artifact")}</label>
               <ModSearchDropdown
                 modList={modList}
                 placeholder={t("support_placeholder_mod_uuid")}

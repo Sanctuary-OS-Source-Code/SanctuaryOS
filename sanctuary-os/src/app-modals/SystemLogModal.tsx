@@ -88,7 +88,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
                          {idx < fileNames.length - 1 && <span className="opacity-50">,</span>}
                       </React.Fragment>
                    ))}
-                   {otherFilesPart} <span className="opacity-80 ml-1">{isPlural ? 'have' : 'has'} {t("auto_cached_changes_from_your_last_session")}</span>
+                   {otherFilesPart} <span className="opacity-80 ml-1">{isPlural ? 'have' : 'has'} {t("auto_cached_changes_from_42")}</span>
                 </span>
              );
              if (logIcon === 'terminal') logIcon = 'save';

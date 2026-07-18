@@ -38,7 +38,7 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
             onClick={onClose} 
             className={standardButtonClass}
           >
-            {t("ui_btn_close")}
+            {t("btn_close")}
           </button>
           <button 
             onClick={() => { navigator.clipboard.writeText(code); useStore.getState().pushStatus(t("alert_copied")); }} 

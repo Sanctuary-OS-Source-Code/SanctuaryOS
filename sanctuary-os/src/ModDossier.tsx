@@ -217,12 +217,12 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
     }
 
     if (!targetDbId) {
-      useStore.getState().pushStatus(t("auto_cannot_flag_local_only_mods"));
+      useStore.getState().pushStatus(t("auto_cannot_flag_local_32"));
       return;
     }
 
     if (!session) {
-      useStore.getState().pushStatus(t("auto_guest_mode_active_uploads_and_global_fla"));
+      useStore.getState().pushStatus(t("auto_guest_mode_active_45"));
       return;
     }
 
@@ -258,7 +258,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
   const handleSubmitToVault = async () => {
     if (!session) {
-      useStore.getState().pushStatus(t("auto_guest_mode_active_uploads_and_global_fla"));
+      useStore.getState().pushStatus(t("auto_guest_mode_active_45"));
       return;
     }
 
@@ -293,7 +293,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
     if (error) {
       useStore.getState().pushStatus(`Failed to submit to Vault: ${error.message}`);
     } else {
-      useStore.getState().pushStatus(t("auto_successfully_submitted_to_vault_for_arch"));
+      useStore.getState().pushStatus(t("auto_successfully_submitted_to_45"));
       setEditMode(false);
     }
     setIsSaving(false);
@@ -464,25 +464,25 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
               <div className="col-span-2 md:col-span-2 md:row-span-2 flex flex-col gap-2 p-8 theme-glass-panel backdrop-blur-3xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-[color-mix(in_srgb,var(--bg)_50%,transparent)] transition-all hover:scale-[1.01] shadow-2xl relative overflow-hidden group">
                 <div className="absolute -right-6 -bottom-6 opacity-10 group-hover:scale-110 transition-transform duration-700 pointer-events-none mix-blend-plus-lighter">
-                  <span className="material-symbols-outlined" style={{ fontSize: '200px' }}>{mod.status === (t("status_verified")) ? "verified" : mod.status === (t("status_unverified")) ? "warning" : "online_prediction"}</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '200px' }}>{mod.status === (t("verified")) ? "verified" : mod.status === (t("unverified")) ? "warning" : "online_prediction"}</span>
                 </div>
                 <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] relative z-10 mb-1">{t("system_status")}</p>
                 <div className="relative z-10">
                   <div className={`backdrop-blur-xl border px-4 py-2.5 rounded-[var(--radius)] shadow-[0_10px_30px_rgba(0,0,0,0.3)] flex items-center gap-3 transition-all ${(() => {
                     const s = (mod.status || "");
-                    if (s === (t("status_verified"))) return "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)]";
-                    if (s === (t("status_unverified"))) return "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)]";
+                    if (s === (t("verified"))) return "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)]";
+                    if (s === (t("unverified"))) return "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)]";
                     return "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]";
                   })()}`} title={mod.status_reason || undefined}>
 
-                    <span className={`text-xs font-black uppercase tracking-widest truncate opacity-90 ${mod.status === (t("status_verified")) ? "text-[var(--success)]" : mod.status === (t("status_unverified")) ? "text-[var(--danger)]" : "text-[var(--accent)]"}`}>
+                    <span className={`text-xs font-black uppercase tracking-widest truncate opacity-90 ${mod.status === (t("verified")) ? "text-[var(--success)]" : mod.status === (t("unverified")) ? "text-[var(--danger)]" : "text-[var(--accent)]"}`}>
                       {(() => {
                         const raw = (mod.status || "");
                         const cleaned = raw.replace(/[\[\]]/g, "");
                         if (cleaned.toLowerCase() === 'broken') return mod.status_reason ? `BROKEN: ${mod.status_reason}` : t("status_broken");
                         if (cleaned.toLowerCase().includes('sandbox')) return t("filter_dev") || "SANDBOX";
                         const translated = cleaned.includes('status_') ? t(cleaned) : cleaned.replace(/_/g, " ");
-                        return translated || t("status_local_only") || "LOCAL";
+                        return translated || t("unlinked_badge") || "LOCAL";
                       })()}
                     </span>
                   </div>
@@ -501,7 +501,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
               </div>
 
               <div className="col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all hover:bg-white/5 hover:scale-[1.02] shadow-xl">
-                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("label_compliance")}</p>
+                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("tab_compliance")}</p>
                 <div className="flex items-center gap-2 justify-start max-w-full">
                   <span className={`text-xs font-black uppercase tracking-widest truncate ${mod.compliance_tier === 1 ? 'theme-text-warning' : 'text-[var(--text)] opacity-90'}`}>
                     {mod.compliance_tier === 1 ? t("tier_nsfw") : (mod.compliance_tier === 2 ? t("tier_adult") : t("tier_clean"))}
@@ -661,18 +661,18 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
                             <div className={`backdrop-blur-xl border px-2 py-0.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all shrink-0 ${(() => {
                               const s = (kid.status || "");
-                              if (s === (t("status_verified"))) return "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)]";
-                              if (s === (t("status_unverified"))) return "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]";
+                              if (s === (t("verified"))) return "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)]";
+                              if (s === (t("unverified"))) return "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]";
                               return "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
                             })()}`}>
 
-                              <span className={`text-[7px] font-black uppercase tracking-widest truncate max-w-[140px] ${kid.status === (t("status_verified")) ? "text-[var(--success)]" : kid.status === (t("status_unverified")) ? "text-[var(--danger)]" : "text-[var(--accent)]"}`}>
+                              <span className={`text-[7px] font-black uppercase tracking-widest truncate max-w-[140px] ${kid.status === (t("verified")) ? "text-[var(--success)]" : kid.status === (t("unverified")) ? "text-[var(--danger)]" : "text-[var(--accent)]"}`}>
                                 {(() => {
                                   const raw = (kid.status || "");
                                   const cleaned = raw.replace(/[\[\]]/g, "");
                                   if (cleaned.toLowerCase() === 'broken') return t("status_broken");
                                   const translated = cleaned.includes('status_') ? t(cleaned) : cleaned.replace(/_/g, " ");
-                                  return translated || t("status_local_only") || "LOCAL";
+                                  return translated || t("unlinked_badge") || "LOCAL";
                                 })()}
                               </span>
                             </div>
@@ -791,13 +791,13 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1 z-10">{t("system_status")}</p>
                     <div className="relative z-10 flex items-center gap-2">
 
-                      <span className={`text-xs font-black uppercase tracking-widest truncate ${selectedKid.status === (t("status_verified")) ? "text-[var(--success)]" : selectedKid.status === (t("status_unverified")) ? "text-[var(--danger)]" : "text-[var(--accent)]"}`}>
+                      <span className={`text-xs font-black uppercase tracking-widest truncate ${selectedKid.status === (t("verified")) ? "text-[var(--success)]" : selectedKid.status === (t("unverified")) ? "text-[var(--danger)]" : "text-[var(--accent)]"}`}>
                         {(() => {
                           const raw = (selectedKid.status || "");
                           const cleaned = raw.replace(/[\[\]]/g, "");
                           if (cleaned.toLowerCase() === 'broken') return selectedKid.status_reason ? `BROKEN: ${selectedKid.status_reason}` : t("status_broken");
                           const translated = cleaned.includes('status_') ? t(cleaned) : cleaned.replace(/_/g, " ");
-                          return translated || t("status_local_only") || "LOCAL";
+                          return translated || t("unlinked_badge") || "LOCAL";
                         })()}
                       </span>
                     </div>

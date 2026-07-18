@@ -44,10 +44,10 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
         const matchesSubType =
           activeSubType === "ALL" || subType === activeSubType.toUpperCase();
         const rawStatus = (m.status || "").toLowerCase();
-        const strVerified = (t("status_verified")).toLowerCase();
-        const strReview = (t("status_under_review")).toLowerCase();
-        const strUnverified = (t("status_unverified")).toLowerCase();
-        const strLocal = (t("status_local_only")).toLowerCase();
+        const strVerified = (t("verified")).toLowerCase();
+        const strReview = (t("status_dd_review")).toLowerCase();
+        const strUnverified = (t("unverified")).toLowerCase();
+        const strLocal = (t("unlinked_badge")).toLowerCase();
         let matchesStatus = false;
         if (filterStatus === "ALL") {
           matchesStatus = true;

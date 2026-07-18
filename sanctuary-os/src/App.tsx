@@ -98,7 +98,7 @@ function App() {
     const alias =
       versionIndex > 0 ? parts.slice(0, versionIndex).join(" ") : parts[0];
     return {
-      alias: alias || t("unknown") || "Unknown",
+      alias: alias || t("vlocal") || "Unknown",
       version:
         versionPart === "LEGACY"
           ? isEngine
@@ -910,7 +910,7 @@ function App() {
         const cloudQueue = data.map((dbMod: any) => ({
           name: dbMod.mods.name,
           hash: dbMod.dna_hash,
-          status: t("status_under_review"),
+          status: t("status_dd_review"),
           color: "var(--warning)",
           displayName: dbMod.mods.name,
           isSynced: true,
@@ -1141,7 +1141,7 @@ function App() {
           .from("mods")
           .insert([
             {
-              name: localA?.name || t("unknown") || "Unknown",
+              name: localA?.name || t("vlocal") || "Unknown",
               status: "unverified",
             },
           ])
@@ -1168,7 +1168,7 @@ function App() {
           .from("mods")
           .insert([
             {
-              name: localB?.name || t("unknown") || "Unknown",
+              name: localB?.name || t("vlocal") || "Unknown",
               status: "unverified",
             },
           ])
@@ -1474,7 +1474,7 @@ function App() {
       );
       const labMod = {
         ...mod,
-        status: t("status_under_review"),
+        status: t("status_dd_review"),
         color: "var(--warning)",
         isSynced: true,
       };
@@ -1631,7 +1631,7 @@ function App() {
       const finalStatus = testErrorFound ? "broken" : "verified";
       const uiStatus = testErrorFound
         ? t("status_broken")
-        : t("status_verified");
+        : t("verified");
       const uiColor = testErrorFound ? "var(--danger)" : "var(--success)";
       const { data: verData } = await supabase
         .from("mod_versions")

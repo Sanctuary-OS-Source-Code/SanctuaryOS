@@ -114,7 +114,7 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
     <SidePanel
       isOpen={true}
       onClose={onClose}
-      title={t("notif_title")}
+      title={t("tab_notifs")}
       icon={t("icon_notifications")}
       backdropZ="z-[15000]"
       panelZ="z-[15001]"
@@ -166,7 +166,7 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">
                   <span className={`text-[10px] font-black uppercase tracking-widest ${n.is_read ? 'text-[var(--text)] opacity-80' : 'theme-text-accent'}`}>
-                    {n.type === "reply" ? (t("ui_btn_reply")) : n.type === "support_reply" ? (t("notif_type_support")) : n.type === "new_post" ? (t("post_broadcast")) : (t("wayfinder_system"))}
+                    {n.type === "reply" ? (t("ui_btn_reply")) : n.type === "support_reply" ? (t("notif_type_support")) : n.type === "new_post" ? (t("post_broadcast")) : (t("category_system"))}
                   </span>
                 </div>
                 <div className="flex items-center gap-4">

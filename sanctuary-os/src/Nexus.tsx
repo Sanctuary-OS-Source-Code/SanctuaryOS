@@ -204,7 +204,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           id: b.id,
           name: b.name,
           author: masonData?.find((m: any) => m.id === b.mason_id)?.name || "Citizen",
-          description: (b.artifacts?.length || 0) + " " + (t("tab_mods")),
+          description: (b.artifacts?.length || 0) + " " + (t("items")),
           created_at: b.created_at,
           asset_type: 'blueprint',
           json_data: b
@@ -398,7 +398,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
       let parsed = typeof templateJson === 'string' ? JSON.parse(templateJson) : templateJson;
       const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
-      const templateId = displayData?.template_id || "unknown";
+      const templateId = displayData?.template_id || "vlocal";
 
       const templatesDir = `${vaultPath}\\Data\\Templates`;
       if (!(await exists(templatesDir))) {
@@ -1010,7 +1010,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-lg transition-all group-hover/badge:bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]">
                               <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] drop-shadow-sm">{t("icon_layers")}</span>
                               <span className="text-[9px] font-black text-[var(--text)] uppercase tracking-widest drop-shadow-sm">
-                                {mod.familyCount || (mod.flavors?.length || 0)} {t("tab_mods")}
+                                {mod.familyCount || (mod.flavors?.length || 0)} {t("items")}
                               </span>
                             </div>
                           </div>
@@ -1082,7 +1082,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 </div>
                 <input
                   type="text"
-                  placeholder={marketTab === 'LEXICONS' ? (t("search_lexicons")) : marketTab === 'TEMPLATES' ? (t("search_templates")) : marketTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_chameleons"))}
+                  placeholder={marketTab === 'LEXICONS' ? (t("search_lexicons")) : marketTab === 'TEMPLATES' ? (t("search_tmpl")) : marketTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_chameleons"))}
                   value={assetSearchQuery}
                   onChange={(e) => {
                     setAssetSearchQuery(e.target.value);
@@ -1114,7 +1114,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       value={languageFilter}
                       onChange={(val: string[]) => { setLanguageFilter(val[0]); setCurrentPage(1); }}
                       options={[
-                        { id: "all", label: marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("tab_templates") || "Templates") },
+                        { id: "all", label: marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates") || "Templates") },
                         ...availableLanguages.map(l => ({ id: l, label: l }))
                       ]}
                     />
@@ -1185,7 +1185,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       </span>
                       <div className="absolute top-4 right-4 flex gap-2 z-30">
                         <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                          {marketTab === 'BLUEPRINTS' ? (t("type_blueprint")) : marketTab === 'CHAMELEONS' ? (t("type_theme")) : marketTab === 'TEMPLATES' ? (t("type_template")) : (t("type_lexicon"))}
+                          {marketTab === 'BLUEPRINTS' ? (t("type_blueprint")) : marketTab === 'CHAMELEONS' ? (t("type_theme")) : marketTab === 'TEMPLATES' ? (t("type_template")) : (t("tab_lexicons"))}
                         </span>
                       </div>
                     </div>
@@ -1220,7 +1220,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           <div className="flex flex-wrap gap-1">
                             {marketTab !== 'MODS' && marketTab !== 'BLUEPRINTS' && (
                               <span className="text-[10px] font-bold text-[var(--accent)] opacity-80 uppercase tracking-widest bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2 py-0.5 rounded-md">
-                                {asset.asset_type === 'lexicon' ? (t("tab_lexicons")) : asset.asset_type === 'workbench_template' ? (t("tab_templates")) : (t("type_theme"))}
+                                {asset.asset_type === 'lexicon' ? (t("tab_lexicons")) : asset.asset_type === 'workbench_template' ? (t("ql_templates")) : (t("type_theme"))}
                               </span>
                             )}
                             {getAssetDisplayVersion(asset) && (
@@ -1292,7 +1292,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       : marketTab === 'TEMPLATES'
                         ? (t("empty_title_templates"))
                         : marketTab === 'BLUEPRINTS'
-                          ? (t("empty_title_blueprints"))
+                          ? (t("bp_no_blueprints_found"))
                           : (t("empty_title_lexicons"))}
                   </p>
                   <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("empty_desc")}</p>

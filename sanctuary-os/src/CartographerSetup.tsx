@@ -7,7 +7,7 @@ import { useTheme } from "./ThemeContext";
 import { CustomDropdown } from "./shared";
 
 export function CartographerSetup() {
-  const { t, activeLang, setActiveLang, registry } = useLexicon();
+  const { t, activeLang, setActiveLang, registry, lexiconMeta } = useLexicon();
   const { CORE_THEMES, activeThemeId, setActiveThemeId } = useTheme();
   const setLivePath = useStore((state) => state.setLivePath);
   const setModsPath = useStore((state) => state.setModsPath);
@@ -104,13 +104,25 @@ export function CartographerSetup() {
                   disableTint={true}
                   value={activeLang}
                   onChange={(v: string[]) => setActiveLang(v[0])}
-                  options={[
-                    { id: 'en-sanctuary', label: 'English (Sanctuary)' },
-                    { id: 'en-default', label: 'English (Default)' },
-                    { id: 'en-sims', label: 'English (Simlish)' },
-                    { id: 'de-default', label: 'German (Default)' },
-                    ...Object.keys(registry || {}).map(k => ({ id: k, label: `Custom: ${k}` }))
-                  ]}
+                  options={
+                    lexiconMeta && lexiconMeta.length > 0
+                      ? [
+                          ...lexiconMeta.map((m: any) => ({
+                            id: m.id,
+                            label: `${m.name} [${m.badge}]`
+                          })),
+                          ...Object.keys(registry || {})
+                            .filter(k => !lexiconMeta.find((m: any) => m.id === k))
+                            .map(k => ({ id: k, label: `Custom: ${k}` }))
+                        ]
+                      : [
+                          { id: 'en-sanctuary', label: 'English (Sanctuary) [Sanctuary]' },
+                          { id: 'en-default', label: 'English (Default) [Sanctuary]' },
+                          { id: 'en-sims', label: 'English (Simlish) [Community]' },
+                          { id: 'de-default', label: 'German (Default) [Community]' },
+                          ...Object.keys(registry || {}).map(k => ({ id: k, label: `Custom: ${k}` }))
+                        ]
+                  }
                 />
               </div>
               <div className="flex flex-col gap-1.5 relative z-50">
@@ -164,7 +176,7 @@ export function CartographerSetup() {
               </div>
               <h5 className="text-sm font-bold mb-2 text-[var(--text)]">{t("comms_handshake") || "Awaiting Cryptographic Handshake."}</h5>
               <p className="text-xs text-[var(--subtext)] leading-relaxed mb-6 line-clamp-2">
-                 {t("auto_guest_mode_active_uploads_and_global_fla") || "Guest mode active. Uploads and global flags are disabled."}
+                 {t("auto_guest_mode_active_45") || "Guest mode active. Uploads and global flags are disabled."}
               </p>
               <div className="flex items-center gap-3">
                  <button className="px-5 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-lg text-[10px] font-black uppercase tracking-widest shadow-[inset_0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent),0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 backdrop-blur-md">

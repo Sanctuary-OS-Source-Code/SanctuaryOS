@@ -108,7 +108,7 @@ export function SharedMetadataEditorSidePanel({
             {t("nav_cancel")}
           </button>
           <button onClick={handleCommitChanges} disabled={isCommitting} className={standardAccentGlassButtonClass}>
-            {isCommitting ? (t("dossier_btn_saving")) : (t("registry_commit_changes"))}
+            {isCommitting ? (t("dossier_btn_saving")) : (t("ui_btn_commit"))}
           </button>
         </div>
       }
@@ -129,7 +129,7 @@ export function SharedMetadataEditorSidePanel({
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
             <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-              {t("registry_meta")}
+              {t("metadata")}
             </h4>
             
             <div className="flex flex-col gap-2 relative z-10">
@@ -139,7 +139,7 @@ export function SharedMetadataEditorSidePanel({
 
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_select")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("architect")}</label>
             <div className="flex gap-2 relative">
               <div className="flex-1 min-w-0">
                 <CustomMasonDropdown 
@@ -153,7 +153,7 @@ export function SharedMetadataEditorSidePanel({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
               <CustomClassificationDropdown value={modForm.category_override || "Script"} onChange={(newType: string) => setModForm({...modForm, category_override: newType})} />
             </div>
             
@@ -164,7 +164,7 @@ export function SharedMetadataEditorSidePanel({
             
             <div className="flex flex-col gap-2">
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
-              <input value={modForm.sub_type || ""} onChange={e => setModForm({...modForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_object_cas")} />
+              <input value={modForm.sub_type || ""} onChange={e => setModForm({...modForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
             </div>
           </div>
 

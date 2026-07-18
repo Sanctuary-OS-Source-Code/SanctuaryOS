@@ -41,7 +41,7 @@ export function VaultToolsSidePanel({
                  <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--accent)]">
                    <span className="material-symbols-outlined !text-[20px]">{t("icon_layers")}</span>
                  </div>
-                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("active_blueprint")}</h3>
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("type_blueprint")}</h3>
                </div>
                
                <div className="flex gap-2 relative z-10">
@@ -57,7 +57,7 @@ export function VaultToolsSidePanel({
                    onClick={() => equipPlaySet && equipPlaySet(playSets[activePlaySetIndex]?.name)}
                    className="h-14 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] text-[10px] font-black uppercase tracking-widest shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-2 shrink-0"
                  >
-                   <span className="material-symbols-outlined !text-[18px]">{t("icon_check_circle")}</span> {t("ui_btn_save")}
+                   <span className="material-symbols-outlined !text-[18px]">{t("icon_check_circle")}</span> {t("auto_save")}
                  </button>
                </div>
              </div>
@@ -73,7 +73,7 @@ export function VaultToolsSidePanel({
              </div>
              
              <div className="flex flex-col gap-3 relative z-10">
-               <SidebarActionButton id="REFRESH" icon="refresh" label={t("btn_refresh")} onClick={() => { runRadarSweep(true); setIsSidePanelOpen(false); }} active={false} />
+               <SidebarActionButton id="REFRESH" icon="refresh" label={t("btn_radar")} onClick={() => { runRadarSweep(true); setIsSidePanelOpen(false); }} active={false} />
                <SidebarActionButton 
                  id="SELECT_ASSETS" 
                  icon={isBulkMode ? "cancel" : "checklist"} 
@@ -242,7 +242,7 @@ export function VaultLocalFolderEditorSidePanel({
                        }}
                        className="h-14 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] font-black shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center shrink-0 uppercase tracking-widest text-[10px]"
                      >
-                       {t("ui_btn_save")}
+                       {t("auto_save")}
                      </button>
                    </div>
                  </div>

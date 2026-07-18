@@ -25,7 +25,7 @@ export default function BlueprintSwapSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("bp_blueprint_swap")}
+      title={t("playsets_title")}
       subtitle={t("bp_available_blueprints")}
       widthClass="w-[550px]"
       icon={t("icon_map")}
@@ -82,7 +82,7 @@ export default function BlueprintSwapSidePanel({
                       <div className="flex items-center gap-4 mt-1">
                         <span className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-colors ${isActive ? 'theme-text-accent opacity-80' : 'text-[var(--subtext)] opacity-50'}`}>
                           <span className="material-symbols-outlined !text-[14px]">{t("icon_architecture")}</span>
-                          {bp.mods?.length || 0} {t("tab_mods")}
+                          {bp.mods?.length || 0} {t("items")}
                         </span>
                       </div>
                     </div>

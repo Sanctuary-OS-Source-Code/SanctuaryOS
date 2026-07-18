@@ -165,7 +165,7 @@ export const isVersionMatch = (reqs: string[] | string, userVer: string) => {
   return reqArray.some(req => {
     if (!req) return false;
     const cleanReq = req.replace(/^V\.?/i, '').trim();
-    if (cleanReq.toLowerCase() === 'unknown' || cleanReq.toLowerCase() === 'any' || cleanReq.toLowerCase() === 'all') return true;
+    if (cleanReq.toLowerCase() === 'vlocal' || cleanReq.toLowerCase() === 'any' || cleanReq.toLowerCase() === 'all') return true;
     return userVerArray.some(uv => uv === cleanReq || uv.startsWith(cleanReq + "."));
   });
 };
@@ -496,7 +496,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
 
   const isActive = !disableTint && (multiSelect
     ? selectedValues.length > 0
-    : value !== undefined && value !== null && String(value).trim() !== "" && String(value).toLowerCase() !== "all" && String(value).toLowerCase() !== "any" && String(value).toLowerCase() !== "unknown");
+    : value !== undefined && value !== null && String(value).trim() !== "" && String(value).toLowerCase() !== "all" && String(value).toLowerCase() !== "any" && String(value).toLowerCase() !== "vlocal");
 
   return (
     <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className}`}>
@@ -633,7 +633,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
               }}
               className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black uppercase text-emerald-400 cursor-pointer"
             >
-              + {t("shared_add_prefix")} "{query}"
+              + {t("cc_btn_add")} "{query}"
             </button>
           )}
         </div>,

@@ -292,8 +292,8 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
                 if (cleaned.toUpperCase().includes('SANDBOX')) cleaned = 'SANDBOX';
                 if (isSelfBroken) return t("status_broken");
                 if (cleaned.toLowerCase() === 'broken' && !isSelfBroken) return t("badge_stable");
-                if (cleaned.toLowerCase() === 'unverified') return t("status_unverified");
-                if (cleaned.toLowerCase() === 'unstable') return t("status_unstable");
+                if (cleaned.toLowerCase() === 'unverified') return t("unverified");
+                if (cleaned.toLowerCase() === 'unstable') return t("label_unstable");
                 return cleaned.toUpperCase();
               })()}
             </span>

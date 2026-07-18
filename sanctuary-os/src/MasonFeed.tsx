@@ -31,7 +31,7 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
-    if (!userId) return useStore.getState().pushStatus(t("auto_guest_mode_active_uploads_and_global_fla"));
+    if (!userId) return useStore.getState().pushStatus(t("auto_guest_mode_active_45"));
     
     const { error } = await supabase.from('mason_post_likes').insert({ post_id: post.id, user_id: userId });
     let increment = 1;

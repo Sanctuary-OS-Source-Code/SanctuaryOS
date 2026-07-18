@@ -26,7 +26,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
             </span>
           </div>
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl">
-            {t("notif_title")}
+            {t("tab_notifs")}
           </div>
         </div>
 
@@ -50,7 +50,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
         <span className={`material-symbols-outlined text-sm shrink-0 opacity-70 ${statusIconClass}`}>
           {isErrorStatus ? 'error' : isSuccessStatus ? 'check_circle' : 'terminal'}
         </span>
-        <span className={`${statusTextClass} opacity-50 shrink-0`}>{t("sys_log")} </span>
+        <span className={`${statusTextClass} opacity-50 shrink-0`}>{t("status")} </span>
         <span className={`${isErrorStatus ? 'text-red-100' : isSuccessStatus ? 'text-emerald-100' : 'text-[var(--text)]'} font-bold truncate flex-1 flex items-center drop-shadow-md`}>
           {(() => {
             if (typeof status !== 'string') return status;
@@ -72,7 +72,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           <div className={`flex items-center gap-4 h-full pl-6 shrink-0 w-80 animate-in fade-in duration-300 ${isErrorStatus ? 'border-red-500/20' : isSuccessStatus ? 'border-emerald-500/20' : 'border-white/5'}`}>
             <div className="flex items-center gap-2">
               <span className={`material-symbols-outlined text-lg animate-spin-slow ${statusIconClass}`}>{t("icon_radar")}</span>
-              <span className={`text-[9px] font-black uppercase tracking-widest ${isErrorStatus ? 'text-red-300' : isSuccessStatus ? 'text-emerald-300' : 'text-[var(--text)]'}`}>{t("btn_refresh")}</span>
+              <span className={`text-[9px] font-black uppercase tracking-widest ${isErrorStatus ? 'text-red-300' : isSuccessStatus ? 'text-emerald-300' : 'text-[var(--text)]'}`}>{t("btn_radar")}</span>
             </div>
             <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isErrorStatus ? 'bg-red-900/50' : isSuccessStatus ? 'bg-emerald-900/50' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
               <div className={`h-full transition-all duration-300 relative ${statusAccentClass}`} style={{ width: `${scanProgress?.total > 0 ? (scanProgress.current / scanProgress.total) * 100 : 0}%` }}>

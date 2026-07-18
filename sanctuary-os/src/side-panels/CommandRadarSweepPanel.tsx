@@ -19,8 +19,8 @@ export default function CommandRadarSweepPanel({
     return (modList || []).filter((m: any) => activeSet.mods.includes(m.name));
   }, [modList, activeSet]);
 
-  const verifiedCount = React.useMemo(() => relevantMods.filter((m: any) => m.status === t("status_verified") || String(m.status).toLowerCase() === 'verified').length, [relevantMods, t]);
-  const unverifiedCount = React.useMemo(() => relevantMods.filter((m: any) => m.status === t("status_unverified") || String(m.status).toLowerCase() === 'unverified' || !m.status).length, [relevantMods, t]);
+  const verifiedCount = React.useMemo(() => relevantMods.filter((m: any) => m.status === t("verified") || String(m.status).toLowerCase() === 'verified').length, [relevantMods, t]);
+  const unverifiedCount = React.useMemo(() => relevantMods.filter((m: any) => m.status === t("unverified") || String(m.status).toLowerCase() === 'unverified' || !m.status).length, [relevantMods, t]);
   const lexiconCount = React.useMemo(() => Object.keys(registry || {}).length + 3, [registry]);
   const chameleonCount = React.useMemo(() => Object.keys(customThemes || {}).length + Object.keys(CORE_THEMES || {}).length, [customThemes, CORE_THEMES]);
   
@@ -190,12 +190,12 @@ export default function CommandRadarSweepPanel({
               </button>
               <button onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'VERIFIED' } })); }} className="theme-glass-inner p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-white/5 active:scale-95 transition-all">
                  <span className="material-symbols-outlined !text-lg opacity-50 theme-text-success">{t("icon_verified_user")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("status_verified")}</span>
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("verified")}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">{verifiedCount}</span>
               </button>
               <button onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'UNVERIFIED' } })); }} className="theme-glass-inner p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-white/5 active:scale-95 transition-all">
                  <span className="material-symbols-outlined !text-lg opacity-50 theme-text-warning">{t("icon_help")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("status_unverified")}</span>
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("unverified")}</span>
                  <span className="text-sm font-black uppercase text-[var(--text)]">{unverifiedCount}</span>
               </button>
             </div>

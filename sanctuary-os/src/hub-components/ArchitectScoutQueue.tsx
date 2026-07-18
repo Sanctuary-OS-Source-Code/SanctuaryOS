@@ -216,7 +216,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
             <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_search")}</span>
             </div>
-            <span className="truncate">{t("scout_queue")}</span>
+            <span className="truncate">{t("reviewing")}</span>
           </h2>
           <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
             <div className="relative flex-1 max-w-[300px]">
@@ -228,7 +228,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                 className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
               />
             </div>            <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex mr-4">
-              <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_pending")}</button>
+              <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("pending")}</button>
               <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_completed")}</button>
             </div>
           </div>
@@ -313,7 +313,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_select")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("architect")}</label>
                       <div className="flex gap-2 relative">
                         <div className="flex-1 min-w-0">
                           <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id: string) => setEditForm({...editForm, mason_id: id})} />
@@ -327,7 +327,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
     
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
                       <CustomClassificationDropdown value={editForm.category_override} onChange={(newType: string) => setEditForm({...editForm, category_override: newType})} />
                     </div>
                     
@@ -337,7 +337,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                       </div>
                       <div className="flex flex-col gap-2">
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
-                      <input value={editForm.sub_type} onChange={e => setEditForm({...editForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("auto_e_g_tuning_object_cas")} />
+                      <input value={editForm.sub_type} onChange={e => setEditForm({...editForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("auto_e_g_tuning_26")} />
                     </div>
                   </div>
                 </div>
@@ -368,7 +368,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                 <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none rounded-2xl" />
                   <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-                    <span className="material-symbols-outlined !text-[14px]">{t("status_verified")}</span>
+                    <span className="material-symbols-outlined !text-[14px]">{t("verified")}</span>
                     {t("compliance_tier")}
                   </h4>
 

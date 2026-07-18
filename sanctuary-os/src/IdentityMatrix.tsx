@@ -120,7 +120,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
               disabled={isSubmitting || (isBanned && !editReason.trim()) || (isCommBanned && !editCommReason.trim()) || (!isWayfinder && profile?.role === 'wayfinder')}
               className={(isBanned || isCommBanned) ? standardDangerButtonClass : standardSuccessButtonClass}
             >
-              {isSubmitting ? t("identities_updating") : t("registry_commit_changes")}
+              {isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
             </button>
           </div>
         </div>
@@ -260,7 +260,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
 
   const handleOpenPanel = (p: any) => {
     if (!isWayfinder && p.role === 'wayfinder') {
-      useStore.getState().pushStatus(t("auto_you_cannot_edit_wayfinder_identities_fro"));
+      useStore.getState().pushStatus(t("auto_you_cannot_edit_45"));
       return;
     }
     setSelectedProfile(p);

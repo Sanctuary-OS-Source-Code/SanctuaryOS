@@ -140,7 +140,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         } else if (isHash) {
           const { data: newMod, error: modErr } = await supabase.from('mods').insert({ name: 'Manual Flag (Hash)', compliance_tier: manualTier }).select('id').single();
           if (modErr) throw modErr;
-          const { error: verErr } = await supabase.from('mod_versions').upsert({ mod_id: newMod.id, dna_hash: q, version_label: 'unknown' }, { onConflict: 'dna_hash' });
+          const { error: verErr } = await supabase.from('mod_versions').upsert({ mod_id: newMod.id, dna_hash: q, version_label: 'vlocal' }, { onConflict: 'dna_hash' });
           if (verErr) throw verErr;
           targetId = newMod.id;
           targetName = q;
@@ -331,7 +331,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                     {manualSearchResults.map(m => (
                       <button key={m.id} onClick={() => { setManualSelectedMod(m); setIsDropdownOpen(false); }} className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col group transition-all">
                         <span className="text-[11px] font-black uppercase text-[var(--text)] group-hover:theme-text-accent truncate">{m.name}</span>
-                        <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">{m.master_author || t("unknown") || "Unknown"}</span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">{m.master_author || t("vlocal") || "Unknown"}</span>
                       </button>
                     ))}
                   </div>
@@ -348,7 +348,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
             )}
 
             <div className="flex flex-col gap-2 relative z-30 mt-4">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("comp_reason")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("reason")}</label>
               <textarea 
                   value={registryReason}
                   onChange={e => setRegistryReason(e.target.value)}
@@ -397,7 +397,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("comp_reason")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("reason")}</label>
                 <textarea 
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
@@ -419,7 +419,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                 
                 {editingId && (
                   <button onClick={resetHeuristicForm} className="ml-auto text-[10px] font-black uppercase text-[var(--subtext)] hover:text-white px-3 py-1 rounded-lg border border-white/5 hover:bg-white/5 transition-all">
-                    {t("lineage_cancel")}
+                    {t("nav_cancel")}
                   </button>
                 )}
               </div>

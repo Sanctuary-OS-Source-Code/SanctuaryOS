@@ -43,7 +43,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
       if (mod) {
         setActiveMod(mod);
       } else {
-        useStore.getState().pushStatus(t("auto_artifact_not_found_in_your_registry_or_m"), "error");
+        useStore.getState().pushStatus(t("auto_artifact_not_found_45"), "error");
       }
       if (onClearActiveMod) onClearActiveMod();
     }
@@ -168,7 +168,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
               <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                {t("registry_meta")}
+                {t("metadata")}
               </h4>
               
               <div className="flex flex-col gap-2 relative z-10">
@@ -180,7 +180,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
                   <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(val: string) => setActiveMod({...activeMod, category_override: val})} />
                 </div>
                 
@@ -191,7 +191,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
                 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
-                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_object_cas")} />
+                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
                 </div>
               </div>
 
@@ -516,7 +516,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
               {t("nav_cancel")}
             </button>
             <button onClick={handleCommitChanges} disabled={isCommitting} className={standardAccentGlassButtonClass}>
-              {isCommitting ? (t("dossier_btn_saving")) : (t("registry_commit_changes"))}
+              {isCommitting ? (t("dossier_btn_saving")) : (t("ui_btn_commit"))}
             </button>
           </div>
         }
@@ -527,7 +527,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
               <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                {t("registry_meta")}
+                {t("metadata")}
               </h4>
               
               <div className="flex flex-col gap-2 relative z-10">
@@ -537,7 +537,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
 
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_select")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("architect")}</label>
                   <div className="flex gap-2 relative">
                     <div className="flex-1 min-w-0">
                       <CustomMasonDropdown 
@@ -554,7 +554,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_class")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
                   <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(newType: string) => setActiveMod({...activeMod, category_override: newType})} />
                 </div>
                 
@@ -565,7 +565,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
                 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
-                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_object_cas")} />
+                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
                 </div>
               </div>
 
@@ -665,6 +665,6 @@ export function CustomClassificationDropdown({ value, onChange }: any) {
       label: t(c.lexicon_key) || c.id
     }))
   ];
-  return <CustomDropdown disableTint={true}  value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("label_select")} />;
+  return <CustomDropdown disableTint={true}  value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("architect")} />;
 }
 

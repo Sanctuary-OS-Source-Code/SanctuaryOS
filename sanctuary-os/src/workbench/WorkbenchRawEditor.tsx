@@ -161,7 +161,7 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
                <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
                   {problemsList.map((p, i) => (
                      <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("lineage_cancel")}</span>
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("nav_cancel")}</span>
                         <div className="flex flex-col gap-0.5 min-w-0">
                            <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>
                            <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>

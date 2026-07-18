@@ -168,7 +168,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
   const handleJoinFlavorGroup = async (groupId: string) => {
      if (!targetMod) return;
      const { data: versions } = await supabase.from('mod_versions').select("dna_hash").eq('mod_id', targetMod.id);
-     if (!versions || versions.length === 0) return useStore.getState().pushStatus(t("auto_artifact_has_no_versions_synced_to_attac"));
+     if (!versions || versions.length === 0) return useStore.getState().pushStatus(t("auto_artifact_has_no_45"));
      
      for (const v of versions) {
         await supabase.from('flavor_group_members').insert({ group_id: groupId, mod_hash: v.dna_hash });
@@ -296,7 +296,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
 
       <div className="flex-1 p-6">
       {!targetMod ? (
-         <EmptyState icon={t("icon_all_inclusive") || "dns"} title={t("pv_empty_title")} className="col-span-full py-16" />
+         <EmptyState icon={t("icon_all_inclusive") || "dns"} title={t("no_artifact")} className="col-span-full py-16" />
       ) : (
         <div className="flex flex-col gap-6">
           
@@ -447,7 +447,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
               onClick={() => { setShowFlavorGroupModal(false); setNewFlavorGroupName(''); }}
               className="px-6 py-3 rounded-2xl bg-[var(--text)]/5 border border-white/5 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:border-white/20 hover:bg-[var(--text)]/10 transition-all active:scale-95"
             >
-              {t("lineage_cancel")}
+              {t("nav_cancel")}
             </button>
             <button
               onClick={handleCreateFlavorGroup}
@@ -527,7 +527,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                    </div>
                 ) : (
                   <button onClick={() => handleAddLink(mod.id, showLinkModal?.type || "")} className="px-4 py-2 rounded-xl bg-[var(--accent)]/20 border border-[var(--accent)]/40 backdrop-blur-md text-[10px] font-black uppercase tracking-widest hover:bg-[var(--accent)]/30 hover:scale-105 transition-all flex items-center gap-2">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_add_link")}</span> {t("pv_modal_btn_link")}
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_add_link")}</span> {t("btn_link")}
                   </button>
                 )}
               </div>

@@ -81,7 +81,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
           status: 'pending' 
         }).eq('id', editConflictId);
         if (error) useStore.getState().pushStatus("Failed to update conflict: " + error.message, "error");
-        else useStore.getState().pushStatus(t("auto_conflict_updated_successfully"), "success");
+        else useStore.getState().pushStatus(t("auto_conflict_updated_successfully_34"), "success");
       } else {
         const { error } = await supabase.from('logical_conflicts').insert([{ 
           mod_a_id: activeMaster.id, 
@@ -91,7 +91,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
           status: 'pending' 
         }]);
         if (error) useStore.getState().pushStatus("Failed to create conflict: " + error.message, "error");
-        else useStore.getState().pushStatus(t("auto_conflict_created_successfully"), "success");
+        else useStore.getState().pushStatus(t("auto_conflict_created_successfully_34"), "success");
       }
       
       setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setActiveMaster(myMods[0] || null); setEditConflictId(null);
@@ -158,7 +158,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_security")}</span>
           </div>
-          <span className="truncate">{t("ui_tab_conflicts") || "Conflict Matrix"?.replace("⚔️ ", "") || "Conflict Matrix"}</span>
+          <span className="truncate">{t("ql_conflict") || "Conflict Matrix"?.replace("⚔️ ", "") || "Conflict Matrix"}</span>
         </h2>
         <div className="flex-1 flex justify-end gap-4 items-center">
           <div className="relative w-64 h-12 shrink-0">
@@ -185,7 +185,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
             ))}
           </div>
           <button onClick={() => { setEditConflictId(null); setActiveMaster(myMods[0] || null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("icon_add")}</span> {t("ui_btn_create")}
+            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("icon_add")}</span> {t("auto_create")}
           </button>
         </div>
       </div>
@@ -234,7 +234,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                   <div className="flex flex-col gap-3 relative z-10">
                     <div className="p-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500">
                        <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-                          <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("tab_mods")}
+                          <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("items")}
                        </span>
                        <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{nameA}</span>
                     </div>
@@ -247,7 +247,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                   
                     <div className="p-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500">
                        <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-                          <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("matrix_label_mod_b")}
+                          <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
                        </span>
                        <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{nameB}</span>
                     </div>
@@ -327,13 +327,13 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                           </div>
                           <div className="flex justify-between items-center mt-2 border-t border-white/5 pt-3">
                              <span className="opacity-60">{t("source")}</span>
-                             <span className="text-[var(--accent)]">{editingGhost.author_id ? (t("source_architect")) : (t("source_system"))}</span>
+                             <span className="text-[var(--accent)]">{editingGhost.author_id ? (t("tab_architect")) : (t("source_system"))}</span>
                           </div>
                        </div>
                     )}
                     
                 <div className="w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500 gap-3">
-                  <label className={`text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-2 ${conflictSeverity === 4 ? 'text-[var(--danger)]' : conflictSeverity === 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}><span className="material-symbols-outlined !text-[14px]">{t("icon_inventory_2")}</span> {t("tab_mods")}</label>
+                  <label className={`text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-2 ${conflictSeverity === 4 ? 'text-[var(--danger)]' : conflictSeverity === 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}><span className="material-symbols-outlined !text-[14px]">{t("icon_inventory_2")}</span> {t("items")}</label>
                   <ModSearchDropdown placeholder={t("registry_select_master")} modList={myMods} selectedItem={activeMaster} onSelect={(m: any) => setActiveMaster(m)} onClear={() => setActiveMaster(null)} />
                 </div>
                 

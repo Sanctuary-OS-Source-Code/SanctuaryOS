@@ -111,7 +111,7 @@ export default function CommandCenter({
       });
       if (baseMatch) return { ...baseMatch, _originalSetName: modName };
 
-      return { id: `missing-${modName}`, name: modName, isFallback: true, color: 'theme-border-danger', physical_path: null, hash: 'unknown' };
+      return { id: `missing-${modName}`, name: modName, isFallback: true, color: 'theme-border-danger', physical_path: null, hash: 'vlocal' };
     });
   }, [activePlaySet, modList]);
 
@@ -120,7 +120,7 @@ export default function CommandCenter({
     return networkUpdates.updated.filter((u: any) =>
       activeBlueprintMods.some((m: any) => {
         if (m.dbId && u.dbId && String(m.dbId) === String(u.dbId)) return true;
-        if (m.hash && u.hash && m.hash !== 'unknown' && m.hash === u.hash) return true;
+        if (m.hash && u.hash && m.hash !== 'vlocal' && m.hash === u.hash) return true;
 
         const mName = String(m.name || "").toLowerCase().replace(/\\/g, '/');
         const uName = String(u.name || "").toLowerCase().replace(/\\/g, '/');
@@ -466,7 +466,7 @@ export default function CommandCenter({
               <div className="flex flex-col gap-1">
                 <h3 className="text-xl font-black uppercase tracking-widest drop-shadow-md" style={{ color: alertVar }}>
                   {radarState === 'critical' ? (t("critical_action_short")) :
-                    radarState === 'warning' ? (t("action_suggested")) :
+                    radarState === 'warning' ? (t("action_rec")) :
                       (t("update_suggested"))}
                 </h3>
                 <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">
@@ -608,7 +608,7 @@ export default function CommandCenter({
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{t("ql_audit_logs")}</span>
+                  <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{t("audit_title")}</span>
                   <span className="text-[9px] uppercase font-bold text-blue-500/80 tracking-widest group-hover:text-blue-400 transition-colors flex items-center gap-2 mt-1">{t("audit_logs_desc")}
                   </span>
                 </div>

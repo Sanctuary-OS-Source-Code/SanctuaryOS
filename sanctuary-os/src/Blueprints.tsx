@@ -183,7 +183,7 @@ export default function Blueprints({
               placeholder={t("draft_placeholder")} 
             />
             <div className="flex gap-3 mt-4 z-10">
-              <button onClick={finalizeDraftSet} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md font-black uppercase tracking-widest text-[10px] rounded-xl hover:scale-105 hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]">{t("ui_btn_save")}</button>
+              <button onClick={finalizeDraftSet} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md font-black uppercase tracking-widest text-[10px] rounded-xl hover:scale-105 hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]">{t("auto_save")}</button>
               <button onClick={() => setIsDraftingSet && setIsDraftingSet(false)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] font-black uppercase tracking-widest text-[10px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-105 transition-all">{t("nav_cancel")}</button>
             </div>
           </div>
@@ -314,7 +314,7 @@ export default function Blueprints({
                   }} 
                   className={`py-3.5 px-4 transition-all flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-xl border hover:scale-[1.02] ${deleteConfirm === set.name ? "backdrop-blur-md bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-[0_10px_30px_rgba(var(--danger-rgb),0.3)] scale-[1.05] text-[var(--danger)]" : "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"}`}
                 >
-                  <span className="material-symbols-outlined !text-[16px] drop-shadow-md">{deleteConfirm === set.name ? "warning" : t("icon_delete")}</span> {deleteConfirm === set.name ? t("ui_btn_confirm") : t("action_delete")}
+                  <span className="material-symbols-outlined !text-[16px] drop-shadow-md">{deleteConfirm === set.name ? "warning" : t("icon_delete")}</span> {deleteConfirm === set.name ? t("btn_confirm") : t("purge")}
                 </button>
               </div>
             </div>

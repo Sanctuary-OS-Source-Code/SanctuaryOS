@@ -405,7 +405,7 @@ export function ContextMenu() {
             className="px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
           >
             <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">select_all</span>
-            {t("ctx_select_all")}
+            {t("btn_select_all")}
           </button>
         </>
       )}

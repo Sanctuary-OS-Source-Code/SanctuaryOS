@@ -96,7 +96,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
             className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
           >
             <span className="material-symbols-outlined text-xl normal-case">{t("icon_visibility")}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest">{t("masonhub_btn_view_profile")}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_view_profile")}</span>
           </button>
 
           
@@ -126,7 +126,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           <HubTabButton id="command_center" icon={t("icon_desktop_windows")} label={(t("wf_tab_command")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="registry" icon={t("icon_deployed_code")} label={(t("items")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="nexus" icon={t("icon_hub")} label={(t("tab_nexus")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <HubTabButton id="sandbox" icon={t("icon_handyman")} label={(t("tab_sandbox")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <HubTabButton id="sandbox" icon={t("icon_handyman")} label={(t("filter_dev")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="chameleons" icon="palette" label={(t("tab_chameleons") || "CHAMELEONS").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="ide" icon={t("icon_code")} label={(t("ide_tab")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           
@@ -247,5 +247,5 @@ export function MasonStatusDropdown({ value, onChange }: { value: string, onChan
   if (value === 'verified') {
     options.unshift({ id: 'verified', label: t("status_dd_verified") });
   }
-  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("label_select")} />;
+  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("architect")} />;
 }

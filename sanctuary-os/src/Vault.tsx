@@ -302,9 +302,9 @@ export default function Vault(props: any) {
               onChange={(val: string[]) => setFilterStatus(val[0])}
               options={[
                 { id: "ALL", label: t("ql_all") },
-                { id: "VERIFIED", label: t("status_verified") },
-                { id: "REVIEW", label: t("status_under_review") },
-                { id: "UNVERIFIED", label: t("status_unverified") }
+                { id: "VERIFIED", label: t("verified") },
+                { id: "REVIEW", label: t("status_dd_review") },
+                { id: "UNVERIFIED", label: t("unverified") }
               ]}
             />
           </div>
@@ -376,7 +376,7 @@ export default function Vault(props: any) {
         </div>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 pl-2">
           {paginatedMods.length === 0 ? (
-            <EmptyState icon="search_off" title={t("vault_no_results")} subtitle={t("vault_no_results_sub")} className="col-span-full py-24" />
+            <EmptyState icon="search_off" title={t("registry_no_mods")} subtitle={t("vault_no_results_sub")} className="col-span-full py-24" />
           ) : (
             paginatedMods.map((mod: any, index: number) => {
               const mainKey = `${mod.hash || mod.name}-${index}`;
@@ -933,7 +933,7 @@ export default function Vault(props: any) {
                                         <div className="flex flex-col overflow-hidden pr-2 text-left gap-1">
                                           <div className="flex items-center gap-2">
                                             {flavor.status && (
-                                              <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border backdrop-blur-md shadow-sm ${flavor.status === (t("status_verified")) ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)]" : flavor.status === (t("status_unverified")) ? "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]" : "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]"}`}>
+                                              <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border backdrop-blur-md shadow-sm ${flavor.status === (t("verified")) ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)]" : flavor.status === (t("unverified")) ? "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]" : "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]"}`}>
                                                 {flavor.status.replace(/_/g, ' ')}
                                               </span>
                                             )}

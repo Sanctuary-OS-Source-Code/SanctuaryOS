@@ -116,7 +116,7 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
         >
           <div className="flex justify-between items-start mb-1">
             <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tColor}`}>
-              <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("matrix_label_mod_a")}
+              <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
             </span>
             {isBulkMode && (
               <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] shrink-0 transition-all ${isSelectedA ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)] shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)]" : "border-white/10 text-transparent bg-black/20"}`}>
@@ -139,7 +139,7 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
         >
           <div className="flex justify-between items-start mb-1">
             <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tColor}`}>
-              <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("matrix_label_mod_b")}
+              <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
             </span>
             {isBulkMode && (
               <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] shrink-0 transition-all ${isSelectedB ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)] shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)]" : "border-white/10 text-transparent bg-black/20"}`}>

@@ -16,7 +16,7 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
       <SidePanel
          isOpen={isOpen}
          onClose={onClose}
-         title={t("guide_title") || "Template Guide"}
+         title={t("btn_info") || "Template Guide"}
          subtitle={t("guide_subtitle") || "Workbench"}
          icon="help"
          iconColorClass="theme-text-accent"
@@ -33,7 +33,7 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
                   <br /><br />
                   <span className="text-[var(--accent)]">{t("auto_supported_types")}</span> {t("auto_boolean_number_string")}, group
                   <br />
-                  <span className="text-[var(--accent)]">{t("auto_organization")}</span> {t("auto_create_items_in_the_categories_array_to")}
+                  <span className="text-[var(--accent)]">{t("auto_organization")}</span> {t("auto_create_items_in_44")}
                </p>
             </div>
 
@@ -121,7 +121,7 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
                      className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity h-8 px-3 rounded-lg bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 border border-[var(--accent)]/30 text-[var(--accent)] text-[10px] font-black uppercase tracking-widest flex items-center gap-2 backdrop-blur-md shadow-lg"
                   >
                      <span className="material-symbols-outlined !text-[14px]">{t("icon_content_copy")}</span>
-                     {t("matrix_btn_copy") || "COPY"}
+                     {t("ctx_copy") || "COPY"}
                   </button>
                   <pre className="text-[var(--text)]">
                      {`{

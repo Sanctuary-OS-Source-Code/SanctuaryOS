@@ -173,7 +173,7 @@ export default function Lab({
                 </h2>
 
                 <p className="text-[10px] font-mono text-[var(--subtext)] opacity-60 tracking-widest bg-black/40 px-4 py-1.5 rounded-lg border border-white/5 truncate max-w-[280px]">
-                  {t("icon_virtual_")}{activeLabMod.hash || "unknown"}
+                  {t("icon_virtual_")}{activeLabMod.hash || "vlocal"}
                 </p>
 
                 <button
@@ -275,7 +275,7 @@ export default function Lab({
         <div className="fixed bottom-0 left-[var(--sidebar-width)] right-0 pb-10 pt-4 z-40 flex items-center justify-center px-8 animate-in slide-in-from-bottom duration-500 pointer-events-none">
           <div className="w-full max-w-[1800px] mx-auto flex items-center justify-between theme-glass-panel border-white/5 backdrop-blur-3xl px-8 py-6 rounded-[var(--radius)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto">
             <div className="hidden lg:flex flex-col gap-1 w-[250px]">
-              <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("status_pending")}</span>
+              <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("pending")}</span>
               <span className="text-sm font-black theme-text-accent tracking-widest uppercase flex items-center gap-2">
                 {shelterActive ? t("btn_sim_progress") : "READY FOR INJECTION"}
               </span>
@@ -317,7 +317,7 @@ export default function Lab({
         isOpen={showReportPanel}
         onClose={handleCloseReport}
         title={t("tier3_results")}
-        subtitle={testErrorFound ? (t("status_broken")) : (t("status_verified"))}
+        subtitle={testErrorFound ? (t("status_broken")) : (t("verified"))}
         icon={testErrorFound ? 'warning' : 'science'}
         iconColorClass={testErrorFound ? 'text-[var(--danger)]' : 'text-[var(--success)]'}
         widthClass="w-[800px] max-w-[90vw]"

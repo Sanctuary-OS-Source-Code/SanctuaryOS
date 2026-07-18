@@ -206,7 +206,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
     if (error) {
       useStore.getState().pushStatus("Error hiding comment: " + error.message);
     } else if (data && data.length === 0) {
-      useStore.getState().pushStatus(t("auto_error_database_blocked_the_action_row_le"));
+      useStore.getState().pushStatus(t("auto_error_database_blocked_45"));
     } else {
       fetchComments();
     }
@@ -344,7 +344,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               />
               <div className="flex gap-2 justify-end mt-2">
                 <button onClick={() => setEditingCommentId(null)} className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)]">{t("nav_cancel")}</button>
-                <button onClick={() => handleSaveEdit(c.id)} className="text-[8px] font-black uppercase tracking-widest theme-text-accent hover:underline">{t("ui_btn_save")}</button>
+                <button onClick={() => handleSaveEdit(c.id)} className="text-[8px] font-black uppercase tracking-widest theme-text-accent hover:underline">{t("auto_save")}</button>
               </div>
             </div>
           ) : (
@@ -651,7 +651,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 {post.mason_id === 'system' && (
                   <button onClick={onClose} className={standardButtonClass}>
                     <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
-                    {t("ui_btn_close") || "CLOSE"}
+                    {t("btn_close") || "CLOSE"}
                   </button>
                 )}
               </div>

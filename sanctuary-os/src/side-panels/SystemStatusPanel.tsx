@@ -306,7 +306,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
 
             <div className="grid grid-cols-2 gap-4">
               <StatBox
-                label={t("tab_mods")}
+                label={t("items")}
                 value={(() => { const s = parseBytes(artifactsSize || 0); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
                 icon="extension"
                 glowColor="rgba(59,130,246,0.4)"

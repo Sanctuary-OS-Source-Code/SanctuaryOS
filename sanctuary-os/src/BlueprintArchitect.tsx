@@ -68,7 +68,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
         className="flex items-center gap-2 group cursor-pointer hover:text-[var(--text)] transition-colors"
         onClick={() => { setIsEditingName(true); setNewNameInput(playSet.name); }}
       >
-        {t("bp_subtitle")} {playSet.name} ({activeMods.length} {t("tab_mods")})
+        {t("bp_subtitle")} {playSet.name} ({activeMods.length} {t("items")})
         <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[14px] ml-1">{t("icon_edit")}</span>
       </span>
     );
@@ -409,7 +409,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                             className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 shrink-0 ml-4 flex items-center gap-2"
                           >
                             <span className="material-symbols-outlined !text-[12px]">{isIgnored ? "visibility" : "visibility_off"}</span>
-                            {isIgnored ? t("bp_restore_alert") : t("bp_ignore_alert")}
+                            {isIgnored ? t("bp_restore_alert") : t("btn_ignore")}
                           </button>
                         </div>
 
@@ -553,20 +553,20 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                   <div className="flex gap-2">
                     {redMods.length > 0 && (
                       <span className="text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
-                        {redMods.length} {t("tab_mods")}
+                        {redMods.length} {t("items")}
                       </span>
                     )}
                     {amberMods.length > 0 && (
                       <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
 
-                        {amberMods.length} {t("tab_mods")}
+                        {amberMods.length} {t("items")}
                       </span>
                     )}
                   </div>
                 ) : (
                   <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
 
-                    {t("auto_0")} {t("tab_mods")}
+                    {t("auto_0")} {t("items")}
                   </span>
                 )}
               </div>
@@ -641,7 +641,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                 }}
                                 className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 shrink-0 ml-4"
                               >
-                                {isIgnored ? t("bp_restore_alert") : t("bp_ignore_alert")}
+                                {isIgnored ? t("bp_restore_alert") : t("btn_ignore")}
                               </button>
                             </div>
                             <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest block mt-1">

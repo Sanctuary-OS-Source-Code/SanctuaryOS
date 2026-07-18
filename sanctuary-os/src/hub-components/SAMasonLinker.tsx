@@ -184,7 +184,7 @@ export function MasonLinker() {
                 { id: "verified", label: "VERIFIED" },
                 { id: "unverified", label: "UNVERIFIED" }
               ]}
-              placeholder={t("auto_filter_status")}
+              placeholder={t("filter_status")}
             />
           </div>
 
@@ -273,7 +273,7 @@ export function MasonLinker() {
                 disabled={isSubmitting || !editName.trim()}
                 className={standardAccentGlassButtonClass}
               >
-                {isSubmitting ? t("identities_updating") : (isCreating ? t("btn_create_mason_naked") : t("registry_commit_changes"))}
+                {isSubmitting ? t("identities_updating") : (isCreating ? t("btn_create_mason_naked") : t("ui_btn_commit"))}
               </button>
             </div>
           </div>

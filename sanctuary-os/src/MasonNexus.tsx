@@ -172,10 +172,10 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                 disableTint={true}
                 value={activeCategory}
                 options={[
-                  { id: 'all', label: t("market_filter_all") || "ALL ASSETS" },
-                  { id: 'lexicon', label: t("filter_lexicons") || "LEXICONS" },
-                  { id: 'chameleon', label: t("filter_chameleons") || "CHAMELEONS" },
-                  { id: 'workbench_template', label: t("tab_templates") || "TEMPLATES" }
+                  { id: 'all', label: t("ql_all") || "ALL ASSETS" },
+                  { id: 'lexicon', label: t("stat_lexicons") || "LEXICONS" },
+                  { id: 'chameleon', label: t("tab_chameleons") || "CHAMELEONS" },
+                  { id: 'workbench_template', label: t("ql_templates") || "TEMPLATES" }
                 ]}
                 onChange={(val: string[]) => setActiveCategory(val[0])}
               />
@@ -302,7 +302,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                 onClick={() => setUploadState(s => ({ ...s, isOpen: false }))}
                 className={standardButtonClass}
               >
-                {t("lineage_cancel") || "Cancel"}
+                {t("nav_cancel") || "Cancel"}
               </button>
             )}
             <button

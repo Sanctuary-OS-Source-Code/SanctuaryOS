@@ -320,7 +320,7 @@ export default function TimeCapsule({
               ) : (
                 <div className="flex gap-2 h-16">
                   <button onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setIsSidePanelOpen(false); setConfirmSealWorld(false); }} className="flex-[2] h-full rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 border border-indigo-500/30 font-black text-[10px] tracking-widest flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined !text-sm">{t("icon_check_circle")}</span> {t("ui_btn_confirm")}
+                    <span className="material-symbols-outlined !text-sm">{t("icon_check_circle")}</span> {t("btn_confirm")}
                   </button>
                   <button onClick={() => setConfirmSealWorld(false)} className="flex-[1] h-full rounded-2xl bg-white/5 hover:bg-white/10 text-[var(--subtext)] hover:text-[var(--text)] border border-white/10 font-black text-[10px] tracking-widest flex items-center justify-center">
                     {t("nav_cancel")}
@@ -339,7 +339,7 @@ export default function TimeCapsule({
               ) : (
                 <div className="flex gap-2 h-16">
                   <button onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setIsSidePanelOpen(false); setConfirmSealEngine(false); }} className="flex-[2] h-full rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 font-black text-[10px] tracking-widest flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined !text-sm">{t("icon_warning_amber")}</span> {t("ui_btn_confirm")}
+                    <span className="material-symbols-outlined !text-sm">{t("icon_warning_amber")}</span> {t("btn_confirm")}
                   </button>
                   <button onClick={() => setConfirmSealEngine(false)} className="flex-[1] h-full rounded-2xl bg-white/5 hover:bg-white/10 text-[var(--subtext)] hover:text-[var(--text)] border border-white/10 font-black text-[10px] tracking-widest flex items-center justify-center">
                     {t("nav_cancel")}

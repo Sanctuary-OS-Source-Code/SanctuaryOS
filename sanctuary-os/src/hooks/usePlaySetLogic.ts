@@ -647,7 +647,7 @@ export function usePlaySetLogic() {
         setActivePlaySetIndex(newIndex);
       }
 
-      setStatus(`${t("icon_check_circle")} ${t("backend_deployed_prefix")} ${msg as string} ${t("backend_deployed_suffix")}`);
+      setStatus(`${t("icon_check_circle")} ${t("btn_deployed")} ${msg as string} ${t("backend_deployed_suffix")}`);
     } catch (err) {
       setStatus(`${t("status_deploy_failed")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
     }

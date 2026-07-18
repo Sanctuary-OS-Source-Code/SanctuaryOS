@@ -403,7 +403,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
             />
           </div>
           <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex">
-            <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_pending")}</button>
+            <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("pending")}</button>
             <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_completed")}</button>
           </div>
         </div>
@@ -624,7 +624,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                         <form onSubmit={submitToNexus} className="flex flex-col gap-4">
                           <div className="flex flex-col gap-2">
                             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("resolution_suggestion")}</label>
-                            <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder={t("auto_e_g_load_mod_a_after_mod_b")} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                            <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder={t("auto_e_g_load_31")} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
                           </div>
                           <div className="flex flex-col gap-2">
                             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("severity")}</label>
@@ -655,7 +655,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
           <div className="flex flex-col gap-4 mt-4 w-full">
             {activeReport?.download_url ? (
               <button onClick={() => window.open(activeReport.download_url, "_blank")} className="w-full h-14 theme-glass-panel border border-[var(--warning)]/50 text-[var(--warning)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--warning)]/10 transition-all shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined !text-[16px]">{t("auto_download")}</span> {t("download_source")}
+                <span className="material-symbols-outlined !text-[16px]">{t("btn_download")}</span> {t("download_source")}
               </button>
             ) : null}
             <button onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((activeReport?.name || '') + ' mod download')}`, "_blank")} className="w-full h-14 theme-glass-panel border border-[var(--accent)]/50 text-[var(--accent)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--accent)]/10 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2">

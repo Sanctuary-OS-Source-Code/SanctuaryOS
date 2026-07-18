@@ -241,7 +241,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
     
     try {
       if (!newDnaHash || !newDnaHash.trim()) {
-        useStore.getState().pushStatus(t("auto_dna_hash_is_required_to_create_a_version"));
+        useStore.getState().pushStatus(t("auto_dna_hash_is_45"));
         return;
       }
 
@@ -333,7 +333,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
             onClick={() => { setShowAddModal(false); setNewVersionLabel(''); setNewGameVersion(''); setNewDnaHash(''); }}
             className="px-6 py-3 rounded-2xl bg-[var(--text)]/5 border border-white/5 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:border-white/20 hover:bg-[var(--text)]/10 transition-all active:scale-95"
           >
-            {t("lineage_cancel")}
+            {t("nav_cancel")}
           </button>
           <button
             onClick={handleAddVersion}

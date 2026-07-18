@@ -49,7 +49,7 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
           </div>
 
           <div className="flex flex-col gap-3 pt-2 flex-1">
-            <h2 className="text-5xl font-black text-white tracking-tighter uppercase drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] leading-none">{t("time_capsule_override") || "TIME CAPSULE"}</h2>
+            <h2 className="text-5xl font-black text-white tracking-tighter uppercase drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] leading-none">{t("backups_title") || "TIME CAPSULE"}</h2>
             <h3 className="text-xl font-bold uppercase tracking-[0.3em] opacity-90"
                 style={{ color: themeVar, filter: `drop-shadow(0 0 10px color-mix(in srgb, ${themeVar} 30%, transparent))` }}>{title}</h3>
             <div className="w-full h-px my-3" style={{ background: `linear-gradient(to right, color-mix(in srgb, ${themeVar} 30%, transparent), transparent)` }} />

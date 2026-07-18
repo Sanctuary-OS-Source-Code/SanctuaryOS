@@ -241,7 +241,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
             )}
           </div>
           <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex mr-4">
-            <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_pending")}</button>
+            <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("pending")}</button>
             <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_active")}</button>
           </div>
           <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex">
@@ -287,7 +287,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                     <div className="flex flex-col gap-3 relative z-10">
                       <div className="p-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500">
                         <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-                          <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("matrix_label_mod_a")}
+                          <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
                         </span>
                         <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameA}</span>
                       </div>
@@ -300,7 +300,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
 
                       <div className="p-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500">
                         <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-                          <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("matrix_label_mod_b")}
+                          <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
                         </span>
                         <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameB}</span>
                       </div>
@@ -353,7 +353,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                         <div className="flex flex-col gap-3 relative z-10">
                           <div className="p-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500">
                             <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-                              <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("matrix_label_mod_a")}
+                              <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
                             </span>
                             <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameA}</span>
                           </div>
@@ -366,7 +366,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
 
                           <div className="p-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500">
                             <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-                              <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("matrix_label_mod_b")}
+                              <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
                             </span>
                             <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameB}</span>
                           </div>
@@ -437,7 +437,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                       )}
                       {editingGhost?.status !== 'pending' && (
                         <button type="button" onClick={() => handleAddGhost()} disabled={!modA || !modB || (!!editConflictId && !updateReason.trim())} className={standardAccentGlassButtonClass}>
-                          {editConflictId ? (t("update_conflict")) : (t("inject"))}
+                          {editConflictId ? (t("edit_side_panel")) : (t("inject"))}
                         </button>
                       )}
                       {editingGhost?.status === 'pending' && (
@@ -473,7 +473,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                         </div>
                         <div className="flex justify-between items-center mt-2 border-t border-white/5 pt-3">
                           <span className="opacity-60">{t("source")}</span>
-                          <span className="text-[var(--accent)]">{editingGhost.author_id ? (t("source_architect")) : (t("source_system"))}</span>
+                          <span className="text-[var(--accent)]">{editingGhost.author_id ? (t("tab_architect")) : (t("source_system"))}</span>
                         </div>
                       </div>
                     )}

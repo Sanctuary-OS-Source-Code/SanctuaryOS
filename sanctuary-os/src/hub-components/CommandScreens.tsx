@@ -129,7 +129,7 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
     <CommandScreenLayout>
       <CommandScreenStats>
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_deployed_code")}</span>} number={stats.artifacts} label={t("items")} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => onNavigate("registry")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_collections_bookmark")}</span>} number={stats.collections} label={t("stat_cc")} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => onNavigate("collections")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_collections_bookmark")}</span>} number={stats.collections} label={t("tab_cc")} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => onNavigate("collections")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_edit_document")}</span>} number={stats.posts} label={t("tab_posts")} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => onNavigate("posts")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_bug_report")}</span>} number={stats.bugs} label={t("stat_bugs")} colorClass="border-rose-500/30 text-rose-500 hover:border-rose-500 bg-rose-500/10 hover:bg-rose-500/20" onClick={() => onNavigate("bug_reports")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_forum")}</span>} number={repliesCount} label={t("ui.replies")} colorClass="border-indigo-500/30 text-indigo-500 hover:border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20" onClick={onOpenRecentReplies} />
@@ -147,10 +147,10 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
              <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("metrics")}</h2>
              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
                 <CommandScreenMetricTile value={t("auto_7")} label={t("items")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
-                <CommandScreenMetricTile value={t("auto_1")} label={t("bp_blueprint_swap")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
+                <CommandScreenMetricTile value={t("auto_1")} label={t("playsets_title")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
                 <CommandScreenMetricTile value={t("auto_1")} label={t("stat_lexicons")} valueColorClass="text-indigo-500" hoverBorderClass="hover:border-indigo-500/30" />
-                <CommandScreenMetricTile value={t("auto_1")} label={t("stat_chameleons")} valueColorClass="text-pink-500" hoverBorderClass="hover:border-pink-500/30" />
-                <CommandScreenMetricTile value={stats.followers} label={t("stat_followers")} valueColorClass="text-emerald-500" hoverBorderClass="hover:border-emerald-500/30" />
+                <CommandScreenMetricTile value={t("auto_1")} label={t("tab_chameleons")} valueColorClass="text-pink-500" hoverBorderClass="hover:border-pink-500/30" />
+                <CommandScreenMetricTile value={stats.followers} label={t("followers")} valueColorClass="text-emerald-500" hoverBorderClass="hover:border-emerald-500/30" />
              </div>
           </CommandScreenMain>
 
@@ -174,7 +174,7 @@ function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies,
                </button>
              )}
 
-             <CommandScreenQuickLink onClick={() => onNavigate("protocols")} icon={t("icon_link")} title={t("ql_protocol")} subtitle={t("ql_global_rules")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
+             <CommandScreenQuickLink onClick={() => onNavigate("protocols")} icon={t("icon_link")} title={t("pv_title")} subtitle={t("ql_global_rules")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
 
              <CommandScreenQuickLink onClick={() => onNavigate("structure")} icon={t("icon_architecture")} title={t("structure_title")} subtitle={t("ql_asset_org")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-amber-400" hoverTextColorClass="group-hover:text-amber-300" dotColorClass="bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
 
@@ -356,7 +356,7 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any)
   return (
     <CommandScreenLayout>
       <CommandScreenStats>
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_search")}</span>} number={stats.scoutQueue} label={t("scout_queue")} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => onNavigate("queue")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_search")}</span>} number={stats.scoutQueue} label={t("reviewing")} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => onNavigate("queue")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_handyman")}</span>} number={stats.masonQueue} label={t("stat_mason_queue")} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => onNavigate("mason_queue")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_flag")}</span>} number={stats.nexusReports} label={t("title_reports")} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => onNavigate("nexus_reports")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_local_activity")}</span>} number={stats.supportTickets} label={t("ql_support")} colorClass="border-indigo-500/30 text-indigo-500 hover:border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20" onClick={() => onNavigate("support_tickets")} />
@@ -376,7 +376,7 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any)
              <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("metrics")}</h2>
              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
                 <CommandScreenMetricTile value={stats.totalArtifacts} label={t("items")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
-                <CommandScreenMetricTile value={stats.unverifiedMods} label={t("status_unverified")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
+                <CommandScreenMetricTile value={stats.unverifiedMods} label={t("unverified")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
                 <CommandScreenMetricTile value={stats.tier4Conflicts} label={t("stat_tier4")} valueColorClass="text-red-500" hoverBorderClass="hover:border-red-500/30" />
                 <CommandScreenMetricTile value={stats.tier3Conflicts} label={t("stat_tier3")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
                 <CommandScreenMetricTile value={stats.labQueue} label={t("stat_lab_queue")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
@@ -409,7 +409,7 @@ function ArchitectCommandScreen({ onNavigate, setViewingPost , setStatus }: any)
 
              <CommandScreenQuickLink onClick={() => onNavigate("template_oversight")} icon={t("icon_data_object") || "data_object"} title={t("ql_templates")} subtitle={t("ql_templates_desc")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-fuchsia-400" hoverTextColorClass="group-hover:text-fuchsia-300" dotColorClass="bg-fuchsia-400 shadow-[0_0_8px_rgba(232,121,249,0.8)]" />
 
-             <CommandScreenQuickLink onClick={() => onNavigate("lab")} icon={t("icon_monitor_heart")} title={t("ql_homestead")} subtitle={t("ql_system_health")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+             <CommandScreenQuickLink onClick={() => onNavigate("lab")} icon={t("icon_monitor_heart")} title={t("tab_lab")} subtitle={t("ql_system_health")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
 
              <CommandScreenQuickLink onClick={() => onNavigate("support_tickets")} icon={t("icon_local_activity")} title={t("ql_support")} subtitle={t("ql_help_requests")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
 
@@ -643,7 +643,7 @@ function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilter, set
              <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("metrics")}</h2>
              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
                 <CommandScreenMetricTile value={stats.citizens + stats.masons} label={t("stat_users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
-                <CommandScreenMetricTile value={stats.masons} label={t("stat_masons")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
+                <CommandScreenMetricTile value={stats.masons} label={t("tab_linker")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
                 <CommandScreenMetricTile value={stats.architects} label={t("stat_architects")} valueColorClass="text-purple-400" hoverBorderClass="hover:border-purple-500/30" />
                 <CommandScreenMetricTile value={stats.blacklists} label={t("stat_blacklists")} valueColorClass="text-red-500" hoverBorderClass="hover:border-red-500/30" />
                 <CommandScreenMetricTile value={stats.oversightQueue} label={t("tab_malware_logs")} valueColorClass="text-red-700" hoverBorderClass="hover:border-emerald-500/30" />
@@ -676,7 +676,7 @@ function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilter, set
 
              <CommandScreenQuickLink onClick={() => setTab("game_versions")} icon={t("icon_settings")} title={t("ql_game_versions")} subtitle={t("ql_registry_config")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:emerald-300" dotColorClass="bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
 
-             <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history")} title={t("ql_audit_logs")} subtitle={t("ql_system_history")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
+             <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history")} title={t("audit_title")} subtitle={t("ql_system_history")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
 
              {!stats.urgentBroadcast && (
                <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon="warning_off" title={t("title_sanctuary_alerts") || "Sanctuary Alerts"} subtitle={t("masonhub_system_broadcasts") || "SYSTEM BROADCASTS"} iconBorderHoverClass="group-hover:border-amber-500/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" textColorClass="text-amber-500/80" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
@@ -938,7 +938,7 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMasonProfil
           <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("metrics")}</h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
              <CommandScreenMetricTile value={stats.citizens} label={t("stat_users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
-             <CommandScreenMetricTile value={stats.masons} label={t("stat_masons")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
+             <CommandScreenMetricTile value={stats.masons} label={t("tab_linker")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
              <CommandScreenMetricTile value={stats.architects} label={t("stat_architects")} valueColorClass="text-purple-400" hoverBorderClass="hover:border-purple-500/30" />
              <CommandScreenMetricTile value={stats.oversights} label={t("hub_stat_oversights")} valueColorClass="text-indigo-400" hoverBorderClass="hover:border-indigo-500/30" />
              <CommandScreenMetricTile value={stats.oversightQueue} label={t("tab_malware_logs")} valueColorClass="text-red-500" hoverBorderClass="hover:border-red-500/30" />
@@ -968,9 +968,9 @@ function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMasonProfil
 
              <CommandScreenQuickLink onClick={() => setTab("sanctuary_tickets")} icon={t("icon_local_activity")} title={t("ql_support")} subtitle={t("wf_link_tickets_sub")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-purple-400" hoverTextColorClass="group-hover:text-purple-300" dotColorClass="bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
              
-             <CommandScreenQuickLink onClick={() => setTab("support_settings")} icon={t("icon_support_agent")} title={t("title_support_settings")} subtitle={t("wf_link_support_sub")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-amber-400" hoverTextColorClass="group-hover:text-amber-300" dotColorClass="bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+             <CommandScreenQuickLink onClick={() => setTab("support_settings")} icon={t("icon_support_agent")} title={t("tab_support")} subtitle={t("wf_link_support_sub")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-amber-400" hoverTextColorClass="group-hover:text-amber-300" dotColorClass="bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
              
-             <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history")} title={t("ql_audit_logs")} subtitle={t("link_audit_sub")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
+             <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history")} title={t("audit_title")} subtitle={t("link_audit_sub")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
 
              {!stats.urgentBroadcast && (
                <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon="warning_off" title={t("title_sanctuary_alerts") || "Sanctuary Alerts"} subtitle={t("masonhub_system_broadcasts") || "SYSTEM BROADCASTS"} iconBorderHoverClass="group-hover:border-amber-500/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" textColorClass="text-amber-500/80" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />

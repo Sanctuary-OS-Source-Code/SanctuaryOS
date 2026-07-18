@@ -222,7 +222,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
       return;
     }
 
-    useStore.getState().pushStatus(t("auto_ticket_status_updated_successfully"), "success");
+    useStore.getState().pushStatus(t("auto_ticket_status_updated_39"), "success");
 
     if (userRole === "architect") {
       logArchitectAction(`Support Ticket ${actionType}: ${reason}`, 'sanctuary_tickets', selectedTicket.id);

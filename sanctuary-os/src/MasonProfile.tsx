@@ -236,7 +236,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               id: b.id,
               name: b.name,
               author: mData.name,
-              description: (b.artifacts?.length || 0) + (t("tab_mods")),
+              description: (b.artifacts?.length || 0) + (t("items")),
               created_at: b.created_at,
               asset_type: 'blueprint',
               json_data: b
@@ -260,7 +260,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
   }, [masonId]);
 
   const toggleFollow = async () => {
-    if (!userId) { useStore.getState().pushStatus(t("auto_guest_mode_active_uploads_and_global_fla")); return; }
+    if (!userId) { useStore.getState().pushStatus(t("auto_guest_mode_active_45")); return; }
     if (isFollowing) {
       await supabase.from('mason_followers').delete().match({ user_id: userId, mason_id: masonId });
       setFollowerCount(prev => prev - 1);
@@ -287,7 +287,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
-    if (!userId) return useStore.getState().pushStatus(t("auto_guest_mode_active_uploads_and_global_fla"));
+    if (!userId) return useStore.getState().pushStatus(t("auto_guest_mode_active_45"));
 
     const { error } = await supabase.from('mason_post_likes').insert({ post_id: post.id, user_id: userId });
     let increment = 1;
@@ -341,7 +341,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
             {mason.is_verified && (
               <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full shadow-[0_4px_20px_rgba(16,185,129,0.3)] z-30 flex items-center gap-1 backdrop-blur-2xl">
                 <span className="material-symbols-outlined !text-[12px] text-emerald-400">{t("icon_verified_user")}</span>
-                <span className="text-[9px] text-emerald-400 font-black tracking-[0.2em]">{t("status_verified")}</span>
+                <span className="text-[9px] text-emerald-400 font-black tracking-[0.2em]">{t("verified")}</span>
               </div>
             )}
           </div>
@@ -448,15 +448,15 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         <div className="w-full lg:w-2/3 flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-4 w-full theme-glass-panel p-3 rounded-[var(--radius)] shadow-xl overflow-visible">
             <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/5 shadow-inner shrink-0 max-w-full">
-              <HubTabButton id="MODS" icon={t("icon_account_balance")} label={t("tab_mods")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
-              <HubTabButton id="BLUEPRINTS" icon={t("icon_map")} label={t("bp_blueprint_swap")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+              <HubTabButton id="MODS" icon={t("icon_account_balance")} label={t("items")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+              <HubTabButton id="BLUEPRINTS" icon={t("icon_map")} label={t("playsets_title")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
               <HubTabButton id="LEXICONS" icon={t("icon_translate")} label={t("tab_lexicons")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
               <HubTabButton id="CHAMELEONS" icon={t("icon_palette")} label={t("type_theme")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
-              <HubTabButton id="TEMPLATES" icon="draw" label={t("tab_templates")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
+              <HubTabButton id="TEMPLATES" icon="draw" label={t("ql_templates")} activeTab={profileTab} setTab={(tStr: string) => { setProfileTab(tStr); setModCategory('ALL'); setModSearch(''); }} />
             </div>
 
             <div className="flex flex-row items-center gap-3 flex-1 justify-end min-w-[300px]">
-              <input value={modSearch} onChange={e => setModSearch(e.target.value)} placeholder={profileTab === 'LEXICONS' ? (t("ui_search_lexicons")) : profileTab === 'CHAMELEONS' ? (t("ui_search_chameleons")) : profileTab === 'TEMPLATES' ? (t("search_templates")) : profileTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_mods"))} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full min-w-[150px] flex-1 transition-all border border-transparent shadow-inner" />
+              <input value={modSearch} onChange={e => setModSearch(e.target.value)} placeholder={profileTab === 'LEXICONS' ? (t("ui_search_lexicons")) : profileTab === 'CHAMELEONS' ? (t("ui_search_chameleons")) : profileTab === 'TEMPLATES' ? (t("search_tmpl")) : profileTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full min-w-[150px] flex-1 transition-all border border-transparent shadow-inner" />
               <div className="w-max min-w-[180px] max-w-xs xl:w-[220px] shrink-0">
                 <CustomDropdown disableTint={true}
                   value={modCategory}
@@ -567,11 +567,11 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                              {(mod.isVirtual || mod.isParent || mod.familyCount > 1) && (
                                 <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] rounded-lg uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
                                     <span className="material-symbols-outlined !text-[10px]">folder</span>
-                                    {mod.familyCount || (mod.flavors?.length || 0)} {t("tab_mods")}
+                                    {mod.familyCount || (mod.flavors?.length || 0)} {t("items")}
                                 </span>
                              )}
                           </div>
-                          <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("ui_btn_view")}</span>
+                          <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("btn_view")}</span>
                         </div>
                       </div>
                     </div>

@@ -92,8 +92,8 @@ export default function ChameleonTab({ config }: any) {
       actions={
         <>
           <button onClick={() => { setMarketTab('CHAMELEONS'); setView('nexus'); }} className={standardButtonClass}>{t("btn_browse")}</button>
-          <button onClick={handleImportTheme} className={standardButtonClass}>{t("settings_btn_import")}</button>
-          <button onClick={createNewTheme} className={standardButtonClass}>{t("ui_btn_create")}</button>
+          <button onClick={handleImportTheme} className={standardButtonClass}>{t("btn_import")}</button>
+          <button onClick={createNewTheme} className={standardButtonClass}>{t("auto_create")}</button>
         </>
       }
     >

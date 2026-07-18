@@ -123,7 +123,7 @@ export default function SASupportSettings() {
                         <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_support_agent")}</span>
                         </div>
-                        <span className="truncate">{t("title_support_settings")}</span>
+                        <span className="truncate">{t("tab_support")}</span>
                     </h2>
                 </div>
 
@@ -143,7 +143,7 @@ export default function SASupportSettings() {
                             value={filter}
                             onChange={(v: string[]) => setFilter(v[0])}
                             options={[
-                                { id: "ALL", label: t("support_all_cats") },
+                                { id: "ALL", label: t("all_classes") },
                                 { id: "ACTIVE", label: t("support_active_only") },
                                 { id: "INACTIVE", label: t("support_inactive_only") }
                             ]}
@@ -191,7 +191,7 @@ export default function SASupportSettings() {
                                         <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors
                               ${cat.is_active ? 'bg-[var(--accent)]/10 theme-text-accent border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : 'bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20'}
                           `}>
-                                            {cat.is_active ? (t("status_active")) : (t("support_inactive"))}
+                                            {cat.is_active ? (t("status_active")) : (t("status_inactive"))}
                                         </span>
                                     </div>
 
@@ -259,7 +259,7 @@ export default function SASupportSettings() {
                                         <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors
                                 ${source.is_active ? 'bg-[var(--accent)]/10 theme-text-accent border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : 'bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20'}
                             `}>
-                                            {source.is_active ? (t("status_active")) : (t("support_inactive"))}
+                                            {source.is_active ? (t("status_active")) : (t("status_inactive"))}
                                         </span>
                                     </div>
 
@@ -372,7 +372,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
             const { error } = await supabase.from('sanctuary_support_categories').delete().eq('id', draft.id);
             if (error) throw error;
             await logArchitectAction("Deleted Support Category", "sanctuary_support_categories", draft.category_name, actionReason, "Oversight Command");
-            useStore.getState().pushStatus(t("auto_category_deleted_successfully"), "success");
+            useStore.getState().pushStatus(t("auto_category_deleted_successfully_34"), "success");
             onSaved();
             onClose();
         } catch (e: any) {
@@ -432,7 +432,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                             </button>
                         )}
                         <button onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name || !actionReason} className={standardSuccessButtonClass}>
-                            {isSaving ? "..." : (t("btn_save"))}
+                            {isSaving ? "..." : (t("save"))}
                         </button>
                     </div>
                 </div>
@@ -460,7 +460,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("support_display_name")}</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("registry_label_name")}</label>
                     <input
                         type="text"
                         value={draft.category_name}
@@ -499,7 +499,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("support_description")}</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("upload_desc")}</label>
                     <textarea
                         value={draft.description}
                         onChange={e => setDraft({ ...draft, description: e.target.value })}
@@ -709,7 +709,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                 if (error) throw error;
                 await logArchitectAction("Created Log Source", "sanctuary_telemetry_sources", draft.label, actionReason, "Oversight Command");
             }
-            useStore.getState().pushStatus(t("auto_log_source_saved_successfully"), "success");
+            useStore.getState().pushStatus(t("auto_log_source_saved_34"), "success");
             onSaved();
             onClose();
         } catch (e: any) {
@@ -730,7 +730,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
             const { error } = await supabase.from('sanctuary_telemetry_sources').delete().eq('id', draft.id);
             if (error) throw error;
             await logArchitectAction("Deleted Log Source", "sanctuary_telemetry_sources", draft.label, actionReason, "Oversight Command");
-            useStore.getState().pushStatus(t("auto_log_source_deleted_successfully"), "success");
+            useStore.getState().pushStatus(t("auto_log_source_deleted_36"), "success");
             onSaved();
             onClose();
         } catch (e: any) {
@@ -772,7 +772,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                             </button>
                         )}
                         <button onClick={save} disabled={isSaving} className={standardSuccessButtonClass}>
-                            {isSaving ? (t("btn_saving")) : (t("btn_save"))}
+                            {isSaving ? (t("btn_saving")) : (t("save"))}
                         </button>
                     </div>
                 </div>
@@ -809,7 +809,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                             {!['%MODS_DIR%', '%DOC_DIR%'].includes(draft.search_path) && (
                                 <div className="flex flex-col gap-2 pl-4 border-l border-white/10 mt-1">
                                     <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("auto_custom_path")}</label>
-                                    <input type="text" value={draft.search_path} onChange={e => setDraft({ ...draft, search_path: e.target.value })} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 font-mono" placeholder={t("auto_e_g_c_mylogs")} />
+                                    <input type="text" value={draft.search_path} onChange={e => setDraft({ ...draft, search_path: e.target.value })} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 font-mono" placeholder={t("auto_e_g_c_17")} />
                                 </div>
                             )}
                         </div>
@@ -822,7 +822,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                 )}
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("support_description")}</label>
+                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("upload_desc")}</label>
                     <textarea value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 min-h-[80px]" placeholder={t("telemetry_desc_ph")} />
                 </div>
 

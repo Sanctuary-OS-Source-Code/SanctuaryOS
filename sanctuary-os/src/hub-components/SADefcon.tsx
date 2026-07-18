@@ -305,7 +305,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                       className={`w-full py-6 text-xs ${standardSuccessButtonClass}`}
                     >
                       <span className="material-symbols-outlined !text-xl">{t("icon_lock_open")}</span>
-                      {t("sa_defcon_stand_down")}
+                      {t("defcon_stand_down")}
                     </button>
                   )}
                 </>

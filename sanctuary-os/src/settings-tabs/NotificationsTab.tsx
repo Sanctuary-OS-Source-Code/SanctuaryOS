@@ -30,7 +30,7 @@ export default function NotificationsTab() {
         setFollowedMasons(data.map((row: any) => ({
           id: row.masons.id,
           name: row.masons.name,
-          handle: `@${row.masons.profile_id || 'unknown'}`
+          handle: `@${row.masons.profile_id || 'vlocal'}`
         })));
       }
     }
@@ -93,7 +93,7 @@ export default function NotificationsTab() {
       <div className="grid xl:grid-cols-2 gap-8">
         <div className="flex items-center justify-between p-8 rounded-[var(--radius)] theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={toggleNotifyReplies}>
           <div className="flex flex-col gap-2">
-            <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("notify_replies")}</span>
+            <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("ui.replies")}</span>
             <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("notify_replies_desc")}</span>
           </div>
           <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${notifyReplies ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>

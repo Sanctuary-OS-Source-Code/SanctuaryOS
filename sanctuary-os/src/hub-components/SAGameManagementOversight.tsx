@@ -153,7 +153,7 @@ export function GameManagementOversight() {
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_settings")}</span>
           </div>
-          <span className="truncate">{t("title_game_versions")}</span>
+          <span className="truncate">{t("ql_game_versions")}</span>
         </h2>
 
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
@@ -236,7 +236,7 @@ export function GameManagementOversight() {
                     </div>
 
                     <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                      {t("ui_btn_view")} <span className="text-lg leading-none">&rarr;</span>
+                      {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
                     </button>
                   </div>
                 </div>
@@ -277,7 +277,7 @@ export function GameManagementOversight() {
                       </span>
                     </div>
                     <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                      {t("ui_btn_view")} <span className="text-lg leading-none">&rarr;</span>
+                      {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
                     </button>
                   </div>
                 </div>
@@ -298,7 +298,7 @@ export function GameManagementOversight() {
               sidePanelMode === 'edit_dlc' ? (t("panel_edit_dlc")) :
                 (t("panel_add_dlc"))
         }
-        subtitle={sidePanelMode?.includes('version') ? (t("panel_sub_version")) : (t("panel_sub_dlc"))}
+        subtitle={sidePanelMode?.includes('version') ? (t("panel_sub_version")) : (t("dlc_registry"))}
         icon={sidePanelMode?.includes('version') ? "gamepad" : "extension"}
         footer={
           <div className="flex justify-center items-center gap-4 w-full">

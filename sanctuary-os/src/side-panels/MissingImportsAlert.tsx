@@ -98,7 +98,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
                   }}
                   className="shrink-0 px-4 py-2.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-bg-danger hover:text-[var(--bg)] rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-[var(--text)]"
                 >
-                  {t("missing_imports_skip")}
+                  {t("defcon_btn_skip")}
                 </button>
                 <button 
                   onClick={() => {

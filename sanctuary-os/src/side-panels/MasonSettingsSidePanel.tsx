@@ -46,7 +46,7 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
     const { data, error } = await supabase.from('masons').update(formData).eq('id', profile.id).select().single();
     if (!error && data) {
        onUpdate(data);
-       useStore.getState().pushStatus(t("auto_profile_settings_saved_successfully"), 'success');
+       useStore.getState().pushStatus(t("auto_profile_settings_saved_40"), 'success');
        onClose();
     }
     setIsSaving(false);

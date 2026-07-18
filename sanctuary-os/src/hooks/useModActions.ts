@@ -77,7 +77,7 @@ export function useModActions(
 
   function purgeMod(filename: string) {
     setConfirmDialog({
-      message: `${t("action_delete")}${filename}${t("confirm_delete_file_suffix")}`,
+      message: `${t("purge")}${filename}${t("confirm_delete_file_suffix")}`,
       action: async () => {
         setConfirmDialog(null);
         await invoke("purge_quarantined_file", { filename });

@@ -32,7 +32,7 @@ export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, s
               {t("nav_cancel")}
             </button>
             <button onClick={executeSnapshot} className="flex-1 py-3 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 shadow-lg transition-all">
-              {t("ui_btn_save")}
+              {t("auto_save")}
             </button>
           </div>
         </div>

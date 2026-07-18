@@ -216,7 +216,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
           </div>
           <button onClick={() => setIsCreatePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform duration-500">add</span>
-            {t("ui_btn_create") || "CREATE"}
+            {t("auto_create") || "CREATE"}
           </button>
         </div>
       </div>
@@ -316,7 +316,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
                     useStore.getState().pushStatus(t("ui_theme_reset") || "OS Theme Reset", "success");
                   }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shrink-0">
                     <span className="material-symbols-outlined !text-[18px]">refresh</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_reset") || "RESET"}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_reset") || "RESET"}</span>
                   </button>
                 </div>
                 <div className="relative group flex">
@@ -693,7 +693,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
                     boxShadow: `0 10px 30px rgba(0,0,0,0.3)`
                   }}>
                     <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform duration-500">add</span>
-                    {t("ui_btn_create") || "CREATE"}
+                    {t("auto_create") || "CREATE"}
                   </button>
                 </div>
 

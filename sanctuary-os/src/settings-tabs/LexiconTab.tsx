@@ -9,7 +9,7 @@ import { TabContainer } from './shared';
 const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
 
 export default function LexiconTab() {
-  const { t, registry, activeLang, setActiveLang, importLexicon, deleteLexicon } = useLexicon();
+  const { t, registry, activeLang, setActiveLang, importLexicon, deleteLexicon, lexiconMeta } = useLexicon();
   const setView = useStore(state => state.setView);
   const setMarketTab = useStore(state => state.setMarketTab);
 
@@ -36,15 +36,21 @@ export default function LexiconTab() {
   }, []);
 
   const getLexiconMetadata = (code: string) => {
+    const meta = lexiconMeta?.find((m: any) => m.id === code);
+    if (meta) return { language: meta.badge, name: meta.name };
+    
+    // Fallbacks if metadata isn't loaded from DB yet
     const cleanName = (val: string) => val.includes(':') ? val.split(':')[1].trim() : val;
-    if (code === 'en-sanctuary') return { language: 'English', name: cleanName(t("lang_sanctuary") || "English: Sanctuary") };
-    if (code === 'en-default') return { language: 'English', name: cleanName(t("lang_standard") || "English: Default") };
-    if (code === 'en-sims') return { language: 'English', name: cleanName(t("lang_sims") || "English: Sims Friendly") };
-    if (code === 'de-default') return { language: 'German', name: cleanName(t("lang_german") || "German: Default") };
-    return { language: registry?.[code]?._meta_language || dbLanguages[code] || 'Custom', name: cleanName(code) };
+    if (code === 'en-sanctuary') return { language: 'Sanctuary', name: cleanName(t("lang_sanctuary") || "English: Sanctuary") };
+    if (code === 'en-default') return { language: 'Sanctuary', name: cleanName(t("lang_standard") || "English: Default") };
+    if (code === 'en-sims') return { language: 'Community', name: cleanName(t("lang_sims") || "English: Sims Friendly") };
+    if (code === 'de-default') return { language: 'Community', name: cleanName(t("lang_german") || "German: Default") };
+    
+    return { language: registry?.[code]?._meta_language || dbLanguages[code] || 'Custom', name: code };
   };
 
-  const allLexiconCodes = Array.from(new Set(['en-sanctuary', 'en-default', 'en-sims', 'de-default', ...Object.keys(registry || {})]));
+  const dbCodes = lexiconMeta ? lexiconMeta.map((m: any) => m.id) : ['en-sanctuary', 'en-default', 'en-sims', 'de-default'];
+  const allLexiconCodes = Array.from(new Set([...dbCodes, ...Object.keys(registry || {})]));
   const uniqueLanguages = Array.from(new Set(allLexiconCodes.map(code => getLexiconMetadata(code).language)));
 
   const toggleFavoriteLexicon = (code: string, e?: React.MouseEvent) => {
@@ -76,7 +82,7 @@ export default function LexiconTab() {
       actions={
         <>
           <button onClick={() => { setMarketTab('LEXICONS'); setView('nexus'); }} className={standardButtonClass}>{t("btn_browse")}</button>
-          <button onClick={handleImportLexicon} className={standardButtonClass}>{t("settings_btn_import")}</button>
+          <button onClick={handleImportLexicon} className={standardButtonClass}>{t("btn_import")}</button>
         </>
       }
     >
@@ -174,7 +180,7 @@ export default function LexiconTab() {
                     >
                       <span className="material-symbols-outlined !text-[16px]">star</span>
                     </button>
-                    {code !== 'en-sanctuary' && code !== 'en-default' && code !== 'en-sims' && code !== 'de-default' && (
+                    {lexiconMeta && lexiconMeta.find((m: any) => m.id === code) === undefined && (
                       <button 
                         onClick={(e) => { 
                           e.stopPropagation(); 

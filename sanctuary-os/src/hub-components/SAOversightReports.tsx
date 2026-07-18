@@ -338,7 +338,7 @@ export default function SAOversightReports() {
                      </div>
                   </div>
                   <div className="flex flex-col gap-2 w-full">
-                     <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("sys_log")}</span>
+                     <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("status")}</span>
                      <div className="w-full p-3.5 theme-glass-panel rounded-xl border border-white/5 shadow-inner flex items-center min-h-[48px]">
                        <span className={`text-sm font-black uppercase tracking-widest bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(255,255,255,0.1)] ${viewingReport.status === 'blacklisted' ? 'bg-gradient-to-r from-amber-400 to-yellow-500' : viewingReport.status === 'cleared' ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-red-400 to-rose-500'}`}>
                          {viewingDisplayStatus}

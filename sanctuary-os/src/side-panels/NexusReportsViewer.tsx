@@ -208,7 +208,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
               options={[
                 { id: 'ALL', label: t("ui_tab_all_types") },
                 { id: 'nexus', label: t("tab_nexus") },
-                { id: 'blueprint', label: t("tab_blueprints") },
+                { id: 'blueprint', label: t("playsets_title") },
                 { id: 'comm-link', label: t("feed_title") }
               ]}
               onChange={(v: string[]) => setActiveType(v[0])}
@@ -237,7 +237,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
         {loading ? (
           <div className="theme-glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading")}</div>
         ) : filteredReports.length === 0 ? (
-          <EmptyState icon={t("icon_security") || "shield"} title={t("auto_no_tickets_found_in_this_category")} className="col-span-full py-16" />
+          <EmptyState icon={t("icon_security") || "shield"} title={t("auto_no_tickets_found_38")} className="col-span-full py-16" />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
             {filteredReports.map(report => (

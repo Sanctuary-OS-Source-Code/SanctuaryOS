@@ -170,7 +170,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
 
     const typeKey = `masonhub_asset_type_${asset.type}`;
     const translatedType = t(typeKey) !== typeKey ? t(typeKey) : (asset.type === 'mod' ? 'Artifact' : asset.type === 'blueprint' ? 'Blueprint' : asset.type === 'chameleon' ? 'Theme' : 'Lexicon');
-    const translatedView = t("ui_btn_view");
+    const translatedView = t("btn_view");
 
     const text = `${translatedType}: ${asset.name}`;
 
@@ -435,7 +435,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
               </>
             ) : (
               <>
-                <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("ui_btn_view")}</button>
+                <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("btn_view")}</button>
                 <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span> {t("emote_edit")}</button>
                 <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_20%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span> {t("purge")}</button>
               </>
@@ -453,7 +453,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_satellite_alt")}</span>
           </div>
-          <span className="truncate">{isOversight ? t("oversight_posts_editor") : t("wf_title_dispatct")}</span>
+          <span className="truncate">{isOversight ? t("oversight_posts_editor") : t("wf_tab_dispatch")}</span>
         </h2>
         <div className="relative flex-1 max-w-4xl ml-auto flex gap-4 items-center justify-end">
           <div className="relative flex-1">
@@ -498,7 +498,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           <FilterTabs className="h-12 z-40">
             <FilterTabButton
               id="Active"
-              label={t("masonhub_status_active")}
+              label={t("status_active")}
               activeTab={filterStatus}
               setTab={setFilterStatus}
             />
@@ -533,7 +533,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   );
 
   const wrappedContent = isSidePanel ? (
-    <SidePanel isOpen={isOpen!} onClose={onClose!} title={t("wf_title_dispatct")} subtitle={isOversight ? t("oversight_posts_editor") : t("system_broadcasts")} icon="satellite_alt" iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" widthClass="w-[90vw] max-w-[1200px]">
+    <SidePanel isOpen={isOpen!} onClose={onClose!} title={t("wf_tab_dispatch")} subtitle={isOversight ? t("oversight_posts_editor") : t("system_broadcasts")} icon="satellite_alt" iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" widthClass="w-[90vw] max-w-[1200px]">
       {contentBlock}
     </SidePanel>
   ) : contentBlock;
@@ -588,7 +588,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                     <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shadow-inner backdrop-blur-md ${isActive ? 'bg-[var(--success)]/20 border-[var(--success)]/50 shadow-[0_0_10px_rgba(34,197,94,0.3)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-black/40'}`}>
                       {isActive && <span className="material-symbols-outlined !text-[14px] text-[var(--success)]">{t("icon_check")}</span>}
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1"><span className="material-symbols-outlined !text-[16px]">{t("icon_satellite_alt")}</span> {isActive ? t("masonhub_status_active") : t("status_inactive")}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1"><span className="material-symbols-outlined !text-[16px]">{t("icon_satellite_alt")}</span> {isActive ? t("status_active") : t("status_inactive")}</span>
                   </label>
 
                   <label className="flex items-center gap-2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity">

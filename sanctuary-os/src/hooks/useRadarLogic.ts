@@ -593,8 +593,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = fal
                 const bossVArr = dbVersionMap.get(myBossId);
                 if (bossVArr && myVArr.length > 0 && bossVArr.length > 0) {
                     let hasOverlap = false;
-                    if (myVArr.some((v:string) => ['unknown', 'any', 'all', ''].includes(v.toLowerCase())) || 
-                        bossVArr.some((v:string) => ['unknown', 'any', 'all', ''].includes(v.toLowerCase()))) {
+                    if (myVArr.some((v:string) => ['vlocal', 'any', 'all', ''].includes(v.toLowerCase())) || 
+                        bossVArr.some((v:string) => ['vlocal', 'any', 'all', ''].includes(v.toLowerCase()))) {
                         hasOverlap = true;
                     } else {
                         hasOverlap = myVArr.some((mv: string) => isVersionMatch(bossVArr, mv)) || bossVArr.some((bv: string) => isVersionMatch(myVArr, bv));
@@ -683,11 +683,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = fal
           mason_id: dbMod?.mason_id || null,
           status: dbMod
             ? dbMod.status === "verified"
-              ? t("status_verified")
+              ? t("verified")
               : dbMod.status === "unverified"
-                ? t("status_unverified")
+                ? t("unverified")
                 : dbMod.status
-            : mod.status?.includes("EXPLICIT LOCAL") ? "🚫 EXPLICIT LOCAL" : t("status_local_only"),
+            : mod.status?.includes("EXPLICIT LOCAL") ? "🚫 EXPLICIT LOCAL" : t("unlinked_badge"),
           isSynced: !!dbMod,
           isVirtual: false,
           isGhosted: isDlcMissing || isVersionMismatch,
@@ -708,7 +708,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = fal
           (m) => String(m.setId) === String(set.id),
         );
         if (setMembers.length > 0) {
-          const verifiedCount = setMembers.filter((m) => m.status === (t("status_verified"))).length;
+          const verifiedCount = setMembers.filter((m) => m.status === (t("verified"))).length;
           const isAllVerified = verifiedCount === setMembers.length;
           const isNoneVerified = verifiedCount === 0;
           const isAnyBroken = setMembers.some((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
@@ -717,9 +717,9 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = fal
           if (isAnyBroken) {
             folderStatus = "broken";
           } else if (isAllVerified) {
-            folderStatus = t("status_verified");
+            folderStatus = t("verified");
           } else if (isNoneVerified) {
-            folderStatus = t("status_unverified");
+            folderStatus = t("unverified");
           } else {
             folderStatus = t("status_mixed");
           }
@@ -766,7 +766,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = fal
           author: familyMembers[0].author,
         };
           const safeName = pData.name || t("status_unknown_folder") || "Unknown Folder";
-          const verifiedCount = familyMembers.filter((m) => m.status === (t("status_verified"))).length;
+          const verifiedCount = familyMembers.filter((m) => m.status === (t("verified"))).length;
           const isAllVerified = verifiedCount === familyMembers.length;
           const isNoneVerified = verifiedCount === 0;
           const isAnyBroken = familyMembers.some((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
@@ -775,9 +775,9 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = fal
           if (isAnyBroken) {
             folderStatus = "broken";
           } else if (isAllVerified) {
-            folderStatus = t("status_verified");
+            folderStatus = t("verified");
           } else if (isNoneVerified) {
-            folderStatus = t("status_unverified");
+            folderStatus = t("unverified");
           } else {
             folderStatus = t("status_mixed");
           }
@@ -853,7 +853,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = fal
         );
         if (setMembers.length > 0) {
           const isSet = !!set.isCollection;
-          const verifiedCount = setMembers.filter((m: any) => m.status === (t("status_verified"))).length;
+          const verifiedCount = setMembers.filter((m: any) => m.status === (t("verified"))).length;
           const isAllVerified = verifiedCount === setMembers.length;
           const isNoneVerified = verifiedCount === 0;
           const isAnyBroken = setMembers.some((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
@@ -862,9 +862,9 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = fal
           if (isAnyBroken) {
             folderStatus = "broken";
           } else if (isAllVerified) {
-            folderStatus = t("status_verified");
+            folderStatus = t("verified");
           } else if (isNoneVerified) {
-            folderStatus = t("status_unverified");
+            folderStatus = t("unverified");
           } else {
             folderStatus = t("status_mixed");
           }

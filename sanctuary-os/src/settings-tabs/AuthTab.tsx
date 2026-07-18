@@ -19,13 +19,13 @@ export default function AuthTab() {
       if (type === 'email' && emailInput) {
         const { error } = await supabase.auth.updateUser({ email: emailInput });
         if (error) throw error;
-        useStore.getState().pushStatus(t("auto_email_update_initiated_check_your_inboxe"));
+        useStore.getState().pushStatus(t("auto_email_update_initiated_45"));
         setEmailInput("");
       }
       if (type === 'password' && passwordInput) {
         const { error } = await supabase.auth.updateUser({ password: passwordInput });
         if (error) throw error;
-        useStore.getState().pushStatus(t("auto_password_updated_successfully"));
+        useStore.getState().pushStatus(t("auto_password_updated_successfully_34"));
         setPasswordInput("");
       }
     } catch (err: any) {

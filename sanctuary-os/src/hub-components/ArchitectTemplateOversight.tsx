@@ -135,7 +135,7 @@ export default function ArchitectTemplateOversight() {
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_data_object") || "data_object"}</span>
           </div>
-          <span className="truncate">{t("tab_templates") || "Community Templates"}</span>
+          <span className="truncate">{t("ql_templates") || "Community Templates"}</span>
         </h2>
         
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">

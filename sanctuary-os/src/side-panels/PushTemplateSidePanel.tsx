@@ -263,7 +263,7 @@ export function PushTemplateSidePanel({
               type="text" 
               value={targetFile}
               onChange={e => setTargetFile(e.target.value)}
-              placeholder={t("auto_e_g_mc_settings_cfg")}
+              placeholder={t("auto_e_g_mc_24")}
               className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-3 text-sm font-black focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all text-[var(--text)] shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
             />
           </div>
@@ -297,7 +297,7 @@ export function PushTemplateSidePanel({
           <div className="flex flex-col gap-3">
             <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">tag</span>
-              {t("upload_version") || "Version"}
+              {t("update_version") || "Version"}
             </label>
             <div className="relative group">
               <div className="absolute inset-0 bg-[var(--accent)]/5 rounded-2xl blur-md group-focus-within:bg-[var(--accent)]/10 transition-colors pointer-events-none"></div>
