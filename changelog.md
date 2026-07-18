@@ -1,3 +1,23 @@
+ **Date: July 18, 2026**
+ **Version: 0.4.7**
+
+## **UI/UX & Platform Architecture**
+
+### Cloud Synchronization & State Management
+- **Master Lexicon Cloud Flow [New]**: Built a brand new cloud-synchronized flow for Master Lexicons. Wayfinder Oversight can now fetch, edit, and push global translation dictionaries directly to the cloud backend, ensuring immediate deployment of new keys without client updates.
+- **Master Schema Integration**: Upgraded the existing Master Schema flow to utilize the same new robust architecture as the Lexicons, providing a unified editing experience across both datasets.
+- **Dynamic Themes**: Hooked default Chameleons into the cloud backend (`sanctuary_themes`), enabling live platform-wide aesthetic updates without needing a local patch.
+- **Toolbar & Error States**: Implemented comprehensive error handling and visually distinct toolbar states across the new Master Schema and Lexicon flows to provide robust feedback during cloud save/sync operations.
+
+### Component Refactors
+- **Chameleon & IDE Breakdown**: Executed a major structural refactor of the Wayfinder Hub's file editing capabilities. Exploded monolithic components by separating logic into dedicated `WayfinderChameleons.tsx`, `MasonIDE.tsx`, `MasonEditorPanel.tsx`, `MasonFileBrowser.tsx`, `MasonHeader.tsx`, and a centralized `useMasonFiles.ts` hook, drastically improving maintainability and performance.
+- **Lexicon Simplification**: Performed deep cleanup and standardization of Lexicon files across the ecosystem, streamlining translation keys and removing redundant logic.
+
+### Wayfinder Hub Upgrades
+- **Centralized Control**: General polish and upgrades to the Wayfinder Hub interface to integrate the new Lexicon, Schema, and Chameleon flows into a unified developer dashboard.
+
+---
+
  **Date: July 17, 2026**
  **Version: 0.4.67**
 

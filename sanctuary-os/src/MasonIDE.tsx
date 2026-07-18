@@ -113,7 +113,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
 
             const payload = actualCloudTarget === 'sanctuary_lexicons'
                ? { id: fileId, name: fileId, badge: parsed._meta_badge || 'Sanctuary', version: parsed._meta_version || 1, lexicon_data: parsed, updated_at: new Date().toISOString() }
-               : { id: fileId, schema_data: parsed, version: parsed.schema_version || 1, updated_at: new Date().toISOString() };
+               : { id: fileId, name: parsed.manifest_name || fileId, schema_data: parsed, version: parsed.schema_version || 1, updated_at: new Date().toISOString() };
 
             const { error } = await supabase.from(actualCloudTarget).upsert(payload);
             if (error) throw error;
@@ -322,7 +322,8 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
    if (activeFile && (isLexicon || isSchema)) {
       try {
          const parsed = JSON.parse(activeFile.content);
-         const reference = isLexicon ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null);
+         const isEnDefault = activeFile?.name.includes('en-default');
+         const reference = isEnDefault ? null : (isLexicon ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null));
 
          if (reference) {
             const total = deepCountKeys(reference);
@@ -339,11 +340,12 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
       try {
          const parsed = JSON.parse(activeFile.content);
          const isLexiconActive = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.startsWith('en-') || activeFile?.name.startsWith('de-') || activeFile?.name.startsWith('es-') || activeFile?.name.startsWith('fr-');
-         const reference = isLexiconActive ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null);
+         const isEnDefault = activeFile?.name.includes('en-default');
+         const reference = isEnDefault ? null : (isLexiconActive ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null));
 
          if (!reference) return;
 
-         const newObj = deepAddMissing(reference, parsed);
+         const newObj = deepAddMissing(reference, parsed, isLexiconActive);
          const newContent = JSON.stringify(newObj, null, 2);
          const model = editorRef.getModel();
          if (model) {
@@ -366,11 +368,12 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
       try {
          const parsed = JSON.parse(activeFile.content);
          const isLexiconActive = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.startsWith('en-') || activeFile?.name.startsWith('de-') || activeFile?.name.startsWith('es-') || activeFile?.name.startsWith('fr-');
-         const reference = isLexiconActive ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null);
+         const isEnDefault = activeFile?.name.includes('en-default');
+         const reference = isEnDefault ? null : (isLexiconActive ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null));
 
          if (!reference) return;
 
-         const newObj = deepPurgeDeprecated(reference, parsed);
+         const newObj = deepPurgeDeprecated(reference, parsed, isLexiconActive);
          const newContent = JSON.stringify(newObj, null, 2);
          const model = editorRef.getModel();
          if (model) {

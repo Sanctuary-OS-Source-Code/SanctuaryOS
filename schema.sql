@@ -333,6 +333,22 @@ CREATE TABLE sanctuary_schemas (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE sanctuary_lexicons (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    badge TEXT,
+    version INTEGER,
+    lexicon_data JSONB,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE sanctuary_themes (
+    id TEXT PRIMARY KEY,
+    theme_data JSONB,
+    version INTEGER,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- ==========================================
 -- ROLE MIGRATION (RUN MANUALLY)
 -- ==========================================

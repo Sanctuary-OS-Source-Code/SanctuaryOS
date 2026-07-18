@@ -21,6 +21,7 @@ import MasonPostViewer from './side-panels/MasonPostViewer';
 import SystemBroadcastsFeed from './SystemBroadcastsFeed';
 import { IdentityMatrix } from './IdentityMatrix';
 import { WayfinderPostsEditor } from './hub-components/WayfinderPostsEditor';
+import { WayfinderChameleons } from './hub-components/WayfinderChameleons';
 import { NexusReportsViewer } from './side-panels/NexusReportsViewer';
 import { FileVerificationSidePanel } from './side-panels/ArchitectSidePanels';
 import ComplianceManualFlagSidePanel from './side-panels/ComplianceManualFlagSidePanel';
@@ -55,7 +56,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
             {t("wf_hub_verify")}
           </button>
 
-          
+
 
           <button
             onClick={() => setDefconOpen(true)}
@@ -78,13 +79,13 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
           <HubTabButton id="wf_comms_title" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="sanctuary_tickets" icon={t("icon_local_activity")} label={t("wf_tab_tickets")} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
-          
-          
-          
-          <HubTabDropdown 
-            icon="admin_panel_settings" 
-            label="Moderation" 
-            activeTab={activeTab} 
+
+
+
+          <HubTabDropdown
+            icon="admin_panel_settings"
+            label="Moderation"
+            activeTab={activeTab}
             setTab={(id: string) => { if (id === 'malware_oversight') setComplianceFilter('pending'); setActiveTab(id); }}
             options={[
               { id: "linker", icon: t("icon_link"), label: t("tab_linker") },
@@ -93,17 +94,18 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
               { id: "oversight_reports", icon: t("icon_threat_intelligence"), label: t("tab_malware_logs") },
               { id: "reports", icon: t("icon_flag"), label: t("stat_bugs") },
               { id: "audit_logs", icon: t("icon_history"), label: t("tab_audit") }
-            ]} 
+            ]}
           />
-          <HubTabDropdown 
-            icon="memory" 
-            label="System" 
-            activeTab={activeTab} 
+          <HubTabDropdown
+            icon="memory"
+            label="System"
+            activeTab={activeTab}
             setTab={setActiveTab}
             options={[
               { id: "support_settings", icon: t("icon_support_agent"), label: t("wf_tab_support") },
-              { id: "ide", icon: "code", label: "WAYFINDER IDE" }
-            ]} 
+              { id: "ide", icon: "code", label: "WAYFINDER IDE" },
+              { id: "chameleons", icon: "palette", label: "Sanctuary Themes" }
+            ]}
           />
         </div>
       </div>
@@ -129,7 +131,8 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
         {activeTab === "support_settings" && <SASupportSettings />}
         {activeTab === "audit_logs" && <AuditLogViewer />}
         {activeTab === "ide" && <MasonIDE isCloudMode={true} cloudTarget="sanctuary_schemas" />}
-        {activeTab !== "command_center" && activeTab !== "wf_comms_title" && activeTab !== "identities" && activeTab !== "linker" && activeTab !== "compliance" && activeTab !== "malware_oversight" && activeTab !== "reports" && activeTab !== "oversight_reports" && activeTab !== "sanctuary_tickets" && activeTab !== "support_settings" && activeTab !== "audit_logs" && activeTab !== "ide" && (
+        {activeTab === "chameleons" && <WayfinderChameleons />}
+        {activeTab !== "command_center" && activeTab !== "wf_comms_title" && activeTab !== "identities" && activeTab !== "linker" && activeTab !== "compliance" && activeTab !== "malware_oversight" && activeTab !== "reports" && activeTab !== "oversight_reports" && activeTab !== "sanctuary_tickets" && activeTab !== "support_settings" && activeTab !== "audit_logs" && activeTab !== "ide" && activeTab !== "chameleons" && (
           <EmptyState icon={t("icon_construction") || "construction"} title={t("wf_under_construction")} className="col-span-full py-16" />
         )}
       </div>

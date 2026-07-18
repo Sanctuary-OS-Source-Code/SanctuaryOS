@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
+import { supabase } from './supabase';
 
-const CORE_THEMES: any = {
+const DEFAULT_CORE_THEMES: any = {
   architect: {
     name: "Architect", bg: "#02040a", sidebar: "#060913", sidebartext: "#fafafa", accent: "#38bdf8",
     text: "#fafafa", subtext: "#a1a1aa", success: "#30d158", warning: "#ffd60a", danger: "#ff453a",
@@ -55,12 +56,32 @@ const CORE_THEMES: any = {
 const ThemeContext = createContext<any>(null);
 
 export const ThemeProvider = ({ children }: any) => {
+  const [CORE_THEMES, setCoreThemes] = useState<any>(DEFAULT_CORE_THEMES);
   const [customThemes, setCustomThemes] = useState(() => JSON.parse(localStorage.getItem("sanctuary_custom_themes") || "{}"));
   const [devThemes, setDevThemes] = useState(() => JSON.parse(localStorage.getItem("sanctuary_dev_themes") || "{}"));
   const [activeThemeId, setActiveThemeId] = useState(() => localStorage.getItem("sanctuary_active_theme") || "architect");
 
+  useEffect(() => {
+    const fetchCoreThemes = async () => {
+      try {
+        const { data, error } = await supabase.from('sanctuary_themes').select('*');
+        if (error) throw error;
+        if (data && data.length > 0) {
+          const fetchedThemes: any = { ...DEFAULT_CORE_THEMES };
+          data.forEach((row: any) => {
+            fetchedThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name };
+          });
+          setCoreThemes(fetchedThemes);
+        }
+      } catch (err) {
+        console.error("Failed to fetch cloud themes", err);
+      }
+    };
+    fetchCoreThemes();
+  }, []);
+
   const allThemes = { ...customThemes, ...devThemes, ...CORE_THEMES };
-  const currentThemeRaw = allThemes[activeThemeId] || CORE_THEMES.architect;
+  const currentThemeRaw = allThemes[activeThemeId] || CORE_THEMES.architect || DEFAULT_CORE_THEMES.architect;
   const currentTheme = { ...currentThemeRaw };
   if (currentTheme.name === "Architect" && currentTheme.bgGradient && currentTheme.bgGradient.includes("linear-gradient")) {
     currentTheme.bgGradient = "#02040a";
@@ -315,7 +336,7 @@ export const ThemeProvider = ({ children }: any) => {
 
   return (
     <ThemeContext.Provider value={{
-      activeThemeId, setActiveThemeId, currentTheme, CORE_THEMES, customThemes, devThemes,
+      activeThemeId, setActiveThemeId, currentTheme, CORE_THEMES, setCoreThemes, customThemes, devThemes,
       updateActiveTheme, updateTheme, renameTheme, createNewTheme, createNewDevTheme, exportDevThemeToCustom, deleteTheme,
       importTheme: (json: any) => {
         const id = `import_${Date.now()}`;

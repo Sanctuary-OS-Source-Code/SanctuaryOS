@@ -95,6 +95,17 @@ export const LexiconProvider = ({ children }: any) => {
           const meta = data.map(d => ({ id: d.id, name: d.name, badge: d.badge, version: d.version }));
           localStorage.setItem("sanctuary_lexicon_meta", JSON.stringify(meta));
           setLexiconMeta(meta);
+
+          // If in local development, automatically sync cloud lexicons back to the source code files
+          if (import.meta.env.DEV) {
+            for (const row of data) {
+              fetch('/__update-lexicon', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: row.id, content: row.lexicon_data })
+              }).catch(() => {});
+            }
+          }
         }
       } catch(err) {
         console.error("Failed to sync master lexicons:", err);

@@ -155,11 +155,6 @@ export default function MasonEditorPanel({
                </div>
 
                <div className="flex-1 relative flex w-full min-h-0">
-                  <style>{`
-                    [widgetid="editor.contrib.findWidget"] {
-                        background: color-mix(in srgb, ${isLight ? '#ffffff' : '#0f172a'} 70%, transparent) !important;
-                    }
-                `}</style>
 
                   <div style={{ width: showReference ? `${splitRatio}%` : '100%' }} className="flex-shrink-0 relative h-full min-w-0 transition-none">
                      {validationStats && (

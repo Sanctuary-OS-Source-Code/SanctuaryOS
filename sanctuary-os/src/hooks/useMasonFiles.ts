@@ -325,7 +325,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget }: { vaultPa
                : { schema_version: 1, metadata: {} };
             const payload = internalCloudTarget === 'sanctuary_lexicons' 
                ? { id: fileId, name: fileId, badge: 'Sanctuary', version: 1, lexicon_data: contentToSave }
-               : { id: fileId, schema_data: contentToSave, version: 1, updated_at: new Date().toISOString() };
+               : { id: fileId, name: fileId, schema_data: contentToSave, version: 1, updated_at: new Date().toISOString() };
             
             const { error } = await supabase.from(internalCloudTarget).insert(payload);
             if (error) {

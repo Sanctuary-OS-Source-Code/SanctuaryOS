@@ -41,12 +41,12 @@ export function CartographerSetup() {
 
   return (
     <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: 'var(--bgGradient, var(--bg))', color: 'var(--text)' }}>
-      
+
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0" style={{ backgroundImage: 'linear-gradient(var(--text) 1px, transparent 1px), linear-gradient(90deg, var(--text) 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] rounded-full theme-bg-accent opacity-[0.06] blur-[150px] pointer-events-none z-0 mix-blend-normal transition-all duration-1000" />
 
       <div className="relative z-10 w-[95%] max-w-5xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row overflow-hidden group">
-        
+
         {/* LEFT COLUMN: The Setup Console */}
         <div className="p-8 lg:p-12 flex flex-col lg:w-1/2 border-b lg:border-b-0 lg:border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-20">
           <div className="flex flex-col items-start mb-8">
@@ -63,7 +63,7 @@ export function CartographerSetup() {
           </div>
 
           <div className="flex flex-col gap-3 w-full">
-            <button 
+            <button
               onClick={async () => {
                 try {
                   const paths: any = await invoke("auto_detect_paths");
@@ -73,11 +73,11 @@ export function CartographerSetup() {
                     if (paths.vault_path) setVaultPath(paths.vault_path);
                     setStatus(t("settings_auto_detect_success") || "Paths Auto-Detected!");
                   }
-                } catch(e) {
+                } catch (e) {
                   console.error(e);
                   setStatus(t("status_autodetect_failed"));
                 }
-              }} 
+              }}
               className="w-full theme-glass-inner backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-5 py-3.5 rounded-xl text-[10px] font-black text-[var(--text)] hover:bg-[var(--accent)] hover:text-white hover:border-[var(--accent)]/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 uppercase tracking-widest mb-3 shadow-sm"
             >
               <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">cloud</span> {t("auto_auto_detect_paths") || "Auto-Detect Paths"}</span>
@@ -107,21 +107,21 @@ export function CartographerSetup() {
                   options={
                     lexiconMeta && lexiconMeta.length > 0
                       ? [
-                          ...lexiconMeta.map((m: any) => ({
-                            id: m.id,
-                            label: `${m.name} [${m.badge}]`
-                          })),
-                          ...Object.keys(registry || {})
-                            .filter(k => !lexiconMeta.find((m: any) => m.id === k))
-                            .map(k => ({ id: k, label: `Custom: ${k}` }))
-                        ]
+                        ...lexiconMeta.map((m: any) => ({
+                          id: m.id,
+                          label: `${m.name} [${m.badge}]`
+                        })),
+                        ...Object.keys(registry || {})
+                          .filter(k => !lexiconMeta.find((m: any) => m.id === k))
+                          .map(k => ({ id: k, label: `Custom: ${k}` }))
+                      ]
                       : [
-                          { id: 'en-sanctuary', label: 'English (Sanctuary) [Sanctuary]' },
-                          { id: 'en-default', label: 'English (Default) [Sanctuary]' },
-                          { id: 'en-sims', label: 'English (Simlish) [Community]' },
-                          { id: 'de-default', label: 'German (Default) [Community]' },
-                          ...Object.keys(registry || {}).map(k => ({ id: k, label: `Custom: ${k}` }))
-                        ]
+                        { id: 'en-sanctuary', label: 'English (Sanctuary) [Sanctuary]' },
+                        { id: 'en-default', label: 'English (Default) [Sanctuary]' },
+                        { id: 'en-sims', label: 'English (Simlish) [Community]' },
+                        { id: 'de-default', label: 'German (Default) [Community]' },
+                        ...Object.keys(registry || {}).map(k => ({ id: k, label: `Custom: ${k}` }))
+                      ]
                   }
                 />
               </div>
@@ -150,62 +150,62 @@ export function CartographerSetup() {
         {/* RIGHT COLUMN: The Aesthetic Preview */}
         <div className="lg:w-1/2 p-8 lg:p-12 flex flex-col relative overflow-hidden">
           <div className="absolute inset-0 theme-bg-accent opacity-[0.03] pointer-events-none transition-colors duration-1000" />
-          
+
           <h3 className="text-[10px] font-black uppercase tracking-[0.3em] mb-8 theme-text-accent drop-shadow-sm flex items-center gap-2 relative z-10 transition-colors duration-500">
             <span className="material-symbols-outlined !text-[14px]">visibility</span>
             {t("settings_tab_themes") || "Aesthetic Preview"}
           </h3>
-          
+
           <div className="flex flex-col gap-6 relative z-10 flex-1 justify-center">
             {/* Fake Component 1: Mod Card / Transmission */}
             <div className="theme-glass-panel p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl hover:border-[var(--accent)]/30 transition-all duration-700">
               <div className="flex items-center justify-between mb-5">
-                 <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 rounded-full theme-bg-accent/20 flex items-center justify-center border border-[var(--accent)]/30 transition-colors duration-500">
-                      <span className="material-symbols-outlined theme-text-accent !text-[18px]">engineering</span>
-                   </div>
-                   <div>
-                     <h4 className="text-sm font-bold text-[var(--headerText)]">Sanctuary OS</h4>
-                     <p className="text-[9px] theme-text-accent uppercase tracking-widest font-black opacity-80 transition-colors duration-500">{t("tab_architect") || "ARCHITECT"}</p>
-                   </div>
-                 </div>
-                 <div className="px-3 py-1.5 theme-bg-success/10 border border-[var(--success)]/20 rounded-full text-[var(--success)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 rounded-full theme-bg-success animate-pulse" />
-                   {t("status_online") || "ONLINE"}
-                 </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full theme-bg-accent/20 flex items-center justify-center border border-[var(--accent)]/30 transition-colors duration-500">
+                    <span className="material-symbols-outlined theme-text-accent !text-[18px]">engineering</span>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-[var(--headerText)]">{t("sidebar_app_title")}</h4>
+                    <p className="text-[9px] theme-text-accent uppercase tracking-widest font-black opacity-80 transition-colors duration-500">{t("tab_architect") || "ARCHITECT"}</p>
+                  </div>
+                </div>
+                <div className="px-3 py-1.5 theme-bg-success/10 border border-[var(--success)]/20 rounded-full text-[var(--success)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full theme-bg-success animate-pulse" />
+                  {t("status_online") || "ONLINE"}
+                </div>
               </div>
               <h5 className="text-sm font-bold mb-2 text-[var(--text)]">{t("comms_handshake") || "Awaiting Cryptographic Handshake."}</h5>
               <p className="text-xs text-[var(--subtext)] leading-relaxed mb-6 line-clamp-2">
-                 {t("auto_guest_mode_active_45") || "Guest mode active. Uploads and global flags are disabled."}
+                {t("alert_guest_mode_uploads") || "Guest mode active. Uploads and global flags are disabled."}
               </p>
               <div className="flex items-center gap-3">
-                 <button className="px-5 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-lg text-[10px] font-black uppercase tracking-widest shadow-[inset_0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent),0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 backdrop-blur-md">
-                    <span className="material-symbols-outlined !text-[14px]">bolt</span>
-                    {t("context_initialize") || "INITIALIZE"}
-                 </button>
-                 <button className="px-5 py-2 theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
-                    {t("nav_cancel") || "CANCEL"}
-                 </button>
+                <button className="px-5 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-lg text-[10px] font-black uppercase tracking-widest shadow-[inset_0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent),0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 backdrop-blur-md">
+                  <span className="material-symbols-outlined !text-[14px]">bolt</span>
+                  {t("context_initialize") || "INITIALIZE"}
+                </button>
+                <button className="px-5 py-2 theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
+                  {t("nav_cancel") || "CANCEL"}
+                </button>
               </div>
             </div>
 
             {/* Fake Component 2: System Status widgets */}
             <div className="grid grid-cols-2 gap-4">
               <div className="theme-glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 relative overflow-hidden group/stat shadow-xl">
-                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--success)]/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500" />
-                 <span className="text-[9px] font-black tracking-[0.2em] theme-text-accent uppercase opacity-80 relative z-10 transition-colors duration-500">{t("status") || "STATUS"}</span>
-                 <div className="flex items-center gap-2.5 relative z-10">
-                    <div className="w-2 h-2 rounded-full theme-bg-success shadow-[0_0_10px_var(--success)]" />
-                    <span className="text-sm font-bold text-[var(--text)] tracking-wide">{t("status_operational") || "OPERATIONAL"}</span>
-                 </div>
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--success)]/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500" />
+                <span className="text-[9px] font-black tracking-[0.2em] theme-text-accent uppercase opacity-80 relative z-10 transition-colors duration-500">{t("status") || "STATUS"}</span>
+                <div className="flex items-center gap-2.5 relative z-10">
+                  <div className="w-2 h-2 rounded-full theme-bg-success shadow-[0_0_10px_var(--success)]" />
+                  <span className="text-sm font-bold text-[var(--text)] tracking-wide">{t("status_operational") || "OPERATIONAL"}</span>
+                </div>
               </div>
               <div className="theme-glass-panel p-5 rounded-2xl border border-[var(--warning)]/30 flex flex-col gap-2 relative overflow-hidden hover:border-[var(--warning)]/50 transition-colors shadow-xl">
-                 <div className="absolute inset-0 bg-[var(--warning)]/10" />
-                 <span className="text-[9px] font-black tracking-[0.2em] text-[var(--warning)] uppercase opacity-90 relative z-10">DEFCON</span>
-                 <div className="flex items-center gap-2.5 relative z-10">
-                    <span className="material-symbols-outlined !text-[16px] text-[var(--warning)] drop-shadow-[0_0_8px_var(--warning)]">warning</span>
-                    <span className="text-sm font-bold text-[var(--text)] tracking-wide">LEVEL 3</span>
-                 </div>
+                <div className="absolute inset-0 bg-[var(--warning)]/10" />
+                <span className="text-[9px] font-black tracking-[0.2em] text-[var(--warning)] uppercase opacity-90 relative z-10">DEFCON</span>
+                <div className="flex items-center gap-2.5 relative z-10">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--warning)] drop-shadow-[0_0_8px_var(--warning)]">warning</span>
+                  <span className="text-sm font-bold text-[var(--text)] tracking-wide">LEVEL 3</span>
+                </div>
               </div>
             </div>
           </div>

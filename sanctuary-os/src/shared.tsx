@@ -206,7 +206,7 @@ export function ViewHeader({ title, subtitle, icon, iconColorClass = "bg-gradien
           <h1 className="text-4xl font-black tracking-tighter uppercase leading-tight m-0 text-left w-full text-[var(--text)] truncate">
             {title}
           </h1>
-          <p 
+          <p
             className="font-black tracking-[0.4em] text-[10px] uppercase opacity-70 m-0 mt-1 text-left w-full text-[var(--subtext)] drop-shadow-sm truncate"
             onClick={onSubtitleClick}
           >
@@ -387,11 +387,10 @@ export function FilterTabButton({ id, icon, label, activeTab, setTab, className 
   return (
     <button
       onClick={() => setTab(id)}
-      className={`h-full px-4 py-1.5 rounded-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-        isActive
-          ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md'
-          : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 opacity-70 hover:opacity-100'
-      } ${className}`}
+      className={`h-full px-4 py-1.5 rounded-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${isActive
+        ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md'
+        : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 opacity-70 hover:opacity-100'
+        } ${className}`}
     >
       {icon && <span className="material-symbols-outlined !text-[14px]">{icon}</span>}
       {label}
@@ -1122,7 +1121,7 @@ export function HoverTooltip({ title, subtitle, variant = 'danger', className = 
   }
 
   return (
-    <div className={`absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-[70] hidden group-hover:flex flex-col items-start justify-center theme-glass-panel backdrop-blur-3xl bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] border px-5 py-3 rounded-[var(--radius)] max-w-[320px] w-max pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ${borderColorClass} ${className}`}>
+    <div className={`absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-[70] hidden group-hover:flex flex-col items-start justify-center theme-glass-panel !bg-black/50 px-5 py-3 max-w-[320px] w-max pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-2 shadow-[0_20px_50px_rgba(0,0,0,0.6)] ${borderColorClass} ${className}`}>
       <div className="relative z-10 flex flex-col items-start gap-1 w-full">
         <div className={`text-[10px] font-black uppercase tracking-[0.2em] flex items-start text-left gap-2 whitespace-pre-line ${textColorClass}`}>
           <span className="material-symbols-outlined !text-[14px] shrink-0 mt-[1px]">{iconName}</span>

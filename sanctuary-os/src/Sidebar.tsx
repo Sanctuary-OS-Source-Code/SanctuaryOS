@@ -169,7 +169,7 @@ export function Sidebar({
           <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!isSidebarCollapsed && (
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
-                {t("architect")}
+                {t("mason")}
               </p>
             )}
             <NavButton

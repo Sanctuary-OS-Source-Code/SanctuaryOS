@@ -1,7 +1,9 @@
 {
   "paths": {
     "manifest_file": "Resource.cfg",
-    "auto_scan_paths_mac": [],
+    "auto_scan_paths_mac": [
+      ""
+    ],
     "default_mod_dir_mac": "Documents/Electronic Arts/The Sims 4/Mods",
     "auto_scan_paths_windows": [
       "C:\\Program Files\\EA Games\\The Sims 4",
@@ -237,7 +239,7 @@
       "lexicon_key": "class_dd_career"
     }
   ],
-  "schema_version": 3,
+  "schema_version": 5,
   "executable_names": [
     "TS4_x64.exe",
     "TS4.exe",

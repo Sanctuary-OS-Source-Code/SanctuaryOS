@@ -551,39 +551,73 @@ input[type="date"].custom-date-input {
   background: color-mix(in srgb, var(--accent) 60%, transparent) !important;
 }
 
-[widgetid="editor.contrib.findWidget"] {
-  backdrop-filter: blur(24px) !important;
-  border-radius: 12px !important;
-  border: 1px solid transparent !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px color-mix(in srgb, var(--accent, #2563eb) 50%, transparent) !important;
+/* ---- MONACO FIND WIDGET (UNIFIED) ---- */
+.monaco-editor .find-widget {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   overflow: visible !important;
-  padding: 4px !important;
+  margin-top: 10px !important;
+  margin-right: 12px !important;
 }
 
-[widgetid="editor.contrib.findWidget"] *:focus,
-[widgetid="editor.contrib.findWidget"] *:focus-visible,
-[widgetid="editor.contrib.findWidget"] .monaco-inputbox.synthetic-focus {
+.monaco-editor .find-widget:not(.visible) {
+  transform: translateY(calc(-100% - 30px)) !important;
+}
+
+.monaco-editor .find-widget::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -14px;
+  right: -14px;
+  bottom: -10px;
+  background: color-mix(in srgb, var(--bg-primary) 85%, transparent) !important;
+  backdrop-filter: blur(24px) saturate(1.5) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.5) !important;
+  border-radius: 12px !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+
+.monaco-editor .find-widget *:focus,
+.monaco-editor .find-widget *:focus-visible,
+.monaco-editor .find-widget .monaco-inputbox.synthetic-focus {
   outline: none !important;
   box-shadow: none !important;
   border-color: transparent !important;
 }
 
-[widgetid="editor.contrib.findWidget"] .monaco-inputbox {
-  background: color-mix(in srgb, var(--glass-border, #ffffff) 10%, transparent) !important;
-  border: 1px solid transparent !important;
+.monaco-editor .find-widget .monaco-inputbox, 
+.monaco-editor .find-widget .replace-input,
+.monaco-editor .find-widget .find-input {
+  background: color-mix(in srgb, var(--glass-bg) 50%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent) !important;
   border-radius: 6px !important;
 }
 
-[widgetid="editor.contrib.findWidget"]::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 12px;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
-  pointer-events: none;
+.monaco-editor .find-widget .monaco-inputbox.synthetic-focus, 
+.monaco-editor .find-widget .replace-input.synthetic-focus,
+.monaco-editor .find-widget .find-input.synthetic-focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent) !important;
+}
+
+.monaco-editor .find-widget .button {
+  border-radius: 6px !important;
+  transition: all 0.2s !important;
+}
+
+.monaco-editor .find-widget .button:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent) !important;
+  color: var(--accent) !important;
+}
+
+.monaco-editor .find-widget .matchesCount {
+  color: var(--subtext) !important;
+  opacity: 0.8 !important;
 }
 
 .danger-accent-override {
@@ -618,6 +652,7 @@ input[type="date"].custom-date-input {
 .sanctuary-slider::-webkit-slider-thumb:hover {
   transform: scale(1.2);
 }
+
 
 html {
   font-size: var(--fontSizeBase, 16px) !important;
