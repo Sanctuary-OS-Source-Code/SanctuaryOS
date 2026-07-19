@@ -1,6 +1,6 @@
 {
   "name": "sanctuary-os",
-  "version": "0.4.70",
+  "version": "0.4.72",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -24,7 +24,9 @@
     "@tiptap/extension-link": "^3.26.0",
     "@tiptap/react": "^3.26.0",
     "@tiptap/starter-kit": "^3.26.0",
+    "dictionary-en": "^4.0.0",
     "material-symbols": "^0.45.6",
+    "nspell": "^2.1.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",

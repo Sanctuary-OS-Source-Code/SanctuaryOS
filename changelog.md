@@ -1,4 +1,27 @@
  **Date: July 18, 2026**
+ **Version: 0.4.72**
+
+## **QOL & Optimizations**
+
+### QOL Updates
+- **Custom Context Menu Spellchecker [New]**: Built a completely offline, native-feeling JavaScript spellchecker (`nspell`) directly into the custom dark-mode context menu. It geometrically detects misspelled words on right-click using `document.caretRangeFromPoint`, queries local dictionaries, and allows 1-click text replacements without breaking TipTap's selection history.
+- **Comm-Link Drafts**: Added local state preservation for unsaved replies in the Comm-Link, ensuring drafted text isn't lost if you accidentally close the panel or navigate away.
+
+### Bug Fixes & Optimizations
+- **Rich Text Performance Optimization**: Eliminated severe typing lag inside the Comm-Link reply editor. Increased the state-sync debounce timeout on the `RichReplyEditor` component from 50ms to 500ms to prevent the massive parent component (`MasonPostViewer`) from thrashing the DOM with re-renders on every single keystroke.
+- **Side Panel Header Aesthetics**: Adjusted the master `SidePanel` component to slightly raise the titles and close buttons, and swapped hard truncation for `line-clamp-2`, allowing long subtitles to naturally wrap onto a second line instead of aggressively cutting off.
+- **Browser Panel Depth Sort**: Resolved a UI clipping glitch where the floating `SidePanelBrowser` was getting eclipsed by the main top-left Sanctuary logo by explicitly elevating its `z-index` over the TitleBar layer.
+- **Status Bar Toggle Polish**: Fixed broken state toggles on the System Status Bar buttons, ensuring the Browser and Settings panels open/close reliably, and updated their active states to have consistent, distinct visual feedback.
+- **Vault Sandbox Integration**: Sandbox Mods now correctly populate and display within the Vault.
+- **Comm-Link Reply Icons**: Fixed rendering of inline icons (`[ICON:...]`) within Comm-Link replies.
+- **Nexus Template Updates**: Resolved a bug in the Nexus where Template updates would get stuck or fail to process correctly.
+- **Hidden Asset Updates**: Hidden assets (e.g., hidden by their creator) no longer falsely trigger global update alerts for users.
+- **Template Alert Clearing**: Fixed an issue where Template update alerts wouldn't correctly clear from the UI after successfully installing the update.
+
+
+---
+
+ **Date: July 18, 2026**
  **Version: 0.4.7**
 
 ## **UI/UX & Platform Architecture**

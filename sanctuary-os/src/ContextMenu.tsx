@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import IconPicker from "./IconPicker";
+import { spellChecker } from "./SpellChecker";
 
 export function ContextMenu() {
   const { t } = useLexicon();
@@ -14,6 +15,7 @@ export function ContextMenu() {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [supportsIcons, setSupportsIcons] = useState(false);
   const [savedRange, setSavedRange] = useState<Range | null>(null);
+  const [misspelledInfo, setMisspelledInfo] = useState<{ word: string, suggestions: string[], range: Range } | null>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,6 +48,35 @@ export function ContextMenu() {
         setPosition({ x, y });
         setIsVisible(true);
         setShowIconPicker(false);
+        setMisspelledInfo(null);
+        
+        spellChecker.initialize();
+        let currentMisspelledInfo = null;
+        if (isInput) {
+            const docAny = document as any;
+            const range = docAny.caretRangeFromPoint ? docAny.caretRangeFromPoint(e.clientX, e.clientY) : null;
+            if (range && range.startContainer.nodeType === Node.TEXT_NODE) {
+                const text = range.startContainer.textContent || '';
+                const offset = range.startOffset;
+                let start = offset;
+                let end = offset;
+                while (start > 0 && /[a-zA-Z']/.test(text[start - 1])) start--;
+                while (end < text.length && /[a-zA-Z']/.test(text[end])) end++;
+                if (start !== end) {
+                    const word = text.substring(start, end);
+                    if (!spellChecker.isCorrect(word)) {
+                        const suggestions = spellChecker.suggest(word).slice(0, 5);
+                        if (suggestions.length > 0) {
+                            const wordRange = document.createRange();
+                            wordRange.setStart(range.startContainer, start);
+                            wordRange.setEnd(range.startContainer, end);
+                            currentMisspelledInfo = { word, suggestions, range: wordRange };
+                        }
+                    }
+                }
+            }
+        }
+        setMisspelledInfo(currentMisspelledInfo);
         
         if (selection && selection.rangeCount > 0) {
            setSavedRange(selection.getRangeAt(0));
@@ -147,6 +178,27 @@ export function ContextMenu() {
   const handleAction = (action: string) => {
     setIsVisible(false);
     setShowIconPicker(false);
+    
+    if (action.startsWith("spell_correct:")) {
+        const suggestion = action.split(":")[1];
+        if (misspelledInfo && targetElement) {
+            let finalTarget = targetElement;
+            const monacoContainer = targetElement.closest('.monaco-editor');
+            if (monacoContainer) {
+               const inputArea = monacoContainer.querySelector('.inputarea') as HTMLElement;
+               if (inputArea) finalTarget = inputArea;
+            }
+            finalTarget.focus();
+            
+            const sel = window.getSelection();
+            if (sel) {
+                sel.removeAllRanges();
+                sel.addRange(misspelledInfo.range);
+                document.execCommand('insertText', false, suggestion);
+            }
+        }
+        return;
+    }
     
     if ((window as any)._activeWebviewLabel && !targetElement && !isMonacoTarget) {
        let script = "";
@@ -359,6 +411,21 @@ export function ContextMenu() {
         className="w-48 h-max theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl overflow-hidden flex flex-col py-1 animate-in fade-in zoom-in-95 duration-100"
         onContextMenu={(e) => e.preventDefault()}
       >
+      {misspelledInfo && (
+        <>
+            <div className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/20">Spelling Suggestions</div>
+            {misspelledInfo.suggestions.map((suggestion) => (
+                <button
+                    key={suggestion}
+                    onMouseDown={(e) => { e.preventDefault(); handleAction(`spell_correct:${suggestion}`); }}
+                    className="px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group"
+                >
+                    {suggestion}
+                </button>
+            ))}
+            <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] my-1 w-full" />
+        </>
+      )}
       {!isReadOnly && (
         <button
           onMouseDown={(e) => { e.preventDefault(); handleAction("cut"); }}
