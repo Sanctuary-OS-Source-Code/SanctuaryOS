@@ -139,7 +139,7 @@ pub async fn scan_bunker(
                 };
                 (cached.dna_hash.clone(), cached.explicitly_local, heuristic_sig)
             } else {
-                let is_dev_folder = path_str.to_lowercase().contains("/dev/") || path_str.to_lowercase().contains("\\\\dev\\\\"); let hash = if is_dev_folder { format!("dev_vault_{}", path.file_name().unwrap_or_default().to_string_lossy()) } else { calculate_hash(&path).unwrap_or_default() };
+                let is_dev_folder = path_str.to_lowercase().contains("/dev/") || path_str.to_lowercase().contains("\\dev\\"); let hash = if is_dev_folder { format!("dev_vault_{}", path.file_name().unwrap_or_default().to_string_lossy()) } else { calculate_hash(&path).unwrap_or_default() };
                 let explicit = check_is_explicitly_local(&path, is_script, &game_schema);
                 cache.insert(
                     path_str.clone(),
@@ -156,7 +156,7 @@ pub async fn scan_bunker(
                 (hash, explicit, None)
             }
         } else {
-            let is_dev_folder = path_str.to_lowercase().contains("/dev/") || path_str.to_lowercase().contains("\\\\dev\\\\"); let hash = if is_dev_folder { format!("dev_vault_{}", path.file_name().unwrap_or_default().to_string_lossy()) } else { calculate_hash(&path).unwrap_or_default() };
+            let is_dev_folder = path_str.to_lowercase().contains("/dev/") || path_str.to_lowercase().contains("\\dev\\"); let hash = if is_dev_folder { format!("dev_vault_{}", path.file_name().unwrap_or_default().to_string_lossy()) } else { calculate_hash(&path).unwrap_or_default() };
             let explicit = check_is_explicitly_local(&path, is_script, &game_schema);
             cache.insert(
                 path_str.clone(),

@@ -37,8 +37,8 @@ export default function MasonHeader({
                   <CustomDropdown
                      disableTint={true}
                      options={[
-                        { id: "sanctuary_schemas", label: "MASTER SCHEMAS" },
-                        { id: "sanctuary_lexicons", label: "MASTER LEXICONS" }
+                        { id: "sanctuary_schemas", label: "SCHEMAS" },
+                        { id: "sanctuary_lexicons", label: "LEXICONS" }
                      ]}
                      value={internalCloudTarget}
                      onChange={(v: string[]) => setInternalCloudTarget(v[0] as any)}

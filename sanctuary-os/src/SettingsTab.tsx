@@ -122,18 +122,18 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
-      <ViewHeader 
-        title={t("settings_title")} 
-        icon="settings" 
+      <ViewHeader
+        title={t("settings_title")}
+        icon="settings"
         subtitle={t("settings_subtitle")}
         onSubtitleClick={() => setHackerClicks(prev => prev + 1)}
       >
-        <button 
+        <button
           className="px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] opacity-30 hover:opacity-100 transition-opacity bg-black/20"
         >
           {appVersion}
         </button>
-        <button 
+        <button
           onClick={async () => {
             await supabase.auth.signOut();
             window.location.reload();
@@ -156,7 +156,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
               setTab={setActiveTab}
             />
           ))}
-          <div className="flex-1" />
+          <div className="flex-0" />
         </div>
       </div>
 

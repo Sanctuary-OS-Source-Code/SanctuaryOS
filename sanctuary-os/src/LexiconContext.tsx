@@ -3,7 +3,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
 import enSanctuary from './lexicons/en-sanctuary.json';
 import enDefault from './lexicons/en-default.json';
-import deDefault from './lexicons/de-default.json';
 import enSims from './lexicons/en-sims.json';
 import { supabase } from './supabase';
 
@@ -20,8 +19,6 @@ export const LexiconProvider = ({ children }: any) => {
       let baseDict: any = enSanctuary;
       if (activeLang === 'en-default') baseDict = enDefault;
       if (activeLang === 'en-sims') baseDict = enSims;
-      if (activeLang === 'de-default') baseDict = deDefault;
-
       if (registry[activeLang]) {
         setDictionary({ ...baseDict, ...registry[activeLang] });
       } else {
@@ -75,22 +72,22 @@ export const LexiconProvider = ({ children }: any) => {
     const syncMasterLexicons = async () => {
       try {
         if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
-        
+
         const { data, error } = await supabase.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
         if (error) throw error;
-        
+
         if (data && data.length > 0) {
           let cloudUpdates: any = {};
           for (const row of data) {
-             cloudUpdates[row.id] = row.lexicon_data;
+            cloudUpdates[row.id] = row.lexicon_data;
           }
-          
+
           setRegistry((prev: any) => {
-             const newReg = { ...prev, ...cloudUpdates };
-             localStorage.setItem("sanctuary_lexicon_registry", JSON.stringify(newReg));
-             return newReg;
+            const newReg = { ...prev, ...cloudUpdates };
+            localStorage.setItem("sanctuary_lexicon_registry", JSON.stringify(newReg));
+            return newReg;
           });
-          
+
           // Cache metadata like badges and names
           const meta = data.map(d => ({ id: d.id, name: d.name, badge: d.badge, version: d.version }));
           localStorage.setItem("sanctuary_lexicon_meta", JSON.stringify(meta));
@@ -103,11 +100,11 @@ export const LexiconProvider = ({ children }: any) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: row.id, content: row.lexicon_data })
-              }).catch(() => {});
+              }).catch(() => { });
             }
           }
         }
-      } catch(err) {
+      } catch (err) {
         console.error("Failed to sync master lexicons:", err);
       }
     };
@@ -119,7 +116,7 @@ export const LexiconProvider = ({ children }: any) => {
   const t = (key: string) => {
     if (!key) return "";
     let val = dictionary[key];
-    
+
     if (val === undefined || val === "") {
       val = (enSanctuary as any)[key];
     }
@@ -129,7 +126,7 @@ export const LexiconProvider = ({ children }: any) => {
 
     if (val !== undefined && val !== "") {
       if (emojiRegex.test(val) && (key.includes('icon') || key.startsWith('emote_'))) {
-        return ""; 
+        return "";
       }
       return val;
     }

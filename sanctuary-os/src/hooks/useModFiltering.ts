@@ -35,6 +35,7 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
         const matchesEquip =
           equipFilter === "ALL" ||
           equipFilter === "ARCHIVES" ||
+          equipFilter === "DEV" ||
           (equipFilter === "EQUIPPED" && isActuallyEquipped) ||
           (equipFilter === "UNEQUIPPED" && !isActuallyEquipped);
         const modType = (m.category_override || m.type || "NONE").toUpperCase();

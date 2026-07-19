@@ -697,7 +697,7 @@ export const ICON_CATEGORIES = [
       "warning",
       "notification_important",
       "add_alert",
-      "icon_delete",
+      "delete",
       "sim_card_alert",
       "error",
       "error_outline",

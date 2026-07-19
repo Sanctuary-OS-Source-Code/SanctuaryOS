@@ -1,13 +1,15 @@
 import React from 'react';
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
 
-export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen, setIsNotificationSidebarOpen, unreadNotificationCount, isLogExpanded, setIsLogExpanded, status, isScanning, scanProgress, isErrorStatus, isSuccessStatus, statusBgClass, statusAccentClass, statusIconClass, statusTextClass, updatePayload, setIsSystemStatusOpen, setIsSideBrowserOpen }: any) {
+export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen, setIsNotificationSidebarOpen, unreadNotificationCount, isLogExpanded, setIsLogExpanded, status, isScanning, scanProgress, isErrorStatus, isSuccessStatus, statusBgClass, statusAccentClass, statusIconClass, statusTextClass, updatePayload, isSystemStatusOpen, setIsSystemStatusOpen, setIsSideBrowserOpen }: any) {
   const { t } = useLexicon();
   const nexusUpdatesCount = useStore(state => state.nexusUpdatesCount);
   const nexusUpdateTabs = useStore(state => state.nexusUpdateTabs);
   const setView = useStore(state => state.setView);
   const setMarketTab = useStore(state => state.setMarketTab);
+  const isSideBrowserOpen = useModalStore(state => state.isSideBrowserOpen);
   return (
     <div
       className={`fixed bottom-0 left-0 right-0 h-10 backdrop-blur-2xl border-t flex items-center z-[999] font-mono text-[10px] tracking-widest uppercase transition-all duration-300 ${statusBgClass} select-none border-[color-mix(in_srgb,var(--text)_5%,transparent)]`}
@@ -103,11 +105,11 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
 
         <button
           onClick={(e) => { e.stopPropagation(); setIsSystemStatusOpen((prev: boolean) => !prev); }}
-          className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-white/5 group relative
-              ${updatePayload ? 'theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] font-bold' :
-              isErrorStatus ? 'text-red-500 hover:bg-red-500/10' :
-                isSuccessStatus ? 'text-emerald-500 hover:bg-emerald-500/10' :
-                  'text-[var(--text)] opacity-90 hover:opacity-100'}`}
+          className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors group relative
+              ${isSystemStatusOpen ? 'bg-white/10 text-white' : 'hover:bg-white/5 text-[var(--text)] opacity-90 hover:opacity-100'}
+              ${updatePayload ? 'theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] font-bold' : ''}
+              ${isErrorStatus ? 'text-red-500 hover:bg-red-500/10' : ''}
+              ${isSuccessStatus ? 'text-emerald-500 hover:bg-emerald-500/10' : ''}`}
         >
           <div className="relative flex items-center justify-center">
             <span className={`material-symbols-outlined !text-[16px] transition-transform duration-500 group-hover:scale-110 ${updatePayload || isErrorStatus ? 'animate-pulse' : ''}`}>
@@ -125,10 +127,8 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
         </button>
 
         <button
-          onClick={(e) => { e.stopPropagation(); setIsSideBrowserOpen((prev: boolean) => !prev); }}
-          className="flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-white/5 group text-[var(--text)] opacity-90 hover:opacity-100 relative"
-
-
+          onClick={(e) => { e.stopPropagation(); setIsSideBrowserOpen(!isSideBrowserOpen); }}
+          className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors group relative ${isSideBrowserOpen ? 'bg-white/10 text-white opacity-100' : 'hover:bg-white/5 text-[var(--text)] opacity-90 hover:opacity-100'}`}
         >
           <span className="material-symbols-outlined !text-[16px] transition-transform duration-500 group-hover:scale-110">public</span>
           <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">

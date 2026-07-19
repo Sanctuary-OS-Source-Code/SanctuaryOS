@@ -18,7 +18,8 @@ export function NexusUpdatesChecker() {
       try {
         const { data: assets, error } = await supabase
           .from('nexus_assets')
-          .select('name, asset_type, version, json_data');
+          .select('name, asset_type, version, json_data')
+          .or('is_public.eq.true,is_public.is.null');
         if (error || !assets) return;
 
         let templatesMap: Record<string, string> = {};
@@ -30,13 +31,17 @@ export function NexusUpdatesChecker() {
             if (await exists(templatesDir)) {
               const files = await readDir(templatesDir);
               for (const file of files) {
-                if (file.name?.endsWith('_template.json')) {
+                if (file.name?.endsWith('.json')) {
                   try {
                     const content = await readTextFile(`${templatesDir}\\${file.name}`);
                     const parsed = JSON.parse(content);
                     const data = Array.isArray(parsed) ? parsed[0] : parsed;
                     if (data.name) {
-                      templatesMap[data.name] = data.version || '1.0.0';
+                      const currentVersion = templatesMap[data.name] || '0.0.0';
+                      const parsedVersion = data.template_version || data.version || '1.0.0';
+                      if (compareVersions(parsedVersion, currentVersion) >= 0) {
+                         templatesMap[data.name] = parsedVersion;
+                      }
                     }
                   } catch {}
                 }

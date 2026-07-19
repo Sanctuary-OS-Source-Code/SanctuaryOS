@@ -31,11 +31,11 @@ export const supabaseServices = {
     return { data: null, error: null };
   },
   getAllCommunityDefaults: async () => {
-    const { data, error } = await supabase.from('nexus_assets').select('id, json_data, author').eq('asset_type', 'workbench_template').eq('is_community_default', true);
+    const { data, error } = await supabase.from('nexus_assets').select('id, json_data, author, name').eq('asset_type', 'workbench_template').eq('is_community_default', true);
     if (error || !data) return [];
     return data.map((d: any) => {
         try {
-            return { id: d.id, template_data: JSON.parse(d.json_data), author: d.author };
+            return { id: d.id, template_data: JSON.parse(d.json_data), author: d.author, name: d.name };
         } catch(e) { return null; }
     }).filter(d => d !== null);
   },

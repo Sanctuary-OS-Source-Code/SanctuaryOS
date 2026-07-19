@@ -376,7 +376,7 @@ export function HubTabs({ tabs, activeTab, setTab, className = "" }: any) {
 
 export function FilterTabs({ children, className = "" }: any) {
   return (
-    <div className={`flex items-center overflow-hidden theme-glass-panel rounded-full p-1 border border-white/5 shadow-inner shrink-0 gap-1 ${className}`}>
+    <div className={`flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 ${className}`}>
       {children}
     </div>
   );
@@ -387,9 +387,8 @@ export function FilterTabButton({ id, icon, label, activeTab, setTab, className 
   return (
     <button
       onClick={() => setTab(id)}
-      className={`h-full px-4 py-1.5 rounded-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${isActive
-        ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md'
-        : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5 opacity-70 hover:opacity-100'
+      className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${isActive
+        ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'
         } ${className}`}
     >
       {icon && <span className="material-symbols-outlined !text-[14px]">{icon}</span>}
@@ -940,17 +939,17 @@ export function SidePanel({
         )}
 
         {!hideHeader && (
-          <div className="pt-[40px] px-10 pb-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
+          <div className="pt-8 px-10 pb-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_0%,transparent)] via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-[color-mix(in_srgb,var(--text)_0%,transparent)] opacity-50" />
             <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_3%,transparent)] to-[color-mix(in_srgb,var(--text)_0%,transparent)] pointer-events-none" />
 
             {headerActions && (
-              <div className="absolute top-[40px] right-[88px] flex items-center gap-3 z-50">
+              <div className="absolute top-8 right-[88px] flex items-center gap-3 z-50">
                 {headerActions}
               </div>
             )}
 
-            <button onClick={onClose} className="absolute top-[40px] right-8 z-50 w-12 h-12 rounded-[var(--radius)] flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
+            <button onClick={onClose} className="absolute top-8 right-8 z-50 w-12 h-12 rounded-[var(--radius)] flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
               <span className="material-symbols-outlined !text-[22px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("icon_close")}</span>
             </button>
 
@@ -974,7 +973,7 @@ export function SidePanel({
                     </div>
                   )}
                   <span className="leading-tight text-3xl tracking-tighter truncate w-full drop-shadow-md">{title}</span>
-                  {subtitle && <span className="text-[10px] font-black text-[var(--subtext)] opacity-50 mt-1 uppercase tracking-[0.25em] truncate">{subtitle}</span>}
+                  {subtitle && <span className="text-[10px] font-black text-[var(--subtext)] opacity-50 mt-1 uppercase tracking-[0.25em] line-clamp-2 break-words">{subtitle}</span>}
                 </div>
               </h2>
             </div>

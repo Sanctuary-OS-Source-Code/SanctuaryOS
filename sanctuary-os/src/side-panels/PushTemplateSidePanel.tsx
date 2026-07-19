@@ -9,12 +9,14 @@ export function PushTemplateSidePanel({
   onClose, 
   templateContent, 
   onChange,
+  onPushSuccess,
   initialName = "" 
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   templateContent: string;
   onChange?: (newContent: string) => void;
+  onPushSuccess?: (newName: string, newJson: string) => void;
   initialName?: string;
 }) {
   const { t } = useLexicon();
@@ -171,6 +173,8 @@ export function PushTemplateSidePanel({
       }
       
       pushStatus("Template successfully published to the Nexus!", "success");
+      if (onChange) onChange(finalJson);
+      if (onPushSuccess) onPushSuccess(name.trim(), finalJson);
       onClose();
     } catch (e: any) {
       pushStatus(e.message || "Failed to push template.", "error");

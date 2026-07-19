@@ -95,6 +95,18 @@
     "vault_visible": [
       ".package",
       ".ts4script"
+    ],
+    "ignore_unidentified": [
+      ".cfg",
+      ".ini",
+      ".json",
+      ".xml",
+      ".log",
+      ".txt",
+      ".dat",
+      ".tmbin",
+      ".tmcatalog",
+      ".tmdelta"
     ]
   },
   "constraints": {
@@ -239,7 +251,7 @@
       "lexicon_key": "class_dd_career"
     }
   ],
-  "schema_version": 5,
+  "schema_version": 6,
   "executable_names": [
     "TS4_x64.exe",
     "TS4.exe",

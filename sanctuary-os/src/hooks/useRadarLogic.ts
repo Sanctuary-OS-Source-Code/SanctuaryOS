@@ -696,7 +696,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = fal
       });
 
         const unidentified = physicalMods.filter(
-          (m: any) => !m.isSynced && !m.status?.includes("EXPLICIT LOCAL") && !m.name.toLowerCase().includes("customchallenge") && !m.name.toLowerCase().includes("sandbox") && !m.name.match(/\.(cfg|ini|json|xml|log|txt|dat|tmbin)$/i)
+          (m: any) => {
+            const ignoredExtensions = activeGameSchema?.extensions?.ignore_unidentified || [".cfg", ".ini", ".json", ".xml", ".log", ".txt", ".dat", ".tmbin"];
+            const isIgnored = ignoredExtensions.some((ext: string) => m.name.toLowerCase().endsWith(ext.toLowerCase()));
+            return !m.isSynced && !m.status?.includes("EXPLICIT LOCAL") && !m.name.toLowerCase().includes("customchallenge") && !m.name.toLowerCase().includes("sandbox") && !isIgnored;
+          }
         );
         const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
         if (unidentified.length > 0 && !isSilent && !isOfflineMode && session && !isBanned) {

@@ -627,7 +627,7 @@ export default function CommandCenter({
                   <div className="flex flex-col gap-1 flex-1 min-w-0">
                     <h3 className="text-[11px] font-black uppercase tracking-widest transition-colors truncate text-[var(--text)] group-hover:text-amber-500">{t("title_sanctuary_alerts") || "Sanctuary Alerts"}</h3>
                     <span className="text-[8px] uppercase font-bold tracking-widest transition-colors flex items-center gap-2 mt-1 text-amber-500/80 group-hover:text-amber-400">
-                      {t("masonhub_system_broadcasts") || "SYSTEM BROADCASTS"}
+                      {t("alert_empty") || "SYSTEM BROADCASTS"}
                     </span>
                   </div>
                 </div>

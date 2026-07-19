@@ -8,6 +8,58 @@ import { SidePanel, standardButtonClass, standardDangerButtonClass, extractPostI
 import FlagContentSidePanel from './FlagContentSidePanel';
 import { handleOpenUrl } from "../shared";
 import { useStore } from '../store';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Markdown } from 'tiptap-markdown';
+import { IconPlugin } from '../IconPlugin';
+
+function RichReplyEditor({ value, onChange, placeholder, className, id }: { value: string, onChange: (val: string) => void, placeholder?: string, className?: string, id?: string }) {
+  const updateTimeoutRef = React.useRef<any>(null);
+  const [isEmpty, setIsEmpty] = useState(!value);
+  
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: false, horizontalRule: false, codeBlock: false, blockquote: false, bold: false, italic: false, strike: false, bulletList: false, orderedList: false, listItem: false }),
+      Markdown,
+      IconPlugin
+    ],
+    content: value,
+    onUpdate: ({ editor }) => {
+      setIsEmpty(editor.isEmpty);
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      updateTimeoutRef.current = setTimeout(() => {
+        onChange((editor.storage as any).markdown.getMarkdown());
+      }, 500);
+    },
+    editorProps: {
+      attributes: {
+        id: id || '',
+        class: className || ''
+      }
+    }
+  });
+
+  useEffect(() => {
+    if (editor && value !== undefined) {
+      const currentContent = (editor.storage as any).markdown.getMarkdown();
+      if (value !== currentContent) {
+        if (!editor.isFocused || value === "") {
+          editor.commands.setContent(value);
+          setIsEmpty(editor.isEmpty);
+        }
+      }
+    }
+  }, [value, editor]);
+
+  return (
+    <div className="relative w-full">
+      {isEmpty && placeholder && (
+        <div className="absolute top-0 left-0 text-[var(--subtext)] pointer-events-none text-sm">{placeholder}</div>
+      )}
+      <EditorContent editor={editor} className="w-full" />
+    </div>
+  );
+}
 
 export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onAssetClick, userId }: { post: any, onClose: () => void, onOpenMasonProfile?: (id: string) => void, onAssetClick?: (type: string, id: string) => void, userId: string | null }) {
   const { t } = useLexicon();
@@ -326,8 +378,8 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
           )}
           {isCollapsed ? (
             <div className="flex items-center gap-2">
-              <button onClick={toggleCollapse} className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1">
-                [+]
+              <button onClick={toggleCollapse} className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1 flex items-center justify-center">
+                <span className="material-symbols-outlined !text-[16px]">add</span>
               </button>
               <div className="w-6 h-6 rounded-lg theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-inner border border-white/5">
                 {c.author?.username?.charAt(0)?.toUpperCase() || '?'}
@@ -351,8 +403,8 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
             <>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <button onClick={toggleCollapse} className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1">
-                    [-]
+                  <button onClick={toggleCollapse} className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1 flex items-center justify-center">
+                    <span className="material-symbols-outlined !text-[16px]">remove</span>
                   </button>
                   <div className="w-6 h-6 rounded-lg theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-inner border border-white/5">
                     {c.author?.username?.charAt(0)?.toUpperCase() || '?'}
@@ -552,7 +604,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               {userId && localStorage.getItem("sanctuary_blacklisted") !== "true" ? (
                 <form onSubmit={handlePostComment} className="flex flex-col gap-3 relative theme-glass-inner p-6 rounded-[var(--radius)] border border-white/5 shadow-xl">
                   {replyTargetId && (
-                    <div className="flex items-center justify-between bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-l-4 theme-border-accent rounded-r-xl p-4 mb-2 shadow-inner">
+                    <div className="flex items-center justify-between bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl p-4 mb-2 shadow-inner">
                       <div className="flex flex-col gap-1 overflow-hidden">
                         <span className="text-[9px] font-black tracking-widest uppercase theme-text-accent flex items-center gap-2">
                           <span className="material-symbols-outlined !text-[14px]">{t("icon_reply")}</span>
@@ -567,12 +619,12 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       </button>
                     </div>
                   )}
-                  <textarea
+                  <RichReplyEditor
                     id="reply-textarea"
                     value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
+                    onChange={setNewComment}
                     placeholder={t("write_reply")}
-                    className="w-full bg-transparent border-none text-sm text-[var(--text)] placeholder-[var(--subtext)] outline-none resize-none h-20 custom-scrollbar"
+                    className="w-full bg-transparent border-none text-sm text-[var(--text)] outline-none resize-none min-h-[5rem] custom-scrollbar [&_p.is-editor-empty:first-child::before]:text-[var(--subtext)] [&_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_p.is-editor-empty:first-child::before]:float-left [&_p.is-editor-empty:first-child::before]:pointer-events-none"
                   />
                   {showCodeInput && (
                     <div className="mt-2 relative group">

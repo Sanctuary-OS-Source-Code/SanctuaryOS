@@ -120,13 +120,17 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           const files = await readDir(templatesDir);
           const map: Record<string, string> = {};
           for (const file of files) {
-            if (file.name?.endsWith('_template.json')) {
+            if (file.name?.endsWith('.json')) {
               try {
                 const content = await readTextFile(`${templatesDir}\\${file.name}`);
                 const parsed = JSON.parse(content);
                 const data = Array.isArray(parsed) ? parsed[0] : parsed;
                 if (data.name) {
-                  map[data.name] = data.version || '1.0.0';
+                  const currentVersion = map[data.name] || '0.0.0';
+                  const parsedVersion = data.template_version || data.version || '1.0.0';
+                  if (compareVersions(parsedVersion, currentVersion) >= 0) {
+                     map[data.name] = parsedVersion;
+                  }
                 }
               } catch { }
             }
@@ -379,7 +383,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         if (parsed && parsed.template_version) {
           version = parsed.template_version;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     return version;
   };
@@ -1109,29 +1113,29 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               )}
 
               {(marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') && (
-                  <div className="w-max min-w-[180px] max-w-xs">
-                    <CustomDropdown disableTint={true}
-                      value={languageFilter}
-                      onChange={(val: string[]) => { setLanguageFilter(val[0]); setCurrentPage(1); }}
-                      options={[
-                        { id: "all", label: marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates") || "Templates") },
-                        ...availableLanguages.map(l => ({ id: l, label: l }))
-                      ]}
-                    />
-                  </div>
+                <div className="w-max min-w-[180px] max-w-xs">
+                  <CustomDropdown disableTint={true}
+                    value={languageFilter}
+                    onChange={(val: string[]) => { setLanguageFilter(val[0]); setCurrentPage(1); }}
+                    options={[
+                      { id: "all", label: marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates") || "Templates") },
+                      ...availableLanguages.map(l => ({ id: l, label: l }))
+                    ]}
+                  />
+                </div>
               )}
               {marketTab === 'LEXICONS' && (
-                  <div className="w-max min-w-[180px] max-w-xs">
-                    <CustomDropdown disableTint={true}
-                      value={lexiconTypeFilter}
-                      onChange={(val: string[]) => { setLexiconTypeFilter(val[0]); setCurrentPage(1); }}
-                      options={[
-                        { id: "all", label: t("filter_type") },
-                        { id: "Default", label: t("type_default") },
-                        { id: "Theme", label: t("type_theme") }
-                      ]}
-                    />
-                  </div>
+                <div className="w-max min-w-[180px] max-w-xs">
+                  <CustomDropdown disableTint={true}
+                    value={lexiconTypeFilter}
+                    onChange={(val: string[]) => { setLexiconTypeFilter(val[0]); setCurrentPage(1); }}
+                    options={[
+                      { id: "all", label: t("filter_type") },
+                      { id: "Default", label: t("type_default") },
+                      { id: "Theme", label: t("type_theme") }
+                    ]}
+                  />
+                </div>
               )}
 
               {marketTab === 'CHAMELEONS' && (
@@ -1259,7 +1263,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   onSetStatus(`Successfully Installed Theme: ${asset.name}`);
                                 } else if (marketTab === 'TEMPLATES') {
                                   const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
-                                  await importTemplate({ ...parsedData, version: asset.version || '1.0.0' });
+                                  const versionToSave = getAssetDisplayVersion(asset);
+                                  await importTemplate({ ...parsedData, version: versionToSave });
+                                  setInstalledTemplates(prev => ({ ...prev, [asset.name]: versionToSave }));
                                   onSetStatus(`Successfully Installed Template: ${asset.name}`);
                                 } else {
                                   const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;

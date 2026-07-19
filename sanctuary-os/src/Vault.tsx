@@ -125,6 +125,56 @@ export default function Vault(props: any) {
       if (!isCompatibleWithOS) return false;
       if (mod.isGhosted) return false;
       if (mod.missingReqs && mod.missingReqs.length > 0) return false;
+      
+      let isBroken = false;
+      const checkBroken = (mObj: any) => {
+        let broken = typeof mObj.status === 'string' && mObj.status.toLowerCase() === 'broken';
+        if (broken && mObj.compatible_versions && mObj.compatible_versions.length > 0 && selectedVersion) {
+           if (selectedVersion !== getHighestVersion(typeof mObj.compatible_versions === 'string' ? mObj.compatible_versions.split(',').map((s:string)=>s.trim()) : mObj.compatible_versions)) {
+               broken = false;
+           }
+        }
+        return broken;
+      };
+      
+      if (mod.isVirtual && mod.flavors) {
+         if (mod.flavors.length > 0 && mod.flavors.every(checkBroken)) isBroken = true;
+      } else {
+         isBroken = checkBroken(mod);
+      }
+      
+      if (isBroken) return false;
+
+      let hasTier4Conflict = false;
+      const activeSetMods = playSets[activePlaySetIndex]?.mods || [];
+      const extRegex = getExtensionRegex(activeGameSchema);
+      
+      const checkConflictsFilter = (mObj: any) => {
+        if (mObj.conflicts && mObj.conflicts.length > 0) {
+          const hasConflict = mObj.conflicts.some((c: any) => {
+            if (c.severity_rank !== 4) return false;
+            return activeSetMods.some((n: string) => {
+              const mData = modListIndex.namesAndDisplayNames.find((ne: any) => ne.name === n)?.orig;
+              if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
+              if (c.enemy_name) {
+                const targetClean = c.enemy_name.toUpperCase();
+                const cleanN = n.split(/[\\/]/).pop()?.replace(extRegex, "").toUpperCase();
+                if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
+              }
+              return false;
+            });
+          });
+          if (hasConflict) hasTier4Conflict = true;
+        }
+      };
+      
+      checkConflictsFilter(mod);
+      if (mod.isVirtual && mod.flavors) {
+        mod.flavors.forEach(checkConflictsFilter);
+      }
+      
+      if (hasTier4Conflict) return false;
+
       let rawDLC: string[] = [];
       if (mod.requiredDLC) {
         if (typeof mod.requiredDLC === 'string') rawDLC.push(...mod.requiredDLC.split(',').map((s: string) => s.trim()));
@@ -145,8 +195,11 @@ export default function Vault(props: any) {
       if (missingPacks.length > 0) return false;
     }
 
+    const isSandboxMod = mod.hash?.startsWith('dev_vault_') || (typeof mod.status === 'string' && mod.status.toUpperCase().includes('SANDBOX'));
     if (equipFilter === "DEV") {
-      if (!mod.hash?.startsWith('dev_vault_')) return false;
+      if (!isSandboxMod) return false;
+    } else if (equipFilter !== "EQUIPPED" && isSandboxMod) {
+      return false;
     }
 
     if (equipFilter === "ARCHIVES") {

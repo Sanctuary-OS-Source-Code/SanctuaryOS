@@ -605,7 +605,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                 <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("post_title")}</label>
-                    <input required value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title")} className="theme-glass-inner bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
+                    <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title")} className="theme-glass-inner bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
                   </div>
 
                   <div className="flex flex-col gap-2 w-full">

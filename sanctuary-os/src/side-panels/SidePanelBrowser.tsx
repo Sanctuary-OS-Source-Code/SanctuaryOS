@@ -522,7 +522,7 @@ export default function SidePanelBrowser() {
       {isResizing && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
 
       <div
-        className={`fixed z-[100005] theme-glass-panel shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] flex flex-col overflow-hidden ${isBrowserFullscreen ? "top-[50px] inset-x-0 bottom-0 !border-0 rounded-none bg-[var(--bg)]" : "top-[52px] right-0 bottom-10 !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-tl-[3rem] rounded-bl-[3rem] !rounded-r-none"
+        className={`fixed z-[1000000] theme-glass-panel shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] flex flex-col overflow-hidden ${isBrowserFullscreen ? "top-[50px] inset-x-0 bottom-10 !border-0 rounded-none bg-[var(--bg)]" : "top-[52px] right-0 bottom-10 !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-tl-[3rem] rounded-bl-[3rem] !rounded-r-none"
           }`}
         style={isBrowserFullscreen ? {} : { right: 0, width: panelWidth }}
       >

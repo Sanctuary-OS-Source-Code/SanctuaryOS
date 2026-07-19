@@ -1,9 +1,9 @@
 import { useLexicon } from "../LexiconContext";
 import { SidePanel, standardDangerButtonClass, standardButtonClass } from "../shared";
 
-export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending,  }: any) {
+export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending, }: any) {
   const { t } = useLexicon();
-  
+
   return (
     <SidePanel
       isOpen={!!yeetConfirmPending}
@@ -12,8 +12,8 @@ export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending,  }
       subtitle={t("yeet_removing_following")}
       icon={t("icon_warning_amber")}
       iconColorClass="theme-text-danger animate-pulse drop-shadow-[0_0_8px_rgba(var(--danger-rgb),0.6)]"
-      backdropZ="z-[65000]"
-      panelZ="z-[65001]"
+      backdropZ="z-[100002]"
+      panelZ="z-[100002]"
       widthClass="w-[600px]"
       footer={
         <div className="flex flex-row justify-center gap-4 w-full">

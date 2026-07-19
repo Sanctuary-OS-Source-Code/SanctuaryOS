@@ -459,11 +459,12 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             if (communityDefaults && communityDefaults.length > 0) {
                const commTmpl = communityDefaults.find((d: any) => {
                   const tData = Array.isArray(d.template_data) ? d.template_data[0] : d.template_data;
-                  return tData?.target_file?.toLowerCase() === selectedFile.name.toLowerCase();
+                  const targetFile = tData?.target_file || d.name;
+                  return targetFile?.toLowerCase() === selectedFile.name.toLowerCase();
                });
                if (commTmpl) {
                   const tData = Array.isArray(commTmpl.template_data) ? commTmpl.template_data[0] : commTmpl.template_data;
-                  matches.push({ id: commTmpl.id, label: t("template_builtin"), data: tData, isCommunity: true, author: commTmpl.author || tData.template_author || "Unknown Mason", authorId: commTmpl.author_id });
+                  matches.push({ id: commTmpl.id, label: commTmpl.name || t("template_builtin"), data: tData, isCommunity: true, author: commTmpl.author || tData.template_author || "Unknown Mason", authorId: commTmpl.author_id });
                   hasCommunityDefault = true;
                }
             }
@@ -1022,7 +1023,36 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             </div>
          </SidePanel>
 
-         <PushTemplateSidePanel isOpen={isPushModalOpen} onClose={() => setIsPushModalOpen(false)} templateContent={rawText} onChange={handleRawChange} />
+         <PushTemplateSidePanel 
+            isOpen={isPushModalOpen} 
+            onClose={() => setIsPushModalOpen(false)} 
+            templateContent={rawText} 
+            onChange={handleRawChange} 
+            onPushSuccess={async (newName, newJson) => {
+               if (selectedFile) {
+                  try {
+                     const sanitizedName = newName.replace(/[^a-z0-9_\-\.]/gi, '_');
+                     const newFileName = sanitizedName.toLowerCase().endsWith('.json') ? sanitizedName : sanitizedName + '.json';
+                     
+                     if (newFileName !== selectedFile.name) {
+                        const dirPath = selectedFile.path.substring(0, selectedFile.path.lastIndexOf(selectedFile.path.includes('\\') ? '\\' : '/'));
+                        const sep = selectedFile.path.includes('\\') ? '\\' : '/';
+                        const newPath = `${dirPath}${sep}${newFileName}`;
+                        
+                        await writeTextFile(newPath, newJson);
+                        await remove(selectedFile.path);
+                        
+                        useStore.getState().setCwSelectedFile({ name: newFileName, path: newPath });
+                        setRefreshTrigger(prev => prev + 1);
+                     } else {
+                        await invoke('save_file_silently', { path: selectedFile.path, content: newJson });
+                     }
+                  } catch (e) {
+                     console.error("Failed to rename file after push", e);
+                  }
+               }
+            }}
+         />
 
          <WorkbenchTemplateGuide isOpen={isTemplateGuideOpen} onClose={() => setIsTemplateGuideOpen(false)} />
 
