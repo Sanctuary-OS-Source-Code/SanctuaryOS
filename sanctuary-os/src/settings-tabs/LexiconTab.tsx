@@ -16,6 +16,7 @@ export default function LexiconTab() {
   const [dbLanguages, setDbLanguages] = useState<Record<string, string>>({});
   const [lexiconSearch, setLexiconSearch] = useState("");
   const [selectedLibraryLang, setSelectedLibraryLang] = useState<string | null>(null);
+  const [selectedLibraryCommunity, setSelectedLibraryCommunity] = useState<string | null>(null);
   const [favoriteLexicons, setFavoriteLexicons] = useState<string[]>(() => JSON.parse(localStorage.getItem("sanctuary_favorite_lexicons") || '["en-sanctuary", "en-default", "en-sims", "de-default"]'));
   const [confirmDelete, setConfirmDelete] = useState<string | false>(false);
 
@@ -37,21 +38,22 @@ export default function LexiconTab() {
 
   const getLexiconMetadata = (code: string) => {
     const meta = lexiconMeta?.find((m: any) => m.id === code);
-    if (meta) return { language: meta.badge, name: meta.name };
+    if (meta) return { community: meta.badge, language: meta.lang || 'English', name: meta.name };
     
     // Fallbacks if metadata isn't loaded from DB yet
     const cleanName = (val: string) => val.includes(':') ? val.split(':')[1].trim() : val;
-    if (code === 'en-sanctuary') return { language: 'Sanctuary', name: cleanName(t("lang_sanctuary") || "English: Sanctuary") };
-    if (code === 'en-default') return { language: 'Sanctuary', name: cleanName(t("lang_standard") || "English: Default") };
-    if (code === 'en-sims') return { language: 'Community', name: cleanName(t("lang_sims") || "English: Sims Friendly") };
-    if (code === 'de-default') return { language: 'Community', name: cleanName(t("lang_german") || "German: Default") };
+    if (code === 'en-sanctuary') return { community: 'Sanctuary', language: 'English', name: cleanName(t("lang_sanctuary") || "English: Sanctuary") };
+    if (code === 'en-default') return { community: 'Sanctuary', language: 'English', name: cleanName(t("lang_standard") || "English: Default") };
+    if (code === 'en-sims') return { community: 'The Sims 4', language: 'English', name: cleanName(t("lang_sims") || "English: Sims Friendly") };
+    if (code === 'de-default') return { community: 'Sanctuary', language: 'German', name: cleanName(t("lang_german") || "German: Default") };
     
-    return { language: registry?.[code]?._meta_language || dbLanguages[code] || 'Custom', name: code };
+    return { community: registry?.[code]?._meta_badge || 'Custom', language: registry?.[code]?._meta_lang || dbLanguages[code] || 'English', name: code };
   };
 
   const dbCodes = lexiconMeta ? lexiconMeta.map((m: any) => m.id) : ['en-sanctuary', 'en-default', 'en-sims', 'de-default'];
   const allLexiconCodes = Array.from(new Set([...dbCodes, ...Object.keys(registry || {})]));
   const uniqueLanguages = Array.from(new Set(allLexiconCodes.map(code => getLexiconMetadata(code).language)));
+  const uniqueCommunities = Array.from(new Set(allLexiconCodes.map(code => getLexiconMetadata(code).community)));
 
   const toggleFavoriteLexicon = (code: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -101,9 +103,12 @@ export default function LexiconTab() {
                   boxShadow: '0 0 30px rgba(var(--accent-rgb), 0.2)'
                 } : undefined}
               >
-                <div className="flex flex-col gap-2 pr-4 break-words">
-                  <span className={`text-[12px] font-black uppercase tracking-[0.2em] ${activeLang === code ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{getLexiconMetadata(code).name}</span>
-                  <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{getLexiconMetadata(code).language}</span>
+                <div className="flex flex-col gap-1 pr-4 break-words">
+                  <span className={`text-[12px] font-black uppercase tracking-[0.2em] mb-1 ${activeLang === code ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{getLexiconMetadata(code).name}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2 py-0.5 rounded border border-white/10 bg-white/5 text-[8px] font-black uppercase tracking-widest text-[var(--text)] opacity-80">{getLexiconMetadata(code).language}</span>
+                    <span className="px-2 py-0.5 rounded border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] opacity-90">{getLexiconMetadata(code).community}</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <div 
@@ -128,15 +133,27 @@ export default function LexiconTab() {
             {t("library")}
           </h3>
 
-          <div className="flex gap-2 w-full overflow-x-auto accent-scrollbar pb-2">
-            <button onClick={() => setSelectedLibraryLang(null)} className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${!selectedLibraryLang ? 'theme-glass-inner theme-border-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-white/5 hover:theme-border-accent hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] text-[var(--text)] opacity-70 hover:opacity-100'}`}>
-              {t("all_languages")}
-            </button>
-            {uniqueLanguages.map(lang => (
-              <button key={lang} onClick={() => setSelectedLibraryLang(lang)} className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${selectedLibraryLang === lang ? 'theme-glass-inner theme-border-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-white/5 hover:theme-border-accent hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] text-[var(--text)] opacity-70 hover:opacity-100'}`}>
-                {lang}
+          <div className="flex flex-col gap-3 w-full">
+            <div className="flex gap-2 w-full overflow-x-auto accent-scrollbar pb-2">
+              <button onClick={() => setSelectedLibraryLang(null)} className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${!selectedLibraryLang ? 'theme-glass-inner theme-border-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-white/5 hover:theme-border-accent hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] text-[var(--text)] opacity-70 hover:opacity-100'}`}>
+                {t("all_languages") || "All Languages"}
               </button>
-            ))}
+              {uniqueLanguages.map(lang => (
+                <button key={lang} onClick={() => setSelectedLibraryLang(lang)} className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${selectedLibraryLang === lang ? 'theme-glass-inner theme-border-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-white/5 hover:theme-border-accent hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] text-[var(--text)] opacity-70 hover:opacity-100'}`}>
+                  {lang}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 w-full overflow-x-auto accent-scrollbar pb-2">
+              <button onClick={() => setSelectedLibraryCommunity(null)} className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${!selectedLibraryCommunity ? 'theme-glass-inner theme-border-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-white/5 hover:theme-border-accent hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] text-[var(--text)] opacity-70 hover:opacity-100'}`}>
+                All Communities
+              </button>
+              {uniqueCommunities.map(community => (
+                <button key={community} onClick={() => setSelectedLibraryCommunity(community)} className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${selectedLibraryCommunity === community ? 'theme-glass-inner theme-border-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-white/5 hover:theme-border-accent hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] text-[var(--text)] opacity-70 hover:opacity-100'}`}>
+                  {community}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="relative mt-2">
@@ -154,6 +171,7 @@ export default function LexiconTab() {
             {allLexiconCodes
               .filter(code => !favoriteLexicons.includes(code))
               .filter(code => !selectedLibraryLang || getLexiconMetadata(code).language === selectedLibraryLang)
+              .filter(code => !selectedLibraryCommunity || getLexiconMetadata(code).community === selectedLibraryCommunity)
               .filter(code => getLexiconMetadata(code).name.toLowerCase().includes(lexiconSearch.toLowerCase()) || code.toLowerCase().includes(lexiconSearch.toLowerCase()))
               .map(code => (
                 <div 
@@ -165,9 +183,12 @@ export default function LexiconTab() {
                     boxShadow: '0 0 30px rgba(var(--accent-rgb), 0.2)'
                   } : undefined}
                 >
-                  <div className="flex flex-col gap-2 pr-4 break-words">
-                    <span className={`text-[12px] font-black uppercase tracking-widest ${activeLang === code ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{getLexiconMetadata(code).name}</span>
-                    <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{getLexiconMetadata(code).language}</span>
+                  <div className="flex flex-col gap-1 pr-4 break-words">
+                    <span className={`text-[12px] font-black uppercase tracking-widest mb-1 ${activeLang === code ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{getLexiconMetadata(code).name}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2 py-0.5 rounded border border-white/10 bg-white/5 text-[8px] font-black uppercase tracking-widest text-[var(--text)] opacity-80">{getLexiconMetadata(code).language}</span>
+                      <span className="px-2 py-0.5 rounded border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] opacity-90">{getLexiconMetadata(code).community}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <button 

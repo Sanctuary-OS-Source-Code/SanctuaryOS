@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "./supabase";
+import { supabase, supabaseAuth } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { invoke } from "@tauri-apps/api/core";
@@ -19,17 +19,34 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [isProcessing, setIsProcessing] = useState(false);
   const [isHwidBanned, setIsHwidBanned] = useState(false);
   const [sandboxAccepted, setSandboxAccepted] = useState(false);
+  const [gameTitle, setGameTitle] = useState("");
 
   const [showLoginUI, setShowLoginUI] = useState(() => localStorage.getItem("sanctuary_show_login") === "true");
 
   useEffect(() => {
+    const fetchGameTitle = async () => {
+      try {
+        const config: any = await invoke("get_global_config");
+        if (config && config.active_workspace_id && config.workspaces) {
+          const activeWs = config.workspaces.find((w: any) => w.id === config.active_workspace_id);
+          if (activeWs && activeWs.schema_id) {
+            const { data } = await supabase.from('sanctuary_games').select('name').eq('schema_id', activeWs.schema_id).maybeSingle();
+            if (data && data.name) {
+              setGameTitle(data.name);
+            }
+          }
+        }
+      } catch (e) {}
+    };
+    fetchGameTitle();
+
     const checkBanStatus = async () => {
       const isOfflineMode = !navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true";
       try {
         if (!isOfflineMode) {
           const hwid = await invoke<string>("get_hardware_id");
           if (hwid && hwid !== "UNKNOWN_HWID") {
-            const fetchPromise = supabase.from('profiles').select("id").eq('hardware_id', hwid).eq('is_banned', true).limit(1);
+            const fetchPromise = supabaseAuth.from('profiles').select("id").eq('hardware_id', hwid).eq('is_banned', true).limit(1);
             const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000));
             const { data } = await Promise.race([fetchPromise, timeoutPromise]) as any;
             if (data && data.length > 0) {
@@ -117,12 +134,12 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         if (data?.user) {
           try {
             const hwid = await invoke<string>("get_hardware_id");
-            await supabase.from('profiles').update({ hardware_id: hwid }).eq('id', data.user.id);
+            await supabaseAuth.from('profiles').update({ hardware_id: hwid }).eq('id', data.user.id);
           } catch (e) {
             console.error("Failed to capture HWID on login", e);
           }
 
-          const { data: profile } = await supabase.from('profiles').select('is_banned, role').eq('id', data.user.id).single();
+          const { data: profile } = await supabaseAuth.from('profiles').select('is_banned, role').eq('id', data.user.id).maybeSingle();
           if (profile?.is_banned || profile?.role === 'blacklisted') {
             await supabase.auth.signOut();
             setIsHwidBanned(true);
@@ -228,11 +245,9 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: 'var(--bgGradient, var(--bg))', color: 'var(--text)' }}>
-
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0" style={{ backgroundImage: 'linear-gradient(var(--text) 1px, transparent 1px), linear-gradient(90deg, var(--text) 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
-
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full theme-bg-accent opacity-[0.06] blur-[100px] pointer-events-none z-0 mix-blend-normal transition-all duration-1000" />
+    <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: '#050505', color: 'var(--text)' }}>
+      <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen transition-opacity duration-1000 animate-in fade-in" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-black/10 to-black/80 pointer-events-none" />
       
       <div className="relative z-10 w-[90%] max-w-lg theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-8 md:p-14 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col backdrop-blur-3xl overflow-hidden group">
 
@@ -244,7 +259,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             <img src="/icon.png" alt="" className="w-16 h-16 object-contain drop-shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_50%,transparent)] relative z-10 group-hover/logo:scale-110 group-hover/logo:-translate-y-1 transition-transform duration-700" />
           </div>
           <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-[var(--headerText)] drop-shadow-[0_0_20px_color-mix(in_srgb,var(--headerText)_10%,transparent)] mb-2 transition-colors duration-500">
-            {t("title")}
+            {gameTitle || t("title")}
           </h1>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] theme-text-accent opacity-80 transition-colors duration-500">
             {t("subtitle")}

@@ -10,7 +10,7 @@ import { ChameleonControlDashboard } from '../chameleon-components/ChameleonCont
 import { ChameleonSandboxPreview } from '../chameleon-components/ChameleonSandboxPreview';
 import { standardButtonClass } from '../shared';
 
-export function WayfinderChameleons() {
+export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean }) {
   const { t } = useLexicon();
   const pushStatus = useStore((state: any) => state.pushStatus);
   const { activeThemeId, setActiveThemeId, setCoreThemes } = useTheme();
@@ -34,7 +34,8 @@ export function WayfinderChameleons() {
   const fetchThemes = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('sanctuary_themes').select('*');
+      const client = isKeepers ? (await import('../supabase')).supabase : (await import('../supabase')).getActiveGameClient();
+      const { data, error } = await client.from('sanctuary_themes').select('*');
       if (error) throw error;
 
       const themesMap: Record<string, any> = {};
@@ -76,7 +77,8 @@ export function WayfinderChameleons() {
         updated_at: new Date().toISOString()
       };
 
-      const { error } = await supabase.from('sanctuary_themes').upsert(payload);
+      const client = isKeepers ? (await import('../supabase')).supabase : (await import('../supabase')).getActiveGameClient();
+      const { error } = await client.from('sanctuary_themes').upsert(payload);
       if (error) throw error;
 
       pushStatus("Master Theme saved to cloud.", "success");
@@ -133,13 +135,13 @@ export function WayfinderChameleons() {
   };
 
   return (
-    <div className="flex flex-col w-full h-full relative transition-all duration-500 bg-black/20 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-10 bg-black/40">
+    <div className="flex flex-col w-full h-full relative transition-all duration-500">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-10">
         <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">cloud_sync</span>
           </div>
-          <span className="truncate">{t("wf_master_themes") || "MASTER THEMES"}</span>
+          <span className="truncate">{isKeepers ? (t("keepers_master_themes") || "SANCTUARY THEMES") : (t("wf_master_themes") || "COMMUNITY THEMES")} ({Object.keys(cloudThemes).length})</span>
         </h2>
         <div className="flex items-center gap-3 flex-1 justify-end">
           <div className="relative flex-1 max-w-[300px]">
@@ -161,7 +163,7 @@ export function WayfinderChameleons() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 relative">
         {loading && Object.keys(cloudThemes).length === 0 ? (
           <div className="w-full h-full flex items-center justify-center">
             <div className="w-12 h-12 border-4 border-[color-mix(in_srgb,var(--accent)_30%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
@@ -170,7 +172,7 @@ export function WayfinderChameleons() {
           <EmptyState icon="palette" title="No Cloud Themes" className="py-20" />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">
-            {Object.entries(cloudThemes).filter(([id, theme]: any) => !searchQuery || theme.name.toLowerCase().includes(searchQuery.toLowerCase())).map(([id, theme]: any) => (
+            {Object.entries(cloudThemes).filter(([id, theme]: any) => !searchQuery || theme.name?.toLowerCase().includes(searchQuery.toLowerCase())).map(([id, theme]: any) => (
               <ThemeCard
                 key={id}
                 id={id}

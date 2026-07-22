@@ -1,7 +1,7 @@
 ## Sanctuary OS
 ## Forking & Architecture Guide
-#### Version: 0.4.50
-#### Last Updated: July 8, 2026
+#### Version: 0.4.8
+#### Last Updated: July 22, 2026
 
 Welcome to the architecture and forking guide for Sanctuary OS. 
 Sanctuary OS has evolved from a robust mod manager into a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy. 
@@ -13,7 +13,7 @@ This application utilizes a React 18/TypeScript frontend, a Tauri V2 (Rust) back
 2. **Rust & Cargo:** Install from [rustup.rs](https://rustup.rs/).
 3. **Tauri Prerequisites:** Depending on your OS, install the necessary C++ build tools and WebKit dependencies. Refer to the [Tauri V2 Setup Guide](https://v2.tauri.app/start/prerequisites/).
 4. **Supabase Account:** You will need a free [Supabase](https://supabase.com/) account for database hosting and authentication.
-5. **Database Setup:** We rely on Supabase PostgreSQL. Execute the SQL schema found in [schema.sql](file:///c:/Users/Jesse/Desktop/Solder%20Republic/schema.sql) within your Supabase SQL Editor to stand up the required architecture.
+5. **Database Setup:** We rely on a Hub-and-Spoke Supabase PostgreSQL architecture. Execute [schema_os.sql] in your primary OS database, and [schema.sql] in your game-specific databases.
 6. **Environment Variables:** Create a `.env` file in the root of your frontend directory:
    - `VITE_SUPABASE_URL=https://your-project-id.supabase.co`
    - `VITE_SUPABASE_ANON_KEY=your-anon-key-here`
@@ -30,14 +30,14 @@ Sanctuary OS is built entirely as a local-first desktop middleware platform.
 
 ---
 ### Architecture Overview
-The application follows a highly decoupled design. Recent weekend refactors aggressively split components into independent files: "everything has its own file now."
+The application follows a highly decoupled Hub-and-Spoke design, completely isolating global OS infrastructure from game-specific data.
 
 #### 1. Tech Stack
 - **Frontend:** React 18, TypeScript, Vite, Tailwind CSS v3.
 - **State Management:** Zustand (`useStore` for Global State & `useModalStore` for UI Overlays).
 - **Context Providers:** ThemeContext (Dynamic CSS Variables) & LexiconContext (Dynamic localization).
 - **Desktop Framework:** Tauri v2.11.0 (with fs, dialog, process, and opener plugins).
-- **Backend/Database:** Supabase (PostgreSQL, GoTrue Auth, Realtime WebSockets).
+- **Backend/Database:** Supabase (PostgreSQL, GoTrue Auth, Realtime WebSockets) configured in a multi-database architecture with dynamic routing.
 - **Rust Dependencies:** serde, sha2, zstd/tar, filetime, notify.
 
 #### 2. The Shared File System Refactor
@@ -61,13 +61,15 @@ Because JavaScript cannot safely handle heavy file operations, all physical logi
 
 ---
 ### Database Schema (Conceptual Overview)
-Instead of hardcoding SQL, refer to [schema.sql] for the exact build. Conceptually, our Postgres tables are split into these operational blocks:
-- **Profiles & Masons**: Defines Citizen roles, Creator profiles (Masons), and hierarchical followings.
-- **Global Registry & Versions**: The true source of metadata. It tracks mods, versions, and DLC registries.
-- **Network Protocols**: Tracks recursive dependencies (addons, betas, rivals) and flavor groups.
-- **Conflicts & Labs**: Maps logical conflict arrays and Homestead Lab results.
-- **Blueprints**: Saves tactical loadout schemas.
-- **Administration & Moderation**: Tracks system telemetry, Nexus reports, asset flags, and active DEFCON status.
+Instead of hardcoding SQL, refer to [schema.sql] and [schema_os.sql] for the exact builds. Conceptually, our Postgres tables are split into these operational blocks:
+- **Central OS Hub**: Manages `sanctuary_games` (Workspace definitions), `profiles` (Core identities), `audit_logs` (Global Oversight), and Master Configurations (`sanctuary_themes`, `sanctuary_lexicons`, `sanctuary_schemas`).
+- **Game Databases (Spokes)**: Contain game-specific data including:
+  - **Profiles & Masons**: Defines Creator profiles (Masons) and hierarchical followings, linked via UUID to the OS Hub.
+  - **Global Registry & Versions**: The true source of metadata. It tracks mods, versions, and DLC registries.
+  - **Network Protocols**: Tracks recursive dependencies (addons, betas, rivals) and flavor groups.
+  - **Conflicts & Labs**: Maps logical conflict arrays and Homestead Lab results.
+  - **Blueprints**: Saves tactical loadout schemas.
+  - **Administration & Moderation**: Tracks system telemetry, Nexus reports, asset flags, and active DEFCON status.
 
 ---
 ### Game Schema / Porting Guide
@@ -82,8 +84,8 @@ The Rust backend automatically deserializes the active schema at runtime to adju
 
 ---
 ### Security & Governance Model
-Security is handled through a tiered global compliance system managed by Oversight and Wayfinders.
+Security is handled through a tiered global compliance system managed by Oversight, Wayfinders, and Keepers.
 - **Public/Oversight Alert Flows**: Global DEFCON alerts are pushed over WebSockets. Wayfinders can initiate scheduled/operational DEFCON events.
 - **System Status Telemetry**: The Registry Health Status provides a real-time telemetry tile showing current Database Latency (ms), CPU usage, memory allocation, and server connectivity status.
-- **Audit Log Behavior**: Every database mutation, role change, and security flag executed by the administration is tracked in a permanent, undeletable ledger (Audit Logs). Wayfinders use this for accountability and system forensics.
-- **Tiered Roles**: From Citizens (users) to Masons (creators), Architects (moderators), Oversight (administrators), and Wayfinders (sysadmins), every profile operates under strict logic gates that share 1:1 workflow consistency.
+- **Audit Log Behavior**: Every database mutation, role change, and security flag executed by the administration is tracked in a permanent, undeletable ledger (Audit Logs). Keepers and Wayfinders use this for accountability and system forensics.
+- **Tiered Roles**: From Citizens (users) to Masons (creators), Architects (moderators), Oversight (administrators), Wayfinders (game admins), and Keepers (OS infrastructure), every profile operates under strict logic gates that share 1:1 workflow consistency.

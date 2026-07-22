@@ -6,6 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 export default function MasonEditorPanel({
    t,
    isCloudMode,
+   isKeepers = false,
    isFullscreen,
    setIsFullscreen,
    showReference,
@@ -47,7 +48,7 @@ export default function MasonEditorPanel({
          <SidePanel
             isOpen={!!activeFile}
             onClose={() => setActiveFileIndex(-1)}
-            title={isCloudMode ? "WAYFINDER IDE" : (t("tools_ide") || "MASON IDE")}
+            title={isCloudMode ? (isKeepers ? "KEEPERS IDE" : "WAYFINDER IDE") : (t("tools_ide") || "MASON IDE")}
             subtitle={t("mason_ide_subtitle") || "DEVELOPMENT & LOCALIZATION ENVIRONMENT"}
             icon="code"
             iconColorClass="theme-text-accent"
@@ -88,7 +89,7 @@ export default function MasonEditorPanel({
             footer={
                <div className="flex items-center justify-center gap-3 w-full shrink-0">
                   <div className="relative group">
-                     {(problemsList.length > 0 || (validationStats && validationStats.missing > 0)) ? (
+                     {(problemsList.length > 0 || (!isKeepers && validationStats && validationStats.missing > 0)) ? (
                         <HoverTooltip title={problemsList.length > 0 ? t("publish_disabled_errors_desc") : t("lexicon_missing_keys_btn")} variant="error" className="z-[100]" />
                      ) : isDirty && (
                         <HoverTooltip title={t("unsaved_changes")} variant="warning" className="z-[100]" />
@@ -96,7 +97,7 @@ export default function MasonEditorPanel({
 
                      <button
                         onClick={saveFile}
-                        disabled={!activeFile || !isDirty || problemsList.length > 0 || (validationStats ? validationStats.missing > 0 : false)}
+                        disabled={!activeFile || !isDirty || problemsList.length > 0 || (!isKeepers && validationStats ? validationStats.missing > 0 : false)}
                         className={
                            isDirty
                               ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_25%,transparent)] hover:shadow-[0_5px_20px_rgba(245,158,11,0.4)]')

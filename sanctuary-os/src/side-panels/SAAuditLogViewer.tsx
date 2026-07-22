@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../supabase";
+import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
@@ -51,7 +51,7 @@ export function AuditLogViewer({
       return;
     }
     setLoading(true);
-    let query = supabase.from('audit_logs').select('*');
+    let query = getActiveGameClient().from('audit_logs').select('*');
 
     if (isSidePanel) {
       query = query.neq('target_table', 'profiles').neq('target_table', 'sanctuary_tickets');

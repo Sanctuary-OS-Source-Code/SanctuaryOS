@@ -31,60 +31,88 @@ pub fn update_active_game_schema(schema: crate::schema::GameSchema, state: tauri
 }
 
 #[tauri::command]
-pub fn get_saved_coordinates() -> SolderConfig {
+pub fn get_global_config() -> SolderConfig {
     let path = get_config_path();
     if let Ok(content) = fs::read_to_string(&path) {
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
-            return SolderConfig {
-                live_path: v["live_path"]
-                    .as_str()
-                    .or(v["live_library_path"].as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                mods_path: v["mods_path"].as_str().unwrap_or("").to_string(),
-                vault_path: v["vault_path"].as_str().unwrap_or("").to_string(),
-                engine_agency_level: v["engine_agency_level"].as_u64().map(|n| n as u32),
-                defcon_backup_target: v["defcon_backup_target"].as_u64().map(|n| n as u32),
-                backup_preference: v["backup_preference"].as_u64().map(|n| n as u32),
-                engine_retention_cycles: v["engine_retention_cycles"].as_u64().map(|n| n as u32),
-                world_retention_cycles: v["world_retention_cycles"].as_u64().map(|n| n as u32),
-                vault_capacity_gb: v["vault_capacity_gb"].as_u64().map(|n| n as u32),
-                timeline_retention_copies: v["timeline_retention_copies"].as_u64().map(|n| n as u32),
-                timeline_retention_size_mb: v["timeline_retention_size_mb"].as_u64().map(|n| n as u32),
-            };
+        if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Ok(config) = serde_json::from_value::<SolderConfig>(v.clone()) {
+                if !config.workspaces.is_empty() {
+                    return config;
+                }
+            }
+
+            let live_path = v["live_path"].as_str().or(v["live_library_path"].as_str()).unwrap_or("").to_string();
+            let mods_path = v["mods_path"].as_str().unwrap_or("").to_string();
+            let vault_path = v["vault_path"].as_str().unwrap_or("").to_string();
+            
+            if !live_path.is_empty() || !mods_path.is_empty() || !vault_path.is_empty() {
+                let default_workspace = WorkspaceConfig {
+                    id: "default_workspace".to_string(),
+                    name: "Default Game".to_string(),
+                    schema_id: "sims4".to_string(),
+                    live_path,
+                    mods_path,
+                    vault_path: vault_path.clone(),
+                    engine_agency_level: v["engine_agency_level"].as_u64().map(|n| n as u32),
+                    defcon_backup_target: v["defcon_backup_target"].as_u64().map(|n| n as u32),
+                    backup_preference: v["backup_preference"].as_u64().map(|n| n as u32),
+                    engine_retention_cycles: v["engine_retention_cycles"].as_u64().map(|n| n as u32),
+                    world_retention_cycles: v["world_retention_cycles"].as_u64().map(|n| n as u32),
+                    vault_capacity_gb: v["vault_capacity_gb"].as_u64().map(|n| n as u32),
+                    timeline_retention_copies: v["timeline_retention_copies"].as_u64().map(|n| n as u32),
+                    timeline_retention_size_mb: v["timeline_retention_size_mb"].as_u64().map(|n| n as u32),
+                    supabase_url: None,
+                    supabase_anon_key: None,
+                };
+                
+                return SolderConfig {
+                    active_workspace_id: Some("default_workspace".to_string()),
+                    workspaces: vec![default_workspace],
+                    live_path: None,
+                    mods_path: None,
+                    vault_path: Some(vault_path),
+                };
+            }
         }
     }
     SolderConfig::default()
 }
 
 #[tauri::command]
-pub fn save_coordinates(
-    live_path: String,
-    mods_path: String,
-    vault_path: String,
-    engine_agency_level: Option<u32>,
-    defcon_backup_target: Option<u32>,
-    backup_preference: Option<u32>,
-    engine_retention_cycles: Option<u32>,
-    world_retention_cycles: Option<u32>,
-    vault_capacity_gb: Option<u32>,
-    timeline_retention_copies: Option<u32>,
-    timeline_retention_size_mb: Option<u32>,
-) -> Result<String, String> {
-    let json = serde_json::to_string_pretty(&SolderConfig {
-        live_path,
-        mods_path,
-        vault_path,
-        engine_agency_level,
-        defcon_backup_target,
-        backup_preference,
-        engine_retention_cycles,
-        world_retention_cycles,
-        vault_capacity_gb,
-        timeline_retention_copies,
-        timeline_retention_size_mb,
-    })
-    .map_err(|e| e.to_string())?;
+pub fn get_saved_coordinates() -> WorkspaceConfig {
+    let global_config = get_global_config();
+    let master_vault = global_config.vault_path.clone();
+    let mut active_workspace = None;
+
+    if let Some(active_id) = &global_config.active_workspace_id {
+        if let Some(workspace) = global_config.workspaces.iter().find(|w| w.id == *active_id) {
+            active_workspace = Some(workspace.clone());
+        }
+    }
+    
+    if active_workspace.is_none() {
+        if let Some(workspace) = global_config.workspaces.first() {
+            active_workspace = Some(workspace.clone());
+        }
+    }
+
+    if let Some(mut workspace) = active_workspace {
+        // Enforce Master OS Vault Architecture dynamically
+        if let Some(mv) = master_vault {
+            if !mv.is_empty() {
+                let new_path = std::path::PathBuf::from(mv).join(&workspace.schema_id);
+                workspace.vault_path = new_path.to_string_lossy().to_string();
+            }
+        }
+        return workspace;
+    }
+    
+    WorkspaceConfig::default()
+}
+
+#[tauri::command]
+pub fn save_coordinates(config: SolderConfig) -> Result<String, String> {
+    let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
     
     let config_path = get_config_path();
     if let Some(parent) = config_path.parent() {
@@ -96,8 +124,8 @@ pub fn save_coordinates(
 }
 
 #[tauri::command]
-pub fn get_suggested_paths(state: tauri::State<'_, AppState>) -> SolderConfig {
-    let mut config = SolderConfig::default();
+pub fn get_suggested_paths(state: tauri::State<'_, AppState>) -> WorkspaceConfig {
+    let mut config = WorkspaceConfig::default();
     let game_schema = state.active_schema.lock().unwrap().clone();
     
     let default_mod = if let Some(schema) = &game_schema {

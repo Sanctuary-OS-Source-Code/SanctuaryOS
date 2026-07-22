@@ -251,7 +251,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
 
         const newSets = [...prevSets];
         newSets[activePlaySetIndex] = { ...currentSet, mods: newMods };
-        localStorage.setItem("sanctuary_playsets", JSON.stringify(newSets));
+        localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(newSets));
         window.dispatchEvent(new Event("storage"));
         return newSets;
       });

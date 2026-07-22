@@ -252,7 +252,7 @@ export const DbpfScout = () => {
          });
          
          setPlaySets(updatedSets);
-         localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+         localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
       }
       setSelectedForVault([]);
       setIsBulkMode(false);
@@ -273,7 +273,7 @@ export const DbpfScout = () => {
               return cleanM !== cleanMod && !cleanM.endsWith(`/${cleanMod}`) && !cleanM.endsWith(`\\${cleanMod}`);
            });
            setPlaySets(updatedSets);
-           localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+           localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
         }
         
         setFatalConflicts((prev) => prev.filter((c) => c.modA !== modName && c.modB !== modName));
@@ -308,7 +308,7 @@ export const DbpfScout = () => {
            }
            currentSet.mods = newMods;
            setPlaySets(updatedSets);
-           localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+           localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
         }
       }
 
@@ -340,7 +340,7 @@ export const DbpfScout = () => {
          });
          updatedSets[playSetIndex] = currentSet;
          setPlaySets(updatedSets);
-         localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+         localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
          window.dispatchEvent(new Event("storage"));
       }
 
@@ -366,7 +366,7 @@ export const DbpfScout = () => {
          currentSet.mods = currentSet.mods.map((m: string) => m.replace(/^Sanctuary[/\\]/i, ""));
          updatedSets[playSetIndex] = currentSet;
          setPlaySets(updatedSets);
-         localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+         localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
          window.dispatchEvent(new Event("storage"));
       }
 } catch (err) { useStore.getState().pushStatus(`Undo Error: ${err}`); }

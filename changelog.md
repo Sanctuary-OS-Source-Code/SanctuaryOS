@@ -1,3 +1,40 @@
+ **Date: July 22, 2026**
+ **Version: 0.4.80**
+
+## **Multi-Workspace & Database Architecture Overhaul**
+
+### Hub and Spoke Database Routing [New Architecture]
+- **Multi-Database Support**: Completely restructured the backend architecture to support multiple independent databases. The application now uses a Hub-and-Spoke model where a single Main OS Database acts as the central Source of Truth, connecting dynamically to various Game Databases based on your active workspace.
+- **Dynamic Client Proxy**: Engineered a custom Supabase `Proxy` client (`supabase.ts`) that intelligently intercepts database calls. Global OS tables (`profiles`, `sanctuary_themes`, `sanctuary_games`, `audit_logs`) are automatically routed to the Main OS Database, while game-specific queries seamlessly route to the active Game Database.
+- **Legacy Fallback**: Implemented a secure fallback mechanism to route calls to a legacy environment if no active workspace is selected, ensuring backwards compatibility for older flows.
+
+### Authentication & Security Polish
+- **Dual Session Persistence**: Resolved critical `Permission Denied` errors on Game Database interactions. The dynamic database client now properly respects and loads cached game-specific tokens (`sb-<project-ref>-auth-token`) from local storage instead of forcing anonymous sessions, ensuring Row Level Security (RLS) is strictly enforced and automatically validated against your active Game Profile.
+- **Cross-Database Identity Fixes**: Dropped restrictive Postgres Foreign Key constraints (`masons_profile_id_fkey`) on Game Databases. Profile IDs stored in Game Databases now act as loose, decentralized UUID references to the OS Database, preventing 409 Conflict errors when linking identities across databases.
+
+### Localization & Lexicon Enforcement
+- **Zero-Hardcoded Strings**: Conducted a massive sweep across the UI to enforce the `useLexicon` translation engine. 
+- **Thematic Lexicon Routing**: Created strict keys across `en-default.json`, `en-sanctuary.json`, and `en-sims.json` dictionaries. Standard text is now dynamically translated into immersive, cyberpunk, or casual English depending on the active theme and workspace context.
+- **Mason Linker UI Polish**: Refined the identity linking UI to accurately fetch and display cross-database usernames. Fixed a confusing UI glitch where your OS username was surfacing instead of your Game Database username when interacting with Game tables.
+
+### Wayfinder & Identity Evolution
+- **Wayfinder Role Migration**: Reworked the "Wayfinder" concept from being a hardcoded core OS application feature to a dynamic, game-specific role. This allows for distributed, game-specific moderation and oversight without granting global OS-level admin rights.
+
+### Core Systems & Workflows
+- **Keepers Core & Schema Evolution**: Introduced a brand new `Keepers Core` flow to centralize and streamline schema management. 
+- **Advanced Lexicon Process**: Built a robust new Lexicon editing process for mapping translation dictionaries dynamically across the OS.
+- **Theme Process Overhaul**: Refined the theme generation and management process, allowing for tighter aesthetic synchronization across workspaces.
+
+### Workspace & Navigation
+- **Workspace Selector Screen**: Built a brand new Workspace Selector launch screen, providing a visual, game-oriented entry point to seamlessly swap between active environments on boot.
+- **Revamped Login & Cartographer**: Overhauled the authentication and onboarding experience, implementing the "Cartographer" flow for smoother user identity and database mapping during login.
+
+### Vault Organization
+- **Master OS Vault Enforcement**: Promoted the Vault Path architecture from a per-game setting to a global Master OS Vault. Game-specific vaults are now dynamically routed into subfolders (e.g., `Sanctuary OS Vault/sims4`). If the Master Vault is moved, all active workspaces automatically and safely reconnect to their respective subfolders without breaking.
+- **Vault Folders Rework**: Major overhaul to the Vault storage system, introducing true Folder support. Assets can now be organized, grouped, and managed within nested folder structures instead of a flat list.
+
+---
+
  **Date: July 18, 2026**
  **Version: 0.4.72**
 

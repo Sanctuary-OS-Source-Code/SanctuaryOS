@@ -1,10 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from './supabase';
+import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState } from './shared';
 import { useStore } from './store';
 
 export const ROLES = ['citizen', 'mason', 'architect', 'oversight', 'wayfinder'];
+
+const getRoleBadgeStyle = (role: string) => {
+  const base = "text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-full border shadow-inner transition-colors duration-500 shrink-0";
+  const r = (role || 'citizen').toLowerCase();
+  
+  if (r === 'admin') {
+    return `${base} bg-white/5 text-[var(--text)] border-white/10 group-hover:bg-white/10 group-hover:border-white/20 group-hover:text-white`;
+  }
+  if (r === 'keeper') {
+    return `${base} bg-cyan-500/5 text-cyan-500/70 border-cyan-500/10 group-hover:bg-cyan-500/10 group-hover:border-cyan-500/30 group-hover:text-cyan-400`;
+  }
+  if (r === 'wayfinder' || r === 'oversight') {
+    return `${base} bg-amber-500/5 text-amber-500/70 border-amber-500/10 group-hover:bg-amber-500/10 group-hover:border-amber-500/30 group-hover:text-amber-400`;
+  }
+  if (r === 'architect') {
+    return `${base} bg-purple-500/5 text-purple-500/70 border-purple-500/10 group-hover:bg-purple-500/10 group-hover:border-purple-500/30 group-hover:text-purple-400`;
+  }
+  if (r === 'mason') {
+    return `${base} bg-emerald-500/5 text-emerald-500/70 border-emerald-500/10 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 group-hover:text-emerald-400`;
+  }
+  if (r === 'core_dev') {
+    return `${base} bg-blue-500/5 text-blue-500/70 border-blue-500/10 group-hover:bg-blue-500/10 group-hover:border-blue-500/30 group-hover:text-blue-400`;
+  }
+  // citizen
+  return `${base} bg-white/5 text-[var(--text)] opacity-70 border-white/5 group-hover:bg-white/10 group-hover:border-white/10 group-hover:opacity-100`;
+};
+
 
 export function CustomRoleSelect({ value, onChange, roles, isBlacklisted }: any) {
   const options = roles.map((r: string) => ({ id: r, label: r.replace(/_/g, ' ').toUpperCase() }));
@@ -20,7 +47,7 @@ export function CustomRoleSelect({ value, onChange, roles, isBlacklisted }: any)
   );
 }
 
-export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder = false, isSkinny = false }: { profile: any, onClose: () => void, onUpdated: () => void, isWayfinder?: boolean, isSkinny?: boolean }) {
+export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder = false, isSkinny = false, isKeepers = false }: { profile: any, onClose: () => void, onUpdated: () => void, isWayfinder?: boolean, isSkinny?: boolean, isKeepers?: boolean }) {
   const { t } = useLexicon();
   const [editRole, setEditRole] = useState("citizen");
   const [isBanned, setIsBanned] = useState(false);
@@ -29,6 +56,9 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
   const [editCommReason, setEditCommReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState("");
+
+  const currentUser = useStore(state => state.session?.user);
+  const isEditingSelf = currentUser?.id === profile?.id;
 
   useEffect(() => {
     if (profile) {
@@ -43,6 +73,10 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
 
   const handleUpdateRole = async () => {
     if (!profile) return;
+    if (isEditingSelf && editRole !== profile.role) {
+      setStatus("Action denied: You cannot modify your own role.");
+      return;
+    }
     if (isBanned && !editReason.trim()) {
       setStatus("Reason is required for upload ban.");
       return;
@@ -55,7 +89,10 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
     setIsSubmitting(true);
     setStatus(t("identities_updating"));
 
-    const { data, error } = await supabase.from('profiles').update({
+    const { getActiveGameClient } = await import('./supabase');
+    const client = isKeepers ? supabaseAuth : getActiveGameClient();
+
+    const { data, error } = await client.from('profiles').update({
       role: editRole,
       is_banned: isBanned,
       is_comm_banned: isCommBanned,
@@ -76,7 +113,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
         auditReason = `Upload: ${editReason} | Comms: ${editCommReason}`;
       }
 
-      await supabase.from('audit_logs').insert({
+      await client.from('audit_logs').insert({
         action: auditAction,
         target_table: 'profiles',
         target_name: profile.username || profile.id,
@@ -154,7 +191,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
             <div className="flex flex-col gap-2 relative z-50">
               <CustomRoleSelect
                 value={editRole}
-                roles={isWayfinder ? ROLES : ROLES.filter(r => r !== 'wayfinder')}
+                roles={isWayfinder ? ROLES : ['citizen', 'keeper', 'admin']}
                 onChange={(newRole: string) => setEditRole(newRole)}
                 isBlacklisted={isBanned}
               />
@@ -168,7 +205,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
               <div className={`absolute inset-0 bg-gradient-to-br ${isBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
               <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isBanned ? 'border-red-500/20 text-red-400' : 'border-white/5 text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
-                {t("identities_punitive_upload")}
+                {isWayfinder ? (t("identities_punitive_upload") || "UPLOAD & NEXUS BAN") : (t("ui_network_blacklist") || "NETWORK BLACKLIST")}
               </h4>
               <div className="flex items-center justify-between relative z-10">
                 <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
@@ -197,38 +234,40 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
               )}
             </div>
 
-            <div className={`flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border ${isCommBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
-              <div className={`absolute inset-0 bg-gradient-to-br ${isCommBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
-              <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isCommBanned ? 'border-red-500/20 text-red-400' : 'border-white/5 text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
-                <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
-                {t("identities_punitive_comm")}
-              </h4>
-              <div className="flex items-center justify-between relative z-10">
-                <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
-                  {t("identities_ban")}
-                </label>
-                <button
-                  onClick={() => setIsCommBanned(!isCommBanned)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isCommBanned ? 'bg-red-500' : 'bg-gray-600'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCommBanned ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-
-              {isCommBanned && (
-                <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-10 mt-2">
-                  <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                    {t("ban_reason_req")}
+            {isWayfinder && (
+              <div className={`flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border ${isCommBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
+                <div className={`absolute inset-0 bg-gradient-to-br ${isCommBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
+                <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isCommBanned ? 'border-red-500/20 text-red-400' : 'border-white/5 text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
+                  <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
+                  {t("identities_punitive_comm")}
+                </h4>
+                <div className="flex items-center justify-between relative z-10">
+                  <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
+                    {t("identities_ban")}
                   </label>
-                  <textarea
-                    value={editCommReason}
-                    onChange={e => setEditCommReason(e.target.value)}
-                    placeholder={t("id_reason_comm_ban")}
-                    className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
-                  />
+                  <button
+                    onClick={() => setIsCommBanned(!isCommBanned)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isCommBanned ? 'bg-red-500' : 'bg-gray-600'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCommBanned ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
                 </div>
-              )}
-            </div>
+
+                {isCommBanned && (
+                  <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-10 mt-2">
+                    <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                      {t("ban_reason_req")}
+                    </label>
+                    <textarea
+                      value={editCommReason}
+                      onChange={e => setEditCommReason(e.target.value)}
+                      placeholder={t("id_reason_comm_ban")}
+                      className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -236,7 +275,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
   );
 }
 
-export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean }) {
+export function IdentityMatrix({ isWayfinder = false, isKeepers = false }: { isWayfinder?: boolean, isKeepers?: boolean }) {
   const { t } = useLexicon();
   const [profiles, setProfiles] = useState<any[]>([]);
   const [blacklistedProfiles, setBlacklistedProfiles] = useState<any[]>([]);
@@ -248,10 +287,12 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
 
   const fetchData = async () => {
     setLoading(true);
-    const { data } = await supabase.from('profiles').select('*').order('username');
+    const { getActiveGameClient } = await import('./supabase');
+    const client = isKeepers ? supabaseAuth : getActiveGameClient();
+    const { data } = await client.from('profiles').select('*').order('username');
     if (data) {
-      setProfiles(data.filter(p => !p.is_banned && !p.is_comm_banned));
-      setBlacklistedProfiles(data.filter(p => p.is_banned || p.is_comm_banned));
+      setProfiles(data.filter((p: any) => !p.is_banned && !p.is_comm_banned));
+      setBlacklistedProfiles(data.filter((p: any) => p.is_banned || p.is_comm_banned));
     }
     setLoading(false);
   };
@@ -299,7 +340,11 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
               onChange={(v: string[]) => setFilterRole(v[0])}
               options={[
                 { id: "all", label: "ALL ROLES" },
-                ...ROLES.filter(r => isWayfinder || r !== 'wayfinder').map(r => ({ id: r, label: r.replace(/_/g, ' ').toUpperCase() }))
+                ...ROLES.filter(r => {
+                  if (isKeepers) return r === 'citizen';
+                  return isWayfinder || r !== 'wayfinder';
+                }).map(r => ({ id: r, label: r.replace(/_/g, ' ').toUpperCase() })),
+                ...(isKeepers ? [{ id: 'admin', label: 'DEV' }] : [])
               ]}
               placeholder={t("auto_filter_role")}
             />
@@ -319,11 +364,11 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
                   <div
                     key={p.id}
                     onClick={() => handleOpenPanel(p)}
-                    className={`theme-glass-panel rounded-[var(--radius)] flex flex-col group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] ${(!isWayfinder && p.role === 'wayfinder') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] hover:-translate-y-1.5'}`}
+                    className={`theme-glass-panel backdrop-blur-2xl border border-white/10 rounded-[1.5rem] flex flex-col transition-all duration-500 group relative overflow-hidden min-h-[160px] ${(!isWayfinder && p.role === 'wayfinder') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-white/30 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-1 active:translate-y-0'}`}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-                    <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500 ${p.role === 'oversight' || p.role === 'wayfinder' ? 'bg-amber-500/50 group-hover:bg-amber-500 group-hover:shadow-[0_0_20px_rgba(245,158,11,0.5)]' : 'theme-bg-accent/50 group-hover:theme-bg-accent group-hover:shadow-[0_0_20px_var(--accent)]'}`} />
+                    <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none ${p.role === 'oversight' || p.role === 'wayfinder' ? 'from-transparent via-amber-500/50 to-transparent' : 'from-transparent via-white/20 to-transparent'}`} />
 
                     <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
                       <div className="flex justify-between items-start gap-4">
@@ -332,8 +377,8 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
                             {t("icon_person")}
                           </span>
                         </div>
-                        <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors ${p.role === 'oversight' || p.role === 'wayfinder' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' : 'theme-bg-accent/10 theme-text-accent theme-border-accent/20 group-hover:theme-bg-accent/20'}`}>
-                          {p.role || "citizen"}
+                        <span className={getRoleBadgeStyle(p.role)}>
+                          {t(`role_${(p.role || "citizen").toLowerCase()}`) || p.role || "CITIZEN"}
                         </span>
                       </div>
 
@@ -360,11 +405,11 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
                     <div
                       key={p.id}
                       onClick={() => handleOpenPanel(p)}
-                      className={`theme-glass-panel rounded-[var(--radius)] flex flex-col group border border-red-500/30 transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-red-500/5 to-transparent min-h-[160px] cursor-pointer hover:border-red-500 hover:shadow-[0_0_40px_rgba(239,68,68,0.2)] hover:-translate-y-1.5`}
+                      className={`theme-glass-panel backdrop-blur-2xl rounded-[1.5rem] flex flex-col group border border-red-500/20 transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer hover:border-red-500/50 hover:shadow-[0_20px_50px_rgba(239,68,68,0.2)] hover:-translate-y-1 active:translate-y-0`}
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-                      <div className="absolute top-0 left-0 w-full h-1 bg-red-500/50 transition-all duration-500 group-hover:bg-red-500 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.8)]" />
+                      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
                       <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
                         <div className="flex justify-between items-start gap-4">
@@ -409,8 +454,7 @@ export function IdentityMatrix({ isWayfinder = false }: { isWayfinder?: boolean 
           </>
         )}
       </div>
-
-      <SharedIdentityEditor profile={selectedProfile} onClose={() => setSelectedProfile(null)} onUpdated={fetchData} isWayfinder={isWayfinder} />
+      <SharedIdentityEditor profile={selectedProfile} onClose={() => setSelectedProfile(null)} onUpdated={fetchData} isWayfinder={isWayfinder} isKeepers={isKeepers} />
     </div>
   );
 }

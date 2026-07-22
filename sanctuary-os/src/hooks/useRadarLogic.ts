@@ -23,7 +23,8 @@ async function fetchVault() {
     setShelterContents(sList);
   }
 
-async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = false) {
+async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isSilent) {
+    if (activeGameSchema?.features?.has_cc === false) return;
     if (isScanning) return;
     if (!isSilent) {
       setIsScanning(true);

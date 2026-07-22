@@ -3,6 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
 import { supabase } from './supabase';
 
+import { useStore } from './store';
+
 const DEFAULT_CORE_THEMES: any = {
   architect: {
     name: "Architect", bg: "#02040a", sidebar: "#060913", sidebartext: "#fafafa", accent: "#38bdf8",
@@ -56,10 +58,19 @@ const DEFAULT_CORE_THEMES: any = {
 const ThemeContext = createContext<any>(null);
 
 export const ThemeProvider = ({ children }: any) => {
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const wsId = activeWorkspaceId || 'default';
+
   const [CORE_THEMES, setCoreThemes] = useState<any>(DEFAULT_CORE_THEMES);
-  const [customThemes, setCustomThemes] = useState(() => JSON.parse(localStorage.getItem("sanctuary_custom_themes") || "{}"));
-  const [devThemes, setDevThemes] = useState(() => JSON.parse(localStorage.getItem("sanctuary_dev_themes") || "{}"));
-  const [activeThemeId, setActiveThemeId] = useState(() => localStorage.getItem("sanctuary_active_theme") || "architect");
+  const [customThemes, setCustomThemes] = useState(() => JSON.parse(localStorage.getItem(`sanctuary_${wsId}_custom_themes`) || "{}"));
+  const [devThemes, setDevThemes] = useState(() => JSON.parse(localStorage.getItem(`sanctuary_${wsId}_dev_themes`) || "{}"));
+  const [activeThemeId, setActiveThemeId] = useState(() => localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect");
+
+  useEffect(() => {
+    setCustomThemes(JSON.parse(localStorage.getItem(`sanctuary_${wsId}_custom_themes`) || "{}"));
+    setDevThemes(JSON.parse(localStorage.getItem(`sanctuary_${wsId}_dev_themes`) || "{}"));
+    setActiveThemeId(localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect");
+  }, [wsId]);
 
   useEffect(() => {
     const fetchCoreThemes = async () => {
@@ -131,29 +142,29 @@ export const ThemeProvider = ({ children }: any) => {
 
         if (hasCustomUpdates) {
           setCustomThemes(updatedCustoms);
-          localStorage.setItem("sanctuary_custom_themes", JSON.stringify(updatedCustoms));
+          localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(updatedCustoms));
         }
         if (hasDevUpdates) {
           setDevThemes(updatedDevs);
-          localStorage.setItem("sanctuary_dev_themes", JSON.stringify(updatedDevs));
+          localStorage.setItem(`sanctuary_${wsId}_dev_themes`, JSON.stringify(updatedDevs));
         }
       } catch (err) {
         console.error("Failed to scan vault themes:", err);
       }
     };
     scanVault();
-  }, []);
+  }, [wsId]);
 
   useEffect(() => {
     if (customThemes["Radiant"]) {
       const { Radiant, ...rest } = customThemes;
       setCustomThemes(rest);
-      localStorage.setItem("sanctuary_custom_themes", JSON.stringify(rest));
+      localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(rest));
       if (activeThemeId === "Radiant") setActiveThemeId("radiant");
     } else if (activeThemeId === "Radiant") {
       setActiveThemeId("radiant");
     }
-  }, [customThemes, activeThemeId]);
+  }, [customThemes, activeThemeId, wsId]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -166,7 +177,7 @@ export const ThemeProvider = ({ children }: any) => {
         }
       }
     });
-    localStorage.setItem("sanctuary_active_theme", activeThemeId);
+    localStorage.setItem(`sanctuary_${wsId}_active_theme`, activeThemeId);
 
     const bgHex = (currentTheme.bg || '#000000').replace('#', '');
     if (bgHex.length === 6) {
@@ -202,7 +213,7 @@ export const ThemeProvider = ({ children }: any) => {
       const updatedTheme = { ...currentTheme, ...updates };
       const updated = { ...devThemes, [id]: updatedTheme };
       setDevThemes(updated);
-      localStorage.setItem("sanctuary_dev_themes", JSON.stringify(updated));
+      localStorage.setItem(`sanctuary_${wsId}_dev_themes`, JSON.stringify(updated));
       saveThemeToVault(id, updatedTheme, true);
     } else if (CORE_THEMES[id]) {
       const currentTheme = CORE_THEMES[id];
@@ -211,7 +222,7 @@ export const ThemeProvider = ({ children }: any) => {
       const newCustoms = { ...customThemes, [newId]: newTheme };
       setCustomThemes(newCustoms);
       setActiveThemeId(newId);
-      localStorage.setItem("sanctuary_custom_themes", JSON.stringify(newCustoms));
+      localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(newCustoms));
       saveThemeToVault(newId, newTheme, false);
     } else {
       const currentTheme = customThemes[id];
@@ -219,7 +230,7 @@ export const ThemeProvider = ({ children }: any) => {
       const updatedTheme = { ...currentTheme, ...updates };
       const updated = { ...customThemes, [id]: updatedTheme };
       setCustomThemes(updated);
-      localStorage.setItem("sanctuary_custom_themes", JSON.stringify(updated));
+      localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(updated));
       saveThemeToVault(id, updatedTheme, false);
     }
   };
@@ -229,7 +240,7 @@ export const ThemeProvider = ({ children }: any) => {
       const updatedTheme = { ...currentTheme, ...updates };
       const updated = { ...devThemes, [activeThemeId]: updatedTheme };
       setDevThemes(updated);
-      localStorage.setItem("sanctuary_dev_themes", JSON.stringify(updated));
+      localStorage.setItem(`sanctuary_${wsId}_dev_themes`, JSON.stringify(updated));
       saveThemeToVault(activeThemeId, updatedTheme, true);
     } else if (CORE_THEMES[activeThemeId]) {
       const newId = `custom_${activeThemeId}_${Date.now()}`;
@@ -237,13 +248,13 @@ export const ThemeProvider = ({ children }: any) => {
       const newCustoms = { ...customThemes, [newId]: newTheme };
       setCustomThemes(newCustoms);
       setActiveThemeId(newId);
-      localStorage.setItem("sanctuary_custom_themes", JSON.stringify(newCustoms));
+      localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(newCustoms));
       saveThemeToVault(newId, newTheme, false);
     } else {
       const updatedTheme = { ...currentTheme, ...updates };
       const updated = { ...customThemes, [activeThemeId]: updatedTheme };
       setCustomThemes(updated);
-      localStorage.setItem("sanctuary_custom_themes", JSON.stringify(updated));
+      localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(updated));
       saveThemeToVault(activeThemeId, updatedTheme, false);
     }
   };
@@ -290,17 +301,17 @@ export const ThemeProvider = ({ children }: any) => {
   const deleteTheme = (id: string) => {
     if (CORE_THEMES[id]) return;
     const isDev = id.startsWith('dev_');
-    if (isDev) {
-      const { [id]: removed, ...remaining } = devThemes;
-      setDevThemes(remaining);
-      localStorage.setItem("sanctuary_dev_themes", JSON.stringify(remaining));
-    } else {
-      const { [id]: removed, ...remaining } = customThemes;
-      setCustomThemes(remaining);
-      localStorage.setItem("sanctuary_custom_themes", JSON.stringify(remaining));
+    if (!isDev) {
+      const { [id]: _, ...rest } = customThemes;
+      setCustomThemes(rest);
+      localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(rest));
+      if (activeThemeId === id) setActiveThemeId('architect');
+    } else if (id.startsWith('dev_')) {
+      const { [id]: _, ...rest } = devThemes;
+      setDevThemes(rest);
+      localStorage.setItem(`sanctuary_${wsId}_dev_themes`, JSON.stringify(rest));
+      if (activeThemeId === id) setActiveThemeId('architect');
     }
-
-    if (activeThemeId === id) setActiveThemeId("architect");
 
     (async () => {
       try {

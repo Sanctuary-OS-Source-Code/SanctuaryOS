@@ -221,7 +221,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
 
     if (!error) {
       if (replyTargetAuthorId && replyTargetAuthorId !== userId) {
-        const { data: notificationProfile } = await supabase.from('profiles').select('username').eq('id', userId).single();
+        const { data: notificationProfile } = await supabase.from('profiles').select('username').eq('id', userId).maybeSingle();
         const senderName = notificationProfile?.username || "A Citizen";
         await supabase.from('notifications').insert({
           user_id: replyTargetAuthorId,

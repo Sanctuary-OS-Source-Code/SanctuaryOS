@@ -98,7 +98,7 @@ export function usePlaySetLogic() {
             newMods.delete(targetName);
             const updatedSets = [...prevSets];
             updatedSets[activePlaySetIndex] = { ...currentSet, mods: Array.from(newMods) };
-            localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+            localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
             window.dispatchEvent(new Event("storage"));
             return updatedSets;
          }
@@ -356,7 +356,7 @@ export function usePlaySetLogic() {
         ...currentSet,
         mods: Array.from(newMods),
       };
-      localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
       window.dispatchEvent(new Event("storage"));
       return updatedSets;
     });
@@ -364,10 +364,10 @@ export function usePlaySetLogic() {
   function deletePlaySet(setName: string) {
     const updatedSets = playSets.filter((s) => s.name !== setName);
     setPlaySets(updatedSets);
-    localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+    localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
     if (activeSetName === setName) {
       setActiveSetName(null);
-      localStorage.removeItem("sanctuary_active_set");
+      localStorage.removeItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`);
     }
     setStatus(
       `${t("status_removed_manifest_prefix")}${setName}${t("status_removed_manifest_suffix")}`,
@@ -381,12 +381,12 @@ export function usePlaySetLogic() {
       if (target) {
         target.name = newName;
       }
-      localStorage.setItem("sanctuary_playsets", JSON.stringify(copy));
+      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(copy));
       return copy;
     });
     if (activeSetName === oldName) {
       setActiveSetName(newName);
-      localStorage.setItem("sanctuary_active_set", newName);
+      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`, newName);
     }
   };
 
@@ -462,7 +462,7 @@ export function usePlaySetLogic() {
     if (!setToAdd) return;
     const updatedSets = [...playSets, setToAdd];
     setPlaySets(updatedSets);
-    localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+    localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
     setStatus(
       `${t("icon_check_circle")} ${t("status_profile_imported")}${setToAdd.name}`,
     );
@@ -640,7 +640,7 @@ export function usePlaySetLogic() {
         vaultPath: config.vault_path,
       });
       setActiveSetName(setName);
-      localStorage.setItem("sanctuary_active_set", setName);
+      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`, setName);
       
       const newIndex = playSets.findIndex((s) => s.name === setName);
       if (newIndex !== -1 && setActivePlaySetIndex) {

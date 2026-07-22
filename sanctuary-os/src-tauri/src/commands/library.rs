@@ -759,7 +759,7 @@ pub fn get_workbench_files(vault_path: String) -> Result<Vec<String>, String> {
                                 let ext_lower = ext.to_lowercase();
                                 if ext_lower == "json" || ext_lower == "cfg" || ext_lower == "ini" {
                                     if let Some(name) = entry.path().file_name().and_then(|n| n.to_str()) {
-                                        if !name.eq_ignore_ascii_case("desktop.ini") && !name.eq_ignore_ascii_case("Default.ini") {
+                                        if !name.starts_with('.') && !name.eq_ignore_ascii_case("desktop.ini") && !name.eq_ignore_ascii_case("Default.ini") {
                                             results.push(entry.path().to_string_lossy().to_string());
                                         }
                                     }

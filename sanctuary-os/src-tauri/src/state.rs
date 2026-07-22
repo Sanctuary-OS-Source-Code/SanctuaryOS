@@ -17,7 +17,10 @@ pub struct AppState {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct SolderConfig {
+pub struct WorkspaceConfig {
+    pub id: String,
+    pub name: String,
+    pub schema_id: String,
     pub live_path: String,
     pub mods_path: String,
     pub vault_path: String,
@@ -29,6 +32,23 @@ pub struct SolderConfig {
     pub vault_capacity_gb: Option<u32>,
     pub timeline_retention_copies: Option<u32>,
     pub timeline_retention_size_mb: Option<u32>,
+    pub supabase_url: Option<String>,
+    pub supabase_anon_key: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct SolderConfig {
+    pub active_workspace_id: Option<String>,
+    #[serde(default)]
+    pub workspaces: Vec<WorkspaceConfig>,
+    
+    // Legacy fields for backward compatibility during migration
+    #[serde(default)]
+    pub live_path: Option<String>,
+    #[serde(default)]
+    pub mods_path: Option<String>,
+    #[serde(default)]
+    pub vault_path: Option<String>,
 }
 
 #[derive(serde::Deserialize, Debug)]

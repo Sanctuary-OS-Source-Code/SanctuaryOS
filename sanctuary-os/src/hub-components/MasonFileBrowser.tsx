@@ -17,7 +17,9 @@ export default function MasonFileBrowser({
    setDeleteConfirmPath,
    handleDeleteFile,
    openFiles,
-   handlePublishLexicon
+   handlePublishLexicon,
+   isCloudMode,
+   internalCloudTarget
 }: any) {
 
    const filteredFiles = files.filter((f: any) => {
@@ -111,18 +113,22 @@ export default function MasonFileBrowser({
                               </>
                            ) : (
                               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                 <button
-                                    onClick={(e) => { e.stopPropagation(); setRenamingFile(file.path); const d = file.name.lastIndexOf('.'); setRenameInput(d > 0 ? file.name.substring(0, d) : file.name); setRenameExt(d > 0 ? file.name.substring(d) : ''); }}
-                                    className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-[var(--text)] transition-all hover:scale-110 active:scale-95 shadow-lg"
-                                 >
-                                    <span className="material-symbols-outlined !text-sm">{t("icon_edit") || "edit"}</span>
-                                 </button>
-                                 <button
-                                    onClick={(e) => { e.stopPropagation(); setDeleteConfirmPath(file.path); }}
-                                    className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all hover:scale-110 active:scale-95 shadow-lg"
-                                 >
-                                    <span className="material-symbols-outlined !text-sm">{t("icon_delete") || "delete"}</span>
-                                 </button>
+                                 {!(isCloudMode && internalCloudTarget === 'sanctuary_schemas') && (
+                                    <>
+                                       <button
+                                          onClick={(e) => { e.stopPropagation(); setRenamingFile(file.path); const d = file.name.lastIndexOf('.'); setRenameInput(d > 0 ? file.name.substring(0, d) : file.name); setRenameExt(d > 0 ? file.name.substring(d) : ''); }}
+                                          className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-[var(--text)] transition-all hover:scale-110 active:scale-95 shadow-lg"
+                                       >
+                                          <span className="material-symbols-outlined !text-sm">{t("icon_edit") || "edit"}</span>
+                                       </button>
+                                       <button
+                                          onClick={(e) => { e.stopPropagation(); setDeleteConfirmPath(file.path); }}
+                                          className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all hover:scale-110 active:scale-95 shadow-lg"
+                                       >
+                                          <span className="material-symbols-outlined !text-sm">{t("icon_delete") || "delete"}</span>
+                                       </button>
+                                    </>
+                                 )}
                               </div>
                            )}
                         </div>

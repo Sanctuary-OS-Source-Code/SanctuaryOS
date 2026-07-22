@@ -5,7 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import enDefault from '../lexicons/en-default.json';
 import { useLexicon } from "../LexiconContext";
 
-export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons" }) {
+export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas", isKeepers = false }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons", isKeepers?: boolean }) {
    const { t } = useLexicon();
    const session = useStore(state => state.session);
    const pushStatus = useStore(state => state.pushStatus);
@@ -42,7 +42,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget }: { vaultPa
    const [createFileName, setCreateFileName] = useState("");
    const [createFileExt, setCreateFileExt] = useState(".json");
    const [showReference, setShowReference] = useState(false);
-   const [referenceData, setReferenceData] = useState<any>(enDefault);
+   const [referenceData, setReferenceData] = useState<any>({});
    const [referenceLabel, setReferenceLabel] = useState<string>("en-default.json Reference");
    const [internalCloudTarget, setInternalCloudTarget] = useState<"sanctuary_schemas" | "sanctuary_lexicons">(cloudTarget || "sanctuary_schemas");
    const [splitRatio, setSplitRatio] = useState(50);
@@ -68,14 +68,14 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget }: { vaultPa
       if (isCloudMode) {
          try {
             setIsScanning(true);
-            const { supabase } = await import('../supabase');
-            const { data, error } = await supabase.from(internalCloudTarget).select('id');
+            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
+            const { data, error } = await client.from(internalCloudTarget).select('id');
             if (error) {
                console.error("Cloud fetch error:", error);
                return;
             }
-            const mapped = (data || []).map(row => ({ name: `${row.id}.json`, path: `cloud://${row.id}` }));
-            mapped.sort((a, b) => a.name.localeCompare(b.name));
+            const mapped = (data || []).map((row: any) => ({ name: `${row.id}.json`, path: `cloud://${row.id}` }));
+            mapped.sort((a: any, b: any) => a.name.localeCompare(b.name));
             setFiles(mapped);
          } catch (e) {
             console.error("Failed to load cloud files", e);
@@ -133,20 +133,22 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget }: { vaultPa
             const currentFile = (isCloudMode ? cloudOpenFiles : localOpenFiles)[isCloudMode ? cloudActiveFileIndex : localActiveFileIndex];
             if (!currentFile) return;
 
-            const isLexicon = currentFile.content?.includes('_meta_lang') || currentFile.content?.includes('"a_citizen"') || currentFile.name.startsWith('en-') || currentFile.name.startsWith('de-') || currentFile.name.startsWith('es-') || currentFile.name.startsWith('fr-');
+            const isLexicon = isCloudMode 
+               ? internalCloudTarget === 'sanctuary_lexicons'
+               : (currentFile.content?.includes('_meta_lang') || currentFile.content?.includes('"a_citizen"') || currentFile.name.startsWith('en-') || currentFile.name.startsWith('de-') || currentFile.name.startsWith('es-') || currentFile.name.startsWith('fr-'));
 
-            const { supabase } = await import('../supabase');
+            const { supabaseAuth } = await import('../supabase');
             if (isLexicon) {
-               const { data } = await supabase.from('sanctuary_lexicons').select('lexicon_data').eq('id', 'en-default').single();
+               const { data } = await supabaseAuth.from('sanctuary_lexicons').select('lexicon_data').eq('id', 'en-default').maybeSingle();
                if (data) {
                   setReferenceData((data as any).lexicon_data);
                   setReferenceLabel("en-default.json Reference");
                }
             } else {
-               const { data } = await supabase.from('sanctuary_schemas').select('schema_data').eq('id', 'sims4').single();
+               const { data } = await supabaseAuth.from('sanctuary_schemas').select('schema_data').eq('id', 'default').maybeSingle();
                if (data) {
                   setReferenceData((data as any).schema_data);
-                  setReferenceLabel("sims4.json Reference");
+                  setReferenceLabel("Keepers Master Schema");
                }
             }
          };
@@ -204,8 +206,8 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget }: { vaultPa
          try {
             let content = "";
             if (isCloudMode) {
-               const { supabase } = await import('../supabase');
-               const { data, error } = await supabase.from(internalCloudTarget).select(internalCloudTarget === 'sanctuary_lexicons' ? 'lexicon_data' : 'schema_data').eq('id', file.name.replace('.json', '')).single();
+               const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
+               const { data, error } = await client.from(internalCloudTarget).select(internalCloudTarget === 'sanctuary_lexicons' ? 'lexicon_data' : 'schema_data').eq('id', file.name.replace('.json', '')).maybeSingle();
                if (!error && data) {
                   content = internalCloudTarget === 'sanctuary_lexicons' ? JSON.stringify((data as any).lexicon_data, null, 2) : JSON.stringify((data as any).schema_data, null, 2);
                } else {
@@ -267,7 +269,14 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget }: { vaultPa
 
    const handleDeleteFile = async (path: string) => {
       try {
-         await remove(path);
+         if (isCloudMode) {
+            const fileId = path.replace('cloud://', '');
+            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
+            const { error } = await client.from(internalCloudTarget).delete().eq('id', fileId);
+            if (error) throw error;
+         } else {
+            await remove(path);
+         }
          const openIdx = openFiles.findIndex((f: any) => f.path === path);
          if (openIdx >= 0) {
             closeFile(openIdx, { stopPropagation: () => { } } as any);
@@ -290,6 +299,35 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget }: { vaultPa
          return;
       }
       try {
+         if (isCloudMode) {
+            const oldId = baseOldName;
+            const newId = renameInput.trim();
+            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
+            
+            const { data: oldData, error: fetchErr } = await client.from(internalCloudTarget).select('*').eq('id', oldId).maybeSingle();
+            if (fetchErr) throw fetchErr;
+            
+            const newData = { ...oldData, id: newId, name: newId };
+            const { error: insertErr } = await client.from(internalCloudTarget).insert(newData);
+            if (insertErr) throw insertErr;
+            
+            await client.from(internalCloudTarget).delete().eq('id', oldId);
+            
+            const newName = newId + currentExt;
+            const newPath = "cloud://" + newId;
+
+            setRenamingFile(null);
+            const openIdx = openFiles.findIndex((f: any) => f.path === oldPath);
+            if (openIdx >= 0) {
+               const newFiles = [...openFiles];
+               newFiles[openIdx] = { ...newFiles[openIdx], name: newName, path: newPath };
+               setOpenFiles(newFiles);
+            }
+            fetchFiles();
+            pushStatus(t("auto_saved") || "Renamed successfully", "success");
+            return;
+         }
+
          const newName = renameInput.trim() + currentExt;
          const lastSlash = Math.max(oldPath.lastIndexOf('/'), oldPath.lastIndexOf('\\'));
          const newPath = oldPath.substring(0, lastSlash) + '/' + newName;
@@ -319,7 +357,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget }: { vaultPa
       try {
          if (isCloudMode) {
             const fileId = createFileName.trim();
-            const { supabase } = await import('../supabase');
+            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
             const contentToSave = (isCloudMode && internalCloudTarget === 'sanctuary_lexicons') || (!isCloudMode && createMode === 'lexicon')
                ? { _meta_lang: lexiconLang.toLowerCase(), _meta_name: fileId } 
                : { schema_version: 1, metadata: {} };
@@ -327,7 +365,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget }: { vaultPa
                ? { id: fileId, name: fileId, badge: 'Sanctuary', version: 1, lexicon_data: contentToSave }
                : { id: fileId, name: fileId, schema_data: contentToSave, version: 1, updated_at: new Date().toISOString() };
             
-            const { error } = await supabase.from(internalCloudTarget).insert(payload);
+            const { error } = await client.from(internalCloudTarget).insert(payload);
             if (error) {
                pushStatus(t("alert_error") || "File already exists or error", "error");
                return;

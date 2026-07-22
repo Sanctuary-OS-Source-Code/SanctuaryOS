@@ -2,6 +2,8 @@ import React from 'react';
 import { useLexicon } from "./LexiconContext";
 import { useStore } from './store';
 import { useModalStore } from './store/modalStore';
+import { CustomDropdown } from './shared';
+import { invoke } from '@tauri-apps/api/core';
 
 function NavButton({
   id,
@@ -71,7 +73,19 @@ export function Sidebar({
   const userRole = useStore((state) => state.userRole);
   const isPatchDetected = useStore((state) => state.isPatchDetected);
   const defconLevel = useStore((state) => state.defconLevel);
+  const isConfigured = useStore((state) => state.isConfigured);
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
   const { showDefconAlert } = useModalStore();
+  const [globalGames, setGlobalGames] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    import('./supabase').then(({ supabase }) => {
+      supabase.from('sanctuary_games').select('*').then(({ data }) => {
+        if (data) setGlobalGames(data);
+      });
+    });
+  }, []);
 
   return (
     <nav
@@ -88,7 +102,34 @@ export function Sidebar({
 
       <div className="h-[75px] shrink-0" />
 
-      <div className="flex-1 pt-6 pb-6 px-4 space-y-1 overflow-y-auto overflow-x-hidden accent-scrollbar">
+      {!isSidebarCollapsed && useStore.getState().workspaces?.length > 0 && (
+        <div className="px-4 pt-4 pb-2">
+          <CustomDropdown
+            options={useStore.getState().workspaces.map((w: any) => {
+              const g = globalGames.find(g => g.schema_id === w.schema_id);
+              return { id: w.id, label: g?.name || w.name || w.id };
+            })}
+            value={useStore.getState().activeWorkspaceId || ''}
+            onChange={async (val: string[]) => {
+              try {
+                const globalConfig: any = await invoke("get_global_config");
+                globalConfig.active_workspace_id = val[0];
+                await invoke("save_coordinates", { config: globalConfig });
+                useStore.getState().setActiveWorkspaceId(val[0]);
+                localStorage.removeItem('sanctuary_network_updates');
+                setTimeout(() => {
+                  window.location.reload();
+                }, 300);
+              } catch (e) {
+                console.error(e);
+              }
+            }}
+            disableTint={true}
+          />
+        </div>
+      )}
+
+      <div className="flex-1 pt-4 pb-6 px-4 space-y-1 overflow-y-auto overflow-x-hidden accent-scrollbar">
         <NavButton
           active={view === "dashboard"}
           onClick={() => setView("dashboard")}
@@ -97,14 +138,16 @@ export function Sidebar({
           isCollapsed={isSidebarCollapsed}
           isAccent={true}
         />
-        <NavButton
-          active={view === "vault"}
-          onClick={() => setView("vault")}
-          icon={t("icon_account_balance")}
-          label={t("vault_title")}
-          isCollapsed={isSidebarCollapsed}
-          isAccent={true}
-        />
+        {(schemaFeatures.has_cc || schemaFeatures.has_saves || schemaFeatures.has_tray) && (
+          <NavButton
+            active={view === "vault"}
+            onClick={() => setView("vault")}
+            icon={t("icon_account_balance")}
+            label={t("vault_title")}
+            isCollapsed={isSidebarCollapsed}
+            isAccent={true}
+          />
+        )}
         {session && localStorage.getItem("sanctuary_blacklisted") !== "true" && (
           <NavButton
             active={view === "nexus"}
@@ -115,14 +158,16 @@ export function Sidebar({
             isAccent={true}
           />
         )}
-        <NavButton
-          active={view === "playsets"}
-          onClick={() => setView("playsets")}
-          icon={t("icon_map")}
-          label={t("playsets_title")}
-          isCollapsed={isSidebarCollapsed}
-          isAccent={true}
-        />
+        {schemaFeatures.has_cc && (
+          <NavButton
+            active={view === "playsets"}
+            onClick={() => setView("playsets")}
+            icon={t("icon_map")}
+            label={t("playsets_title")}
+            isCollapsed={isSidebarCollapsed}
+            isAccent={true}
+          />
+        )}
         {session && localStorage.getItem("sanctuary_blacklisted") !== "true" && (
           <NavButton
             active={view === "GlobalFeed"}
@@ -133,39 +178,45 @@ export function Sidebar({
             isAccent={true}
           />
         )}
-        <NavButton
-          active={view === "DbpfScout"}
-          onClick={() => setView("DbpfScout")}
-          icon={t("icon_track_changes")}
-          label={t("radar_title")}
-          isCollapsed={isSidebarCollapsed}
-          isAccent={true}
-        />
-        <NavButton
-          active={view === "lab"}
-          onClick={() => setView("lab")}
-          icon={t("icon_science")}
-          label={t("lab_title")}
-          isCollapsed={isSidebarCollapsed}
-          isAccent={true}
-        />
-        <NavButton
-          active={view === "CitizensWorkbench"}
-          onClick={() => setView("CitizensWorkbench")}
-          icon={t("icon_design_services")}
-          label={t("title_sidebar")}
-          isCollapsed={isSidebarCollapsed}
-          isAccent={true}
-        />
-        <NavButton
-          active={view === "backups"}
-          onClick={() => setView("backups")}
-          icon={t("icon_history")}
-          label={t("backups_title")}
-          isCollapsed={isSidebarCollapsed}
-          isAccent={true}
-        />
-        {session && ["mason", "architect", "oversight", "wayfinder", "admin"].includes(userRole) && (
+        {schemaFeatures.has_cc && (
+          <>
+            <NavButton
+              active={view === "DbpfScout"}
+              onClick={() => setView("DbpfScout")}
+              icon={t("icon_track_changes")}
+              label={t("radar_title")}
+              isCollapsed={isSidebarCollapsed}
+              isAccent={true}
+            />
+            <NavButton
+              active={view === "lab"}
+              onClick={() => setView("lab")}
+              icon={t("icon_science")}
+              label={t("lab_title")}
+              isCollapsed={isSidebarCollapsed}
+              isAccent={true}
+            />
+            <NavButton
+              active={view === "CitizensWorkbench"}
+              onClick={() => setView("CitizensWorkbench")}
+              icon={t("icon_design_services")}
+              label={t("title_sidebar")}
+              isCollapsed={isSidebarCollapsed}
+              isAccent={true}
+            />
+          </>
+        )}
+        {schemaFeatures.has_saves && (
+          <NavButton
+            active={view === "backups"}
+            onClick={() => setView("backups")}
+            icon={t("icon_history")}
+            label={t("backups_title")}
+            isCollapsed={isSidebarCollapsed}
+            isAccent={true}
+          />
+        )}
+        {session && schemaFeatures.has_cc && ["mason", "architect", "oversight", "wayfinder", "admin"].includes(userRole) && (
           <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!isSidebarCollapsed && (
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
@@ -182,7 +233,7 @@ export function Sidebar({
             />
           </div>
         )}
-        {session && ["architect", "oversight", "wayfinder", "admin"].includes(userRole) && (
+        {session && schemaFeatures.has_cc && ["architect", "oversight", "wayfinder", "admin"].includes(userRole) && (
           <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!isSidebarCollapsed && (
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
@@ -199,7 +250,7 @@ export function Sidebar({
             />
           </div>
         )}
-        {session && ["oversight", "wayfinder", "admin"].includes(userRole) && (
+        {session && schemaFeatures.has_cc && ["oversight", "wayfinder", "admin"].includes(userRole) && (
           <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!isSidebarCollapsed && (
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
@@ -216,7 +267,7 @@ export function Sidebar({
             />
           </div>
         )}
-        {session && (userRole === "wayfinder" || userRole === "admin") && (
+        {session && schemaFeatures?.has_cc !== false && (userRole === "wayfinder" || userRole === "admin") && (
           <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!isSidebarCollapsed && (
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
@@ -233,38 +284,73 @@ export function Sidebar({
             />
           </div>
         )}
-        {!session && (
-          <div className="my-4 border-t border-white/5 pt-4">
+        {session && (userRole === "core_dev" || userRole === "admin" || userRole === "keeper") && (
+          <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+            {!isSidebarCollapsed && (
+              <p className="px-3 text-[10px] font-semibold text-purple-400 opacity-80 uppercase tracking-widest mb-2 text-left truncate">
+                Sanctuary Foundry
+              </p>
+            )}
             <NavButton
-              onClick={() => {
-                localStorage.setItem("sanctuary_show_login", "true");
-                window.location.reload();
-              }}
-              icon={t("icon_key")}
-              label={t("sidebar_signin")}
+              active={view === "KeepersCore"}
+              onClick={() => setView("KeepersCore")}
+              icon="admin_panel_settings"
+              label="Keepers Core"
               isCollapsed={isSidebarCollapsed}
               isAccent={true}
             />
           </div>
         )}
-      </div>
-      <div className="p-4 pb-14 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-2 relative">
-        <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-10" />
 
-        <div className="relative group/nav mt-2">
-          <button
-            onClick={handleQuickLaunch}
-            className={`w-full py-3 rounded-xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border bg-transparent ${isPatchDetected || showDefconAlert ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]" : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]"}`}
-          >
-            {isSidebarCollapsed ? <span className="material-symbols-outlined !text-xl drop-shadow-md">{t("icon_rocket_launch")}</span> : <><span className="material-symbols-outlined !text-xl drop-shadow-md">{t("icon_rocket_launch")}</span> {t("sidebar_quick_launch")}</>}
-          </button>
-          {isSidebarCollapsed && (
-            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-all duration-300 z-[1000] pointer-events-none">
-              {t("sidebar_quick_launch")}
-            </div>
+        <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+          {!isSidebarCollapsed && (
+            <p className="px-3 text-[10px] font-semibold text-[var(--text)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
+              {t("workspace_manage")}
+            </p>
           )}
-        </div>
+          <NavButton
+            active={!isConfigured}
+            onClick={() => useStore.getState().setIsConfigured(false)}
+            icon={t("icon_view_quilt") || "view_quilt"}
+            label={t("workspace_manage") || "Environments"}
+            isCollapsed={isSidebarCollapsed}
+            isAccent={true}
+          />
+          {!session && (
+            <div className="my-4 border-t border-white/5 pt-4">
+              <NavButton
+                onClick={() => {
+                  localStorage.setItem("sanctuary_show_login", "true");
+                  window.location.reload();
+                }}
+                icon={t("icon_key")}
+                label={t("sidebar_signin")}
+                isCollapsed={isSidebarCollapsed}
+                isAccent={true}
+              />
+            </div>
+
+          )}</div>
       </div>
+      {schemaFeatures?.has_launch !== false && (
+        <div className="p-4 pb-14 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-2 relative">
+          <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-10" />
+
+          <div className="relative group/nav mt-2">
+            <button
+              onClick={handleQuickLaunch}
+              className={`w-full py-3 rounded-xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border bg-transparent ${isPatchDetected || showDefconAlert ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]" : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]"}`}
+            >
+              {isSidebarCollapsed ? <span className="material-symbols-outlined !text-xl drop-shadow-md">{t("icon_rocket_launch")}</span> : <><span className="material-symbols-outlined !text-xl drop-shadow-md">{t("icon_rocket_launch")}</span> {t("sidebar_quick_launch")}</>}
+            </button>
+            {isSidebarCollapsed && (
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-all duration-300 z-[1000] pointer-events-none">
+                {t("sidebar_quick_launch")}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </nav >
   );
 }

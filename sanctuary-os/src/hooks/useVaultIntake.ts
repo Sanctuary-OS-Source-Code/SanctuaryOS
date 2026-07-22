@@ -71,6 +71,11 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
       () => setIsDragging(false),
       (paths) => {
         setIsDragging(false);
+        const schemaFeatures = activeGameSchema?.features || { has_cc: true };
+        if (!schemaFeatures.has_cc) {
+          setStatus(t("status_not_supported") || "Active game does not support custom content intake.");
+          return;
+        }
         if (paths && paths.length > 0) {
           setDroppedFiles(paths);
           setIsDropzoneOpen(true);

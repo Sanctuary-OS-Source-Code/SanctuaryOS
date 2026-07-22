@@ -41,7 +41,7 @@ export function ThemeCard({
       : (t("ui_personal_theme") || "Personal Theme");
 
   return (
-    <div onClick={onClick} className={`w-full text-left p-6 rounded-[var(--radius)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative group cursor-pointer ${bgClass}`}>
+    <div onClick={onClick} className={`w-full text-left p-6 rounded-[var(--radius)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative group cursor-pointer theme-glass-panel ${bgClass}`}>
       <div className={`absolute inset-0 rounded-[var(--radius)] bg-gradient-to-br ${isDev ? 'from-[var(--accent)]/15' : 'from-[var(--accent)]/10'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none`} />
       
       <div className={`w-14 h-14 rounded-2xl shrink-0 overflow-hidden relative border ${isDev ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:border-[var(--accent)]/60' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[var(--accent)]/50'} transition-colors z-10`}>

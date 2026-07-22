@@ -141,7 +141,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       if (authorId === 'system') {
         setWayfinderName("SYSTEM");
       } else {
-        const { data: profileData } = await supabase.from('profiles').select('username').eq('id', authorId).single();
+        const { data: profileData } = await supabase.from('profiles').select('username').eq('id', authorId).maybeSingle();
         if (profileData?.username) setWayfinderName(profileData.username);
       }
     }

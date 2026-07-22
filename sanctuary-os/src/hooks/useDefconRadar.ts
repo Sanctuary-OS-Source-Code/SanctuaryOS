@@ -6,11 +6,15 @@ import { useStore } from "../store";
 import { supabase } from "../supabase";
 
 export function useDefconRadar(t: (key: string) => string, askCustom: any, triggerPrePatchSnapshot: any, triggerFullEngineBackup: any) {
-  const { isPatchDetected, setIsPatchDetected, defconLevel, setDefconLevel } = useStore();
+  const { isPatchDetected, setIsPatchDetected, defconLevel, setDefconLevel, activeWorkspaceId } = useStore();
   const { showDefconAlert, setShowDefconAlert } = useModalStore();
 
   useEffect(() => {
     const fetchInitialDefcon = async () => {
+      // Reset state when switching games so red doesn't carry over
+      setIsPatchDetected(false);
+      setShowDefconAlert(false);
+
       if (navigator.onLine && localStorage.getItem("sanctuary_local_only") !== "true") {
         try {
           const { data } = await supabase.from('global_network_status').select('defcon_level').single();
@@ -84,7 +88,7 @@ export function useDefconRadar(t: (key: string) => string, askCustom: any, trigg
       clearInterval(interval);
       if (defconSub) defconSub.unsubscribe();
     };
-  }, []);
+  }, [activeWorkspaceId]);
 
   return { isPatchDetected, defconLevel, showDefconAlert, setShowDefconAlert, setDefconLevel };
 }

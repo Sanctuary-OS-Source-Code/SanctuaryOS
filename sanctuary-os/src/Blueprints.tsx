@@ -331,7 +331,7 @@ export default function Blueprints({
           setMatrixPlaySet(updatedSet);
           const updatedSets = playSets.map((s: any) => s.name === updatedSet.name ? updatedSet : s);
           setPlaySets(updatedSets);
-          localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+          localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
         }}
         onUpload={async (isPublic: boolean, isLocked: boolean, allowedMods: any[], isMarketListed: boolean) => {
           if (uploadBlueprintToCloud && matrixPlaySet) {
@@ -428,7 +428,7 @@ export default function Blueprints({
                     }
                     const updatedSets = [...playSets, { name: newName, mods: [...activeSet.mods] }];
                     setPlaySets(updatedSets);
-                    localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+                    localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
                     window.dispatchEvent(new Event("storage"));
                     if (setActivePlaySetIndex) setActivePlaySetIndex(updatedSets.length - 1);
                     setIsSidePanelOpen(false);

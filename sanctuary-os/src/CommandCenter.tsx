@@ -172,7 +172,7 @@ export default function CommandCenter({
 
         const newSets = [...prevSets];
         newSets[activePlaySetIndex] = { ...currentSet, mods: newMods };
-        localStorage.setItem("sanctuary_playsets", JSON.stringify(newSets));
+        localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(newSets));
         window.dispatchEvent(new Event("storage"));
         return newSets;
       });
@@ -345,10 +345,10 @@ export default function CommandCenter({
         />
         <DashboardStatTile
           icon={<span className="material-symbols-outlined !text-4xl">{t("icon_account_balance")}</span>}
-          number={modList?.length || 0}
+          number={activeGameSchema?.features?.has_cc === false ? "-" : (modList?.length || 0)}
           label={t("vault_title")}
           colorClass="border-teal-500/30 text-teal-500 hover:border-teal-500 bg-teal-500/10 hover:bg-teal-500/20"
-          onClick={() => { if (setView) setView("vault"); if (setFilterStatus) setFilterStatus("ALL"); }}
+          onClick={() => { if (activeGameSchema?.features?.has_cc !== false) { if (setView) setView("vault"); if (setFilterStatus) setFilterStatus("ALL"); } }}
         />
         <DashboardStatTile
           icon={<span className="material-symbols-outlined !text-4xl">{t("icon_hub")}</span>}
@@ -359,10 +359,10 @@ export default function CommandCenter({
         />
         <DashboardStatTile
           icon={<span className="material-symbols-outlined !text-4xl">{t("icon_map")}</span>}
-          number={playSets?.length || 0}
+          number={activeGameSchema?.features?.has_cc === false ? "-" : (playSets?.length || 0)}
           label={t("stat_blueprints")}
           colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20"
-          onClick={() => setIsBlueprintSwapOpen(true)}
+          onClick={() => { if (activeGameSchema?.features?.has_cc !== false) setIsBlueprintSwapOpen(true); }}
         />
         <div className="relative group/ticket flex-1 flex">
           {!session && (
@@ -541,37 +541,41 @@ export default function CommandCenter({
               </button>
             )}
 
-            <button onClick={() => runRadarSweep(false)} className="w-full p-6 theme-glass-panel border border-white/5 rounded-[var(--radius)] hover:bg-white/5 transition-all text-left group relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
-              <div className="flex items-center gap-5">
-                <div className="w-12 h-12 rounded-xl theme-glass-inner border border-emerald-500/20 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">
-                    {t("icon_radar")}
-                  </span>
+            {activeGameSchema?.features?.has_cc !== false && (
+              <button onClick={() => runRadarSweep(false)} className="w-full p-6 theme-glass-panel border border-white/5 rounded-[var(--radius)] hover:bg-white/5 transition-all text-left group relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
+                <div className="flex items-center gap-5">
+                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-emerald-500/20 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">
+                      {t("icon_radar")}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{(t("btn_radar")).replace(/^[^\w]*/, '').trim()}</span>
+                    <span className="text-[9px] uppercase font-bold text-emerald-500/80 tracking-widest group-hover:text-emerald-400 transition-colors flex items-center gap-2 mt-1">{t("btn_radar_desc")}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{(t("btn_radar")).replace(/^[^\w]*/, '').trim()}</span>
-                  <span className="text-[9px] uppercase font-bold text-emerald-500/80 tracking-widest group-hover:text-emerald-400 transition-colors flex items-center gap-2 mt-1">{t("btn_radar_desc")}
-                  </span>
-                </div>
-              </div>
-            </button>
+              </button>
+            )}
 
-            <button onClick={() => triggerShelter(!shelterActive)} className="w-full p-6 theme-glass-panel border border-white/5 rounded-[var(--radius)] hover:bg-white/5 transition-all text-left group relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
-              <div className="flex items-center gap-5">
-                <div className="w-12 h-12 rounded-xl theme-glass-inner border border-cyan-500/20 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]">
-                    {shelterActive ? (t("icon_lock")) : (t("icon_lock_open"))}
-                  </span>
+            {activeGameSchema?.features?.has_cc !== false && (
+              <button onClick={() => triggerShelter(!shelterActive)} className="w-full p-6 theme-glass-panel border border-white/5 rounded-[var(--radius)] hover:bg-white/5 transition-all text-left group relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
+                <div className="flex items-center gap-5">
+                  <div className="w-12 h-12 rounded-xl theme-glass-inner border border-cyan-500/20 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]">
+                      {shelterActive ? (t("icon_lock")) : (t("icon_lock_open"))}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{shelterActive ? ((t("btn_reclaim")).replace(/^[^\w]*/, '').trim()) : ((t("btn_lockdown")).replace(/^[^\w]*/, '').trim())}</span>
+                    <span className="text-[9px] uppercase font-bold text-cyan-500/80 tracking-widest group-hover:text-cyan-400 transition-colors flex items-center gap-2 mt-1">{shelterActive ? (t("btn_bunker_unlock_desc")) : (t("btn_bunker_lock_desc"))}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{shelterActive ? ((t("btn_reclaim")).replace(/^[^\w]*/, '').trim()) : ((t("btn_lockdown")).replace(/^[^\w]*/, '').trim())}</span>
-                  <span className="text-[9px] uppercase font-bold text-cyan-500/80 tracking-widest group-hover:text-cyan-400 transition-colors flex items-center gap-2 mt-1">{shelterActive ? (t("btn_bunker_unlock_desc")) : (t("btn_bunker_lock_desc"))}
-                  </span>
-                </div>
-              </div>
-            </button>
+              </button>
+            )}
 
             <div className="relative group/supportdesk w-full">
               {!session && (

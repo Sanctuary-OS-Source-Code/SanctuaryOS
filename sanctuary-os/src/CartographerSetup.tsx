@@ -6,18 +6,31 @@ import { useLexicon } from "./LexiconContext";
 import { useTheme } from "./ThemeContext";
 import { CustomDropdown } from "./shared";
 
-export function CartographerSetup() {
+export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGame?: any, onCancel?: () => void }) {
   const { t, activeLang, setActiveLang, registry, lexiconMeta } = useLexicon();
   const { CORE_THEMES, activeThemeId, setActiveThemeId } = useTheme();
-  const setLivePath = useStore((state) => state.setLivePath);
-  const setModsPath = useStore((state) => state.setModsPath);
-  const setVaultPath = useStore((state) => state.setVaultPath);
+  const [livePath, setLivePath] = React.useState("");
+  const [modsPath, setModsPath] = React.useState("");
+  const [vaultPath, setVaultPath] = React.useState("");
+  const [isGlobalVaultSet, setIsGlobalVaultSet] = React.useState(false);
   const setIsConfigured = useStore((state) => state.setIsConfigured);
-  const livePath = useStore((state) => state.livePath);
-  const modsPath = useStore((state) => state.modsPath);
-  const vaultPath = useStore((state) => state.vaultPath);
   const setStatus = useStore((state) => state.setStatus);
 
+  React.useEffect(() => {
+    async function loadGlobal() {
+      try {
+        const config: any = await invoke("get_global_config");
+        if (config && config.vault_path) {
+          setVaultPath(config.vault_path);
+          setIsGlobalVaultSet(true);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    loadGlobal();
+  }, []);
+  
   async function pickLivePath() {
     const s = await open({ directory: true });
     if (s) setLivePath(s as string);
@@ -35,15 +48,42 @@ export function CartographerSetup() {
       alert(t("alert_select_paths") || "Please select all required paths before proceeding.");
       return;
     }
-    await invoke("save_coordinates", { livePath, modsPath, vaultPath });
+    const globalConfig: any = await invoke("get_global_config");
+    const newWorkspaceId = `workspace_${Date.now()}`;
+    const newWorkspace = {
+      id: newWorkspaceId,
+      name: preselectedGame?.name || `Workspace ${globalConfig.workspaces?.length ? globalConfig.workspaces.length + 1 : 1}`,
+      schema_id: preselectedGame?.schema_id || "sims4",
+      live_path: livePath,
+      mods_path: modsPath,
+      vault_path: vaultPath,
+      engine_agency_level: null,
+      defcon_backup_target: null,
+      backup_preference: null,
+      engine_retention_cycles: null,
+      world_retention_cycles: null,
+      vault_capacity_gb: null,
+      timeline_retention_copies: null,
+      timeline_retention_size_mb: null,
+      supabase_url: preselectedGame?.supabase_url || null,
+      supabase_anon_key: preselectedGame?.supabase_anon_key || null,
+    };
+    
+    globalConfig.workspaces = [...(globalConfig.workspaces || []), newWorkspace];
+    globalConfig.active_workspace_id = newWorkspaceId;
+    if (!globalConfig.vault_path) {
+      globalConfig.vault_path = vaultPath;
+    }
+    
+    await invoke("save_coordinates", { config: globalConfig });
     setIsConfigured(true);
+    setTimeout(() => window.location.reload(), 300);
   }
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: 'var(--bgGradient, var(--bg))', color: 'var(--text)' }}>
-
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0" style={{ backgroundImage: 'linear-gradient(var(--text) 1px, transparent 1px), linear-gradient(90deg, var(--text) 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] rounded-full theme-bg-accent opacity-[0.06] blur-[150px] pointer-events-none z-0 mix-blend-normal transition-all duration-1000" />
+    <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+      <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen transition-opacity duration-1000 animate-in fade-in" />
+      <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 50%, transparent), var(--bg))' }} />
 
       <div className="relative z-10 w-[95%] max-w-5xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row overflow-hidden group">
 
@@ -55,10 +95,10 @@ export function CartographerSetup() {
               <img src="/icon.png" alt="" className="w-10 h-10 object-contain relative z-10 drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)]" />
             </div>
             <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-widest text-[var(--headerText)] drop-shadow-sm">
-              {t("setup_title") || "Initialize Cartographer"}
+              {preselectedGame?.name || t("setup_title") || "Initialize Cartographer"}
             </h1>
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] theme-text-accent opacity-80 mt-2 transition-colors duration-500">
-              {t("status_cartographer_init") || "Cartographer Initialization"}
+              {preselectedGame ? t("status_cartographer_init") || "Cartographer Initialization" : t("status_cartographer_init") || "Cartographer Initialization"}
             </p>
           </div>
 
@@ -91,8 +131,8 @@ export function CartographerSetup() {
               <span className="uppercase tracking-widest">{modsPath ? t("setup_btn_mods_locked") || "Mods Locked" : t("setup_btn_mods") || "Select Mods Folder"}</span>
               <div className={`w-2 h-2 rounded-full ${modsPath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-[var(--warning)] shadow-[0_0_10px_var(--warning)] animate-pulse'}`} />
             </button>
-            <button onClick={pickVaultPath} className={`w-full theme-glass-inner backdrop-blur-md border ${vaultPath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-between group shadow-sm mb-3`}>
-              <span className="uppercase tracking-widest">{vaultPath ? t("setup_btn_vault_locked") || "Vault Locked" : t("setup_btn_vault") || "Select Vault Folder"}</span>
+            <button onClick={!isGlobalVaultSet ? pickVaultPath : undefined} className={`w-full theme-glass-inner backdrop-blur-md border ${vaultPath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-between group shadow-sm mb-3 ${isGlobalVaultSet ? 'opacity-80 cursor-not-allowed' : ''}`}>
+              <span className="uppercase tracking-widest">{vaultPath ? (isGlobalVaultSet ? "OS Master Vault Enforced" : "Master Vault Locked") : "Select Master OS Vault"}</span>
               <div className={`w-2 h-2 rounded-full ${vaultPath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-[var(--warning)] shadow-[0_0_10px_var(--warning)] animate-pulse'}`} />
             </button>
 
@@ -105,23 +145,65 @@ export function CartographerSetup() {
                   value={activeLang}
                   onChange={(v: string[]) => setActiveLang(v[0])}
                   options={
-                    lexiconMeta && lexiconMeta.length > 0
-                      ? [
-                        ...lexiconMeta.map((m: any) => ({
-                          id: m.id,
-                          label: `${m.name} [${m.badge}]`
-                        })),
-                        ...Object.keys(registry || {})
-                          .filter(k => !lexiconMeta.find((m: any) => m.id === k))
-                          .map(k => ({ id: k, label: `Custom: ${k}` }))
-                      ]
-                      : [
-                        { id: 'en-sanctuary', label: 'English (Sanctuary) [Sanctuary]' },
-                        { id: 'en-default', label: 'English (Default) [Sanctuary]' },
-                        { id: 'en-sims', label: 'English (Simlish) [Community]' },
-                        { id: 'de-default', label: 'German (Default) [Community]' },
-                        ...Object.keys(registry || {}).map(k => ({ id: k, label: `Custom: ${k}` }))
-                      ]
+                    (() => {
+                      const buildOption = (id: string, name: string, badge: string, isCustom: boolean = false) => {
+                        const displayName = isCustom ? `Custom: ${name}` : name;
+                        const badgeColor = badge.toLowerCase() === 'sanctuary' 
+                          ? 'border-[var(--accent)]/30 text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]'
+                          : 'border-white/10 text-[var(--text)] bg-white/5';
+                        return {
+                          id,
+                          searchText: `${displayName} ${badge} ${id.toLowerCase().startsWith('en-') ? 'English' : ''} ${id.toLowerCase().startsWith('de-') ? 'German' : ''}`,
+                          label: (
+                            <div className="flex items-center justify-between w-full">
+                              <span className="truncate pr-4 normal-case">{displayName}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${badgeColor} shrink-0`}>
+                                {badge}
+                              </span>
+                            </div>
+                          )
+                        };
+                      };
+
+                      const result: any[] = [];
+                      const addedIds = new Set<string>();
+
+                      // 1. Add DB items (Cloud sync is source of truth for overwrites)
+                      if (lexiconMeta && lexiconMeta.length > 0) {
+                        lexiconMeta.forEach((m: any) => {
+                          let labelName = m.name;
+                          if (labelName && labelName.toUpperCase() === 'EN-SIMS') labelName = 'English (Sims)';
+                          if (labelName === 'EN-Sims') labelName = 'English (Sims)';
+                          result.push(buildOption(m.id, labelName, m.badge));
+                          addedIds.add(m.id);
+                        });
+                      }
+
+                      // 2. Add base OS fallbacks (Only if not provided by cloud)
+                      const fallbacks = [
+                        { id: 'en-sanctuary', name: 'English (Sanctuary)', badge: 'Sanctuary' },
+                        { id: 'en-default', name: 'English (Default)', badge: 'Sanctuary' },
+                        { id: 'en-sims', name: 'English (Sims)', badge: 'Community' },
+                        { id: 'de-default', name: 'German (Default)', badge: 'Community' }
+                      ];
+
+                      fallbacks.forEach(f => {
+                        if (!addedIds.has(f.id)) {
+                          result.push(buildOption(f.id, f.name, f.badge));
+                          addedIds.add(f.id);
+                        }
+                      });
+
+                      // 3. Add local registry items (excluding legacy duplicates and already added items)
+                      Object.keys(registry || {}).forEach(k => {
+                        if (!addedIds.has(k) && k !== 'default' && k !== 'sanctuary') {
+                          result.push(buildOption(k, k, 'Local', true));
+                          addedIds.add(k);
+                        }
+                      });
+
+                      return result;
+                    })()
                   }
                 />
               </div>

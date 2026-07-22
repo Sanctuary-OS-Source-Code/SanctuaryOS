@@ -22,7 +22,7 @@ import { useCloudService } from "./hooks/useCloudService";
 import { useStore, syncMasterSchemas } from "./store";
 import { useGlobalListeners } from "./hooks/useGlobalListeners";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { supabase } from "./supabase";
+import { supabase, supabaseAuth, getActiveGameClient } from "./supabase";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -38,7 +38,7 @@ import BlueprintArchitect from "./BlueprintArchitect";
 import Nexus from "./Nexus";
 import { DbpfScout } from "./DbpfScout";
 import { useLexicon } from "./LexiconContext";
-import { CartographerSetup } from "./CartographerSetup";
+import { WorkspaceLanding } from "./WorkspaceLanding";
 import { Sidebar } from "./Sidebar";
 import NotificationSidebar from "./side-panels/NotificationSidebar";
 import SupportDeskSidePanel from "./side-panels/SupportDeskSidePanel";
@@ -54,6 +54,7 @@ import Lab from "./Lab";
 import TimeCapsule from "./TimeCapsule";
 import Oversight from "./Oversight";
 import WayfinderHub from "./WayfinderHub";
+import KeepersCore from "./KeepersCore";
 import { UpdateSidePanel } from './side-panels/UpdateSidePanel';
 import CitizensWorkbench from "./CitizensWorkbench";
 import { ContextMenu } from "./ContextMenu";
@@ -166,7 +167,6 @@ function App() {
       }
     }
     checkForUpdates();
-    syncMasterSchemas();
 
     let isProcessingDrop = false;
     let localIsDragging = false;
@@ -710,17 +710,36 @@ function App() {
       try {
         await loadDLCMap();
         const config: any = await invoke("get_saved_coordinates");
-        const physicalDLC = await invoke<string[]>("scan_installed_dlc", {
-          livePath: config.live_path,
+        const globalConfig: any = await invoke("get_global_config");
+        
+        // Wait for schema sync before letting the app render!
+        const activeWorkspace = (globalConfig.workspaces || []).find((w: any) => w.id === globalConfig.active_workspace_id);
+        const schemaId = activeWorkspace?.schema_id || 'sims4';
+        await syncMasterSchemas(schemaId);
+
+        if (globalConfig.active_workspace_id) {
+          useStore.getState().hydrateWorkspaceState(globalConfig.active_workspace_id);
+        }
+
+        useStore.setState({ 
+          workspaces: globalConfig.workspaces || [], 
+          activeWorkspaceId: globalConfig.active_workspace_id,
+          isGlobalConfigLoaded: true 
         });
-        setOwnedDLC(physicalDLC);
-        if (config.launch_args) {
-          const maskMatch = config.launch_args.match(/-disablepack:([\w,]+)/i);
-          if (maskMatch?.[1]) {
-            const masked = maskMatch[1]
-              .split(",")
-              .map((s: string) => s.trim().toUpperCase());
-            setMaskedDLC(masked);
+
+        if (globalConfig.active_workspace_id) {
+          const physicalDLC = await invoke<string[]>("scan_installed_dlc", {
+            livePath: config.live_path,
+          });
+          setOwnedDLC(physicalDLC);
+          if (config.launch_args) {
+            const maskMatch = config.launch_args.match(/-disablepack:([\w,]+)/i);
+            if (maskMatch?.[1]) {
+              const masked = maskMatch[1]
+                .split(",")
+                .map((s: string) => s.trim().toUpperCase());
+              setMaskedDLC(masked);
+            }
           }
         }
       } catch (err) {
@@ -928,17 +947,41 @@ function App() {
         data: { session },
       } = await supabase.auth.getSession();
       if (session?.user) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
-        if (!error && data) {
-          setUserRole(data.role.toLowerCase());
+        let isGlobalDev = false;
+        try {
+          const { data: osData, error: osError } = await supabaseAuth
+            .from("profiles")
+            .select("role")
+            .eq("id", session.user.id)
+            .maybeSingle();
+            
+          if (!osError && osData && (osData.role?.toLowerCase() === "dev" || osData.role?.toLowerCase() === "admin")) {
+            isGlobalDev = true;
+            setUserRole("admin"); 
+          }
+        } catch (e) { console.error(e); }
+
+        if (!isGlobalDev) {
+          try {
+            const gameClient = getActiveGameClient();
+            const { data: gameData, error: gameError } = await gameClient
+              .from("profiles")
+              .select("role")
+              .eq("id", session.user.id)
+              .maybeSingle();
+
+            if (!gameError && gameData && gameData.role) {
+              setUserRole(gameData.role.toLowerCase());
+            } else {
+              setUserRole("citizen");
+            }
+          } catch (e) {
+            console.error("Game profile fetch failed", e);
+            setUserRole("citizen");
+          }
+        }
         }
       }
-    }
-
     const handleOnlineRoleFetch = () => {
       if (localStorage.getItem("sanctuary_local_only") !== "true") {
         window.location.reload();
@@ -956,27 +999,7 @@ function App() {
           setLivePath(config.live_path);
           setModsPath(config.mods_path);
           setVaultPath(config.vault_path);
-          const savedSets = localStorage.getItem("sanctuary_playsets");
-          const savedActive = localStorage.getItem("sanctuary_active_set");
-          if (savedSets) {
-            try {
-              const parsedSets = JSON.parse(savedSets);
-              const sanitizedSets = parsedSets.map((set: any) => ({
-                name: set.name,
-                mods: (set.mods || []).map((m: any) =>
-                  typeof m === "string" ? m : m.name,
-                ),
-              }));
-              setPlaySets(sanitizedSets);
-              if (savedActive) {
-                const activeIndex = sanitizedSets.findIndex((s: any) => s.name === savedActive);
-                if (activeIndex !== -1) {
-                  setActivePlaySetIndex(activeIndex);
-                }
-              }
-            } catch (e) { }
-          }
-          if (savedActive) setActiveSetName(savedActive);
+          
           invoke<string>("load_master_cache", { vaultPath: config.vault_path })
             .then((cacheStr) => {
               try {
@@ -1502,7 +1525,7 @@ function App() {
     }
     const updatedSets = [...playSets, { name: setName, mods: [] }];
     setPlaySets(updatedSets);
-    localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+    localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
     setActivePlaySetIndex(updatedSets.length - 1);
     setStatus(
       `${t("status_blueprint_created_prefix")}${setName}${t("status_blueprint_drafted_suffix")}`,
@@ -1655,7 +1678,7 @@ function App() {
       }
       if (shelterActive) {
         setStatus(t("status_restoring_bunker_full"));
-        const lastSet = localStorage.getItem("sanctuary_active_set");
+        const lastSet = localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`);
         if (lastSet) {
           await equipPlaySet(lastSet);
         } else {
@@ -1884,9 +1907,15 @@ function App() {
     filteredMods
   } = useModFiltering(displayModList, playSets, activeSetName || '', activeGameSchema, t);
   const visibleMods = filteredMods;
-  if (!isConfigured) {
-    return <CartographerSetup />;
-  }
+  const isGlobalConfigLoaded = useStore((state) => state.isGlobalConfigLoaded);
+  if (!isConfigured) return <WorkspaceLanding />;
+  if (!isGlobalConfigLoaded) return (
+    <div className="flex h-screen w-screen items-center justify-center text-[var(--text)] font-black uppercase tracking-widest text-xs" style={{ background: "var(--bgGradient)" } as any}>
+      <span className="material-symbols-outlined animate-spin mr-2">sync</span>
+      {t("status_syncing") || "SYNCING SYSTEM..."}
+    </div>
+  );
+
   return (
     <div
       className="flex flex-col h-screen w-screen overflow-hidden"
@@ -2110,6 +2139,12 @@ function App() {
               ["wayfinder", "admin"].includes(userRole) && (
                 <ErrorBoundary moduleName="Wayfinder Hub">
                   <WayfinderHub onOpenMasonProfile={handleOpenMasonProfile} />
+                </ErrorBoundary>
+              )}
+            {view === "KeepersCore" &&
+              ["core_dev", "admin"].includes(userRole) && (
+                <ErrorBoundary moduleName="Keepers Core">
+                  <KeepersCore />
                 </ErrorBoundary>
               )}
             {view === "DbpfScout" && <DbpfScout />}

@@ -3,6 +3,7 @@ import { CustomDropdown } from "../shared";
 export default function MasonHeader({
    t,
    isCloudMode,
+   isKeepers = false,
    searchQuery,
    setSearchQuery,
    fileTypeFilter,
@@ -18,7 +19,7 @@ export default function MasonHeader({
             <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_code")}</span>
             </div>
-            <span className="truncate">{isCloudMode ? "WAYFINDER IDE" : t("tools_ide")}</span>
+            <span className="truncate">{isCloudMode ? (isKeepers ? "KEEPERS IDE" : "WAYFINDER IDE") : t("tools_ide")}</span>
          </h2>
 
          <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
@@ -61,14 +62,18 @@ export default function MasonHeader({
             </div>
 
             <div className="flex items-center gap-4 shrink-0">
-               <button onClick={() => setIsCreatePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-                  <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform duration-500">{t("icon_add") || "add"}</span>
-                  {t("auto_create_file") || "Create File"}
-               </button>
-               <button onClick={handleImport} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-                  <span className="material-symbols-outlined !text-[16px] group-hover:-translate-y-1 transition-transform duration-500">{t("icon_upload") || "upload"}</span>
-                  {t("import_file")}
-               </button>
+               {!(isCloudMode && internalCloudTarget === 'sanctuary_schemas') && (
+                  <>
+                     <button onClick={() => setIsCreatePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
+                        <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform duration-500">{t("icon_add") || "add"}</span>
+                        {t("auto_create_file") || "Create File"}
+                     </button>
+                     <button onClick={handleImport} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
+                        <span className="material-symbols-outlined !text-[16px] group-hover:-translate-y-1 transition-transform duration-500">{t("icon_upload") || "upload"}</span>
+                        {t("import_file")}
+                     </button>
+                  </>
+               )}
             </div>
          </div>
       </div>

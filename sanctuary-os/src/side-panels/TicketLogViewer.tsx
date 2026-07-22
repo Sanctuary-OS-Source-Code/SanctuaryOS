@@ -29,7 +29,7 @@ export default function TicketLogViewer({
       }
       copySets.push({ name: newName, mods: [...(blueprintJson.mods || [])] });
       store.setPlaySets(copySets);
-      localStorage.setItem("sanctuary_playsets", JSON.stringify(copySets));
+      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(copySets));
       window.dispatchEvent(new Event("storage"));
       
       store.pushStatus && store.pushStatus(

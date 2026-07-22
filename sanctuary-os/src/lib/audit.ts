@@ -1,10 +1,11 @@
-import { supabase } from "../supabase";
+import { supabase, supabaseAuth, getActiveGameClient } from "../supabase";
 
-export async function logArchitectAction(action: string, target_table: string, target_name: string, customReason?: string, sourceHub: string = "Architect Console") {
+export async function logArchitectAction(action: string, target_table: string, target_name: string, customReason?: string, sourceHub: string = "Architect Console", isKeepers: boolean = false) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await supabase.from('audit_logs').insert({
+    const client = isKeepers ? supabaseAuth : getActiveGameClient();
+    await client.from('audit_logs').insert({
       action,
       target_table,
       target_name,
@@ -16,11 +17,12 @@ export async function logArchitectAction(action: string, target_table: string, t
   }
 }
 
-export async function logUserAction(action: string, target_table: string, target_name: string, reason: string = "User Action") {
+export async function logUserAction(action: string, target_table: string, target_name: string, reason: string = "User Action", isKeepers: boolean = false) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await supabase.from('audit_logs').insert({
+    const client = isKeepers ? supabaseAuth : getActiveGameClient();
+    await client.from('audit_logs').insert({
       action,
       target_table,
       target_name,

@@ -16,8 +16,8 @@ import MasonEditorPanel from "./hub-components/MasonEditorPanel";
 import { deepCountKeys, deepCompare, createEmptyClone, deepAddMissing, deepPurgeDeprecated } from "./lib/MasonValidation";
 import { useMasonFiles } from "./hooks/useMasonFiles";
 
-export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas" }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons" }) {
-   const mason = useMasonFiles({ vaultPath, isCloudMode, cloudTarget });
+export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas", isKeepers = false }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons", isKeepers?: boolean }) {
+   const mason = useMasonFiles({ vaultPath, isCloudMode, cloudTarget, isKeepers });
    const {
       t, session, pushStatus,
       files, setFiles, isScanning,
@@ -110,12 +110,13 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             const fileId = file.name.replace(".json", "");
 
             const actualCloudTarget = isLex ? 'sanctuary_lexicons' : 'sanctuary_schemas';
+            const client = isKeepers ? (await import('./supabase')).supabaseAuth : (await import('./supabase')).getActiveGameClient();
 
             const payload = actualCloudTarget === 'sanctuary_lexicons'
                ? { id: fileId, name: fileId, badge: parsed._meta_badge || 'Sanctuary', version: parsed._meta_version || 1, lexicon_data: parsed, updated_at: new Date().toISOString() }
                : { id: fileId, name: parsed.manifest_name || fileId, schema_data: parsed, version: parsed.schema_version || 1, updated_at: new Date().toISOString() };
 
-            const { error } = await supabase.from(actualCloudTarget).upsert(payload);
+            const { error } = await client.from(actualCloudTarget).upsert(payload);
             if (error) throw error;
 
             if (fileId === 'sims4') {
@@ -417,6 +418,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
          <MasonHeader
             t={t}
             isCloudMode={isCloudMode}
+            isKeepers={isKeepers}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             fileTypeFilter={fileTypeFilter}
@@ -433,6 +435,8 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
 
                <MasonFileBrowser
                   t={t}
+                  isCloudMode={isCloudMode}
+                  internalCloudTarget={internalCloudTarget}
                   files={files}
                   searchQuery={searchQuery}
                   fileTypeFilter={fileTypeFilter}
@@ -456,6 +460,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
          <MasonEditorPanel
             t={t}
             isCloudMode={isCloudMode}
+            isKeepers={isKeepers}
             isFullscreen={isFullscreen}
             setIsFullscreen={setIsFullscreen}
             showReference={showReference}

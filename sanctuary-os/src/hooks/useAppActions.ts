@@ -35,7 +35,7 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     if (!setName) { setBulkModal(false); return; }
     if (playSets.some((s) => s.name.toLowerCase() === setName.toLowerCase())) { setStatus(t("status_blueprint_exists")); return; }
     const updatedSets =[...playSets, { name: setName, mods: selectedMods }];
-    setPlaySets(updatedSets); localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets));
+    setPlaySets(updatedSets); localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
     setActivePlaySetIndex(updatedSets.length - 1); 
     setStatus(`${t("status_blueprint_created_prefix")}${setName}${t("status_blueprint_created_mid")}${selectedMods.length}${t("backend_deployed_suffix")}`);
     setIsBulkMode(false); setSelectedMods([]); setBulkModal(false); setBulkName("");
@@ -50,7 +50,7 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     const newSet = { name: setName, mods: currentMods };
     const updatedSets =[...playSets, newSet];
     setPlaySets(updatedSets); 
-    localStorage.setItem("sanctuary_playsets", JSON.stringify(updatedSets)); 
+    localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets)); 
     setSnapshotModal(false); setSnapshotName("");
     setStatus(`${t("icon_check_circle")} ${t("status_profile_cloned")}`);
   }

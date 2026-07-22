@@ -54,6 +54,7 @@ export default function SystemTab({ config, updateConfig, pickPath, pathMap }: a
           })}
         </div>
       </TabContainer>
+
       <TabContainer
         title={t("lineage_version_history")}
         icon="history"

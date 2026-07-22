@@ -101,6 +101,7 @@ fn main() {
             delete_local_file,
             get_sandbox_files,
             get_saved_coordinates,
+            get_global_config,
             save_coordinates,
             sanitize_vault,
             auto_detect_paths,

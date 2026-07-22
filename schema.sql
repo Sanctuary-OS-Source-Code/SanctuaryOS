@@ -12,7 +12,7 @@ CREATE TABLE profiles (
   
 CREATE TABLE masons (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, 
-    profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL, 
+    profile_id UUID, 
     name TEXT NOT NULL, 
     bio TEXT, 
     avatar_url TEXT, 

@@ -249,10 +249,10 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
     setLabReports(prev => prev.map(r => r.id === activeReport.id ? { ...r, status: finalStatus } : r));
     closePanel();
 
-    const lastSet = localStorage.getItem("sanctuary_active_set");
+    const lastSet = localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`);
     if (lastSet) {
       const config: any = await invoke("get_saved_coordinates");
-      const playsetsStr = localStorage.getItem("sanctuary_playsets");
+      const playsetsStr = localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`);
       if (playsetsStr) {
         const sets = JSON.parse(playsetsStr);
         const activeSet = sets.find((s: any) => s.name === lastSet);

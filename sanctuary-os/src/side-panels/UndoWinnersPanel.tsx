@@ -29,7 +29,7 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
     setLoading(true);
     try {
       const list: string[] = [];
-      const savedSets = localStorage.getItem("sanctuary_playsets");
+      const savedSets = localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`);
       if (savedSets) {
         const playsets = JSON.parse(savedSets);
         const currentSet = playsets.find((p: any) => p.name === scanScope);

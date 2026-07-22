@@ -62,7 +62,7 @@ export function WayfinderComms() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'wf_comms_title' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
             const fetchSender = async () => {
-              const { data: profile } = await supabase.from('profiles').select('username').eq('id', payload.new.sender_id).single();
+              const { data: profile } = await supabase.from('profiles').select('username').eq('id', payload.new.sender_id).maybeSingle();
               const name = profile?.username || payload.new.sender_id.substring(0, 8);
               setCommsMessages(prev => [...prev, { ...payload.new, sender_name: name }]);
             };

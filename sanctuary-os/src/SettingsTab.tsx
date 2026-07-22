@@ -47,56 +47,50 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   }, []);
 
   const [config, setConfig] = useState<any>(null);
+  const [globalConfig, setGlobalConfig] = useState<any>(null);
 
   const refreshConfig = async () => {
     try {
-      const data = await invoke<any>('get_saved_coordinates');
-      setConfig(data);
+      const gConf: any = await invoke('get_global_config');
+      setGlobalConfig(gConf);
+      const activeId = gConf.active_workspace_id;
+      let activeW = gConf.workspaces?.find((w: any) => w.id === activeId);
+      if (!activeW && gConf.workspaces?.length > 0) activeW = gConf.workspaces[0];
+      setConfig(activeW || null);
     } catch (err) { console.error(err); }
   };
 
   useEffect(() => { refreshConfig(); }, []);
 
   const updateConfig = async (key: string, val: any) => {
+    if (!config || !globalConfig) return;
     const parsedVal = (key === 'engine_agency_level' || key === 'backup_preference' || key === 'defcon_backup_target' || key === 'engine_retention_cycles' || key === 'world_retention_cycles' || key === 'timeline_retention_copies' || key === 'timeline_retention_size_mb') ? parseInt(val) : val;
+    
     const newConfig = { ...config, [key]: parsedVal };
     setConfig(newConfig);
+    
+    const newGlobal = { ...globalConfig };
+    newGlobal.workspaces = newGlobal.workspaces.map((w: any) => w.id === newConfig.id ? newConfig : w);
+    setGlobalConfig(newGlobal);
+
     try {
-      await invoke("save_coordinates", {
-        livePath: newConfig.live_path || "",
-        modsPath: newConfig.mods_path || "",
-        vaultPath: newConfig.vault_path || "",
-        engineAgencyLevel: newConfig.engine_agency_level != null ? parseInt(newConfig.engine_agency_level) : null,
-        defconBackupTarget: newConfig.defcon_backup_target != null ? parseInt(newConfig.defcon_backup_target) : null,
-        backupPreference: newConfig.backup_preference != null ? parseInt(newConfig.backup_preference) : null,
-        engineRetentionCycles: newConfig.engine_retention_cycles != null ? parseInt(newConfig.engine_retention_cycles) : null,
-        worldRetentionCycles: newConfig.world_retention_cycles != null ? parseInt(newConfig.world_retention_cycles) : null,
-        vaultCapacityGb: newConfig.vault_capacity_gb != null ? parseInt(newConfig.vault_capacity_gb) : null,
-        timelineRetentionCopies: newConfig.timeline_retention_copies != null ? parseInt(newConfig.timeline_retention_copies) : null,
-        timelineRetentionSizeMb: newConfig.timeline_retention_size_mb != null ? parseInt(newConfig.timeline_retention_size_mb) : null
-      });
+      await invoke("save_coordinates", { config: newGlobal });
     } catch (err) { console.error(err); }
   };
 
   const pickPath = async (rustKey: string, label: string) => {
+    if (!config || !globalConfig) return;
     try {
       const selected = await open({ directory: true, multiple: false, title: `${t("select_path")} ${label}` });
       if (selected) {
-        const payload = {
-          livePath: rustKey === 'live_path' ? selected : config.live_path,
-          modsPath: rustKey === 'mods_path' ? selected : config.mods_path,
-          vaultPath: rustKey === 'vault_path' ? selected : config.vault_path,
-          engineAgencyLevel: config.engine_agency_level != null ? parseInt(config.engine_agency_level) : null,
-          defconBackupTarget: config.defcon_backup_target != null ? parseInt(config.defcon_backup_target) : null,
-          backupPreference: config.backup_preference != null ? parseInt(config.backup_preference) : null,
-          engineRetentionCycles: config.engine_retention_cycles != null ? parseInt(config.engine_retention_cycles) : null,
-          worldRetentionCycles: config.world_retention_cycles != null ? parseInt(config.world_retention_cycles) : null,
-          vaultCapacityGb: config.vault_capacity_gb != null ? parseInt(config.vault_capacity_gb) : null,
-          timelineRetentionCopies: config.timeline_retention_copies != null ? parseInt(config.timeline_retention_copies) : null,
-          timelineRetentionSizeMb: config.timeline_retention_size_mb != null ? parseInt(config.timeline_retention_size_mb) : null
-        };
-        await invoke("save_coordinates", payload);
-        await refreshConfig();
+        const newConfig = { ...config, [rustKey]: selected };
+        setConfig(newConfig);
+        
+        const newGlobal = { ...globalConfig };
+        newGlobal.workspaces = newGlobal.workspaces.map((w: any) => w.id === newConfig.id ? newConfig : w);
+        setGlobalConfig(newGlobal);
+        
+        await invoke("save_coordinates", { config: newGlobal });
       }
     } catch (err) { useStore.getState().pushStatus(String(err), 'error'); }
   };

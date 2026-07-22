@@ -499,7 +499,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
   return (
     <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className}`}>
       <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full ${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} transition-all shadow-inner flex justify-between items-center text-sm font-bold focus:outline-none group relative z-[10] backdrop-blur-[3px] ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`}>
-        <span className="truncate pr-4">{getSelectedLabel()}</span>
+        <span className="truncate pr-4 flex-1 text-left flex items-center h-full">{getSelectedLabel()}</span>
         <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)]'}`}><span className="material-symbols-outlined !text-[20px]">{isOpen ? 'expand_less' : 'expand_more'}</span></span>
       </button>
       {isOpen && createPortal(
@@ -514,27 +514,27 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
           }}>
             {searchable && (
               <div className="p-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] sticky top-0 theme-glass-panel z-10 shrink-0">
-                <input
-                  autoFocus
-                  type="text"
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder={t("shared_search")}
-                  className="w-full theme-glass-inner rounded-lg px-3 py-2 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all"
-                />
+                <SearchBar value={query} onChange={setQuery} placeholder={t("shared_search") || "Search"} />
               </div>
             )}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-              {options.filter((opt: any) => !searchable || !query || opt.label.toLowerCase().includes(query.toLowerCase())).map((o: any, index: number) => {
+              {options.filter((opt: any) => {
+                if (!searchable || !query) return true;
+                const searchTarget = opt.searchText !== undefined ? opt.searchText : (typeof opt.label === 'string' ? opt.label : '');
+                return searchTarget.toLowerCase().includes(query.toLowerCase());
+              }).map((o: any, index: number) => {
                 const isSelected = multiSelect ? selectedValues.includes(o.id) : String(o.id) === String(value);
                 return (
                   <button type="button" key={`${o.id}-${index}`} onClick={() => handleSelect(o.id)} className={`w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-between ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_2px_0_0_var(--accent)]' : 'text-[var(--text)]'}`}>
-                    <span className={`text-[11px] font-black uppercase ${isSelected ? 'text-[var(--accent)]' : o.className || 'text-[var(--text)]'}`}>{o.label}</span>
-                    {isSelected && <span className="text-[12px] shrink-0 ml-2 flex items-center justify-center text-[var(--accent)]"><span className="material-symbols-outlined !text-[16px]">{t("icon_check")}</span></span>}
+                    <span className={`text-[11px] font-black uppercase w-full flex items-center ${isSelected ? 'text-[var(--accent)]' : o.className || 'text-[var(--text)]'}`}>{o.label}</span>
+                    {isSelected && <span className="text-[12px] shrink-0 ml-4 flex items-center justify-center text-[var(--accent)]"><span className="material-symbols-outlined !text-[16px]">{t("icon_check")}</span></span>}
                   </button>
                 );
               })}
-              {searchable && query && options.filter((opt: any) => opt.label.toLowerCase().includes(query.toLowerCase())).length === 0 && (
+              {searchable && query && options.filter((opt: any) => {
+                const searchTarget = opt.searchText !== undefined ? opt.searchText : (typeof opt.label === 'string' ? opt.label : '');
+                return searchTarget.toLowerCase().includes(query.toLowerCase());
+              }).length === 0 && (
                 <div className="p-4 text-center text-xs font-bold text-[var(--subtext)] opacity-60">{t("shared_no_options")}</div>
               )}
             </div>
@@ -995,9 +995,9 @@ export function SidePanel({
   );
 }
 
-export function SearchBar({ value, onChange, placeholder = "Search..." }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+export function SearchBar({ value, onChange, placeholder = "Search...", className = "" }: { value: string; onChange: (v: string) => void; placeholder?: string, className?: string }) {
   return (
-    <div className="relative flex items-center theme-glass-inner rounded-[calc(var(--radius)-4px)] border border-transparent focus-within:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all shadow-inner group w-full">
+    <div className={`relative flex items-center theme-glass-inner ${className || 'rounded-full'} border border-transparent focus-within:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all shadow-inner group w-full`}>
       <div className="pl-4 pr-2 py-2 flex items-center justify-center shrink-0">
         <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-focus-within:text-[var(--accent)] transition-colors">search</span>
       </div>

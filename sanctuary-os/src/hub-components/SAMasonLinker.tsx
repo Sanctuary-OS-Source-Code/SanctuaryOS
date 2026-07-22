@@ -26,6 +26,8 @@ import MarkdownRenderer from "../MarkdownRenderer";
 
 export function MasonLinker() {
   const { t } = useLexicon();
+  const session = useStore(state => state.session);
+  const myId = session?.user?.id;
   const [masons, setMasons] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
 
@@ -336,6 +338,8 @@ export function MasonLinker() {
 
 export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
   const { t } = useLexicon();
+  const session = useStore(state => state.session);
+  const myId = session?.user?.id;
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);

@@ -66,7 +66,7 @@ export default function TicketDossierSidePanel({
 
   useEffect(() => {
     if (ticket?.author_id) {
-      supabase.from('profiles').select('username').eq('id', ticket.author_id).single().then(({ data, error }) => {
+      supabase.from('profiles').select('username').eq('id', ticket.author_id).maybeSingle().then(({ data, error }) => {
         if (data) {
           setAuthorName(data.username || ticket.author_id.substring(0, 8).toUpperCase());
         } else {
