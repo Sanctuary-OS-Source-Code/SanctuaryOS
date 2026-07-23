@@ -5,6 +5,7 @@ import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { supabase } from '../supabase';
 import { TabContainer } from './shared';
+import { CustomDropdown } from '../shared';
 
 const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
 
@@ -17,7 +18,7 @@ export default function LexiconTab() {
   const [lexiconSearch, setLexiconSearch] = useState("");
   const [selectedLibraryLang, setSelectedLibraryLang] = useState<string | null>(null);
   const [selectedLibraryCommunity, setSelectedLibraryCommunity] = useState<string | null>(null);
-  const [favoriteLexicons, setFavoriteLexicons] = useState<string[]>(() => JSON.parse(localStorage.getItem("sanctuary_favorite_lexicons") || '["en-sanctuary", "en-default", "en-sims", "de-default"]'));
+  const [favoriteLexicons, setFavoriteLexicons] = useState<string[]>(() => JSON.parse(localStorage.getItem("sanctuary_favorite_lexicons") || '["en-sanctuary", "en-default"]'));
   const [confirmDelete, setConfirmDelete] = useState<string | false>(false);
 
   useEffect(() => {
@@ -37,20 +38,29 @@ export default function LexiconTab() {
   }, []);
 
   const getLexiconMetadata = (code: string) => {
-    const meta = lexiconMeta?.find((m: any) => m.id === code);
-    if (meta) return { community: meta.badge, language: meta.lang || 'English', name: meta.name };
-    
-    // Fallbacks if metadata isn't loaded from DB yet
     const cleanName = (val: string) => val.includes(':') ? val.split(':')[1].trim() : val;
+    
+    // Core Built-in OS Lexicons
     if (code === 'en-sanctuary') return { community: 'Sanctuary', language: 'English', name: cleanName(t("lang_sanctuary") || "English: Sanctuary") };
     if (code === 'en-default') return { community: 'Sanctuary', language: 'English', name: cleanName(t("lang_standard") || "English: Default") };
-    if (code === 'en-sims') return { community: 'The Sims 4', language: 'English', name: cleanName(t("lang_sims") || "English: Sims Friendly") };
-    if (code === 'de-default') return { community: 'Sanctuary', language: 'German', name: cleanName(t("lang_german") || "German: Default") };
     
-    return { community: registry?.[code]?._meta_badge || 'Custom', language: registry?.[code]?._meta_lang || dbLanguages[code] || 'English', name: code };
+    // Community Lexicons (Pulled from DB)
+    const meta = lexiconMeta?.find((m: any) => m.id === code);
+    if (meta) {
+      let badge = meta.badge || 'Community';
+      const state = useStore.getState();
+      
+      if (badge === 'Sanctuary' && state.activeGameSchema?.display_name) {
+        badge = state.activeGameSchema.display_name;
+      }
+      return { community: badge, language: meta.lang || 'English', name: meta.name };
+    }
+    
+    // Imported/Custom JSONs
+    return { community: 'Custom', language: registry?.[code]?._meta_lang || dbLanguages[code] || 'English', name: code };
   };
 
-  const dbCodes = lexiconMeta ? lexiconMeta.map((m: any) => m.id) : ['en-sanctuary', 'en-default', 'en-sims', 'de-default'];
+  const dbCodes = lexiconMeta ? lexiconMeta.map((m: any) => m.id) : ['en-sanctuary', 'en-default'];
   const allLexiconCodes = Array.from(new Set([...dbCodes, ...Object.keys(registry || {})]));
   const uniqueLanguages = Array.from(new Set(allLexiconCodes.map(code => getLexiconMetadata(code).language)));
   const uniqueCommunities = Array.from(new Set(allLexiconCodes.map(code => getLexiconMetadata(code).community)));
@@ -133,38 +143,43 @@ export default function LexiconTab() {
             {t("library")}
           </h3>
 
-          <div className="flex flex-col gap-3 w-full">
-            <div className="flex gap-2 w-full overflow-x-auto accent-scrollbar pb-2">
-              <button onClick={() => setSelectedLibraryLang(null)} className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${!selectedLibraryLang ? 'theme-glass-inner theme-border-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-white/5 hover:theme-border-accent hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] text-[var(--text)] opacity-70 hover:opacity-100'}`}>
-                {t("all_languages") || "All Languages"}
-              </button>
-              {uniqueLanguages.map(lang => (
-                <button key={lang} onClick={() => setSelectedLibraryLang(lang)} className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${selectedLibraryLang === lang ? 'theme-glass-inner theme-border-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-white/5 hover:theme-border-accent hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] text-[var(--text)] opacity-70 hover:opacity-100'}`}>
-                  {lang}
-                </button>
-              ))}
+          <div className="flex items-center gap-4 w-full mt-4">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={lexiconSearch}
+                onChange={e => setLexiconSearch(e.target.value)}
+                placeholder={t("ui_search_lexicons") || "Search lexicons..."}
+                className="w-full theme-glass-panel rounded-2xl px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text)] outline-none focus:theme-border-accent transition-all shadow-inner"
+              />
+              <span className="absolute right-6 top-1/2 -translate-y-1/2 opacity-50 text-xl material-symbols-outlined">{t("icon_search")}</span>
             </div>
-            <div className="flex gap-2 w-full overflow-x-auto accent-scrollbar pb-2">
-              <button onClick={() => setSelectedLibraryCommunity(null)} className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${!selectedLibraryCommunity ? 'theme-glass-inner theme-border-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-white/5 hover:theme-border-accent hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] text-[var(--text)] opacity-70 hover:opacity-100'}`}>
-                All Communities
-              </button>
-              {uniqueCommunities.map(community => (
-                <button key={community} onClick={() => setSelectedLibraryCommunity(community)} className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${selectedLibraryCommunity === community ? 'theme-glass-inner theme-border-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-white/5 hover:theme-border-accent hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] text-[var(--text)] opacity-70 hover:opacity-100'}`}>
-                  {community}
-                </button>
-              ))}
-            </div>
-          </div>
 
-          <div className="relative mt-2">
-            <input
-              type="text"
-              value={lexiconSearch}
-              onChange={e => setLexiconSearch(e.target.value)}
-              placeholder={t("ui_search_lexicons")}
-              className="w-full theme-glass-panel rounded-2xl px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text)] outline-none focus:theme-border-accent transition-all shadow-inner"
-            />
-            <span className="absolute right-6 top-1/2 -translate-y-1/2 opacity-50 text-xl material-symbols-outlined">{t("icon_search")}</span>
+            <div className="w-[220px] shrink-0">
+              <CustomDropdown
+                value={selectedLibraryLang}
+                options={[
+                  { value: null, label: t("all_languages") || "All Languages" },
+                  ...uniqueLanguages.map(lang => ({ value: lang, label: lang }))
+                ]}
+                onChange={setSelectedLibraryLang}
+                placeholder={t("all_languages") || "All Languages"}
+                disableTint={true}
+              />
+            </div>
+
+            <div className="w-[220px] shrink-0">
+              <CustomDropdown
+                value={selectedLibraryCommunity}
+                options={[
+                  { value: null, label: "ALL COMMUNITIES" },
+                  ...uniqueCommunities.map(community => ({ value: community, label: typeof community === 'string' ? community.toUpperCase() : community }))
+                ]}
+                onChange={setSelectedLibraryCommunity}
+                placeholder="ALL COMMUNITIES"
+                disableTint={true}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8 mt-6">

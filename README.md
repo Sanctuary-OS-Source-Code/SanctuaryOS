@@ -1,6 +1,6 @@
 # Sanctuary OS 
 
-![Version](https://img.shields.io/badge/version-0.4.80-blue)
+![Version](https://img.shields.io/badge/version-0.4.81-blue)
 ![Last Updated](https://img.shields.io/badge/last_updated-July_22,_2026-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Alpha](https://img.shields.io/badge/Alpha-Early_Access-red)

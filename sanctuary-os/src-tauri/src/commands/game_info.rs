@@ -156,7 +156,7 @@ pub fn move_to_vault(
 ) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
     let source = PathBuf::from(&mods_path).join(&file_name);
-    let dest = PathBuf::from(&vault_path).join("Mods").join(&file_name);
+    let dest = crate::utils::get_vault_mods_lane(&vault_path).join(&file_name);
 
     if !source.is_dir() && !force_replace {
         let hash = calculate_hash(&source).unwrap_or_default();

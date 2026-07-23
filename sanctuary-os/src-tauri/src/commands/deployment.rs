@@ -119,7 +119,7 @@ pub async fn deploy_playset_bulk(
         let mods_dir = PathBuf::from(&mods_path);
         let vault_dir = PathBuf::from(&vault_path);
         
-        let vault_mods_lane = if vault_dir.ends_with("Mods") {
+        let vault_mods_lane = if crate::utils::is_mods_dir(&vault_dir) {
             vault_dir.clone()
         } else {
             vault_dir.join("Mods")

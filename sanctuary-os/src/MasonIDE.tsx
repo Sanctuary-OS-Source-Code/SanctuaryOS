@@ -324,7 +324,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
       try {
          const parsed = JSON.parse(activeFile.content);
          const isEnDefault = activeFile?.name.includes('en-default');
-         const reference = isEnDefault ? null : (isLexicon ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null));
+         const reference = isEnDefault ? null : (referenceData && Object.keys(referenceData).length > 0 ? referenceData : (isLexicon ? enDefault : null));
 
          if (reference) {
             const total = deepCountKeys(reference);
@@ -342,7 +342,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
          const parsed = JSON.parse(activeFile.content);
          const isLexiconActive = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.startsWith('en-') || activeFile?.name.startsWith('de-') || activeFile?.name.startsWith('es-') || activeFile?.name.startsWith('fr-');
          const isEnDefault = activeFile?.name.includes('en-default');
-         const reference = isEnDefault ? null : (isLexiconActive ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null));
+         const reference = isEnDefault ? null : (referenceData && Object.keys(referenceData).length > 0 ? referenceData : (isLexiconActive ? enDefault : null));
 
          if (!reference) return;
 
@@ -370,7 +370,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
          const parsed = JSON.parse(activeFile.content);
          const isLexiconActive = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.startsWith('en-') || activeFile?.name.startsWith('de-') || activeFile?.name.startsWith('es-') || activeFile?.name.startsWith('fr-');
          const isEnDefault = activeFile?.name.includes('en-default');
-         const reference = isEnDefault ? null : (isLexiconActive ? enDefault : (referenceData && typeof referenceData === 'object' && !Array.isArray(referenceData) && !referenceData._meta_lang ? referenceData : null));
+         const reference = isEnDefault ? null : (referenceData && Object.keys(referenceData).length > 0 ? referenceData : (isLexiconActive ? enDefault : null));
 
          if (!reference) return;
 

@@ -877,7 +877,7 @@ export default function Vault(props: any) {
                                   >
                                     {isConfirming ? (
                                       <div
-                                        className="w-full flex flex-col rounded-[var(--radius)] border theme-glass-panel p-0 animate-in fade-in zoom-in-95 shadow-2xl border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]"
+                                        className="w-full flex flex-col rounded-[var(--radius)] border theme-glass-panel p-5 animate-in fade-in zoom-in-95 shadow-2xl border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]"
                                       >
                                         {isFlavorGhosted && !isFlavorEquipped ? (
                                           <>

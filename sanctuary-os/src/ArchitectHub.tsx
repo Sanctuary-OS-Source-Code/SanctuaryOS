@@ -71,33 +71,33 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
           <HubTabButton id="registry" icon={t("icon_inventory_2")} label={t("items") || "ARTIFACTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="queue" icon={t("icon_search")} label={t("tab_queue") || "SCOUT"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="lab" icon={t("icon_monitor_heart")} label={t("tab_diagnostics") || "DIAGNOSTICS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          
-          
-          
-          <HubTabDropdown 
-            icon="hub" 
-            label="Network" 
-            activeTab={activeTab} 
+
+
+
+          <HubTabDropdown
+            icon="hub"
+            label="Network"
+            activeTab={activeTab}
             setTab={setActiveTab}
             options={[
               { id: "collections", icon: t("icon_collections_bookmark"), label: t("tab_cc") || "COLLECTIONS"?.replace(/^[^\w]*/, '').trim() },
               { id: "protocols", icon: t("icon_link"), label: t("tab_protocols") || "PROTOCOLS"?.replace(/^[^\w]*/, '').trim() },
               { id: "structure", icon: t("icon_architecture"), label: t("tab_structure") || "STRUCTURE"?.replace(/^[^\w]*/, '').trim() },
               { id: "matrix", icon: t("icon_security"), label: t("tab_matrix") || "CONFLICTS"?.replace(/^[^\w]*/, '').trim() }
-            ]} 
+            ]}
           />
-          
-          <HubTabDropdown 
-            icon="visibility" 
-            label="Management" 
-            activeTab={activeTab} 
+
+          <HubTabDropdown
+            icon="visibility"
+            label="Management"
+            activeTab={activeTab}
             setTab={setActiveTab}
             options={[
-              { id: "mason_queue", icon: t("icon_construction"), label: t("architect") || "MASON"?.replace(/^[^\w]*/, '').trim() },
+              { id: "mason_queue", icon: t("icon_construction"), label: t("mason") || "MASON"?.replace(/^[^\w]*/, '').trim() },
               { id: "template_oversight", icon: t("icon_data_object") || "data_object", label: t("ql_templates") || "TEMPLATES" },
               { id: "nexus_reports", icon: t("icon_flag"), label: t("stat_bugs") || "REPORTS"?.replace(/^[^\w]*/, '').trim() },
               { id: "support_tickets", icon: t("icon_local_activity"), label: (t("wf_tab_tickets")).replace(/^[^\w]*/, '').trim() }
-            ]} 
+            ]}
           />
         </div>
       </div>

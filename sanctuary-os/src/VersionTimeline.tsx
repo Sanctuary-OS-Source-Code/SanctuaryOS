@@ -175,7 +175,7 @@ export default function VersionTimeline({
                               setEditNameValue(entry.name || "");
                             }}
                           >
-                            <span className="truncate block" style={{ maxWidth: '200px' }}>{entry.name || t("unnamed_snapshot")}</span>
+                            <span className="truncate block">{entry.name || t("unnamed_snapshot")}</span>
                             <span className="material-symbols-outlined !text-[14px] opacity-0 group-hover:opacity-50 transition-opacity">edit</span>
                           </span>
                         )}

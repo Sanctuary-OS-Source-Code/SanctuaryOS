@@ -3,8 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
 import enSanctuary from './lexicons/en-sanctuary.json';
 import enDefault from './lexicons/en-default.json';
-import enSims from './lexicons/en-sims.json';
-import { supabase } from './supabase';
+import { supabase, supabaseAuth } from './supabase';
 import { useStore } from './store';
 
 const LexiconContext = createContext<any>(null);
@@ -29,7 +28,6 @@ export const LexiconProvider = ({ children }: any) => {
     const loadLang = () => {
       let baseDict: any = enSanctuary;
       if (activeLang === 'en-default') baseDict = enDefault;
-      if (activeLang === 'en-sims') baseDict = enSims;
       if (registry[activeLang]) {
         setDictionary({ ...baseDict, ...registry[activeLang] });
       } else {
@@ -84,8 +82,20 @@ export const LexiconProvider = ({ children }: any) => {
       try {
         if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
 
-        const { data, error } = await supabase.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
-        if (error) throw error;
+        // Fetch Core OS Lexicons
+        const osPromise = supabaseAuth.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
+        
+        // Fetch Community Lexicons (via proxy to current game DB)
+        const gamePromise = supabase.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
+
+        const [osRes, gameRes] = await Promise.all([osPromise, gamePromise]);
+        if (osRes.error) throw osRes.error;
+        if (gameRes.error && gameRes.error.code !== '42P01') console.error("Game lexicons error:", gameRes.error); // Ignore if table doesn't exist yet
+        
+        // Merge them, prioritizing Game Database over OS Database if there are conflicts, OR maybe OS takes priority?
+        // Actually, OS lexicons (en-sanctuary, en-default) should take priority.
+        const mergedData = [...(gameRes.data || []), ...(osRes.data || [])];
+        const data = Array.from(new Map(mergedData.map(item => [item.id, item])).values());
 
         // --- TEMP: Force inject missing keys to cloud ---
         if (data) {
@@ -132,20 +142,6 @@ export const LexiconProvider = ({ children }: any) => {
               };
               await supabase.from('sanctuary_lexicons').update({ lexicon_data: row.lexicon_data }).eq('id', row.id);
             }
-          }
-          
-          if (!data.find(r => r.id === 'en-sims')) {
-             const defaultRow = data.find(r => r.id === 'en-default');
-             if (defaultRow && defaultRow.lexicon_data) {
-                const simsData = { ...defaultRow.lexicon_data };
-                await supabase.from('sanctuary_lexicons').insert({
-                   id: 'en-sims',
-                   name: 'Sims English',
-                   badge: 'The Sims 4',
-                   version: 1,
-                   lexicon_data: simsData
-                });
-             }
           }
         }
         // --- END TEMP ---
@@ -211,7 +207,7 @@ export const LexiconProvider = ({ children }: any) => {
   const importLexicon = (json: any, langCode: string) => {
     const updated = { ...registry, [langCode]: json };
     setRegistry(updated);
-    localStorage.setItem("sanctuary_lexicon_registry", JSON.stringify(updated));
+    localStorage.setItem(`sanctuary_${wsId}_lexicon_registry`, JSON.stringify(updated));
     setActiveLang(langCode);
 
     (async () => {
@@ -229,7 +225,7 @@ export const LexiconProvider = ({ children }: any) => {
   const deleteLexicon = (langCode: string) => {
     const { [langCode]: removed, ...remaining } = registry;
     setRegistry(remaining);
-    localStorage.setItem("sanctuary_lexicon_registry", JSON.stringify(remaining));
+    localStorage.setItem(`sanctuary_${wsId}_lexicon_registry`, JSON.stringify(remaining));
     if (activeLang === langCode) setActiveLang("en-sanctuary");
 
     (async () => {

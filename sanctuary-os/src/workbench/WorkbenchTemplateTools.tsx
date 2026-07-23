@@ -8,6 +8,7 @@ interface WorkbenchTemplateToolsProps {
    files: any[];
    t: (k: string) => string;
    handleInsertSnippet: (snippet: string) => void;
+   handleAutoMap?: () => void;
 }
 
 export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
@@ -16,7 +17,8 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
    setRawText,
    files,
    t,
-   handleInsertSnippet
+   handleInsertSnippet,
+   handleAutoMap
 }) => {
    return (
       <div className="flex items-center flex-wrap gap-6 shrink-0">
@@ -33,7 +35,12 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
                            setRawText(JSON.stringify(parsed, null, 2));
                         } catch (e) { alert(t("err_invalid_json") || "Invalid JSON"); }
                      }}
-                     options={files.filter((f: any) => !f.name.toLowerCase().endsWith('.json')).map((f: any) => ({ id: f.path.split(/[\\/]/).pop() || f.name, label: f.path.split(/[\\/]/).pop() || f.name }))}
+                     options={[
+                        ...files.filter((f: any) => !f.name.toLowerCase().endsWith('.json')).map((f: any) => ({ id: f.path.split(/[\\/]/).pop() || f.name, label: f.path.split(/[\\/]/).pop() || f.name })),
+                        ...(parsedData.target_file && !files.find((f: any) => f.name.toLowerCase() === parsedData.target_file.toLowerCase()) 
+                              ? [{ id: parsedData.target_file, label: parsedData.target_file }] 
+                              : [])
+                     ]}
                      placeholder={t("ui_placeholder_target_file") || "Select Target"}
                      disableTint={true}
                   />
@@ -41,6 +48,14 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
             </div>
          )}
          <div className="flex items-center gap-1">
+            {handleAutoMap && (
+               <div className="relative group flex mr-2 border-r border-white/10 pr-3">
+                  <button onClick={handleAutoMap} className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                     <span className="material-symbols-outlined !text-[16px]">auto_fix_high</span>
+                  </button>
+                  <HoverTooltip title="Auto-Map from Target File" variant="info" className="mb-2" />
+               </div>
+            )}
             <span className="text-[10px] font-black uppercase tracking-widest opacity-50 mr-2 ml-2">Insert:</span>
             <div className="relative group flex">
                <button onClick={() => {
@@ -73,7 +88,7 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
             </div>
             <div className="relative group flex">
                <button onClick={() => {
-                  handleInsertSnippet(`{\n  "key": "New_Number",\n  "path": "New_Number",\n  "type": "number",\n  "label_key": "Number Setting",\n  "desc_key": "Description",\n  "category": "general",\n  "min": 0,\n  "max": 100,\n  "default": 50\n}`);
+                  handleInsertSnippet(`{\n  "key": "New_Number",\n  "path": "New_Number",\n  "type": "number",\n  "label_key": "Number Setting",\n  "desc_key": "Description",\n  "category": "general",\n  "allow_decimals": false,\n  "min": 0,\n  "max": 100,\n  "default": 50\n}`);
                }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all text-[var(--text)] opacity-50 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <span className="material-symbols-outlined !text-[16px]">123</span>
                </button>

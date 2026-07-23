@@ -35,7 +35,7 @@ pub async fn sanitize_vault(vault_path: String, state: tauri::State<'_, AppState
     let data_dir = vault_root.join("Data");
     let data_cache = data_dir.join("cache");
     let blueprints_dir = vault_root.join("Blueprints");
-    let mods_lane = vault_root.join("Mods");
+    let mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
     let quarantine_dir = vault_root.join("Quarantine");
     let theme_dir = vault_root.join("Theme");
     let theme_chameleon = theme_dir.join("Chameleon");

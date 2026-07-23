@@ -1,4 +1,23 @@
  **Date: July 22, 2026**
+ **Version: 0.4.81**
+
+## **Citizens Workbench & System Preferences Polish**
+
+### Citizens Workbench: Split Vision Enhancements
+- **Bi-Directional Scroll Synchronization**: Engineered true two-way scroll-sync between the visual block editor and the raw text editor in the Citizen's Workbench Split Vision mode. Scrolling one panel perfectly maps and scrolls the other, keeping you perfectly oriented.
+- **Targeted Edit Highlighting**: Integrated a smart highlighting engine. Hovering or editing any layout block in the visual interface now actively pulses and highlights its exact corresponding JSON/code block in the raw editor panel.
+- **Auto-Locking & Snap-to-Edit**: Built auto-scroll locking into the visual editor. Clicking any element in the visual block instantly snaps the raw text editor's viewport directly to that exact line of code, eliminating the need to manually hunt for your changes.
+- **Auto-Map from Target File (Magic Wand)**: Introduced a powerful new "Auto Map" feature into the Workbench Editor toolbar. Clicking the magic wand icon instantly parses the raw JSON template, automatically detecting template keys and dynamically generating a fully functional visual form interface on the fly without any manual mapping.
+
+### System Preferences: Lexicon Library
+- **Dual-Database Lexicon Architecture**: Re-architected the Lexicon Hub's data flow to securely support the new Hub-and-Spoke database model. Core OS Lexicons (`en-sanctuary`, `en-default`) now safely fetch and write strictly to the global OS Database, while community/game lexicons (like `simlish`) dynamically route directly to your active Game Database.
+- **Dynamic Community Badges**: Fixed an issue where community lexicons were incorrectly badged with "Sanctuary". Community lexicons now intelligently ping the active global game schema to dynamically display the correct active workspace name (e.g., "The Sims 4") on their library cards.
+- **Inline Custom Dropdowns**: Upgraded the Lexicon Library search filters. Stripped out the legacy horizontal-scrolling pill buttons and replaced them with sleek, custom dropdown components (`CustomDropdown`) beautifully aligned directly beside the search bar.
+- **Lexicon Cache Purge**: Resolved a stubborn localStorage caching bug where deleting or replacing a lexicon would fail to properly wipe the orphaned data from local memory, causing stale or ghost lexicons to persist in the UI.
+
+---
+
+ **Date: July 22, 2026**
  **Version: 0.4.80**
 
 ## **Multi-Workspace & Database Architecture Overhaul**

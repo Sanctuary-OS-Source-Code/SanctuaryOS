@@ -69,6 +69,19 @@ pub fn process_structure_nodes(schema: &Option<crate::schema::GameSchema>, nodes
     }
 }
 
+pub fn is_mods_dir(path: &Path) -> bool {
+    path.file_name().map_or(false, |n| n.to_string_lossy().eq_ignore_ascii_case("mods"))
+}
+
+pub fn get_vault_mods_lane(vault_path: &str) -> PathBuf {
+    let p = PathBuf::from(vault_path);
+    if is_mods_dir(&p) {
+        p
+    } else {
+        p.join("Mods")
+    }
+}
+
 pub fn get_cache_path(vault_path: &str) -> PathBuf {
     Path::new(vault_path).join(".sanctuary_cache.json")
 }

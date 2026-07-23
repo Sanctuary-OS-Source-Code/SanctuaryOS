@@ -1,6 +1,6 @@
 ## Sanctuary OS
 ## Forking & Architecture Guide
-#### Version: 0.4.8
+#### Version: 4
 #### Last Updated: July 22, 2026
 
 Welcome to the architecture and forking guide for Sanctuary OS. 

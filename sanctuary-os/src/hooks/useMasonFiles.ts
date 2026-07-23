@@ -128,32 +128,30 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
    }, [vaultPath, internalCloudTarget]);
 
    useEffect(() => {
-      if (isCloudMode) {
-         const fetchRef = async () => {
-            const currentFile = (isCloudMode ? cloudOpenFiles : localOpenFiles)[isCloudMode ? cloudActiveFileIndex : localActiveFileIndex];
-            if (!currentFile) return;
+      const fetchRef = async () => {
+         const currentFile = (isCloudMode ? cloudOpenFiles : localOpenFiles)[isCloudMode ? cloudActiveFileIndex : localActiveFileIndex];
+         if (!currentFile) return;
 
-            const isLexicon = isCloudMode 
-               ? internalCloudTarget === 'sanctuary_lexicons'
-               : (currentFile.content?.includes('_meta_lang') || currentFile.content?.includes('"a_citizen"') || currentFile.name.startsWith('en-') || currentFile.name.startsWith('de-') || currentFile.name.startsWith('es-') || currentFile.name.startsWith('fr-'));
+         const isLexicon = isCloudMode 
+            ? internalCloudTarget === 'sanctuary_lexicons'
+            : (currentFile.content?.includes('_meta_lang') || currentFile.content?.includes('"a_citizen"') || currentFile.name.startsWith('en-') || currentFile.name.startsWith('de-') || currentFile.name.startsWith('es-') || currentFile.name.startsWith('fr-'));
 
-            const { supabaseAuth } = await import('../supabase');
-            if (isLexicon) {
-               const { data } = await supabaseAuth.from('sanctuary_lexicons').select('lexicon_data').eq('id', 'en-default').maybeSingle();
-               if (data) {
-                  setReferenceData((data as any).lexicon_data);
-                  setReferenceLabel("en-default.json Reference");
-               }
-            } else {
-               const { data } = await supabaseAuth.from('sanctuary_schemas').select('schema_data').eq('id', 'default').maybeSingle();
-               if (data) {
-                  setReferenceData((data as any).schema_data);
-                  setReferenceLabel("Keepers Master Schema");
-               }
+         const { supabaseAuth } = await import('../supabase');
+         if (isLexicon) {
+            const { data } = await supabaseAuth.from('sanctuary_lexicons').select('lexicon_data').eq('id', 'en-default').maybeSingle();
+            if (data && Object.keys((data as any).lexicon_data || {}).length > 0) {
+               setReferenceData((data as any).lexicon_data);
+               setReferenceLabel("en-default.json Reference");
             }
-         };
-         fetchRef();
-      }
+         } else {
+            const { data } = await supabaseAuth.from('sanctuary_schemas').select('schema_data').eq('id', 'default').maybeSingle();
+            if (data && Object.keys((data as any).schema_data || {}).length > 0) {
+               setReferenceData((data as any).schema_data);
+               setReferenceLabel("Keepers Master Schema");
+            }
+         }
+      };
+      fetchRef();
    }, [isCloudMode ? cloudActiveFileIndex : localActiveFileIndex, isCloudMode]);
 
    const validateContent = (text: string, monaco: any, model: any) => {

@@ -88,6 +88,9 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         
         const newGlobal = { ...globalConfig };
         newGlobal.workspaces = newGlobal.workspaces.map((w: any) => w.id === newConfig.id ? newConfig : w);
+        if (rustKey === 'vault_path') {
+          newGlobal.vault_path = selected;
+        }
         setGlobalConfig(newGlobal);
         
         await invoke("save_coordinates", { config: newGlobal });

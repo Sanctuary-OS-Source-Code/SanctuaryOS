@@ -197,7 +197,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
     try {
       let vDir = vaultPath || "";
-      let devLane = vDir.endsWith("Mods") || vDir.endsWith("Mods/") || vDir.endsWith("Mods\\")
+      let devLane = vDir.toLowerCase().endsWith("mods") || vDir.toLowerCase().endsWith("mods/") || vDir.toLowerCase().endsWith("mods\\")
         ? vDir.replace(/[\\/]Mods[\\/]?$/, "") + "/Dev/Sandbox"
         : vDir + "/Dev/Sandbox";
 

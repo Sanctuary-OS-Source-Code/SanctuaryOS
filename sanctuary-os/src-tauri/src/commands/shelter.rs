@@ -89,7 +89,7 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
         let mods_dir = PathBuf::from(&config.mods_path);
-        let vault_mods_lane = PathBuf::from(&config.vault_path).join("Mods");
+        let vault_mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
         if !mods_dir.exists() {
             return Err("Mods path not found.".into());
         }
@@ -165,7 +165,7 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
 pub async fn repopulate_from_shelter(state: tauri::State<'_, AppState>) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
     let config = get_saved_coordinates();
-    let vault_mods_lane = PathBuf::from(&config.vault_path).join("Mods");
+    let vault_mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
     let mut packages = Vec::new();
     walk_packages(&game_schema, &vault_mods_lane, &mut packages);
 
@@ -196,7 +196,7 @@ pub async fn move_to_lab(filename: String, state: tauri::State<'_, AppState>) ->
     let game_schema = state.active_schema.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
-        let vault_mods_lane = PathBuf::from(&config.vault_path).join("Mods");
+        let vault_mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
         
         let mut vault_path = vault_mods_lane.join(&filename);
         let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
@@ -274,8 +274,7 @@ pub fn restore_quarantined_file(filename: String) -> String {
     let sq_path = PathBuf::from(&config.vault_path)
         .join("Quarantine")
         .join(&filename);
-    let m_path = PathBuf::from(&config.vault_path)
-        .join("Mods")
+    let m_path = crate::utils::get_vault_mods_lane(&config.vault_path)
         .join(&filename);
         
     let mut cache = load_cache(&config.vault_path);

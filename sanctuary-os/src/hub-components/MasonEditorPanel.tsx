@@ -1,3 +1,4 @@
+import React, { useState, useRef, useEffect } from 'react';
 import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardGlassButtonClass, standardAccentGlassButtonClass, standardPrimaryButtonClass, EmptyState, HoverTooltip, FilterTabs, FilterTabButton } from "../shared";
 import Editor from "@monaco-editor/react";
 import VersionTimeline from "../VersionTimeline";
@@ -43,6 +44,44 @@ export default function MasonEditorPanel({
    pushStatus
 }: any) {
 
+   const [isScrollLocked, setIsScrollLocked] = useState(false);
+   const rightEditorRef = useRef<any>(null);
+   const isSyncingScroll = useRef(false);
+
+   useEffect(() => {
+      if (!isScrollLocked || !editorRef || !rightEditorRef.current) return;
+      
+      const leftEditor = editorRef;
+      const rightEditor = rightEditorRef.current;
+      
+      const leftScrollListener = leftEditor.onDidScrollChange((e: any) => {
+         if (isSyncingScroll.current) return;
+         isSyncingScroll.current = true;
+         const leftHeight = leftEditor.getScrollHeight() - leftEditor.getLayoutInfo().height;
+         const perc = leftHeight > 0 ? e.scrollTop / leftHeight : 0;
+         const rightHeight = rightEditor.getScrollHeight() - rightEditor.getLayoutInfo().height;
+         rightEditor.setScrollTop(perc * rightHeight);
+         setTimeout(() => { isSyncingScroll.current = false; }, 10);
+      });
+      
+      const rightScrollListener = rightEditor.onDidScrollChange((e: any) => {
+         if (isSyncingScroll.current) return;
+         isSyncingScroll.current = true;
+         const rightHeight = rightEditor.getScrollHeight() - rightEditor.getLayoutInfo().height;
+         const perc = rightHeight > 0 ? e.scrollTop / rightHeight : 0;
+         const leftHeight = leftEditor.getScrollHeight() - leftEditor.getLayoutInfo().height;
+         leftEditor.setScrollTop(perc * leftHeight);
+         setTimeout(() => { isSyncingScroll.current = false; }, 10);
+      });
+      
+      return () => {
+         leftScrollListener.dispose();
+         rightScrollListener.dispose();
+      };
+   }, [isScrollLocked, editorRef]);
+
+   const isLexiconActive = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.startsWith('en-') || activeFile?.name.startsWith('de-') || activeFile?.name.startsWith('es-') || activeFile?.name.startsWith('fr-');
+
    return (
       <>
          <SidePanel
@@ -66,14 +105,27 @@ export default function MasonEditorPanel({
                      </button>
                      <HoverTooltip title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"} variant="info" className="z-[100] top-[120%]" />
                   </div>
-                  <button
-                     onClick={() => setShowReference(!showReference)}
-                     disabled={!activeFile}
-                     className={`h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent font-black ${showReference ? '!opacity-100 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}`}
-                  >
-                     <span className="material-symbols-outlined !text-[18px] normal-case">{showReference ? "vertical_split" : "splitscreen"}</span>
-                     <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_reference") || "Reference"}</span>
-                  </button>
+                  {isLexiconActive && (
+                     <>
+                        <button
+                           onClick={() => setShowReference(!showReference)}
+                           disabled={!activeFile}
+                           className={`h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent font-black ${showReference ? '!opacity-100 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}`}
+                        >
+                           <span className="material-symbols-outlined !text-[18px] normal-case">{showReference ? "vertical_split" : "splitscreen"}</span>
+                           <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_reference") || "Reference"}</span>
+                        </button>
+                        {showReference && (
+                           <button
+                              onClick={() => setIsScrollLocked(!isScrollLocked)}
+                              className={`h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-l border-white/5 font-black ${isScrollLocked ? '!opacity-100 !bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] !text-[var(--accent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}`}
+                           >
+                              <span className="material-symbols-outlined !text-[18px] normal-case">{isScrollLocked ? 'lock' : 'lock_open'}</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest">{t("sync_scroll") || "Sync Scroll"}</span>
+                           </button>
+                        )}
+                     </>
+                  )}
                   {activeFile && !isCloudMode && (
                      <button
                         onClick={() => setShowTimeline(true)}
@@ -157,7 +209,7 @@ export default function MasonEditorPanel({
 
                <div className="flex-1 relative flex w-full min-h-0">
 
-                  <div style={{ width: showReference ? `${splitRatio}%` : '100%' }} className="flex-shrink-0 relative h-full min-w-0 transition-none">
+                  <div style={{ width: (showReference && isLexiconActive) ? `${splitRatio}%` : '100%' }} className="flex-shrink-0 relative h-full min-w-0 transition-none">
                      {validationStats && (
                         <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-6 theme-glass-panel rounded-full border px-6 py-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all ${validationStats.missing === 0 ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--success)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_10%,transparent)]'}`}>
                            <div className="flex items-center gap-3">
@@ -254,7 +306,7 @@ export default function MasonEditorPanel({
                      )}
                   </div>
 
-                  {showReference && (
+                  {(showReference && isLexiconActive) && (
                      <>
                         <div
                            onMouseDown={(e) => { e.preventDefault(); isResizing.current = true; document.body.style.cursor = 'col-resize'; }}
@@ -270,6 +322,7 @@ export default function MasonEditorPanel({
                               theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
                               value={JSON.stringify(referenceData, null, 2)}
                               onMount={(editor) => {
+                                 rightEditorRef.current = editor;
                                  editor.onContextMenu((e: any) => {
                                     if (e.event) {
                                        if (e.event.browserEvent) e.event.browserEvent.preventDefault();

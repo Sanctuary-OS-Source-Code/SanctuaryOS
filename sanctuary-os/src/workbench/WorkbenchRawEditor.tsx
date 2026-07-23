@@ -26,6 +26,21 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
    const { t } = useLexicon();
    const [editorRef, setEditorRef] = useState<any>(null);
    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+   const editorOptions = React.useMemo(() => ({
+      automaticLayout: true,
+      minimap: { enabled: true },
+      fontSize: 14,
+      fontFamily: "var(--font-mono), Consolas, monospace",
+      padding: { top: 24, bottom: 24 },
+      smoothScrolling: true,
+      cursorBlinking: "smooth",
+      lineHeight: 24,
+      contextmenu: false,
+      renderLineHighlight: "none",
+      selectionHighlight: false,
+      occurrencesHighlight: "off",
+      matchBrackets: "never"
+   }), []);
 
    const handleEditorWillMount = (monaco: any) => {
       monaco.editor.defineTheme('sanctuary-glass-dark', {
@@ -129,21 +144,6 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
                if (onEditorMount) {
                   onEditorMount(editor, monaco);
                }
-            }}
-            options={{
-               automaticLayout: true,
-               minimap: { enabled: true },
-               fontSize: 14,
-               fontFamily: "var(--font-mono), Consolas, monospace",
-               padding: { top: 24, bottom: 24 },
-               smoothScrolling: true,
-               cursorBlinking: "smooth",
-               lineHeight: 24,
-               contextmenu: false,
-               renderLineHighlight: "none",
-               selectionHighlight: false,
-               occurrencesHighlight: "off",
-               matchBrackets: "never"
             }}
          />
 

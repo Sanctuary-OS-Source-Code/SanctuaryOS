@@ -51,7 +51,7 @@ pub async fn scan_bunker(
         .unwrap_or(0);
         
     let vault_dir = PathBuf::from(&vault_path);
-    let mods_lane = if vault_dir.ends_with("Mods") {
+    let mods_lane = if crate::utils::is_mods_dir(&vault_dir) {
         vault_dir.clone()
     } else {
         vault_dir.join("Mods")
@@ -298,7 +298,7 @@ pub async fn scan_sandbox(vault_path: String, state: tauri::State<'_, AppState>)
     
     tauri::async_runtime::spawn_blocking(move || {
         let vault_dir = PathBuf::from(&vault_path);
-        let dev_lane = if vault_dir.ends_with("Mods") {
+        let dev_lane = if crate::utils::is_mods_dir(&vault_dir) {
         vault_dir.parent().unwrap_or(&vault_dir).join("Dev").join("Sandbox")
     } else {
         vault_dir.join("Dev").join("Sandbox")
@@ -310,7 +310,19 @@ pub async fn scan_sandbox(vault_path: String, state: tauri::State<'_, AppState>)
     }
 
     let mut paths = Vec::new();
-    walk_packages(&game_schema, &dev_lane, &mut paths);
+    fn walk_sandbox_files(dir: &Path, paths: &mut Vec<PathBuf>) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_dir() {
+                    walk_sandbox_files(&p, paths);
+                } else {
+                    paths.push(p);
+                }
+            }
+        }
+    }
+    walk_sandbox_files(&dev_lane, &mut paths);
 
     let mut results = Vec::new();
     for path in paths {
@@ -409,7 +421,7 @@ pub fn ingest_dropped_file(
         .unwrap_or("")
         .to_lowercase();
 
-    let target_dir = Path::new(&config.vault_path).join("Mods");
+    let target_dir = crate::utils::get_vault_mods_lane(&config.vault_path);
 
     std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
     let target = target_dir.join(file_name);
@@ -441,7 +453,7 @@ pub fn ingest_dropped_file(
             let mut extracted_files = Vec::new();
             
             let zip_stem = source.file_stem().unwrap_or_default().to_string_lossy().to_string();
-            let target_base = Path::new(&config.vault_path).join("Mods").join(&zip_stem);
+            let target_base = crate::utils::get_vault_mods_lane(&config.vault_path).join(&zip_stem);
             let _ = std::fs::create_dir_all(&target_base);
             
             let active_base = if !config.mods_path.is_empty() { Some(Path::new(&config.mods_path).join(&zip_stem)) } else { None };
@@ -623,7 +635,7 @@ pub fn ingest_dropped_file(
 
 #[tauri::command]
 pub async fn move_mod_to_priority_folder(vault_path: String, mod_name: String, target_folder: String) -> Result<String, String> {
-    let vault_mods_lane = if vault_path.ends_with("Mods") {
+    let vault_mods_lane = if crate::utils::is_mods_dir(std::path::Path::new(&vault_path)) {
         PathBuf::from(&vault_path)
     } else {
         PathBuf::from(&vault_path).join("Mods")
@@ -676,7 +688,7 @@ pub fn import_to_sandbox(files: Vec<String>, vault_path: String) -> Result<usize
     }
 
     let vault_dir = PathBuf::from(&vault_path);
-    let dev_lane = if vault_dir.ends_with("Mods") {
+    let dev_lane = if crate::utils::is_mods_dir(&vault_dir) {
         vault_dir.parent().unwrap_or(&vault_dir).join("Dev").join("Sandbox")
     } else {
         vault_dir.join("Dev").join("Sandbox")
@@ -707,7 +719,7 @@ pub fn get_sandbox_files(vault_path: String) -> Result<Vec<String>, String> {
     }
 
     let vault_dir = PathBuf::from(&vault_path);
-    let dev_lane = if vault_dir.ends_with("Mods") {
+    let dev_lane = if crate::utils::is_mods_dir(&vault_dir) {
         vault_dir.parent().unwrap_or(&vault_dir).join("Dev").join("Sandbox")
     } else {
         vault_dir.join("Dev").join("Sandbox")
@@ -735,11 +747,9 @@ pub fn get_sandbox_files(vault_path: String) -> Result<Vec<String>, String> {
 #[tauri::command]
 pub fn get_workbench_files(vault_path: String) -> Result<Vec<String>, String> {
     let mut results = Vec::new();
-    let sep = if vault_path.contains('\\') { "\\" } else { "/" };
-    
-    let scan_paths = vec![
-        format!("{}Mods", if vault_path.ends_with(sep) { vault_path.clone() } else { format!("{}{}", vault_path, sep) }),
-        format!("{}Data{}Templates", if vault_path.ends_with(sep) { vault_path.clone() } else { format!("{}{}", vault_path, sep) }, sep),
+    let mut scan_paths = vec![
+        crate::utils::get_vault_mods_lane(&vault_path),
+        std::path::PathBuf::from(&vault_path).join("Data").join("Templates")
     ];
 
     for p in scan_paths {

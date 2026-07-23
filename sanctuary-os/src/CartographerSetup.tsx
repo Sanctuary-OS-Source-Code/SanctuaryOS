@@ -71,9 +71,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
     
     globalConfig.workspaces = [...(globalConfig.workspaces || []), newWorkspace];
     globalConfig.active_workspace_id = newWorkspaceId;
-    if (!globalConfig.vault_path) {
-      globalConfig.vault_path = vaultPath;
-    }
+    globalConfig.vault_path = vaultPath;
     
     await invoke("save_coordinates", { config: globalConfig });
     setIsConfigured(true);

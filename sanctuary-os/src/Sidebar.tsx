@@ -312,7 +312,7 @@ export function Sidebar({
             active={!isConfigured}
             onClick={() => useStore.getState().setIsConfigured(false)}
             icon={t("icon_view_quilt") || "view_quilt"}
-            label={t("workspace_manage") || "Environments"}
+            label={t("workspace_sidebar") || "Environments"}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
           />

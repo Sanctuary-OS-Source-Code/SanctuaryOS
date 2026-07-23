@@ -56,7 +56,7 @@ pub fn initialize_airgap_watch(app_handle: tauri::AppHandle, docs_path: String, 
     
     let v_path = std::path::PathBuf::from(&vault_path).join("Airgap");
     let _ = std::fs::create_dir_all(&v_path);
-    let vault_mods_lane = std::path::PathBuf::from(&vault_path).join("Mods");
+    let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
 
     std::thread::spawn(move || {
         use notify::{Watcher, Config, RecommendedWatcher, RecursiveMode};
@@ -119,7 +119,7 @@ pub fn initialize_settings_watch(mods_path: String, vault_path: String) {
     if !path_to_watch.exists() {
         return;
     }
-    let vault_mods_path = std::path::PathBuf::from(&vault_path).join("Mods");
+    let vault_mods_path = crate::utils::get_vault_mods_lane(&vault_path);
     let _ = std::fs::create_dir_all(&vault_mods_path);
 
     let (tx, rx) = std::sync::mpsc::channel();

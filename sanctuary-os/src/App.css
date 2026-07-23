@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+.monaco-highlight-line {
+  background-color: color-mix(in srgb, var(--accent) 30%, transparent) !important;
+  transition: background-color 0.3s ease;
+}
+
 @theme {
   --text-xs: var(--fontSizeSubtext, 0.75rem);
   --text-sm: var(--fontSizeText, 0.875rem);
