@@ -1,7 +1,7 @@
 # Sanctuary OS 
 
-![Version](https://img.shields.io/badge/version-0.4.63-blue)
-![Last Updated](https://img.shields.io/badge/last_updated-July_11,_2026-brightgreen)
+![Version](https://img.shields.io/badge/version-0.4.81-blue)
+![Last Updated](https://img.shields.io/badge/last_updated-July_22,_2026-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Alpha](https://img.shields.io/badge/Alpha-Early_Access-red)
 
@@ -31,14 +31,15 @@ This repository contains the official guides for Sanctuary OS, covering both sta
   - [Masons (Mod Creators)](#masons-mod-creators)
   - [Architects (Moderators)](#architects-moderators)
   - [Oversight (System Administrators)](#oversight-system-administrators)
-  - [Wayfinders (System Developers)](#wayfinders-system-developers)
+  - [Wayfinders (Game Developers)](#wayfinders-game-developers)
+  - [Keepers (Core Infrastructure)](#keepers-core-infrastructure)
   - [Role Protocols](#role-protocols)
 
 ---
 
 # Official Citizen Guide
 
-**Version:** 0.4.6 | **Last Updated:** July 8, 2026
+**Version:** 0.4.8 | **Last Updated:** July 22, 2026
 
 > **Welcome to Sanctuary OS,**  
 > Sanctuary OS has evolved from a robust mod manager into a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy. 
@@ -46,9 +47,9 @@ This repository contains the official guides for Sanctuary OS, covering both sta
 > Here is your complete User Guide to mastering this entirely new way of managing your environment.
 
 ## Cartographer Initialization (Initial Setup)
-Upon your first launch, the Cartographer maps your machine’s layout.
+Upon your first launch, the Workspace Selector allows you to choose your active game environment (e.g., The Sims 4 vs Cyberpunk 2077). The Cartographer then maps your machine’s layout and links your identity to the central OS Hub.
 
-- **Auto-Detect Paths:** Click the Cloud icon to automatically locate your game and document folders.
+- **Auto-Detect Paths:** Click the Cloud icon to automatically locate your game and document folders for your active workspace.
   - **Bin Folder (Live Path):** The directory where your game executable lives. *V4 Update:* Sanctuary no longer relies on the notoriously unreliable `GameVersion.txt`. It now parses the `Default.ini` manifest directly to guarantee 100% engine version accuracy.
   - **Mods Folder:** Your active game Mods folder.
   - **Vault Folder:** Select a safe, external directory to act as your isolated "Deep-Storage Archive."
@@ -206,9 +207,9 @@ Your System. Your Sovereignty. Your Preferences.
 
 # Elevated Clearances
 
-**Version:** 0.4.5 | **Last Updated:** July 7, 2026
+**Version:** 0.4.8 | **Last Updated:** July 22, 2026
 
-> This section of the guide covers the elevated roles within Sanctuary OS. All administrative hubs have been designed into specialized Workshop, Console, and Operations environments to ensure 1:1 workflow consistency between creators and staff.
+> This section of the guide covers the elevated roles within Sanctuary OS. The system uses a Hub-and-Spoke architecture: game-specific roles (Masons, Architects, Oversight, Wayfinders) operate within their specific Game Database, while Keepers manage the central OS Hub.
 
 ## Masons (Mod Creators)
 The Mason Workshop is the specialized environment for building, publishing, and maintaining artifacts.
@@ -245,15 +246,23 @@ Oversight Command holds the keys to Sanctuary OS’s infrastructure, focusing on
 - **Mason Linker:** Manually verify and link Citizen identities to claimed Nexus mod author profiles.
 - **Support Infrastructure:** Manage support categories, global macro templates, and route escalated tickets for the global Citizen Support Desk.
 
-## Wayfinders (System Developers)
-Wayfinder Operations is used for network-level maintenance and platform-wide broadcasts.
+## Wayfinders (Community Managers)
+Wayfinders are the highest level of game-specific administration, responsible for managing the community, maintaining network stability, and broadcasting platform-wide announcements for their specific game Spoke.
 
-- **Global DEFCON:** Wayfinders can initiate scheduled/operational DEFCON events.
+- **Global DEFCON:** Wayfinders can initiate scheduled/operational DEFCON events for their game.
 - **Registry Health Status:** A real-time telemetry tile showing current Database Latency (ms), CPU usage, memory allocation, and server connectivity status.
 - **The Dispatch:** A specialized broadcast channel used exclusively for system maintenance alerts, new feature announcements, and policy updates.
-- **Audit Logs:** A permanent, undeletable ledger of every database mutation, role change, and security flag executed by the administration is tracked in an append-only audit ledger intended to preserve administrative accountability. Wayfinders use this for accountability and system forensics.
+- **Game Audit Logs:** A ledger of game-level database mutations and role changes. Wayfinders use this for accountability and forensics within their specific community.
+
+## Keepers (Core App Team / Sanctuary Developers)
+Keepers are the actual developers of Sanctuary OS. They operate entirely separate from the community management layers (Architects, Oversight, Wayfinders) and focus exclusively on the core application code, master infrastructure, and the central OS Hub.
+
+- **Keepers Core:** The central command interface for managing OS-level infrastructure.
+- **Master Schema & Lexicon Flows:** Manage the global, cross-game configuration schemas and localization dictionaries, deploying them instantly via the cloud.
+- **Theme Forge & Chameleons:** Govern the global UI aesthetic systems that propagate down to all connected Game Spokes.
+- **Global Audit Logs:** A permanent, undeletable ledger of every global database mutation and security flag executed across the entire OS. Keepers use this for master accountability and system forensics.
 
 ## Role Protocols:
-1. **Workflow Consistency:** The Support Queue and Artifact Dossiers are 1:1 copies across all elevated roles. This ensures a moderator (Architect) and a developer (Wayfinder) see the exact same data when troubleshooting a ticket.
+1. **Workflow Consistency:** The Support Queue and Artifact Dossiers are 1:1 copies across all elevated roles. This ensures a moderator (Architect) and a community manager (Wayfinder) see the exact same data when troubleshooting a ticket.
 2. **The "Sever Access" Rule:** Only Wayfinders and Oversight can engage the Nuclear Override for an account, which permanently severs a profile from the global network.
 3. **Local vs. Global:** Architects and Oversight are reminded that edits to the Global Registry affect all users, while edits in the Local Override Layer affect only the user's personal installation.
