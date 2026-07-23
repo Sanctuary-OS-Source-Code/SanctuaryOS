@@ -39,7 +39,7 @@ This repository contains the official guides for Sanctuary OS, covering both sta
 
 # Official Citizen Guide
 
-**Version:** 0.4.8 | **Last Updated:** July 22, 2026
+**Version:** 4 | **Last Updated:** July 22, 2026
 
 > **Welcome to Sanctuary OS,**  
 > Sanctuary OS has evolved from a robust mod manager into a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy. 
@@ -207,7 +207,7 @@ Your System. Your Sovereignty. Your Preferences.
 
 # Elevated Clearances
 
-**Version:** 0.4.8 | **Last Updated:** July 22, 2026
+**Version:** 4 | **Last Updated:** July 22, 2026
 
 > This section of the guide covers the elevated roles within Sanctuary OS. The system uses a Hub-and-Spoke architecture: game-specific roles (Masons, Architects, Oversight, Wayfinders) operate within their specific Game Database, while Keepers manage the central OS Hub.
 
