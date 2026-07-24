@@ -104,7 +104,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
             options={[
               { id: "support_settings", icon: t("icon_support_agent"), label: t("wf_tab_support") },
               { id: "ide", icon: "code", label: "WAYFINDER IDE" },
-              { id: "chameleons", icon: "palette", label: "Sanctuary Themes" }
+              { id: "chameleons", icon: "palette", label: t("wf_master_themes") }
             ]}
           />
         </div>

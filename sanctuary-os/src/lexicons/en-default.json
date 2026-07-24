@@ -2199,6 +2199,8 @@
   "alert_error_mason_profile_missing": "Error: Creator Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
   "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
+  "manage_collection": "Manage Collection",
+  "auto_e_g_tuning_26": "e.g. Tuning, 2D, etc.",
   "scope_global": "Global Scope",
   "scope_workspace": "Workspace Scope",
   "scope_global_title": "GLOBAL SCOPE",
@@ -2213,5 +2215,14 @@
   "keybinding_listening": "Listening for Keypresses",
   "auto_create_items_in_44": "Group related settings using Categories, and nest complex settings using Groups.",
   "author_guide_keybinds_desc": "For keybinding types, set 'key_format' to 'literal' (e.g. 'J', 'SPACE') or 'keycode' (e.g. 74). Set 'allow_multiple': true to store an array of keys.",
-  "author_guide_keybinds_title": "KEYBINDING FORMAT:"
+  "author_guide_keybinds_title": "KEYBINDING FORMAT:",
+  "chameleon_editor_title": "Chameleon Editor",
+  "chameleon_editor_subtitle": "Official Theme Editor",
+  "forge_instructions": "Use the console below to forge your visual signature.",
+  "chameleon_favs": "Favorite Chameleons",
+  "chameleon_library": "Chameleon Library",
+  "architect": "Architect",
+  "class_dd_unknown": "Unknown",
+  "class_dd_core": "Core",
+  "auto_you_cannot_edit_45": "You can not manage Wayfinders from this hub."
 }

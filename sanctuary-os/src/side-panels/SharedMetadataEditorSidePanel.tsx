@@ -139,7 +139,7 @@ export function SharedMetadataEditorSidePanel({
 
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("architect")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason")}</label>
             <div className="flex gap-2 relative">
               <div className="flex-1 min-w-0">
                 <CustomMasonDropdown 

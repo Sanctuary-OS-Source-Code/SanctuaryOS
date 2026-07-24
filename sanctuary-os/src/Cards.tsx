@@ -24,7 +24,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
               setTimeout(() => setConfirmDelete(false), 2000);
             }
           }} 
-          className={`absolute z-[50] w-8 h-8 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg shadow-black/20 ${confirmDelete ? 'bg-red-500 hover:bg-red-600 border-red-500 scale-110' : 'hover:bg-red-500/30 hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]'} ${layout === 'horizontal' ? 'top-1/2 -translate-y-1/2 right-2' : 'top-4 left-4'}`}
+          className={`absolute z-[50] w-8 h-8 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg shadow-black/20 ${confirmDelete ? 'bg-red-500/40 backdrop-blur-md border-red-500/60 hover:bg-red-500/50 scale-110 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'hover:bg-red-500/30 hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]'} ${layout === 'horizontal' ? 'top-1/2 -translate-y-1/2 right-2' : 'top-4 left-4'}`}
         >
           <span className="material-symbols-outlined !text-[16px]">{confirmDelete ? (t("icon_warning_amber")) : (t("icon_close"))}</span>
         </button>

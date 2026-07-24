@@ -27,7 +27,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
               {t("icon_notifications")}
             </span>
           </div>
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl">
+          <div className="absolute bottom-full left-2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
             {t("tab_notifs")}
           </div>
         </div>

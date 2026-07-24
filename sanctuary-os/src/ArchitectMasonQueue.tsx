@@ -115,7 +115,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
       setIsProcessing(false);
     };
   
-    const activeSubmissions = submissions.filter((s: any) => filterTab === 'pending' ? s.status === 'under_review' : s.status !== 'under_review');
+    const activeSubmissions = submissions.filter((s: any) => s.mason_id && (filterTab === 'pending' ? s.status === 'under_review' : (s.status === 'verified' || s.status === 'unverified')));
     let filteredSubmissions = activeSubmissions.filter((s: any) => s.name?.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const seenNames = new Set();

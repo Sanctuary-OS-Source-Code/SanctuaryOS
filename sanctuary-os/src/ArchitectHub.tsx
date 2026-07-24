@@ -304,5 +304,5 @@ interface UnifiedReport {
 export function CustomMasonDropdown({ value, options, onChange }: { value: string, options: any[], onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const dropdownOptions = options.map(o => ({ id: o.id, label: o.name }));
-  return <CustomDropdown disableTint={true} searchable={true} value={value} options={dropdownOptions} onChange={(v: string[]) => onChange(v[0])} placeholder={t("architect")} />;
+  return <CustomDropdown disableTint={true} searchable={true} value={value} options={dropdownOptions} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason")} />;
 }

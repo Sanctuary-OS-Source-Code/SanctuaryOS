@@ -173,10 +173,10 @@ export default function LexiconTab() {
               <CustomDropdown
                 value={selectedLibraryLang}
                 options={[
-                  { value: null, label: t("all_languages") || "All Languages" },
-                  ...uniqueLanguages.map(lang => ({ value: lang, label: lang }))
+                  { id: null, label: t("all_languages") || "All Languages" },
+                  ...uniqueLanguages.map(lang => ({ id: lang, label: lang }))
                 ]}
-                onChange={setSelectedLibraryLang}
+                onChange={(val: any) => setSelectedLibraryLang(val?.[0] ?? null)}
                 placeholder={t("all_languages") || "All Languages"}
                 disableTint={true}
               />
@@ -186,10 +186,10 @@ export default function LexiconTab() {
               <CustomDropdown
                 value={selectedLibraryCommunity}
                 options={[
-                  { value: null, label: "ALL COMMUNITIES" },
-                  ...uniqueCommunities.map(community => ({ value: community, label: typeof community === 'string' ? community.toUpperCase() : community }))
+                  { id: null, label: "ALL COMMUNITIES" },
+                  ...uniqueCommunities.map(community => ({ id: community, label: typeof community === 'string' ? community.toUpperCase() : community }))
                 ]}
-                onChange={setSelectedLibraryCommunity}
+                onChange={(val: any) => setSelectedLibraryCommunity(val?.[0] ?? null)}
                 placeholder="ALL COMMUNITIES"
                 disableTint={true}
               />

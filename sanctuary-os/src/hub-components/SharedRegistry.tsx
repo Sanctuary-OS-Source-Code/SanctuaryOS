@@ -665,6 +665,6 @@ export function CustomClassificationDropdown({ value, onChange }: any) {
       label: t(c.lexicon_key) || c.id
     }))
   ];
-  return <CustomDropdown disableTint={true}  value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("architect")} />;
+  return <CustomDropdown disableTint={true}  value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("category")} />;
 }
 

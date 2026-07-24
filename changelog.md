@@ -1,3 +1,24 @@
+ **Date: July 24, 2026**
+ **Version: 0.4.84**
+
+## **Workspace Architecture & UX Overhaul**
+
+### Workspace Flow & Sidebar
+- **Workspace Flow Rework**: Overhauled the workspace loading flow. The transition between your active game environments is now significantly smoother, eliminating the clunky intermediate steps when swapping workspaces.
+- **Workspace Sidebar Redesign**: Updated the sidebar layout when inside a workspace. The new design reorganizes game-specific tools and navigation, clearing up clutter and making better use of vertical space compared to the old layout.
+- **Workspace Side Panel Enhancements**: Improved the slide-out Workspace Panel. It now serves as a more effective centralized hub for your active game, bringing workspace-specific settings, themes, and diagnostics closer to the surface instead of burying them in the main settings menus.
+- **Collapsed Sidebar Tooltips**: Fixed the hover tooltips in the collapsed sidebar state. Tooltips now correctly anchor to the viewport edge instead of negatively shifting off-screen, ensuring full labels (like "Notifications") are always readable.
+
+### Personalization & Control
+- **Chameleon & Lexicon Engine Rework**: Refactored the core Chameleon (Theme) and Lexicon systems. The underlying engine has been tightened up to properly enforce user-defined overrides over the default OS lexicons, ensuring custom UI strings and themes apply consistently across all workspace components.
+- **Global vs. Workspace Toggle**: Added a clear distinction between Global and Workspace-specific options. You can now explicitly toggle whether your current setting adjustments should apply universally across Sanctuary OS or be scoped strictly to your active game environment.
+
+### Workbench, Polish & Fixes
+- **Template Keybinding Updates**: Expanded keybinding support within the template system, adding new shortcuts and refining existing ones to speed up the visual mapping workflow in the Workbench.
+- **QOL & Random Fixes**: Squashed several UI bugs, corrected dropdown placeholder strings across the Mason and Scout Queues (swapping generic 'architect' labels for context-accurate ones), and stripped out redundant headers in the Compliance Oversight panels to give your data more room to breathe.
+
+---
+
  **Date: July 22, 2026**
  **Version: 0.4.81**
 

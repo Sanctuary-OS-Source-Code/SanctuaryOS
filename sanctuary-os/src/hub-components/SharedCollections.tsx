@@ -192,7 +192,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
       <SidePanel
         isOpen={!!activeSet}
         onClose={() => setActiveSet(null)}
-        title={t("manage_vault")}
+        title={t("manage_collection")}
         subtitle={`UUID: ${activeSet?.id}`}
         icon="library_books"
         footer={
@@ -243,7 +243,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
                   <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t("link_search")} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
                   
                   {searchQuery.length >= 2 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--sidebar)] border border-white/10 rounded-2xl shadow-2xl z-[7000] overflow-hidden flex flex-col max-h-[250px] overflow-y-auto custom-scrollbar">
+                    <div className="absolute top-full left-0 right-0 mt-2 theme-glass-panel border-white/10 rounded-[calc(var(--radius)-4px)] shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
                       {myMods.filter(m => !members.some(mem => mem.mod_id === m.id) && m.name.toLowerCase().includes(searchQuery.toLowerCase())).map(m => (
                         <button type="button" key={m.id} onClick={() => { handleAddMod(m.id); setSearchQuery(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-white/5 flex justify-between items-center group transition-all shrink-0">
                           <span className="text-[10px] font-black text-[var(--text)] uppercase truncate">{m.name}</span>
@@ -537,7 +537,7 @@ export function CollectionForge({ setStatus }: any) {
       <SidePanel
         isOpen={!!activeSet}
         onClose={() => setActiveSet(null)}
-        title={t("manage_vault")}
+        title={t("manage_collection")}
         subtitle={`UUID: ${activeSet?.id}`}
         icon="library_books"
         footer={
@@ -611,7 +611,7 @@ export function CollectionForge({ setStatus }: any) {
                   </div>
                   
                   {assetSearch.length >= 2 && availableAssets.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--sidebar)] border border-white/10 rounded-2xl shadow-2xl z-[7000] overflow-hidden flex flex-col max-h-[250px] overflow-y-auto custom-scrollbar">
+                    <div className="absolute top-full left-0 right-0 mt-2 theme-glass-panel border-white/10 rounded-[calc(var(--radius)-4px)] shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
                       {availableAssets.filter(asset => !manifestMembers.some(m => m.mod_id === asset.id)).map(asset => (
                         <button type="button" key={asset.id} onClick={() => { addToManifest(asset.id); setAssetSearch(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-white/5 flex justify-between items-center group transition-all shrink-0">
                           <div className="flex flex-col min-w-0 pr-4">
