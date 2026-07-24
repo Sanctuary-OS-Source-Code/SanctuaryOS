@@ -282,7 +282,13 @@ export function WorkbenchSidePanel({
                               ) : (
                                  <div ref={layoutState.visualScrollRef} className="absolute inset-0 overflow-y-scroll overflow-x-hidden custom-scrollbar pr-2 z-10 pb-20">
                                     <div className="flex flex-col gap-4 min-h-[300px] px-2 pt-2">
-                                       {currentVisualTemplate?.settings ? (
+                                       {editorState.problemsList.length > 0 ? (
+                                          <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 opacity-60">
+                                             <span className="material-symbols-outlined !text-5xl text-[var(--danger)] mb-2">{t("icon_visibility_off")}</span>
+                                             <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("preview_unavailable")}</h3>
+                                             <p className="text-[11px] text-[var(--subtext)] leading-relaxed">{t("preview_resolve")}</p>
+                                          </div>
+                                       ) : currentVisualTemplate?.settings ? (
                                           <WorkbenchVisualEditor
                                              settings={currentVisualTemplate.settings}
                                              dataSource={editorState.parsedData}

@@ -115,6 +115,7 @@ const SettingNode = React.memo(({ setting, val, dataPath, isHighlighted, isPrevi
    );
 }, (prevProps, nextProps) => {
    return (
+      prevProps.setting === nextProps.setting &&
       prevProps.val === nextProps.val &&
       prevProps.isHighlighted === nextProps.isHighlighted &&
       prevProps.isPreview === nextProps.isPreview

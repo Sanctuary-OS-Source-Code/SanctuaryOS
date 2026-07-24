@@ -84,7 +84,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
       <div className="flex flex-col w-full relative animate-in fade-in slide-in-from-bottom-4 duration-700">
          <ViewHeader title={t("workbench_title") || "CITIZENS WORKBENCH"} subtitle={t("workbench_subtitle")} icon="tune">
             {mainTab === "TEMPLATES" && (
-               <div className="flex items-center gap-2">
+               <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/10 shadow-inner">
                   <button onClick={() => layoutState.setIsTemplateGuideOpen(true)} className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
                      <span className="material-symbols-outlined text-xl normal-case">{t("icon_help")}</span>
                      <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_info")}</span>

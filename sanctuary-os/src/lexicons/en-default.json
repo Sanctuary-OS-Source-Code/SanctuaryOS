@@ -2208,5 +2208,10 @@
   "scope_global_desc_lexicon": "This language applies across all environments.",
   "scope_workspace_desc_lexicon": "This language is bound only to the active environment.",
   "badge_sanctuary": "Sanctuary",
-  "badge_custom": "Custom"
+  "badge_custom": "Custom",
+  "keybinding_set": "Set Keybindings",
+  "keybinding_listening": "Listening for Keypresses",
+  "auto_create_items_in_44": "Group related settings using Categories, and nest complex settings using Groups.",
+  "author_guide_keybinds_desc": "For keybinding types, set 'key_format' to 'literal' (e.g. 'J', 'SPACE') or 'keycode' (e.g. 74). Set 'allow_multiple': true to store an array of keys.",
+  "author_guide_keybinds_title": "KEYBINDING FORMAT:"
 }

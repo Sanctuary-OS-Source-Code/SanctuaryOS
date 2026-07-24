@@ -34,6 +34,8 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
             <span className="text-[var(--accent)]">{t("auto_supported_types")}</span> boolean, number, string, dropdown, keybinding, group
             <br />
             <span className="text-[var(--accent)]">{t("auto_organization")}</span> {t("auto_create_items_in_44")}
+            <br />
+            <span className="text-[var(--accent)]">{t("author_guide_keybinds_title")}</span> {t("author_guide_keybinds_desc")}
           </p>
         </div>
 

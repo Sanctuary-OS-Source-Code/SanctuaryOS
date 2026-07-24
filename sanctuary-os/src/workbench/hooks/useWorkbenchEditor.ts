@@ -94,14 +94,31 @@ export function useWorkbenchEditor() {
                }
             }
             setRawText(currentContent);
-            if (selectedFile.name.toLowerCase().endsWith('.json')) {
+            const trimmedContent = currentContent ? currentContent.trim() : '';
+            const isJson = selectedFile.name.toLowerCase().endsWith('.json') || (trimmedContent && (trimmedContent.startsWith('{') || trimmedContent.startsWith('[') || trimmedContent.endsWith('}') || trimmedContent.startsWith('"')));
+            if (isJson) {
                try {
-                  setParsedData(JSON.parse(currentContent));
-               } catch (e) {
+                  const sanitizedContent = currentContent.replace(/,\s*([\]}])/g, '$1');
+                  setParsedData(JSON.parse(sanitizedContent));
+                  setProblemsList([]);
+               } catch (e: any) {
                   setParsedData(null);
+                  let line = 1;
+                  let col = 1;
+                  const match = e.message.match(/at position (\d+)/);
+                  if (match) {
+                     // Approximate line/col since we don't have monaco model here easily
+                     const pos = parseInt(match[1], 10);
+                     const upToError = currentContent.substring(0, pos);
+                     const lines = upToError.split('\n');
+                     line = lines.length;
+                     col = lines[lines.length - 1].length + 1;
+                  }
+                  setProblemsList([{ line, column: col, message: e.message }]);
                }
             } else {
                setParsedData(parseIni(currentContent));
+               setProblemsList([]);
             }
          };
          loadFile();
@@ -111,11 +128,15 @@ export function useWorkbenchEditor() {
    const validateContent = useCallback((text: string, monaco: any, model: any) => {
       let problems: any[] = [];
       let markers: any[] = [];
-      const isJson = selectedFile?.name.endsWith('.json') || (text && (text.trim().startsWith('{') || text.trim().startsWith('[')));
+      
+      const trimmedText = text ? text.trim() : '';
+      const isJson = selectedFile?.name.toLowerCase().endsWith('.json') || (trimmedText && (trimmedText.startsWith('{') || trimmedText.startsWith('[') || trimmedText.endsWith('}') || trimmedText.startsWith('"')));
 
       if (isJson) {
          try {
-            JSON.parse(text);
+            const sanitizedText = text.replace(/,\s*([\]}])/g, '$1');
+            const parsed = JSON.parse(sanitizedText);
+            setParsedData(parsed);
          } catch (err: any) {
             const match = err.message.match(/at position (\d+)/);
             let line = 1;
@@ -141,6 +162,8 @@ export function useWorkbenchEditor() {
                });
             }
          }
+      } else {
+         setParsedData(parseIni(text));
       }
       if (model && monaco) {
          monaco.editor.setModelMarkers(model, 'owner', markers);
@@ -196,9 +219,13 @@ export function useWorkbenchEditor() {
       if (selectedFile) {
          setUnsavedEdits(prev => ({ ...prev, [selectedFile.path]: value }));
       }
-      if (selectedFile && selectedFile.name.toLowerCase().endsWith('.json')) {
+      const trimmedValue = value ? value.trim() : '';
+      const isJson = selectedFile?.name.toLowerCase().endsWith('.json') || (trimmedValue && (trimmedValue.startsWith('{') || trimmedValue.startsWith('[') || trimmedValue.endsWith('}') || trimmedValue.startsWith('"')));
+
+      if (isJson) {
          try {
-            setParsedData(JSON.parse(value));
+            const sanitizedText = value.replace(/,\s*([\]}])/g, '$1');
+            setParsedData(JSON.parse(sanitizedText));
          } catch (e) {
             // Keep old parsed data if invalid JSON so visual editor doesn't crash while typing
          }
@@ -250,13 +277,15 @@ export function useWorkbenchEditor() {
 
          if (rawUpdateTimeoutRef.current) clearTimeout(rawUpdateTimeoutRef.current);
          rawUpdateTimeoutRef.current = setTimeout(() => {
-            const isJson = sf.name.toLowerCase().endsWith('.json');
             let newRaw = "";
             let currentModelRaw = "";
             if (editorRef && editorRef.getModel()) {
                currentModelRaw = editorRef.getModel().getValue();
             }
             if (!currentModelRaw) currentModelRaw = useStore.getState().cwUnsavedEdits[sf.path] || "";
+            
+            const trimmedModelRaw = currentModelRaw ? currentModelRaw.trim() : '';
+            const isJson = sf.name.toLowerCase().endsWith('.json') || (trimmedModelRaw && (trimmedModelRaw.startsWith('{') || trimmedModelRaw.startsWith('[') || trimmedModelRaw.endsWith('}') || trimmedModelRaw.startsWith('"')));
 
             if (isJson) {
                newRaw = JSON.stringify(newData, null, 2);

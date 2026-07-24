@@ -2206,5 +2206,10 @@
   "scope_global_desc_theme": "This chameleon overlays the entire global network.",
   "scope_workspace_desc_theme": "This chameleon is isolated to the active workspace.",
   "scope_global_desc_lexicon": "This lexicon applies to the entire global network.",
-  "scope_workspace_desc_lexicon": "This lexicon is isolated to the active workspace."
+  "scope_workspace_desc_lexicon": "This lexicon is isolated to the active workspace.",
+  "keybinding_set": "Set Keybindings",
+  "keybinding_listening": "Listening for Keypresses",
+  "auto_create_items_in_44": "Group related parameters using Categories, and nest complex node logic using Groups.",
+  "author_guide_keybinds_desc": "For keybinding types, set 'key_format' to 'literal' (e.g. 'J', 'SPACE') or 'keycode' (e.g. 74). Set 'allow_multiple': true to store an array of keys.",
+  "author_guide_keybinds_title": "KEYBINDING FORMAT:"
 }
