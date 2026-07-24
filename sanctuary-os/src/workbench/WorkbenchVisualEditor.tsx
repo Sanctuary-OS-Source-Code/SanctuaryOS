@@ -101,6 +101,15 @@ const SettingNode = React.memo(({ setting, val, dataPath, isHighlighted, isPrevi
                   />
                </div>
             )}
+            {setting.type === "keybinding" && (
+               <KeybindingField 
+                  val={val} 
+                  setting={setting} 
+                  isPreview={isPreview} 
+                  onVisualChange={(newVal: any) => !isPreview && onVisualChange(dataPath, newVal)}
+                  t={t}
+               />
+            )}
          </div>
       </div>
    );
@@ -109,6 +118,86 @@ const SettingNode = React.memo(({ setting, val, dataPath, isHighlighted, isPrevi
       prevProps.val === nextProps.val &&
       prevProps.isHighlighted === nextProps.isHighlighted &&
       prevProps.isPreview === nextProps.isPreview
+   );
+});
+
+const KeybindingField = React.memo(({ val, setting, isPreview, onVisualChange, t }: any) => {
+   const [isListening, setIsListening] = React.useState(false);
+
+   React.useEffect(() => {
+      if (!isListening) return;
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+         e.preventDefault();
+         e.stopPropagation();
+
+         const format = setting.key_format || 'literal'; // 'literal' or 'keycode'
+         let newKey: any;
+
+         if (format === 'keycode') {
+            newKey = e.keyCode;
+         } else {
+            newKey = e.key.toUpperCase();
+            if (newKey === ' ') newKey = 'SPACE';
+         }
+
+         const isMultiple = setting.allow_multiple === true;
+
+         if (isMultiple) {
+            const currentVals = Array.isArray(val) ? val : [];
+            if (!currentVals.includes(newKey)) {
+               onVisualChange([...currentVals, newKey]);
+            }
+         } else {
+            onVisualChange(newKey);
+         }
+
+         setIsListening(false);
+      };
+
+      window.addEventListener('keydown', handleKeyDown, { capture: true });
+      return () => {
+         window.removeEventListener('keydown', handleKeyDown, { capture: true });
+      };
+   }, [isListening, onVisualChange, setting, val]);
+
+   const isMultiple = setting.allow_multiple === true;
+   const vals = isMultiple ? (Array.isArray(val) ? val : []) : (val !== undefined && val !== "" ? [val] : []);
+
+   return (
+      <div className="flex flex-col gap-2 w-full md:max-w-xs">
+         <div className="flex flex-wrap gap-2">
+            {vals.map((v: any, idx: number) => (
+               <div key={idx} className="flex items-center gap-2 theme-glass-inner rounded-lg px-3 py-1.5 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[12px] font-black text-[var(--text)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.1)]">
+                  <span className="tracking-widest">{v}</span>
+                  {!isPreview && (
+                     <button
+                        onClick={() => {
+                           if (isMultiple) {
+                              onVisualChange(vals.filter((_: any, i: number) => i !== idx));
+                           } else {
+                              onVisualChange("");
+                           }
+                        }}
+                        className="text-[var(--danger)] hover:text-red-400 opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center"
+                     >
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_remove") || "close"}</span>
+                     </button>
+                  )}
+               </div>
+            ))}
+         </div>
+         
+         {!isPreview && (!vals.length || isMultiple) && (
+            <button
+               onClick={() => setIsListening(!isListening)}
+               className={`h-10 rounded-xl px-4 text-[11px] font-black transition-all duration-300 flex items-center justify-center gap-2 uppercase tracking-widest ${isListening ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[var(--accent)] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] animate-pulse' : 'theme-glass-inner border border-transparent text-[var(--text)] hover:bg-white/5 hover:border-white/10'}`}
+            >
+               <span className="material-symbols-outlined !text-[16px]">{isListening ? 'keyboard' : 'add'}</span>
+               {isListening ? (t("keybinding_listening") || "PRESS ANY KEY...") : (isMultiple && vals.length ? (t("keybinding_add") || "ADD BINDING") : (t("keybinding_set") || "SET BINDING"))}
+            </button>
+         )}
+      </div>
    );
 });
 

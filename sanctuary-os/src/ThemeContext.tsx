@@ -61,16 +61,43 @@ export const ThemeProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const wsId = activeWorkspaceId || 'default';
 
+  const [useGlobalThemeState, setUseGlobalThemeState] = useState(() => localStorage.getItem('sanctuary_use_global_theme') === 'true');
   const [CORE_THEMES, setCoreThemes] = useState<any>(DEFAULT_CORE_THEMES);
   const [customThemes, setCustomThemes] = useState(() => JSON.parse(localStorage.getItem(`sanctuary_${wsId}_custom_themes`) || "{}"));
   const [devThemes, setDevThemes] = useState(() => JSON.parse(localStorage.getItem(`sanctuary_${wsId}_dev_themes`) || "{}"));
-  const [activeThemeId, setActiveThemeId] = useState(() => localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect");
+  const [activeThemeIdState, setActiveThemeIdState] = useState(() => {
+    if (localStorage.getItem('sanctuary_use_global_theme') === 'true') {
+      return localStorage.getItem('sanctuary_global_theme') || "architect";
+    }
+    return localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect";
+  });
+
+  const setUseGlobalTheme = (val: boolean) => {
+    setUseGlobalThemeState(val);
+    localStorage.setItem('sanctuary_use_global_theme', String(val));
+    if (val) {
+      setActiveThemeIdState(localStorage.getItem('sanctuary_global_theme') || "architect");
+    } else {
+      setActiveThemeIdState(localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect");
+    }
+  };
+
+  const setActiveThemeId = (id: string) => {
+    setActiveThemeIdState(id);
+    if (useGlobalThemeState) {
+      localStorage.setItem('sanctuary_global_theme', id);
+    } else {
+      localStorage.setItem(`sanctuary_${wsId}_active_theme`, id);
+    }
+  };
 
   useEffect(() => {
     setCustomThemes(JSON.parse(localStorage.getItem(`sanctuary_${wsId}_custom_themes`) || "{}"));
     setDevThemes(JSON.parse(localStorage.getItem(`sanctuary_${wsId}_dev_themes`) || "{}"));
-    setActiveThemeId(localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect");
-  }, [wsId]);
+    if (!useGlobalThemeState) {
+      setActiveThemeIdState(localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect");
+    }
+  }, [wsId, useGlobalThemeState]);
 
   useEffect(() => {
     const fetchCoreThemes = async () => {
@@ -92,7 +119,7 @@ export const ThemeProvider = ({ children }: any) => {
   }, []);
 
   const allThemes = { ...customThemes, ...devThemes, ...CORE_THEMES };
-  const currentThemeRaw = allThemes[activeThemeId] || CORE_THEMES.architect || DEFAULT_CORE_THEMES.architect;
+  const currentThemeRaw = allThemes[activeThemeIdState] || CORE_THEMES.architect || DEFAULT_CORE_THEMES.architect;
   const currentTheme = { ...currentThemeRaw };
   if (currentTheme.name === "Architect" && currentTheme.bgGradient && currentTheme.bgGradient.includes("linear-gradient")) {
     currentTheme.bgGradient = "#02040a";
@@ -160,11 +187,11 @@ export const ThemeProvider = ({ children }: any) => {
       const { Radiant, ...rest } = customThemes;
       setCustomThemes(rest);
       localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(rest));
-      if (activeThemeId === "Radiant") setActiveThemeId("radiant");
-    } else if (activeThemeId === "Radiant") {
+      if (activeThemeIdState === "Radiant") setActiveThemeId("radiant");
+    } else if (activeThemeIdState === "Radiant") {
       setActiveThemeId("radiant");
     }
-  }, [customThemes, activeThemeId, wsId]);
+  }, [customThemes, activeThemeIdState, wsId]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -177,7 +204,6 @@ export const ThemeProvider = ({ children }: any) => {
         }
       }
     });
-    localStorage.setItem(`sanctuary_${wsId}_active_theme`, activeThemeId);
 
     const bgHex = (currentTheme.bg || '#000000').replace('#', '');
     if (bgHex.length === 6) {
@@ -190,7 +216,7 @@ export const ThemeProvider = ({ children }: any) => {
         getCurrentWindow().setTheme(isLight ? 'light' : 'dark').catch(() => { });
       }).catch(() => { });
     }
-  }, [activeThemeId, currentTheme]);
+  }, [activeThemeIdState, currentTheme]);
 
   const saveThemeToVault = (id: string, json: any, isDev: boolean = false) => {
     (async () => {
@@ -236,14 +262,14 @@ export const ThemeProvider = ({ children }: any) => {
   };
 
   const updateActiveTheme = (updates: any) => {
-    if (activeThemeId?.startsWith('dev_')) {
+    if (activeThemeIdState?.startsWith('dev_')) {
       const updatedTheme = { ...currentTheme, ...updates };
-      const updated = { ...devThemes, [activeThemeId]: updatedTheme };
+      const updated = { ...devThemes, [activeThemeIdState]: updatedTheme };
       setDevThemes(updated);
       localStorage.setItem(`sanctuary_${wsId}_dev_themes`, JSON.stringify(updated));
-      saveThemeToVault(activeThemeId, updatedTheme, true);
-    } else if (CORE_THEMES[activeThemeId]) {
-      const newId = `custom_${activeThemeId}_${Date.now()}`;
+      saveThemeToVault(activeThemeIdState, updatedTheme, true);
+    } else if (CORE_THEMES[activeThemeIdState]) {
+      const newId = `custom_${activeThemeIdState}_${Date.now()}`;
       const newTheme = { ...currentTheme, ...updates, name: `${currentTheme.name} (Edited)` };
       const newCustoms = { ...customThemes, [newId]: newTheme };
       setCustomThemes(newCustoms);
@@ -252,10 +278,10 @@ export const ThemeProvider = ({ children }: any) => {
       saveThemeToVault(newId, newTheme, false);
     } else {
       const updatedTheme = { ...currentTheme, ...updates };
-      const updated = { ...customThemes, [activeThemeId]: updatedTheme };
+      const updated = { ...customThemes, [activeThemeIdState]: updatedTheme };
       setCustomThemes(updated);
       localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(updated));
-      saveThemeToVault(activeThemeId, updatedTheme, false);
+      saveThemeToVault(activeThemeIdState, updatedTheme, false);
     }
   };
 
@@ -305,12 +331,12 @@ export const ThemeProvider = ({ children }: any) => {
       const { [id]: _, ...rest } = customThemes;
       setCustomThemes(rest);
       localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(rest));
-      if (activeThemeId === id) setActiveThemeId('architect');
+      if (activeThemeIdState === id) setActiveThemeId('architect');
     } else if (id.startsWith('dev_')) {
       const { [id]: _, ...rest } = devThemes;
       setDevThemes(rest);
       localStorage.setItem(`sanctuary_${wsId}_dev_themes`, JSON.stringify(rest));
-      if (activeThemeId === id) setActiveThemeId('architect');
+      if (activeThemeIdState === id) setActiveThemeId('architect');
     }
 
     (async () => {
@@ -347,8 +373,9 @@ export const ThemeProvider = ({ children }: any) => {
 
   return (
     <ThemeContext.Provider value={{
-      activeThemeId, setActiveThemeId, currentTheme, CORE_THEMES, setCoreThemes, customThemes, devThemes,
+      activeThemeId: activeThemeIdState, setActiveThemeId, currentTheme, CORE_THEMES, setCoreThemes, customThemes, devThemes,
       updateActiveTheme, updateTheme, renameTheme, createNewTheme, createNewDevTheme, exportDevThemeToCustom, deleteTheme,
+      useGlobalTheme: useGlobalThemeState, setUseGlobalTheme,
       importTheme: (json: any) => {
         const id = `import_${Date.now()}`;
         setCustomThemes((prev: any) => ({ ...prev, [id]: json }));

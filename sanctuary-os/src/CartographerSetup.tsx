@@ -79,18 +79,22 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
   }
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+    <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: 'var(--bgGradient)', color: 'var(--text)' }}>
       <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen transition-opacity duration-1000 animate-in fade-in" />
       <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 50%, transparent), var(--bg))' }} />
 
       <div className="relative z-10 w-[95%] max-w-5xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row overflow-hidden group">
 
         {/* LEFT COLUMN: The Setup Console */}
-        <div className="p-8 lg:p-12 flex flex-col lg:w-1/2 border-b lg:border-b-0 lg:border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-20">
-          <div className="flex flex-col items-start mb-8">
-            <div className="w-14 h-14 mb-4 relative flex items-center justify-center">
-              <div className="absolute inset-0 theme-bg-accent opacity-20 blur-xl rounded-full transition-all duration-700" />
-              <img src="/icon.png" alt="" className="w-10 h-10 object-contain relative z-10 drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)]" />
+        <div className="p-8 lg:p-12 flex flex-col lg:w-1/2 border-b lg:border-b-0 lg:border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-20 overflow-hidden">
+          <div className="flex flex-col items-start mb-8 relative z-20">
+            {/* Centered Logo */}
+            <div className="relative mb-6 w-20 h-20 flex items-center justify-center">
+              <img
+                src={preselectedGame?.icon || "/icon.png"}
+                alt="Logo"
+                className="w-full h-full object-contain opacity-[0.25] hover:opacity-[0.8] hover:scale-110 hover:rotate-12 transition-all duration-700 cursor-pointer"
+              />
             </div>
             <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-widest text-[var(--headerText)] drop-shadow-sm">
               {preselectedGame?.name || t("setup_title") || "Initialize Cartographer"}

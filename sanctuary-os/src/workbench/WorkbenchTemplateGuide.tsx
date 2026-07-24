@@ -31,7 +31,7 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
           <p className="text-[12px] opacity-80 leading-relaxed font-mono whitespace-pre-wrap">
             {t("author_guide_fields_desc")}
             <br /><br />
-            <span className="text-[var(--accent)]">{t("auto_supported_types")}</span> {t("auto_boolean_number_string")}, group
+            <span className="text-[var(--accent)]">{t("auto_supported_types")}</span> boolean, number, string, dropdown, keybinding, group
             <br />
             <span className="text-[var(--accent)]">{t("auto_organization")}</span> {t("auto_create_items_in_44")}
           </p>
@@ -197,6 +197,16 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
         { "value": "B", "label_key": "Option B" }
       ],
       "default": "A"
+    },
+    {
+      "key": "My_Keybinding_Setting",
+      "path": "My_Keybinding_Setting",
+      "type": "keybinding",
+      "label_key": "Action Bind",
+      "desc_key": "Press a key to bind",
+      "category": "general",
+      "key_format": "literal",
+      "allow_multiple": false
     }
   ]
 }`}

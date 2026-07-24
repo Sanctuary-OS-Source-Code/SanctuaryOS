@@ -5,12 +5,12 @@ import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { supabase } from '../supabase';
 import { TabContainer } from './shared';
-import { CustomDropdown } from '../shared';
+import { CustomDropdown, HoverTooltip } from '../shared';
 
 const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
 
 export default function LexiconTab() {
-  const { t, registry, activeLang, setActiveLang, importLexicon, deleteLexicon, lexiconMeta } = useLexicon();
+  const { t, registry, activeLang, setActiveLang, importLexicon, deleteLexicon, lexiconMeta, useGlobalLexicon, setUseGlobalLexicon } = useLexicon();
   const setView = useStore(state => state.setView);
   const setMarketTab = useStore(state => state.setMarketTab);
 
@@ -93,6 +93,20 @@ export default function LexiconTab() {
       icon="language"
       actions={
         <>
+          <div className="relative group">
+            <button
+              onClick={() => setUseGlobalLexicon(!useGlobalLexicon)}
+              className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border ${useGlobalLexicon ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-xl hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]' : 'theme-glass-inner text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} flex items-center justify-center gap-2`}
+            >
+              <span className="material-symbols-outlined !text-[14px]">{useGlobalLexicon ? 'public' : 'grid_view'}</span>
+              {useGlobalLexicon ? t("scope_global") || 'Global Scope' : t("scope_workspace") || 'Workspace Scope'}
+            </button>
+            <HoverTooltip 
+              title={useGlobalLexicon ? t("scope_global_title") || "GLOBAL SCOPE" : t("scope_workspace_title") || "WORKSPACE SCOPE"} 
+              subtitle={useGlobalLexicon ? t("scope_global_desc_lexicon") || "This lexicon applies across all environments." : t("scope_workspace_desc_lexicon") || "This lexicon is bound only to the active environment."} 
+              variant="info" 
+            />
+          </div>
           <button onClick={() => { setMarketTab('LEXICONS'); setView('nexus'); }} className={standardButtonClass}>{t("btn_browse")}</button>
           <button onClick={handleImportLexicon} className={standardButtonClass}>{t("btn_import")}</button>
         </>

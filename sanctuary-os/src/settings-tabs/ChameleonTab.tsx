@@ -6,6 +6,7 @@ import { useLexicon } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
 import { useStore } from '../store';
 import { TabContainer } from './shared';
+import { HoverTooltip } from '../shared';
 
 const HexToRGB = (hex: string) => {
   const cleanHex = (hex || '#000000').replace('#', '').padEnd(6, '0').slice(0, 6);
@@ -45,7 +46,7 @@ const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(-
 
 export default function ChameleonTab({ config }: any) {
   const { t } = useLexicon();
-  const { currentTheme, activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, updateActiveTheme, renameTheme, createNewTheme, importTheme, deleteTheme } = useTheme();
+  const { currentTheme, activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, updateActiveTheme, renameTheme, createNewTheme, importTheme, deleteTheme, useGlobalTheme, setUseGlobalTheme } = useTheme();
   const setView = useStore(state => state.setView);
   const setMarketTab = useStore(state => state.setMarketTab);
 
@@ -85,12 +86,36 @@ export default function ChameleonTab({ config }: any) {
   // Re-ordered themeKeys to place traffic lights at the end!
   const themeKeys = ['bg', 'sidebar', 'sidebartext', 'accent', 'text', 'subtext', 'panelTint', 'headerText', 'success', 'warning', 'danger'];
 
+  const getThemeBadge = (id: string, data: any) => {
+    if (CORE_THEMES[id]) {
+      return t("badge_sanctuary") || 'Sanctuary';
+    }
+    if (data.badge) {
+      return data.badge;
+    }
+    return t("badge_custom") || 'Custom';
+  };
+
   return (
     <TabContainer
       title={t("chameleon_title")}
       icon="palette"
       actions={
         <>
+          <div className="relative group">
+            <button
+              onClick={() => setUseGlobalTheme(!useGlobalTheme)}
+              className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border ${useGlobalTheme ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-xl hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]' : 'theme-glass-inner text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} flex items-center justify-center gap-2`}
+            >
+              <span className="material-symbols-outlined !text-[14px]">{useGlobalTheme ? 'public' : 'grid_view'}</span>
+              {useGlobalTheme ? t("scope_global") || 'Global Scope' : t("scope_workspace") || 'Workspace Scope'}
+            </button>
+            <HoverTooltip 
+              title={useGlobalTheme ? t("scope_global_title") || "GLOBAL SCOPE" : t("scope_workspace_title") || "WORKSPACE SCOPE"} 
+              subtitle={useGlobalTheme ? t("scope_global_desc_theme") || "This aesthetic applies across all environments." : t("scope_workspace_desc_theme") || "This aesthetic is bound only to the active environment."} 
+              variant="info" 
+            />
+          </div>
           <button onClick={() => { setMarketTab('CHAMELEONS'); setView('nexus'); }} className={standardButtonClass}>{t("btn_browse")}</button>
           <button onClick={handleImportTheme} className={standardButtonClass}>{t("btn_import")}</button>
           <button onClick={createNewTheme} className={standardButtonClass}>{t("auto_create")}</button>
@@ -127,7 +152,12 @@ export default function ChameleonTab({ config }: any) {
                 className="w-full bg-black/40 border border-[var(--accent)] rounded-lg px-3 py-2 text-[10px] font-black text-[var(--text)] uppercase tracking-widest outline-none"
               />
             ) : (
-              <p className="text-[12px] font-black uppercase tracking-[0.2em] truncate" style={{ color: activeThemeId === id ? currentTheme.text : currentTheme.subtext }}>{data.name}</p>
+              <div className="flex flex-col gap-2 pr-4 break-words">
+                <p className="text-[12px] font-black uppercase tracking-[0.2em] truncate" style={{ color: activeThemeId === id ? currentTheme.text : currentTheme.subtext }}>{data.name}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] opacity-90">{getThemeBadge(id, data)}</span>
+                </div>
+              </div>
             )}
             <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <div onClick={(e) => handleExportTheme(e, data)} className="p-2 rounded-full hover:bg-white/10 text-sm material-symbols-outlined lowercase">{t("icon_save")}</div>

@@ -2,8 +2,9 @@ import React from 'react';
 import { useLexicon } from "./LexiconContext";
 import { useStore } from './store';
 import { useModalStore } from './store/modalStore';
-import { CustomDropdown } from './shared';
+import { CustomDropdown, HoverTooltip } from './shared';
 import { invoke } from '@tauri-apps/api/core';
+import { WorkspaceSidePanel } from './side-panels/WorkspaceSidePanel';
 
 function NavButton({
   id,
@@ -14,17 +15,37 @@ function NavButton({
   active,
   onClick,
   isCollapsed,
-  isAccent
+  isAccent,
+  setHoveredTooltip
 }: any) {
   const isActive = active !== undefined ? active : activeTab === id;
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+
   const handleClick = () => {
     if (onClick) onClick();
     else if (setTab && id) setTab(id);
   };
+
+  const handleMouseEnter = () => {
+    if (isCollapsed && setHoveredTooltip && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setHoveredTooltip({ label, top: rect.top + rect.height / 2 });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (isCollapsed && setHoveredTooltip) {
+      setHoveredTooltip(null);
+    }
+  };
+
   return (
     <div className="relative group/nav">
       <button
+        ref={buttonRef}
         onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className={`w-full flex items-center gap-4 px-6 py-4 rounded-[var(--radius)] transition-all duration-500 group relative
           ${isActive
             ? (isAccent ? "theme-bg-accent/10 theme-text-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] backdrop-blur-md" : "bg-white/10 text-[var(--sidebartext)] shadow-lg border border-white/10")
@@ -48,11 +69,6 @@ function NavButton({
           </span>
         )}
       </button>
-      {isCollapsed && (
-        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-all duration-300 z-[1000] pointer-events-none backdrop-blur-xl">
-          {label}
-        </div>
-      )}
     </div>
   );
 }
@@ -67,17 +83,22 @@ export function Sidebar({
   handleQuickLaunch,
 }: any) {
   const { t } = useLexicon();
+  const session = useStore((state) => state.session);
   const view = useStore((state) => state.view);
   const setView = useStore((state) => state.setView);
-  const session = useStore((state) => state.session);
   const userRole = useStore((state) => state.userRole);
   const isPatchDetected = useStore((state) => state.isPatchDetected);
-  const defconLevel = useStore((state) => state.defconLevel);
-  const isConfigured = useStore((state) => state.isConfigured);
-  const activeGameSchema = useStore((state) => state.activeGameSchema);
-  const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
   const { showDefconAlert } = useModalStore();
   const [globalGames, setGlobalGames] = React.useState<any[]>([]);
+  const [isWorkspacePanelOpen, setIsWorkspacePanelOpen] = React.useState(false);
+  const [hoveredTooltip, setHoveredTooltip] = React.useState<{ label: string, top: number } | null>(null);
+
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const workspaces = useStore((state) => state.workspaces);
+  const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId);
+  const activeGameName = globalGames.find(g => g.schema_id === activeWorkspace?.schema_id)?.name || activeWorkspace?.name || "Sanctuary OS";
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
 
   React.useEffect(() => {
     import('./supabase').then(({ supabase }) => {
@@ -97,39 +118,26 @@ export function Sidebar({
     >
       <div
         className="absolute inset-x-0 bottom-0 z-[-1] backdrop-blur-3xl border-r border-black/5 dark:border-white/10 transition-all duration-500 shadow-[4px_0_30px_rgba(0,0,0,0.05)]"
-        style={{ top: "80px", backgroundColor: "color-mix(in srgb, var(--sidebar) 40%, transparent)" }}
+        style={{ top: 0, backgroundColor: "color-mix(in srgb, var(--sidebar) 40%, transparent)" }}
       />
 
-      <div className="h-[75px] shrink-0" />
+      <div className="h-[80px] shrink-0" />
 
       {!isSidebarCollapsed && useStore.getState().workspaces?.length > 0 && (
-        <div className="px-4 pt-4 pb-2">
-          <CustomDropdown
-            options={useStore.getState().workspaces.map((w: any) => {
-              const g = globalGames.find(g => g.schema_id === w.schema_id);
-              return { id: w.id, label: g?.name || w.name || w.id };
-            })}
-            value={useStore.getState().activeWorkspaceId || ''}
-            onChange={async (val: string[]) => {
-              try {
-                const globalConfig: any = await invoke("get_global_config");
-                globalConfig.active_workspace_id = val[0];
-                await invoke("save_coordinates", { config: globalConfig });
-                useStore.getState().setActiveWorkspaceId(val[0]);
-                localStorage.removeItem('sanctuary_network_updates');
-                setTimeout(() => {
-                  window.location.reload();
-                }, 300);
-              } catch (e) {
-                console.error(e);
-              }
-            }}
-            disableTint={true}
-          />
+        <div className="px-6 pt-5 pb-3 flex items-center justify-between group/header cursor-pointer" onClick={() => setIsWorkspacePanelOpen(true)}>
+          <div className="flex flex-col min-w-0 flex-1 pr-2">
+            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[var(--subtext)] opacity-60 mb-1">{t("active_workspace") || "Active Workspace"}</span>
+            <h2 className="text-[14px] font-black uppercase tracking-widest text-[var(--headerText)] truncate drop-shadow-sm group-hover/header:theme-text-accent transition-colors">
+              {activeGameName}
+            </h2>
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); setIsWorkspacePanelOpen(true); }} className="w-8 h-8 shrink-0 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center hover:border-[var(--accent)] hover:theme-text-accent hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] transition-all group-hover/header:border-[var(--accent)] group-hover/header:theme-text-accent">
+            <span className="material-symbols-outlined !text-[18px]">swap_horiz</span>
+          </button>
         </div>
       )}
 
-      <div className="flex-1 pt-4 pb-6 px-4 space-y-1 overflow-y-auto overflow-x-hidden accent-scrollbar">
+      <div className="flex-1 pt-4 pb-6 px-4 space-y-1 overflow-y-auto accent-scrollbar">
         <NavButton
           active={view === "dashboard"}
           onClick={() => setView("dashboard")}
@@ -137,6 +145,7 @@ export function Sidebar({
           label={t("center_title")}
           isCollapsed={isSidebarCollapsed}
           isAccent={true}
+          setHoveredTooltip={setHoveredTooltip}
         />
         {(schemaFeatures.has_cc || schemaFeatures.has_saves || schemaFeatures.has_tray) && (
           <NavButton
@@ -146,6 +155,7 @@ export function Sidebar({
             label={t("vault_title")}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
+            setHoveredTooltip={setHoveredTooltip}
           />
         )}
         {session && localStorage.getItem("sanctuary_blacklisted") !== "true" && (
@@ -156,6 +166,7 @@ export function Sidebar({
             label={t("market_title")}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
+            setHoveredTooltip={setHoveredTooltip}
           />
         )}
         {schemaFeatures.has_cc && (
@@ -166,6 +177,7 @@ export function Sidebar({
             label={t("playsets_title")}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
+            setHoveredTooltip={setHoveredTooltip}
           />
         )}
         {session && localStorage.getItem("sanctuary_blacklisted") !== "true" && (
@@ -176,6 +188,7 @@ export function Sidebar({
             label={t("feed_title")}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
+            setHoveredTooltip={setHoveredTooltip}
           />
         )}
         {schemaFeatures.has_cc && (
@@ -187,6 +200,7 @@ export function Sidebar({
               label={t("radar_title")}
               isCollapsed={isSidebarCollapsed}
               isAccent={true}
+              setHoveredTooltip={setHoveredTooltip}
             />
             <NavButton
               active={view === "lab"}
@@ -195,6 +209,7 @@ export function Sidebar({
               label={t("lab_title")}
               isCollapsed={isSidebarCollapsed}
               isAccent={true}
+              setHoveredTooltip={setHoveredTooltip}
             />
             <NavButton
               active={view === "CitizensWorkbench"}
@@ -203,6 +218,7 @@ export function Sidebar({
               label={t("title_sidebar")}
               isCollapsed={isSidebarCollapsed}
               isAccent={true}
+              setHoveredTooltip={setHoveredTooltip}
             />
           </>
         )}
@@ -214,6 +230,7 @@ export function Sidebar({
             label={t("backups_title")}
             isCollapsed={isSidebarCollapsed}
             isAccent={true}
+            setHoveredTooltip={setHoveredTooltip}
           />
         )}
         {session && schemaFeatures.has_cc && ["mason", "architect", "oversight", "wayfinder", "admin"].includes(userRole) && (
@@ -230,6 +247,7 @@ export function Sidebar({
               label={t("sidebar_mason_hub")}
               isCollapsed={isSidebarCollapsed}
               isAccent={true}
+              setHoveredTooltip={setHoveredTooltip}
             />
           </div>
         )}
@@ -247,6 +265,7 @@ export function Sidebar({
               label={t("sidebar_architect_hub")}
               isCollapsed={isSidebarCollapsed}
               isAccent={true}
+              setHoveredTooltip={setHoveredTooltip}
             />
           </div>
         )}
@@ -264,6 +283,7 @@ export function Sidebar({
               label={t("wf_tab_command")}
               isCollapsed={isSidebarCollapsed}
               isAccent={true}
+              setHoveredTooltip={setHoveredTooltip}
             />
           </div>
         )}
@@ -281,6 +301,7 @@ export function Sidebar({
               label={t("ui_btn_operations")}
               isCollapsed={isSidebarCollapsed}
               isAccent={true}
+              setHoveredTooltip={setHoveredTooltip}
             />
           </div>
         )}
@@ -298,24 +319,12 @@ export function Sidebar({
               label="Keepers Core"
               isCollapsed={isSidebarCollapsed}
               isAccent={true}
+              setHoveredTooltip={setHoveredTooltip}
             />
           </div>
         )}
 
         <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
-          {!isSidebarCollapsed && (
-            <p className="px-3 text-[10px] font-semibold text-[var(--text)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
-              {t("workspace_manage")}
-            </p>
-          )}
-          <NavButton
-            active={!isConfigured}
-            onClick={() => useStore.getState().setIsConfigured(false)}
-            icon={t("icon_view_quilt") || "view_quilt"}
-            label={t("workspace_sidebar") || "Environments"}
-            isCollapsed={isSidebarCollapsed}
-            isAccent={true}
-          />
           {!session && (
             <div className="my-4 border-t border-white/5 pt-4">
               <NavButton
@@ -327,30 +336,52 @@ export function Sidebar({
                 label={t("sidebar_signin")}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
+                setHoveredTooltip={setHoveredTooltip}
               />
             </div>
-
-          )}</div>
+          )}
+        </div>
+        <div className="flex-1" />
       </div>
+
       {schemaFeatures?.has_launch !== false && (
         <div className="p-4 pb-14 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-2 relative">
           <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-10" />
 
           <div className="relative group/nav mt-2">
             <button
+              onMouseEnter={(e) => {
+                if (isSidebarCollapsed) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setHoveredTooltip({ label: t("sidebar_quick_launch") || "Quick Launch", top: rect.top + rect.height / 2 });
+                }
+              }}
+              onMouseLeave={() => {
+                if (isSidebarCollapsed) setHoveredTooltip(null);
+              }}
               onClick={handleQuickLaunch}
               className={`w-full py-3 rounded-xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border bg-transparent ${isPatchDetected || showDefconAlert ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]" : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]"}`}
             >
               {isSidebarCollapsed ? <span className="material-symbols-outlined !text-xl drop-shadow-md">{t("icon_rocket_launch")}</span> : <><span className="material-symbols-outlined !text-xl drop-shadow-md">{t("icon_rocket_launch")}</span> {t("sidebar_quick_launch")}</>}
             </button>
-            {isSidebarCollapsed && (
-              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-all duration-300 z-[1000] pointer-events-none">
-                {t("sidebar_quick_launch")}
-              </div>
-            )}
           </div>
         </div>
       )}
+
+      {isSidebarCollapsed && hoveredTooltip && (
+        <div
+          className="fixed left-[96px] z-[1000] flex flex-col items-start justify-center theme-glass-panel !bg-black/50 px-5 py-3 max-w-[320px] w-max pointer-events-none shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] animate-in fade-in slide-in-from-left-2"
+          style={{ top: hoveredTooltip.top, transform: 'translateY(-50%)' }}
+        >
+          <div className="relative z-10 flex flex-col items-start gap-1 w-full">
+            <div className="text-[10px] font-black uppercase tracking-[0.2em] flex items-start text-left gap-2 whitespace-pre-line text-[var(--text)]">
+              <span>{hoveredTooltip.label}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <WorkspaceSidePanel isOpen={isWorkspacePanelOpen} onClose={() => setIsWorkspacePanelOpen(false)} />
     </nav >
   );
 }

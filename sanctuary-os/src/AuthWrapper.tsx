@@ -20,6 +20,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [isHwidBanned, setIsHwidBanned] = useState(false);
   const [sandboxAccepted, setSandboxAccepted] = useState(false);
   const [gameTitle, setGameTitle] = useState("");
+  const [gameIcon, setGameIcon] = useState<string | null>(null);
 
   const [showLoginUI, setShowLoginUI] = useState(() => localStorage.getItem("sanctuary_show_login") === "true");
 
@@ -30,13 +31,14 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         if (config && config.active_workspace_id && config.workspaces) {
           const activeWs = config.workspaces.find((w: any) => w.id === config.active_workspace_id);
           if (activeWs && activeWs.schema_id) {
-            const { data } = await supabase.from('sanctuary_games').select('name').eq('schema_id', activeWs.schema_id).maybeSingle();
-            if (data && data.name) {
-              setGameTitle(data.name);
+            const { data } = await supabase.from('sanctuary_games').select('name, icon').eq('schema_id', activeWs.schema_id).maybeSingle();
+            if (data) {
+              if (data.name) setGameTitle(data.name);
+              if (data.icon) setGameIcon(data.icon);
             }
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     fetchGameTitle();
 
@@ -58,7 +60,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       } catch (e) {
         console.error("HWID check failed", e);
       }
-      
+
       if (localStorage.getItem("sanctuary_blacklisted") === "true") {
         setIsHwidBanned(true);
       }
@@ -70,7 +72,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             try {
               const parsed = JSON.parse(cachedToken);
               setSession(parsed.session || parsed);
-            } catch(e){}
+            } catch (e) { }
           }
         }
 
@@ -183,7 +185,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
   if (isHwidBanned && !sandboxAccepted) {
     return (
-      <div 
+      <div
         className="flex h-screen w-screen bg-[var(--bg)]/60 backdrop-blur-3xl relative overflow-hidden font-sans"
         onContextMenu={(e) => e.preventDefault()}
       >
@@ -245,24 +247,27 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: '#050505', color: 'var(--text)' }}>
-      <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen transition-opacity duration-1000 animate-in fade-in" />
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-black/10 to-black/80 pointer-events-none" />
-      
-      <div className="relative z-10 w-[90%] max-w-lg theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-8 md:p-14 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col backdrop-blur-3xl overflow-hidden group">
+    <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: 'var(--bgGradient)', color: 'var(--text)' }}>
+      <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen animate-in fade-in transition-opacity duration-1000" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[var(--bg)]/80 to-[var(--bg)] pointer-events-none" />
 
+      <div className="relative z-10 w-[90%] max-w-lg theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-8 md:p-14 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col backdrop-blur-3xl overflow-hidden group">
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)]/50 to-transparent opacity-50" />
 
-        <div className="flex flex-col items-center justify-center text-center mb-10">
-          <div className="relative mb-6 group/logo flex items-center justify-center w-24 h-24">
-            <div className="absolute inset-2 bg-[var(--accent)] rounded-full opacity-[0.15] blur-xl group-hover/logo:opacity-30 group-hover/logo:blur-2xl transition-all duration-700" />
-            <img src="/icon.png" alt="" className="w-16 h-16 object-contain drop-shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_50%,transparent)] relative z-10 group-hover/logo:scale-110 group-hover/logo:-translate-y-1 transition-transform duration-700" />
+        <div className="flex flex-col items-center justify-center text-center mb-10 relative z-20">
+          {/* Centered Logo */}
+          <div className="relative mb-6 w-20 h-20 flex items-center justify-center">
+            <img
+              src={gameIcon || "/icon.png"}
+              alt="Logo"
+              className="w-full h-full object-contain opacity-[0.25] hover:opacity-[0.8] hover:scale-110 hover:rotate-12 transition-all duration-700 cursor-pointer"
+            />
           </div>
           <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-[var(--headerText)] drop-shadow-[0_0_20px_color-mix(in_srgb,var(--headerText)_10%,transparent)] mb-2 transition-colors duration-500">
-            {gameTitle || t("title")}
+            {t("sidebar_app_title") || "SANCTUARY OS"}
           </h1>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] theme-text-accent opacity-80 transition-colors duration-500">
-            {t("subtitle")}
+            {t("subtitle") || "SECURE NETWORK ACCESS"}
           </p>
         </div>
 
@@ -332,7 +337,6 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         </div>
 
         <div className="flex items-center justify-center gap-2.5 mt-6 mb-2 relative z-20">
-          <div className={`w-1.5 h-1.5 rounded-full ${status.includes('Error') || status.includes('Missing') ? 'bg-[var(--danger)] shadow-[0_0_8px_var(--danger)]' : 'theme-bg-accent shadow-[0_0_8px_var(--accent)]'} ${isProcessing ? 'animate-pulse' : ''}`} />
           <span className={`text-[9px] font-mono uppercase tracking-widest truncate ${status.includes('Error') || status.includes('Missing') ? 'text-[var(--danger)]' : 'theme-text-accent opacity-80'}`}>
             {status || t("status_standby") || "Awaiting Credentials..."}
           </span>

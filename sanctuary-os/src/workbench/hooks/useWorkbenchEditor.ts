@@ -4,6 +4,57 @@ import { useLexicon } from '../../LexiconContext';
 import { readDir, readTextFile, exists } from '@tauri-apps/plugin-fs';
 
 export function useWorkbenchEditor() {
+   const parseIni = (content: string) => {
+      const obj: any = {};
+      const lines = content.split('\n');
+      for (const line of lines) {
+         const match = line.match(/^\s*([^#;=\s]+)\s*=\s*(.*)/);
+         if (match) {
+            const key = match[1];
+            let val: any = match[2].trim();
+            if (val.toLowerCase() === 'true') val = true;
+            else if (val.toLowerCase() === 'false') val = false;
+            else if (!isNaN(Number(val)) && val !== '') val = Number(val);
+            if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
+               val = val.substring(1, val.length - 1);
+            }
+            obj[key] = val;
+         }
+      }
+      return obj;
+   };
+
+   const stringifyIni = (data: any, originalContent: string) => {
+      const lines = originalContent.split('\n');
+      const updatedKeys = new Set<string>();
+      const newLines = [];
+      
+      for (const line of lines) {
+         const match = line.match(/^(\s*)([^#;=\s]+)(\s*=\s*)(.*)/);
+         if (match) {
+            const key = match[2];
+            if (data[key] !== undefined) {
+               let val = data[key];
+               if (typeof val === 'string' && match[4].startsWith('"') && match[4].endsWith('"')) {
+                  val = `"${val}"`;
+               }
+               newLines.push(`${match[1]}${key}${match[3]}${val}`);
+               updatedKeys.add(key);
+            } else {
+               newLines.push(line);
+            }
+         } else {
+            newLines.push(line);
+         }
+      }
+      
+      for (const key of Object.keys(data)) {
+         if (!updatedKeys.has(key)) {
+            newLines.push(`${key}=${data[key]}`);
+         }
+      }
+      return newLines.join('\n');
+   };
    const { t } = useLexicon();
    const pushStatus = useStore(state => state.pushStatus);
    const vaultPath = useStore(state => state.vaultPath);
@@ -43,10 +94,14 @@ export function useWorkbenchEditor() {
                }
             }
             setRawText(currentContent);
-            try {
-               setParsedData(JSON.parse(currentContent));
-            } catch (e) {
-               setParsedData(null);
+            if (selectedFile.name.toLowerCase().endsWith('.json')) {
+               try {
+                  setParsedData(JSON.parse(currentContent));
+               } catch (e) {
+                  setParsedData(null);
+               }
+            } else {
+               setParsedData(parseIni(currentContent));
             }
          };
          loadFile();
@@ -141,10 +196,14 @@ export function useWorkbenchEditor() {
       if (selectedFile) {
          setUnsavedEdits(prev => ({ ...prev, [selectedFile.path]: value }));
       }
-      try {
-         setParsedData(JSON.parse(value));
-      } catch (e) {
-         // Keep old parsed data if invalid JSON so visual editor doesn't crash while typing
+      if (selectedFile && selectedFile.name.toLowerCase().endsWith('.json')) {
+         try {
+            setParsedData(JSON.parse(value));
+         } catch (e) {
+            // Keep old parsed data if invalid JSON so visual editor doesn't crash while typing
+         }
+      } else if (selectedFile) {
+         setParsedData(parseIni(value));
       }
    }, [selectedFile, setUnsavedEdits]);
 
@@ -191,7 +250,20 @@ export function useWorkbenchEditor() {
 
          if (rawUpdateTimeoutRef.current) clearTimeout(rawUpdateTimeoutRef.current);
          rawUpdateTimeoutRef.current = setTimeout(() => {
-            const newRaw = JSON.stringify(newData, null, 2);
+            const isJson = sf.name.toLowerCase().endsWith('.json');
+            let newRaw = "";
+            let currentModelRaw = "";
+            if (editorRef && editorRef.getModel()) {
+               currentModelRaw = editorRef.getModel().getValue();
+            }
+            if (!currentModelRaw) currentModelRaw = useStore.getState().cwUnsavedEdits[sf.path] || "";
+
+            if (isJson) {
+               newRaw = JSON.stringify(newData, null, 2);
+            } else {
+               newRaw = stringifyIni(newData, currentModelRaw);
+            }
+            
             if (editorRef && editorRef.getModel()) {
                const model = editorRef.getModel();
                if (newRaw !== model.getValue()) {
@@ -372,16 +444,29 @@ export function useWorkbenchEditor() {
                const match = line.match(/^([a-zA-Z0-9_]+)\s*=(.*)/);
                if (match && match[1]) {
                   const key = match[1];
-                  const valStr = match[2].trim();
+                  let valStr = match[2].trim();
+                  if (valStr.startsWith('"') && valStr.endsWith('"') && valStr.length > 1) {
+                     valStr = valStr.substring(1, valStr.length - 1);
+                  }
+                  
                   let type = "string";
                   let defVal: any = valStr;
-                  if (valStr.toLowerCase() === 'true' || valStr.toLowerCase() === 'false') {
+                  const keyLower = key.toLowerCase();
+                  const isKeybindingGuess = keyLower.includes('key') || keyLower.includes('bind') || keyLower.includes('button');
+                  
+                  if (isKeybindingGuess) {
+                     type = "keybinding";
+                     if (!isNaN(Number(valStr)) && valStr !== "") {
+                        defVal = Number(valStr);
+                     }
+                  } else if (valStr.toLowerCase() === 'true' || valStr.toLowerCase() === 'false') {
                      type = "boolean";
                      defVal = valStr.toLowerCase() === 'true';
                   } else if (!isNaN(Number(valStr)) && valStr !== "") {
                      type = "number";
                      defVal = Number(valStr);
                   }
+                  
                   keyData.push({ key, type, default: defVal });
                }
             }
@@ -407,6 +492,10 @@ export function useWorkbenchEditor() {
                      newSetting.min = 0;
                      newSetting.max = 100;
                      newSetting.allow_decimals = !Number.isInteger(item.default);
+                  }
+                  if (item.type === 'keybinding') {
+                     newSetting.key_format = typeof item.default === 'number' ? 'keycode' : 'literal';
+                     newSetting.allow_multiple = false;
                   }
                   
                   newParsedData.settings.push(newSetting);

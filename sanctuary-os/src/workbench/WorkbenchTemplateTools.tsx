@@ -37,9 +37,9 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
                      }}
                      options={[
                         ...files.filter((f: any) => !f.name.toLowerCase().endsWith('.json')).map((f: any) => ({ id: f.path.split(/[\\/]/).pop() || f.name, label: f.path.split(/[\\/]/).pop() || f.name })),
-                        ...(parsedData.target_file && !files.find((f: any) => f.name.toLowerCase() === parsedData.target_file.toLowerCase()) 
-                              ? [{ id: parsedData.target_file, label: parsedData.target_file }] 
-                              : [])
+                        ...(parsedData.target_file && !files.find((f: any) => f.name.toLowerCase() === parsedData.target_file.toLowerCase())
+                           ? [{ id: parsedData.target_file, label: parsedData.target_file }]
+                           : [])
                      ]}
                      placeholder={t("ui_placeholder_target_file") || "Select Target"}
                      disableTint={true}
@@ -56,7 +56,6 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
                   <HoverTooltip title="Auto-Map from Target File" variant="info" className="mb-2" />
                </div>
             )}
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-50 mr-2 ml-2">Insert:</span>
             <div className="relative group flex">
                <button onClick={() => {
                   try {
@@ -109,6 +108,14 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
                   <span className="material-symbols-outlined !text-[16px]">arrow_drop_down_circle</span>
                </button>
                <HoverTooltip title="Dropdown" variant="info" className="mb-2" />
+            </div>
+            <div className="relative group flex">
+               <button onClick={() => {
+                  handleInsertSnippet(`{\n  "key": "New_Keybinding",\n  "path": "New_Keybinding",\n  "type": "keybinding",\n  "label_key": "Keybinding Setting",\n  "desc_key": "Bind a key",\n  "category": "general",\n  "key_format": "literal",\n  "allow_multiple": false\n}`);
+               }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all text-[var(--text)] opacity-50 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                  <span className="material-symbols-outlined !text-[16px]">keyboard</span>
+               </button>
+               <HoverTooltip title="Keybinding" variant="info" className="mb-2" />
             </div>
          </div>
       </div>

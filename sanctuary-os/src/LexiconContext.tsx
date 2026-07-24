@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
 import enSanctuary from './lexicons/en-sanctuary.json';
 import enDefault from './lexicons/en-default.json';
+import enSims from './lexicons/Simlish.json';
 import { supabase, supabaseAuth } from './supabase';
 import { useStore } from './store';
 
@@ -12,31 +13,57 @@ export const LexiconProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const wsId = activeWorkspaceId || 'default';
 
+  const [useGlobalLexiconState, setUseGlobalLexiconState] = useState(() => localStorage.getItem('sanctuary_use_global_lexicon') === 'true');
   const [registry, setRegistry] = useState(() => JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_registry`) || "{}"));
   const [lexiconMeta, setLexiconMeta] = useState<any[]>(() => JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_meta`) || "[]"));
-  const [activeLang, setActiveLang] = useState(() => localStorage.getItem(`sanctuary_${wsId}_lang`) || "en-sanctuary");
+  const [activeLangState, setActiveLangState] = useState(() => {
+    if (localStorage.getItem('sanctuary_use_global_lexicon') === 'true') {
+      return localStorage.getItem('sanctuary_global_lang') || "en-sanctuary";
+    }
+    return localStorage.getItem(`sanctuary_${wsId}_lang`) || "en-sanctuary";
+  });
   const [dictionary, setDictionary] = useState<any>({});
+
+  const setUseGlobalLexicon = (val: boolean) => {
+    setUseGlobalLexiconState(val);
+    localStorage.setItem('sanctuary_use_global_lexicon', String(val));
+    if (val) {
+      setActiveLangState(localStorage.getItem('sanctuary_global_lang') || "en-sanctuary");
+    } else {
+      setActiveLangState(localStorage.getItem(`sanctuary_${wsId}_lang`) || "en-sanctuary");
+    }
+  };
+
+  const setActiveLang = (lang: string) => {
+    setActiveLangState(lang);
+    if (useGlobalLexiconState) {
+      localStorage.setItem('sanctuary_global_lang', lang);
+    } else {
+      localStorage.setItem(`sanctuary_${wsId}_lang`, lang);
+    }
+  };
 
   // When workspace changes, hydrate from local storage
   useEffect(() => {
     setRegistry(JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_registry`) || "{}"));
     setLexiconMeta(JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_meta`) || "[]"));
-    setActiveLang(localStorage.getItem(`sanctuary_${wsId}_lang`) || "en-sanctuary");
-  }, [wsId]);
+    if (!useGlobalLexiconState) {
+      setActiveLangState(localStorage.getItem(`sanctuary_${wsId}_lang`) || "en-sanctuary");
+    }
+  }, [wsId, useGlobalLexiconState]);
 
   useEffect(() => {
     const loadLang = () => {
       let baseDict: any = enSanctuary;
-      if (activeLang === 'en-default') baseDict = enDefault;
-      if (registry[activeLang]) {
-        setDictionary({ ...baseDict, ...registry[activeLang] });
+      if (activeLangState === 'en-default') baseDict = enDefault;
+      if (registry[activeLangState]) {
+        setDictionary({ ...baseDict, ...registry[activeLangState] });
       } else {
         setDictionary(baseDict);
       }
     };
     loadLang();
-    localStorage.setItem(`sanctuary_${wsId}_lang`, activeLang);
-  }, [activeLang, registry, wsId]);
+  }, [activeLangState, registry, wsId]);
 
 
   useEffect(() => {
@@ -100,47 +127,22 @@ export const LexiconProvider = ({ children }: any) => {
         // --- TEMP: Force inject missing keys to cloud ---
         if (data) {
           for (let row of data) {
-            if (row.id === 'en-default' && (!row.lexicon_data || !row.lexicon_data.ui_network_blacklist)) {
-              row.lexicon_data = {
-                ...row.lexicon_data,
-                "ui_network_blacklist": "NETWORK BLACKLIST",
-                "ui_supported_games": "Supported Game Databases",
-                "ui_url": "URL",
-                "ui_key": "KEY",
-                "ui_register_game_db": "Register New Game DB",
-                "ui_game_name": "GAME NAME",
-                "ui_add_network_node": "ADD NETWORK NODE",
-                "ui_schema_id": "SCHEMA IDENTIFIER",
-                "ui_supabase_url": "SUPABASE URL",
-                "ui_supabase_key": "ANON KEY",
-                "btn_save": "SAVE DATABASE NODE",
-                "workspace_manage": "WORKSPACE MANAGEMENT",
-                "workspace_select_title": "SELECT WORKSPACE",
-                "workspace_select_subtitle": "CHOOSE YOUR INSTANCE",
-                "workspace_add_new": "ADD NEW WORKSPACE"
-              };
-              await supabase.from('sanctuary_lexicons').update({ lexicon_data: row.lexicon_data }).eq('id', row.id);
-            }
-            if (row.id === 'en-sanctuary' && (!row.lexicon_data || !row.lexicon_data.ui_network_blacklist)) {
-              row.lexicon_data = {
-                ...row.lexicon_data,
-                "ui_network_blacklist": "NETWORK BLACKLIST",
-                "ui_supported_games": "CORE NETWORK NODES",
-                "ui_url": "NODE URL",
-                "ui_key": "ACCESS KEY",
-                "ui_register_game_db": "REGISTER NEW NODE",
-                "ui_game_name": "NODE IDENTIFIER",
-                "ui_add_network_node": "PROVISION NODE",
-                "ui_schema_id": "SCHEMA HASH",
-                "ui_supabase_url": "SECURE CONNECTION URL",
-                "ui_supabase_key": "ENCRYPTION KEY",
-                "btn_save": "INITIALIZE NODE",
-                "workspace_manage": "SECTOR MANAGEMENT",
-                "workspace_select_title": "SELECT SECTOR",
-                "workspace_select_subtitle": "INITIALIZE CONNECTION",
-                "workspace_add_new": "PROVISION NEW SECTOR"
-              };
-              await supabase.from('sanctuary_lexicons').update({ lexicon_data: row.lexicon_data }).eq('id', row.id);
+            let localData: any = {};
+            if (row.id === 'en-default') localData = enDefault;
+            if (row.id === 'en-sanctuary') localData = enSanctuary;
+            if (row.id === 'en-sims') localData = enSims;
+
+            if (Object.keys(localData).length > 0) {
+              let hasMissingKeys = false;
+              for (const key in localData) {
+                if (row.lexicon_data[key] === undefined) {
+                  row.lexicon_data[key] = localData[key];
+                  hasMissingKeys = true;
+                }
+              }
+              if (hasMissingKeys) {
+                await supabase.from('sanctuary_lexicons').update({ lexicon_data: row.lexicon_data }).eq('id', row.id);
+              }
             }
           }
         }
@@ -226,7 +228,7 @@ export const LexiconProvider = ({ children }: any) => {
     const { [langCode]: removed, ...remaining } = registry;
     setRegistry(remaining);
     localStorage.setItem(`sanctuary_${wsId}_lexicon_registry`, JSON.stringify(remaining));
-    if (activeLang === langCode) setActiveLang("en-sanctuary");
+    if (activeLangState === langCode) setActiveLang("en-sanctuary");
 
     (async () => {
       try {
@@ -241,7 +243,7 @@ export const LexiconProvider = ({ children }: any) => {
   };
 
   return (
-    <LexiconContext.Provider value={{ t, activeLang, setActiveLang, importLexicon, deleteLexicon, registry, lexiconMeta }}>
+    <LexiconContext.Provider value={{ t, activeLang: activeLangState, setActiveLang, importLexicon, deleteLexicon, registry, lexiconMeta, useGlobalLexicon: useGlobalLexiconState, setUseGlobalLexicon }}>
       {children}
     </LexiconContext.Provider>
   );
