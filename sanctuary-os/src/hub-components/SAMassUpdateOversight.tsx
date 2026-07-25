@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../supabase";
+import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
@@ -100,7 +100,7 @@ export function MassUpdateOversight() {
       if (massConflictId) changes.push(`Added Conflict`);
       actionStr += changes.join(", ");
 
-      await supabase.from('audit_logs').insert({
+      await getActiveGameClient().from('audit_logs').insert({
         action: actionStr,
         target_table: 'mods',
         target_name: 'BATCH OPERATION',

@@ -32,6 +32,8 @@ interface ModalState {
   setDnaMatchQueue: (val: any[] | ((prev: any[]) => any[])) => void;
   scoutQueue: any[];
   setScoutQueue: (val: any[] | ((prev: any[]) => any[])) => void;
+  isScoutPanelOpen: boolean;
+  setIsScoutPanelOpen: (val: boolean) => void;
   setLocalFolderName: (val: string) => void;
   pendingImportSet: any;
   setPendingImportSet: (val: any) => void;
@@ -75,6 +77,8 @@ interface ModalState {
   setIsUpdatePanelOpen: (val: boolean) => void;
   isSideBrowserOpen: boolean;
   setIsSideBrowserOpen: (val: boolean) => void;
+  isConflictRadarOpen: boolean;
+  setIsConflictRadarOpen: (val: boolean) => void;
   
   // Browser Features
   sideBrowserUrl: string; // Legacy/Active Tab URL
@@ -141,6 +145,8 @@ export const useModalStore = create<ModalState>((set) => ({
   setDnaMatchQueue: (dnaMatchQueue) => set((state) => ({ dnaMatchQueue: typeof dnaMatchQueue === 'function' ? dnaMatchQueue(state.dnaMatchQueue) : dnaMatchQueue })),
   scoutQueue: [],
   setScoutQueue: (scoutQueue) => set((state) => ({ scoutQueue: typeof scoutQueue === 'function' ? scoutQueue(state.scoutQueue) : scoutQueue })),
+  isScoutPanelOpen: false,
+  setIsScoutPanelOpen: (isScoutPanelOpen) => set({ isScoutPanelOpen }),
   dnaMatches: [],
   setDnaMatches: (dnaMatches) => set({ dnaMatches }),
   isDnaModalOpen: false,
@@ -179,6 +185,8 @@ export const useModalStore = create<ModalState>((set) => ({
   setIsUpdatePanelOpen: (isUpdatePanelOpen) => set({ isUpdatePanelOpen }),
   isSideBrowserOpen: false,
   setIsSideBrowserOpen: (isSideBrowserOpen) => set({ isSideBrowserOpen }),
+  isConflictRadarOpen: false,
+  setIsConflictRadarOpen: (isConflictRadarOpen) => set({ isConflictRadarOpen }),
   
   sideBrowserUrl: '',
   setSideBrowserUrl: (sideBrowserUrl) => set({ sideBrowserUrl }),

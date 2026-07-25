@@ -201,8 +201,27 @@ CREATE TABLE audit_logs (
     target_table TEXT NOT NULL,
     target_name TEXT,
     reason TEXT NOT NULL,
+    game_name TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- ==========================================
+-- AUDIT LOG SECURITY TRIGGERS
+-- ==========================================
+CREATE OR REPLACE FUNCTION prevent_audit_modifications()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'Audit logs are append-only. Modification or deletion is strictly forbidden.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_prevent_audit_update
+BEFORE UPDATE ON audit_logs
+FOR EACH ROW EXECUTE FUNCTION prevent_audit_modifications();
+
+CREATE TRIGGER trg_prevent_audit_delete
+BEFORE DELETE ON audit_logs
+FOR EACH ROW EXECUTE FUNCTION prevent_audit_modifications();
 
 -- ==========================================
 -- 7. SUPPORT, TELEMETRY & NOTIFICATIONS

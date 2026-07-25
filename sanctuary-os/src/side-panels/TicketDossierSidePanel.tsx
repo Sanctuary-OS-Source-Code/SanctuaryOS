@@ -68,11 +68,11 @@ export default function TicketDossierSidePanel({
     if (ticket?.author_id) {
       supabase.from('profiles').select('username').eq('id', ticket.author_id).maybeSingle().then(({ data, error }) => {
         if (data) {
-          setAuthorName(data.username || ticket.author_id.substring(0, 8).toUpperCase());
+          setAuthorName(data.username || ticket.author_id?.substring(0, 8).toUpperCase() || 'SYSTEM');
         } else {
           supabase.from('masons').select("name").eq('id', ticket.author_id).single().then(({ data: mData }) => {
             if (mData) setAuthorName(mData.name);
-            else setAuthorName(ticket.author_id.substring(0, 8).toUpperCase());
+            else setAuthorName(ticket.author_id?.substring(0, 8).toUpperCase() || 'SYSTEM');
           });
         }
       });

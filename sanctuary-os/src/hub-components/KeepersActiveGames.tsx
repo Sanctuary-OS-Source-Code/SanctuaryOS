@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { SidePanel, standardButtonClass, standardSuccessButtonClass, standardAccentGlassButtonClass } from '../shared';
 import { useLexicon } from '../LexiconContext';
+import { logArchitectAction } from '../lib/audit';
 
 export default function KeepersActiveGames() {
   const { t } = useLexicon();
@@ -40,6 +41,9 @@ export default function KeepersActiveGames() {
         supabase_anon_key: formData.supabase_anon_key,
         icon: formData.icon
       }]);
+      if (!result?.error) {
+        logArchitectAction(`Registered Game Database: ${formData.name}`, 'sanctuary_games', formData.name, undefined, 'Keeper Hub', true);
+      }
     } else if (sidePanelMode === 'edit') {
       result = await supabase.from('sanctuary_games').update({
         name: formData.name,
@@ -48,6 +52,9 @@ export default function KeepersActiveGames() {
         supabase_anon_key: formData.supabase_anon_key,
         icon: formData.icon
       }).eq('id', formData.id);
+      if (!result?.error) {
+        logArchitectAction(`Updated Game Database: ${formData.name}`, 'sanctuary_games', formData.name, undefined, 'Keeper Hub', true);
+      }
     }
 
     if (!result?.error) {
@@ -59,21 +66,28 @@ export default function KeepersActiveGames() {
     }
   };
 
-  const handleDeleteGame = async (id: string) => {
+  const handleDeleteGame = async (id: string, name: string) => {
     if (!window.confirm(t("ui_confirm_deprecate_game") || "Are you sure you want to deprecate this game database?")) return;
-    await supabase.from('sanctuary_games').delete().eq('id', id);
+    const { error } = await supabase.from('sanctuary_games').delete().eq('id', id);
+    if (!error) {
+      logArchitectAction(`Deprecated Game Database`, 'sanctuary_games', name, undefined, 'Keeper Hub', true);
+    }
     fetchGames();
   };
 
-  const handleToggleActive = async (id: string, currentStatus: boolean) => {
-    await supabase.from('sanctuary_games').update({ is_active: !currentStatus }).eq('id', id);
+  const handleToggleActive = async (id: string, name: string, currentStatus: boolean) => {
+    const { error } = await supabase.from('sanctuary_games').update({ is_active: !currentStatus }).eq('id', id);
+    if (!error) {
+      logArchitectAction(`${!currentStatus ? 'Activated' : 'Deactivated'} Game Database`, 'sanctuary_games', name, undefined, 'Keeper Hub', true);
+    }
     fetchGames();
   };
 
-  const handleSeverFDW = async (schema_id: string) => {
+  const handleSeverFDW = async (schema_id: string, name: string) => {
     if (!window.confirm(t("ui_confirm_sever_fdw") || "Are you sure you want to sever the FDW connection? This will break cross-database queries.")) return;
     try {
       await supabase.rpc('sever_fdw', { target_schema: schema_id });
+      logArchitectAction(`Severed FDW Connection`, 'sanctuary_games', name, undefined, 'Keeper Hub', true);
     } catch (e) { }
     alert(t("ui_fdw_severed") || "FDW Connection Severed");
   };
@@ -156,13 +170,13 @@ export default function KeepersActiveGames() {
             {filteredGames.map(game => (
               <div key={game.id} onClick={() => { setFormData({ id: game.id, name: game.name || "", schema_id: game.schema_id || "", supabase_url: game.supabase_url || "", supabase_anon_key: game.supabase_anon_key || "", icon: game.icon || "" }); setSidePanelMode('edit'); }} className={`theme-glass-panel rounded-[var(--radius)] flex flex-col group border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] hover:-translate-y-1.5 p-6 ${game.is_active === false ? 'opacity-50 grayscale border-white/5' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                 <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                  <button onClick={(e) => { e.stopPropagation(); handleToggleActive(game.id, game.is_active); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-110">
+                  <button onClick={(e) => { e.stopPropagation(); handleToggleActive(game.id, game.name, game.is_active); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-110">
                     <span className="material-symbols-outlined !text-[14px]">{game.is_active === false ? 'toggle_off' : 'toggle_on'}</span>
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleSeverFDW(game.schema_id); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-amber-500 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:scale-110">
+                  <button onClick={(e) => { e.stopPropagation(); handleSeverFDW(game.schema_id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-amber-500 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:scale-110">
                     <span className="material-symbols-outlined !text-[14px]">link_off</span>
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:scale-110">
+                  <button onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:scale-110">
                     <span className="material-symbols-outlined !text-[14px]">delete</span>
                   </button>
                 </div>

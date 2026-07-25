@@ -9,10 +9,34 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   const nexusUpdateTabs = useStore(state => state.nexusUpdateTabs);
   const setView = useStore(state => state.setView);
   const setMarketTab = useStore(state => state.setMarketTab);
-  const isSideBrowserOpen = useModalStore(state => state.isSideBrowserOpen);
+  const activeConflictCount = useStore(state => state.activeConflictCount) || { tier4: 0, tier3: 0 };
+  const activeBrokenCounts = useStore(state => state.activeBrokenCounts) || { broken: 0, unstable: 0 };
+  const networkUpdates = useStore(state => state.networkUpdates) || { updated: [] };
+  const { isSideBrowserOpen, scoutQueue, setIsScoutPanelOpen, isScoutPanelOpen } = useModalStore();
+
+  const updatesCount = networkUpdates?.updated?.length || 0;
+  const tier4Count = activeConflictCount.tier4 || 0;
+  const tier3Count = activeConflictCount.tier3 || 0;
+  const brokenCount = activeBrokenCounts.broken || 0;
+  const unstableCount = activeBrokenCounts.unstable || 0;
+
+  let radarState = "optimal";
+  if (tier4Count > 0 || brokenCount > 0) {
+    radarState = "critical";
+  } else if (tier3Count > 0 || unstableCount > 0) {
+    radarState = "warning";
+  } else if (updatesCount > 0) {
+    radarState = "update";
+  }
+
+  const radarIconColor = radarState === 'critical' ? 'text-red-500 drop-shadow-[0_0_5px_rgba(239,68,68,1)]' :
+    radarState === 'warning' ? 'text-amber-500 drop-shadow-[0_0_5px_rgba(245,158,11,1)]' :
+      radarState === 'update' ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' :
+        'text-emerald-500 drop-shadow-[0_0_5px_rgba(16,185,129,1)]';
+
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 h-10 backdrop-blur-2xl border-t flex items-center z-[999] font-mono text-[10px] tracking-widest uppercase transition-all duration-300 ${statusBgClass} select-none border-[color-mix(in_srgb,var(--text)_5%,transparent)]`}
+      className={`fixed bottom-0 left-0 right-0 h-10 backdrop-blur-2xl border-t flex items-center z-[140000] font-mono text-[10px] tracking-widest uppercase transition-all duration-300 ${statusBgClass} select-none border-[color-mix(in_srgb,var(--text)_5%,transparent)]`}
     >
       <div
         className="h-full flex items-center justify-center border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0"
@@ -99,6 +123,34 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
             <span className="material-symbols-outlined !text-[16px] animate-pulse">cloud_download</span>
             <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
               {nexusUpdatesCount} {t("updates_ready")}
+            </div>
+          </button>
+        )}
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            useModalStore.getState().setIsConflictRadarOpen(!useModalStore.getState().isConflictRadarOpen);
+          }}
+          className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group ${useModalStore.getState().isConflictRadarOpen ? 'bg-white/10 text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
+        >
+          <span className={`material-symbols-outlined !text-[16px] ${radarIconColor}`}>{t("icon_radar")}</span>
+          <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
+            {t("btn_radar")}
+          </div>
+        </button>
+
+        {scoutQueue && scoutQueue.length > 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsScoutPanelOpen(!isScoutPanelOpen);
+            }}
+            className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group ${isScoutPanelOpen ? 'bg-white/10 text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
+          >
+            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)] animate-pulse">{t("icon_biotech")}</span>
+            <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
+              <span className="font-black text-[var(--accent)]">{scoutQueue.length}</span> {t("queue_title")}
             </div>
           </button>
         )}

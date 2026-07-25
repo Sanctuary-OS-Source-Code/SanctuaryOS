@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { supabase, getActiveGameClient } from "../supabase";
+import { supabase, getActiveGameClient, supabaseAuth } from "../supabase";
+import { createClient } from "@supabase/supabase-js";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
@@ -26,19 +27,23 @@ export function AuditLogViewer({
   isSidePanel = false,
   isOpen = false,
   onClose,
-  hideEditIdentity = false
+  hideEditIdentity = false,
+  isKeepers = false
 }: {
   isSidePanel?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
   hideEditIdentity?: boolean;
+  isKeepers?: boolean;
 } = {}) {
   const { t } = useLexicon();
   const [logs, setLogs] = useState<any[]>([]);
+  const [partnerGames, setPartnerGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [filterAction, setFilterAction] = useState("ALL");
+  const [filterGame, setFilterGame] = useState("ALL");
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
 
@@ -51,66 +56,97 @@ export function AuditLogViewer({
       return;
     }
     setLoading(true);
-    let query = getActiveGameClient().from('audit_logs').select('*');
+    let allLogs: any[] = [];
 
-    if (isSidePanel) {
-      query = query.neq('target_table', 'profiles').neq('target_table', 'sanctuary_tickets');
-    }
-
-    if (dateStart) {
-      query = query.gte('created_at', new Date(dateStart).toISOString());
-    }
-    if (dateEnd) {
-      const end = new Date(dateEnd);
-      end.setHours(23, 59, 59, 999);
-      query = query.lte('created_at', end.toISOString());
-    }
-
-    const { data: rawLogs, error: logError } = await query
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (logError || !rawLogs) {
-      console.error("Audit Logs Error", logError);
-      setLoading(false);
-      return;
-    }
-
-    const actorIds = [...new Set(rawLogs.map(log => log.actor_id).filter(id => id))];
-
-    let profileMap: Record<string, any> = {};
-    if (actorIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, username, role, is_banned, blacklist_reason')
-        .in('id', actorIds);
-
-      if (profiles) {
-        profileMap = profiles.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+    const buildQuery = (client: any) => {
+      let q = client.from('audit_logs').select('*');
+      if (isSidePanel) q = q.neq('target_table', 'profiles').neq('target_table', 'sanctuary_tickets');
+      if (dateStart) q = q.gte('created_at', new Date(dateStart).toISOString());
+      if (dateEnd) {
+        const end = new Date(dateEnd);
+        end.setHours(23, 59, 59, 999);
+        q = q.lte('created_at', end.toISOString());
       }
+      return q.order('created_at', { ascending: false }).limit(isKeepers ? 30 : 100);
+    };
+
+    if (isKeepers) {
+      const enrichAndSet = async (newLogs: any[]) => {
+        const actorIds = [...new Set(newLogs.map(log => log.actor_id).filter(id => id))];
+        let profileMap: Record<string, any> = {};
+        if (actorIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, username, role, is_banned, blacklist_reason')
+            .in('id', actorIds);
+          if (profiles) {
+            profileMap = profiles.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+          }
+        }
+        const enriched = newLogs.map(log => ({
+          ...log,
+          actor: profileMap[log.actor_id] || null
+        }));
+
+        setLogs(enriched);
+      };
+
+      const { data: coreLogs } = await buildQuery(supabaseAuth);
+      if (coreLogs) {
+        // game_name is already populated by double-write on partner dbs. 
+        // For existing Core OS actions, game_name is null, so fallback to 'Core OS'
+        await enrichAndSet(coreLogs.map((l: any) => ({ ...l, game_name: l.game_name || 'Core OS' })));
+      }
+      setLoading(false);
+
+      const { data: games } = await supabaseAuth.from('sanctuary_games').select('name').eq('is_active', true);
+      if (games) {
+        setPartnerGames(games);
+      }
+    } else {
+      const { data: rawLogs, error: logError } = await buildQuery(getActiveGameClient());
+      if (logError || !rawLogs) {
+        console.error("Audit Logs Error", logError);
+        setLoading(false);
+        return;
+      }
+      
+      const actorIds = [...new Set(rawLogs.map((log: any) => log.actor_id).filter((id: any) => id))];
+      let profileMap: Record<string, any> = {};
+      if (actorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, username, role, is_banned, blacklist_reason')
+          .in('id', actorIds);
+        if (profiles) profileMap = profiles.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+      }
+      const enriched = rawLogs.map((log: any) => ({ ...log, actor: profileMap[log.actor_id] || null }));
+      setLogs(enriched);
+      setLoading(false);
     }
-
-    const mergedLogs = rawLogs.map(log => ({
-      ...log,
-      actor: profileMap[log.actor_id] || null
-    }));
-
-    setLogs(mergedLogs);
-    setLoading(false);
   };
 
   useEffect(() => {
     fetchLogs();
   }, [dateStart, dateEnd]);
 
-  const uniqueTargets = ["ALL", ...Array.from(new Set(logs.map(log => log.target_table).filter(Boolean)))];
-  const filterOptions = uniqueTargets.map(target => ({
+  const ALL_KNOWN_TABLES = ["audit_logs", "keeper_system_broadcasts", "keeper_tickets", "logical_conflicts", "mod_rules", "mod_vault", "play_sets", "profiles", "sanctuary_games", "sanctuary_support_categories", "sanctuary_tickets", "dlc_registry", "mod_rules_history", "logical_conflicts_history"];
+  const uniqueTargets = ["ALL", ...Array.from(new Set([...ALL_KNOWN_TABLES, ...logs.map(log => log.target_table).filter(Boolean)]))];
+  const filterOptions = uniqueTargets.sort().map(target => ({
     id: target,
     label: target === "ALL" ? "ALL LOGS" : target.replace(/_/g, ' ').toUpperCase()
   }));
 
+  const ALL_KNOWN_GAMES = ["Core OS", ...partnerGames.map(db => db.name)];
+  const uniqueGames = ["ALL", ...Array.from(new Set([...ALL_KNOWN_GAMES, ...logs.map(log => log.game_name).filter(Boolean)]))];
+  const filterGameOptions = uniqueGames.map(game => ({
+    id: game,
+    label: game === "ALL" ? "ALL WORKSPACES" : game.toUpperCase()
+  }));
+
   const filteredLogs = logs.filter(log => {
     const matchesAction = filterAction === "ALL" || log.target_table === filterAction;
+    const matchesGame = filterGame === "ALL" || log.game_name === filterGame;
     const term = search.toLowerCase();
     const matchesSearch = !search ||
       log.action?.toLowerCase().includes(term) ||
@@ -118,7 +154,7 @@ export function AuditLogViewer({
       log.actor?.username?.toLowerCase().includes(term) ||
       log.reason?.toLowerCase().includes(term);
 
-    return matchesAction && matchesSearch;
+    return matchesAction && matchesGame && matchesSearch;
   });
 
   const content = (
@@ -145,7 +181,18 @@ export function AuditLogViewer({
             />
           </div>
           <div className={`flex items-center gap-4 ${isSidePanel ? 'w-full' : ''}`}>
-            <div className={`${isSidePanel ? 'flex-1' : 'w-48'} z-40 shrink-0`}>
+            {isKeepers && (
+              <div className={`${isSidePanel ? 'flex-1' : 'w-max min-w-[160px]'} z-50 shrink-0`}>
+                <CustomDropdown disableTint={true}
+                  value={filterGame}
+                  onChange={(v: string[]) => setFilterGame(v[0])}
+                  options={filterGameOptions}
+                  placeholder="WORKSPACES"
+                  searchable={true}
+                />
+              </div>
+            )}
+            <div className={`${isSidePanel ? 'flex-1' : 'w-max min-w-[160px]'} z-40 shrink-0`}>
               <CustomDropdown disableTint={true}
                 value={filterAction}
                 onChange={(v: string[]) => setFilterAction(v[0])}
@@ -170,7 +217,26 @@ export function AuditLogViewer({
       <div className="p-6 w-full flex flex-col gap-6 animate-in fade-in">
 
         {loading ? (
-          <div className="p-12 text-center text-[var(--subtext)] opacity-50 font-black uppercase tracking-widest animate-pulse">{t("audit_fetching")}</div>
+          <div className={`grid grid-cols-1 ${isSidePanel ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'} gap-6 w-full`}>
+            {[...Array(isSidePanel ? 6 : 12)].map((_, i) => (
+              <div key={i} className="flex flex-col justify-between p-6 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden min-h-[160px]">
+                <div className="flex justify-between items-start w-full relative z-10 mb-4">
+                  <div className="flex items-start gap-4 w-full">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 animate-pulse shrink-0" />
+                    <div className="flex flex-col pt-1 min-w-0 flex-1 gap-2">
+                      <div className="h-2 bg-white/10 rounded animate-pulse w-24" />
+                      <div className="h-3 bg-white/10 rounded animate-pulse w-full mt-1" />
+                      <div className="h-2 bg-white/5 rounded animate-pulse w-3/4 mt-1" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
+                  <div className="h-6 w-24 bg-white/5 rounded animate-pulse" />
+                  <div className="h-6 w-16 bg-white/5 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className={`grid grid-cols-1 ${isSidePanel ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'} gap-6 w-full`}>
             {filteredLogs.map(log => (
@@ -184,7 +250,14 @@ export function AuditLogViewer({
                       <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">{t("icon_history")}</span>
                     </div>
                     <div className="flex flex-col pt-1 min-w-0 flex-1">
-                      <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1 truncate">{log.target_table.replace(/_/g, ' ')}</span>
+                      <div className="flex items-center gap-2 mb-1 w-full">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 truncate">{log.target_table.replace(/_/g, ' ')}</span>
+                        {log.game_name && (
+                          <span className="px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] text-[8px] font-black uppercase tracking-widest shrink-0 shadow-inner ml-auto">
+                            {log.game_name}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs font-black uppercase tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors line-clamp-2 drop-shadow-sm leading-tight">{log.action}</span>
                       {log.reason && (
                         <span className="text-[9px] font-bold text-[var(--subtext)] truncate w-full opacity-50 mt-1">{log.reason}</span>
@@ -198,7 +271,7 @@ export function AuditLogViewer({
                     <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("audit_actor")}</span>
                     <span className="text-[10px] font-bold text-[var(--text)] opacity-90 mt-1 flex items-center gap-1 truncate">
                       <span className="material-symbols-outlined !text-[12px] theme-text-accent shrink-0">{t("icon_person")}</span>
-                      <span className="truncate">{log.actor?.username || log.actor_id.substring(0, 8)}</span>
+                      <span className="truncate">{log.actor?.username || log.actor_id?.substring(0, 8) || 'SYSTEM'}</span>
                     </span>
                   </div>
 
@@ -226,6 +299,15 @@ export function AuditLogViewer({
         {selectedLog && (
           <div className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8 pb-32">
+              {selectedLog.game_name && (
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">ENVIRONMENT</h3>
+                  <div className="theme-glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[var(--accent)] text-sm font-black tracking-widest uppercase shadow-inner">
+                    {selectedLog.game_name}
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col gap-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_target_table")}</h3>
                 <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)]">

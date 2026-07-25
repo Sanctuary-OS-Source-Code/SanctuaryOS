@@ -175,6 +175,10 @@ interface GlobalState {
   detectGameVersion: () => Promise<void>;
   networkUpdates: { broken: any[], obsolete: any[], updated: any[] };
   setNetworkUpdates: (updates: any) => void;
+  activeConflictCount: { total: number, tier4: number, tier3: number };
+  setActiveConflictCount: (counts: { total: number, tier4: number, tier3: number }) => void;
+  activeBrokenCounts: { broken: number, unstable: number };
+  setActiveBrokenCounts: (counts: { broken: number, unstable: number }) => void;
   scanProgress: { current: number, total: number, message: string };
   setScanProgress: (progress: any) => void;
   defconLevel: number;
@@ -359,6 +363,10 @@ export const useStore = create<GlobalState>((set) => ({
     } catch (e) {}
     set({ networkUpdates });
   },
+  activeConflictCount: { total: 0, tier4: 0, tier3: 0 },
+  setActiveConflictCount: (activeConflictCount) => set({ activeConflictCount }),
+  activeBrokenCounts: { broken: 0, unstable: 0 },
+  setActiveBrokenCounts: (activeBrokenCounts) => set({ activeBrokenCounts }),
   scanProgress: { current: 0, total: 0, message: '' },
   setScanProgress: (scanProgress) => set({ scanProgress }),
   defconLevel: 5,

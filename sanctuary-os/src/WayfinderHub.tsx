@@ -130,7 +130,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
         {activeTab === "sanctuary_tickets" && <ArchitectSupportTickets userRole="wayfinder" />}
         {activeTab === "support_settings" && <SASupportSettings />}
         {activeTab === "audit_logs" && <AuditLogViewer />}
-        {activeTab === "ide" && <MasonIDE isCloudMode={true} cloudTarget="sanctuary_schemas" />}
+        {activeTab === "ide" && <MasonIDE isCloudMode={true} cloudTarget="sanctuary_lexicons" />}
         {activeTab === "chameleons" && <WayfinderChameleons />}
         {activeTab !== "command_center" && activeTab !== "wf_comms_title" && activeTab !== "identities" && activeTab !== "linker" && activeTab !== "compliance" && activeTab !== "malware_oversight" && activeTab !== "reports" && activeTab !== "oversight_reports" && activeTab !== "sanctuary_tickets" && activeTab !== "support_settings" && activeTab !== "audit_logs" && activeTab !== "ide" && activeTab !== "chameleons" && (
           <EmptyState icon={t("icon_construction") || "construction"} title={t("wf_under_construction")} className="col-span-full py-16" />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
+import { supabase, getActiveGameClient } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel } from '../shared';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
@@ -52,7 +52,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     try {
       await supabase.from('mods').update({ compliance_tier: 0, status: 'verified' }).eq('id', mod.id);
       const userRes = await supabase.auth.getUser();
-      await supabase.from('audit_logs').insert({
+      await getActiveGameClient().from('audit_logs').insert({
         action: `Cleared compliance flag for artifact: ${mod.name}`,
         target_table: 'mods',
         target_name: mod.id,
@@ -77,7 +77,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     try {
       await supabase.from('mods').update({ compliance_tier: 2, status: 'blacklisted' }).eq('id', mod.id);
       const userRes = await supabase.auth.getUser();
-      await supabase.from('audit_logs').insert({
+      await getActiveGameClient().from('audit_logs').insert({
         action: `Set compliance flag for artifact: ${mod.name} to Tier 2`,
         target_table: 'mods',
         target_name: mod.id,
@@ -118,7 +118,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       const userRes = await supabase.auth.getUser();
       const myId = userRes.data.user?.id;
 
-      await supabase.from('audit_logs').insert({
+      await getActiveGameClient().from('audit_logs').insert({
         action: `Changed compliance tier from ${selectedMod.compliance_tier} to ${editTier}`,
         target_table: 'mods',
         target_name: selectedMod.name || selectedMod.id,

@@ -16,6 +16,9 @@ import Oversight from "./Oversight";
 
 export function ViewRouter({ props }: any) {
   const view = useStore(state => state.view);
+  const isGlobalConfigLoaded = useStore(state => state.isGlobalConfigLoaded);
+
+  if (!isGlobalConfigLoaded) return null;
 
   return (
     <div className="flex-1 w-full h-full relative z-0 overflow-y-auto overflow-x-hidden custom-scrollbar">

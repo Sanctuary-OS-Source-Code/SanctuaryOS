@@ -1,6 +1,6 @@
 # Sanctuary OS 
 
-![Version](https://img.shields.io/badge/version-0.4.84-blue)
+![Version](https://img.shields.io/badge/version-0.4.85-blue)
 ![Last Updated](https://img.shields.io/badge/last_updated-July_24,_2026-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Alpha](https://img.shields.io/badge/Alpha-Early_Access-red)
@@ -39,7 +39,7 @@ This repository contains the official guides for Sanctuary OS, covering both sta
 
 # Official Citizen Guide
 
-**Version:** 0.4.8 | **Last Updated:** July 22, 2026
+**Version:** 4 | **Last Updated:** July 24, 2026
 
 > **Welcome to Sanctuary OS,**  
 > Sanctuary OS has evolved from a robust mod manager into a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy. 
@@ -69,6 +69,7 @@ The Command Center has been entirely redesigned in V4 to provide a high-level, d
 - **Quick Actions:** Instantly run a Radar Sweep, Lockdown the Vault (strip mods instantly), or Submit a Support Ticket.
 - **Global Comm-Link:** A live feed of updates, patch notes, and transmissions directly from Masons. Features threaded multi-level replies, WYSIWYG/Markdown text formatting, dedicated "Discover" vs "Following" tabs, and pinned posts.
 - **Sanctuary Support:** A dynamic in-house Support System designed from the ground up to streamline all support operations.
+- **Status Bar Integration:** The Unidentified (DNA) panel trigger and Conflict Radar are accessible globally from the bottom status bar, preventing intrusive screen takeovers. The radar icon dynamically ties to the active environment's status colors.
 
 ## Your Vault
 Your Vault is your local library and secured asset storage. The game never touches these files directly; they are projected into the game via symlinks.
@@ -186,7 +187,7 @@ Your System. Your Sovereignty. Your Preferences.
 - **Notifications:** 
   - Replies, Support Replies, New Transmissions, Author-Only Replies, and Per-Mason Notifications.
 - **Chameleon:** 
-  - Preset Themes / Downloaded Themes / Theme Forge Suite.
+  - Preset Themes / Downloaded Themes / Theme Forge Suite (featuring a paginated wizard flow for intuitive theme creation).
 - **Lexicon:** 
   - Preset Language Packs / Downloaded Language Packs.
 - **Logic Integrity (Anarchy Protocols):** 
@@ -207,7 +208,7 @@ Your System. Your Sovereignty. Your Preferences.
 
 # Elevated Clearances
 
-**Version:** 0.4.8 | **Last Updated:** July 22, 2026
+**Version:** 4 | **Last Updated:** July 24, 2026
 
 > This section of the guide covers the elevated roles within Sanctuary OS. The system uses a Hub-and-Spoke architecture: game-specific roles (Masons, Architects, Oversight, Wayfinders) operate within their specific Game Database, while Keepers manage the central OS Hub.
 
@@ -252,6 +253,7 @@ Wayfinders are the highest level of game-specific administration, responsible fo
 - **Global DEFCON:** Wayfinders can initiate scheduled/operational DEFCON events for their game.
 - **Registry Health Status:** A real-time telemetry tile showing current Database Latency (ms), CPU usage, memory allocation, and server connectivity status.
 - **The Dispatch:** A specialized broadcast channel used exclusively for system maintenance alerts, new feature announcements, and policy updates.
+- **Keeper Support System:** A dedicated ticketing pipeline for direct communication between Wayfinders and Core OS Keepers when OS-level issues arise.
 - **Game Audit Logs:** A ledger of game-level database mutations and role changes. Wayfinders use this for accountability and forensics within their specific community.
 
 ## Keepers (Core App Team / Sanctuary Developers)
@@ -260,7 +262,7 @@ Keepers are the actual developers of Sanctuary OS. They operate entirely separat
 - **Keepers Core:** The central command interface for managing OS-level infrastructure.
 - **Master Schema & Lexicon Flows:** Manage the global, cross-game configuration schemas and localization dictionaries, deploying them instantly via the cloud.
 - **Theme Forge & Chameleons:** Govern the global UI aesthetic systems that propagate down to all connected Game Spokes.
-- **Global Audit Logs:** A permanent, undeletable ledger of every global database mutation and security flag executed across the entire OS. Keepers use this for master accountability and system forensics.
+- **Global Audit Logs:** A permanent, undeletable ledger of every global database mutation and security flag executed across the entire OS. Features strict append-only security triggers and dual-redundancy (writes to both local and Core OS DBs), with workspace-specific filtering in the Audit Log Viewer.
 
 ## Role Protocols:
 1. **Workflow Consistency:** The Support Queue and Artifact Dossiers are 1:1 copies across all elevated roles. This ensures a moderator (Architect) and a community manager (Wayfinder) see the exact same data when troubleshooting a ticket.

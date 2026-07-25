@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../supabase";
+import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
@@ -169,7 +169,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
 
     await supabase.from('global_network_status').update({ defcon_level: 1, message: "EMERGENCY: SYSTEM LOCKDOWN", status_message: "Global DEFCON 1 override active. Patch imminent.", updated_at: new Date().toISOString() }).eq('id', 1);
     useStore.getState().setDefconLevel(1);
-    await supabase.from('audit_logs').insert({
+    await getActiveGameClient().from('audit_logs').insert({
       action: "Triggered Global DEFCON 1 Override", target_table: "global_network_status", target_name: "GLOBAL NETWORK", actor_id: userRes.data.user?.id, reason: "Game Patch Imminent Override"
     });
 
@@ -187,7 +187,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
 
     await supabase.from('global_network_status').update({ defcon_level: 5, message: "System Normal", status_message: "Network Secure. All systems nominal.", updated_at: new Date().toISOString() }).eq('id', 1);
     useStore.getState().setDefconLevel(5);
-    await supabase.from('audit_logs').insert({
+    await getActiveGameClient().from('audit_logs').insert({
       action: "Stood Down Global DEFCON Alert", target_table: "global_network_status", target_name: "GLOBAL NETWORK", actor_id: userRes.data.user?.id, reason: "Game Patch Concluded"
     });
 

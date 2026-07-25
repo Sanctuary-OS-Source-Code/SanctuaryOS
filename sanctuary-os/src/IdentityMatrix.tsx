@@ -275,13 +275,13 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
   );
 }
 
-export function IdentityMatrix({ isWayfinder = false, isKeepers = false }: { isWayfinder?: boolean, isKeepers?: boolean }) {
+export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initialFilterRole = "all" }: { isWayfinder?: boolean, isKeepers?: boolean, initialFilterRole?: string }) {
   const { t } = useLexicon();
   const [profiles, setProfiles] = useState<any[]>([]);
   const [blacklistedProfiles, setBlacklistedProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterRole, setFilterRole] = useState("all");
+  const [filterRole, setFilterRole] = useState(initialFilterRole);
 
   const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
 

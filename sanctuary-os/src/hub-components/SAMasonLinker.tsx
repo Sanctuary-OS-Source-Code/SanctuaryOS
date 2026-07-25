@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { supabase } from "../supabase";
+import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
@@ -106,7 +106,7 @@ export function MasonLinker() {
       }
       masonId = data.id;
 
-      await supabase.from('audit_logs').insert({
+      await getActiveGameClient().from('audit_logs').insert({
         action: `Created new Mason: ${editName.trim()}`,
         target_table: 'masons',
         target_name: editName.trim(),
@@ -126,7 +126,7 @@ export function MasonLinker() {
         return;
       }
 
-      await supabase.from('audit_logs').insert({
+      await getActiveGameClient().from('audit_logs').insert({
         action: `Updated Mason: ${editName.trim()} (Verified: ${isVerified}, Linked: ${linkedProfileId || 'None'})`,
         target_table: 'masons',
         target_name: editName.trim(),

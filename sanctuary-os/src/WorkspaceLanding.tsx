@@ -7,7 +7,7 @@ import { CartographerSetup } from './CartographerSetup';
 import { supabase } from './supabase';
 import { EmptyState, FilterTabs, FilterTabButton } from './shared';
 
-export function WorkspaceLanding({ onClose }: { onClose?: () => void }) {
+export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, isModal?: boolean }) {
   const { t } = useLexicon();
   const { currentTheme } = useTheme();
   const workspaces = useStore((state) => state.workspaces);
@@ -20,6 +20,7 @@ export function WorkspaceLanding({ onClose }: { onClose?: () => void }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTab, setFilterTab] = useState<'configured' | 'unconfigured'>('configured');
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [isSelecting, setIsSelecting] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -52,17 +53,18 @@ export function WorkspaceLanding({ onClose }: { onClose?: () => void }) {
 
   const selectWorkspace = async (workspace: any) => {
     try {
+      setIsSelecting(workspace.id);
       const globalConfig: any = await invoke("get_global_config");
       globalConfig.active_workspace_id = workspace.id;
       await invoke("save_coordinates", { config: globalConfig });
-      setActiveWorkspaceId(workspace.id);
-      setIsConfigured(true);
+      localStorage.setItem('sanctuary_last_active_workspace', workspace.id);
       if (onClose) {
         onClose();
       }
-      setTimeout(() => window.location.reload(), 300);
+      setTimeout(() => window.location.reload(), 10);
     } catch (err) {
       console.error(err);
+      setIsSelecting(null);
     }
   };
 
@@ -126,19 +128,21 @@ export function WorkspaceLanding({ onClose }: { onClose?: () => void }) {
     );
   }
 
-  return (
-    <div className={`flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000 ${onClose ? 'bg-black/80 backdrop-blur-sm' : ''}`} style={{ background: onClose ? undefined : 'var(--bgGradient)', color: 'var(--text)' }}>
-      {!onClose && <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen transition-opacity duration-1000 animate-in fade-in" />}
-      {!onClose && <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[var(--bg)]/80 to-[var(--bg)] pointer-events-none" />}
+  const isTransparent = onClose || isModal;
 
-      <div className="relative z-10 w-[95%] max-w-5xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-[0_40px_100px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden max-h-[90vh]">
+  return (
+    <div className={`flex h-screen w-screen absolute inset-0 z-[999999] items-center justify-center font-sans overflow-hidden transition-colors duration-1000 ${isTransparent ? 'backdrop-blur-2xl' : ''}`} style={{ background: isTransparent ? undefined : 'var(--bgGradient)', backgroundColor: isTransparent ? `color-mix(in srgb, var(--bg) 40%, transparent)` : undefined, color: 'var(--text)' }}>
+      {!isTransparent && <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 transition-opacity duration-1000 animate-in fade-in mix-blend-overlay pointer-events-none" />}
+      {!isTransparent && <div className="absolute inset-0 z-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] via-transparent to-[color-mix(in_srgb,var(--accent)_5%,transparent)] pointer-events-none" />}
+
+      <div className="relative z-10 w-[95%] max-w-5xl theme-glass-panel bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[var(--radius)] shadow-[0_40px_100px_color-mix(in_srgb,var(--accent)_15%,transparent),inset_0_1px_2px_color-mix(in_srgb,var(--accent)_20%,transparent)] flex flex-col overflow-hidden max-h-[90vh]">
         {onClose && (
-          <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full theme-glass-inner flex items-center justify-center hover:bg-red-500/20 hover:text-red-500 transition-all border border-transparent hover:border-red-500/30 z-50">
+          <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full theme-glass-inner flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:text-[var(--danger)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] z-50">
             <span className="material-symbols-outlined">close</span>
           </button>
         )}
 
-        <div className="p-10 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] relative overflow-hidden group">
+        <div className="p-10 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--accent)_15%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] relative overflow-hidden group">
           <div className="flex flex-col items-center justify-center relative z-20 min-h-[100px]">
             {/* Centered Logo */}
             <div className="relative mb-6 w-20 h-20 flex items-center justify-center">
@@ -182,7 +186,7 @@ export function WorkspaceLanding({ onClose }: { onClose?: () => void }) {
                 placeholder={t("workspace_search") || "Filter Environments..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full h-11 pl-10 pr-6 text-[11px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:border-[color-mix(in_srgb,var(--text)_30%,transparent)] focus:bg-black/40 transition-all shadow-inner"
+                className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full h-11 pl-10 pr-6 text-[11px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:border-[color-mix(in_srgb,var(--text)_30%,transparent)] focus:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all shadow-inner"
               />
             </div>
           </div>
@@ -207,7 +211,7 @@ export function WorkspaceLanding({ onClose }: { onClose?: () => void }) {
 
                     <div className="flex justify-between items-start w-full relative z-10 mb-4">
                       <div className="flex items-start gap-4 w-full pr-8">
-                        <div className={`w-12 h-12 rounded-2xl theme-glass-inner border shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 ${isActive ? 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-white/5' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
+                        <div className={`w-12 h-12 rounded-2xl theme-glass-inner border shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent),0_0_15px_color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 ${isActive ? 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
                           {game.icon ? <img src={game.icon} alt="" className="w-8 h-8 object-contain drop-shadow-md" /> : <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">sports_esports</span>}
                         </div>
                         <div className="flex flex-col pt-1 min-w-0 flex-1">
@@ -218,19 +222,26 @@ export function WorkspaceLanding({ onClose }: { onClose?: () => void }) {
 
                       <div
                         onClick={(e) => togglePin(ws.id, e)}
-                        className={`absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-white/5 hover:border-white/10'}`}
+                        className={`absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                       >
                         <span className="material-symbols-outlined !text-[16px]" style={{ fontVariationSettings: isPinned ? '"FILL" 1' : '"FILL" 0' }}>keep</span>
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
+                    <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                       <div className="flex flex-col min-w-0 flex-1 pr-2">
                         <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
-                        <span className="text-[10px] font-bold text-[var(--success)] opacity-90 mt-1 flex items-center gap-1 truncate">
-                          <span className="material-symbols-outlined !text-[12px] shrink-0">check_circle</span>
-                          <span className="truncate">{t("workspace_configured")}</span>
-                        </span>
+                        {isSelecting === ws.id ? (
+                          <span className="text-[10px] font-bold text-[var(--accent)] opacity-90 mt-1 flex items-center gap-1 truncate animate-pulse">
+                            <span className="material-symbols-outlined !text-[12px] shrink-0 animate-spin">sync</span>
+                            <span className="truncate">{t("status_establishing_connection") || "Establishing Connection..."}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-[var(--success)] opacity-90 mt-1 flex items-center gap-1 truncate">
+                            <span className="material-symbols-outlined !text-[12px] shrink-0">check_circle</span>
+                            <span className="truncate">{t("workspace_configured")}</span>
+                          </span>
+                        )}
                       </div>
                     </div>
                   </button>
@@ -241,13 +252,13 @@ export function WorkspaceLanding({ onClose }: { onClose?: () => void }) {
                   <button
                     key={`game-${game.id}-${idx}`}
                     onClick={() => setSelectedGameConfig(game)}
-                    className="flex flex-col justify-between p-6 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-solid hover:shadow-[0_0_40px_rgba(255,255,255,0.05)] transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 opacity-70 hover:opacity-100"
+                    className="flex flex-col justify-between p-6 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-solid hover:shadow-[0_0_40px_color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 opacity-70 hover:opacity-100"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
                     <div className="flex justify-between items-start w-full relative z-10 mb-4">
                       <div className="flex items-start gap-4 w-full">
-                        <div className="w-12 h-12 rounded-2xl bg-black/20 border border-white/5 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
+                        <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
                           {game.icon ? <img src={game.icon} alt="" className="w-8 h-8 object-contain grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-80 transition-all duration-500" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--subtext)] opacity-50 group-hover:opacity-100 group-hover:text-white transition-colors">sports_esports</span>}
                         </div>
                         <div className="flex flex-col pt-1 min-w-0 flex-1">
@@ -257,7 +268,7 @@ export function WorkspaceLanding({ onClose }: { onClose?: () => void }) {
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
+                    <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                       <div className="flex flex-col min-w-0 flex-1 pr-2">
                         <span className="text-[10px] font-bold text-[var(--text)] opacity-0 group-hover:opacity-80 transition-opacity duration-500 flex items-center gap-1 uppercase tracking-widest">
                           <span className="material-symbols-outlined !text-[12px]">add</span>

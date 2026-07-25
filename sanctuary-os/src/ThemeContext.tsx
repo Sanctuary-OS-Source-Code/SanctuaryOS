@@ -59,7 +59,7 @@ const ThemeContext = createContext<any>(null);
 
 export const ThemeProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
-  const wsId = activeWorkspaceId || 'default';
+  const wsId = activeWorkspaceId || localStorage.getItem('sanctuary_last_active_workspace') || 'default';
 
   const [useGlobalThemeState, setUseGlobalThemeState] = useState(() => localStorage.getItem('sanctuary_use_global_theme') === 'true');
   const [CORE_THEMES, setCoreThemes] = useState<any>(DEFAULT_CORE_THEMES);

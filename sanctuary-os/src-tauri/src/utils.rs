@@ -154,6 +154,12 @@ pub fn deploy_air_gap(source: &Path, target: &Path) -> std::io::Result<()> {
     if let Ok(entries) = std::fs::read_dir(source) {
         for entry in entries.flatten() {
             let file_type = entry.file_type()?;
+            
+            let file_name = entry.file_name().to_string_lossy().to_lowercase();
+            if file_name == ".sanctuary_cache.json" || file_name == "desktop.ini" || file_name == "default.ini" {
+                continue;
+            }
+
             let dest = target.join(entry.file_name());
             if file_type.is_dir() {
                 deploy_air_gap(&entry.path(), &dest)?;
@@ -204,14 +210,16 @@ pub fn create_symlink_file(source: &Path, target: &Path) -> std::io::Result<()> 
     }
 }
 
+use rayon::prelude::*;
+
 #[tauri::command]
 pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::schema::GameSchema>) {
     if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
+        let items: Vec<_> = entries.flatten().map(|e| e.path()).collect();
+        items.into_par_iter().for_each(|path| {
             let manifest_name = game_schema.as_ref().map(|s| s.paths.manifest_file.clone()).unwrap_or_default();
             if path.file_name().map_or(false, |n| n == manifest_name.as_str()) {
-                continue;
+                return;
             }
             
             let is_symlink_or_junction = std::fs::read_link(&path).is_ok() || 
@@ -223,7 +231,7 @@ pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::sch
                 } else {
                     let _ = std::fs::remove_file(&path);
                 }
-                continue;
+                return;
             }
 
             if path.is_dir() {
@@ -232,7 +240,7 @@ pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::sch
             } else {
                 let _ = std::fs::remove_file(&path);
             }
-        }
+        });
     }
 }
 

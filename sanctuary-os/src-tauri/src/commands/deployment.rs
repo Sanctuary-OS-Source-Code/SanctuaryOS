@@ -129,18 +129,45 @@ pub async fn deploy_playset_bulk(
             return Err("Mods folder missing.".into());
         }
 
+        let start_time = std::time::Instant::now();
+        let wipe_start = std::time::Instant::now();
         safe_wipe_mods_dir(&mods_dir, &game_schema);
+        let wipe_time = wipe_start.elapsed();
 
+        let manifest_start = std::time::Instant::now();
         crate::game_logic::generate_manifest_if_needed(&game_schema, &mods_dir);
+        let manifest_time = manifest_start.elapsed();
 
-        let mut count = 0;
-        for m in mods {
+        let index_start = std::time::Instant::now();
+        let mut vault_index = std::collections::HashMap::new();
+        let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
+        for f in folders_to_check.iter().rev() {
+            let dir_path = if f.is_empty() {
+                vault_mods_lane.clone()
+            } else {
+                vault_mods_lane.join(f)
+            };
+            if let Ok(entries) = std::fs::read_dir(&dir_path) {
+                for entry in entries.flatten() {
+                    if entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+                        if let Some(file_name) = entry.file_name().to_str() {
+                            vault_index.insert(file_name.to_lowercase(), entry.path());
+                        }
+                    }
+                }
+            }
+        }
+        let index_time = index_start.elapsed();
+        let loop_start = std::time::Instant::now();
+
+        use rayon::prelude::*;
+        let count: usize = mods.into_par_iter().map(|m| {
             if let Some(structure_val) = &m.folder_structure {
                 match serde_json::from_value::<Vec<StructureNode>>(structure_val.clone()) {
                     Ok(nodes) => {
                         let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
                         process_structure_nodes(&game_schema, &nodes, &mods_dir, &vault_mods_lane, &folders_to_check);
-                        continue;
+                        return 0;
                     }
                     Err(e) => {
                         println!("ERROR PARSING STRUCTURE NODE FOR {}: {}", m.path, e);
@@ -156,46 +183,22 @@ pub async fn deploy_playset_bulk(
             }
 
             let mut source = vault_mods_lane.join(search_name);
-            let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
             let mut found = false;
-            for f in &folders_to_check {
-                let base_test = if f.is_empty() {
-                    vault_mods_lane.join(search_name)
-                } else {
-                    vault_mods_lane.join(f).join(search_name)
-                };
-                
-                                let exts = crate::game_logic::get_supported_extensions(&game_schema);
-                if base_test.is_file() {
-                    source = base_test;
-                    found = true;
-                    break;
-                } else {
-                    for ext in exts {
-                        if base_test.with_extension(&ext).is_file() {
-                            source = base_test.with_extension(&ext);
-                            found = true;
-                            break;
-                        }
-                    }
-                    if found { break; }
-                }
-            }
 
-            if !found {
-                if let Some(file_name_only) = search_name.file_name() {
-                    let flat_test = vault_mods_lane.join(file_name_only);
-                    if flat_test.is_file() {
-                        source = flat_test;
+            if search_name.components().count() == 1 {
+                if let Some(file_name_str) = search_name.to_str() {
+                    let file_lower = file_name_str.to_lowercase();
+                    if let Some(p) = vault_index.get(&file_lower) {
+                        source = p.clone();
                         found = true;
-                        search_name = Path::new(file_name_only);
                     } else {
                         let exts = crate::game_logic::get_supported_extensions(&game_schema);
+                        let stem_lower = search_name.file_stem().and_then(|n| n.to_str()).unwrap_or("").to_lowercase();
                         for ext in exts {
-                            if flat_test.with_extension(&ext).is_file() {
-                                source = flat_test.with_extension(&ext);
+                            let test_name = format!("{}.{}", stem_lower, ext.to_lowercase());
+                            if let Some(p) = vault_index.get(&test_name) {
+                                source = p.clone();
                                 found = true;
-                                search_name = Path::new(file_name_only);
                                 break;
                             }
                         }
@@ -204,18 +207,73 @@ pub async fn deploy_playset_bulk(
             }
 
             if !found {
-                continue;
+                let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
+                for f in &folders_to_check {
+                    let base_test = if f.is_empty() {
+                        vault_mods_lane.join(search_name)
+                    } else {
+                        vault_mods_lane.join(f).join(search_name)
+                    };
+                    
+                    let exts = crate::game_logic::get_supported_extensions(&game_schema);
+                    if base_test.is_file() {
+                        source = base_test;
+                        found = true;
+                        break;
+                    } else {
+                        for ext in exts {
+                            if base_test.with_extension(&ext).is_file() {
+                                source = base_test.with_extension(&ext);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if found { break; }
+                    }
+                }
+            }
+
+            if !found {
+                if let Some(file_name_only) = search_name.file_name() {
+                    let file_lower = file_name_only.to_string_lossy().to_lowercase();
+                    if let Some(p) = vault_index.get(&file_lower) {
+                        source = p.clone();
+                        found = true;
+                        search_name = Path::new(file_name_only);
+                    } else {
+                        let flat_test = vault_mods_lane.join(file_name_only);
+                        if flat_test.is_file() {
+                            source = flat_test;
+                            found = true;
+                            search_name = Path::new(file_name_only);
+                        } else {
+                            let exts = crate::game_logic::get_supported_extensions(&game_schema);
+                            for ext in exts {
+                                if flat_test.with_extension(&ext).is_file() {
+                                    source = flat_test.with_extension(&ext);
+                                    found = true;
+                                    search_name = Path::new(file_name_only);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !found {
+                return 0;
             }
 
             let path_parts: Vec<_> = Path::new(&m.path).components().collect();
             if path_parts.len() < 1 {
-                continue;
+                return 0;
             }
 
             if !source.is_dir() {
                 if let Some(file_name_str) = source.file_name().and_then(|n| n.to_str()) {
                     if file_name_str.eq_ignore_ascii_case("desktop.ini") {
-                        continue;
+                        return 0;
                     }
                 }
             }
@@ -296,7 +354,10 @@ pub async fn deploy_playset_bulk(
                                 let path = entry.path();
                                 if path.is_file() {
                                     if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                                        if !file_name.eq_ignore_ascii_case("desktop.ini") && !file_name.eq_ignore_ascii_case("Default.ini") {
+                                        if !file_name.eq_ignore_ascii_case("desktop.ini") 
+                                            && !file_name.eq_ignore_ascii_case("Default.ini")
+                                            && !file_name.eq_ignore_ascii_case(".sanctuary_cache.json") 
+                                        {
                                             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                                                 let ext_lower = ext.to_lowercase();
                                                 if ext_lower == "cfg" || ext_lower == "ini" || ext_lower == "json" || ext_lower == "txt" {
@@ -317,15 +378,18 @@ pub async fn deploy_playset_bulk(
                 }
             }
 
-            count += 1;
-        }
+            1
+        }).sum();
 
         if let Ok(entries) = std::fs::read_dir(&vault_mods_lane) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() {
                     if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                        if file_name.eq_ignore_ascii_case("desktop.ini") || file_name.eq_ignore_ascii_case("Default.ini") {
+                        if file_name.eq_ignore_ascii_case("desktop.ini") 
+                            || file_name.eq_ignore_ascii_case("Default.ini") 
+                            || file_name.eq_ignore_ascii_case(".sanctuary_cache.json") 
+                        {
                             continue;
                         }
                         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
@@ -344,6 +408,13 @@ pub async fn deploy_playset_bulk(
             }
         }
 
+        let loop_time = loop_start.elapsed();
+        println!("DEPLOYMENT TIMING:");
+        println!("- Manifest: {:?}", manifest_time);
+        println!("- Wipe: {:?}", wipe_time);
+        println!("- Index: {:?}", index_time);
+        println!("- Loop: {:?}", loop_time);
+        println!("- Total: {:?}", start_time.elapsed());
 
         Ok(count.to_string())
     })

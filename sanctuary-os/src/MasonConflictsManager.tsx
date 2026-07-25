@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { supabase } from "./supabase";
+import { supabase, getActiveGameClient } from "./supabase";
 import { useStore } from './store';
 import { useLexicon } from "./LexiconContext";
 import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState } from "./shared";
@@ -128,7 +128,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
       if(deleteReason.trim()) {
          const { data: { user } } = await supabase.auth.getUser();
          if(user) {
-           await supabase.from('audit_logs').insert({ action: `Deleted Conflict Rule - Reason: ${deleteReason}`, target_table: 'logical_conflicts', target_name: id, actor_id: user.id, reason: "Automated from Mason Hub" });
+           await getActiveGameClient().from('audit_logs').insert({ action: `Deleted Conflict Rule - Reason: ${deleteReason}`, target_table: 'logical_conflicts', target_name: id, actor_id: user.id, reason: "Automated from Mason Hub" });
          }
       }
       useStore.getState().pushStatus(t("auto_conflict_rule_deleted"), "success");

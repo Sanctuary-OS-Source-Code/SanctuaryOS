@@ -3,6 +3,7 @@ export function deepCountKeys(obj: any): number {
    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
       for (const k in obj) {
          if (k.startsWith('_meta')) continue;
+         if (k === 'schema_version') continue;
          count += 1 + deepCountKeys(obj[k]);
       }
    }
@@ -26,6 +27,7 @@ export function deepCompare(base: any, target: any, isLexicon: boolean): { missi
       if (b && typeof b === 'object' && !Array.isArray(b)) {
          for (const k in b) {
             if (k.startsWith('_meta')) continue;
+            if (k === 'schema_version') continue;
             
             const nextPath = currentPath ? `${currentPath}.${k}` : k;
 
@@ -55,6 +57,7 @@ export function deepCompare(base: any, target: any, isLexicon: boolean): { missi
       if (t && typeof t === 'object' && !Array.isArray(t)) {
          for (const k in t) {
             if (k.startsWith('_meta')) continue;
+            if (k === 'schema_version') continue;
             
             const nextPath = currentPath ? `${currentPath}.${k}` : k;
 
@@ -107,6 +110,7 @@ export function deepAddMissing(base: any, target: any, isLexicon: boolean, curre
    const result: any = { ...target };
    for (const k in base) {
       if (k.startsWith('_meta')) continue;
+      if (k === 'schema_version') continue;
       
       const nextPath = currentPath ? `${currentPath}.${k}` : k;
 
@@ -143,6 +147,10 @@ export function deepPurgeDeprecated(base: any, target: any, isLexicon: boolean, 
    const result: any = {};
    for (const k in target) {
       if (k.startsWith('_meta')) {
+         result[k] = target[k];
+         continue;
+      }
+      if (k === 'schema_version') {
          result[k] = target[k];
          continue;
       }

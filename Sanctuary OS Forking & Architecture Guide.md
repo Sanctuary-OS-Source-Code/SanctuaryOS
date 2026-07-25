@@ -1,7 +1,7 @@
 ## Sanctuary OS
 ## Forking & Architecture Guide
 #### Version: 4
-#### Last Updated: July 22, 2026
+#### Last Updated: July 24, 2026
 
 Welcome to the architecture and forking guide for Sanctuary OS. 
 Sanctuary OS has evolved from a robust mod manager into a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy. 
@@ -42,9 +42,9 @@ The application follows a highly decoupled Hub-and-Spoke design, completely isol
 
 #### 2. The Shared File System Refactor
 Bloated files (like `AppModals.tsx` and `App.tsx`) have been purged. Everything now utilizes:
+- **Command Screens Modularization**: All role-specific command screens (e.g., the massive 1,100+ line `CommandScreens.tsx`) have been refactored into individual, lightweight components for each role (Mason, Architect, Oversight, Wayfinder, Keeper) for improved maintainability.
 - **Split Modal & Router Components**: Modals are independently rendered and isolated from main routing loops.
 - **Shared Alert/Transmission Viewer**: A single unified component handles public/oversight alert flows and general comms.
-- **Command Screen Plumbing**: Shared logic between all elevated hubs.
 - **Side-Panel Extraction**: Side panels manage all context-heavy tasks (Ticket Dossiers, DNA Match, Radar Logic) without disrupting the main view.
 
 #### 3. New Application Pillars
@@ -87,5 +87,6 @@ The Rust backend automatically deserializes the active schema at runtime to adju
 Security is handled through a tiered global compliance system managed by Oversight, Wayfinders, and Keepers.
 - **Public/Oversight Alert Flows**: Global DEFCON alerts are pushed over WebSockets. Wayfinders can initiate scheduled/operational DEFCON events.
 - **System Status Telemetry**: The Registry Health Status provides a real-time telemetry tile showing current Database Latency (ms), CPU usage, memory allocation, and server connectivity status.
-- **Audit Log Behavior**: Every database mutation, role change, and security flag executed by the administration is tracked in a permanent, undeletable ledger (Audit Logs). Keepers and Wayfinders use this for accountability and system forensics.
+- **Audit Log Behavior**: Every database mutation, role change, and security flag executed by the administration is tracked in a permanent, undeletable ledger (Audit Logs). We implemented strict append-only security triggers at the database level so audit records can no longer be modified or deleted once written. Redundancy synchronously writes to both the localized workspace database and the overarching Core OS database. Keepers and Wayfinders use this for accountability and system forensics, supported by workspace-specific filtering in the Audit Log Viewer.
+- **Keeper Support System**: A dedicated support ticketing pipeline facilitates direct communication between workspace operators (Wayfinders) and Core OS developers (Keepers).
 - **Tiered Roles**: From Citizens (users) to Masons (creators), Architects (moderators), Oversight (administrators), Wayfinders (game admins), and Keepers (OS infrastructure), every profile operates under strict logic gates that share 1:1 workflow consistency.

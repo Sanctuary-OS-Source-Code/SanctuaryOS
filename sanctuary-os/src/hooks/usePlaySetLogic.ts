@@ -476,7 +476,12 @@ export function usePlaySetLogic() {
     setStatus(
       `${t("status_deploying_prefix")}${setName}${t("status_deploying_suffix")}`,
     );
+    // Yield to the event loop so the browser can paint the UI update
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
     try {
+      console.time("equipPlaySet_JS_overhead");
+      const jsStartTime = Date.now();
       const config: any = await invoke("get_saved_coordinates");
         let deployPayload: any[] = [];
         const fileNameToPathMap = new Map<string, string>();
@@ -556,8 +561,11 @@ export function usePlaySetLogic() {
             })
         );
 
+        // Precompute path set for O(1) lookups
+        const deployPayloadPaths = new Set(deployPayload.map(dp => dp.path));
+
         modList.forEach((m: any) => {
-            if (deployPayload.some(dp => dp.path === m.name)) return;
+            if (deployPayloadPaths.has(m.name)) return;
             
             const flatFileName = m.name.split(/[\\/]/).pop() || m.name;
             const flatLower = flatFileName.toLowerCase();
@@ -570,24 +578,33 @@ export function usePlaySetLogic() {
                     const targetPath = folderPath ? `${folderPath}/${flatFileName}` : flatFileName;
                     deployPayload.push({ path: m.name, allow_write: true, target_path: targetPath });
                     explicitlyDeployedFlatNames.add(flatLower);
+                    deployPayloadPaths.add(m.name);
+                }
+            }
+        });
+
+        // Precompute potential matches to avoid O(N^2) loops
+        const potentialPrefixMap = new Map<string, any>();
+        deployPayload.forEach(dp => {
+            if ((dp.target_path || dp.folder_structure) && !dp.target_path?.match(/\.(cfg|ini|json|xml|log|txt)$/i)) {
+                const flatFileName = dp.path.split(/[\\/]/).pop() || dp.path;
+                const prefixMatch = flatFileName.match(/^([a-zA-Z0-9]+)[_ -]/);
+                const prefix = prefixMatch ? prefixMatch[1].toLowerCase() : flatFileName.split('.')[0].toLowerCase();
+                if (!potentialPrefixMap.has(prefix)) {
+                    potentialPrefixMap.set(prefix, dp);
                 }
             }
         });
 
         modList.forEach(m => {
             if (m.name.match(/\.(cfg|ini|json|xml|log|txt)$/i)) {
-                if (!deployPayload.some(dp => dp.path === m.name)) {
+                if (!deployPayloadPaths.has(m.name)) {
                     const flatFileName = m.name.split(/[\\/]/).pop() || m.name;
                     const prefixMatch = flatFileName.match(/^([a-zA-Z0-9]+)[_ -]/);
                     const prefix = prefixMatch ? prefixMatch[1].toLowerCase() : flatFileName.split('.')[0].toLowerCase();
                     
-                    const matchingMod = deployPayload.find(other => {
-                        if (!other.target_path && !other.folder_structure) return false;
-                        if (other.target_path && other.target_path.match(/\.(cfg|ini|json|xml|log|txt)$/i)) return false;
-                        const otherFlat = other.path.split(/[\\/]/).pop() || other.path;
-                        return otherFlat.toLowerCase().startsWith(prefix);
-                    });
-
+                    const matchingMod = potentialPrefixMap.get(prefix);
+                    
                     if (matchingMod) {
                         let folderName = "";
                         if (matchingMod.target_path && matchingMod.target_path.includes('/')) {
@@ -601,6 +618,7 @@ export function usePlaySetLogic() {
                         } else {
                             deployPayload.push({ path: m.name, allow_write: true, target_path: flatFileName });
                         }
+                        deployPayloadPaths.add(m.name);
                     }
                 }
             }
@@ -612,14 +630,9 @@ export function usePlaySetLogic() {
                const prefixMatch = flatFileName.match(/^([a-zA-Z0-9]+)[_ -]/);
                const prefix = prefixMatch ? prefixMatch[1].toLowerCase() : flatFileName.split('.')[0].toLowerCase();
                
-               const matchingMod = deployPayload.find(other => {
-                  if (other === dp || (!other.target_path && !other.folder_structure)) return false;
-                  if (other.target_path && other.target_path.match(/\.(cfg|ini|json|xml|log|txt)$/i)) return false;
-                  const otherFlat = other.path.split(/[\\/]/).pop() || other.path;
-                  return otherFlat.toLowerCase().startsWith(prefix);
-               });
+               const matchingMod = potentialPrefixMap.get(prefix);
 
-               if (matchingMod) {
+               if (matchingMod && matchingMod !== dp) {
                    let folderName = "";
                    if (matchingMod.target_path && matchingMod.target_path.includes('/')) {
                        folderName = matchingMod.target_path.split('/')[0];
@@ -634,7 +647,8 @@ export function usePlaySetLogic() {
            }
         });
 
-        const msg = await invoke("deploy_playset_bulk", {
+      console.timeEnd("equipPlaySet_JS_overhead");
+      const msg = await invoke("deploy_playset_bulk", {
         mods: deployPayload,
         modsPath: config.mods_path,
         vaultPath: config.vault_path,
@@ -646,8 +660,10 @@ export function usePlaySetLogic() {
       if (newIndex !== -1 && setActivePlaySetIndex) {
         setActivePlaySetIndex(newIndex);
       }
+      
+      const jsTime = Date.now() - jsStartTime;
 
-      setStatus(`${t("icon_check_circle")} ${t("btn_deployed")} ${msg as string} ${t("backend_deployed_suffix")}`);
+      setStatus(`${t("icon_check_circle")} ${t("btn_deployed")} ${msg as string} ${t("backend_deployed_suffix")} (JS Time: ${jsTime}ms)`);
     } catch (err) {
       setStatus(`${t("status_deploy_failed")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
     }

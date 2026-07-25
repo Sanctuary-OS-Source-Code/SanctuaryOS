@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { ModCard } from './ModCard';
 import { useStore } from './store';
 import { VaultToolsSidePanel, VaultLocalFolderEditorSidePanel } from './side-panels/VaultSidePanels';
-export default function Vault(props: any) {
+const Vault = React.memo(function Vault(props: any) {
   const [isSidePanelOpen, setIsSidePanelOpen] = React.useState(false);
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const {
@@ -1320,5 +1320,6 @@ export default function Vault(props: any) {
       />
     </div>
   );
-}
+});
 
+export default Vault;

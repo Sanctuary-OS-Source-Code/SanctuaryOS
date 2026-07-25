@@ -5,7 +5,7 @@ import { SidePanel, CustomDropdown, extractPostImage, stripMarkdown, EmptyState 
 import MasonPostViewer from "./MasonPostViewer";
 import { useStore } from '../store';
 
-export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience }: { isOpen: boolean, onClose: () => void, audience?: string }) {
+export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', tableName = 'system_broadcasts' }: { isOpen: boolean, onClose: () => void, audience?: string, tableName?: string }) {
   const { t } = useLexicon();
   const session = useStore(state => state.session);
   const [posts, setPosts] = useState<any[]>([]);
@@ -19,13 +19,13 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience }: { isOpen
     if (!isOpen) return;
     const fetchPosts = async () => {
       setLoading(true);
-      let query = supabase.from('system_broadcasts')
+      let query = supabase.from(tableName)
         .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (audience) {
-        query = query.or(`target_audience.ilike.%All%,target_audience.eq.${audience},target_audience.ilike."${audience},%",target_audience.ilike."%,${audience},%",target_audience.ilike."%,${audience}"`);
+      if (audience && audience !== 'All') {
+        query = query.or(`target_audience.ilike.%All%,target_audience.ilike.%${audience.replace(/ /g, '_')}%`);
       }
 
       if (filterStatus === "Active") {

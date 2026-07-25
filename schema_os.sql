@@ -74,6 +74,24 @@ CREATE TABLE audit_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- ==========================================
+-- AUDIT LOG SECURITY TRIGGERS
+-- ==========================================
+CREATE OR REPLACE FUNCTION prevent_audit_modifications()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'Audit logs are append-only. Modification or deletion is strictly forbidden.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_prevent_audit_update
+BEFORE UPDATE ON audit_logs
+FOR EACH ROW EXECUTE FUNCTION prevent_audit_modifications();
+
+CREATE TRIGGER trg_prevent_audit_delete
+BEFORE DELETE ON audit_logs
+FOR EACH ROW EXECUTE FUNCTION prevent_audit_modifications();
+
 CREATE TABLE system_broadcasts (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     title TEXT NOT NULL,
@@ -98,4 +116,25 @@ CREATE TABLE sanctuary_tickets (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- 5. KEEPERS INFRASTRUCTURE
+-- ==========================================
+CREATE TABLE keeper_support_categories (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    category_code TEXT NOT NULL,
+    category_name TEXT NOT NULL,
+    description TEXT,
+    ticket_destination TEXT,
+    escalation_path TEXT,
+    is_active BOOLEAN DEFAULT true,
+    custom_fields JSONB DEFAULT '[]',
+    requires_target_mod BOOLEAN DEFAULT false,
+    requires_target_user BOOLEAN DEFAULT false,
+    show_title_box BOOLEAN DEFAULT true,
+    show_description_box BOOLEAN DEFAULT true,
+    show_logs_box BOOLEAN DEFAULT false,
+    attach_blueprints BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

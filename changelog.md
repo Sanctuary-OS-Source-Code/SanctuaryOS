@@ -1,4 +1,37 @@
- **Date: July 24, 2026**
+**Date: July 24, 2026**
+ **Version: 0.4.85**
+
+## **Core Architecture & UI Refinements**
+
+### Security & Data Integrity
+- **Immutable Audit Logs**: Implemented strict append-only security triggers at the database level (`schema.sql`). Audit records can no longer be modified or deleted once written, completely locking down history tracking even from database owners.
+- **Audit Log Redundancy**: Audit logs now synchronously write to both the localized workspace database and the overarching Core OS database, acting as an un-tamperable failsafe.
+- **Keeper Core Log Filtering**: Added workspace-specific filtering to the Audit Log Viewer, cleanly separating global OS operations from individual game-specific activity.
+
+### Component Architecture
+- **Keeper Hub Buildout**: Completed a major expansion of the Keeper Hub environment, providing OS-level administrators with a comprehensive dashboard to monitor global metrics, manage cross-workspace broadcasts, and oversee the entire Sanctuary OS ecosystem.
+- **Keeper Support System**: Built out a dedicated support ticketing pipeline for direct communication between workspace operators (Wayfinders) and Core OS developers (Keepers).
+- **Command Screens Modularization**: Completely refactored the massive 1,100+ line `CommandScreens.tsx` file. All role-specific dashboards (Mason, Architect, Oversight, Wayfinder, Keeper) have been extracted into their own individual, lightweight components to drastically improve code maintainability.
+- **Chameleon UI Rework**: Reimagined the Chameleon customizer tab into a paginated wizard flow, significantly improving the aesthetic customization experience and making theme creation much more intuitive.
+
+### Performance & Engine Optimizations
+- **Blueprint Deploy Times**: Optimized the underlying engine for parsing and deploying Blueprints, drastically reducing the time it takes to apply complex workspace configurations.
+
+### UI Polish & Consistency
+- **Workspace Landing Aesthetics**: Overhauled the Workspace Landing page UI to be lighter and more closely integrated with the active theme, shedding the heavy dark backdrop.
+- **Workspace Loading Flow**: Updated the global 'Syncing Workspace' loading screen to utilize the new `theme-glass-panel` aesthetics, lightening the overall visual feel to better match active themes.
+- **Dispatch Layouts**: Normalized the header styling across all Dispatch and Post Editor screens (Keeper, Mason, Wayfinder), removing inconsistent background tints and standardizing padding for a cleaner, unified look.
+- **Search Dropdown Aesthetics**: Refined the global search pill, flattening the bottom radius when the dropdown is active for a seamless visual connection to the results list.
+- **Status Bar Integration**: Relocated the Unidentified (DNA) panel trigger and the Conflict Radar to the global status bar, preventing intrusive screen takeovers while ensuring both tools remain accessible from anywhere. The radar icon now dynamically ties to the active environment's status colors.
+
+### Bug Fixes & Internal Routing
+- **System Actor Formatting**: Hardened the Audit Log Viewer to properly render "SYSTEM" for backend actions lacking a direct user identity, and fixed `game_name` syncing for cross-database logs.
+- **Keeper Broadcast Action Logging**: Fixed the system broadcast saving logic within the Keeper Dispatch to correctly log actions under "Keeper Hub" instead of "Wayfinder Operations".
+- **Ticket Hashes**: Implemented logic in the Support Queue to properly resolve unverified mod `dna_hash` targets back to their original mod records and authors.
+
+---
+
+ **Date: July 23, 2026**
  **Version: 0.4.84**
 
 ## **Workspace Architecture & UX Overhaul**

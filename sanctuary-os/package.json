@@ -1,6 +1,6 @@
 {
   "name": "sanctuary-os",
-  "version": "0.4.84",
+  "version": "0.4.85",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -47,6 +47,7 @@
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.10",
     "tailwindcss": "^4.2.4",
+    "ts-morph": "^28.0.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"
   }

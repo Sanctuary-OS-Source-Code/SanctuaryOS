@@ -171,10 +171,32 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
   if (loadingSession) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-[var(--bg)]">
-        <span className="text-xs font-black uppercase tracking-[0.3em] theme-text-accent animate-pulse">
-          {t("loading_session")}
-        </span>
+      <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: 'var(--bgGradient)', color: 'var(--text)' }}>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[120px] pointer-events-none mix-blend-screen" 
+             style={{ backgroundColor: `color-mix(in srgb, var(--accent) 10%, transparent)` }} />
+             
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <div className="relative w-24 h-24 rounded-full flex items-center justify-center"
+               style={{ 
+                 backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)`,
+                 borderColor: `color-mix(in srgb, var(--accent) 30%, transparent)`,
+                 borderWidth: '1px',
+                 boxShadow: `0 0 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 5%, transparent)`
+               }}>
+            <div className="absolute inset-0 rounded-full border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)` }} />
+            <span className="material-symbols-outlined !text-4xl animate-spin"
+                  style={{ color: 'var(--accent)', filter: `drop-shadow(0 0 15px var(--accent))` }}>sync</span>
+          </div>
+          
+          <div className="flex flex-col items-center gap-2">
+            <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)]">
+              {t("loading_session") || "AUTHENTICATING..."}
+            </h2>
+            <p className="text-sm font-medium text-[var(--text-muted)] tracking-wider animate-pulse">
+              {t("status_standby") || "INITIALIZING SANCTUARY OS"}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

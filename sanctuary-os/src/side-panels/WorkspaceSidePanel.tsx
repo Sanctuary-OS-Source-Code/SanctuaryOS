@@ -13,6 +13,7 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
 
   const [globalGames, setGlobalGames] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
 
@@ -40,8 +41,10 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
   useEffect(() => {
     if (!isOpen) return;
     const fetchGames = async () => {
+      setIsLoading(true);
       const { data } = await supabase.from('sanctuary_games').select('*').order('name');
       if (data) setGlobalGames(data);
+      setIsLoading(false);
     };
     fetchGames();
   }, [isOpen]);
@@ -52,6 +55,7 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
       const globalConfig: any = await invoke("get_global_config");
       globalConfig.active_workspace_id = workspace.id;
       await invoke("save_coordinates", { config: globalConfig });
+      localStorage.setItem('sanctuary_last_active_workspace', workspace.id);
       setActiveWorkspaceId(workspace.id);
       setIsConfigured(true);
       onClose();
@@ -177,7 +181,11 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
               );
             })}
 
-            {filteredCards.length === 0 && (
+            {isLoading && (
+              <EmptyState icon={t("icon_sync") || "sync"} title={t("workspace_loading") || "Loading workspaces..."} className="col-span-full py-16 animate-pulse" />
+            )}
+
+            {!isLoading && filteredCards.length === 0 && (
               <EmptyState icon={t("icon_search") || "search_off"} title={t("no_matches") || "No environments found"} className="col-span-full py-16" />
             )}
           </div>

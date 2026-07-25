@@ -40,7 +40,7 @@ export default function MasonFileBrowser({
       <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">
          {filteredFiles.map((file: any) => {
             const isTmpl = file.name.toLowerCase().endsWith('.json');
-            const isLexicon = file.name.match(/^[a-z]{2}-.+\.json$/i);
+            const isLexicon = isCloudMode ? internalCloudTarget === 'sanctuary_lexicons' : file.name.match(/^[a-z]{2}-.+\.json$/i);
             return (
                <div key={file.path} className="group relative break-inside-avoid">
                   <div

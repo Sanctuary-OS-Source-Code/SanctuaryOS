@@ -7,7 +7,13 @@ import { tauriBridge } from "./lib/tauri-bridge";
 
 export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, toggleInActiveSet, allow_write, vaultPath, onRefreshMods, renamePlaySet }: any) {
   const { t } = useLexicon();
-  const { ownedDLC, maskedDLC, selectedVersion, playSets, activePlaySetIndex, setPlaySets, activeGameSchema } = useStore();
+  const ownedDLC = useStore((state) => state.ownedDLC);
+  const maskedDLC = useStore((state) => state.maskedDLC);
+  const selectedVersion = useStore((state) => state.selectedVersion);
+  const playSets = useStore((state) => state.playSets);
+  const activePlaySetIndex = useStore((state) => state.activePlaySetIndex);
+  const setPlaySets = useStore((state) => state.setPlaySets);
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
   const [ignoredConflicts, setIgnoredConflicts] = useState<Set<string>>(new Set());
   const [ignoredBroken, setIgnoredBroken] = useState<Set<string>>(new Set());
 

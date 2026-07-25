@@ -86,6 +86,7 @@ export function Sidebar({
   const session = useStore((state) => state.session);
   const view = useStore((state) => state.view);
   const setView = useStore((state) => state.setView);
+  const setKeepersActiveTab = useStore((state) => state.setKeepersActiveTab);
   const userRole = useStore((state) => state.userRole);
   const isPatchDetected = useStore((state) => state.isPatchDetected);
   const { showDefconAlert } = useModalStore();
@@ -314,7 +315,10 @@ export function Sidebar({
             )}
             <NavButton
               active={view === "KeepersCore"}
-              onClick={() => setView("KeepersCore")}
+              onClick={() => {
+                setView("KeepersCore");
+                if (setKeepersActiveTab) setKeepersActiveTab("command_center");
+              }}
               icon="admin_panel_settings"
               label="Keepers Core"
               isCollapsed={isSidebarCollapsed}

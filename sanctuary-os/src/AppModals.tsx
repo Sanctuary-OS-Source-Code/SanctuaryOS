@@ -41,7 +41,6 @@ export function AppModals(props: any) {
     isBackingUp, isRestoring,
     ingestProgress,
     isScanning, scanProgress,
-    status,
     showDefconAlert, setShowDefconAlert, triggerFullEngineBackup, triggerPrePatchSnapshot,
     yeetConfirmPending, setYeetConfirmPending,
     dnaMatchQueue, setDnaMatchQueue, ignoredHashesRef, setStatus, statusLog, clearStatusLog,
@@ -50,6 +49,7 @@ export function AppModals(props: any) {
     isSidebarCollapsed
   } = props;
 
+  const status = useStore((state) => state.status);
   const { backupType, restoreType, updatePayload, setIsSideBrowserOpen } = useModalStore();
   const logModalRef = React.useRef<HTMLDivElement>(null);
   const logDragRef = React.useRef({ isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, initOffsetX: 0, initOffsetY: 0 });

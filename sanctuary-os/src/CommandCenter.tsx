@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
 import { DashboardStatTile, ViewHeader, isVersionMatch, SidePanel, getHighestVersion, handleOpenUrl, getExtensionRegex, HoverTooltip } from "./shared";
 import { useStore } from "./store";
+import { useModalStore } from "./store/modalStore";
 import MasonFeed from "./MasonFeed";
 
 import BlueprintSwapSidePanel from "./side-panels/BlueprintSwapSidePanel";
@@ -18,18 +19,28 @@ import MasonPostViewer from "./side-panels/MasonPostViewer";
 
 
 export default function CommandCenter({
-  status, isScanning, scanProgress, modsPath, isConfigured, toggleInActiveSet,
-  modList, quarantineList, shelterContents, shelterActive, runRadarSweep, runSanitization, massIngestToCloud, triggerShelter, setView, setFilterStatus, setShowBrokenModal, setShowQuarantineModal, handleOpenMasonProfile, networkUpdates, setIsSupportDeskOpen, setIsConflictRadarOpen, setIsCitizenTicketsOpen
+  isScanning, scanProgress, modsPath, isConfigured, toggleInActiveSet,
+  modList, quarantineList, shelterContents, shelterActive, runRadarSweep, runSanitization, massIngestToCloud, triggerShelter, setView, setFilterStatus, setShowBrokenModal, setShowQuarantineModal, handleOpenMasonProfile, networkUpdates, setIsSupportDeskOpen, setIsCitizenTicketsOpen
 }: any) {
   const { t } = useLexicon();
-  const { ownedDLC, maskedDLC, selectedVersion, playSets, activePlaySetIndex, session, userRole, setPlaySets, activeGameSchema } = useStore();
+  const ownedDLC = useStore((state) => state.ownedDLC);
+  const maskedDLC = useStore((state) => state.maskedDLC);
+  const selectedVersion = useStore((state) => state.selectedVersion);
+  const playSets = useStore((state) => state.playSets);
+  const activePlaySetIndex = useStore((state) => state.activePlaySetIndex);
+  const session = useStore((state) => state.session);
+  const userRole = useStore((state) => state.userRole);
+  const setPlaySets = useStore((state) => state.setPlaySets);
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
   const activePlaySet = playSets ? playSets[activePlaySetIndex] : null;
+  const status = useStore((state) => state.status);
   const [showUpdatesModal, setShowUpdatesModal] = useState(false);
   const [hasSymlinkPerms, setHasSymlinkPerms] = useState<boolean | null>(null);
 
   const [showIncompatiblePanel, setShowIncompatiblePanel] = useState(false);
   const [showConflictsPanel, setShowConflictsPanel] = useState(false);
-  const [showRadarSweepPanel, setShowRadarSweepPanel] = useState(false);
+  const isConflictRadarOpen = useModalStore((state: any) => state.isConflictRadarOpen);
+  const setIsConflictRadarOpen = useModalStore((state: any) => state.setIsConflictRadarOpen);
   const [isAuditLogsOpen, setIsAuditLogsOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [viewingPost, setViewingPost] = useState<any>(null);
@@ -116,29 +127,13 @@ export default function CommandCenter({
   }, [activePlaySet, modList]);
 
   const activeUpdates = React.useMemo(() => {
-    if (!networkUpdates?.updated) return [];
-    return networkUpdates.updated.filter((u: any) =>
-      activeBlueprintMods.some((m: any) => {
-        if (m.dbId && u.dbId && String(m.dbId) === String(u.dbId)) return true;
-        if (m.hash && u.hash && m.hash !== 'vlocal' && m.hash === u.hash) return true;
-
-        const mName = String(m.name || "").toLowerCase().replace(/\\/g, '/');
-        const uName = String(u.name || "").toLowerCase().replace(/\\/g, '/');
-        const oName = String(m._originalSetName || "").toLowerCase().replace(/\\/g, '/');
-
-        if (mName && uName && (mName === uName || mName.includes(uName) || uName.includes(mName))) return true;
-        if (oName && uName && (oName === uName || oName.includes(uName) || uName.includes(oName))) return true;
-
-        return false;
-      })
-    ).filter((u: any, index: number, self: any[]) =>
-      index === self.findIndex((t) => (
-        (t.dbId && u.dbId && t.dbId === u.dbId) ||
-        (t.hash && u.hash && t.hash === u.hash) ||
-        (t.name === u.name)
-      ))
-    );
-  }, [networkUpdates, activeBlueprintMods]);
+    return activeBlueprintMods.filter((m: any) => m.hasUpdate).map((m: any) => ({
+      ...m,
+      dbId: m.dbId,
+      name: m.name,
+      hash: m.hash,
+    }));
+  }, [activeBlueprintMods]);
 
   const setBlueprintLoadOrder = (updates: string | { name: string, prefix: string }[], prefix?: string) => {
     try {
@@ -181,7 +176,8 @@ export default function CommandCenter({
     }
   };
 
-  const activeBrokenCounts = activeBlueprintMods.reduce((acc: { broken: number, unstable: number }, m: any) => {
+  const activeBrokenCounts = React.useMemo(() => {
+    return activeBlueprintMods.reduce((acc: { broken: number, unstable: number }, m: any) => {
     if (!m || m.isFallback) return acc;
     let isBroken = typeof m.status === 'string' && m.status.toLowerCase() === 'broken';
     if (isBroken && m.compatible_versions && m.compatible_versions.length > 0 && selectedVersion) {
@@ -227,8 +223,10 @@ export default function CommandCenter({
     } else if (isUnstable) {
       acc.unstable += 1;
     }
+    
     return acc;
   }, { broken: 0, unstable: 0 }) || { broken: 0, unstable: 0 };
+  }, [activeBlueprintMods]);
 
   const activeConflictCount = React.useMemo(() => {
     const conflicts: any[] = [];
@@ -302,6 +300,14 @@ export default function CommandCenter({
     return { total: unresolvedConflicts.length, tier3: tier3Count, tier4: tier4Count };
   }, [activeBlueprintMods]);
 
+  React.useEffect(() => {
+    useStore.getState().setActiveConflictCount(activeConflictCount);
+  }, [activeConflictCount]);
+
+  React.useEffect(() => {
+    useStore.getState().setActiveBrokenCounts(activeBrokenCounts);
+  }, [activeBrokenCounts]);
+
   const radarUpdatesCount = activeUpdates.length || 0;
   const radarTier4Count = activeConflictCount.tier4 || 0;
   const radarTier3Count = activeConflictCount.tier3 || 0;
@@ -341,7 +347,7 @@ export default function CommandCenter({
                 radarState === 'update' ? "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]" :
                   "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
           }
-          onClick={() => setShowRadarSweepPanel(true)}
+          onClick={() => setIsConflictRadarOpen(true)}
         />
         <DashboardStatTile
           icon={<span className="material-symbols-outlined !text-4xl">{t("icon_account_balance")}</span>}
@@ -678,10 +684,10 @@ export default function CommandCenter({
         />
       )}
 
-      {showRadarSweepPanel && (
+      {isConflictRadarOpen && (
         <CommandRadarSweepPanel
-          isOpen={showRadarSweepPanel}
-          onClose={() => setShowRadarSweepPanel(false)}
+          isOpen={isConflictRadarOpen}
+          onClose={() => setIsConflictRadarOpen(false)}
           status={status}
           runRadarSweep={runRadarSweep}
           isScanning={isScanning}

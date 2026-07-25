@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../supabase";
+import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { SidePanel, standardButtonClass, standardDangerButtonClass, CustomDropdown, CustomComplianceDropdown } from "../shared";
 import { useStore } from '../store';
@@ -153,7 +153,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       }
       
       const userRes = await supabase.auth.getUser();
-      await supabase.from('audit_logs').insert({
+      await getActiveGameClient().from('audit_logs').insert({
          action: `Manually flagged with tier ${manualTier}`,
          target_table: 'mods',
          target_name: targetName || targetId,
@@ -197,7 +197,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       const { error } = await supabase.from('heuristic_signatures').upsert(newObj);
       if (error && error.code !== '23505') throw error;
       
-      await supabase.from('audit_logs').insert({
+      await getActiveGameClient().from('audit_logs').insert({
          action: editingId ? `Updated heuristic signature: ${id}` : `Added heuristic signature: ${id}`,
          target_table: 'heuristic_signatures',
          target_name: id,
@@ -241,7 +241,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       await supabase.from('heuristic_signatures').delete().eq('id', id);
       
       const userRes = await supabase.auth.getUser();
-      await supabase.from('audit_logs').insert({
+      await getActiveGameClient().from('audit_logs').insert({
          action: `Removed heuristic signature: ${id}`,
          target_table: 'heuristic_signatures',
          target_name: id,

@@ -121,7 +121,6 @@ function App() {
   const setPlaySets = useStore((state) => state.setPlaySets);
   const activeSetName = useStore((state) => state.activeSetName);
   const setActiveSetName = useStore((state) => state.setActiveSetName);
-  const status = useStore((state) => state.status);
   const statusLog = useStore((state) => state.statusLog);
   const setStatus = useStore((state) => state.setStatus);
   const clearStatusLog = useStore((state) => state.clearStatusLog);
@@ -672,10 +671,16 @@ function App() {
       vaultPath &&
       modList.some((m: any) => m.isSynced !== undefined)
     ) {
-      invoke("save_master_cache", {
-        vaultPath,
-        content: JSON.stringify(modList),
-      }).catch((e) => console.error("Cache Save Failed", e));
+      try {
+        const content = JSON.stringify(modList);
+        invoke("save_master_cache", {
+          vaultPath,
+          content,
+        }).catch((e) => console.error("Cache Save Failed", e));
+      } catch (err) {
+        console.error("JSON Stringify Failed for Cache!", err);
+        alert("Cache stringify failed: " + err);
+      }
     }
   }, [modList, vaultPath]);
   const [anarchyRules, setAnarchyRules] = useState(() => {
@@ -705,26 +710,58 @@ function App() {
     setNameInput(fileName.replace(".tar.zst", ""));
   };
 
+  const didInitDLC = useRef(false);
   useEffect(() => {
+    if (didInitDLC.current) return;
+    didInitDLC.current = true;
     const bootDLCProtocol = async () => {
       try {
         await loadDLCMap();
         const config: any = await invoke("get_saved_coordinates");
         const globalConfig: any = await invoke("get_global_config");
-        
-        // Wait for schema sync before letting the app render!
         const activeWorkspace = (globalConfig.workspaces || []).find((w: any) => w.id === globalConfig.active_workspace_id);
         const schemaId = activeWorkspace?.schema_id || 'sims4';
-        await syncMasterSchemas(schemaId);
+        
+        // Load cached schema instantly so UI can render
+        const cachedSchema = localStorage.getItem(`sanctuary_master_schema_${schemaId}`);
+        if (cachedSchema) {
+          useStore.getState().setActiveGameSchema(JSON.parse(cachedSchema));
+        } else if (schemaId === 'sims4') {
+          // sims4Schema is default in store, no action needed
+        }
+        
+        // Let it sync in the background so it doesn't block the boot modal!
+        syncMasterSchemas(schemaId).catch(console.warn);
 
         if (globalConfig.active_workspace_id) {
           useStore.getState().hydrateWorkspaceState(globalConfig.active_workspace_id);
+          localStorage.setItem('sanctuary_last_active_workspace', globalConfig.active_workspace_id);
+        }
+
+        let initialModList = useStore.getState().modList;
+        
+        try {
+          if (globalConfig.active_workspace_id) {
+            const cacheStr = await invoke<string>("load_master_cache", { vaultPath: config.vault_path });
+            const parsedCache = JSON.parse(cacheStr);
+            if (Array.isArray(parsedCache) && parsedCache.length > 0) {
+              initialModList = parsedCache;
+              setStatus(`${t("status_offline_cache_prefix")} ${parsedCache.length} ${t("status_offline_cache_suffix")}`);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load master cache during boot:", e);
+        }
+
+        if (config.live_path && config.mods_path && config.vault_path) {
+          setIsConfigured(true);
         }
 
         useStore.setState({ 
           workspaces: globalConfig.workspaces || [], 
           activeWorkspaceId: globalConfig.active_workspace_id,
-          isGlobalConfigLoaded: true 
+          modList: initialModList,
+          isGlobalConfigLoaded: initialModList.length > 0 
         });
 
         if (globalConfig.active_workspace_id) {
@@ -823,22 +860,6 @@ function App() {
     dnaMatchQueue,
   ]);
   useEffect(() => {
-    const cache = localStorage.getItem("sanctuary_cache_v9");
-    if (cache) {
-      try {
-        const parsedCache = JSON.parse(cache);
-        if (Array.isArray(parsedCache) && parsedCache.length > 0) {
-          setModList(parsedCache);
-          setStatus(
-            `${t("status_offline_cache_prefix")} ${parsedCache.length} ${t("status_offline_cache_suffix")}`,
-          );
-        }
-      } catch (e) {
-        console.error("Failed to load cache", e);
-        localStorage.removeItem("sanctuary_cache_v9");
-      }
-    }
-
     let fileEditNames: string[] = [];
     const cwEdits = localStorage.getItem("sanctuary_cw_unsaved_edits");
     if (cwEdits) {
@@ -940,7 +961,11 @@ function App() {
       console.error("Failed to fetch cloud lab queue", err);
     }
   }
+  const didInitBoot = useRef(false);
   useEffect(() => {
+    if (didInitBoot.current) return;
+    didInitBoot.current = true;
+
     async function fetchUserRole() {
       if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
       const {
@@ -1000,22 +1025,12 @@ function App() {
           setModsPath(config.mods_path);
           setVaultPath(config.vault_path);
           
-          invoke<string>("load_master_cache", { vaultPath: config.vault_path })
-            .then((cacheStr) => {
-              try {
-                const parsed = JSON.parse(cacheStr);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                  setModList(parsed);
-                  setStatus(
-                    `${t("status_offline_cache_prefix")} ${parsed.length} ${t("status_offline_cache_suffix")}`,
-                  );
-                }
-              } catch (e) {
-                console.error("Cache Load Error", e);
-              }
-              runRadarSweep(false);
-            })
-            .catch(() => runRadarSweep(false));
+          const currentSchema = useStore.getState().activeGameSchema;
+          if (currentSchema) {
+            await invoke('update_active_game_schema', { schema: currentSchema }).catch(console.error);
+          }
+          
+          runRadarSweep(false);
           fetchCloudLabQueue();
           invoke("initialize_vault_watch").catch(console.warn);
           const docsBase = config.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
@@ -1107,6 +1122,50 @@ function App() {
         localStorage.setItem("network_updates_debug", debugLog);
       } catch (e) { }
       setNetworkUpdates({ broken, obsolete, updated });
+
+      setModList((prevList: any[]) => {
+        let changed = false;
+        const newList = prevList.map(m => {
+          let needsUpdate = false;
+          let newMod = { ...m };
+          
+          if (broken.some(b => (b.hash && b.hash === m.hash) || b.name === m.name)) {
+            if (newMod.status !== 'broken') {
+              newMod.status = 'broken';
+              needsUpdate = true;
+            }
+          } else if (obsolete.some(b => (b.hash && b.hash === m.hash) || b.name === m.name)) {
+            if (newMod.status !== 'obsolete') {
+              newMod.status = 'obsolete';
+              needsUpdate = true;
+            }
+          }
+          
+          const update = updated.find(u => (u.hash && u.hash === m.hash) || u.name === m.name);
+          if (update) {
+            if (!newMod.hasUpdate || newMod.newVersion !== update.newVersion) {
+              newMod.hasUpdate = true;
+              newMod.newVersion = update.newVersion;
+              newMod.newGameVersion = update.newGameVersion;
+              newMod.download_url = update.download_url;
+              needsUpdate = true;
+            }
+          } else if (newMod.hasUpdate) {
+            delete newMod.hasUpdate;
+            delete newMod.newVersion;
+            delete newMod.newGameVersion;
+            delete newMod.download_url;
+            needsUpdate = true;
+          }
+          
+          if (needsUpdate) {
+            changed = true;
+            return newMod;
+          }
+          return m;
+        });
+        return changed ? newList : prevList;
+      });
     } catch (err) {
       console.error("Update check failed", err);
     }
@@ -1908,13 +1967,6 @@ function App() {
   } = useModFiltering(displayModList, playSets, activeSetName || '', activeGameSchema, t);
   const visibleMods = filteredMods;
   const isGlobalConfigLoaded = useStore((state) => state.isGlobalConfigLoaded);
-  if (!isConfigured) return <WorkspaceLanding />;
-  if (!isGlobalConfigLoaded) return (
-    <div className="flex h-screen w-screen items-center justify-center text-[var(--text)] font-black uppercase tracking-widest text-xs" style={{ background: "var(--bgGradient)" } as any}>
-      <span className="material-symbols-outlined animate-spin mr-2">sync</span>
-      {t("status_syncing") || "SYNCING SYSTEM..."}
-    </div>
-  );
 
   return (
     <div
@@ -1939,35 +1991,35 @@ function App() {
         />
         <main className="flex-1 relative overflow-y-auto p-12 pt-[90px] custom-scrollbar">
           <div className="relative z-10 w-full h-full pb-[40px]">
-            {(view === "dashboard" || view === "BlueprintArchitect") && (
-              <ErrorBoundary moduleName="Command Center">
-                <CommandCenter
-                  status={status}
-                  isScanning={isScanning}
-                  runRadarSweep={runRadarSweep}
-                  scanProgress={scanProgress}
-                  modList={modList}
-                  quarantineList={quarantineList}
-                  isConfigured={isConfigured}
-                  modsPath={modsPath}
-                  vaultPath={vaultPath}
-                  triggerShelter={triggerShelter}
-                  shelterActive={shelterActive}
-                  shelterContents={shelterContents}
-                  setShowQuarantineModal={setShowQuarantineModal}
-                  setShowBrokenModal={setShowBrokenModal}
-                  handleOpenMasonProfile={handleOpenMasonProfile}
-                  massIngestToCloud={massIngestToCloud}
-                  networkUpdates={networkUpdates}
-                  toggleInActiveSet={toggleInActiveSet}
-                  setView={setView}
-                  setFilterStatus={setFilterStatus}
-                  setIsSupportDeskOpen={setIsSupportModalOpen}
-
-                  setIsCitizenTicketsOpen={setIsCitizenTicketsOpen}
-                />
-              </ErrorBoundary>
-            )}
+            {isGlobalConfigLoaded && (
+              <>
+                <div style={{ display: (view === "dashboard" || view === "BlueprintArchitect") ? 'block' : 'none', width: '100%', height: '100%' }}>
+                  <ErrorBoundary moduleName="Command Center">
+                    <CommandCenter
+                      isScanning={isScanning}
+                      runRadarSweep={runRadarSweep}
+                      scanProgress={scanProgress}
+                      modList={modList}
+                      quarantineList={quarantineList}
+                      isConfigured={isConfigured}
+                      modsPath={modsPath}
+                      vaultPath={vaultPath}
+                      triggerShelter={triggerShelter}
+                      shelterActive={shelterActive}
+                      shelterContents={shelterContents}
+                      setShowQuarantineModal={setShowQuarantineModal}
+                      setShowBrokenModal={setShowBrokenModal}
+                      handleOpenMasonProfile={handleOpenMasonProfile}
+                      massIngestToCloud={massIngestToCloud}
+                      networkUpdates={networkUpdates}
+                      toggleInActiveSet={toggleInActiveSet}
+                      setView={setView}
+                      setFilterStatus={setFilterStatus}
+                      setIsSupportDeskOpen={setIsSupportModalOpen}
+                      setIsCitizenTicketsOpen={setIsCitizenTicketsOpen}
+                    />
+                  </ErrorBoundary>
+                </div>
 
             {view === "nexus" && (
               <Nexus
@@ -2166,6 +2218,8 @@ function App() {
                 />
               </ErrorBoundary>
             )}
+              </>
+            )}
           </div>
         </main>
         {activeDossier && (
@@ -2333,7 +2387,6 @@ function App() {
           ingestProgress={ingestProgress}
           isScanning={isScanning}
           scanProgress={scanProgress}
-          status={status}
           showDefconAlert={showDefconAlert}
           setShowDefconAlert={setShowDefconAlert}
           triggerFullEngineBackup={triggerFullEngineBackup}
@@ -2367,6 +2420,50 @@ function App() {
         <UpdateSidePanel />
         <ContextMenu />
       </div>
+
+      {!isGlobalConfigLoaded && (
+        <div className="fixed inset-0 z-[9999999] flex flex-col items-center justify-center backdrop-blur-md animate-in fade-in duration-500 p-8" style={{ backgroundColor: `color-mix(in srgb, var(--bg) 50%, transparent)` }}>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[120px] pointer-events-none mix-blend-screen" 
+               style={{ backgroundColor: `color-mix(in srgb, var(--accent) 10%, transparent)` }} />
+          
+          <div className="relative w-full max-w-lg theme-glass-panel backdrop-blur-2xl border rounded-[var(--radius)] p-12 flex flex-col gap-8 overflow-hidden items-center justify-center shadow-2xl"
+               style={{ 
+                 borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)`,
+                 boxShadow: `0 40px 100px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 1px 1px color-mix(in srgb, var(--text) 5%, transparent)` 
+               }}>
+            <div className="absolute inset-0 animate-pulse pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)` }} />
+            <div className="absolute top-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 50%, transparent), transparent)` }} />
+            <div className="absolute bottom-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 20%, transparent), transparent)` }} />
+            
+            <div className="flex flex-col items-center gap-6 relative z-10 text-center">
+              <div className="relative w-24 h-24 rounded-full flex items-center justify-center shrink-0"
+                   style={{ 
+                     backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)`,
+                     borderColor: `color-mix(in srgb, var(--accent) 30%, transparent)`,
+                     borderWidth: '1px',
+                     boxShadow: `0 0 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 5%, transparent)`
+                   }}>
+                <div className="absolute inset-0 rounded-full border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)` }} />
+                <span className="material-symbols-outlined !text-4xl animate-spin"
+                      style={{ color: 'var(--accent)', filter: `drop-shadow(0 0 15px var(--accent))` }}>sync</span>
+              </div>
+              
+              <div>
+                <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-2">
+                  {t("status_syncing") || "SYNCING WORKSPACE..."}
+                </h2>
+                <p className="text-sm font-medium text-[var(--subtext)] tracking-wider">
+                  {t("status_establishing_connection") || "ESTABLISHING CONNECTION"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isGlobalConfigLoaded && !isConfigured && (
+        <WorkspaceLanding isModal={true} />
+      )}
     </div>
   );
 }

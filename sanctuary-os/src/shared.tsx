@@ -513,8 +513,15 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
             width: 'max-content',
           }}>
             {searchable && (
-              <div className="p-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] sticky top-0 theme-glass-panel z-10 shrink-0">
-                <SearchBar value={query} onChange={setQuery} placeholder={t("shared_search") || "Search"} />
+              <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] sticky top-0 bg-transparent z-10 shrink-0 flex items-center px-4 backdrop-blur-sm">
+                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] mr-3 opacity-60">search</span>
+                <input
+                  type="text"
+                  placeholder={t("shared_search") || "Search"}
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  className="w-full bg-transparent border-none py-3.5 text-xs font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-40 tracking-wider min-w-0"
+                />
               </div>
             )}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -535,8 +542,8 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
                 const searchTarget = opt.searchText !== undefined ? opt.searchText : (typeof opt.label === 'string' ? opt.label : '');
                 return searchTarget.toLowerCase().includes(query.toLowerCase());
               }).length === 0 && (
-                <div className="p-4 text-center text-xs font-bold text-[var(--subtext)] opacity-60">{t("shared_no_options")}</div>
-              )}
+                  <div className="p-4 text-center text-xs font-bold text-[var(--subtext)] opacity-60">{t("shared_no_options")}</div>
+                )}
             </div>
           </div>
         </>,

@@ -3,6 +3,7 @@ import { SidePanel, EmptyState } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { standardAccentGlassButtonClass, standardDangerButtonClass } from "../shared";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
 
 export function ScoutQueueSidePanel({
   scoutQueue,
@@ -11,17 +12,18 @@ export function ScoutQueueSidePanel({
 }: any) {
   const { t } = useLexicon();
   const session = useStore(state => state.session);
+  const { isScoutPanelOpen, setIsScoutPanelOpen } = useModalStore();
   const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
 
   return (
     <SidePanel
-      isOpen={scoutQueue && scoutQueue.length > 0}
-      onClose={() => setScoutQueue([])}
+      isOpen={isScoutPanelOpen}
+      onClose={() => setIsScoutPanelOpen(false)}
       backdropZ="z-[99998]"
       panelZ="z-[99999]"
       title={t("queue_title")}
       subtitle={t("queue_desc")}
-      icon={t("icon_track_changes")}
+      icon={t("icon_biotech")}
       widthClass="w-[550px]"
     >
       {(!session || isBanned) ? (

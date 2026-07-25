@@ -56,7 +56,10 @@ export const supabase = new Proxy({} as SupabaseClient, {
                 const osTables = [
                     'profiles', 
                     'sanctuary_themes', 
-                    'sanctuary_games'
+                    'sanctuary_games',
+                    'keeper_tickets',
+                    'keeper_system_broadcasts',
+                    'keeper_support_categories'
                 ];
 
                 // Route OS-level tables to the Main OS Database

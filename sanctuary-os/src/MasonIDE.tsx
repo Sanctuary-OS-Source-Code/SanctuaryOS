@@ -94,7 +94,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
       try {
          if (isCloudMode) {
             const parsed = JSON.parse(file.content);
-            const isLex = file.name.match(/^[a-z]{2}-.+\.json$/i);
+            const isLex = internalCloudTarget === 'sanctuary_lexicons';
             if (isLex) {
                if (!parsed._meta_version || typeof parsed._meta_version !== 'number') parsed._meta_version = 0;
                parsed._meta_version++;
@@ -317,8 +317,8 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
    const isDirty = activeFile ? activeFile.content !== activeFile.originalContent : false;
 
    let validationStats: { total: number, missing: number, completelyMissing: number, deprecated: number } | null = null;
-   const isLexicon = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.startsWith('en-') || activeFile?.name.startsWith('de-') || activeFile?.name.startsWith('es-') || activeFile?.name.startsWith('fr-');
-   const isSchema = activeFile?.content?.includes('"schema_version"') || (isCloudMode && !isLexicon);
+   const isLexicon = isCloudMode ? internalCloudTarget === 'sanctuary_lexicons' : (activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) !== null);
+   const isSchema = isCloudMode ? internalCloudTarget === 'sanctuary_schemas' : (activeFile?.content?.includes('"schema_version"'));
 
    if (activeFile && (isLexicon || isSchema)) {
       try {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from '../store';
-import { supabase } from "../supabase";
+import { supabase, supabaseAuth } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
 import { SidePanel, CustomDropdown, standardAccentGlassButtonClass, EmptyState } from "../shared";
@@ -22,7 +22,7 @@ interface Ticket {
   onEditMetadata?: (hash: string) => void;
 }
 
-export default function ArchitectSupportTickets({ userRole = "architect", masonProfileId, onEditMetadata, setStatus }: { userRole?: string, masonProfileId?: string, onEditMetadata?: (hash: string) => void, setStatus?: any }) {
+export default function KeepersSupportTickets({ userRole = "keeper", masonProfileId, onEditMetadata, setStatus }: { userRole?: string, masonProfileId?: string, onEditMetadata?: (hash: string) => void, setStatus?: any }) {
   const { t } = useLexicon();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,8 +34,8 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
 
   const fetchTickets = async () => {
     setIsLoading(true);
-    let query = supabase
-      .from('sanctuary_tickets')
+    let query = supabaseAuth
+      .from('keeper_tickets')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -70,7 +70,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
         author_username: profileMap[t.author_id] || t.author_id?.substring(0, 8).toUpperCase() || 'SYSTEM'
       }));
 
-      const { data: catData } = await supabase.from('sanctuary_support_categories').select('*');
+      const { data: catData } = await supabaseAuth.from('keeper_support_categories').select('*');
 
       const targetModIds = [...new Set(mergedTickets.map(t => t.target_mod_id || t.metadata?.target_mod_id).filter(Boolean))];
       const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -99,81 +99,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
       }
 
       let finalTickets = mergedTickets;
-      if (userRole !== "mason") {
-        finalTickets = mergedTickets.filter(t => {
-          const typeStr = t.ticket_type || t.category;
-          const cat = catData?.find((c: any) => c.category_name === typeStr || c.category_code === typeStr);
-          let baseDest = cat?.ticket_destination || 'architect';
-          if (typeStr === 'BUG_MOD' || typeStr?.toLowerCase().includes('bug_mod') || typeStr?.toLowerCase().includes('artifact')) {
-            baseDest = 'mod_author';
-          }
-          const escalationPath = cat?.escalation_path || 'standard';
-
-          if (userRole === 'wayfinder') {
-            const isTargeted = baseDest === 'wayfinder';
-            const logs = t.metadata?.action_log || [];
-            const isEscalatedFromOversight = t.status?.toUpperCase() === 'ESCALATED' &&
-              logs.some((l: any) => l.action === 'ESCALATED' && (l.architect === 'Oversight' || l.architect === 'Mason'));
-            return isTargeted || isEscalatedFromOversight;
-          }
-
-          const ageMs = Date.now() - new Date(t.created_at).getTime();
-          const hoursOld = ageMs / (1000 * 60 * 60);
-
-          let escalationTiers = 0;
-          if (escalationPath === 'urgent') {
-            escalationTiers = Math.floor(hoursOld / 24);
-          } else if (escalationPath === 'standard') {
-            escalationTiers = Math.floor(hoursOld / 72);
-          }
-
-          const tiers = ['mod_author', 'architect', 'oversight', 'wayfinder'];
-          let currentTierIndex = tiers.indexOf(baseDest);
-          if (currentTierIndex === -1) currentTierIndex = 1;
-
-          let effectiveTierIndex = currentTierIndex;
-          if (escalationPath?.toLowerCase() !== 'none') {
-            effectiveTierIndex += escalationTiers;
-          }
-
-
-          effectiveTierIndex = Math.min(effectiveTierIndex, Math.max(2, currentTierIndex));
-          let dest = tiers[effectiveTierIndex];
-
-          if (t.status?.toUpperCase() === 'ESCALATED') {
-            const logs = t.metadata?.action_log || [];
-            const lastEscalation = [...logs].reverse().find((l: any) => l.action === 'ESCALATED');
-
-            if (lastEscalation) {
-              const esciArc = lastEscalation.architect;
-              if (esciArc === 'Wayfinder') {
-                dest = 'wayfinder';
-              } else if (esciArc === 'Oversight' || esciArc === 'Oversight') {
-                dest = 'wayfinder';
-              } else if (esciArc === 'Architect') {
-                dest = 'oversight';
-              } else if (esciArc === 'Mason' || esciArc === 'Mod Author') {
-                dest = 'architect';
-              } else {
-                dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
-              }
-            } else {
-              dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
-            }
-          }
-
-          if (dest === 'mod_author') {
-            const modId = t.target_mod_id || t.metadata?.target_mod_id;
-            let modAuthorId = modId ? modAuthorMap[modId] : null;
-            if (!modAuthorId && modId && modAuthorMap[`HASH_MAP_${modId}`]) {
-              modAuthorId = modAuthorMap[modAuthorMap[`HASH_MAP_${modId}`]];
-            }
-            if (!modAuthorId) dest = 'architect';
-          }
-
-          return dest === userRole;
-        });
-      }
+      // Removed role-based escalation filtering for Keepers since Keepers see all OS-level tickets directly.
 
       setTickets(finalTickets);
 
@@ -209,8 +135,8 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
       ]
     };
 
-    const { error } = await supabase
-      .from('sanctuary_tickets')
+    const { error } = await supabaseAuth
+      .from('keeper_tickets')
       .update({
         status: newStatus,
         metadata: newMetadata
@@ -224,8 +150,8 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
 
     useStore.getState().pushStatus(t("auto_ticket_status_updated_39"), "success");
 
-    if (userRole === "architect") {
-      logArchitectAction(`Support Ticket ${actionType}: ${reason}`, 'sanctuary_tickets', selectedTicket.id);
+    if (userRole === "keeper" || userRole === "keepers") {
+      logArchitectAction(`Keeper Ticket ${actionType}: ${reason}`, 'keeper_tickets', selectedTicket.id, undefined, 'Keeper Hub', true);
     }
     setSelectedTicket(null);
     fetchTickets();

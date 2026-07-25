@@ -2,6 +2,18 @@ import React from 'react';
 import { useLexicon } from '../LexiconContext';
 import { extractPostImage, stripMarkdown } from '../shared';
 
+export function DashboardStatTile({ icon, number, label, colorClass, onClick, setStatus }: any) {
+  return (
+    <div onClick={onClick} className={`flex-1 flex flex-col justify-center items-start gap-1 p-6 rounded-[var(--radius)] border border-white/10 backdrop-blur-[3px] ${colorClass} transition-all cursor-pointer shadow-lg relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl`}>
+      <div className="absolute inset-0 bg-current opacity-0 group-hover:opacity-[0.15] transition-opacity duration-300" />
+      <div className="flex items-center gap-3 w-full relative z-10">
+        <span className="text-3xl opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-110 transition-all drop-shadow-md">{icon}</span>
+        <span className={`text-4xl lg:text-5xl font-black drop-shadow-lg tracking-tighter`}>{number}</span>
+      </div>
+      <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-[var(--subtext)] opacity-60 mt-2">{label}</span>
+    </div>
+  );
+}
 export function CommandScreenLayout({ children }: any) {
   return (
     <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32 mt-8">

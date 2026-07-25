@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../supabase";
+import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
@@ -83,7 +83,7 @@ export function GameManagementOversight() {
     if (isDelete) {
       if (sidePanelMode === 'edit_version') {
         await supabase.from('game_versions').delete().eq('version', panelTarget);
-        await supabase.from('audit_logs').insert({
+        await getActiveGameClient().from('audit_logs').insert({
           action: `Deleted Game Version ${panelTarget}`, target_table: 'game_versions', target_name: panelTarget, actor_id: userRes.data.user?.id, reason: panelReason
         });
         useStore.getState().pushStatus(`Deleted Game Version ${panelTarget}`, "success");
@@ -91,7 +91,7 @@ export function GameManagementOversight() {
       } else if (sidePanelMode === 'edit_dlc') {
         await supabase.from('dlc_registry').delete().eq('id', panelTarget.id);
         await loadDLCMap();
-        await supabase.from('audit_logs').insert({
+        await getActiveGameClient().from('audit_logs').insert({
           action: `Deleted DLC Pack ${panelTarget.id}`, target_table: 'dlc_registry', target_name: panelTarget.id, actor_id: userRes.data.user?.id, reason: panelReason
         });
         useStore.getState().pushStatus(`Deleted DLC Pack ${panelTarget.id}`, "success");
@@ -100,14 +100,14 @@ export function GameManagementOversight() {
     } else {
       if (sidePanelMode === 'add_version') {
         await supabase.from('game_versions').insert([{ version: panelInput1 }]);
-        await supabase.from('audit_logs').insert({
+        await getActiveGameClient().from('audit_logs').insert({
           action: `Added Game Version ${panelInput1}`, target_table: 'game_versions', target_name: panelInput1, actor_id: userRes.data.user?.id, reason: panelReason
         });
         useStore.getState().pushStatus(`Added Game Version ${panelInput1}`, "success");
         fetchVersions();
       } else if (sidePanelMode === 'edit_version') {
         await supabase.from('game_versions').update({ version: panelInput1 }).eq('version', panelTarget);
-        await supabase.from('audit_logs').insert({
+        await getActiveGameClient().from('audit_logs').insert({
           action: `Edited Game Version ${panelTarget} -> ${panelInput1}`, target_table: 'game_versions', target_name: panelInput1, actor_id: userRes.data.user?.id, reason: panelReason
         });
         useStore.getState().pushStatus(`Edited Game Version ${panelTarget} -> ${panelInput1}`, "success");
@@ -115,7 +115,7 @@ export function GameManagementOversight() {
       } else if (sidePanelMode === 'add_dlc') {
         await supabase.from('dlc_registry').insert([{ id: panelInput1.toUpperCase(), name: panelInput2, type: resolvedType }]);
         await loadDLCMap();
-        await supabase.from('audit_logs').insert({
+        await getActiveGameClient().from('audit_logs').insert({
           action: `Added DLC Pack [${panelInput1.toUpperCase()}] ${panelInput2}`, target_table: 'dlc_registry', target_name: panelInput1.toUpperCase(), actor_id: userRes.data.user?.id, reason: panelReason
         });
         useStore.getState().pushStatus(`Added DLC Pack [${panelInput1.toUpperCase()}] ${panelInput2}`, "success");
@@ -123,7 +123,7 @@ export function GameManagementOversight() {
       } else if (sidePanelMode === 'edit_dlc') {
         await supabase.from('dlc_registry').update({ id: panelInput1.toUpperCase(), name: panelInput2, type: resolvedType }).eq('id', panelTarget.id);
         await loadDLCMap();
-        await supabase.from('audit_logs').insert({
+        await getActiveGameClient().from('audit_logs').insert({
           action: `Edited DLC Pack [${panelTarget.id}] -> [${panelInput1.toUpperCase()}] ${panelInput2}`, target_table: 'dlc_registry', target_name: panelInput1.toUpperCase(), actor_id: userRes.data.user?.id, reason: panelReason
         });
         useStore.getState().pushStatus(`Edited DLC Pack [${panelTarget.id}]`, "success");

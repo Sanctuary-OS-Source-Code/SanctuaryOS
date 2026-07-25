@@ -108,7 +108,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
 
       if (!allLocalMods || allLocalMods.length === 0) {
         setModList([]);
-      if (!isSilent) setIsScanning(false);
+        if (!isSilent) setIsScanning(false);
+        useStore.setState({ isGlobalConfigLoaded: true });
         return;
       }
       const uniqueMap = new Map();
@@ -967,7 +968,34 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         });
       }
 
-      setModList(masterList);
+      const prevList = useStore.getState().modList;
+      const prevByHash = new Map(prevList.filter((p: any) => p.hash).map((p: any) => [p.hash, p]));
+      const prevByName = new Map(prevList.filter((p: any) => p.name).map((p: any) => [p.name, p]));
+      
+      const finalMasterList = masterList.map((m: any) => {
+        const existing = prevByHash.get(m.hash) || prevByName.get(m.name);
+        if (existing) {
+           return {
+             ...m,
+             ...existing,
+             conflicts: m.conflicts,
+             isVirtual: m.isVirtual !== undefined ? m.isVirtual : existing.isVirtual,
+             isLocalVirtual: m.isLocalVirtual !== undefined ? m.isLocalVirtual : existing.isLocalVirtual,
+             flavors: m.flavors !== undefined ? m.flavors : existing.flavors,
+             hasUpdate: existing.hasUpdate,
+             newVersion: existing.newVersion,
+             newGameVersion: existing.newGameVersion,
+             download_url: existing.download_url,
+             status: existing.status && existing.status !== t("status_identifying") ? existing.status : m.status,
+             isSynced: existing.isSynced !== undefined ? existing.isSynced : m.isSynced,
+             color: existing.color && existing.color !== "var(--text-secondary)" ? existing.color : m.color,
+           };
+        }
+        return m;
+      });
+
+      setModList(finalMasterList);
+      useStore.setState({ isGlobalConfigLoaded: true });
       setScanProgress({ current: 100, total: 100, message: t("status_done") });
       if (!isSilent) setStatus(t("status_radar_done"));
       try {
@@ -975,15 +1003,18 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         if (config.vault_path) {
           invoke("save_master_cache", {
             vaultPath: config.vault_path,
-            content: JSON.stringify(masterList),
+            content: JSON.stringify(finalMasterList),
           });
         }
       } catch (cacheErr) {
         console.warn("Cache save failed:", cacheErr);
       }
-      checkNetworkUpdates(masterList);
+      checkNetworkUpdates(finalMasterList);
     } catch (err) {
       console.error("RADAR CRASH:", err);
+      useStore.setState({ isGlobalConfigLoaded: true });
+      if (!isSilent) setIsScanning(false);
+      setScanProgress({ current: 0, total: 100, message: "" });
     } finally {
       if (!isSilent) setIsScanning(false);
     }
