@@ -30,7 +30,7 @@ export default function SidePanelBrowser() {
   } = useModalStore();
 
   const isBlockingModalOpen = dnaMatchQueue.length > 0 || !!confirmDialog || showQuarantineModal || showBrokenModal ||
-    snapshotModal || bulkModal || !!renameModal || localFolderModal || !!yeetConfirmPending || scoutQueue.length > 0 ||
+    snapshotModal || bulkModal || !!renameModal || localFolderModal || !!yeetConfirmPending || false /* scoutQueue removed */ ||
     isBackingUp || isRestoring || showDefconAlert;
 
   const blockingModalRef = useRef(isBlockingModalOpen);
@@ -217,6 +217,7 @@ export default function SidePanelBrowser() {
     let isUnmounted = false;
     let pendingUpdate = false;
     let isUpdating = false;
+    let lastShownTab = '';
 
     getAllWebviews().then(webviews => {
       for (const w of webviews) {
@@ -243,12 +244,17 @@ export default function SidePanelBrowser() {
           if (activeWv) {
             if (blockingModalRef.current) {
               await activeWv.hide().catch(console.error);
+              lastShownTab = '';
             } else {
               await Promise.all([
                 activeWv.setPosition(new LogicalPosition(rect.x, rect.y)),
                 activeWv.setSize(new LogicalSize(rect.width, rect.height))
               ]);
-              await activeWv.show().catch(console.error);
+              if (lastShownTab !== activeLabel) {
+                await activeWv.show().catch(console.error);
+                await activeWv.setFocus().catch(console.error);
+                lastShownTab = activeLabel;
+              }
             }
           }
         }
@@ -322,8 +328,7 @@ export default function SidePanelBrowser() {
         }
 
         if (isTabActive) {
-          wv.show().catch(e => { if (!String(e).includes("not found")) console.error(e) });
-          wv.setFocus().catch(e => { if (!String(e).includes("not found") && !String(e).includes("not allowed")) console.error(e) });
+          // Visibility and focus is handled by updateBounds after the bounds have been verified.
         } else {
           wv.hide().catch(e => { if (!String(e).includes("not found")) console.error(e) });
         }

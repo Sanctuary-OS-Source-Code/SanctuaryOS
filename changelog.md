@@ -1,5 +1,5 @@
 **Date: July 24, 2026**
- **Version: 0.4.85**
+ **Version: 0.4.86**
 
 ## **Core Architecture & UI Refinements**
 
