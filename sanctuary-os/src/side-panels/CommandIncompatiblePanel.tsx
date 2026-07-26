@@ -148,8 +148,8 @@ export default function CommandIncompatiblePanel({
         <div className="flex flex-col gap-3 pb-24">
           {brokenMods.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4 py-12">
-              <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">{t("icon_security")}</span>
-              <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("optimal")}</p>
+              <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">gpp_bad</span>
+              <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("no_incompatible_detected")}</p>
             </div>
           ) : (
             brokenMods.map((mod: any) => {

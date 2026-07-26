@@ -2239,5 +2239,17 @@
   "ticket_dossier_action_escalated": "Elevate Threat Level",
   "ticket_dossier_action_pending": "Hold Pending Logs",
   "action_clean_blueprint": "Sanitize",
-  "action_clean_blueprint_desc": "Purge missing artifacts"
+  "action_clean_blueprint_desc": "Purge missing artifacts",
+  "browser_downloads_intercepted": "Intercepted Cargo",
+  "browser_ignore": "Dump",
+  "browser_import": "Assimilate",
+  "browser_bookmark_title": "Waypoint Designation",
+  "browser_url": "Coordinates",
+  "browser_cancel": "Abort",
+  "browser_save": "Lock",
+  "browser_no_bookmarks": "No Nav Points Set",
+  "browser_no_history": "Trace Log Empty",
+  "browser_search_history": "Query Trace Log...",
+  "browser_search_bookmarks": "Query Nav Points...",
+  "no_incompatible_detected": "No Hostile Elements Detected"
 }

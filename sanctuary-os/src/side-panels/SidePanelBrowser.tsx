@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Webview, getAllWebviews } from '@tauri-apps/api/webview';
-import { getCurrentWindow, currentMonitor } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { LogicalPosition, LogicalSize } from '@tauri-apps/api/dpi';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -10,6 +10,7 @@ import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { useTheme } from '../ThemeContext';
 import { INJECTED_BROWSER_SCRIPT } from './browserInjection';
+import { SidePanelBrowserDownloads } from './SidePanelBrowserDownloads';
 
 export default function SidePanelBrowser() {
   const { t } = useLexicon();
@@ -371,39 +372,6 @@ export default function SidePanelBrowser() {
   }, [hasInitialized, browserTabs, maxActiveWebviews, setBrowserTabs, activeBrowserTabId, isSideBrowserOpen]);
 
   useEffect(() => {
-    let unlisten: () => void;
-
-    if (isSideBrowserOpen) {
-      invoke("start_downloads_watch", { extensions: activeGameSchema?.extensions?.supported || [] }).catch(console.error);
-
-      listen<{ path: string }>("download_intercepted", (e) => {
-        const filePath = e.payload.path;
-        const w: any = window;
-        if (w.__processedDownloads && w.__processedDownloads.has(filePath)) {
-          const processedTime = w.__processedDownloads.get(filePath);
-          if (Date.now() - processedTime < 5000) return; // Ignore if processed in the last 5 seconds
-        }
-
-        console.log("FRONTEND RECEIVED DOWNLOAD:", filePath);
-        setDownloadsQueue(prev => {
-          if (prev.includes(filePath)) return prev;
-          return [...prev, filePath];
-        });
-      }).then(u => {
-        unlisten = u;
-      }).catch(console.error);
-    } else {
-
-    }
-
-    return () => {
-      if (unlisten) unlisten();
-      invoke('stop_downloads_watch').catch(console.error);
-
-    };
-  }, [isSideBrowserOpen, setDownloadsQueue]);
-
-  useEffect(() => {
     return () => {
       for (const wv of Array.from(webviewsRef.current.values())) {
         wv.close().catch(console.error);
@@ -693,21 +661,16 @@ export default function SidePanelBrowser() {
                     </button>
                   </div>
 
-                  <div className="px-3 pt-3 pb-1 shrink-0 relative z-10">
-                    <div className="relative flex items-center w-full">
-                      <span className="material-symbols-outlined absolute left-3 !text-[16px] text-[var(--subtext)] pointer-events-none">search</span>
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder={`Search ${drawerTab}...`}
-                        className="w-full bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl py-2 pl-9 pr-3 text-[12px] text-[var(--text)] placeholder-[var(--subtext)] outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors shadow-inner"
+                  <div className="px-4 pb-4">
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={searchQuery} 
+                        onChange={(e) => setSearchQuery(e.target.value)} 
+                        className="w-full bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl py-2 pl-9 pr-3 text-[12px] text-[var(--text)] placeholder-[var(--subtext)] outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors shadow-inner" 
+                        placeholder={drawerTab === 'bookmarks' ? t("browser_search_bookmarks") : t("browser_search_history")} 
                       />
-                      {searchQuery && (
-                        <button onClick={() => setSearchQuery('')} className="absolute right-2 w-6 h-6 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors rounded-full hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                          <span className="material-symbols-outlined !text-[14px]">close</span>
-                        </button>
-                      )}
+                      <span className="material-symbols-outlined absolute left-3 top-[8px] !text-[16px] text-[var(--subtext)] pointer-events-none">search</span>
                     </div>
                   </div>
 
@@ -733,15 +696,15 @@ export default function SidePanelBrowser() {
                           className="px-4 py-3 text-left rounded-2xl theme-glass-panel border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] transition-all flex flex-col gap-1 group bg-[color-mix(in_srgb,var(--text)_3%,transparent)] cursor-pointer"
                         >
                           {editingBookmarkUrl === b.url ? (
-                            <div className="flex flex-col gap-2 w-full" onClick={e => e.stopPropagation()}>
-                              <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[12px] font-bold text-[var(--text)] px-2 py-1.5 rounded-lg outline-none border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]" placeholder="Bookmark Title" />
-                              <input type="text" value={editUrl} onChange={e => setEditUrl(e.target.value)} className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-mono text-[var(--subtext)] px-2 py-1.5 rounded-lg outline-none border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]" placeholder="URL" />
-                              <div className="flex gap-2 justify-end mt-1">
-                                <button onClick={() => setEditingBookmarkUrl(null)} className="text-[10px] uppercase font-bold text-[var(--subtext)] hover:text-[var(--text)] px-3 py-1.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">Cancel</button>
+                            <div className="flex flex-col gap-2 mb-2 p-3 bg-black/10 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]" onClick={e => e.stopPropagation()}>
+                              <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[12px] font-bold text-[var(--text)] px-2 py-1.5 rounded-lg outline-none border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]" placeholder={t("browser_bookmark_title")} />
+                              <input type="text" value={editUrl} onChange={e => setEditUrl(e.target.value)} className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-mono text-[var(--subtext)] px-2 py-1.5 rounded-lg outline-none border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]" placeholder={t("browser_url")} />
+                              <div className="flex justify-end gap-2 mt-1">
+                                <button onClick={() => setEditingBookmarkUrl(null)} className="text-[10px] uppercase font-bold text-[var(--subtext)] hover:text-[var(--text)] px-3 py-1.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">{t("browser_cancel")}</button>
                                 <button onClick={() => {
                                   setBrowserBookmarks(browserBookmarks.map(bm => bm.url === b.url ? { ...bm, title: editTitle, url: editUrl } : bm));
                                   setEditingBookmarkUrl(null);
-                                }} className="text-[10px] uppercase font-bold text-[var(--accent)] hover:text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors px-3 py-1.5 rounded-lg">Save</button>
+                                }} className="text-[10px] uppercase font-bold text-[var(--accent)] hover:text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors px-3 py-1.5 rounded-lg">{t("browser_save")}</button>
                               </div>
                             </div>
                           ) : (
@@ -838,17 +801,17 @@ export default function SidePanelBrowser() {
                       })()
                     )}
 
-                    {drawerTab === 'bookmarks' && browserBookmarks.length === 0 && (
+                    {drawerTab === 'bookmarks' && browserBookmarks.filter(b => b.title.toLowerCase().includes(searchQuery.toLowerCase()) || b.url.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                       <div className="px-4 py-12 flex flex-col items-center justify-center text-[var(--subtext)] gap-3 opacity-60">
                         <span className="material-symbols-outlined !text-[32px] opacity-40">bookmark</span>
-                        <span className="text-[11px] font-black uppercase tracking-widest text-center">No bookmarks yet</span>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-center">{t("browser_no_bookmarks")}</span>
                       </div>
                     )}
 
-                    {drawerTab === 'history' && browserHistory.length === 0 && (
+                    {drawerTab === 'history' && browserHistory.filter(h => h.title.toLowerCase().includes(searchQuery.toLowerCase()) || h.url.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                       <div className="px-4 py-12 flex flex-col items-center justify-center text-[var(--subtext)] gap-3 opacity-60">
                         <span className="material-symbols-outlined !text-[32px] opacity-40">history</span>
-                        <span className="text-[11px] font-black uppercase tracking-widest text-center">No history yet</span>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-center">{t("browser_no_history")}</span>
                       </div>
                     )}
                   </div>
@@ -858,63 +821,7 @@ export default function SidePanelBrowser() {
           </div>
         </div>
 
-        {downloadsQueue.length > 0 && (
-          <div className="shrink-0 m-4 mt-0 theme-glass-panel border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] rounded-[var(--radius)] p-4 flex flex-col gap-3 z-50 animate-in slide-in-from-bottom-10 backdrop-blur-3xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] animate-bounce">download</span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">Downloads Intercepted</span>
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] px-2 py-0.5 rounded-full">{downloadsQueue.length}</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[250px] overflow-y-auto accent-scrollbar p-1">
-              {downloadsQueue.map(filePath => {
-                const fileName = filePath.split(/[/\\]/).pop() || "Unknown File";
-                return (
-                  <div key={filePath} className="flex flex-col justify-between bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md p-3 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group shadow-sm hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all">
-                    <span className="text-[11px] font-bold text-[var(--text)] truncate mb-3" title={fileName}>{fileName}</span>
-                    <div className="flex gap-2 justify-end w-full">
-                      <button
-                        onClick={() => {
-                          const w: any = window;
-                          if (!w.__processedDownloads || typeof w.__processedDownloads.set !== 'function') {
-                            w.__processedDownloads = new Map();
-                          }
-                          w.__processedDownloads.set(filePath, Date.now());
-                          setDownloadsQueue(prev => prev.filter(p => p !== filePath));
-                        }}
-                        className="flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-red-500/20 text-[var(--subtext)] hover:text-red-400 border border-transparent hover:border-red-500/30"
-                      >
-                        Ignore
-                      </button>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const w: any = window;
-                            if (!w.__processedDownloads || typeof w.__processedDownloads.set !== 'function') {
-                              w.__processedDownloads = new Map();
-                            }
-                            w.__processedDownloads.set(filePath, Date.now());
-                            setDownloadsQueue(prev => prev.filter(p => p !== filePath));
-                            await invoke("ingest_dropped_file", { path: filePath, forceReplace: false, targetFolder: null });
-                            await invoke("delete_local_file", { path: filePath });
-                          } catch (err) {
-                            console.error("Failed to ingest file", err);
-                            alert(`Failed to ingest file: ${err}`);
-                          }
-                        }}
-                        className="flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]"
-                      >
-                        Import
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
+        <SidePanelBrowserDownloads downloadsQueue={downloadsQueue} setDownloadsQueue={setDownloadsQueue} />
       </div>
     </div>,
     document.body

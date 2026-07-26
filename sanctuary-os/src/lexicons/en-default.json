@@ -2242,5 +2242,17 @@
   "ticket_dossier_action_escalated": "Escalate to Next Tier",
   "ticket_dossier_action_pending": "Mark as Pending",
   "action_clean_blueprint": "Clean",
-  "action_clean_blueprint_desc": "Remove missing artifacts"
+  "action_clean_blueprint_desc": "Remove missing artifacts",
+  "browser_downloads_intercepted": "Downloads Intercepted",
+  "browser_ignore": "Ignore",
+  "browser_import": "Import",
+  "browser_bookmark_title": "Bookmark Title",
+  "browser_url": "URL",
+  "browser_cancel": "Cancel",
+  "browser_save": "Save",
+  "browser_no_bookmarks": "No bookmarks yet",
+  "browser_no_history": "No history yet",
+  "browser_search_history": "Search history...",
+  "browser_search_bookmarks": "Search bookmarks...",
+  "no_incompatible_detected": "No Incompatible Artifacts Detected"
 }
