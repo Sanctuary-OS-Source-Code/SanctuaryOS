@@ -1,3 +1,4 @@
+import React from 'react';
 import { invoke } from "@tauri-apps/api/core";
 import { SidePanel } from "../shared";
 import { useLexicon } from "../LexiconContext";
@@ -13,6 +14,17 @@ export function DnaMatchQueueSidePanel({
   setStatus
 }: any) {
   const { t } = useLexicon();
+  const prevQueueLength = React.useRef(dnaMatchQueue?.length || 0);
+
+  React.useEffect(() => {
+    if (dnaMatchQueue?.length === 0 && prevQueueLength.current > 0) {
+      const timer = setTimeout(() => {
+        runRadarSweep(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+    prevQueueLength.current = dnaMatchQueue?.length || 0;
+  }, [dnaMatchQueue?.length, runRadarSweep]);
 
   return (
     <SidePanel
@@ -34,7 +46,7 @@ export function DnaMatchQueueSidePanel({
                 for (const match of queueCopy) {
                   try {
                     ignoredHashesRef.current.add(match.hash || match.path);
-                    await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "ignore" });
+                    await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name || "", action: "ignore" });
                   } catch(e) {}
                 }
                 if (queueCopy.length > 0) runRadarSweep(true);
@@ -50,7 +62,7 @@ export function DnaMatchQueueSidePanel({
                 setDnaMatchQueue([]);
                 for (const match of queueCopy) {
                   try {
-                    await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "replace" });
+                    await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name || "", action: "replace" });
                     if (match.existing_name) {
                       const oldName = match.existing_name.split(/[/\\]/).pop();
                       const newName = match.path.split(/[/\\]/).pop();
@@ -96,13 +108,14 @@ export function DnaMatchQueueSidePanel({
              </div>
              <div className="flex justify-center items-center gap-3 w-full mt-4">
                <button
-                 onClick={async () => {
+                 onClick={async (e) => {
+                   e.preventDefault();
+                   e.stopPropagation();
                    try {
                      ignoredHashesRef.current.add(match.hash || match.path);
-                     await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "ignore" });
-                     if (dnaMatchQueue.length === 1 && match.source_action === "radar_sweep") runRadarSweep(true);
-                   } catch (e: any) { console.error("Error ignoring:", e); }
-                   setDnaMatchQueue((prev: any[]) => prev.filter((_: any, i: number) => i !== index));
+                     await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name || "", action: "ignore" });
+                   } catch (err: any) { console.error("Error ignoring:", err); }
+                   setDnaMatchQueue((prev: any[]) => prev.filter((m: any) => m.path !== match.path));
                  }}
                  className={standardButtonClass}
                >
@@ -110,12 +123,13 @@ export function DnaMatchQueueSidePanel({
                  {t("btn_keep_old")}
                </button>
                <button
-                 onClick={async () => {
+                 onClick={async (e) => {
+                   e.preventDefault();
+                   e.stopPropagation();
                    try {
-                     await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name, action: "replace" });
-                     if (dnaMatchQueue.length === 1) runRadarSweep(true);
-                   } catch (e: any) { setStatus(`Error replacing file: ${e}`); }
-                   setDnaMatchQueue((prev: any[]) => prev.filter((_: any, i: number) => i !== index));
+                     await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name || "", action: "replace" });
+                   } catch (err: any) { setStatus(`Error replacing file: ${err}`); }
+                   setDnaMatchQueue((prev: any[]) => prev.filter((m: any) => m.path !== match.path));
                  }}
                  className={standardAccentGlassButtonClass}
                >

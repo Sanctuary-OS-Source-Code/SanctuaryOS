@@ -122,6 +122,17 @@ export function usePlaySetLogic() {
       const deepDelete = (nameToDelete: string) => {
         if (!newMods.has(nameToDelete)) return;
         newMods.delete(nameToDelete);
+
+        const targetClean = nameToDelete.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
+        if (targetClean) {
+           Array.from(newMods as Set<string>).forEach((depName: string) => {
+              const depClean = depName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
+              if (depClean === targetClean && depName !== nameToDelete) {
+                  newMods.delete(depName);
+              }
+           });
+        }
+
         if (currentRules.dependencies !== false) {
           const mData = byName.get(nameToDelete);
           if (mData) {
@@ -203,30 +214,35 @@ export function usePlaySetLogic() {
         
         newMods.add(modObj.name);
         applyConflicts(modObj);
+        
         const anchor = modObj.familyId || modObj.dbId;
-        if (anchor && currentRules.family !== false) {
-          modList.forEach((m) => {
-            if (
-              (String(m.familyId) === String(anchor) ||
-                String(m.dbId) === String(anchor)) &&
-              m.name &&
-              !m.isVirtual
-            ) {
+        const modBaseName = modObj.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
+        
+        modList.forEach((m) => {
+          let isTwinMatch = false;
+          const mBaseName = m.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
+          if (mBaseName && modBaseName && mBaseName === modBaseName && m.name !== modObj.name) {
+              isTwinMatch = true;
+          }
+          
+          if ((anchor && currentRules.family !== false && (String(m.familyId) === String(anchor) || String(m.dbId) === String(anchor))) || isTwinMatch) {
+            if (m.name && !m.isVirtual) {
               const objV = modObj.version;
               const mV = m.version;
               const sharesVersion = !objV || !mV || objV === "v.Local" || mV === "v.Local" || objV === mV;
-              if (!sharesVersion) return;
+              if (!sharesVersion && !isTwinMatch) return;
 
               const isRival =
                 m.flavorGroupId &&
                 String(m.flavorGroupId) === String(modObj.flavorGroupId) &&
                 m.name !== modObj.name;
+                
               if (
                 !isRival &&
                 (m.relationshipType === "twin" ||
                   m.relationshipType === "beta" ||
                   m.relationshipType === "core" ||
-                  !m.relationshipType)
+                  !m.relationshipType || isTwinMatch)
               ) {
                 if (!(excludeBroken && (m.status === t("status_broken") || m.status?.includes("BROKEN") || checkGhosted(m)))) {
                   applyConflicts(m);
@@ -234,8 +250,8 @@ export function usePlaySetLogic() {
                 }
               }
             }
-          });
-        }
+          }
+        });
       };
       if (isEquipping) {
         if (targetMod.isVirtual) {
@@ -352,9 +368,21 @@ export function usePlaySetLogic() {
         }
       }
       const updatedSets = [...prevSets];
+      
+      const nextModHashes: Record<string, string> = {};
+      Array.from(newMods as Set<string>).forEach((mName: string) => {
+         const mData = byName.get(mName);
+         if (mData && mData.hash) {
+             nextModHashes[mName] = mData.hash;
+         } else if (currentSet.modHashes && currentSet.modHashes[mName]) {
+             nextModHashes[mName] = currentSet.modHashes[mName];
+         }
+      });
+
       updatedSets[activePlaySetIndex] = {
         ...currentSet,
         mods: Array.from(newMods),
+        modHashes: nextModHashes
       };
       localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
       window.dispatchEvent(new Event("storage"));
@@ -419,6 +447,7 @@ export function usePlaySetLogic() {
           if (mBase) baseToMod.set(mBase, m);
       });
 
+      const nextModHashes: Record<string, string> = {};
       parsed.mods.forEach((importedMod: any) => {
           let found = null;
           if (importedMod.hash) {
@@ -433,8 +462,16 @@ export function usePlaySetLogic() {
               }
           }
 
-          if (found) availableMods.push(found.name);
-          else missing.push(importedMod);
+          if (found) {
+              availableMods.push(found.name);
+              if (found.hash) nextModHashes[found.name] = found.hash;
+              else if (typeof importedMod !== 'string' && importedMod.hash) nextModHashes[found.name] = importedMod.hash;
+          }
+          else {
+              missing.push(importedMod);
+              const nameToCheck = typeof importedMod === 'string' ? importedMod : (importedMod.name || importedMod.path || '');
+              if (typeof importedMod !== 'string' && importedMod.hash) nextModHashes[nameToCheck] = importedMod.hash;
+          }
       });
       let newName = parsed.name;
       let counter = 1;
@@ -444,7 +481,7 @@ export function usePlaySetLogic() {
         newName = `${parsed.name} (${counter})`;
         counter++;
       }
-      const readySet = { name: newName, mods: availableMods };
+      const readySet = { name: newName, mods: availableMods, modHashes: nextModHashes, ignoredGhosts: [] };
       if (missing.length > 0) {
         setPendingImportSet(readySet);
         setMissingImportMods(missing);
@@ -480,6 +517,7 @@ export function usePlaySetLogic() {
     await new Promise(resolve => setTimeout(resolve, 50));
     
     try {
+      useStore.setState({ activeConflictCount: { total: 0, tier4: 0, tier3: 0 }, activeBrokenCounts: { broken: 0, unstable: 0 } });
       console.time("equipPlaySet_JS_overhead");
       const jsStartTime = Date.now();
       const config: any = await invoke("get_saved_coordinates");
@@ -663,11 +701,108 @@ export function usePlaySetLogic() {
       
       const jsTime = Date.now() - jsStartTime;
 
-      setStatus(`${t("icon_check_circle")} ${t("btn_deployed")} ${msg as string} ${t("backend_deployed_suffix")} (JS Time: ${jsTime}ms)`);
+      setStatus(`${t("icon_check_circle")} ${t("btn_deployed")} ${msg as string} ${t("backend_deployed_suffix")} `);
     } catch (err) {
       setStatus(`${t("status_deploy_failed")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
     }
   }
 
-  return { toggleInActiveSet, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet };
+  const getMissingStrings = (setName: string) => {
+    const targetSet = playSets.find((s: any) => s.name === setName);
+    if (!targetSet || !targetSet.mods) return [];
+    
+    let changed = false;
+    const nextMods: string[] = [];
+    const nextHashes = { ...(targetSet.modHashes || {}) };
+    const missing: string[] = [];
+    
+    const extRegex = getExtensionRegex(activeGameSchema);
+
+    for (const modName of targetSet.mods) {
+      if (modList.some((m: any) => m.name === modName)) {
+        nextMods.push(modName);
+      } else {
+        let healed = false;
+        const oldHash = nextHashes[modName];
+        if (oldHash) {
+          const dnaMatch = modList.find((m: any) => m.hash === oldHash);
+          if (dnaMatch) {
+            nextMods.push(dnaMatch.name);
+            nextHashes[dnaMatch.name] = dnaMatch.hash;
+            delete nextHashes[modName];
+            healed = true;
+            changed = true;
+          }
+        }
+        
+        if (!healed) {
+          const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
+          const baseMatch = targetBase ? modList.find((m: any) => {
+            const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '');
+            return mBase === targetBase;
+          }) : null;
+          
+          if (baseMatch) {
+            nextMods.push(baseMatch.name);
+            if (baseMatch.hash) nextHashes[baseMatch.name] = baseMatch.hash;
+            delete nextHashes[modName];
+            healed = true;
+            changed = true;
+          }
+        }
+        
+        if (!healed) {
+          nextMods.push(modName);
+          missing.push(modName);
+        }
+      }
+    }
+    
+    if (changed) {
+      setTimeout(() => {
+        setPlaySets((prev: any[]) => {
+          const copy = JSON.parse(JSON.stringify(prev));
+          const target = copy.find((s: any) => s.name === setName);
+          if (target) {
+            target.mods = nextMods;
+            target.modHashes = nextHashes;
+          }
+          localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(copy));
+          return copy;
+        });
+      }, 0);
+    }
+    
+    const ignored = targetSet.ignoredGhosts || [];
+    return missing.filter(m => !ignored.includes(m));
+  };
+
+  const ignoreMissingString = (setName: string, modName: string) => {
+    setPlaySets((prev: any[]) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      const target = copy.find((s: any) => s.name === setName);
+      if (target) {
+        if (!target.ignoredGhosts) target.ignoredGhosts = [];
+        if (!target.ignoredGhosts.includes(modName)) {
+            target.ignoredGhosts.push(modName);
+        }
+      }
+      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(copy));
+      return copy;
+    });
+  };
+
+  const purgeMissingString = (setName: string, modName: string) => {
+    setPlaySets((prev: any[]) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      const target = copy.find((s: any) => s.name === setName);
+      if (target && target.mods) {
+        target.mods = target.mods.filter((m: string) => m !== modName);
+      }
+      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(copy));
+      return copy;
+    });
+  };
+
+  return { toggleInActiveSet, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet, getMissingStrings, ignoreMissingString, purgeMissingString };
 }

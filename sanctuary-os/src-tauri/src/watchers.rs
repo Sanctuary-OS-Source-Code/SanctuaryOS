@@ -26,7 +26,7 @@ use crate::utils::*;
 
 
 #[tauri::command]
-pub fn initialize_vault_watch(app_handle: tauri::AppHandle) -> () {
+pub fn initialize_vault_watch(app_handle: tauri::AppHandle, app_state: tauri::State<'_, AppState>) -> () {
     let config = get_saved_coordinates();
     let path_to_watch = PathBuf::from(&config.vault_path);
     if !path_to_watch.exists() {
@@ -35,13 +35,29 @@ pub fn initialize_vault_watch(app_handle: tauri::AppHandle) -> () {
     let (tx, rx) = std::sync::mpsc::channel();
     let mut watcher = notify::RecommendedWatcher::new(tx, notify::Config::default()).unwrap();
     watcher
-        .watch(&path_to_watch, notify::RecursiveMode::NonRecursive)
+        .watch(&path_to_watch, notify::RecursiveMode::Recursive)
         .unwrap();
+    
+    let mods_path_to_ignore = std::path::PathBuf::from(&config.mods_path);
+    let is_deploying = app_state.inner().is_deploying.clone();
+    
     std::thread::spawn(move || {
         let _keep_alive = watcher;
         for res in rx {
-            if res.is_ok() {
-                let _ = app_handle.emit("vault_changed", "UPDATE");
+            if let Ok(event) = res {
+                if is_deploying.load(std::sync::atomic::Ordering::SeqCst) {
+                    continue;
+                }
+                
+                if let notify::EventKind::Access(_) = event.kind {
+                    continue;
+                }
+                for path in event.paths {
+                    if path.starts_with(&mods_path_to_ignore) {
+                        continue;
+                    }
+                    let _ = app_handle.emit("vault_changed", path.to_string_lossy().to_string());
+                }
             }
         }
     });
@@ -114,7 +130,7 @@ pub fn initialize_airgap_watch(app_handle: tauri::AppHandle, docs_path: String, 
 }
 
 #[tauri::command]
-pub fn initialize_settings_watch(mods_path: String, vault_path: String) {
+pub fn initialize_settings_watch(mods_path: String, vault_path: String, app_state: tauri::State<'_, AppState>) {
     let path_to_watch = std::path::PathBuf::from(&mods_path);
     if !path_to_watch.exists() {
         return;
@@ -122,6 +138,8 @@ pub fn initialize_settings_watch(mods_path: String, vault_path: String) {
     let vault_mods_path = crate::utils::get_vault_mods_lane(&vault_path);
     let _ = std::fs::create_dir_all(&vault_mods_path);
 
+    let is_deploying = app_state.inner().is_deploying.clone();
+    
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         use notify::Watcher;
@@ -133,6 +151,9 @@ pub fn initialize_settings_watch(mods_path: String, vault_path: String) {
             let _keep_alive = watcher;
             for res in rx {
                 if let Ok(event) = res {
+                    if is_deploying.load(std::sync::atomic::Ordering::SeqCst) {
+                        continue;
+                    }
                     for path in event.paths {
                         if path.is_file() {
                             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {

@@ -936,7 +936,7 @@ function App() {
       }, 2500);
     }
   }, []);
-  const { toggleInActiveSet, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet } = usePlaySetLogic();
+  const { toggleInActiveSet, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet, getMissingStrings, ignoreMissingString, purgeMissingString } = usePlaySetLogic();
   const { handleSmartSearch, runSanitization, triggerShelter, restoreMod, purgeMod } = useModActions(openUrl, fetchVault, runRadarSweep, activeSetName, equipPlaySet, setShelterActive);
   async function fetchCloudLabQueue() {
     try {
@@ -1090,10 +1090,11 @@ function App() {
 
       let debugLog = "";
       cloudData.forEach((cloudMod) => {
-        const localMod = syncedMods.find((m) => String(m.dbId) === String(cloudMod.id) || m.name === cloudMod.name);
-        if (!localMod) return;
-        if (cloudMod.status === "broken") broken.push(localMod);
-        else if (cloudMod.status === "obsolete") obsolete.push(localMod);
+        const localMods = syncedMods.filter((m) => String(m.dbId) === String(cloudMod.id) || m.name === cloudMod.name);
+        if (localMods.length === 0) return;
+        
+        if (cloudMod.status === "broken") broken.push(...localMods);
+        else if (cloudMod.status === "obsolete") obsolete.push(...localMods);
         else {
           const latestData =
             cloudMod.mod_versions && cloudMod.mod_versions.length > 0
@@ -1102,17 +1103,29 @@ function App() {
 
           if (!latestData) return;
 
-          const hashMismatch = localMod.hash && latestData.dna_hash && localMod.hash.toLowerCase() !== latestData.dna_hash.toLowerCase();
-          const versionMismatch = localMod.version && localMod.version !== latestData.version_label && localMod.version !== "v.Local";
+          const anyHashMatch = localMods.some(m => m.hash && latestData.dna_hash && m.hash.toLowerCase() === latestData.dna_hash.toLowerCase());
+          const hashMismatch = latestData.dna_hash ? !anyHashMatch : false;
+          
+          const primaryMod = localMods[0];
+          
+          const cleanLocalVer = String(primaryMod.version || "").toLowerCase().replace(/^v/, '').trim();
+          const cleanCloudVer = String(latestData.version_label || "").toLowerCase().replace(/^v/, '').trim();
+          
+          const isExactVersionMatch = primaryMod.version && primaryMod.version !== "v.Local" && cleanLocalVer === cleanCloudVer;
+          const versionMismatch = primaryMod.version && primaryMod.version !== "v.Local" && cleanLocalVer !== cleanCloudVer;
 
-          debugLog += `Mod: ${localMod.name} | localHash: ${localMod.hash} | cloudHash: ${latestData.dna_hash} | hashMismatch: ${hashMismatch}\n`;
+          debugLog += `Mod: ${primaryMod.name} | anyHashMatch: ${anyHashMatch} | cloudHash: ${latestData.dna_hash} | hashMismatch: ${hashMismatch} | isExactVersionMatch: ${isExactVersionMatch}\n`;
 
-          if (hashMismatch || versionMismatch) {
-            updated.push({
-              ...localMod,
-              newVersion: latestData.version_label,
-              newGameVersion: latestData.game_version,
-              download_url: latestData.download_url
+          const needsUpdate = !isExactVersionMatch && (hashMismatch || versionMismatch);
+
+          if (needsUpdate) {
+            localMods.forEach(m => {
+              updated.push({
+                ...m,
+                newVersion: latestData.version_label,
+                newGameVersion: latestData.game_version,
+                download_url: latestData.download_url
+              });
             });
           }
         }
@@ -1582,7 +1595,7 @@ function App() {
       setStatus(t("status_blueprint_exists"));
       return;
     }
-    const updatedSets = [...playSets, { name: setName, mods: [] }];
+    const updatedSets = [...playSets, { name: setName, mods: [], modHashes: {}, ignoredGhosts: [] }];
     setPlaySets(updatedSets);
     localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
     setActivePlaySetIndex(updatedSets.length - 1);
@@ -1596,8 +1609,7 @@ function App() {
 
 
 
-
-  const { handleQuickLaunch } = useLaunchLogic(askCustom, triggerPrePatchSnapshot);
+  const { handleQuickLaunch } = useLaunchLogic(askCustom, triggerPrePatchSnapshot, equipPlaySet);
 
   useDefconRadar(t, askCustom, triggerPrePatchSnapshot, triggerFullEngineBackup);
 
@@ -2017,6 +2029,7 @@ function App() {
                       setFilterStatus={setFilterStatus}
                       setIsSupportDeskOpen={setIsSupportModalOpen}
                       setIsCitizenTicketsOpen={setIsCitizenTicketsOpen}
+                      equipPlaySet={equipPlaySet}
                     />
                   </ErrorBoundary>
                 </div>
@@ -2090,6 +2103,9 @@ function App() {
                   activePlaySetIndex={activePlaySetIndex}
                   setActivePlaySetIndex={setActivePlaySetIndex}
                   toggleInActiveSet={toggleInActiveSet}
+                  getMissingStrings={getMissingStrings}
+                  ignoreMissingString={ignoreMissingString}
+                  purgeMissingString={purgeMissingString}
                 />
               </ErrorBoundary>
             )}

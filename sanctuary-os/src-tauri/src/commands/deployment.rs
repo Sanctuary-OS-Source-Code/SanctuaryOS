@@ -107,6 +107,15 @@ pub fn airgap_saves(docs_path: String, enable: bool) -> Result<String, String> {
     Ok(format!("Saves airgap: {}", enable))
 }
 
+struct DeployGuard {
+    flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+impl Drop for DeployGuard {
+    fn drop(&mut self) {
+        self.flag.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
 #[tauri::command]
 pub async fn deploy_playset_bulk(
     mods: Vec<DeployMod>,
@@ -115,7 +124,13 @@ pub async fn deploy_playset_bulk(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
+    
+    let is_deploying = state.inner().is_deploying.clone();
+    is_deploying.store(true, std::sync::atomic::Ordering::SeqCst);
+    
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = DeployGuard { flag: is_deploying };
+        
         let mods_dir = PathBuf::from(&mods_path);
         let vault_dir = PathBuf::from(&vault_path);
         
@@ -129,16 +144,10 @@ pub async fn deploy_playset_bulk(
             return Err("Mods folder missing.".into());
         }
 
-        let start_time = std::time::Instant::now();
-        let wipe_start = std::time::Instant::now();
         safe_wipe_mods_dir(&mods_dir, &game_schema);
-        let wipe_time = wipe_start.elapsed();
 
-        let manifest_start = std::time::Instant::now();
         crate::game_logic::generate_manifest_if_needed(&game_schema, &mods_dir);
-        let manifest_time = manifest_start.elapsed();
 
-        let index_start = std::time::Instant::now();
         let mut vault_index = std::collections::HashMap::new();
         let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
         for f in folders_to_check.iter().rev() {
@@ -157,8 +166,6 @@ pub async fn deploy_playset_bulk(
                 }
             }
         }
-        let index_time = index_start.elapsed();
-        let loop_start = std::time::Instant::now();
 
         use rayon::prelude::*;
         let count: usize = mods.into_par_iter().map(|m| {
@@ -407,14 +414,6 @@ pub async fn deploy_playset_bulk(
                 }
             }
         }
-
-        let loop_time = loop_start.elapsed();
-        println!("DEPLOYMENT TIMING:");
-        println!("- Manifest: {:?}", manifest_time);
-        println!("- Wipe: {:?}", wipe_time);
-        println!("- Index: {:?}", index_time);
-        println!("- Loop: {:?}", loop_time);
-        println!("- Total: {:?}", start_time.elapsed());
 
         Ok(count.to_string())
     })

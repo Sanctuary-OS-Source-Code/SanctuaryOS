@@ -377,13 +377,25 @@ pub fn ingest_dropped_file(
         return Err("FILE_NOT_FOUND".into());
     }
 
-    if !source.is_dir() && !force_replace {
+    let mut exists = false;
+    let mut existing_name = String::new();
+    let mut match_reason = String::new();
+    let mut hash = String::new();
+
+    let ext = source
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    let supported = crate::game_logic::get_supported_extensions(&game_schema);
+    if !source.is_dir() && ext != "zip" && !supported.contains(&ext) {
+        return Err("UNSUPPORTED_ARTIFACT_TYPE".into());
+    }
+
+    if !source.is_dir() {
         let source_file_name = source.file_name().unwrap_or_default();
         let cache = load_cache(&config.vault_path);
-        let mut exists = false;
-        let mut existing_name = String::new();
-        let mut match_reason = String::new();
-        let mut hash = String::new();
         let mut needs_hash = true;
 
         for (k, _) in cache.iter() {
@@ -408,25 +420,22 @@ pub fn ingest_dropped_file(
             }
         }
 
-        if exists {
+        if exists && !force_replace {
             let _ = app.emit("dna_match_detected", serde_json::json!({ "path": path, "hash": hash, "existing_name": existing_name, "source_action": "ingest_dropped_file", "reason": match_reason }));
             return Err("DNA_MATCH".into());
         }
     }
 
     let file_name = source.file_name().ok_or("INVALID_FILENAME")?;
-    let ext = source
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or("")
-        .to_lowercase();
 
     let target_dir = crate::utils::get_vault_mods_lane(&config.vault_path);
-
     std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
-    let target = target_dir.join(file_name);
-
-    if !force_replace && target.exists() {
+    
+    let mut target = target_dir.join(file_name);
+    
+    if exists && force_replace {
+        target = Path::new(&existing_name).to_path_buf();
+    } else if !force_replace && target.exists() {
         let _ = app.emit("dna_match_detected", serde_json::json!({ 
             "path": path, 
             "hash": "", 
@@ -456,10 +465,7 @@ pub fn ingest_dropped_file(
             let target_base = crate::utils::get_vault_mods_lane(&config.vault_path).join(&zip_stem);
             let _ = std::fs::create_dir_all(&target_base);
             
-            let active_base = if !config.mods_path.is_empty() { Some(Path::new(&config.mods_path).join(&zip_stem)) } else { None };
-            if let Some(ref active_mods) = active_base {
-                let _ = std::fs::create_dir_all(active_mods);
-            }
+            let cache = load_cache(&config.vault_path);
             
             for i in 0..archive.len() {
                 if let Ok(mut zf) = archive.by_index(i) {
@@ -476,13 +482,35 @@ pub fn ingest_dropped_file(
                                     file_target = file_target.join(parent);
                                 }
                                 let _ = std::fs::create_dir_all(&file_target);
-                                let final_path = file_target.join(zf_file_name);
+                                let mut final_path = file_target.join(zf_file_name);
+                                
+                                let mut needs_resolution = false;
+                                let mut resolution_existing_name = final_path.to_string_lossy().to_string();
+                                let mut found_existing = false;
+
+                                for (k, _) in cache.iter() {
+                                    if Path::new(k).file_name() == Some(zf_file_name) && Path::new(k).exists() {
+                                        found_existing = true;
+                                        resolution_existing_name = k.clone();
+                                        break;
+                                    }
+                                }
+
+                                if !found_existing && final_path.exists() {
+                                    found_existing = true;
+                                }
+
+                                if found_existing {
+                                    if force_replace {
+                                        final_path = Path::new(&resolution_existing_name).to_path_buf();
+                                    } else {
+                                        needs_resolution = true;
+                                    }
+                                }
                                 
                                 let mut extract_target = final_path.clone();
-                                let mut needs_resolution = false;
 
-                                if !force_replace && final_path.exists() {
-                                    needs_resolution = true;
+                                if needs_resolution {
                                     let mut new_name = final_path.file_name().unwrap().to_os_string();
                                     new_name.push(".tmp_sanctuary_conflict");
                                     extract_target = final_path.with_file_name(new_name);
@@ -545,21 +573,10 @@ pub fn ingest_dropped_file(
                                             let _ = app.emit("dna_match_detected", serde_json::json!({
                                                 "path": extract_target.to_string_lossy().to_string(), 
                                                 "hash": "", 
-                                                "existing_name": final_path.to_string_lossy().to_string(), 
+                                                "existing_name": resolution_existing_name, 
                                                 "source_action": "ingest_dropped_file", 
                                                 "reason": "ZIP_NAME_MATCH" 
                                             }));
-                                        } else {
-                                            if let Some(ref active_mods) = active_base {
-                                                if active_mods.exists() {
-                                                    let mut active_target = active_mods.clone();
-                                                    if let Some(parent) = p.parent() {
-                                                        active_target = active_target.join(parent);
-                                                    }
-                                                    let _ = std::fs::create_dir_all(&active_target);
-                                                    let _ = std::fs::copy(&extract_target, active_target.join(zf_file_name));
-                                                }
-                                            }
                                         }
                                     }
                                 }
@@ -567,6 +584,9 @@ pub fn ingest_dropped_file(
                         }
                     }
                 }
+            }
+            if std::fs::read_dir(&target_base).map(|mut iter| iter.next().is_none()).unwrap_or(false) {
+                let _ = std::fs::remove_dir(&target_base);
             }
             return Ok(serde_json::to_string(&extracted_files).unwrap_or_else(|_| "[]".to_string()));
         } else if crate::game_logic::get_supported_extensions(&game_schema).contains(&ext) {
@@ -619,13 +639,9 @@ pub fn ingest_dropped_file(
                 return Err("MALWARE".into());
             }
 
-            std::fs::copy(source, &target).map_err(|e| e.to_string())?;
-            if !config.mods_path.is_empty() {
-                let active_mods_dir = Path::new(&config.mods_path);
-                let active_target = active_mods_dir.to_path_buf();
-                let _ = std::fs::create_dir_all(&active_target);
-                let _ = std::fs::copy(source, active_target.join(file_name));
-            }
+            std::fs::rename(source, &target)
+                .or_else(|_| std::fs::copy(source, &target).and_then(|_| std::fs::remove_file(source)))
+                .map_err(|e| e.to_string())?;
             return Ok(serde_json::to_string(&vec![file_name.to_string_lossy().to_string()]).unwrap_or_default());
         } else {
             return Err("UNSUPPORTED_ARTIFACT_TYPE".into());

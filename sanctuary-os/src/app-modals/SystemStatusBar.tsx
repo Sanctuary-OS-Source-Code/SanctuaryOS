@@ -12,9 +12,21 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   const activeConflictCount = useStore(state => state.activeConflictCount) || { tier4: 0, tier3: 0 };
   const activeBrokenCounts = useStore(state => state.activeBrokenCounts) || { broken: 0, unstable: 0 };
   const networkUpdates = useStore(state => state.networkUpdates) || { updated: [] };
+  const activePlaySetIndex = useStore(state => state.activePlaySetIndex);
+  const playSets = useStore(state => state.playSets);
   const { isSideBrowserOpen, scoutQueue, setIsScoutPanelOpen, isScoutPanelOpen } = useModalStore();
 
-  const updatesCount = networkUpdates?.updated?.length || 0;
+  const updatesCount = React.useMemo(() => {
+    if (!networkUpdates?.updated || typeof activePlaySetIndex !== 'number' || !playSets || !playSets[activePlaySetIndex]) return 0;
+    const currentMods = playSets[activePlaySetIndex].mods || [];
+    const safeMods = currentMods.map((m: any) => typeof m === 'string' ? m.toLowerCase().replace(/\\/g, '/') : '');
+    
+    const filtered = networkUpdates.updated.filter((u: any) => {
+       const uName = String(u.name).split(/[\\/]/).pop()?.toLowerCase() || String(u.name).toLowerCase();
+       return safeMods.some((m: string) => m === uName || m.endsWith(`/${uName}`) || m.endsWith(`\\${uName}`));
+    });
+    return Object.keys(filtered.reduce((acc: any, u: any) => { acc[u.dbId || u.name] = true; return acc; }, {}) || {}).length || 0;
+  }, [networkUpdates, activePlaySetIndex, playSets]);
   const tier4Count = activeConflictCount.tier4 || 0;
   const tier3Count = activeConflictCount.tier3 || 0;
   const brokenCount = activeBrokenCounts.broken || 0;
@@ -29,10 +41,10 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
     radarState = "update";
   }
 
-  const radarIconColor = radarState === 'critical' ? 'text-red-500 drop-shadow-[0_0_5px_rgba(239,68,68,1)]' :
-    radarState === 'warning' ? 'text-amber-500 drop-shadow-[0_0_5px_rgba(245,158,11,1)]' :
+  const radarIconColor = radarState === 'critical' ? 'text-[var(--danger)] drop-shadow-[0_0_5px_var(--danger)]' :
+    radarState === 'warning' ? 'text-[var(--warning)] drop-shadow-[0_0_5px_var(--warning)]' :
       radarState === 'update' ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' :
-        'text-emerald-500 drop-shadow-[0_0_5px_rgba(16,185,129,1)]';
+        'text-[var(--success)] drop-shadow-[0_0_5px_var(--success)]';
 
   return (
     <div

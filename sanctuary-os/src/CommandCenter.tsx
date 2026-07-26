@@ -20,19 +20,20 @@ import MasonPostViewer from "./side-panels/MasonPostViewer";
 
 export default function CommandCenter({
   isScanning, scanProgress, modsPath, isConfigured, toggleInActiveSet,
-  modList, quarantineList, shelterContents, shelterActive, runRadarSweep, runSanitization, massIngestToCloud, triggerShelter, setView, setFilterStatus, setShowBrokenModal, setShowQuarantineModal, handleOpenMasonProfile, networkUpdates, setIsSupportDeskOpen, setIsCitizenTicketsOpen
+  modList, quarantineList, shelterContents, shelterActive, runRadarSweep, runSanitization, massIngestToCloud, triggerShelter, setView, setFilterStatus, setShowBrokenModal, setShowQuarantineModal, handleOpenMasonProfile, networkUpdates, setIsSupportDeskOpen, setIsCitizenTicketsOpen, equipPlaySet
 }: any) {
   const { t } = useLexicon();
   const ownedDLC = useStore((state) => state.ownedDLC);
   const maskedDLC = useStore((state) => state.maskedDLC);
   const selectedVersion = useStore((state) => state.selectedVersion);
   const playSets = useStore((state) => state.playSets);
-  const activePlaySetIndex = useStore((state) => state.activePlaySetIndex);
+  const activeSetName = useStore((state) => state.activeSetName);
+  const activePlaySetIndex = React.useMemo(() => playSets ? playSets.findIndex((ps: any) => ps.name === activeSetName) : -1, [playSets, activeSetName]);
+  const activePlaySet = activePlaySetIndex !== -1 ? playSets[activePlaySetIndex] : null;
   const session = useStore((state) => state.session);
   const userRole = useStore((state) => state.userRole);
   const setPlaySets = useStore((state) => state.setPlaySets);
   const activeGameSchema = useStore((state) => state.activeGameSchema);
-  const activePlaySet = playSets ? playSets[activePlaySetIndex] : null;
   const status = useStore((state) => state.status);
   const [showUpdatesModal, setShowUpdatesModal] = useState(false);
   const [hasSymlinkPerms, setHasSymlinkPerms] = useState<boolean | null>(null);
@@ -127,12 +128,15 @@ export default function CommandCenter({
   }, [activePlaySet, modList]);
 
   const activeUpdates = React.useMemo(() => {
-    return activeBlueprintMods.filter((m: any) => m.hasUpdate).map((m: any) => ({
+    const rawUpdates = activeBlueprintMods.filter((m: any) => m.hasUpdate).map((m: any) => ({
       ...m,
       dbId: m.dbId,
-      name: m.name,
-      hash: m.hash,
     }));
+    return Object.values(rawUpdates.reduce((acc: any, update: any) => {
+      const key = update.dbId || update.name;
+      if (!acc[key]) acc[key] = update;
+      return acc;
+    }, {}));
   }, [activeBlueprintMods]);
 
   const setBlueprintLoadOrder = (updates: string | { name: string, prefix: string }[], prefix?: string) => {
@@ -658,6 +662,7 @@ export default function CommandCenter({
         <BlueprintSwapSidePanel
           isOpen={isBlueprintSwapOpen}
           onClose={() => setIsBlueprintSwapOpen(false)}
+          equipPlaySet={equipPlaySet}
         />
       )}
 

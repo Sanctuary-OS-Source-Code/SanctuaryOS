@@ -24,7 +24,7 @@ export const tauriBridge = {
   saveBlueprint: (path: string, content: string) => invoke("save_blueprint", { path, content }),
   moveModToPriorityFolder: (vaultPath: string, modName: string, targetFolder: string) => invoke("move_mod_to_priority_folder", { vaultPath, modName, targetFolder }),
   syncSecurityDefinitions: (malware: string[], tier2: string[]) => invoke('sync_security_definitions', { malware, tier2 }),
-  listenToVaultChanges: (callback: () => void) => listen("vault_changed", callback),
+  listenToVaultChanges: (callback: (path?: string) => void) => listen("vault_changed", (event: any) => callback(event.payload)),
   listenToScanProgress: (callback: (payload: any) => void) => listen('scan-progress', (event: any) => callback(event.payload)),
   listenToBackupProgress: (callback: (payload: any) => void) => listen('backup-progress', (event: any) => callback(event.payload)),
   listenToDnaMatch: (callback: (payload: any) => void) => listen('dna_match_detected', (event: any) => callback(event.payload)),

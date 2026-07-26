@@ -17,7 +17,7 @@ export default function SidePanelBrowser() {
   const { activeGameSchema } = useStore();
   const {
     isSideBrowserOpen, setIsSideBrowserOpen,
-    sideBrowserUrl, setSideBrowserUrl,
+    sideBrowserUrl, setSideBrowserUrl, sideBrowserTrigger,
     browserTabs, setBrowserTabs,
     activeBrowserTabId, setActiveBrowserTabId,
     browserBookmarks, setBrowserBookmarks,
@@ -38,7 +38,10 @@ export default function SidePanelBrowser() {
   useEffect(() => {
     blockingModalRef.current = isBlockingModalOpen;
     window.dispatchEvent(new Event('resize'));
-  }, [isBlockingModalOpen]);
+    if (isBlockingModalOpen && isSideBrowserOpen) {
+      setIsSideBrowserOpen(false);
+    }
+  }, [isBlockingModalOpen, isSideBrowserOpen, setIsSideBrowserOpen]);
 
   const [panelWidth, setPanelWidth] = useState(window.innerWidth / 2);
   const [isResizing, setIsResizing] = useState(false);
@@ -126,7 +129,7 @@ export default function SidePanelBrowser() {
 
               setBrowserTabs((prevTabs: any[]) => {
                 const idx = prevTabs.findIndex(t => t.id === activeBrowserTabId);
-                if (idx !== -1 && prevTabs[idx].url !== displayUrl && !prevTabs[idx].url.includes(displayUrl.split('?')[0])) {
+                if (idx !== -1 && prevTabs[idx].url !== displayUrl) {
                   const newTabs = [...prevTabs];
                   newTabs[idx] = { ...newTabs[idx], url: displayUrl };
                   return newTabs;
@@ -445,38 +448,36 @@ export default function SidePanelBrowser() {
     setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
   };
 
-  const lastProcessedUrlRef = useRef(sideBrowserUrl);
-
+  const lastProcessedTriggerRef = useRef(sideBrowserTrigger);
+  
   useEffect(() => {
     if (isSideBrowserOpen && hasInitialized && sideBrowserUrl && activeBrowserTabId) {
-      if (sideBrowserUrl !== lastProcessedUrlRef.current) {
-        lastProcessedUrlRef.current = sideBrowserUrl;
+      if (sideBrowserTrigger !== lastProcessedTriggerRef.current) {
+        lastProcessedTriggerRef.current = sideBrowserTrigger;
         const activeTab = browserTabs.find(t => t.id === activeBrowserTabId);
-        if (activeTab && activeTab.url !== sideBrowserUrl && !activeTab.url.includes(sideBrowserUrl.split('?')[0])) {
-
-          let finalUrl = sideBrowserUrl.trim();
-          if (!/^https?:\/\//i.test(finalUrl) && finalUrl !== 'about:blank') {
-            if (finalUrl.includes('.') && !finalUrl.includes(' ')) {
-              finalUrl = 'https://' + finalUrl;
-            } else {
-              finalUrl = 'https://www.google.com/search?q=' + encodeURIComponent(finalUrl);
-            }
+        
+        let finalUrl = sideBrowserUrl.trim();
+        if (!/^https?:\/\//i.test(finalUrl) && finalUrl !== 'about:blank') {
+          if (finalUrl.includes('.') && !finalUrl.includes(' ')) {
+            finalUrl = 'https://' + finalUrl;
+          } else {
+            finalUrl = 'https://www.google.com/search?q=' + encodeURIComponent(finalUrl);
           }
+        }
 
+        if (activeTab && activeTab.url === finalUrl) {
+          // Already on this URL but webview might have navigated away. Force a navigation.
+          const label = `side-browser-tab-${activeBrowserTabId}`;
+          invoke('webview_eval', { label, script: `window.location.href = "${finalUrl}";` }).catch(() => {});
+        } else {
+          // New URL, create a new tab.
           const newId = crypto.randomUUID();
           setBrowserTabs((prev: any) => [...prev, { id: newId, url: finalUrl, sleeping: false }]);
           setActiveBrowserTabId(newId);
-
-          if (finalUrl !== sideBrowserUrl) {
-            setTimeout(() => {
-              setSideBrowserUrl(finalUrl);
-              lastProcessedUrlRef.current = finalUrl;
-            }, 10);
-          }
         }
       }
     }
-  }, [sideBrowserUrl, hasInitialized, isSideBrowserOpen, activeBrowserTabId, browserTabs]);
+  }, [sideBrowserTrigger, sideBrowserUrl, hasInitialized, isSideBrowserOpen, activeBrowserTabId, browserTabs]);
 
 
   const createNewTab = () => {

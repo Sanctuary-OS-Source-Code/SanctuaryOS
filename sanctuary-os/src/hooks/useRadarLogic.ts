@@ -137,7 +137,17 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           const cachedVirtuals = prev.filter((p) => p.isVirtual);
           const updatedPhysical = initialList.map((m) => {
             const existing = prevByHash.get(m.hash) || prevByName.get(m.name);
-            return existing || m;
+            if (existing) {
+              const isSameHash = existing.hash === m.hash;
+              return {
+                ...existing,
+                ...m,
+                displayName: existing.displayName || m.displayName,
+                status: isSameHash && existing.status && existing.status !== t("status_identifying") ? existing.status : m.status,
+                color: isSameHash && existing.color && existing.color !== "var(--text-secondary)" ? existing.color : m.color,
+              };
+            }
+            return m;
           });
           return [...cachedVirtuals, ...updatedPhysical];
         }
@@ -492,21 +502,21 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         );
         let myBossId = dbId;
         let myRelType = null;
-        if (addonRel) {
+        if (twinRel) {
+          myBossId = String(twinRel.parent_id) < String(twinRel.child_id) ? String(twinRel.parent_id) : String(twinRel.child_id);
+          myRelType = "twin";
+        } else if (childTwinRel) {
+          myBossId = String(childTwinRel.parent_id) < String(childTwinRel.child_id) ? String(childTwinRel.parent_id) : String(childTwinRel.child_id);
+          myRelType = "twin";
+        } else if (addonRel) {
           myBossId = String(addonRel.parent_id);
           myRelType = "addon";
         } else if (setItemRel) {
           myBossId = String(setItemRel.parent_id);
           myRelType = "set_item";
-        } else if (twinRel) {
-          myBossId = String(twinRel.parent_id) < String(twinRel.child_id) ? String(twinRel.parent_id) : String(twinRel.child_id);
-          myRelType = "twin";
         } else if (betaRel) {
           myBossId = String(betaRel.parent_id) < String(betaRel.child_id) ? String(betaRel.parent_id) : String(betaRel.child_id);
           myRelType = "beta";
-        } else if (childTwinRel) {
-          myBossId = String(childTwinRel.parent_id) < String(childTwinRel.child_id) ? String(childTwinRel.parent_id) : String(childTwinRel.child_id);
-          myRelType = "twin";
         } else if (childBetaRel) {
           myBossId = String(childBetaRel.parent_id) < String(childBetaRel.child_id) ? String(childBetaRel.parent_id) : String(childBetaRel.child_id);
           myRelType = "core";
@@ -975,20 +985,25 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const finalMasterList = masterList.map((m: any) => {
         const existing = prevByHash.get(m.hash) || prevByName.get(m.name);
         if (existing) {
+           const isSameHash = existing.hash === m.hash;
+           const cleanMVer = String(m.version || "").toLowerCase().replace(/^v/, '').trim();
+           const cleanNewVer = String(existing.newVersion || "").toLowerCase().replace(/^v/, '').trim();
+           const isStillOutdated = isSameHash && (cleanMVer !== cleanNewVer && !!cleanNewVer);
+
            return {
-             ...m,
              ...existing,
+             ...m,
              conflicts: m.conflicts,
              isVirtual: m.isVirtual !== undefined ? m.isVirtual : existing.isVirtual,
              isLocalVirtual: m.isLocalVirtual !== undefined ? m.isLocalVirtual : existing.isLocalVirtual,
              flavors: m.flavors !== undefined ? m.flavors : existing.flavors,
-             hasUpdate: existing.hasUpdate,
-             newVersion: existing.newVersion,
-             newGameVersion: existing.newGameVersion,
-             download_url: existing.download_url,
-             status: existing.status && existing.status !== t("status_identifying") ? existing.status : m.status,
-             isSynced: existing.isSynced !== undefined ? existing.isSynced : m.isSynced,
-             color: existing.color && existing.color !== "var(--text-secondary)" ? existing.color : m.color,
+             hasUpdate: isStillOutdated ? existing.hasUpdate : undefined,
+             newVersion: isStillOutdated ? existing.newVersion : undefined,
+             newGameVersion: isStillOutdated ? existing.newGameVersion : undefined,
+             download_url: isSameHash ? existing.download_url : m.download_url,
+             status: m.status !== t("status_identifying") ? m.status : (existing.status || m.status),
+             isSynced: m.isSynced !== undefined ? m.isSynced : existing.isSynced,
+             color: m.color !== "var(--text-secondary)" ? m.color : (existing.color || m.color),
            };
         }
         return m;

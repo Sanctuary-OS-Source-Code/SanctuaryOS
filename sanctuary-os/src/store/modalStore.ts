@@ -82,6 +82,7 @@ interface ModalState {
   
   // Browser Features
   sideBrowserUrl: string; // Legacy/Active Tab URL
+  sideBrowserTrigger: number;
   setSideBrowserUrl: (val: string) => void;
   
   browserTabs: { id: string, url: string, title?: string, sleeping?: boolean }[];
@@ -189,7 +190,8 @@ export const useModalStore = create<ModalState>((set) => ({
   setIsConflictRadarOpen: (isConflictRadarOpen) => set({ isConflictRadarOpen }),
   
   sideBrowserUrl: '',
-  setSideBrowserUrl: (sideBrowserUrl) => set({ sideBrowserUrl }),
+  sideBrowserTrigger: 0,
+  setSideBrowserUrl: (sideBrowserUrl) => set((state) => ({ sideBrowserUrl, sideBrowserTrigger: (state.sideBrowserTrigger || 0) + 1 })),
   
   browserTabs: [],
   setBrowserTabs: (browserTabs) => set((state) => ({ browserTabs: typeof browserTabs === 'function' ? browserTabs(state.browserTabs) : browserTabs })),

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { formatDisplayName, mapDlcCode, isVersionMatch, getHighestVersion, getLowestVersion , getFileLabel, isSupportedExtension, getExtensionRegex, getModIcon, HoverTooltip} from "./shared";
+import { HoverTooltip, getFileLabel, formatDisplayName, isSupportedExtension, getExtensionRegex, getModIcon, CustomDropdown, cleanSearchName, mapDlcCode, isVersionMatch, getHighestVersion, getLowestVersion } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -166,7 +166,7 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
                 {missingDeps.map((req: any) => {
                       const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
                       const reqUrl = typeof req === 'string' ? null : req.url;
-                      const cleanName = reqIdStr.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "") || reqIdStr;
+                      const cleanName = cleanSearchName(reqIdStr, activeGameSchema);
                       const searchUrl = reqUrl || `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanName)}`;
                       return (
                         <a 

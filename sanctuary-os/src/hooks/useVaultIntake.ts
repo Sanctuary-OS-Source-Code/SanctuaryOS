@@ -65,7 +65,8 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
   };
 
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
+    let unlisten: (() => void) | undefined;
+    let isMounted = true;
     tauriBridge.setupDragDrop(
       () => setIsDragging(true),
       () => setIsDragging(false),
@@ -83,14 +84,16 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
           handleDroppedFiles(paths);
         }
       }
-    ).then(unlisten => {
-      cleanup = unlisten;
+    ).then((c) => {
+      if (!isMounted) c();
+      else unlisten = c;
     }).catch(console.error);
 
     return () => {
-      if (cleanup) cleanup();
+      isMounted = false;
+      if (unlisten) unlisten();
     };
-  }, [handleDroppedFiles]);
+  }, [activeGameSchema]);
 
   useEffect(() => {
     let unlisten: any;

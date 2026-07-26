@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HubTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions } from "./shared";
+import { ViewHeader, CustomDropdown, HubTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel } from './side-panels/NexusSidePanels';
@@ -44,12 +44,8 @@ const cleanModName = (raw: string) => {
   return { name: name.replace(/_/g, ' '), ext };
 };
 
-const getModUrl = (mod: any) => {
-  if (mod.url && mod.url.trim() !== '') return mod.url;
-  const parts = (mod.name || "").split(/[/\\]/);
-  const filename = parts[parts.length - 1] || "";
-  const searchName = filename.replace(getExtensionRegex(useStore.getState().activeGameSchema), '').replace(/_/g, ' ') || mod.name;
-  return `https://www.google.com/search?q=${encodeURIComponent(searchName + ' ' + (useStore.getState().activeGameSchema?.display_name || "Game") + ' mod')}`;
+const getSearchUrl = (mod: any) => {
+  return `https://www.google.com/search?q=${encodeURIComponent(cleanSearchName(mod.name || mod.displayName, useStore.getState().activeGameSchema) + ' ' + (useStore.getState().activeGameSchema?.display_name || "Game") + ' mod')}`;
 };
 
 export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, onOpenDossier, syncBlueprintByCode }: NexusProps) {

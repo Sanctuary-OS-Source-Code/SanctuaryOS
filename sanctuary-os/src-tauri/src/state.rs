@@ -14,6 +14,7 @@ use crate::utils::*;
 
 pub struct AppState {
     pub active_schema: std::sync::Mutex<Option<crate::schema::GameSchema>>,
+    pub is_deploying: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

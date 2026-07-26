@@ -17,12 +17,41 @@ export function useGlobalListeners(
 
   useEffect(() => {
     let unlisten: any = null;
-    tauriBridge.listenToVaultChanges(() => {
-      fetchBackups();
+    let vaultTimeout: any = null;
+    let accumulatedPaths: Set<string> = new Set();
+
+    tauriBridge.listenToVaultChanges((path?: string) => {
+      if (path) {
+        accumulatedPaths.add(path.replace(/\\/g, '/'));
+      }
+
+      if (vaultTimeout) {
+        clearTimeout(vaultTimeout);
+      }
+      vaultTimeout = setTimeout(() => {
+        if (accumulatedPaths.size > 0) {
+          const pathsToUpdate = new Set(accumulatedPaths);
+          accumulatedPaths.clear();
+          
+          useStore.setState(state => ({
+            modList: state.modList.map(m => {
+              const normalizedModPath = (m.physical_path || m.name)?.replace(/\\/g, '/');
+              if (normalizedModPath && pathsToUpdate.has(normalizedModPath)) {
+                return { ...m, hasUpdate: undefined, newVersion: undefined, newGameVersion: undefined, download_url: undefined };
+              }
+              return m;
+            })
+          }));
+        }
+
+        fetchBackups();
+        window.dispatchEvent(new Event('force-radar-sweep'));
+      }, 200);
     }).then(u => { unlisten = u; });
 
     return () => {
       if (unlisten) unlisten();
+      if (vaultTimeout) clearTimeout(vaultTimeout);
     };
   }, []);
 

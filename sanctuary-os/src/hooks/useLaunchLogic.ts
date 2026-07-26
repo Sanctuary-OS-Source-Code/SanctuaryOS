@@ -4,7 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 
 export function useLaunchLogic(
   askCustom: (title: string, showInput: boolean, okText: string, cancelText: string, isDanger: boolean, headerText: string) => Promise<any>,
-  triggerPrePatchSnapshot: () => Promise<void>
+  triggerPrePatchSnapshot: () => Promise<void>,
+  equipPlaySet?: (setName: string) => Promise<void>
 ) {
   const { setStatus, isPatchDetected, defconLevel } = useStore();
   const { t } = useLexicon();
@@ -73,6 +74,13 @@ export function useLaunchLogic(
       }
     }
     try {
+      if (equipPlaySet) {
+        const activeWorkspaceId = useStore.getState().activeWorkspaceId || "default";
+        const activeSetName = localStorage.getItem(`sanctuary_${activeWorkspaceId}_active_set`);
+        if (activeSetName) {
+          await equipPlaySet(activeSetName);
+        }
+      }
       const config: any = await invoke("get_saved_coordinates");
       const msg = await invoke("launch_game", {
         livePath: config.live_path,

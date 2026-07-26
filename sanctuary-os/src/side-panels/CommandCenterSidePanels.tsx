@@ -1,7 +1,7 @@
 import React from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { SidePanel } from "../shared";
+import { SidePanel, cleanSearchName } from "../shared";
 
 export function UpdatesSidePanel({
   isOpen,
@@ -23,7 +23,11 @@ export function UpdatesSidePanel({
       widthClass="w-[550px]"
     >
       <div className="flex flex-col gap-3">
-        {activeUpdates.length > 0 ? activeUpdates.map((update: any) => (
+        {activeUpdates.length > 0 ? Object.values(activeUpdates.reduce((acc: any, update: any) => {
+          const key = update.dbId || update.name;
+          if (!acc[key]) acc[key] = update;
+          return acc;
+        }, {})).map((update: any) => (
           <div key={update.hash || update.name} className="relative shrink-0 group w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border flex items-center border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-lg hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)]">
             <div className="relative p-6 z-10 flex items-center gap-5 w-full">
               <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]">
@@ -50,7 +54,7 @@ export function UpdatesSidePanel({
               </div>
 
               <div className="shrink-0 ml-4">
-                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenUrl(update.download_url || update.url || `https://www.google.com/search?q=${encodeURIComponent(useStore.getState().activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(update.displayName || (update.name || '').split('/').pop() || "")}`); }} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.2)] flex items-center gap-2 theme-bg-accent/10 border theme-border-accent/30 theme-text-accent hover:theme-bg-accent/20 hover:theme-border-accent/50 backdrop-blur-md active:scale-95`}>
+                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenUrl(update.download_url || update.url || `https://www.google.com/search?q=${encodeURIComponent(useStore.getState().activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanSearchName(update.displayName || update.name || "", useStore.getState().activeGameSchema))}`); }} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.2)] flex items-center gap-2 theme-bg-accent/10 border theme-border-accent/30 theme-text-accent hover:theme-bg-accent/20 hover:theme-border-accent/50 backdrop-blur-md active:scale-95`}>
                   {update.download_url || update.url ? (t("btn_download")) : (t("btn_search_web"))} <span className="material-symbols-outlined !text-[14px] opacity-70">{update.download_url || update.url ? (t("icon_download")) : (t("icon_search"))}</span>
                 </button>
               </div>

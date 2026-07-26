@@ -2240,5 +2240,7 @@
   "ticket_dossier_action_resolved": "Mark as Resolved",
   "ticket_dossier_action_rejected": "Mark as Rejected",
   "ticket_dossier_action_escalated": "Escalate to Next Tier",
-  "ticket_dossier_action_pending": "Mark as Pending"
+  "ticket_dossier_action_pending": "Mark as Pending",
+  "action_clean_blueprint": "Clean",
+  "action_clean_blueprint_desc": "Remove missing artifacts"
 }

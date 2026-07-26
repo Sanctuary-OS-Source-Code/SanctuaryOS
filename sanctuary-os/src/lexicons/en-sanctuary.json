@@ -668,7 +668,7 @@
   "wf_hub_title": "Wayfinder Operations",
   "yeet_cascade": "Yeet Cascade:",
   "your_tickets": "YOUR TICKETS",
-  "_meta_version": 36,
+  "_meta_version": 37,
   "access_denied": "ACCESS DENIED",
   "action_export": "Export",
   "action_uplink": "Uplink",
@@ -1272,7 +1272,7 @@
   "ui_use_dashboard": "Use the console below to forge your visual signature.",
   "unnamed_artifact": "UNNAMED",
   "unnamed_snapshot": "Unnamed Version",
-  "update_suggested": "SYSTEM UPDATES AVAILABLE",
+  "update_suggested": "ARTIFACT UPDATES AVAILABLE",
   "wf_master_themes": "Community Themes",
   "workspace_active": "Active",
   "workspace_manage": "Active",
@@ -2237,5 +2237,7 @@
   "ticket_dossier_action_resolved": "Clear Incident",
   "ticket_dossier_action_rejected": "Deny Incident",
   "ticket_dossier_action_escalated": "Elevate Threat Level",
-  "ticket_dossier_action_pending": "Hold Pending Logs"
+  "ticket_dossier_action_pending": "Hold Pending Logs",
+  "action_clean_blueprint": "Sanitize",
+  "action_clean_blueprint_desc": "Purge missing artifacts"
 }

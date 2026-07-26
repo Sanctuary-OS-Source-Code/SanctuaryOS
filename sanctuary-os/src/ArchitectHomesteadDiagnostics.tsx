@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { DashboardStatTile, fetchAllPaginated, CustomTierDropdown, getExtensionRegex } from "./shared";
+import { DashboardStatTile, fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName } from "./shared";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
@@ -658,7 +658,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                 <span className="material-symbols-outlined !text-[16px]">{t("btn_download")}</span> {t("download_source")}
               </button>
             ) : null}
-            <button onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((activeReport?.name || '') + ' mod download')}`, "_blank")} className="w-full h-14 theme-glass-panel border border-[var(--accent)]/50 text-[var(--accent)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--accent)]/10 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2">
+            <button onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((useStore.getState().activeGameSchema?.display_name || "Mod") + ' ' + cleanSearchName(activeReport?.name || '', useStore.getState().activeGameSchema))}`, "_blank")} className="w-full h-14 theme-glass-panel border border-[var(--accent)]/50 text-[var(--accent)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--accent)]/10 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2">
               <span className="material-symbols-outlined !text-[16px]">{t("icon_search")}</span> {t("search_web")}
             </button>
           </div>

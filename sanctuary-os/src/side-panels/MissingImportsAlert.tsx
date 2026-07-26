@@ -5,27 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { createPortal } from "react-dom";
-import { SidePanel, getFileLabel, standardButtonClass, standardSuccessButtonClass, HoverTooltip } from "../shared";
-
-const cleanModName = (raw: string) => {
-  if (!raw) return "Unknown Artifact";
-  const parts = raw.split(/[/\\]/);
-  const filename = parts[parts.length - 1];
-  let ext = "PACKAGE";
-  let name = filename;
-
-  if (getFileLabel(filename, useStore.getState().activeGameSchema) === "SCRIPT") {
-    ext = "SCRIPT";
-    name = filename.substring(0, filename.length - 10);
-  } else if (getFileLabel(filename, useStore.getState().activeGameSchema) === "PACKAGE") {
-    name = filename.substring(0, filename.length - 8);
-  } else if (filename.includes('.')) {
-    const splitExt = filename.split('.');
-    ext = splitExt.pop()?.toUpperCase() || "UNKNOWN";
-    name = splitExt.join('.');
-  }
-  return `${name.replace(/_/g, ' ')} [${ext}]`;
-};
+import { SidePanel, getFileLabel, standardButtonClass, standardSuccessButtonClass, HoverTooltip, cleanSearchName } from "../shared";
 
 export function MissingImportsAlert({ missingImportMods, setMissingImportMods, pendingImportSet, setPendingImportSet, finalizeImport, setIsDropzoneOpen }: any) {
   const { t } = useLexicon();
@@ -59,11 +39,11 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
     >
       <div className="flex flex-col gap-3">
         {missingImportMods.slice(0, 100).map((mod: any, idx: number) => {
-          const targetUrl = (mod.url && mod.url.trim() !== "") ? (mod.url.startsWith("http") ? mod.url : `https://${mod.url}`) : `https://www.google.com/search?q=${encodeURIComponent(`Sims 4 mod ${mod.name}`)}`;
+          const targetUrl = (mod.url && mod.url.trim() !== "") ? (mod.url.startsWith("http") ? mod.url : `https://${mod.url}`) : `https://www.google.com/search?q=${encodeURIComponent(`${useStore.getState().activeGameSchema?.display_name || "Mod"} ${cleanSearchName(mod.name, useStore.getState().activeGameSchema)}`)}`;
           return (
             <div key={idx} className="flex justify-between items-center theme-glass-inner border border-white/5 p-4 rounded-2xl hover:border-white/20 transition-all group shadow-md">
               <div className="flex flex-col min-w-0 pr-4">
-                <span className="text-xs font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors">{cleanModName(mod.name)}</span>
+                <span className="text-xs font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors">{cleanSearchName(mod.name, useStore.getState().activeGameSchema)}</span>
                 <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">{mod.author || t("unknown_mason") || "Unknown Mason"}</span>
               </div>
               <div className="flex items-center gap-2">

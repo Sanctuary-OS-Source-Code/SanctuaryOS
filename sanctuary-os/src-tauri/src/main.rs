@@ -80,6 +80,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState {
             active_schema: std::sync::Mutex::new(None),
+            is_deploying: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         })
         .manage(state::DownloadsWatcherState(std::sync::Mutex::new(None)))
         .manage(SecurityState {

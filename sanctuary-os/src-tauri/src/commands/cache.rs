@@ -66,7 +66,11 @@ pub fn resolve_dna_match(
     action: String,
 ) -> Result<String, String> {
     let source = Path::new(&path);
-    let existing = Path::new(&existing_name);
+    let mut resolved_existing = existing_name.clone();
+    if resolved_existing.is_empty() {
+        resolved_existing = path.replace(".tmp_sanctuary_conflict", "");
+    }
+    let existing = Path::new(&resolved_existing);
 
     if action == "replace" {
         let s_canon = source.canonicalize().unwrap_or_else(|_| source.to_path_buf());
@@ -75,36 +79,47 @@ pub fn resolve_dna_match(
         if source.exists() && s_canon != e_canon {
             if let Some(parent) = existing.parent() {
                 let _ = std::fs::create_dir_all(parent);
-                let new_target = parent.join(source.file_name().unwrap_or_default());
-                if std::fs::copy(source, &new_target).is_ok() {
-                    let now = filetime::FileTime::now();
-                    let _ = filetime::set_file_times(&new_target, now, now);
-                    if e_canon != new_target.canonicalize().unwrap_or_else(|_| new_target.to_path_buf()) {
-                        let _ = std::fs::remove_file(existing);
-                    }
-                    
-                    let config = get_saved_coordinates();
-                    if !config.mods_path.is_empty() {
-                        let active_mods_dir = std::path::Path::new(&config.mods_path);
-                        let active_target = active_mods_dir.to_path_buf();
-                        let _ = std::fs::create_dir_all(&active_target);
-                        let _ = std::fs::copy(&new_target, active_target.join(new_target.file_name().unwrap_or_default()));
+                let mut source_file_name = source.file_name().unwrap_or_default().to_string_lossy().to_string();
+                if source_file_name.ends_with(".tmp_sanctuary_conflict") {
+                    source_file_name = source_file_name.replace(".tmp_sanctuary_conflict", "");
+                }
+                let new_target = parent.join(source_file_name);
+
+                let s_canon = source.canonicalize().unwrap_or_else(|_| source.to_path_buf());
+                let n_canon = new_target.canonicalize().unwrap_or_else(|_| new_target.clone());
+
+                let copy_result = if s_canon == n_canon {
+                    Ok(0) // Dummy success if it's already the exact same file
+                } else {
+                    std::fs::copy(source, &new_target)
+                };
+
+                match copy_result {
+                    Ok(_) => {
+                        let now = filetime::FileTime::now();
+                        let _ = filetime::set_file_times(&new_target, now, now);
                         
-                        let old_active_target = active_mods_dir.to_path_buf();
-                        if let Some(old_file_name) = existing.file_name() {
-                            if old_file_name != new_target.file_name().unwrap_or_default() {
-                                let _ = std::fs::remove_file(old_active_target.join(old_file_name));
+                        let n_canon_final = new_target.canonicalize().unwrap_or_else(|_| new_target.clone());
+                        if e_canon != n_canon_final {
+                            let _ = std::fs::remove_file(existing);
+                        }
+                        
+                        if let Some(ext) = source.extension() {
+                            if ext.to_string_lossy() == "tmp_sanctuary_conflict" {
+                                let _ = std::fs::remove_file(source);
+                                let mut current_dir = source.parent().map(|p| p.to_path_buf());
+                                while let Some(dir) = current_dir {
+                                    if std::fs::remove_dir(&dir).is_err() {
+                                        break;
+                                    }
+                                    current_dir = dir.parent().map(|p| p.to_path_buf());
+                                }
                             }
                         }
+                    },
+                    Err(e) => {
+                        return Err(format!("FAILED_TO_COPY: {}", e));
                     }
-                    
-                    if let Some(ext) = source.extension() {
-                        if ext.to_string_lossy() == "tmp_sanctuary_conflict" {
-                            let _ = std::fs::remove_file(source);
-                        }
-                    }
-                } else {
-                    return Err("FAILED_TO_COPY".into());
                 }
             }
         }
@@ -112,6 +127,13 @@ pub fn resolve_dna_match(
         if let Some(ext) = source.extension() {
             if ext.to_string_lossy() == "tmp_sanctuary_conflict" {
                 let _ = std::fs::remove_file(source);
+                let mut current_dir = source.parent().map(|p| p.to_path_buf());
+                while let Some(dir) = current_dir {
+                    if std::fs::remove_dir(&dir).is_err() {
+                        break;
+                    }
+                    current_dir = dir.parent().map(|p| p.to_path_buf());
+                }
             }
         }
     }

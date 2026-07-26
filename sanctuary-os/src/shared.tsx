@@ -115,6 +115,21 @@ export const getFileLabel = (filename: string, schema: any): string => {
   return ext ? schema.extensions.labels[ext] : (filename.split('.').pop()?.toUpperCase() || "UNKNOWN");
 };
 
+export const cleanSearchName = (raw: string, schema?: any) => {
+  if (!raw) return "";
+  const parts = raw.split(/[/\\]/);
+  let name = parts[parts.length - 1];
+  
+  if (schema) {
+    name = name.replace(getExtensionRegex(schema), "");
+  } else if (name.includes('.')) {
+    const splitExt = name.split('.');
+    splitExt.pop();
+    name = splitExt.join('.');
+  }
+  return name.replace(/[_-]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim();
+};
+
 export const getExtensionRegex = (schema: any) => {
   const exts = schema?.extensions?.supported || [];
   if (exts.length === 0) return /\.[a-z0-9]+$/i;

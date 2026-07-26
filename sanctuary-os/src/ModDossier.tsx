@@ -5,7 +5,7 @@ import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
-import { GameVersionMultiSelect, deriveHumanReadableVersion, CustomDatePicker, CustomClassificationDropdown, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, getHighestVersion, getLowestVersion, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, HoverTooltip } from "./shared";
+import { GameVersionMultiSelect, deriveHumanReadableVersion, CustomDatePicker, CustomClassificationDropdown, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, getHighestVersion, getLowestVersion, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, HoverTooltip, cleanSearchName } from "./shared";
 
 export default function ModDossier({ mod, modList, activePlaySet, onToggleInActiveSet, onShowYeetAlert, onClose, metaInputs, setMetaInputs, onSaveMetadata, onResetMetadata, onOpenMasonProfile, editMode, setEditMode, onSendToLab, onSecureShred, isCorrecting, setIsCorrecting, onSyncToNetwork }: any) {
   const activeGameSchema = useStore(state => state.activeGameSchema);
@@ -439,7 +439,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     <button
                       onClick={(e) => {
                         e.preventDefault();
-                        const url = mod.url || `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(mod.displayName || (mod.name || '').split('/').pop() || "")}`;
+                        const url = mod.url || `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanSearchName(mod.displayName || mod.name || "", activeGameSchema))}`;
                         if (useInternalBrowser) {
                           setSideBrowserUrl(url);
                           setIsSideBrowserOpen(true);
@@ -708,7 +708,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     const reqUrl = typeof req === 'string' ? null : req.url;
                     const match = modList?.find((m: any) => String(m.dbId) === String(reqId) || m.hash === reqId) || (typeof req !== 'string' ? req : null);
                     const displayName = match ? (match.displayName || match.name) : (typeof req === 'string' ? req : req.name);
-                    const searchUrl = reqUrl || `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(displayName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "") || displayName)}`;
+                    const searchUrl = reqUrl || `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanSearchName(displayName, activeGameSchema))}`;
                     return (
                       <div key={i} onClick={() => match ? setSelectedKid(match) : (setSideBrowserUrl(searchUrl), setIsSideBrowserOpen(true))} className={`group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl theme-glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/10 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] ${!match ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : ''}`}>
                         <div className="flex items-center gap-3 min-w-0">

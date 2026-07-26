@@ -2,7 +2,7 @@ import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
-import { ModData } from "../shared";
+import { ModData, cleanSearchName } from "../shared";
 
 export function useModActions(
   openUrl: (url: string) => void, 
@@ -21,8 +21,7 @@ export function useModActions(
 
   function handleSmartSearch(mod: ModData) {
     if (!mod) return;
-    const cleanName = (mod.displayName || mod.name)
-      .replace(/\.[^/.]+$/, "");
+    const cleanName = cleanSearchName(mod.displayName || mod.name, activeGameSchema);
     const targetUrl =
       mod.url && mod.url.trim() !== ""
         ? mod.url.startsWith("http")

@@ -6,17 +6,22 @@ import { useStore } from "../store";
 interface BlueprintSwapSidePanelProps {
   isOpen: boolean;
   onClose: () => void;
+  equipPlaySet?: (setName: string) => Promise<any> | void;
 }
 
 export default function BlueprintSwapSidePanel({ 
   isOpen, 
-  onClose
+  onClose,
+  equipPlaySet
 }: BlueprintSwapSidePanelProps) {
   const { t } = useLexicon();
   const { playSets, activePlaySetIndex, setActivePlaySetIndex } = useStore();
 
-  const handleSelect = (index: number) => {
+  const handleSelect = async (index: number) => {
     setActivePlaySetIndex(index);
+    if (equipPlaySet && playSets && playSets[index]) {
+      await equipPlaySet(playSets[index].name);
+    }
   };
 
   if (!isOpen) return null;

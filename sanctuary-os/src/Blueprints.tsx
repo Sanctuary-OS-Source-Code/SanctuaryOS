@@ -3,18 +3,21 @@ import { useLexicon } from "./LexiconContext";
 import { ViewHeader, isVersionMatch, SidePanel, SidebarActionButton , getExtensionRegex} from "./shared";
 import BlueprintMatrix from "./BlueprintMatrix";
 import BlueprintArchitect from "./BlueprintArchitect";
+import { GhostStringsModal } from "./side-panels/GhostStringsModal";
 import { useStore } from "./store";
 
 export default function Blueprints({
   playSets, setPlaySets, activeSetName, equipPlaySet, deletePlaySet, syncCode, setSyncCode, uploadBlueprintToCloud, syncBlueprintByCode, renamePlaySet,
   importPlaySet, setSnapshotModal, activePlaySetIndex, setActivePlaySetIndex, setView, exportPlaySet,
   setIsDraftingSet, isDraftingSet, draftSetName, setDraftSetName, finalizeDraftSet,
-  toggleInActiveSet, globalSearchQuery, setGlobalSearchQuery, onSearchNetwork, cloudResults, isSearching, vaultPath, onRefreshMods
+  toggleInActiveSet, globalSearchQuery, setGlobalSearchQuery, onSearchNetwork, cloudResults, isSearching, vaultPath, onRefreshMods, getMissingStrings, ignoreMissingString, purgeMissingString
 }: any) {
   const { t } = useLexicon();
   const { ownedDLC, maskedDLC, selectedVersion, modList , activeGameSchema } = useStore();
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [importStatus, setImportStatus] = useState<"idle" | "success" | "error" | "missing">("idle");
+  const [ghostModalSet, setGhostModalSet] = useState<string | null>(null);
+  const [ghostStrings, setGhostStrings] = useState<string[]>([]);
   
   const handleImport = async () => {
     const res = await importPlaySet();
@@ -316,6 +319,29 @@ export default function Blueprints({
                 >
                   <span className="material-symbols-outlined !text-[16px] drop-shadow-md">{deleteConfirm === set.name ? "warning" : t("icon_delete")}</span> {deleteConfirm === set.name ? t("btn_confirm") : t("purge")}
                 </button>
+                {(() => {
+                  const missingStrings = getMissingStrings ? getMissingStrings(set.name) : [];
+                  const hasGhosts = missingStrings.length > 0;
+                  
+                  return (
+                    <button 
+                      onClick={() => {
+                        if (hasGhosts) {
+                          setGhostStrings(missingStrings);
+                          setGhostModalSet(set.name);
+                        }
+                      }} 
+                      className={`py-3.5 px-4 transition-all flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-xl col-span-2 mt-1 hover:scale-[1.02] ${
+                        hasGhosts 
+                          ? "theme-glass-inner border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)] animate-[pulse_2s_ease-in-out_infinite]"
+                          : "theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] opacity-50 cursor-not-allowed"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined !text-[16px] drop-shadow-md">cleaning_services</span> 
+                      {hasGhosts ? `${t("action_clean_blueprint")} (${missingStrings.length})` : t("action_clean_blueprint")}
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </div>

@@ -47,7 +47,7 @@ export default function CommandRadarSweepPanel({
 
   if (!isOpen) return null;
 
-  const updatesCount = networkUpdates?.updated?.length || 0;
+  const updatesCount = Object.keys(networkUpdates?.updated?.reduce((acc: any, u: any) => { acc[u.dbId || u.name] = true; return acc; }, {}) || {}).length || 0;
   let radarState = "optimal";
   if (tier4Count > 0 || brokenCount > 0) {
     radarState = "critical";
@@ -57,21 +57,18 @@ export default function CommandRadarSweepPanel({
     radarState = "update";
   }
 
-  const isUpdate = radarState === "update";
-  const colorCls = radarState === "critical" ? "red" : radarState === "warning" ? "amber" : radarState === "update" ? "blue" : "emerald";
+  const themeVar = radarState === "critical" ? "--danger" : radarState === "warning" ? "--warning" : radarState === "update" ? "--accent" : "--success";
 
-  const c_iconColor = isUpdate ? "text-[var(--accent)]" : `text-${colorCls}-500`;
-  const c_panelBorder = isUpdate ? "border-[color-mix(in_srgb,var(--accent)_20%,transparent)]" : `border-${colorCls}-500/20`;
-  const c_bgGradient = isUpdate ? "from-[color-mix(in_srgb,var(--accent)_10%,transparent)]" : `from-${colorCls}-500/10`;
-  const c_ringBorder = isUpdate ? "border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" : `border-${colorCls}-500/30`;
-  const c_ringBg = isUpdate ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]" : `bg-${colorCls}-500/10`;
-  const c_ringShadow = isUpdate ? "shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)]" : `shadow-[0_0_30px_rgba(var(--${colorCls}-rgb),0.2)]`;
-  const c_ringIcon = isUpdate ? "text-[color-mix(in_srgb,var(--accent)_80%,transparent)]" : `text-${colorCls}-400`;
-  const c_titleText = isUpdate ? "text-[var(--accent)]" : `text-${colorCls}-500`;
-  const c_subText = isUpdate ? "text-[color-mix(in_srgb,var(--accent)_80%,transparent)]" : `text-${colorCls}-500/80`;
-  const c_btnClass = isUpdate
-    ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[color-mix(in_srgb,var(--accent)_80%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent)] hover:shadow-[0_0_25px_color-mix(in_srgb,var(--accent)_20%,transparent)]"
-    : `bg-${colorCls}-500/10 border-${colorCls}-500/30 text-${colorCls}-400 hover:bg-${colorCls}-500/20 hover:border-${colorCls}-500/50 shadow-[0_0_15px_rgba(var(--${colorCls}-rgb),0.1)] hover:shadow-[0_0_25px_rgba(var(--${colorCls}-rgb),0.2)]`;
+  const c_iconColor = `text-[var(${themeVar})]`;
+  const c_panelBorder = `border-[color-mix(in_srgb,var(${themeVar})_20%,transparent)]`;
+  const c_bgGradient = `from-[color-mix(in_srgb,var(${themeVar})_10%,transparent)]`;
+  const c_ringBorder = `border-[color-mix(in_srgb,var(${themeVar})_30%,transparent)]`;
+  const c_ringBg = `bg-[color-mix(in_srgb,var(${themeVar})_10%,transparent)]`;
+  const c_ringShadow = `shadow-[0_0_30px_color-mix(in_srgb,var(${themeVar})_20%,transparent)]`;
+  const c_ringIcon = `text-[color-mix(in_srgb,var(${themeVar})_80%,transparent)]`;
+  const c_titleText = `text-[var(${themeVar})]`;
+  const c_subText = `text-[color-mix(in_srgb,var(${themeVar})_80%,transparent)]`;
+  const c_btnClass = `bg-[color-mix(in_srgb,var(${themeVar})_10%,transparent)] border-[color-mix(in_srgb,var(${themeVar})_30%,transparent)] text-[color-mix(in_srgb,var(${themeVar})_80%,transparent)] hover:bg-[color-mix(in_srgb,var(${themeVar})_20%,transparent)] hover:border-[color-mix(in_srgb,var(${themeVar})_50%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(${themeVar})_10%,transparent)] hover:shadow-[0_0_25px_color-mix(in_srgb,var(${themeVar})_20%,transparent)]`;
 
   const topTitle = t("optimal");
   let subtext = t("sys_stable");

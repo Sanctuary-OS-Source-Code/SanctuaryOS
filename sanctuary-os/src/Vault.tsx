@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ViewHeader, CustomDropdown, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, mapDlcCode, HubTabButton, standardButtonClass, standardDangerButtonClass, standardSuccessButtonClass, SidePanel, SidebarActionButton, getFileLabel, isSupportedExtension, getExtensionRegex, HoverTooltip, EmptyState } from "./shared";
+import { ViewHeader, CustomDropdown, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, mapDlcCode, HubTabButton, standardButtonClass, standardDangerButtonClass, standardSuccessButtonClass, SidePanel, SidebarActionButton, getFileLabel, isSupportedExtension, getExtensionRegex, HoverTooltip, EmptyState, cleanSearchName } from "./shared";
 import { useLexicon } from './LexiconContext';
 import { invoke } from '@tauri-apps/api/core';
 import { ModCard } from './ModCard';
@@ -898,7 +898,7 @@ const Vault = React.memo(function Vault(props: any) {
                                                   {flavor.missingReqs.map((req: any) => {
                                                     const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
                                                     const reqUrl = typeof req === 'string' ? null : req.url;
-                                                    const cleanName = reqIdStr.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "") || reqIdStr;
+                                                    const cleanName = cleanSearchName(reqIdStr, activeGameSchema);
                                                     const searchUrl = reqUrl || `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanName)}`;
                                                     return (
                                                       <a

@@ -8,7 +8,7 @@ import { useStore } from "./store";
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
-import { stripMarkdown, SidePanel, standardPrimaryButtonClass, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HubTabButton, compareVersions } from "./shared";
+import { stripMarkdown, SidePanel, standardPrimaryButtonClass, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HubTabButton, compareVersions, cleanSearchName } from "./shared";
 import MasonPostCard from "./MasonPostCard";
 import { readDir, readTextFile, exists } from '@tauri-apps/plugin-fs';
 
@@ -31,12 +31,8 @@ const cleanModName = (raw: string) => {
   return { name: name.replace(/_/g, ' '), ext };
 };
 
-const getModUrl = (mod: any) => {
-  if (mod.url && mod.url.trim() !== '') return mod.url;
-  const parts = (mod.name || "").split(/[/\\]/);
-  const filename = parts[parts.length - 1] || "";
-  const searchName = formatDisplayName(filename, undefined, useStore.getState().activeGameSchema) || mod.name;
-  return `https://www.google.com/search?q=${encodeURIComponent(searchName + ' ' + (useStore.getState().activeGameSchema?.display_name || "Game") + ' mod')}`;
+const getSearchUrl = (mod: any) => {
+  return `https://www.google.com/search?q=${encodeURIComponent(cleanSearchName(mod.name || mod.displayName, useStore.getState().activeGameSchema) + ' ' + (useStore.getState().activeGameSchema?.display_name || "Game") + ' mod')}`;
 };
 
 export default function MasonProfile({ masonId, initialPostId, onModClick, syncBlueprintByCode }: { masonId: string, initialPostId?: string | null, onModClick: (mod: any) => void, syncBlueprintByCode?: (code: string) => void }) {
