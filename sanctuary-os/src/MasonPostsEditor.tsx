@@ -9,7 +9,7 @@ import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMu
   CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, HubTabs, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass, HoverTooltip,
+  standardDangerButtonClass, standardAccentGlassButtonClass, HoverTooltip, ActionButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion } from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
@@ -466,12 +466,12 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
               </button>
             )}
           </div>
-          <button
+          <ActionButton
             onClick={() => openEditor()}
-            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
-          >
-            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("icon_cell_tower")}</span> {t("post_broadcast")}
-          </button>
+            className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+            icon={t("icon_cell_tower")}
+            label={t("post_broadcast")}
+          />
         </div>
       </div>
 
@@ -503,9 +503,12 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                   <button onClick={closeEditor} disabled={isSubmitting} className={standardButtonClass}>{t("nav_cancel")}</button>
                 )}
                 <div className="relative group/btn flex">
-                  <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className={((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? standardAccentGlassButtonClass.replace('bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--accent)_30%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]').replace('text-[var(--accent)]', 'text-[var(--warning)]').replace('hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]', 'hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]') : standardAccentGlassButtonClass}>
-                    {isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
-                  </button>
+                  <ActionButton
+                     onClick={handleSubmit}
+                     disabled={isSubmitting || !title || !content}
+                     className={((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? "!border-[var(--warning)]/50 !text-[var(--warning)] hover:!bg-[var(--warning)]/20 hover:!text-[var(--warning)] hover:!shadow-[0_0_30px_rgba(var(--warning-rgb),0.4)]" : ""}
+                     label={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
+                  />
                   {((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) && (
                     <HoverTooltip title={t("ph_unsaved_changes") || "UNSAVED EDITS"} variant="warning" className="group-hover/btn:flex z-[100]" />
                   )}

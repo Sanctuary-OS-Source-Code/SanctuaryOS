@@ -8,7 +8,7 @@ import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
-import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, FilterTabs, FilterTabButton } from "../shared";
+import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, FilterTabs, FilterTabButton, ActionButton } from "../shared";
 import MarkdownRenderer from "../MarkdownRenderer";
 import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
@@ -47,7 +47,8 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
 
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
+  const [deliveryMethod, setDeliveryMethod] = useState<"Dispatch" | "Alert">("Dispatch");
+  const [isUrgent, setIsUrgent] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -79,19 +80,19 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
           content === rawContent &&
           targetAudience.join(',') === (editingPost.target_audience || "All") &&
           category === (editingPost.category || "Update") &&
-          imageUrl === parsedImage &&
-          description === (editingPost.description || "") &&
           codeSnippet === (editingPost.code_snippet || "") &&
-          isPinned === isPostPinned(editingPost);
+          deliveryMethod === (editingPost.category?.includes("Alert") || isPostPinned(editingPost) ? "Alert" : "Dispatch") &&
+          isUrgent === isPostPinned(editingPost);
       } else {
-        title === "" &&
+        isUnchanged = title === "" &&
           description === "" &&
           content === "" &&
-          (targetAudience.length === 1 && targetAudience[0] === "All") &&
+          targetAudience.length === 0 &&
           category === "Update" &&
           imageUrl === "" &&
           codeSnippet === "" &&
-          isPinned === false &&
+          deliveryMethod === "Dispatch" &&
+          isUrgent === false &&
           isActive === true;
       }
 
@@ -105,13 +106,19 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
       } else {
         setWayfinderDrafts(prev => ({
           ...prev,
-          [draftId]: { title, description, content, targetAudience, category, imageUrl, codeSnippet, isPinned, isActive }
+          [draftId]: { title, description, content, targetAudience, category, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive }
         }));
       }
     }
-  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, imageUrl, codeSnippet, isPinned, isActive]);
+  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive]);
 
   const updateTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (deliveryMethod === "Dispatch" && targetAudience.includes("Citizens")) {
+      setTargetAudience(targetAudience.filter(a => a !== "Citizens"));
+    }
+  }, [deliveryMethod]);
 
   const editor = useEditor({
     extensions: [
@@ -221,7 +228,8 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
       setCategory(draft?.category ?? (post.category || "Update"));
       setCodeSnippet(draft?.codeSnippet ?? (post.code_snippet || ""));
       setShowCodeInput(!!(draft?.codeSnippet ?? post.code_snippet));
-      setIsPinned(draft?.isPinned ?? isPostPinned(post));
+      setDeliveryMethod(draft?.deliveryMethod ?? (editingPost?.category?.includes("Alert") || isPostPinned(editingPost) ? "Alert" : "Dispatch"));
+      setIsUrgent(draft?.isUrgent ?? isPostPinned(post));
       setIsActive(draft?.isActive ?? (post.is_active !== false));
 
       const contentToSet = draft?.content ?? rawContent;
@@ -234,7 +242,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
       setEditingPost(null);
       setTitle(draft?.title ?? "");
       setDescription(draft?.description ?? "");
-      setTargetAudience(draft?.targetAudience ?? ["All Communities"]);
+      setTargetAudience(draft?.targetAudience ?? []);
       setCategory(draft?.category ?? "Update");
 
       const contentToSet = draft?.content ?? "";
@@ -245,7 +253,8 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
       setImageUrl(draft?.imageUrl ?? "");
       setCodeSnippet(draft?.codeSnippet ?? "");
       setShowCodeInput(!!draft?.codeSnippet);
-      setIsPinned(draft?.isPinned ?? false);
+      setDeliveryMethod(draft?.deliveryMethod ?? "Dispatch");
+      setIsUrgent(draft?.isUrgent ?? false);
       setIsActive(draft?.isActive ?? true);
     }
     setIsEditorOpen(true);
@@ -268,7 +277,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
       setDescription("");
       setContent("");
       if (editor) editor.commands.setContent("");
-      setTargetAudience(["All Communities"]);
+      setTargetAudience([]);
       setCategory("Update");
     }
     setTimeout(() => {
@@ -282,7 +291,8 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
     setShowCodeInput(false);
     setShowImageInput(false);
     setShowIconPicker(false);
-    setIsPinned(false);
+    setDeliveryMethod("Dispatch");
+    setIsUrgent(false);
     setIsActive(true);
   };
 
@@ -314,7 +324,10 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
     if (!title.trim() || !finalContent.trim()) return;
 
     setIsSubmitting(true);
-    let payload: any = { title: title.trim(), description: description.trim() || null, message: finalContent.trim(), category: category, target_audience: targetAudience.join(','), code_snippet: codeSnippet.trim() || null, is_pinned: isPinned ? "true" : "false", is_active: isActive };
+    let finalCategory = category;
+    if (deliveryMethod === "Alert") finalCategory = "Alert";
+    let isPinned = deliveryMethod === "Alert" && isUrgent;
+    let payload: any = { title: title.trim(), description: description.trim() || null, message: finalContent.trim(), category: finalCategory, target_audience: targetAudience.join(','), code_snippet: codeSnippet.trim() || null, is_pinned: isPinned ? "true" : "false", is_active: isActive };
     if (imageUrl.trim()) payload.message = `[IMG:${imageUrl.trim()}]\n\n` + payload.message;
 
     let error = null;
@@ -397,7 +410,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
     return filteredPosts.map(post => {
       const hasUnsavedEdits = draftSet.has(post.id);
       return (
-        <div key={post.id} className={`theme-glass-panel p-5 rounded-[var(--radius)] relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden ${hasUnsavedEdits ? '!border-amber-500/30 text-amber-500 !bg-amber-500/10 hover:!bg-amber-500/20 hover:!border-amber-500/50 shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : isPostPinned(post) ? '!border-[var(--danger)]/30 !bg-[var(--danger)]/5 shadow-[0_10px_30px_rgba(var(--danger-rgb),0.1)]' : 'border border-white/5 hover:border-white/10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
+        <div key={post.id} onClick={() => openEditor(post)} className={`theme-glass-panel p-5 rounded-[var(--radius)] relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden cursor-pointer ${hasUnsavedEdits ? '!border-amber-500/30 text-amber-500 !bg-amber-500/10 hover:!bg-amber-500/20 hover:!border-amber-500/50 shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : isPostPinned(post) ? '!border-[var(--danger)]/30 !bg-[var(--danger)]/5 shadow-[0_10px_30px_rgba(var(--danger-rgb),0.1)]' : 'border border-white/5 hover:border-white/10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
           <div className={`absolute -top-32 -right-32 w-64 h-64 blur-[80px] rounded-full pointer-events-none transition-opacity duration-700 z-0 ${isPostPinned(post) ? 'bg-[var(--danger)] opacity-20' : 'bg-[var(--text)] opacity-0 group-hover:opacity-[0.03]'}`} />
           {extractPostImage(post) && (
             <div className="-mx-5 -mt-5 rounded-t-3xl overflow-hidden h-36 bg-black/40 relative border-b border-white/5 shrink-0 z-10">
@@ -501,15 +514,16 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
               setTab={setFilterStatus}
             />
           </FilterTabs>
-          <button
+          <ActionButton
             onClick={() => openEditor()}
-            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group relative"
+            className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px] relative"
+            icon={t("icon_cell_tower")}
+            label={t("post_broadcast")}
           >
             {wayfinderDrafts['new'] && (
               <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-[var(--warning)] border-2 border-[var(--bg)] shadow-md animate-pulse"></span>
             )}
-            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("icon_cell_tower")}</span> {t("post_broadcast")}
-          </button>
+          </ActionButton>
         </div>
       </div>
 
@@ -565,36 +579,50 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
           >
             <div className="flex flex-col gap-6">
 
-              <div className="flex border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-4 pb-4">
-                <div className="w-96 shrink-0">
+              <div className="flex justify-between items-center border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-4 pb-4">
+                <div className="w-56 shrink-0">
                   <HubTabs 
                     tabs={[{id: 'edit', label: t("editor")}, {id: 'preview', label: t("preview")}]} 
                     activeTab={viewMode} 
                     setTab={setViewMode} 
                   />
                 </div>
-
-                <div className="ml-auto pr-4 flex items-center gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity">
-                    <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="hidden" />
-                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shadow-inner backdrop-blur-md ${isActive ? 'bg-[var(--success)]/20 border-[var(--success)]/50 shadow-[0_0_10px_rgba(34,197,94,0.3)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-black/40'}`}>
-                      {isActive && <span className="material-symbols-outlined !text-[14px] text-[var(--success)]">{t("icon_check")}</span>}
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1"><span className="material-symbols-outlined !text-[16px]">{t("icon_satellite_alt")}</span> {isActive ? t("status_active") : t("status_inactive")}</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity">
-                    <input type="checkbox" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} className="hidden" />
-                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shadow-inner backdrop-blur-md ${isPinned ? 'bg-[var(--danger)]/20 border-[var(--danger)]/50 shadow-[0_0_10px_rgba(var(--danger-rgb),0.3)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-black/40'}`}>
-                      {isPinned && <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_warning_amber")}</span>}
-                    </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1 ${isPinned ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}><span className="material-symbols-outlined !text-[16px]">{t("icon_warning_amber")}</span> {t("urgent_alert") || "URGENT"}</span>
-                  </label>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setIsActive(!isActive)}
+                    className={`flex items-center gap-2 px-5 h-[38px] rounded-full border transition-all font-black text-[10px] uppercase tracking-widest ${isActive ? 'bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)] shadow-[inset_0_0_20px_rgba(34,197,94,0.1)]' : 'theme-glass-panel bg-black/40 border-white/5 text-[var(--subtext)] hover:text-white hover:bg-white/5'}`}
+                  >
+                    <div className={`w-2 h-2 rounded-full transition-all duration-300 ${isActive ? 'bg-[var(--success)] shadow-[0_0_10px_var(--success)]' : 'bg-white/20'}`}></div>
+                    {isActive ? "Live / Active" : "Draft Mode"}
+                  </button>
                 </div>
               </div>
 
               {viewMode === 'edit' ? (
                 <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="flex flex-col items-center justify-center gap-3 w-full mb-2">
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-70">Transmission Type</span>
+                    <div className="flex p-1 rounded-full theme-glass-panel bg-black/40 border border-white/5 shadow-inner">
+                      <button 
+                        onClick={() => { setDeliveryMethod("Dispatch"); setIsUrgent(false); if (category === "Alert") setCategory("Update"); }}
+                        className={`h-[38px] px-6 rounded-full flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${deliveryMethod === "Dispatch" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'text-[var(--subtext)] hover:text-white hover:bg-white/5'}`}
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">feed</span> Dispatch
+                      </button>
+                      <button 
+                        onClick={() => { setDeliveryMethod("Alert"); setIsUrgent(false); if (["Update", "Info"].includes(category)) setCategory("Alert"); }}
+                        className={`h-[38px] px-6 rounded-full flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${deliveryMethod === "Alert" && !isUrgent ? 'bg-[var(--warning)]/20 text-[var(--warning)] shadow-[0_0_15px_rgba(250,204,21,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--warning)] hover:bg-white/5'}`}
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">notifications</span> Standard Alert
+                      </button>
+                      <button 
+                        onClick={() => { setDeliveryMethod("Alert"); setIsUrgent(true); if (["Update", "Info"].includes(category)) setCategory("Alert"); }}
+                        className={`h-[38px] px-6 rounded-full flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${deliveryMethod === "Alert" && isUrgent ? 'bg-[var(--danger)]/20 text-[var(--danger)] shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-white/5'}`}
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">notification_important</span> Urgent Alert
+                      </button>
+                    </div>
+                  </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("post_title")}</label>
                     <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title")} className="theme-glass-inner bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
@@ -633,11 +661,14 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                         <CustomDropdown disableTint={true}
                           value={category}
                           onChange={(v: string[]) => setCategory(v[0])}
-                          options={[
-                            { id: "Update", label: t("category_update") || "Update" },
-                            { id: "Info", label: t("category_info") || "Info" },
-                            { id: "Alert", label: t("category_alert") || "Alert" }
-                          ]}
+                          options={
+                            deliveryMethod === "Alert" ? [
+                              { id: "Alert", label: t("category_alert") || "Alert" }
+                            ] : [
+                              { id: "Update", label: t("category_update") || "Update" },
+                              { id: "Info", label: t("category_info") || "Info" }
+                            ]
+                          }
                           placeholder={t("auto_select_category")}
                         />
                       </div>

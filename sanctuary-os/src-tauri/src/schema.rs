@@ -45,7 +45,7 @@ pub struct GameSchema {
     pub exception_logs: Option<Vec<LogMatcher>>,
     pub version_extraction: Option<VersionExtraction>,
     pub dlc_folder_prefixes: Option<Vec<String>>,
-    pub local_mod_heuristics: Option<Vec<String>>,
+
     pub magic_bytes: Option<std::collections::HashMap<String, String>>,
     pub manifest_content: Option<String>,
 }

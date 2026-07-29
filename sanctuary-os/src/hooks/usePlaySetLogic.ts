@@ -98,7 +98,7 @@ export function usePlaySetLogic() {
             newMods.delete(targetName);
             const updatedSets = [...prevSets];
             updatedSets[activePlaySetIndex] = { ...currentSet, mods: Array.from(newMods) };
-            localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
+
             window.dispatchEvent(new Event("storage"));
             return updatedSets;
          }
@@ -384,7 +384,7 @@ export function usePlaySetLogic() {
         mods: Array.from(newMods),
         modHashes: nextModHashes
       };
-      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
+
       window.dispatchEvent(new Event("storage"));
       return updatedSets;
     });
@@ -392,7 +392,7 @@ export function usePlaySetLogic() {
   function deletePlaySet(setName: string) {
     const updatedSets = playSets.filter((s) => s.name !== setName);
     setPlaySets(updatedSets);
-    localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
+
     if (activeSetName === setName) {
       setActiveSetName(null);
       localStorage.removeItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`);
@@ -403,18 +403,25 @@ export function usePlaySetLogic() {
   }
 
   const renamePlaySet = (oldName: string, newName: string) => {
+    let finalName = newName;
+    let copyIndex = 1;
+    while (playSets.some((s: any) => s.name.toLowerCase() === finalName.toLowerCase() && s.name !== oldName)) {
+      finalName = `${newName} (${copyIndex})`;
+      copyIndex++;
+    }
+
     setPlaySets((prev: any[]) => {
       const copy = [...prev];
       const target = copy.find(s => s.name === oldName);
       if (target) {
-        target.name = newName;
+        target.name = finalName;
       }
-      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(copy));
+
       return copy;
     });
     if (activeSetName === oldName) {
-      setActiveSetName(newName);
-      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`, newName);
+      setActiveSetName(finalName);
+      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`, finalName);
     }
   };
 
@@ -497,9 +504,18 @@ export function usePlaySetLogic() {
   }
   function finalizeImport(setToAdd: any) {
     if (!setToAdd) return;
+    
+    let finalName = setToAdd.name;
+    let copyIndex = 1;
+    while (playSets.some((s: any) => s.name.toLowerCase() === finalName.toLowerCase())) {
+      finalName = `${setToAdd.name} (${copyIndex})`;
+      copyIndex++;
+    }
+    setToAdd.name = finalName;
+
     const updatedSets = [...playSets, setToAdd];
     setPlaySets(updatedSets);
-    localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
+
     setStatus(
       `${t("icon_check_circle")} ${t("status_profile_imported")}${setToAdd.name}`,
     );
@@ -553,7 +569,10 @@ export function usePlaySetLogic() {
             }
         };
 
-        targetSet.mods.forEach((modName: string) => {
+        targetSet.mods.forEach((rawMod: any) => {
+            const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
+            if (!modName) return;
+
             let modObj = modMap.get(modName);
             if (!modObj) {
                 const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
@@ -569,7 +588,10 @@ export function usePlaySetLogic() {
             }
         });
 
-        targetSet.mods.forEach((modName: string) => {
+        targetSet.mods.forEach((rawMod: any) => {
+            const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
+            if (!modName) return;
+
             let modObj = modMap.get(modName);
             if (!modObj) {
                 const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
@@ -718,7 +740,10 @@ export function usePlaySetLogic() {
     
     const extRegex = getExtensionRegex(activeGameSchema);
 
-    for (const modName of targetSet.mods) {
+    for (const rawMod of targetSet.mods) {
+      const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
+      if (!modName) continue;
+
       if (modList.some((m: any) => m.name === modName)) {
         nextMods.push(modName);
       } else {
@@ -738,7 +763,7 @@ export function usePlaySetLogic() {
         if (!healed) {
           const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
           const baseMatch = targetBase ? modList.find((m: any) => {
-            const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '');
+            const mBase = typeof m.name === 'string' ? m.name.split(/[\\/]/).pop()?.replace(extRegex, '') : '';
             return mBase === targetBase;
           }) : null;
           
@@ -767,7 +792,7 @@ export function usePlaySetLogic() {
             target.mods = nextMods;
             target.modHashes = nextHashes;
           }
-          localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(copy));
+
           return copy;
         });
       }, 0);
@@ -787,7 +812,7 @@ export function usePlaySetLogic() {
             target.ignoredGhosts.push(modName);
         }
       }
-      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(copy));
+
       return copy;
     });
   };
@@ -799,7 +824,7 @@ export function usePlaySetLogic() {
       if (target && target.mods) {
         target.mods = target.mods.filter((m: string) => m !== modName);
       }
-      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(copy));
+
       return copy;
     });
   };

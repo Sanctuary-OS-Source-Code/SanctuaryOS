@@ -711,7 +711,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           (m: any) => {
             const ignoredExtensions = activeGameSchema?.extensions?.ignore_unidentified || [".cfg", ".ini", ".json", ".xml", ".log", ".txt", ".dat", ".tmbin"];
             const isIgnored = ignoredExtensions.some((ext: string) => m.name.toLowerCase().endsWith(ext.toLowerCase()));
-            return !m.isSynced && !m.status?.includes("EXPLICIT LOCAL") && !m.name.toLowerCase().includes("customchallenge") && !m.name.toLowerCase().includes("sandbox") && !isIgnored;
+            const submittedHashes = JSON.parse(localStorage.getItem('sanctuary_submitted_hashes') || '[]');
+            return !m.isSynced && !m.status?.includes("EXPLICIT LOCAL") && !m.name.toLowerCase().includes("customchallenge") && !m.name.toLowerCase().includes("sandbox") && !isIgnored && !submittedHashes.includes(m.hash);
           }
         );
         const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";

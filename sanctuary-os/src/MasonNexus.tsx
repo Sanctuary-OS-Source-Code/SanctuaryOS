@@ -10,7 +10,7 @@ import {
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen
 } from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
@@ -131,7 +131,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
     }
   };
 
-  if (loading) return <div className="p-8 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">{t("market_fetching")}</div>;
+  if (loading) return <LoadingScreen title={t("market_fetching") || "FETCHING..."} />;
 
   const filteredAssets = assets.filter(a => {
     const isHidden = a.is_public === false;

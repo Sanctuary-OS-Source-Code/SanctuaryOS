@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabaseServices } from "../lib/supabase-services";
 import { useLexicon } from "../LexiconContext";
-import { standardPrimaryButtonClass, standardButtonClass, standardSuccessButtonClass, SidePanel, CustomDropdown, EmptyState } from "../shared";
+import { standardPrimaryButtonClass, standardButtonClass, standardSuccessButtonClass, SidePanel, CustomDropdown, EmptyState, ActionButton } from "../shared";
 import TemplatePreviewer from "../TemplatePreviewer";
 import { supabase } from "../supabase";
 import { exists, mkdir, writeTextFile } from "@tauri-apps/plugin-fs";
@@ -175,13 +175,12 @@ export default function ArchitectTemplateOversight() {
                 </button>
             </div>
             
-            <button 
+            <ActionButton
                onClick={() => setIsAddPanelOpen(true)}
-               className="h-12 px-6 rounded-2xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] font-black uppercase tracking-[0.1em] text-[10px]"
-            >
-               <span className="material-symbols-outlined !text-[16px]">{t("icon_add") || "add"}</span>
-               {t("btn_add") || "Add Target File"}
-            </button>
+               className="h-12 px-6 shrink-0 font-black uppercase tracking-[0.1em] text-[10px]"
+               icon={t("icon_add") || "add"}
+               label={t("btn_add") || "Add Target File"}
+            />
         </div>
       </div>
 

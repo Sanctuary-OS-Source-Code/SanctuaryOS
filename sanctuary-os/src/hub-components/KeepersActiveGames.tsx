@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import { SidePanel, standardButtonClass, standardSuccessButtonClass, standardAccentGlassButtonClass } from '../shared';
+import { SidePanel, standardButtonClass, standardSuccessButtonClass, standardAccentGlassButtonClass, ActionButton } from '../shared';
 import { useLexicon } from '../LexiconContext';
 import { logArchitectAction } from '../lib/audit';
 
@@ -114,13 +114,12 @@ export default function KeepersActiveGames() {
             <button onClick={() => setFilter('active')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'active' ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>Active</button>
             <button onClick={() => setFilter('inactive')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'inactive' ? 'text-red-500 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-red-400 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>Inactive</button>
           </div>
-          <button
+          <ActionButton
             onClick={() => { setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", icon: "" }); setSidePanelMode('add'); }}
-            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
-          >
-            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform duration-500">add</span>
-            {t("ui_register_game_db") || "Register New Game DB"}
-          </button>
+            className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+            icon="add"
+            label={t("ui_register_game_db") || "Register New Game DB"}
+          />
         </div>
       </div>
 

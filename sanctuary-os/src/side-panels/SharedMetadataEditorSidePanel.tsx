@@ -82,6 +82,8 @@ export function SharedMetadataEditorSidePanel({
         mason_id: modForm.mason_id,
         compliance_tier: modForm.compliance_tier,
         folder_structure: modForm.folder_structure || [],
+        is_paid: modForm.is_paid || false,
+        is_early_access: modForm.is_early_access || false,
         updated_at: new Date().toISOString()
       }).eq('id', modForm.id);
       if (onModUpdated) onModUpdated();
@@ -181,7 +183,7 @@ export function SharedMetadataEditorSidePanel({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
             <div className="flex flex-col gap-2">
               <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
-                {t("registry_label_version")} 
+                {t("label_mason_version") || "Mason Version"} 
               </label>
               <input value={modForm.latest_version || ""} onChange={e => setModForm({ ...modForm, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
             </div>
@@ -190,6 +192,32 @@ export function SharedMetadataEditorSidePanel({
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
               <input value={modForm.url || ""} onChange={e => setModForm({...modForm, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${modForm.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+              <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${modForm.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
+                {t("label_is_paid")}
+              </span>
+              <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${modForm.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${modForm.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
+                </div>
+              </div>
+              <input type="checkbox" checked={modForm.is_paid || false} onChange={e => setModForm({...modForm, is_paid: e.target.checked})} className="hidden" />
+            </label>
+
+            <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${modForm.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+              <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${modForm.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
+                {t("label_is_early_access")}
+              </span>
+              <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${modForm.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${modForm.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
+                </div>
+              </div>
+              <input type="checkbox" checked={modForm.is_early_access || false} onChange={e => setModForm({...modForm, is_early_access: e.target.checked})} className="hidden" />
+            </label>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">

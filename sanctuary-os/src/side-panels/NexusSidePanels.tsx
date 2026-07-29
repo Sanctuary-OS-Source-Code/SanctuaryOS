@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { CustomDropdown, standardAccentGlassButtonClass } from "../shared";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -266,7 +267,85 @@ export function MarketBlueprintPanel({
   syncBlueprintByCode
 }: any) {
   const { t } = useLexicon();
-  if (!selectedBlueprint) return null;
+  
+  const [enrichedBlueprint, setEnrichedBlueprint] = useState(selectedBlueprint);
+  const [visibleCount, setVisibleCount] = useState(100);
+
+  useEffect(() => {
+    if (!selectedBlueprint) {
+      setEnrichedBlueprint(null);
+      return;
+    }
+    setEnrichedBlueprint(selectedBlueprint);
+    setVisibleCount(100);
+
+    const fetchPremiumStatus = async () => {
+      const artifacts = selectedBlueprint.json_data?.artifacts || [];
+      const hashes = artifacts.map((a: any) => a.hash).filter(Boolean);
+      if (hashes.length === 0) return;
+      
+      let premiumMap: Record<string, any> = {};
+      const chunkSize = 40;
+      const promises = [];
+      
+      for (let i = 0; i < hashes.length; i += chunkSize) {
+        const chunk = hashes.slice(i, i + chunkSize);
+        promises.push(
+          supabase.from('mod_versions')
+            .select('dna_hash, mods(is_paid, is_early_access)')
+            .in('dna_hash', chunk)
+        );
+      }
+      
+      const results = await Promise.all(promises);
+      results.forEach(({ data, error }) => {
+        if (!error && data) {
+          data.forEach((d: any) => {
+            if (d.mods && (d.mods.is_paid || d.mods.is_early_access)) {
+               premiumMap[d.dna_hash] = {
+                 hash: d.dna_hash,
+                 is_paid: d.mods.is_paid,
+                 is_early_access: d.mods.is_early_access
+               };
+            }
+          });
+        }
+      });
+      
+      let finalArtifacts = artifacts;
+      let hasChanges = false;
+      
+      if (Object.keys(premiumMap).length > 0) {
+        finalArtifacts = artifacts.map((a: any) => {
+          if (a.hash && premiumMap[a.hash]) {
+            const p = premiumMap[a.hash];
+            if (!a.is_paid && p.is_paid) { a.is_paid = true; hasChanges = true; }
+            if (!a.is_early_access && p.is_early_access) { a.is_early_access = true; hasChanges = true; }
+          }
+          return a;
+        });
+      }
+
+      // Always sort to bring Premium/EA to the top so it doesn't look "Random" to the user
+      finalArtifacts = [...finalArtifacts].sort((a: any, b: any) => {
+        const aPremium = a.is_paid || a.is_early_access ? 1 : 0;
+        const bPremium = b.is_paid || b.is_early_access ? 1 : 0;
+        if (aPremium !== bPremium) return bPremium - aPremium;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+
+      setEnrichedBlueprint({
+        ...selectedBlueprint,
+        is_paid: selectedBlueprint.is_paid || finalArtifacts.some((a: any) => a.is_paid),
+        is_early_access: selectedBlueprint.is_early_access || finalArtifacts.some((a: any) => a.is_early_access),
+        json_data: { ...selectedBlueprint.json_data, artifacts: finalArtifacts }
+      });
+    };
+    fetchPremiumStatus();
+  }, [selectedBlueprint]);
+
+  if (!enrichedBlueprint) return null;
+
   return createPortal(
     <>
       <div className="fixed top-0 right-0 bottom-10 z-[15000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setSelectedBlueprint(null)}></div>
@@ -281,39 +360,112 @@ export function MarketBlueprintPanel({
           </div>
         </div>
 
-        <div className="px-10 pt-8 pb-4 relative shrink-0">
-          <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate">{selectedBlueprint.name}</h3>
-          <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-2 flex gap-4">
-            <span>{selectedBlueprint.author || "Citizen"} &bull; {new Date(selectedBlueprint.created_at).toLocaleDateString()}</span>
-            <span className="text-[var(--accent)] font-mono">{selectedBlueprint.json_data.game_version ? `${t("blueprint_verified")} ${selectedBlueprint.json_data.game_version}` : (t("blueprint_verified_unknown"))}</span>
-          </p>
+        <div className="px-10 pt-8 pb-4 relative shrink-0 flex justify-between items-start gap-6">
+          <div className="flex flex-col min-w-0">
+            <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate">{enrichedBlueprint.name}</h3>
+            <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-2 flex gap-4">
+              <span>{enrichedBlueprint.author || "Citizen"} &bull; {new Date(enrichedBlueprint.created_at).toLocaleDateString()}</span>
+              <span className="text-[var(--accent)] font-mono">{enrichedBlueprint.json_data.game_version ? `${t("blueprint_verified") || "VERIFIED VERSION:"} ${enrichedBlueprint.json_data.game_version}` : (t("blueprint_verified_unknown"))}</span>
+            </p>
+          </div>
+          {(enrichedBlueprint.is_paid || enrichedBlueprint.is_early_access) && (
+            <div className="flex flex-col gap-2 shrink-0 items-end">
+              {enrichedBlueprint.is_early_access && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-md shadow-lg">
+                  <span className="material-symbols-outlined !text-[12px] text-[#d8b4fe]">science</span>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access") || "Early Access"}</span>
+                </div>
+              )}
+              {enrichedBlueprint.is_paid && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-md shadow-lg">
+                  <span className="material-symbols-outlined !text-[12px] text-[#fef08a]">monetization_on</span>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#fef08a]">{t("badge_paid") || "Paid"}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-10 flex flex-col gap-8 relative z-10">
-          {selectedBlueprint.description && (
-            <div className="theme-glass-inner p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-              <p className="text-sm font-medium text-[var(--text)] leading-relaxed whitespace-pre-wrap">{selectedBlueprint.description}</p>
-            </div>
-          )}
-
           <div className="flex flex-col gap-4">
             <h3 className="text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-80 flex items-center gap-2">
-              <span className="theme-text-accent">{selectedBlueprint.json_data.artifacts?.length || 0}</span> {t("blueprint_included")}
+              <span className="theme-text-accent">{enrichedBlueprint.json_data.artifacts?.length || 0}</span> {t("blueprint_included")}
             </h3>
-            <div className="flex flex-col gap-2">
-              {(selectedBlueprint.json_data.artifacts || []).map((mod: any, i: number) => (
-                <div key={i} className="flex justify-between items-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-4 rounded-2xl hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all group">
+            
+            {(() => {
+              const visibleArtifacts = (enrichedBlueprint.json_data.artifacts || []).slice(0, visibleCount);
+              const premiumMods = visibleArtifacts.filter((m: any) => m.is_paid || m.is_early_access);
+              const standardMods = visibleArtifacts.filter((m: any) => !m.is_paid && !m.is_early_access);
+
+              const renderMod = (mod: any, i: number) => (
+                <div key={`${mod.hash || mod.name}_${i}`} className="flex justify-between items-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-4 rounded-2xl hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all group">
                   <button
                     onClick={() => onOpenDossier?.({ ...mod, isNexusView: true })}
-                    className="flex flex-col items-start hover:theme-text-accent transition-colors text-left"
+                    className="flex flex-col items-start hover:theme-text-accent transition-colors text-left min-w-0 pr-4"
                   >
-                    <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight">{cleanModName(mod.name || mod.id).name}</span>
+                    <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate w-full">{cleanModName(mod.name || mod.id).name}</span>
                     <span className="text-[9px] font-mono theme-text-accent tracking-[0.2em] uppercase opacity-70 mt-1">{cleanModName(mod.name || mod.id).ext}</span>
+                    {(mod.is_paid || mod.is_early_access) && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {mod.is_early_access && (
+                          <div className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center gap-1 shadow-[0_0_10px_rgba(168,85,247,0.1)]">
+                            <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
+                            <span className="text-[8px] font-black uppercase tracking-[0.1em] text-purple-500">{t("badge_early_access") || "Early Access"}</span>
+                          </div>
+                        )}
+                        {mod.is_paid && (
+                          <div className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-1 shadow-[0_0_10px_rgba(234,179,8,0.1)]">
+                            <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
+                            <span className="text-[8px] font-black uppercase tracking-[0.1em] text-yellow-500">{t("badge_paid") || "Paid"}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </button>
-                  {mod.author && <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-4 shrink-0">{mod.author}</span>}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {mod.author && <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-4">{mod.author}</span>}
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+
+              return (
+                <div className="flex flex-col gap-6">
+                  {premiumMods.length > 0 && (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3 p-4 theme-glass-panel border border-yellow-500/30 rounded-2xl bg-yellow-500/5 shadow-md">
+                        <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-yellow-500/20 text-yellow-500">
+                          <span className="material-symbols-outlined !text-[20px]">workspace_premium</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black text-yellow-500 uppercase tracking-widest">Premium Artifacts</span>
+                          <span className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-wider opacity-80">
+                            {premiumMods.filter((m: any) => m.is_paid).length} Paid, {premiumMods.filter((m: any) => m.is_early_access).length} Early Access
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        {premiumMods.map(renderMod)}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {standardMods.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      {standardMods.map(renderMod)}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+              {(enrichedBlueprint.json_data.artifacts?.length || 0) > visibleCount && (
+                <button
+                  onClick={() => setVisibleCount((prev: number) => prev + 100)}
+                  className="w-full py-4 mt-2 theme-glass-panel border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-white hover:bg-white/5 transition-all flex items-center justify-center gap-2 shadow-md active:scale-[0.99]"
+                >
+                  <span className="material-symbols-outlined !text-[16px]">expand_more</span>
+                  Load More Artifacts ({(enrichedBlueprint.json_data.artifacts?.length || 0) - visibleCount} Remaining)
+                </button>
+              )}
           </div>
         </div>
         <div className="p-8 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-xl flex flex-row items-center justify-center gap-4 w-full relative z-50 shrink-0">

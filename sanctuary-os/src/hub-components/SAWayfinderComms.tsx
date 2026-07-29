@@ -6,7 +6,7 @@ import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMu
   CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass,
+  standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
   fetchAllPaginated, CustomTierDropdown } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
@@ -143,13 +143,12 @@ export function WayfinderComms() {
           className="flex-1 bg-transparent rounded-2xl px-6 py-3 text-[var(--text)] text-sm font-bold focus:outline-none transition-all placeholder-[color-mix(in_srgb,var(--subtext)_50%,transparent)]"
           placeholder={t("sa_comms_placeholder")}
         />
-        <button
+        <ActionButton
           onClick={sendComm}
           disabled={!commsInput.trim()}
-          className="px-10 py-4 theme-bg-accent text-[var(--bg)] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] shrink-0"
-        >
-          {editingCommId ? t("comms_btn_update") : t("btn_send")}
-        </button>
+          className="shrink-0 h-14"
+          label={editingCommId ? t("comms_btn_update") : t("btn_send")}
+        />
       </div>
     </div>
   );

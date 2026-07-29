@@ -330,11 +330,6 @@ pub fn check_heuristic_malware(path: &Path, signatures: &[HeuristicSignature]) -
 }
 
 pub fn check_is_explicitly_local(path: &Path, is_script: bool, game_schema: &Option<crate::schema::GameSchema>) -> bool {
-    let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-    if crate::game_logic::is_explicitly_local_heuristic(game_schema, &file_name) {
-        return true;
-    }
-
     if is_script {
         if let Ok(file) = std::fs::File::open(path) {
             if let Ok(mut archive) = zip::ZipArchive::new(file) {

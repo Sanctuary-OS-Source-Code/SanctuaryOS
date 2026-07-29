@@ -8,7 +8,7 @@ import { useStore } from "./store";
 import {
   DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker, StatTile,
-  HubTabButton, ModSearchDropdown, EmptyState, FilterTabs, FilterTabButton,
+  HubTabButton, ModSearchDropdown, EmptyState, FilterTabs, FilterTabButton, ActionButton,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
@@ -161,7 +161,10 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
         created_at: activeMod.created_at || new Date().toISOString(),
         updated_at: activeMod.updated_at || new Date().toISOString(),
         compatible_versions: activeMod.compatible_versions || [],
-        folder_structure: activeMod.folder_structure || []
+        folder_structure: activeMod.folder_structure || [],
+        is_paid: activeMod.is_paid || false,
+        is_early_access: activeMod.is_early_access || false,
+        latest_version: activeMod.latest_version || "v1.0"
       }]).select().single();
 
       if (insertError) throw insertError;
@@ -170,7 +173,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
         {
           mod_id: newMod.id,
           dna_hash: activeMod.hash,
-          version_label: "v1.0",
+          version_label: activeMod.latest_version || "v1.0",
           game_version: activeMod.compatible_versions && activeMod.compatible_versions.length > 0 ? activeMod.compatible_versions[0] : null
         }
       ], { onConflict: "dna_hash" });
@@ -272,14 +275,13 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             <button onClick={() => setSandboxTabFilter('local')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("unlinked_badge") || "LOCAL"}</button>
             <button onClick={() => setSandboxTabFilter('synced')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("synced_badge") || "SYNCED"}</button>
           </div>
-          <button
+          <ActionButton
             onClick={handleImportToSandbox}
             disabled={isImporting}
-            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group disabled:opacity-50"
-          >
-            {isImporting ? <span className="material-symbols-outlined !text-[16px] animate-spin">{t("icon_refresh")}</span> : <span className="material-symbols-outlined !text-[16px] group-hover:-translate-y-0.5 transition-transform">{t("icon_download")}</span>}
-            {isImporting ? t("btn_importing") : t("btn_import")}
-          </button>
+            icon={isImporting ? t("icon_refresh") : t("icon_download")}
+            label={isImporting ? t("btn_importing") : t("btn_import")}
+            className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]"
+          />
         </div>
       </div>
 
@@ -441,6 +443,39 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                   <div className="w-full">
                     <CustomDatePicker value={activeMod.updated_at || null} onChange={date => setActiveMod({ ...activeMod, updated_at: date })} />
                   </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-1">
+                    {t("label_mason_version") || "Mason Version"} 
+                  </label>
+                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 shadow-inner" />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 col-span-full">
+                  <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-white/5'}`}>
+                    <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
+                      {t("label_is_paid")}
+                    </span>
+                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
+                      </div>
+                    </div>
+                    <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({...activeMod, is_paid: e.target.checked})} className="hidden" />
+                  </label>
+
+                  <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-white/5'}`}>
+                    <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
+                      {t("label_is_early_access")}
+                    </span>
+                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
+                      </div>
+                    </div>
+                    <input type="checkbox" checked={activeMod.is_early_access || false} onChange={e => setActiveMod({...activeMod, is_early_access: e.target.checked})} className="hidden" />
+                  </label>
                 </div>
 
                 <div className="flex flex-col gap-2 col-span-full">

@@ -17,10 +17,67 @@ export const handleOpenUrl = (url: string) => {
 
 export const standardButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
 export const standardGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-white/5 backdrop-blur-md border border-white/10 text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-white/10 hover:border-white/20 hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardPrimaryButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-bg-accent text-white text-xs font-black uppercase tracking-[0.2em] transition-all hover:brightness-110 hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
+export const standardPrimaryButtonClass = "px-8 py-4 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-[var(--text)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:border-[var(--accent)]/50 hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group";
 export const standardSuccessButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--success)_20%,transparent)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
 export const standardDangerButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
 export const standardAccentGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
+
+export function ActionButton({ icon, label, onClick, disabled, className = "", type = "button", children }: any) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={`px-8 py-4 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-[var(--text)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:border-[var(--accent)]/50 hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${className}`}
+    >
+      {icon && <span className="material-symbols-outlined !text-[16px] transition-transform group-hover:-translate-y-0.5">{icon}</span>}
+      {label}
+      {children}
+    </button>
+  );
+}
+
+export function LoadingScreen({ title, subtitle, icon = "sync" }: { title: string, subtitle?: string, icon?: string }) {
+  return (
+    <div className="w-full h-full flex items-center justify-center min-h-[400px]">
+      <div className="relative p-12 rounded-[var(--radius)] overflow-hidden max-w-lg w-full mx-auto backdrop-blur-3xl"
+           style={{ 
+             backgroundColor: `color-mix(in srgb, var(--bg) 60%, transparent)`,
+             border: `1px solid color-mix(in srgb, var(--accent) 15%, transparent)`,
+             boxShadow: `0 40px 100px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 1px 1px color-mix(in srgb, var(--text) 5%, transparent)` 
+           }}>
+        <div className="absolute inset-0 animate-pulse pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)` }} />
+        <div className="absolute top-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 50%, transparent), transparent)` }} />
+        <div className="absolute bottom-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 20%, transparent), transparent)` }} />
+        
+        <div className="flex flex-col items-center gap-6 relative z-10 text-center">
+          <div className="relative w-24 h-24 rounded-full flex items-center justify-center shrink-0"
+               style={{ 
+                 backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)`,
+                 borderColor: `color-mix(in srgb, var(--accent) 30%, transparent)`,
+                 borderWidth: '1px',
+                 boxShadow: `0 0 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 5%, transparent)`
+               }}>
+            <div className="absolute inset-0 rounded-full border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)` }} />
+            <span className={`material-symbols-outlined !text-4xl ${icon === 'sync' ? 'animate-spin' : ''}`}
+                  style={{ color: 'var(--accent)', filter: `drop-shadow(0 0 15px var(--accent))` }}>{icon}</span>
+          </div>
+          
+          <div>
+            <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-2">
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="text-sm font-medium text-[var(--subtext)] tracking-wider">
+                {subtitle}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export const deriveHumanReadableVersion = (path: string | undefined | null, fallbackHash: string | undefined | null, t?: (key: string) => string) => {
   if (!path) return fallbackHash ? `v.DNA-${fallbackHash.substring(0, 7).toUpperCase()}` : (t?.("shared_version_unknown") || "v.Unknown");
@@ -359,6 +416,24 @@ export function SidebarActionButton({ id, icon, label, subtext, active, onClick,
       </div>
 
       <span className={`material-symbols-outlined !text-[16px] shrink-0 absolute right-5 opacity-0 -translate-x-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 ${active ? 'opacity-100 translate-x-0' : ''}`}>{t("icon_chevron_right")}</span>
+    </button>
+  );
+}
+
+export function HubActionButton({ icon, label, onClick, className = "", isDanger = false, isWarning = false }: any) {
+  return (
+    <button
+      onClick={onClick}
+      className={`h-10 px-5 rounded-full backdrop-blur-md transition-all flex items-center justify-center gap-2 shrink-0 font-black uppercase tracking-widest border ${
+        isDanger ? 'border-red-500/30 text-red-400 hover:text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] bg-red-500/10 hover:bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.3)]'
+        : isWarning ? 'border-amber-500/30 text-amber-400 hover:text-amber-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.5)] bg-amber-500/10 hover:bg-amber-500/20 shadow-[0_0_30px_rgba(251,191,36,0.3)]'
+        : 'border-white/10 bg-white/5 text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/15 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:border-[var(--accent)]/50'
+      } group ${className}`}
+    >
+      <span className={`material-symbols-outlined !text-[18px] transition-transform ${isDanger ? 'animate-bounce' : 'opacity-70 group-hover:opacity-100 group-hover:scale-110'}`}>
+        {icon}
+      </span>
+      <span className="text-[10px]">{label}</span>
     </button>
   );
 }
@@ -1143,8 +1218,11 @@ export function HoverTooltip({ title, subtitle, variant = 'danger', className = 
     iconName = 'info';
   }
 
+  const hasCustomHover = className?.includes('group-hover');
+  const baseHoverClass = hasCustomHover ? '' : 'group-hover:flex';
+
   return (
-    <div className={`absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-[70] hidden group-hover:flex flex-col items-start justify-center theme-glass-panel !bg-black/50 px-5 py-3 max-w-[320px] w-max pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-2 shadow-[0_20px_50px_rgba(0,0,0,0.6)] ${borderColorClass} ${className}`}>
+    <div className={`absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-[70] hidden ${baseHoverClass} flex-col items-start justify-center theme-glass-panel !bg-black/50 px-5 py-3 max-w-[320px] w-max pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-2 shadow-[0_20px_50px_rgba(0,0,0,0.6)] ${borderColorClass} ${className}`}>
       <div className="relative z-10 flex flex-col items-start gap-1 w-full">
         <div className={`text-[10px] font-black uppercase tracking-[0.2em] flex items-start text-left gap-2 whitespace-pre-line ${textColorClass}`}>
           <span className="material-symbols-outlined !text-[14px] shrink-0 mt-[1px]">{iconName}</span>
@@ -1228,7 +1306,9 @@ export const processModsIntoCollections = (
             isParent: true,
             familyId: parentId,
             flavors: members,
-            familyCount: members.length
+            familyCount: members.length,
+            is_paid: parentMod.is_paid || members.some(m => m.is_paid),
+            is_early_access: parentMod.is_early_access || members.some(m => m.is_early_access)
           });
           memberIds.forEach(id => processedMods.add(id));
         }
@@ -1279,7 +1359,9 @@ export const processModsIntoCollections = (
           flavors: members,
           familyCount: members.length,
           isVirtual: true,
-          isParent: true
+          isParent: true,
+          is_paid: members.some(m => m.is_paid),
+          is_early_access: members.some(m => m.is_early_access)
         });
       }
     }
@@ -1319,7 +1401,9 @@ export const processModsIntoCollections = (
           flavors: members,
           familyCount: members.length,
           isVirtual: true,
-          isParent: true
+          isParent: true,
+          is_paid: members.some(m => m.is_paid),
+          is_early_access: members.some(m => m.is_early_access)
         });
       }
     }
@@ -1361,3 +1445,49 @@ export const processModsIntoCollections = (
   return Array.from(nameMap.values());
 };
 
+export const enrichBlueprintsWithPremiumStatus = async (supabase: any, blueprintsData: any[]) => {
+  let premiumMap: Record<string, any> = {};
+  const allHashes = new Set<string>();
+  blueprintsData.forEach((b: any) => {
+     const artifacts = b.json_data?.artifacts || b.artifacts || [];
+     artifacts.forEach((a: any) => { if (a.hash) allHashes.add(a.hash); });
+  });
+  
+  if (allHashes.size > 0) {
+     const hashes = Array.from(allHashes);
+     const chunkSize = 100;
+     const promises = [];
+     for (let i = 0; i < hashes.length; i += chunkSize) {
+       promises.push(
+         supabase.from('mod_versions').select('dna_hash, mods(is_paid, is_early_access)').in('dna_hash', hashes.slice(i, i + chunkSize))
+       );
+     }
+     const results = await Promise.all(promises);
+     const hashToPremium: Record<string, any> = {};
+     results.forEach(({ data }) => {
+       if (data) {
+         data.forEach((d: any) => {
+           if (d.mods && (d.mods.is_paid || d.mods.is_early_access)) {
+             hashToPremium[d.dna_hash] = { is_paid: d.mods.is_paid, is_early_access: d.mods.is_early_access };
+           }
+         });
+       }
+     });
+     
+     blueprintsData.forEach((b: any) => {
+        const artifacts = b.json_data?.artifacts || b.artifacts || [];
+        let is_paid = false;
+        let is_early_access = false;
+        artifacts.forEach((a: any) => {
+           if (a.hash && hashToPremium[a.hash]) {
+             if (hashToPremium[a.hash].is_paid) is_paid = true;
+             if (hashToPremium[a.hash].is_early_access) is_early_access = true;
+           }
+        });
+        if (is_paid || is_early_access) {
+           premiumMap[b.id] = { is_paid, is_early_access };
+        }
+     });
+  }
+  return premiumMap;
+};

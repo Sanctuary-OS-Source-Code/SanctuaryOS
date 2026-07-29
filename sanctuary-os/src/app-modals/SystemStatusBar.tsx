@@ -14,7 +14,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   const networkUpdates = useStore(state => state.networkUpdates) || { updated: [] };
   const activePlaySetIndex = useStore(state => state.activePlaySetIndex);
   const playSets = useStore(state => state.playSets);
-  const { isSideBrowserOpen, scoutQueue, setIsScoutPanelOpen, isScoutPanelOpen } = useModalStore();
+  const { isSideBrowserOpen, scoutQueue, setIsScoutPanelOpen, isScoutPanelOpen, dnaMatchQueue, isDnaModalOpen, setIsDnaModalOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen } = useModalStore();
 
   const updatesCount = React.useMemo(() => {
     if (!networkUpdates?.updated || typeof activePlaySetIndex !== 'number' || !playSets || !playSets[activePlaySetIndex]) return 0;
@@ -121,6 +121,39 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           </div>
         )}
 
+        {/* 1. Radar Sweep Modal */}
+        {dnaMatchQueue && dnaMatchQueue.length > 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDnaModalOpen(!isDnaModalOpen);
+            }}
+            className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group ${isDnaModalOpen ? 'bg-white/10 text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
+          >
+            <span className="material-symbols-outlined !text-[16px] text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)] animate-pulse">{t("icon_radar")}</span>
+            <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
+              <span className="font-black text-orange-500">{dnaMatchQueue.length}</span> {t("radar_title")}
+            </div>
+          </button>
+        )}
+
+        {/* 2. Unknown DNA */}
+        {scoutQueue && scoutQueue.length > 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsScoutPanelOpen(!isScoutPanelOpen);
+            }}
+            className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group ${isScoutPanelOpen ? 'bg-white/10 text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
+          >
+            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)] animate-pulse">{t("icon_biotech")}</span>
+            <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
+              <span className="font-black text-[var(--accent)]">{scoutQueue.length}</span> {t("queue_title")}
+            </div>
+          </button>
+        )}
+
+        {/* 3. Nexus Asset Updates */}
         {nexusUpdatesCount > 0 && (
           <button
             onClick={(e) => {
@@ -139,6 +172,21 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           </button>
         )}
 
+        {/* 4. Blueprint Hot Swap */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsBlueprintSwapOpen(!isBlueprintSwapOpen);
+          }}
+          className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group ${isBlueprintSwapOpen ? 'bg-white/10 text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
+        >
+          <span className={`material-symbols-outlined !text-[16px]`}>{t("icon_map")}</span>
+          <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
+            {t("playsets_title")}
+          </div>
+        </button>
+
+        {/* 5. Radar Sweep Panel */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -152,21 +200,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           </div>
         </button>
 
-        {scoutQueue && scoutQueue.length > 0 && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsScoutPanelOpen(!isScoutPanelOpen);
-            }}
-            className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group ${isScoutPanelOpen ? 'bg-white/10 text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
-          >
-            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)] animate-pulse">{t("icon_biotech")}</span>
-            <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-              <span className="font-black text-[var(--accent)]">{scoutQueue.length}</span> {t("queue_title")}
-            </div>
-          </button>
-        )}
-
+        {/* 6. System Status */}
         <button
           onClick={(e) => { e.stopPropagation(); setIsSystemStatusOpen((prev: boolean) => !prev); }}
           className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors group relative
@@ -190,6 +224,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           </div>
         </button>
 
+        {/* 7. Side Browser */}
         <button
           onClick={(e) => { e.stopPropagation(); setIsSideBrowserOpen(!isSideBrowserOpen); }}
           className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors group relative ${isSideBrowserOpen ? 'bg-white/10 text-white opacity-100' : 'hover:bg-white/5 text-[var(--text)] opacity-90 hover:opacity-100'}`}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, getActiveGameClient } from '../supabase';
 import { useLexicon } from '../LexiconContext';
-import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel } from '../shared';
+import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, ActionButton } from '../shared';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
 
 export default function SAComplianceOversight({ initialFilter, setInitialFilter, onOpenManualFlag }: any) {
@@ -207,13 +207,12 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             </button>
           </div>
 
-          <button
+          <ActionButton
             onClick={() => onOpenManualFlag("")}
-            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group !w-auto"
-          >
-            <span className="material-symbols-outlined !text-[18px] group-hover:scale-110 transition-transform">{t("icon_flag")}</span>
-            {t("comp_btn_manual_flag")}
-          </button>
+            className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px] !w-auto"
+            icon={t("icon_flag")}
+            label={t("comp_btn_manual_flag")}
+          />
         </div>
       </div>
 

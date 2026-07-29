@@ -17,6 +17,12 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
   const ignoredHashesRef = useRef<Set<string>>(new Set());
 
   const handleDroppedFiles = async (paths: string[]): Promise<boolean> => {
+    const schemaFeatures = activeGameSchema?.features || { has_cc: true };
+    if (!schemaFeatures.has_cc) {
+      setStatus(t("status_not_supported") || "Active game does not support custom content intake.");
+      return false;
+    }
+
     setDropzoneState("ingesting");
     setStatus(
       `${t("status_mass_ingestion_prefix")}${paths.length}${t("status_mass_ingestion_suffix")}`,
@@ -64,36 +70,7 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
     }
   };
 
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let isMounted = true;
-    tauriBridge.setupDragDrop(
-      () => setIsDragging(true),
-      () => setIsDragging(false),
-      (paths) => {
-        setIsDragging(false);
-        const schemaFeatures = activeGameSchema?.features || { has_cc: true };
-        if (!schemaFeatures.has_cc) {
-          setStatus(t("status_not_supported") || "Active game does not support custom content intake.");
-          return;
-        }
-        if (paths && paths.length > 0) {
-          setDroppedFiles(paths);
-          setIsDropzoneOpen(true);
-          setDropzoneState("received");
-          handleDroppedFiles(paths);
-        }
-      }
-    ).then((c) => {
-      if (!isMounted) c();
-      else unlisten = c;
-    }).catch(console.error);
 
-    return () => {
-      isMounted = false;
-      if (unlisten) unlisten();
-    };
-  }, [activeGameSchema]);
 
   useEffect(() => {
     let unlisten: any;

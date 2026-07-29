@@ -1,3 +1,34 @@
+**Date: July 29, 2026**
+**Version: 0.4.87**
+
+## **Blueprint Infrastructure & UI Harmonization**
+
+### Ecosystem Syncing
+- **Cloud Blueprint Ingestion**: Fixed a critical path in the Nexus Blueprint downloader where the `syncBlueprintByCode` handler wasn't being correctly passed to the core component. The "Install" action on the Nexus now accurately fetches and unpacks cloud blueprints directly into the local workspace.
+- **Blueprint Premium Status Pipeline**: Engineered a new premium data fetching pipeline for Nexus blueprints. Premium and Early Access flags for artifacts inside a blueprint are now accurately computed across chunked arrays to bypass URL-length limitations when querying massive load orders.
+
+### Core Systems & Monetization
+- **Paid Artifacts Infrastructure**: Engineered a comprehensive Paid Mods system, introducing full database-level tracking for `is_paid` and `is_early_access` flags. Developed robust pipeline logic to verify premium status across the ecosystem. **Architects can now toggle Premium and Early Access status for their artifacts directly within the Metadata Editor.**
+- **Local Scanner Deprecation**: Removed the redundant Local Scanner logic.
+
+### Component Architecture
+- **Mason Profile Overhaul**: Fully refactored and revamped the massive `MasonProfile.tsx` by breaking it down into distinct, modular components (`MasonProfileHeader`, `MasonProfileOverview`, `MasonProfileArtifacts`, `MasonProfileBlueprints`, `MasonProfileCommLink`). Alongside the backend refactor, the entire front-end user interface was completely reimagined. It now features a hyper-immersive layout with dynamic glassmorphism, vastly improved data visualizations, seamless tab transitions, and an architectural overhaul that fundamentally elevates the entire Mason Profile.
+- **Dispatch Feed & Post Editor Revamp**: Reworked the Comm-Link and Dispatch Feeds across the Command Center and Elevated Hubs to use a more fluid, compact layout instead of pinning a single post at the top. Additionally, overhauled the backend logic to clean up the Alert and Dispatch flows alongside revamping the associated Post Editor components.
+
+### UX / Polish
+- **Centralized Action Buttons**: Revamped action buttons across the entire application to use a sleek, standardized pill-shaped glass design with dynamic hover heuristics.
+- **Loading Screen Revamp**: Implemented stunning new global loading screens that utilize smooth CSS micro-animations, glassmorphism, and branded accents to keep users engaged during heavy data fetches.
+- **Status Bar Blueprints**: Re-architected the System Status Bar to deeply integrate Blueprint management, establishing a seamless new button flow for tracking active deployments and background syncs.
+- **Blueprint Sanitization UI**: Repaired and fully integrated the Blueprint Sanitize action. Missing artifacts ("ghosts") in a blueprint can now be cleaned up effortlessly via a dedicated, polished SidePanel.
+- **Missing Imports Alert Overhaul**: Refined the UX for resolving missing dependencies during Blueprint ingestion.
+  - Added a "Skip Premium" batch action for quickly bypassing paid or early access requirements.
+  - Skipped Premium artifacts now render underneath the banner for transparency instead of being completely hidden.
+- **Premium Blueprint Badges**: Implemented a new absolute top-left layout for premium/early access badges on Nexus blueprint cards, preventing overlap with critical asset counts and improving visual hierarchy.
+- **Scout Queue Updates**: Hashes now require a minimum number of uploads before hitting the Scout Queue for Architect review.
+- **...and countless micro-interactions, layout fixes, and aesthetic polishes.**
+
+---
+
 **Date: July 24, 2026**
  **Version: 0.4.86**
 

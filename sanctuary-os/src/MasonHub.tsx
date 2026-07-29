@@ -13,7 +13,7 @@ import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { supabase } from "./supabase";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
-import { ViewHeader, SidePanel, GameVersionMultiSelect, CustomDropdown, StatTile, ModSearchDropdown, CustomDatePicker, HubTabButton, HubTabDropdown, standardButtonClass, standardPrimaryButtonClass, standardDangerButtonClass, standardSuccessButtonClass, standardAccentGlassButtonClass, EmptyState } from "./shared";
+import { ViewHeader, SidePanel, GameVersionMultiSelect, CustomDropdown, StatTile, ModSearchDropdown, CustomDatePicker, HubTabButton, HubTabDropdown, standardButtonClass, standardPrimaryButtonClass, standardDangerButtonClass, standardSuccessButtonClass, standardAccentGlassButtonClass, EmptyState, LoadingScreen } from "./shared";
 import { WayfinderPostsEditor } from "./hub-components/WayfinderPostsEditor";
 import ProtocolVisualizer from "./ProtocolVisualizer";
 import StructureVisualizer from "./StructureVisualizer";
@@ -70,7 +70,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
     fetchMasonProfile();
   }, []);
 
-  if (loading) return <div className="p-12 text-center theme-text-accent animate-pulse font-black tracking-widest uppercase">{t("verifying")}</div>;
+  if (loading) return <LoadingScreen title={t("verifying") || "VERIFYING..."} />;
 
   if (!masonProfile) return (
     <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">

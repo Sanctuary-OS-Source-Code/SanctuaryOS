@@ -81,7 +81,8 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
     const blocked: any[] = [];
 
     const rawMods = playSet.mods
-      .filter((modName: string) => !modName.startsWith("FOLDER_") && !modName.startsWith("SET_") && !modName.startsWith("LOCAL_SET_"))
+      .map((m: any) => typeof m === 'string' ? m : (m?.name || ''))
+      .filter((modName: string) => modName && !modName.startsWith("FOLDER_") && !modName.startsWith("SET_") && !modName.startsWith("LOCAL_SET_"))
       .map((modName: string) => {
         const mod = modList.find((m: any) => m.name === modName);
         return { name: modName, hash: mod?.hash || "", url: mod?.url || "", author: mod?.author || "Unknown", compliance_tier: mod?.compliance_tier || 0, displayName: mod?.displayName, isVirtual: mod?.isVirtual };

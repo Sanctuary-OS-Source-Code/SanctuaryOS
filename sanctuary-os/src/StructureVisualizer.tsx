@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { logArchitectAction } from "./lib/audit";
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, standardAccentGlassButtonClass, standardSuccessButtonClass, EmptyState } from "./shared";
+import { ModSearchDropdown, standardAccentGlassButtonClass, standardSuccessButtonClass, EmptyState, ActionButton } from "./shared";
 import { useStore } from "./store";
 import ModStructureBuilder, { StructureNode } from "./ModStructureBuilder";
 
@@ -97,14 +97,13 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
                 </div>
              </div>
              
-              <button 
-                onClick={saveStructure} 
+              <ActionButton
+                onClick={saveStructure}
                 disabled={isSaving}
-                className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group disabled:opacity-50 disabled:hover:scale-100"
-              >
-                <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{isSaving ? 'sync' : 'save'}</span>
-                {isSaving ? t("btn_saving") : t("btn_save_structure")}
-              </button>
+                className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]"
+                icon={isSaving ? 'sync' : 'save'}
+                label={isSaving ? t("btn_saving") : t("btn_save_structure")}
+              />
            </div>
            
            <div className="flex-1 mt-4 relative z-10">

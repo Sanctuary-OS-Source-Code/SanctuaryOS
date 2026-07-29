@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Editor from "@monaco-editor/react";
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardGlassButtonClass, standardAccentGlassButtonClass, standardPrimaryButtonClass, EmptyState, HoverTooltip, FilterTabs, FilterTabButton } from "./shared";
+import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardGlassButtonClass, standardAccentGlassButtonClass, standardPrimaryButtonClass, EmptyState, HoverTooltip, FilterTabs, FilterTabButton, ActionButton } from "./shared";
 import { readDir, readTextFile, writeTextFile, exists, remove, rename } from '@tauri-apps/plugin-fs';
 import { open } from "@tauri-apps/plugin-dialog";
 import VersionTimeline from './VersionTimeline';
@@ -512,13 +512,12 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                   >
                      {t("nav_cancel") || "Cancel"}
                   </button>
-                  <button
+                  <ActionButton
                      onClick={handleCreateSubmit}
                      disabled={!createFileName.trim() || !createFileExt.trim()}
-                     className={standardAccentGlassButtonClass}
-                  >
-                     {t("auto_create") || "Create"}
-                  </button>
+                     className="shrink-0 h-12"
+                     label={t("auto_create") || "Create"}
+                  />
                </div>
             }
          >

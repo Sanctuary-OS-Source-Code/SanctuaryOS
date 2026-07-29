@@ -195,7 +195,7 @@ const Vault = React.memo(function Vault(props: any) {
       if (missingPacks.length > 0) return false;
     }
 
-    const isSandboxMod = mod.hash?.startsWith('dev_vault_') || (typeof mod.status === 'string' && mod.status.toUpperCase().includes('SANDBOX'));
+    const isSandboxMod = mod.hash?.startsWith('dev_vault_') || (typeof mod.status === 'string' && mod.status.toUpperCase().includes('SANDBOX')) || (mod.physical_path && (mod.physical_path.toLowerCase().includes('/dev/') || mod.physical_path.toLowerCase().includes('\\dev\\')));
     if (equipFilter === "DEV") {
       if (!isSandboxMod) return false;
     } else if (equipFilter !== "EQUIPPED" && isSandboxMod) {

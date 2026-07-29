@@ -58,7 +58,7 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
           )}
         </div>
       {showImage && (
-        <div className={`${isFeatured ? 'w-full lg:w-2/5 h-48 lg:h-auto border-b lg:border-b-0 lg:border-r' : isCompact ? 'w-full h-24 border-b' : 'w-full h-36 border-b'} bg-black/50 relative overflow-hidden shrink-0 border-white/5`}>
+        <div className={`${isFeatured ? 'w-full lg:w-2/5 h-48 lg:h-auto border-b lg:border-b-0 lg:border-r' : isCompact ? 'w-full h-24 border-b' : 'w-full h-48 border-b'} bg-black/50 relative overflow-hidden shrink-0 border-white/5`}>
           <img src={imageUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 ease-out mix-blend-screen" alt={t("auto_post_cover")} />
         </div>
       )}

@@ -8,7 +8,7 @@ import { useTheme } from '../ThemeContext';
 import { ThemeCard } from '../chameleon-components/ThemeCard';
 import { ChameleonControlDashboard } from '../chameleon-components/ChameleonControlDashboard';
 import { ChameleonSandboxPreview } from '../chameleon-components/ChameleonSandboxPreview';
-import { standardButtonClass } from '../shared';
+import { standardButtonClass, ActionButton } from '../shared';
 
 export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean }) {
   const { t } = useLexicon();
@@ -153,10 +153,12 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
               className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
-          <button onClick={createNewTheme} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform duration-500">add</span>
-            {t("auto_create") || "CREATE"}
-          </button>
+          <ActionButton
+            onClick={createNewTheme}
+            className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+            icon="add"
+            label={t("auto_create") || "CREATE"}
+          />
           <button onClick={fetchThemes} className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
             <span className={`material-symbols-outlined !text-[20px] text-[var(--text)] opacity-80 ${loading ? 'animate-spin' : ''}`}>refresh</span>
           </button>

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase, getActiveGameClient } from "./supabase";
 import { useStore } from './store';
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState } from "./shared";
+import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState, ActionButton } from "./shared";
 
 const fetchAllPaginated = async (queryFn: () => any) => { 
   let allData: any[] = []; 
@@ -184,9 +184,12 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
               </button>
             ))}
           </div>
-          <button onClick={() => { setEditConflictId(null); setActiveMaster(myMods[0] || null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("icon_add")}</span> {t("auto_create")}
-          </button>
+          <ActionButton
+            onClick={() => { setEditConflictId(null); setActiveMaster(myMods[0] || null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }}
+            className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]"
+            icon={t("icon_add")}
+            label={t("auto_create")}
+          />
         </div>
       </div>
       

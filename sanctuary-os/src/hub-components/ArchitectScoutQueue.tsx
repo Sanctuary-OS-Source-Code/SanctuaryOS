@@ -71,7 +71,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
       const { data: mData } = await supabase.from('masons').select('*').order('name');
       if (mData) setMasonsList(mData);
 
-      const { data: cData } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author, latest_version, url, mason_id, category_override, compliance_tier, compatible_versions, file_extension').order('name'));
+      const { data: cData } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author, latest_version, url, image_url, description, sub_type, file_extension, mason_id, category_override, compliance_tier, compatible_versions').order('name'));
       if (cData) setCloudModsList(cData);
 
       const { data, error } = await supabase
@@ -128,6 +128,11 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
               name: existing.name || prev.name,
               mason_id: existing.mason_id || prev.mason_id,
               category_override: existing.category_override || prev.category_override,
+              sub_type: existing.sub_type || prev.sub_type,
+              file_extension: existing.file_extension || prev.file_extension,
+              description: existing.description || prev.description,
+              image_url: existing.image_url || prev.image_url,
+              url: existing.url || prev.url,
               compliance_tier: existing.compliance_tier || prev.compliance_tier,
               compatible_versions: existing.compatible_versions || prev.compatible_versions
             }));
@@ -197,6 +202,15 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
     };
   
     const activeSubmissions = submissions.filter((s: any) => filterTab === 'pending' ? s.status === 'pending' : s.status !== 'pending');
+    
+    // Group by hash to count occurrences
+    const hashCounts = new Map<string, number>();
+    submissions.forEach((s: any) => {
+      if (s.dna_hash) {
+        hashCounts.set(s.dna_hash, (hashCounts.get(s.dna_hash) || 0) + 1);
+      }
+    });
+
     let filteredSubmissions = activeSubmissions.filter((s: any) => {
       return s.suggested_name?.toLowerCase().includes(searchTerm.toLowerCase()) || s.id?.toLowerCase().includes(searchTerm.toLowerCase());
     });
@@ -204,6 +218,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
     const seenHashes = new Set();
     filteredSubmissions = filteredSubmissions.filter((s: any) => {
       if (!s.dna_hash) return true;
+      if ((hashCounts.get(s.dna_hash) || 0) < 5) return false;
       if (seenHashes.has(s.dna_hash)) return false;
       seenHashes.add(s.dna_hash);
       return true;

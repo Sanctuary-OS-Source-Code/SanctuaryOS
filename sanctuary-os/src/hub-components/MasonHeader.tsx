@@ -1,4 +1,4 @@
-import { CustomDropdown } from "../shared";
+import { CustomDropdown, FilterTabs, FilterTabButton, ActionButton } from "../shared";
 
 export default function MasonHeader({
    t,
@@ -64,14 +64,18 @@ export default function MasonHeader({
             <div className="flex items-center gap-4 shrink-0">
                {!(isCloudMode && internalCloudTarget === 'sanctuary_schemas') && (
                   <>
-                     <button onClick={() => setIsCreatePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-                        <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform duration-500">{t("icon_add") || "add"}</span>
-                        {t("auto_create_file") || "Create File"}
-                     </button>
-                     <button onClick={handleImport} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-                        <span className="material-symbols-outlined !text-[16px] group-hover:-translate-y-1 transition-transform duration-500">{t("icon_upload") || "upload"}</span>
-                        {t("import_file")}
-                     </button>
+                     <ActionButton
+                        onClick={() => setIsCreatePanelOpen(true)}
+                        className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+                        icon={t("icon_add") || "add"}
+                        label={t("auto_create_file") || "Create File"}
+                     />
+                     <ActionButton
+                        onClick={handleImport}
+                        className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+                        icon={t("icon_upload") || "upload"}
+                        label={t("import_file")}
+                     />
                   </>
                )}
             </div>

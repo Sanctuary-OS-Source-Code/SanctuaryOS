@@ -267,10 +267,5 @@
     "GP",
     "SP",
     "FP"
-  ],
-  "local_mod_heuristics": [
-    "customchallenge",
-    "simmatic",
-    "simmattic"
   ]
 }

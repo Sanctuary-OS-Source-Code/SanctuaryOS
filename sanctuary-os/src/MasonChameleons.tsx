@@ -7,7 +7,7 @@ import { useLexicon } from './LexiconContext';
 import { useTheme } from './ThemeContext';
 import { useStore } from './store';
 import { MarketUploadPanel } from "./side-panels/NexusSidePanels";
-import { standardButtonClass, standardAccentGlassButtonClass } from './shared';
+import { standardButtonClass, standardAccentGlassButtonClass, ActionButton } from './shared';
 
 import { ThemeCard } from './chameleon-components/ThemeCard';
 import { ChameleonControlDashboard } from './chameleon-components/ChameleonControlDashboard';
@@ -149,10 +149,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
                className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
-          <button onClick={() => setIsCreatePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform duration-500">add</span>
-            {t("auto_create") || "CREATE"}
-          </button>
+          <ActionButton onClick={() => setIsCreatePanelOpen(true)} className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]" icon="add" label={t("auto_create") || "CREATE"} />
         </div>
       </div>
 

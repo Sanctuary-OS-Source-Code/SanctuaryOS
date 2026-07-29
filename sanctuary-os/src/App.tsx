@@ -10,6 +10,8 @@ import { AppModals } from "./AppModals";
 
 import { useModalStore } from "./store/modalStore";
 import { useAppActions } from "./hooks/useAppActions";
+import { readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
+import { appDataDir } from "@tauri-apps/api/path";
 import { useModFiltering } from "./hooks/useModFiltering";
 import { useBackupLogic } from "./hooks/useBackupLogic";
 import { useDefconRadar } from "./hooks/useDefconRadar";
@@ -249,6 +251,9 @@ function App() {
 
   const view = useStore((state) => state.view);
   const setView = useStore((state) => state.setView);
+  const playsetsLoaded = useStore((state) => state.playsetsLoaded);
+  const setPlaysetsLoaded = useStore((state) => state.setPlaysetsLoaded);
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
 
   const isConfigured = useStore((state) => state.isConfigured);
   const setIsConfigured = useStore((state) => state.setIsConfigured);
@@ -296,6 +301,9 @@ function App() {
   const [metaDescInput, setMetaDescInput] = useState("");
   const [metaStatusMsgInput, setMetaStatusMsgInput] = useState("");
   const [metaStatusInput, setMetaStatusInput] = useState("unverified");
+  const [metaVersionInput, setMetaVersionInput] = useState("");
+  const [metaIsPaidInput, setMetaIsPaidInput] = useState(false);
+  const [metaIsEarlyAccessInput, setMetaIsEarlyAccessInput] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [cloudSearchResults, setCloudSearchResults] = useState<any[]>([]);
   const [isSearchingCloud, setIsSearchingCloud] = useState(false);
@@ -322,8 +330,6 @@ function App() {
   const selectedVersion = useStore((state) => state.selectedVersion);
   const setSelectedVersion = useStore((state) => state.setSelectedVersion);
 
-
-  const [metaVersionInput, setMetaVersionInput] = useState("");
   const ownedDLC = useStore((state) => state.ownedDLC);
   const setOwnedDLC = useStore((state) => state.setOwnedDLC);
   const maskedDLC = useStore((state) => state.maskedDLC);
@@ -390,6 +396,62 @@ function App() {
     };
   }, [session?.user?.id]);
 
+  useEffect(() => {
+    if (!activeWorkspaceId) return;
+
+    let isMounted = true;
+    const loadFsPlaysets = async () => {
+      try {
+        const filePath = await appDataDir();
+        if (!(await exists(filePath))) {
+          await mkdir(filePath, { recursive: true });
+        }
+        const fullPath = `${filePath}\\sanctuary_${activeWorkspaceId}_playsets.json`;
+        
+        let loadedSets = [];
+        if (await exists(fullPath)) {
+          const contents = await readTextFile(fullPath);
+          loadedSets = JSON.parse(contents);
+        } else {
+          const cached = localStorage.getItem(`sanctuary_${activeWorkspaceId}_playsets`);
+          if (cached) {
+            loadedSets = JSON.parse(cached);
+            await writeTextFile(fullPath, JSON.stringify(loadedSets));
+          }
+        }
+        
+        if (isMounted) {
+          useStore.getState().setPlaySets(loadedSets);
+          setPlaysetsLoaded(true);
+        }
+      } catch (err) {
+        console.error("Failed to load playsets from FS", err);
+        if (isMounted) setPlaysetsLoaded(true);
+      }
+    };
+    
+    loadFsPlaysets();
+    return () => { isMounted = false; };
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    if (!playsetsLoaded || !activeWorkspaceId) return;
+    const saveFsPlaysets = async () => {
+      try {
+        const filePath = await appDataDir();
+        if (!(await exists(filePath))) {
+          await mkdir(filePath, { recursive: true });
+        }
+        const fullPath = `${filePath}\\sanctuary_${activeWorkspaceId}_playsets.json`;
+        await writeTextFile(fullPath, JSON.stringify(playSets));
+      } catch (err) {
+        console.error("Failed to save playsets to FS", err);
+      }
+    };
+    const debounceTimeout = setTimeout(saveFsPlaysets, 300);
+    return () => clearTimeout(debounceTimeout);
+  }, [playSets, playsetsLoaded, activeWorkspaceId]);
+
   const saveLocalMetadata = async (extraOverrides?: any) => {
     if (!activeDossier) return;
     setStatus(t("status_syncing_metadata"));
@@ -405,6 +467,8 @@ function App() {
           version: metaVersionInput?.trim() || undefined,
           description: metaDescInput?.trim() || undefined,
           allow_write: metaAllowWriteInput || false,
+          is_paid: metaIsPaidInput || false,
+          is_early_access: metaIsEarlyAccessInput || false,
           ...(extraOverrides || {})
         };
         localOvr[activeDossier.hash] = overrides;
@@ -1597,7 +1661,7 @@ function App() {
     }
     const updatedSets = [...playSets, { name: setName, mods: [], modHashes: {}, ignoredGhosts: [] }];
     setPlaySets(updatedSets);
-    localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
+
     setActivePlaySetIndex(updatedSets.length - 1);
     setStatus(
       `${t("status_blueprint_created_prefix")}${setName}${t("status_blueprint_drafted_suffix")}`,
@@ -2040,6 +2104,7 @@ function App() {
                 onSetStatus={setStatus}
                 onOpenMasonProfile={handleOpenMasonProfile}
                 onOpenDossier={setActiveDossier}
+                syncBlueprintByCode={syncBlueprintByCode}
               />
             )}
             {view === "vault" && (
@@ -2275,6 +2340,8 @@ function App() {
                 version: metaVersionInput,
                 requiredDLC: metaRequiredDLC,
                 allow_write: metaAllowWriteInput,
+                is_paid: metaIsPaidInput,
+                is_early_access: metaIsEarlyAccessInput,
               }}
               setMetaInputs={{
                 name: setMetaNameInput,
@@ -2287,6 +2354,8 @@ function App() {
                 version: setMetaVersionInput,
                 requiredDLC: setMetaRequiredDLC,
                 allow_write: setMetaAllowWriteInput,
+                is_paid: setMetaIsPaidInput,
+                is_early_access: setMetaIsEarlyAccessInput,
               }}
               onSendToLab={sendToLabQueue}
               onSyncToNetwork={(mod: any) => {
@@ -2349,6 +2418,7 @@ function App() {
           setNameInput={setNameInput}
           confirmRename={confirmRename}
           localFolderModal={localFolderModal}
+          equipPlaySet={equipPlaySet}
           setLocalFolderModal={setLocalFolderModal}
           localFolderType={localFolderType}
           setLocalFolderType={setLocalFolderType}
@@ -2393,10 +2463,13 @@ function App() {
             setMetaDescInput(mod.description || "");
             setMetaImageInput(mod.image_url || mod.imageUrl || "");
             setMetaAllowWriteInput(mod.allow_write || false);
+            setMetaIsPaidInput(mod.is_paid || false);
+            setMetaIsEarlyAccessInput(mod.is_early_access || false);
             setActiveDossier(mod);
             setIsEditingMeta(true);
             setEditMode(true);
             setIsCorrectingMeta(true);
+            useModalStore.getState().setIsSideBrowserOpen(false);
           }}
           isBackingUp={isBackingUp}
           isRestoring={isRestoring}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLexicon } from "../LexiconContext";
+import { ActionButton } from "../shared";
 
 export function RenameModal({ renameModal, setRenameModal, executeRename, renameTarget, setRenameTarget, nameInput, setNameInput, confirmRename }: any) {
   const { t } = useLexicon();
@@ -30,9 +31,7 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
                 <button onClick={() => setRenameModal(null)} className="flex-1 py-3 theme-btn-standard font-black text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/5">
                   {t("nav_cancel")}
                 </button>
-                <button onClick={executeRename} className="flex-1 py-3 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 shadow-lg transition-all">
-                  {t("btn_rename")}
-                </button>
+                <ActionButton onClick={executeRename} className="flex-1 shrink-0 h-12" label={t("btn_rename")} />
               </div>
             </div>
           </div>
@@ -49,7 +48,7 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={() => setRenameTarget(null)} className="flex-1 px-4 py-3 rounded-xl border border-white/10 text-[var(--text)]/60 text-[10px] font-bold uppercase tracking-widest hover:bg-white/5 transition-all">{t("btn_abort")}</button>
-                <button onClick={confirmRename} className="flex-1 px-4 py-3 rounded-xl theme-bg-accent text-[var(--bg)] text-[10px] font-bold uppercase tracking-widest hover:opacity-90 shadow-lg transition-all">{t("btn_confirm")}</button>
+                <ActionButton onClick={confirmRename} className="flex-1 shrink-0 h-12" label={t("btn_confirm")} />
               </div>
             </div>
           </div>

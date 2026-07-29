@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, ActionButton } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown } from "../ArchitectHub";
 import { logArchitectAction } from "../lib/audit";
@@ -138,9 +138,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
           <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-12">
              <CustomDropdown disableTint={true}  value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{id: "ALL", label: "ALL TIERS"}, {id: "0", label: "TIER 0"}, {id: "1", label: "TIER 1"}, {id: "2", label: "TIER 2"}]} />
           </div>
-          <button onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("icon_add")}</span> {t("forge_new_set")}
-          </button>
+          <ActionButton onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]" icon={t("icon_add")} label={t("auto_create")} />
         </div>
       </div>
       
@@ -465,9 +463,7 @@ export function CollectionForge({ setStatus }: any) {
           <div className="w-max min-w-[160px] max-w-xs relative z-50 h-12">
              <CustomDropdown disableTint={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{id: "ALL", label: "ALL TIERS"}, {id: "0", label: "TIER 0"}, {id: "1", label: "TIER 1"}, {id: "2", label: "TIER 2"}]} />
           </div>
-          <button onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("icon_add")}</span> {t("forge_new_set")}
-          </button>
+          <ActionButton onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]" icon={t("icon_add")} label={t("auto_create")} />
         </div>
       </div>
       

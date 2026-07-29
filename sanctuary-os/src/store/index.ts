@@ -102,21 +102,6 @@ const loadMasonHubDrafts = (wsId: string) => {
   return {};
 };
 
-const loadPlaySets = (wsId: string) => {
-  try {
-    const savedSets = localStorage.getItem(`sanctuary_${wsId}_playsets`);
-    if (savedSets) {
-      const parsedSets = JSON.parse(savedSets);
-      return parsedSets.map((set: any) => ({
-        name: set.name,
-        mods: (set.mods || []).map((m: any) =>
-          typeof m === "string" ? m : m.name,
-        ),
-      }));
-    }
-  } catch (e) {}
-  return [];
-};
 
 const loadActiveSet = (wsId: string) => {
   return localStorage.getItem(`sanctuary_${wsId}_active_set`);
@@ -152,6 +137,8 @@ interface GlobalState {
   setModList: (modList: any[] | ((prev: any[]) => any[])) => void;
   playSets: any[];
   setPlaySets: (playSets: any[] | ((prev: any[]) => any[])) => void;
+  playsetsLoaded: boolean;
+  setPlaysetsLoaded: (loaded: boolean) => void;
   activeSetName: string | null;
   setActiveSetName: (activeSetName: string | null) => void;
   activePlaySetIndex: number;
@@ -248,9 +235,10 @@ export const useStore = create<GlobalState>((set) => ({
       wayfinderDrafts: loadWayfinderDrafts(wsId),
       masonCommentDrafts: loadMasonCommentDrafts(wsId),
       masonHubDrafts: loadMasonHubDrafts(wsId),
-      playSets: loadPlaySets(wsId),
+      playSets: [],
+      playsetsLoaded: false,
       activeSetName: loadActiveSet(wsId),
-      activePlaySetIndex: loadPlaySets(wsId).findIndex((s: any) => s.name === loadActiveSet(wsId)) !== -1 ? loadPlaySets(wsId).findIndex((s: any) => s.name === loadActiveSet(wsId)) : 0,
+      activePlaySetIndex: 0,
       modList: [],
     });
   },
@@ -318,6 +306,8 @@ export const useStore = create<GlobalState>((set) => ({
   setModList: (modList) => set((state) => ({ modList: typeof modList === 'function' ? modList(state.modList) : modList })),
   playSets: [],
   setPlaySets: (playSets) => set((state) => ({ playSets: typeof playSets === 'function' ? playSets(state.playSets) : playSets })),
+  playsetsLoaded: false,
+  setPlaysetsLoaded: (loaded) => set({ playsetsLoaded: loaded }),
   activeSetName: null,
   setActiveSetName: (activeSetName) => set({ activeSetName }),
   activePlaySetIndex: 0,

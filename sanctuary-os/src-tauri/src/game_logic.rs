@@ -18,17 +18,7 @@ pub fn get_file_label(schema: &Option<GameSchema>, ext: &str) -> String {
     "UNKNOWN".to_string()
 }
 
-pub fn is_explicitly_local_heuristic(schema: &Option<GameSchema>, file_name: &str) -> bool {
-    let name_lower = file_name.to_lowercase();
-    if let Some(s) = schema {
-        if let Some(heuristics) = &s.local_mod_heuristics {
-            return heuristics.iter().any(|h| name_lower.contains(&h.to_lowercase()));
-        }
-    }
-    
-    // Fallback for Sims 4
-    name_lower.contains("customchallenge") || name_lower.contains("simmattic") || name_lower.contains("simmatic")
-}
+
 
 pub fn is_dlc_folder(schema: &Option<GameSchema>, folder_name: &str) -> bool {
     let name_up = folder_name.to_uppercase();

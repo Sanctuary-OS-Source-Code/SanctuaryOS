@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "./LexiconContext";
-import { SidePanel, standardAccentGlassButtonClass , getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex} from "./shared";
+import { MasonPostsEditor } from "./MasonPostsEditor";
+import { ModSearchDropdown, standardAccentGlassButtonClass, standardSuccessButtonClass, EmptyState, ActionButton, SidePanel, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex} from "./shared";
 import { useStore } from "./store";
 
 export interface StructureNode {
@@ -251,10 +252,12 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
           <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("builder_graph_title")}</span>
           <span className="text-[10px] text-[var(--subtext)] font-bold uppercase tracking-widest mt-1">{t("builder_graph_subtitle")}</span>
         </div>
-        <button onClick={() => handleAddFolder()} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-          <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("icon_create_new_folder")}</span>
-          {t("structure_add_root")}
-        </button>
+        <ActionButton
+          onClick={() => handleAddFolder()}
+          className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+          icon={t("icon_create_new_folder")}
+          label={t("structure_add_root")}
+        />
       </div>
 
       <div className="flex flex-wrap gap-12 w-full min-h-[400px] items-start pb-20 pt-8 pl-8">

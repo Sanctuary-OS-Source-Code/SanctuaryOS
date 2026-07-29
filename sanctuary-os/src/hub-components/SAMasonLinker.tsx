@@ -8,7 +8,7 @@ import {
   CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass,
+  standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
   fetchAllPaginated, CustomTierDropdown
 } from "../shared";
@@ -190,13 +190,12 @@ export function MasonLinker() {
             />
           </div>
 
-          <button
+          <ActionButton
             onClick={() => handleOpenPanel(null)}
-            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
-          >
-            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("icon_add")}</span>
-            {t("btn_create_mason_naked")}
-          </button>
+            className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+            icon={t("icon_add")}
+            label={t("btn_create_mason_naked")}
+          />
         </div>
       </div>
 

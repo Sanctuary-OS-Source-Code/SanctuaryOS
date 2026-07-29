@@ -20,13 +20,13 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
   useEffect(() => {
     if (session?.user?.id) {
-       supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', session.user.id).single()
-         .then(({ data }) => {
-            if (data?.is_comm_banned) {
-               setIsBanned(true);
-               setBanReason(data.comm_blacklist_reason || "Communications Ban");
-            }
-         });
+      supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', session.user.id).single()
+        .then(({ data }) => {
+          if (data?.is_comm_banned) {
+            setIsBanned(true);
+            setBanReason(data.comm_blacklist_reason || "Communications Ban");
+          }
+        });
     }
   }, [session]);
 
@@ -189,19 +189,13 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
   const handleSave = async () => {
     setIsSaving(true);
-    if (mod.dbId) {
-      await supabase.from('mods').update({
-        created_at: localCreatedAt,
-        updated_at: localUpdatedAt,
-        category_override: localCategory,
-        compatible_versions: localCompatibleVersions
-      }).eq('id', mod.dbId);
-    }
     await onSaveMetadata({
       created_at: localCreatedAt,
       updated_at: localUpdatedAt,
       category_override: localCategory,
-      compatible_versions: localCompatibleVersions
+      compatible_versions: localCompatibleVersions,
+      is_paid: metaInputs.is_paid || false,
+      is_early_access: metaInputs.is_early_access || false
     });
     setIsSaving(false);
     setEditMode(false);
@@ -287,12 +281,19 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       description: metaInputs.desc || null,
       image_url: metaInputs.image || null,
       compliance_tier: mod.compliance_tier || 0,
+      is_paid: metaInputs.is_paid || false,
+      is_early_access: metaInputs.is_early_access || false,
       status: 'pending'
     }]);
 
     if (error) {
       useStore.getState().pushStatus(`Failed to submit to Vault: ${error.message}`);
     } else {
+      const submitted = JSON.parse(localStorage.getItem('sanctuary_submitted_hashes') || '[]');
+      if (mod.hash && !submitted.includes(mod.hash)) {
+        submitted.push(mod.hash);
+        localStorage.setItem('sanctuary_submitted_hashes', JSON.stringify(submitted));
+      }
       useStore.getState().pushStatus(t("auto_successfully_submitted_to_45"));
       setEditMode(false);
     }
@@ -338,11 +339,13 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     <h2 className="text-5xl lg:text-6xl font-black text-[var(--text)] tracking-tighter uppercase leading-[1.1] drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] pr-4">
                       {(mod.displayName || (mod.name || '').split(/[/\\]/).pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "")}
                     </h2>
-                    {mod.name?.includes('.') && (
-                      <span className="px-4 py-1.5 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full text-[10px] font-black text-[var(--text)] opacity-90 uppercase tracking-[0.2em] shadow-lg mt-2">
-                        .{(mod.name || '').split('.').pop()?.toUpperCase()}
-                      </span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {mod.name?.includes('.') && (
+                        <span className="px-4 py-1.5 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full text-[10px] font-black text-[var(--text)] opacity-90 uppercase tracking-[0.2em] shadow-lg">
+                          .{(mod.name || '').split('.').pop()?.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -419,13 +422,13 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   <>
                     <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
                     {targetDbId && session && !isBanned && (
-                    <div className="relative group/flag">
-                      <button onClick={() => setShowFlagModal(true)} className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-orange-500/10 text-orange-400 opacity-80 hover:opacity-100 hover:border-orange-500/30 cursor-pointer border border-transparent">
-                        <span className="material-symbols-outlined !text-[16px]">{t("icon_flag")}</span>
-                        {t("btn_flag")}
-                      </button>
-                    </div>
-                  )}
+                      <div className="relative group/flag">
+                        <button onClick={() => setShowFlagModal(true)} className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-orange-500/10 text-orange-400 opacity-80 hover:opacity-100 hover:border-orange-500/30 cursor-pointer border border-transparent">
+                          <span className="material-symbols-outlined !text-[16px]">{t("icon_flag")}</span>
+                          {t("btn_flag")}
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
                 {editMode ? (
@@ -460,31 +463,98 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
           <div className="p-10 pt-14 flex flex-col gap-10 pb-32">
 
-            <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-min md:grid-rows-[120px_120px] gap-4 mb-0 relative z-20">
+            <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[120px] gap-4 mb-4 relative z-20">
 
-              <div className="col-span-2 md:col-span-2 md:row-span-2 flex flex-col gap-2 p-8 theme-glass-panel backdrop-blur-3xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-[color-mix(in_srgb,var(--bg)_50%,transparent)] transition-all hover:scale-[1.01] shadow-2xl relative overflow-hidden group">
-                <div className="absolute -right-6 -bottom-6 opacity-10 group-hover:scale-110 transition-transform duration-700 pointer-events-none mix-blend-plus-lighter">
-                  <span className="material-symbols-outlined" style={{ fontSize: '200px' }}>{mod.status === (t("verified")) ? "verified" : mod.status === (t("unverified")) ? "warning" : "online_prediction"}</span>
-                </div>
-                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] relative z-10 mb-1">{t("system_status")}</p>
-                <div className="relative z-10">
-                  <div className={`backdrop-blur-xl border px-4 py-2.5 rounded-[var(--radius)] shadow-[0_10px_30px_rgba(0,0,0,0.3)] flex items-center gap-3 transition-all ${(() => {
-                    const s = (mod.status || "");
-                    if (s === (t("verified"))) return "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)]";
-                    if (s === (t("unverified"))) return "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)]";
-                    return "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]";
-                  })()}`} title={mod.status_reason || undefined}>
+              <div className={`col-span-2 flex flex-col p-6 theme-glass-panel backdrop-blur-3xl rounded-[var(--radius)] border transition-all hover:scale-[1.01] shadow-2xl relative overflow-hidden group ${
+                (() => {
+                  const s = (mod.status || "").toLowerCase();
+                  if (s === 'verified') return "border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--success-rgb),0.1)]";
+                  if (s === 'unverified') return "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--danger-rgb),0.1)]";
+                  if (s === 'broken') return "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--warning-rgb),0.1)]";
+                  return "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--accent-rgb),0.1)]";
+                })()
+              }`}>
+                {/* Tech Background Effects */}
+                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" style={{ backgroundSize: '20px' }}></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,currentColor_2%,transparent)] to-transparent opacity-50 pointer-events-none scanlines"></div>
 
-                    <span className={`text-xs font-black uppercase tracking-widest truncate opacity-90 ${mod.status === (t("verified")) ? "text-[var(--success)]" : mod.status === (t("unverified")) ? "text-[var(--danger)]" : "text-[var(--accent)]"}`}>
+                <div className="flex h-full w-full relative z-10 gap-6 items-center">
+                  
+                  {/* Status Ring / Icon Area */}
+                  <div className="relative shrink-0 flex items-center justify-center w-28 h-28">
+                    {/* Animated Outer Ring */}
+                    <svg className="absolute inset-0 w-full h-full animate-[spin_10s_linear_infinite]" viewBox="0 0 100 100">
+                      <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="10 5" className="opacity-20" />
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="3 8" className="opacity-40" />
+                    </svg>
+                    
+                    {/* Inner Glowing Orb */}
+                    <div className={`absolute w-16 h-16 rounded-full blur-xl opacity-30 animate-pulse ${
+                      (() => {
+                        const s = (mod.status || "").toLowerCase();
+                        if (s === 'verified') return "bg-[var(--success)]";
+                        if (s === 'unverified') return "bg-[var(--danger)]";
+                        if (s === 'broken') return "bg-[var(--warning)]";
+                        return "bg-[var(--accent)]";
+                      })()
+                    }`}></div>
+                    
+                    {/* Core Icon */}
+                    <div className={`relative z-10 w-16 h-16 rounded-full border border-white/10 flex items-center justify-center backdrop-blur-md shadow-inner ${
+                      (() => {
+                        const s = (mod.status || "").toLowerCase();
+                        if (s === 'verified') return "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)]";
+                        if (s === 'unverified') return "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]";
+                        if (s === 'broken') return "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]";
+                        return "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
+                      })()
+                    }`}>
+                      <span className="material-symbols-outlined !text-3xl drop-shadow-md">
+                        {(() => {
+                          const s = (mod.status || "").toLowerCase();
+                          if (s === 'verified') return "verified_user";
+                          if (s === 'unverified') return "gpp_bad";
+                          if (s === 'broken') return "pest_control";
+                          return "hub";
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Text Details Area */}
+                  <div className="flex flex-col flex-1 h-full justify-center">
+                    <p className="text-[10px] font-mono text-[var(--text)] opacity-50 uppercase tracking-[0.3em] mb-1 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current opacity-70"></span>
+                      {t("system_status")}
+                    </p>
+                    
+                    <h3 className={`text-2xl lg:text-3xl font-black uppercase tracking-widest drop-shadow-md mb-1 ${
+                      (() => {
+                        const s = (mod.status || "").toLowerCase();
+                        if (s === 'verified') return "text-[var(--success)]";
+                        if (s === 'unverified') return "text-[var(--danger)]";
+                        if (s === 'broken') return "text-[var(--warning)]";
+                        return "text-[var(--accent)]";
+                      })()
+                    }`}>
                       {(() => {
                         const raw = (mod.status || "");
-                        const cleaned = raw.replace(/[\[\]]/g, "");
-                        if (cleaned.toLowerCase() === 'broken') return mod.status_reason ? `BROKEN: ${mod.status_reason}` : t("status_broken");
-                        if (cleaned.toLowerCase().includes('sandbox')) return t("filter_dev") || "SANDBOX";
+                        const cleaned = raw.replace(/[\[\]]/g, "").toLowerCase();
+                        if (cleaned === 'broken') return t("status_broken");
+                        if (cleaned === 'verified') return t("verified");
+                        if (cleaned === 'unverified') return t("unverified");
+                        if (cleaned.includes('sandbox')) return t("filter_dev") || "SANDBOX";
                         const translated = cleaned.includes('status_') ? t(cleaned) : cleaned.replace(/_/g, " ");
                         return translated || t("unlinked_badge") || "LOCAL";
                       })()}
-                    </span>
+                    </h3>
+
+                    {mod.status_reason && (
+                      <div className="text-[10px] font-medium text-[var(--text)] opacity-70 leading-relaxed border-l-2 pl-2 border-current mt-2 line-clamp-2" title={mod.status_reason}>
+                        {mod.status_reason}
+                      </div>
+                    )}
+
                   </div>
                 </div>
               </div>
@@ -529,12 +599,40 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 )}
               </div>
 
+              <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border transition-all hover:scale-[1.02] shadow-xl ${
+                mod.is_early_access 
+                  ? 'border-[color-mix(in_srgb,#a855f7_30%,transparent)] bg-[color-mix(in_srgb,#a855f7_5%,transparent)]' 
+                  : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5'
+              }`}>
+                <p className={`text-[9px] font-black opacity-80 uppercase tracking-[0.2em] mb-1 ${mod.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--subtext)]'}`}>
+                  {t("label_is_early_access") || "RELEASE TIER"}
+                </p>
+                <span className={`text-xs font-black uppercase tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--text)] opacity-90'}`}>
+                  <span className="material-symbols-outlined !text-[16px]">{mod.is_early_access ? 'science' : 'public'}</span>
+                  {mod.is_early_access ? (t("badge_early_access") || "EARLY ACCESS") : "STANDARD"}
+                </span>
+              </div>
+
+              <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border transition-all hover:scale-[1.02] shadow-xl ${
+                mod.is_paid 
+                  ? 'border-[color-mix(in_srgb,#eab308_30%,transparent)] bg-[color-mix(in_srgb,#eab308_5%,transparent)]' 
+                  : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5'
+              }`}>
+                <p className={`text-[9px] font-black opacity-80 uppercase tracking-[0.2em] mb-1 ${mod.is_paid ? 'text-[#fef08a]' : 'text-[var(--subtext)]'}`}>
+                  {t("label_is_paid") || "LICENSE"}
+                </p>
+                <span className={`text-xs font-black uppercase tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_paid ? 'text-[#fef08a]' : 'text-[var(--text)] opacity-90'}`}>
+                  <span className="material-symbols-outlined !text-[16px]">{mod.is_paid ? 'monetization_on' : 'money_off'}</span>
+                  {mod.is_paid ? (t("badge_paid") || "PAID") : "FREE"}
+                </span>
+              </div>
+
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-8">
 
               <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
-                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("architect")}</p>
+                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("mason")}</p>
                 {editMode ? (
                   <input value={metaInputs.author} onChange={e => setMetaInputs.author(e.target.value)} className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-3 py-2 text-[var(--text)] placeholder:text-[var(--text)] placeholder:opacity-30 text-[11px] font-black focus:outline-none focus:border-[var(--accent)] text-left uppercase transition-all shadow-inner" placeholder={t("author_placeholder")} />
                 ) : (
@@ -600,7 +698,33 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
             </div>
 
+            {editMode && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 relative z-20">
+                <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${metaInputs.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${metaInputs.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                    <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
+                    {t("label_is_paid")}
+                  </span>
+                  <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${metaInputs.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
+                    </div>
+                  </div>
+                  <input type="checkbox" checked={metaInputs.is_paid || false} onChange={e => setMetaInputs.is_paid(e.target.checked)} className="hidden" />
+                </label>
 
+                <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${metaInputs.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${metaInputs.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                    <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
+                    {t("label_is_early_access")}
+                  </span>
+                  <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${metaInputs.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
+                    </div>
+                  </div>
+                  <input type="checkbox" checked={metaInputs.is_early_access || false} onChange={e => setMetaInputs.is_early_access(e.target.checked)} className="hidden" />
+                </label>
+              </div>
+            )}
 
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-2 px-1 ml-2">

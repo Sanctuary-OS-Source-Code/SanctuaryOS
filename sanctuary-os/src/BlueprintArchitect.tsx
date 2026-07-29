@@ -20,25 +20,38 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
   const [isEditingName, setIsEditingName] = useState(false);
   const [newNameInput, setNewNameInput] = useState("");
 
+  const extRegex = useMemo(() => getExtensionRegex(activeGameSchema), [activeGameSchema]);
+  const optimizedModList = useMemo(() => {
+    const map = new Map();
+    const fallbackArr: any[] = [];
+    (modList || []).forEach((m: any) => {
+      map.set(m.name, m);
+      const mBase = m.name?.split(/[\\/]/).pop()?.replace(extRegex, '');
+      const mExt = m.name?.split('.').pop()?.toLowerCase();
+      if (mBase && mExt) {
+          fallbackArr.push({ ...m, _mBase: mBase, _mExt: mExt });
+      }
+    });
+    return { map, fallbackArr };
+  }, [modList, extRegex]);
+
   const activeMods = useMemo(() => {
     const safeMods = Array.isArray(playSet?.mods) ? playSet.mods : [];
-    const safeList = Array.isArray(modList) ? modList : [];
-    return safeMods.map((modName: string) => {
-      const exactMatch = safeList.find((m: any) => m.name === modName);
+    return safeMods.map((rawMod: any) => {
+      const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
+      
+      const exactMatch = optimizedModList.map.get(modName);
       if (exactMatch) return { ...exactMatch, _originalSetName: modName };
 
-      const fallbackMatch = safeList.find((m: any) => {
-        const mBase = m.name?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
-        const targetBase = typeof modName === 'string' ? modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '') : '';
-        const mExt = m.name?.split('.').pop()?.toLowerCase();
-        const targetExt = typeof modName === 'string' ? modName.split('.').pop()?.toLowerCase() : '';
-        return mBase && targetBase && mBase === targetBase && mExt === targetExt;
-      });
+      const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
+      const targetExt = modName.split('.').pop()?.toLowerCase();
+      
+      const fallbackMatch = optimizedModList.fallbackArr.find((m: any) => m._mBase === targetBase && m._mExt === targetExt);
       if (fallbackMatch) return { ...fallbackMatch, _originalSetName: modName };
 
       return { name: modName, isFallback: true, _originalSetName: modName };
     });
-  }, [playSet?.mods, modList]);
+  }, [playSet?.mods, optimizedModList, extRegex]);
 
   const renderSubtitle = () => {
     if (isEditingName) {
@@ -257,7 +270,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
 
         const newSets = [...prevSets];
         newSets[activePlaySetIndex] = { ...currentSet, mods: newMods };
-        localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(newSets));
+
         window.dispatchEvent(new Event("storage"));
         return newSets;
       });

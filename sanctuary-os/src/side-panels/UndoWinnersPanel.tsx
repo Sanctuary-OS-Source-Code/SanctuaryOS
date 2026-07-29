@@ -29,9 +29,8 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
     setLoading(true);
     try {
       const list: string[] = [];
-      const savedSets = localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`);
-      if (savedSets) {
-        const playsets = JSON.parse(savedSets);
+      const playsets = useStore.getState().playSets;
+      if (playsets) {
         const currentSet = playsets.find((p: any) => p.name === scanScope);
         if (currentSet && Array.isArray(currentSet.mods)) {
           const blueprintOverrides = currentSet.mods

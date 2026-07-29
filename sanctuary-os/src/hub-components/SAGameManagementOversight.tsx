@@ -6,7 +6,7 @@ import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMu
   CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass,
+  standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
   fetchAllPaginated, CustomTierDropdown, loadDLCMap } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
@@ -194,13 +194,12 @@ export function GameManagementOversight() {
             </button>
           </div>
 
-          <button
+          <ActionButton
             onClick={() => openPanel(activeTab === 'versions' ? 'add_version' : 'add_dlc')}
-            className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group"
-          >
-            <span className="material-symbols-outlined !text-[16px] group-hover:rotate-90 transition-transform duration-500">{t("icon_add")}</span>
-            {activeTab === 'versions' ? "REGISTER PATCH" : `REGISTER DLC`}
-          </button>
+            className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+            icon={t("icon_add")}
+            label={activeTab === 'versions' ? "REGISTER PATCH" : `REGISTER DLC`}
+          />
         </div>
       </div>
 

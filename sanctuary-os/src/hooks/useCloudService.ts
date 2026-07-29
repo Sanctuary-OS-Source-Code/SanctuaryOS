@@ -104,7 +104,7 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       
       setPlaySets((prev: any[]) => {
         const updatedSets = prev.map(ps => ps.name === targetSet.name ? { ...ps, code, is_public: isPublic, is_locked: isLocked, is_market_listed: isMarketListed } : ps);
-        localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
+
         return updatedSets;
       });
 
@@ -141,9 +141,16 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       if (missing.length > 0) {
         setMissingImportMods(missing);
       } else {
-        const updatedSets = [...playSets, { name: `${parsed.name} (Synced)`, mods: parsed.mods.map((m: any) => m.name) }];
+        let baseName = `${parsed.name} (Synced)`;
+        let finalName = baseName;
+        let copyIndex = 1;
+        while (playSets.some((s: any) => s.name.toLowerCase() === finalName.toLowerCase())) {
+          finalName = `${baseName} (${copyIndex})`;
+          copyIndex++;
+        }
+        const updatedSets = [...playSets, { name: finalName, mods: parsed.mods.map((m: any) => m.name) }];
         setPlaySets(updatedSets);
-        localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(updatedSets));
+
         setStatus(`${t("icon_check_circle")} ${t("status_blueprint_synced")}`);
       }
     } catch (err: any) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
@@ -143,8 +143,22 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                 <div className="absolute inset-0 bg-[var(--accent)]/5 blur-[50px] pointer-events-none rounded-full transform scale-150"></div>
                 <div className="w-24 h-24 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center relative z-10">
                   <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '48px' }}>
-                    {assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'draw' : 'extension'}
+                    {assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}
                   </span>
+                </div>
+                <div className="absolute bottom-4 left-4 z-30 flex items-center gap-2 pointer-events-auto">
+                  {data.is_early_access && (
+                    <div className="backdrop-blur-md bg-purple-500/10 border border-purple-500/30 px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2">
+                      <span className="material-symbols-outlined !text-[12px] text-purple-500">science</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-purple-500">{t("badge_early_access") || "Early Access"}</span>
+                    </div>
+                  )}
+                  {data.is_paid && (
+                    <div className="backdrop-blur-md bg-yellow-500/10 border border-yellow-500/30 px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2">
+                      <span className="material-symbols-outlined !text-[12px] text-yellow-500">monetization_on</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-yellow-500">{t("badge_paid") || "Paid"}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -171,6 +185,92 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                   {data.description ? stripMarkdown(data.description) : t("no_desc_sub")}
                 </div>
 
+                {assetType === 'workbench_template' && data.json_data && (() => {
+                  const parsedRaw = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
+                  const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
+                  return (
+                    <div className="flex flex-col gap-4">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("auto_template_architecture")}</h4>
+                      <div className="flex flex-wrap gap-4">
+                        {parsed.template_id && (
+                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                            <span className="text-xs font-bold text-[var(--subtext)]">{t("auto_template_id")}</span>
+                            <span className="text-sm font-medium text-[var(--text)]">{parsed.template_id}</span>
+                          </div>
+                        )}
+                        {parsed.target_file && (
+                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                            <span className="text-xs font-bold text-[var(--subtext)]">{t("upload_target_file")}</span>
+                            <span className="text-sm font-medium text-[var(--text)]">{parsed.target_file}</span>
+                          </div>
+                        )}
+                        {parsed.schema_version && (
+                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                            <span className="text-xs font-bold text-[var(--subtext)]">{t("auto_schema")}</span>
+                            <span className="text-sm font-medium text-[var(--text)]">{t("auto_v")}{parsed.schema_version}</span>
+                          </div>
+                        )}
+                        {parsed.template_version && (
+                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                            <span className="text-xs font-bold text-[var(--subtext)]">{t("update_version")}</span>
+                            <span className="text-sm font-medium text-[var(--text)]">{parsed.template_version}</span>
+                          </div>
+                        )}
+                        {parsed.mod_author && (
+                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                            <span className="text-xs font-bold text-[var(--subtext)]">{t("auto_mod_author")}</span>
+                            <span className="text-sm font-medium text-[var(--text)]">{parsed.mod_author}</span>
+                          </div>
+                        )}
+                        {parsed.parser_type && (
+                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                            <span className="text-xs font-bold text-[var(--subtext)]">{t("auto_parser")}</span>
+                            <span className="text-sm font-medium text-[var(--text)] uppercase">{parsed.parser_type}</span>
+                          </div>
+                        )}
+                        {parsed.supported_mod_versions && Array.isArray(parsed.supported_mod_versions) && parsed.supported_mod_versions.length > 0 && (
+                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                            <span className="text-xs font-bold text-[var(--subtext)]">{t("auto_supported_versions")}</span>
+                            <span className="text-sm font-medium text-[var(--text)]">{parsed.supported_mod_versions.join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {assetType !== 'workbench_template' && (
+                  <div className="flex flex-col gap-4">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("asset_details") || "ASSET DETAILS"}</h4>
+                    <div className="flex flex-wrap gap-4">
+                      {data.version && (
+                        <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
+                          <span className="text-xs font-bold text-[var(--subtext)] uppercase">{t("update_version") || "VERSION"}</span>
+                          <span className="text-sm font-medium text-[var(--text)]">{data.version}</span>
+                        </div>
+                      )}
+                      {data.downloads !== undefined && (
+                        <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
+                          <span className="text-xs font-bold text-[var(--subtext)] uppercase">{t("downloads_count") || "DOWNLOADS"}</span>
+                          <span className="text-sm font-medium text-[var(--text)]">{data.downloads?.toLocaleString() || "0"}</span>
+                        </div>
+                      )}
+                      {data.created_at && (
+                        <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
+                          <span className="text-xs font-bold text-[var(--subtext)] uppercase">{t("created_date") || "PUBLISHED"}</span>
+                          <span className="text-sm font-medium text-[var(--text)]">{new Date(data.created_at).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      {data.updated_at && data.updated_at !== data.created_at && (
+                        <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
+                          <span className="text-xs font-bold text-[var(--subtext)] uppercase">{t("updated_date") || "UPDATED"}</span>
+                          <span className="text-sm font-medium text-[var(--text)]">{new Date(data.updated_at).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {(data.changelog || data.release_notes || (data.json_data && (data.json_data.changelog || data.json_data.release_notes))) && (
                   <div className="flex flex-col gap-4">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("whats_new")}</h4>
@@ -179,67 +279,6 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                     </div>
                   </div>
                 )}
-
-                {assetType === 'workbench_template' && data.json_data && (() => {
-                  const parsedRaw = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
-                  const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
-                  return (
-                    <div className="flex flex-col gap-4 p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2 mb-2">
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                        {t("auto_template_architecture")}
-                      </h4>
-                      <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-[10px] font-mono">
-                        {parsed.template_id && (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[var(--subtext)] opacity-60">{t("auto_template_id")}</span>
-                            <span className="text-[var(--text)] font-black truncate">{parsed.template_id}</span>
-                          </div>
-                        )}
-                        {parsed.target_file && (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[var(--subtext)] opacity-60">{t("upload_target_file")}</span>
-                            <span className="text-[var(--text)] font-black truncate">{parsed.target_file}</span>
-                          </div>
-                        )}
-                        {parsed.schema_version && (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[var(--subtext)] opacity-60">{t("auto_schema")}</span>
-                            <span className="text-[var(--text)] font-black">{t("auto_v")}{parsed.schema_version}</span>
-                          </div>
-                        )}
-                        {parsed.template_version && (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[var(--subtext)] opacity-60">{t("update_version")}</span>
-                            <span className="text-[var(--text)] font-black">{parsed.template_version}</span>
-                          </div>
-                        )}
-                        {parsed.mod_author && (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[var(--subtext)] opacity-60">{t("auto_mod_author")}</span>
-                            <span className="text-[var(--text)] font-black truncate">{parsed.mod_author}</span>
-                          </div>
-                        )}
-                        {parsed.parser_type && (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[var(--subtext)] opacity-60">{t("auto_parser")}</span>
-                            <span className="text-[var(--text)] font-black uppercase">{parsed.parser_type}</span>
-                          </div>
-                        )}
-                      </div>
-                      {parsed.supported_mod_versions && Array.isArray(parsed.supported_mod_versions) && parsed.supported_mod_versions.length > 0 && (
-                        <div className="flex flex-col gap-2 mt-2 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                          <span className="text-[var(--subtext)] opacity-60 text-[10px] font-mono">{t("auto_supported_versions")}</span>
-                          <div className="flex flex-wrap gap-2">
-                            {parsed.supported_mod_versions.map((v: string) => (
-                              <span key={v} className="px-2 py-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-md text-[9px] font-black text-[var(--text)]">{v}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
               </div>
             </>
 

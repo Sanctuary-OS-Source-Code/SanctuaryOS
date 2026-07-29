@@ -2,7 +2,7 @@ import { useStore } from "../store";
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabaseAuth } from "../supabase";
-import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState } from "../shared";
+import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton } from "../shared";
 
 interface CustomField {
     id: string;
@@ -112,10 +112,12 @@ export default function KeeperSupportSettings() {
                             ]}
                         />
                     </div>
-                    <button onClick={() => openEditor()} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-                        <span className="material-symbols-outlined !text-[20px] group-hover:rotate-90 transition-transform duration-500">{t("icon_add")}</span>
-                        {t("support_add_cat")}
-                    </button>
+                    <ActionButton
+                        onClick={() => openEditor()}
+                        className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+                        icon={t("icon_add")}
+                        label={t("support_add_cat")}
+                    />
                 </div>
             </div>
 

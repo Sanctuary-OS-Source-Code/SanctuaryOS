@@ -7,7 +7,6 @@ import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import MasonFeed from "./MasonFeed";
 
-import BlueprintSwapSidePanel from "./side-panels/BlueprintSwapSidePanel";
 import CommandIncompatiblePanel from "./side-panels/CommandIncompatiblePanel";
 import CommandConflictsPanel from "./side-panels/CommandConflictsPanel";
 import CommandRadarSweepPanel from "./side-panels/CommandRadarSweepPanel";
@@ -42,12 +41,13 @@ export default function CommandCenter({
   const [showConflictsPanel, setShowConflictsPanel] = useState(false);
   const isConflictRadarOpen = useModalStore((state: any) => state.isConflictRadarOpen);
   const setIsConflictRadarOpen = useModalStore((state: any) => state.setIsConflictRadarOpen);
+  const isBlueprintSwapOpen = useModalStore((state: any) => state.isBlueprintSwapOpen);
+  const setIsBlueprintSwapOpen = useModalStore((state: any) => state.setIsBlueprintSwapOpen);
   const [isAuditLogsOpen, setIsAuditLogsOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [urgentBroadcast, setUrgentBroadcast] = useState<any>(null);
 
-  const [isBlueprintSwapOpen, setIsBlueprintSwapOpen] = useState(false);
   const [nexusCount, setNexusCount] = useState<number | "-">("-");
   const [ticketCount, setTicketCount] = useState<number | "-">("-");
 
@@ -111,7 +111,8 @@ export default function CommandCenter({
     const safeMods = Array.isArray(activePlaySet.mods) ? activePlaySet.mods : [];
     const safeList = Array.isArray(modList) ? modList : [];
 
-    return safeMods.map((modName: string) => {
+    return safeMods.map((rawMod: any) => {
+      const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
       const modNameLow = modName.toLowerCase().replace(/\\/g, '/');
       const exactMatch = safeList.find((m: any) => m.name && m.name.toLowerCase().replace(/\\/g, '/') === modNameLow);
       if (exactMatch) return { ...exactMatch, _originalSetName: modName };
@@ -171,7 +172,7 @@ export default function CommandCenter({
 
         const newSets = [...prevSets];
         newSets[activePlaySetIndex] = { ...currentSet, mods: newMods };
-        localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_playsets`, JSON.stringify(newSets));
+
         window.dispatchEvent(new Event("storage"));
         return newSets;
       });
@@ -521,7 +522,7 @@ export default function CommandCenter({
           </div>
 
           <div className="w-full">
-            <MasonFeed onOpenMasonProfile={handleOpenMasonProfile} noCardWrapper={true} gridCols="grid-cols-1 lg:grid-cols-2" />
+            <MasonFeed onOpenMasonProfile={handleOpenMasonProfile} noCardWrapper={true} gridCols="grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3" />
           </div>
         </div>
         <div className="w-full lg:w-[420px] shrink-0 flex flex-col gap-6">
@@ -657,14 +658,6 @@ export default function CommandCenter({
         activeUpdates={activeUpdates}
         handleOpenUrl={handleOpenUrl}
       />
-
-      {isBlueprintSwapOpen && (
-        <BlueprintSwapSidePanel
-          isOpen={isBlueprintSwapOpen}
-          onClose={() => setIsBlueprintSwapOpen(false)}
-          equipPlaySet={equipPlaySet}
-        />
-      )}
 
       {showIncompatiblePanel && (
         <CommandIncompatiblePanel

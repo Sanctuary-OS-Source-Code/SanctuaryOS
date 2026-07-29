@@ -2,7 +2,7 @@ import { useStore } from "../store";
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState } from "../shared";
+import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton } from "../shared";
 
 import { logArchitectAction } from "../lib/audit";
 
@@ -163,10 +163,12 @@ export default function SASupportSettings() {
                             {t("telemetry_sources")}
                         </button>
                     </div>
-                    <button onClick={() => activeTab === 'CATEGORIES' ? openEditor() : openSourceEditor()} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
-                        <span className="material-symbols-outlined !text-[20px] group-hover:rotate-90 transition-transform duration-500">{t("icon_add")}</span>
-                        {activeTab === 'CATEGORIES' ? (t("support_add_cat")) : (t("telemetry_add_source"))}
-                    </button>
+                    <ActionButton
+                        onClick={() => activeTab === 'CATEGORIES' ? openEditor() : openSourceEditor()}
+                        className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+                        icon={t("icon_add")}
+                        label={activeTab === 'CATEGORIES' ? (t("support_add_cat")) : (t("telemetry_add_source"))}
+                    />
                 </div>
             </div>
 

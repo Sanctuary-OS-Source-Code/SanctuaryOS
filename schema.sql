@@ -76,6 +76,8 @@ CREATE TABLE mods (
     requiredDLC TEXT,
     compatible_versions TEXT[],
     folder_structure JSONB DEFAULT '[]'::jsonb,
+    is_paid BOOLEAN DEFAULT false,
+    is_early_access BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -141,6 +143,8 @@ CREATE TABLE scout_suggestions (
     suggested_url TEXT, 
     category_override TEXT,
     suggested_type TEXT,
+    is_paid BOOLEAN DEFAULT false,
+    is_early_access BOOLEAN DEFAULT false,
     status TEXT DEFAULT 'pending', 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -160,6 +164,8 @@ CREATE TABLE blueprints (
     is_public BOOLEAN DEFAULT false,
     is_market_listed BOOLEAN DEFAULT false,
     is_locked BOOLEAN DEFAULT false,
+    is_paid BOOLEAN DEFAULT false,
+    is_early_access BOOLEAN DEFAULT false,
     compliance_tier INTEGER DEFAULT 0,
     game_version TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

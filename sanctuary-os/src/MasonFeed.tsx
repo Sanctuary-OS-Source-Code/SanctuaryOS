@@ -22,7 +22,7 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
     const fetchPosts = async () => {
       if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
       setLoading(true);
-      const { data } = await supabase.from('mason_posts').select('*, masons(name, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)').order('created_at', { ascending: false }).limit(10);
+      const { data } = await supabase.from('mason_posts').select('*, masons(name, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)').order('created_at', { ascending: false }).limit(9);
       if (data) setPosts(data);
       setLoading(false);
     };
@@ -60,17 +60,13 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
         <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest col-span-2">{t("no_posts")}</div>
       ) : (
         posts.map((p, index) => {
-          const isFeatured = index === 0 && posts.length !== 2;
-          const isCompact = posts.length >= 3 && index > 0;
           return (
-            <div key={p.id} className={`break-inside-avoid ${isFeatured ? 'md:col-span-2' : ''}`}>
+            <div key={p.id} className="break-inside-avoid">
               <MasonPostCard 
                 post={p} 
                 index={index} 
                 onPostClick={handlePostClick} 
                 onToggleLike={handleToggleLike} 
-                isFeatured={isFeatured}
-                isCompact={isCompact}
               />
             </div>
           );

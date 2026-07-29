@@ -264,6 +264,21 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
           )}
         </div>
         
+        <div className="absolute bottom-4 left-4 z-30 flex items-center gap-2 pointer-events-auto">
+          {mod.is_early_access && (
+            <div className="backdrop-blur-md bg-purple-500/10 border border-purple-500/30 px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[12px] text-purple-500">science</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-purple-500">{t("badge_early_access") || "Early Access"}</span>
+            </div>
+          )}
+          {mod.is_paid && (
+            <div className="backdrop-blur-md bg-yellow-500/10 border border-yellow-500/30 px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[12px] text-yellow-500">monetization_on</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-yellow-500">{t("badge_paid") || "Paid"}</span>
+            </div>
+          )}
+        </div>
+        
 
 
         <div className="absolute top-4 left-4 z-30 group/badge pointer-events-auto cursor-help">

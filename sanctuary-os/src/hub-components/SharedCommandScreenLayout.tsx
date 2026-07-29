@@ -90,37 +90,34 @@ export function UrgentBroadcastBanner({ urgentBroadcast, setViewingPost, setUrge
 export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
   const { t } = useLexicon();
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
       {broadcasts.length > 0 ? broadcasts.map((post: any, index: number) => {
-        const isFeatured = index === 0;
         return (
-          <div key={post.id} onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className={`group cursor-pointer w-full theme-glass-panel rounded-[var(--radius)] overflow-hidden hover:scale-[1.01] transition-all shadow-xl hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.3)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 flex flex-col ${isFeatured ? 'xl:flex-row xl:col-span-2' : 'min-h-[10rem]'}`}>
-            {isFeatured && (
-              <div className="w-full h-48 xl:h-auto relative overflow-hidden bg-[var(--bg)] border-b xl:w-1/2 xl:border-b-0 xl:border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent z-10 pointer-events-none" />
-                {extractPostImage(post) ? (
-                  <img src={extractPostImage(post)} className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-luminosity group-hover:scale-105 transition-transform duration-1000" />
-                ) : (
-                  <span className="material-symbols-outlined !text-6xl grayscale opacity-30 drop-shadow-lg group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 group-hover:grayscale-0 relative z-10">{t("icon_satellite_alt")}</span>
-                )}
+          <div key={post.id} onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="group cursor-pointer w-full theme-glass-panel rounded-[var(--radius)] overflow-hidden hover:scale-[1.02] transition-all shadow-xl hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.3)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 flex flex-col min-h-[16rem]">
+            <div className="w-full h-40 relative overflow-hidden bg-[var(--bg)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0">
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent z-10 pointer-events-none" />
+              {extractPostImage(post) ? (
+                <img src={extractPostImage(post)} className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-luminosity group-hover:scale-110 transition-transform duration-1000" />
+              ) : (
+                <span className="material-symbols-outlined !text-6xl grayscale opacity-30 drop-shadow-lg group-hover:scale-125 group-hover:opacity-100 transition-all duration-500 group-hover:grayscale-0 relative z-10">{t("icon_satellite_alt")}</span>
+              )}
+            </div>
+            <div className="flex-1 p-6 flex flex-col min-w-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--bg)_40%,transparent)] to-transparent relative z-10">
+              <div className="flex items-center gap-2 mb-3 shrink-0 flex-wrap">
+                <span className="px-2 py-0.5 bg-[var(--accent)]/20 text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg">{post.category || t("comms_btn_update") || "UPDATE"}</span>
+                <span className="px-2 py-0.5 theme-glass-inner text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg">{t("category_system")}</span>
               </div>
-            )}
-            <div className="flex-1 p-8 flex flex-col min-w-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--bg)_40%,transparent)] to-transparent relative z-10">
-              <div className="flex items-center gap-2 mb-4 shrink-0 flex-wrap">
-                <span className="px-3 py-1 bg-[var(--accent)]/20 text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg">{post.category || t("comms_btn_update") || "UPDATE"}</span>
-                <span className="px-3 py-1 theme-glass-inner text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg">{t("category_system")}</span>
-              </div>
-              <h3 className="text-xl font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors mb-4 leading-normal line-clamp-4">{post.title}</h3>
-              {isFeatured && <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 mb-6 line-clamp-3">{post.description ? post.description : stripMarkdown(post.message)}</p>}
-              <div className="mt-auto flex items-center justify-between pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
+              <h3 className="text-lg font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors mb-3 leading-tight line-clamp-2">{post.title}</h3>
+              <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 mb-6 line-clamp-3 flex-1">{post.description ? post.description : stripMarkdown(post.message)}</p>
+              <div className="mt-auto flex items-center justify-between pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
                 <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(post.created_at).toLocaleDateString()}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2 text-[var(--accent)]">{t("wayfinder_read_more")} <span className="material-symbols-outlined !text-lg">{t("icon_arrow_forward")}</span></span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">{t("wayfinder_read_more")} <span className="material-symbols-outlined !text-sm">{t("icon_arrow_forward")}</span></span>
               </div>
             </div>
           </div>
         );
       }) : (
-        <div className="w-full xl:col-span-2 theme-glass-panel rounded-[var(--radius)] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+        <div className="w-full lg:col-span-3 theme-glass-panel rounded-[var(--radius)] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           {t("system_no_broadcasts")}
         </div>
       )}

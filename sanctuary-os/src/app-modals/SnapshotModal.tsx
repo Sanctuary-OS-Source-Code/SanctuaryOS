@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { ActionButton } from "../shared";
 
 export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, executeSnapshot }: any) {
   const { t } = useLexicon();
@@ -31,9 +32,7 @@ export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, s
             <button onClick={() => setSnapshotModal(false)} className="flex-1 py-3 theme-btn-standard font-black text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/5">
               {t("nav_cancel")}
             </button>
-            <button onClick={executeSnapshot} className="flex-1 py-3 theme-bg-accent text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 shadow-lg transition-all">
-              {t("auto_save")}
-            </button>
+            <ActionButton onClick={executeSnapshot} className="flex-1 py-3 shrink-0 h-12" label={t("auto_save")} />
           </div>
         </div>
       </div>

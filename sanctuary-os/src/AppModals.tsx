@@ -22,6 +22,7 @@ import { BackupRestoreModals } from "./app-modals/BackupRestoreModals";
 import { IngestProgressModal } from "./app-modals/IngestProgressModal";
 import { SystemLogModal } from "./app-modals/SystemLogModal";
 import { SystemStatusBar } from "./app-modals/SystemStatusBar";
+import BlueprintSwapSidePanel from "./side-panels/BlueprintSwapSidePanel";
 
 export function AppModals(props: any) {
   const [isLogExpanded, setIsLogExpanded] = React.useState(false);
@@ -46,11 +47,11 @@ export function AppModals(props: any) {
     dnaMatchQueue, setDnaMatchQueue, ignoredHashesRef, setStatus, statusLog, clearStatusLog,
     scoutQueue, setScoutQueue, onOpenScoutDossier,
     malwareAlert, setMalwareAlert, setPlaySets,
-    isSidebarCollapsed
+    isSidebarCollapsed, equipPlaySet
   } = props;
 
   const status = useStore((state) => state.status);
-  const { backupType, restoreType, updatePayload, setIsSideBrowserOpen } = useModalStore();
+  const { backupType, restoreType, updatePayload, setIsSideBrowserOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen } = useModalStore();
   const logModalRef = React.useRef<HTMLDivElement>(null);
   const logDragRef = React.useRef({ isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, initOffsetX: 0, initOffsetY: 0 });
 
@@ -136,6 +137,14 @@ export function AppModals(props: any) {
       <SystemStatusPanel isOpen={isSystemStatusOpen} onClose={() => setIsSystemStatusOpen(false)} />
       
       <SidePanelBrowser />
+      
+      {isBlueprintSwapOpen && (
+        <BlueprintSwapSidePanel
+          isOpen={isBlueprintSwapOpen}
+          onClose={() => setIsBlueprintSwapOpen(false)}
+          equipPlaySet={equipPlaySet}
+        />
+      )}
     </>
   );
 }
