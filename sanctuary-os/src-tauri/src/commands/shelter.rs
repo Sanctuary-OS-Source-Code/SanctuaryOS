@@ -283,19 +283,25 @@ pub fn restore_quarantined_file(filename: String) -> String {
     let mut moved = false;
     if q_path.exists() {
         let path_str = q_path.to_string_lossy().to_string();
-        if cache.contains_key(&path_str) { cache.remove(&path_str); cache_updated = true; }
+        if cache.contains_key(&path_str) { 
+            cache.remove(&path_str); 
+            let conn = get_db_conn(&config.vault_path);
+            remove_cache_entry(&conn, &path_str);
+        }
         let _ = fs::rename(&q_path, &m_path);
         moved = true;
     } else if sq_path.exists() {
         let path_str = sq_path.to_string_lossy().to_string();
-        if cache.contains_key(&path_str) { cache.remove(&path_str); cache_updated = true; }
+        let path_str = sq_path.to_string_lossy().to_string();
+        if cache.contains_key(&path_str) { 
+            cache.remove(&path_str);
+            let conn = get_db_conn(&config.vault_path);
+            remove_cache_entry(&conn, &path_str);
+        }
         let _ = fs::rename(&sq_path, &m_path);
         moved = true;
     }
-    
-    if cache_updated { save_cache(&config.vault_path, &cache); }
-
-    if moved {
+        if moved {
         "Restored".into()
     } else {
         "Error: File missing".into()
@@ -318,7 +324,8 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
         let path_str = q_path.to_string_lossy().to_string();
         if cache.contains_key(&path_str) {
             cache.remove(&path_str);
-            cache_updated = true;
+            let conn = get_db_conn(&config.vault_path);
+            remove_cache_entry(&conn, &path_str);
         }
 
         if q_path.exists() {
@@ -356,11 +363,9 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
                     }
                 }
             });
-            if cache_updated { save_cache(&config.vault_path, &cache); }
             return Ok("Purge initiated".into());
         }
     }
-    if cache_updated { save_cache(&config.vault_path, &cache); }
 
     Err("Error: File missing".into())
 }

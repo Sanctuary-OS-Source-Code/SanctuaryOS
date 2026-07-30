@@ -420,15 +420,26 @@ pub fn ingest_dropped_file(
             }
         }
 
-        if exists && !force_replace {
-            let _ = app.emit("dna_match_detected", serde_json::json!({ "path": path, "hash": hash, "existing_name": existing_name, "source_action": "ingest_dropped_file", "reason": match_reason }));
-            return Err("DNA_MATCH".into());
+        if exists {
+            let ext_with_dot = format!(".{}", ext);
+            let is_setting_file = game_schema.as_ref().and_then(|s| s.extensions.ignore_unidentified.as_ref()).map(|list| list.contains(&ext_with_dot)).unwrap_or(false);
+            if is_setting_file {
+                let _ = app.emit("dna_match_detected", serde_json::json!({ "path": path, "hash": hash, "existing_name": existing_name, "source_action": "ingest_dropped_file", "reason": "SETTINGS_CONFLICT" }));
+                return Err("SETTINGS_CONFLICT".into());
+            } else if !force_replace {
+                let _ = app.emit("dna_match_detected", serde_json::json!({ "path": path, "hash": hash, "existing_name": existing_name, "source_action": "ingest_dropped_file", "reason": match_reason }));
+                return Err("DNA_MATCH".into());
+            }
         }
     }
 
     let file_name = source.file_name().ok_or("INVALID_FILENAME")?;
 
-    let target_dir = crate::utils::get_vault_mods_lane(&config.vault_path);
+    let mut target_dir = crate::utils::get_vault_mods_lane(&config.vault_path);
+    if source.is_file() {
+        let file_stem = source.file_stem().unwrap_or_default().to_string_lossy().to_string();
+        target_dir = target_dir.join(&file_stem);
+    }
     std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
     
     let mut target = target_dir.join(file_name);
@@ -473,8 +484,8 @@ pub fn ingest_dropped_file(
                         let name = zf.name().to_string();
                         let p = Path::new(&name);
                         let zf_ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-                        let supported = crate::game_logic::get_supported_extensions(&game_schema);
-                if supported.contains(&zf_ext) {
+                        let vault_visible_exts = crate::game_logic::get_vault_visible_extensions(&game_schema);
+                        if vault_visible_exts.contains(&zf_ext) {
                             if let Some(zf_file_name) = p.file_name() {
                                 let file_name_str = zf_file_name.to_string_lossy().to_string();
                                 let mut file_target = target_base.clone();
@@ -487,6 +498,8 @@ pub fn ingest_dropped_file(
                                 let mut needs_resolution = false;
                                 let mut resolution_existing_name = final_path.to_string_lossy().to_string();
                                 let mut found_existing = false;
+                                let zf_ext_with_dot = format!(".{}", zf_ext);
+                                let is_setting_file = game_schema.as_ref().and_then(|s| s.extensions.ignore_unidentified.as_ref()).map(|list| list.contains(&zf_ext_with_dot)).unwrap_or(false);
 
                                 for (k, _) in cache.iter() {
                                     if Path::new(k).file_name() == Some(zf_file_name) && Path::new(k).exists() {
@@ -501,7 +514,9 @@ pub fn ingest_dropped_file(
                                 }
 
                                 if found_existing {
-                                    if force_replace {
+                                    if is_setting_file {
+                                        needs_resolution = true;
+                                    } else if force_replace {
                                         final_path = Path::new(&resolution_existing_name).to_path_buf();
                                     } else {
                                         needs_resolution = true;
@@ -570,13 +585,38 @@ pub fn ingest_dropped_file(
                                         return Err("MALWARE".into());
                                     } else {
                                         if needs_resolution {
+                                            let reason = if is_setting_file { "SETTINGS_CONFLICT" } else { "ZIP_NAME_MATCH" };
                                             let _ = app.emit("dna_match_detected", serde_json::json!({
                                                 "path": extract_target.to_string_lossy().to_string(), 
                                                 "hash": "", 
                                                 "existing_name": resolution_existing_name, 
                                                 "source_action": "ingest_dropped_file", 
-                                                "reason": "ZIP_NAME_MATCH" 
+                                                "reason": reason 
                                             }));
+                                        } else {
+                                            let mut hash_match_found = false;
+                                            let mut matched_existing_name = String::new();
+                                            for (k, v) in cache.iter() {
+                                                if v.dna_hash == extracted_hash && !extracted_hash.is_empty() && Path::new(k).exists() {
+                                                    hash_match_found = true;
+                                                    matched_existing_name = k.clone();
+                                                    break;
+                                                }
+                                            }
+                                            if hash_match_found {
+                                                let mut new_name = extract_target.file_name().unwrap().to_os_string();
+                                                new_name.push(".tmp_sanctuary_conflict");
+                                                let conflict_target = extract_target.with_file_name(new_name);
+                                                let _ = std::fs::rename(&extract_target, &conflict_target);
+                                                
+                                                let _ = app.emit("dna_match_detected", serde_json::json!({
+                                                    "path": conflict_target.to_string_lossy().to_string(), 
+                                                    "hash": extracted_hash, 
+                                                    "existing_name": matched_existing_name, 
+                                                    "source_action": "ingest_dropped_file", 
+                                                    "reason": "ZIP_DNA_MATCH" 
+                                                }));
+                                            }
                                         }
                                     }
                                 }
@@ -587,6 +627,191 @@ pub fn ingest_dropped_file(
             }
             if std::fs::read_dir(&target_base).map(|mut iter| iter.next().is_none()).unwrap_or(false) {
                 let _ = std::fs::remove_dir(&target_base);
+            }
+            if extracted_files.is_empty() {
+                return Err("No supported files found inside archive.".into());
+            }
+            return Ok(serde_json::to_string(&extracted_files).unwrap_or_else(|_| "[]".to_string()));
+        } else if ext == "rar" || ext == "7z" {
+            let zip_stem = source.file_stem().unwrap_or_default().to_string_lossy().to_string();
+            let target_base = crate::utils::get_vault_mods_lane(&config.vault_path).join(&zip_stem);
+            let tmp_extract = Path::new(&config.vault_path).join(format!(".tmp_sanctuary_{}_{}", ext, uuid::Uuid::new_v4()));
+            let _ = std::fs::create_dir_all(&tmp_extract);
+            
+            let status = std::process::Command::new("tar")
+                .arg("-xf")
+                .arg(source)
+                .arg("-C")
+                .arg(&tmp_extract)
+                .status();
+                
+            if let Ok(st) = status {
+                if !st.success() {
+                    let _ = std::fs::remove_dir_all(&tmp_extract);
+                    return Err(format!("Failed to extract {} archive natively. Your OS might not support it yet.", ext.to_uppercase()));
+                }
+            } else {
+                let _ = std::fs::remove_dir_all(&tmp_extract);
+                return Err(format!("Failed to extract {} archive. Native extraction tool not found.", ext.to_uppercase()));
+            }
+            
+            let mut extracted_files = Vec::new();
+            let vault_visible_exts = crate::game_logic::get_vault_visible_extensions(&game_schema);
+            let cache = load_cache(&config.vault_path);
+            let _ = std::fs::create_dir_all(&target_base);
+            
+            for entry in walkdir::WalkDir::new(&tmp_extract).into_iter().filter_map(|e| e.ok()) {
+                if entry.file_type().is_file() {
+                    let p = entry.path();
+                    let zf_ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+                    if vault_visible_exts.contains(&zf_ext) {
+                        if let Some(zf_file_name) = p.file_name() {
+                            let file_name_str = zf_file_name.to_string_lossy().to_string();
+                            let rel_path = p.strip_prefix(&tmp_extract).unwrap_or(p);
+                            
+                            let mut file_target = target_base.clone();
+                            if let Some(parent) = rel_path.parent() {
+                                file_target = file_target.join(parent);
+                            }
+                            let _ = std::fs::create_dir_all(&file_target);
+                            let mut final_path = file_target.join(zf_file_name);
+                            
+                            let mut needs_resolution = false;
+                            let mut resolution_existing_name = final_path.to_string_lossy().to_string();
+                            let mut found_existing = false;
+                            let zf_ext_with_dot = format!(".{}", zf_ext);
+                            let is_setting_file = game_schema.as_ref().and_then(|s| s.extensions.ignore_unidentified.as_ref()).map(|list| list.contains(&zf_ext_with_dot)).unwrap_or(false);
+
+                            for (k, _) in cache.iter() {
+                                if Path::new(k).file_name() == Some(zf_file_name) && Path::new(k).exists() {
+                                    found_existing = true;
+                                    resolution_existing_name = k.clone();
+                                    break;
+                                }
+                            }
+
+                            if !found_existing && final_path.exists() {
+                                found_existing = true;
+                            }
+
+                            if found_existing {
+                                if is_setting_file {
+                                    needs_resolution = true;
+                                } else if force_replace {
+                                    final_path = Path::new(&resolution_existing_name).to_path_buf();
+                                } else {
+                                    needs_resolution = true;
+                                }
+                            }
+                            
+                            let mut extract_target = final_path.clone();
+                            if needs_resolution {
+                                let mut new_name = final_path.file_name().unwrap().to_os_string();
+                                new_name.push(".tmp_sanctuary_conflict");
+                                extract_target = final_path.with_file_name(new_name);
+                            }
+
+                            if let Ok(_) = std::fs::copy(p, &extract_target) {
+                                extracted_files.push(file_name_str.clone());
+                                
+                                let extracted_hash = calculate_hash(&extract_target).unwrap_or_default();
+                                let is_malware = if let Ok(m) = state.malware_hashes.lock() {
+                                    m.contains(&extracted_hash)
+                                } else {
+                                    false
+                                };
+                                
+                                if is_malware {
+                                    let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
+                                    let reports_dir = Path::new(&config.vault_path).join("Quarantine");
+                                    let _ = std::fs::create_dir_all(&q_dir);
+                                    let _ = std::fs::create_dir_all(&reports_dir);
+                                    let q_target = q_dir.join(&zf_file_name);
+                                    let _ = std::fs::copy(&extract_target, &q_target);
+                                    let _ = std::fs::remove_file(&extract_target);
+                                    
+                                    let manifest = QuarantineManifest {
+                                        artifact_name: zf_file_name.to_string_lossy().to_string(),
+                                        detected_hash: extracted_hash.clone(),
+                                        signature: "N/A".to_string(),
+                                        quarantine_path: obscure_username(&q_target.to_string_lossy()),
+                                        original_path: Some(obscure_username(&source.to_string_lossy())),
+                                        original_hash_at_import: Some(calculate_hash(&source).unwrap_or_default()),
+                                        original_exists: true,
+                                        original_shredded: false,
+                                        quarantined_file_shredded: false,
+                                        detected_at: chrono::Local::now().to_rfc3339(),
+                                    };
+                                    let manifest_path = reports_dir.join(format!("{}.manifest.json", zf_file_name.to_string_lossy()));
+                                    if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                                        let _ = std::fs::write(manifest_path, json);
+                                    }
+                                    
+                                    let _ = app.emit("malware_detected", serde_json::json!({
+                                        "path": q_target.to_string_lossy().to_string(), 
+                                        "name": zf_file_name.to_string_lossy().to_string(),
+                                        "hash": extracted_hash, 
+                                        "status": "QUARANTINED",
+                                        "isLocalOverride": false,
+                                        "isVirtual": false,
+                                        "compliance_tier": 3,
+                                        "original_exists": manifest.original_exists,
+                                        "original_shredded": manifest.original_shredded,
+                                        "original_path": manifest.original_path,
+                                        "quarantine_path": manifest.quarantine_path,
+                                        "matched_signature": manifest.signature
+                                    }));
+                                    let _ = std::fs::remove_dir_all(&tmp_extract);
+                                    return Err("MALWARE".into());
+                                } else {
+                                    if needs_resolution {
+                                        let reason = if is_setting_file { "SETTINGS_CONFLICT" } else { "ZIP_NAME_MATCH" };
+                                        let _ = app.emit("dna_match_detected", serde_json::json!({
+                                            "path": extract_target.to_string_lossy().to_string(), 
+                                            "hash": "", 
+                                            "existing_name": resolution_existing_name, 
+                                            "source_action": "ingest_dropped_file", 
+                                            "reason": reason 
+                                        }));
+                                    } else {
+                                        let mut hash_match_found = false;
+                                        let mut matched_existing_name = String::new();
+                                        for (k, v) in cache.iter() {
+                                            if v.dna_hash == extracted_hash && !extracted_hash.is_empty() && Path::new(k).exists() {
+                                                hash_match_found = true;
+                                                matched_existing_name = k.clone();
+                                                break;
+                                            }
+                                        }
+                                        if hash_match_found {
+                                            let mut new_name = extract_target.file_name().unwrap().to_os_string();
+                                            new_name.push(".tmp_sanctuary_conflict");
+                                            let conflict_target = extract_target.with_file_name(new_name);
+                                            let _ = std::fs::rename(&extract_target, &conflict_target);
+                                            
+                                            let _ = app.emit("dna_match_detected", serde_json::json!({
+                                                "path": conflict_target.to_string_lossy().to_string(), 
+                                                "hash": extracted_hash, 
+                                                "existing_name": matched_existing_name, 
+                                                "source_action": "ingest_dropped_file", 
+                                                "reason": "ZIP_DNA_MATCH" 
+                                            }));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            let _ = std::fs::remove_dir_all(&tmp_extract);
+            
+            if std::fs::read_dir(&target_base).map(|mut iter| iter.next().is_none()).unwrap_or(false) {
+                let _ = std::fs::remove_dir(&target_base);
+            }
+            if extracted_files.is_empty() {
+                return Err("No supported files found inside archive.".into());
             }
             return Ok(serde_json::to_string(&extracted_files).unwrap_or_else(|_| "[]".to_string()));
         } else if crate::game_logic::get_supported_extensions(&game_schema).contains(&ext) {

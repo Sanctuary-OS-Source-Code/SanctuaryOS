@@ -1,5 +1,6 @@
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
+import { useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -10,7 +11,21 @@ export function usePlaySetLogic() {
   const { t } = useLexicon();
   const { setPendingImportSet, setMissingImportMods } = useModalStore();
 
-
+  const { modMap, hashToMod, baseToMod } = useMemo(() => {
+    const extRegex = getExtensionRegex(activeGameSchema);
+    const m1 = new Map<string, any>();
+    const m2 = new Map<string, any>();
+    const m3 = new Map<string, any>();
+    
+    modList.forEach((m: any) => {
+        m1.set(m.name, m);
+        if (m.hash) m2.set(m.hash, m);
+        const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '');
+        if (mBase) m3.set(mBase, m);
+    });
+    
+    return { modMap: m1, hashToMod: m2, baseToMod: m3 };
+  }, [modList, activeGameSchema]);
 
   const toggleInActiveSet = (targetName: string, excludeBroken: boolean = true, forceRemove: boolean = false, forceActive: boolean = false) => {
     setPlaySets((prevSets) => {
@@ -441,19 +456,7 @@ export function usePlaySetLogic() {
       }
       const missing: any[] = [];
       const availableMods: string[] = [];
-      
-      const extRegex = getExtensionRegex(activeGameSchema);
-      const modMap = new Map<string, any>();
-      const hashToMod = new Map<string, any>();
-      const baseToMod = new Map<string, any>();
-      
-      modList.forEach((m: any) => {
-          modMap.set(m.name, m);
-          if (m.hash) hashToMod.set(m.hash, m);
-          const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '');
-          if (mBase) baseToMod.set(mBase, m);
-      });
-
+      // Maps are now memoized and injected automatically from the hook!
       const nextModHashes: Record<string, string> = {};
       parsed.mods.forEach((importedMod: any) => {
           let found = null;
@@ -464,7 +467,7 @@ export function usePlaySetLogic() {
               const nameToCheck = typeof importedMod === 'string' ? importedMod : (importedMod.name || importedMod.path || '');
               found = modMap.get(nameToCheck);
               if (!found) {
-                  const targetBase = nameToCheck.split(/[\\/]/).pop()?.replace(extRegex, '');
+                  const targetBase = nameToCheck.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
                   if (targetBase) found = baseToMod.get(targetBase);
               }
           }
@@ -480,12 +483,13 @@ export function usePlaySetLogic() {
               if (typeof importedMod !== 'string' && importedMod.hash) nextModHashes[nameToCheck] = importedMod.hash;
           }
       });
-      let newName = parsed.name;
+      let baseName = `${parsed.name} (Imported)`;
+      let newName = baseName;
       let counter = 1;
       while(
         playSets.some((s) => s.name.toLowerCase() === newName.toLowerCase())
       ) {
-        newName = `${parsed.name} (${counter})`;
+        newName = `${baseName} (${counter})`;
         counter++;
       }
       const readySet = { name: newName, mods: availableMods, modHashes: nextModHashes, ignoredGhosts: [] };

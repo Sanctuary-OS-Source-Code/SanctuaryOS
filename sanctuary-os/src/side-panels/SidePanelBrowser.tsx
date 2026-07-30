@@ -492,7 +492,7 @@ export default function SidePanelBrowser() {
 
   return createPortal(
     <div style={{ display: isSideBrowserOpen ? 'block' : 'none' }} className={isBlockingModalOpen ? "opacity-0 pointer-events-none transition-opacity duration-300" : "opacity-100 transition-opacity duration-300"}>
-      <div className="fixed top-[52px] right-0 bottom-10 z-[100004] bg-black/20 backdrop-blur-[3px] transition-opacity" style={{ left: "var(--sidebar-width, 288px)" }} onClick={() => setIsSideBrowserOpen(false)} />
+      <div className="fixed top-[52px] right-0 bottom-10 z-[100004] bg-black/10 backdrop-blur-[2px] transition-opacity" style={{ left: "var(--sidebar-width, 288px)" }} onClick={() => setIsSideBrowserOpen(false)} />
       {isResizing && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
 
       <div
@@ -644,9 +644,9 @@ export default function SidePanelBrowser() {
 
               {isBookmarksDropdownOpen && (
                 <div className="w-72 shrink-0 h-full flex flex-col animate-in slide-in-from-right-4 z-50 min-h-0 relative pointer-events-auto bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-[0.5rem] overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(0,0,0,0.3)]">
-                  <div className="px-6 py-5 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex justify-between items-center relative">
+                  <div className="px-5 py-4 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex justify-between items-center gap-3 relative">
                     <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
-                    <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/5 shadow-inner relative z-10 w-full shrink-0">
+                    <div className="flex-1 flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/5 shadow-inner relative z-10 shrink-0">
                       <button onClick={() => setDrawerTab('bookmarks')} className={`h-full py-2 flex-1 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${drawerTab === 'bookmarks' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)] opacity-60 hover:opacity-100'}`}>
                         <span className="material-symbols-outlined !text-[16px]">bookmarks</span>
                         Bookmarks
@@ -661,7 +661,7 @@ export default function SidePanelBrowser() {
                     </button>
                   </div>
 
-                  <div className="px-4 pb-4">
+                  <div className="p-5 pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <div className="relative">
                       <input 
                         type="text" 

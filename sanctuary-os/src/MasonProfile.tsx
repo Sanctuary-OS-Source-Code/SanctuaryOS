@@ -1,7 +1,7 @@
 import { handleOpenUrl, getFileLabel, formatDisplayName, getModIcon, processModsIntoCollections, enrichBlueprintsWithPremiumStatus } from './shared';
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { supabase } from "./supabase";
+import { supabase, getActiveGameClient } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useTheme } from "./ThemeContext";
 import { useStore } from "./store";
@@ -18,6 +18,7 @@ import MasonProfileOverview from "./MasonProfileOverview";
 import MasonProfileCommLink from "./MasonProfileCommLink";
 import MasonProfileArtifacts from "./MasonProfileArtifacts";
 import MasonProfileAssets from "./MasonProfileAssets";
+import SidePanelMasonPin from "./side-panels/SidePanelMasonPin";
 
 
 const cleanModName = (raw: string) => {
@@ -141,6 +142,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
   const [modCategory, setModCategory] = useState("ALL");
   const [hidePaid, setHidePaid] = useState<boolean>(() => localStorage.getItem("sanctuary_hide_paid") === "true");
   const [hideEarlyAccess, setHideEarlyAccess] = useState<boolean>(() => localStorage.getItem("sanctuary_hide_ea") === "true");
+  const [isPinPanelOpen, setIsPinPanelOpen] = useState(false);
   const [marketAssets, setMarketAssets] = useState<any[]>([]);
   const [activeView, setActiveView] = useState<string>("OVERVIEW");
   const [lastInitialPostId, setLastInitialPostId] = useState<string | null>(null);
@@ -276,6 +278,37 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
     if (masonId) loadProfile();
   }, [masonId]);
 
+  const isOwner = userId === mason?.profile_id;
+
+  const handlePin = async (type: 'mod' | 'asset' | 'blueprint', id: string | number) => {
+    try {
+      const updateData: any = {};
+      if (type === 'mod') {
+        if (String(id).startsWith('ccset_')) {
+          updateData.pinned_ccset_id = id;
+          updateData.pinned_mod_id = null;
+        } else {
+          updateData.pinned_mod_id = id;
+          updateData.pinned_ccset_id = null;
+        }
+      } else if (type === 'blueprint') {
+        updateData.pinned_blueprint_id = id;
+        updateData.pinned_asset_id = null;
+      } else {
+        updateData.pinned_asset_id = id;
+        updateData.pinned_blueprint_id = null;
+      }
+      
+      const { error } = await getActiveGameClient().from('masons').update(updateData).eq('id', masonId);
+      if (error) throw error;
+      setMason((prev: any) => ({ ...prev, ...updateData }));
+      useStore.getState().pushStatus(t("pinned_success") || `Pinned to showcase!`);
+    } catch (e: any) {
+      console.error("Pin Error:", e);
+      useStore.getState().pushStatus(t("pinned_fail") || "Failed to pin item.");
+    }
+  };
+
   const toggleFollow = async () => {
     if (!userId) { useStore.getState().pushStatus(t("auto_guest_mode_active_45")); return; }
     if (isFollowing) {
@@ -352,7 +385,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
 
       <div className="flex-1 flex flex-col min-h-0 w-full mt-4">
         {activeView === 'OVERVIEW' ? (
-          <MasonProfileOverview posts={posts} mods={mods} marketAssets={marketAssets} mason={mason} setActiveView={setActiveView} setModCategory={setModCategory} setModSearch={setModSearch} setActiveAsset={setActiveAsset} setSelectedBlueprint={setSelectedBlueprint} onModClick={onModClick} activeGameSchema={activeGameSchema} handlePostClick={handlePostClick} handleToggleLike={handleToggleLike} t={t} />
+          <MasonProfileOverview posts={posts} mods={mods} marketAssets={marketAssets} mason={mason} setActiveView={setActiveView} setModCategory={setModCategory} setModSearch={setModSearch} setActiveAsset={setActiveAsset} setSelectedBlueprint={setSelectedBlueprint} onModClick={onModClick} activeGameSchema={activeGameSchema} handlePostClick={handlePostClick} handleToggleLike={handleToggleLike} isOwner={isOwner} onEditShowcase={() => setIsPinPanelOpen(true)} t={t} />
         ) : (
           <div className="flex flex-col gap-6 h-full w-full">
             <div className="flex flex-wrap items-start justify-between gap-4 w-full px-4 py-2 shrink-0 border-b border-white/5 overflow-visible mb-2">
@@ -382,7 +415,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                 <div className="flex flex-row items-center gap-3 w-full">
                   <input value={modSearch} onChange={e => setModSearch(e.target.value)} placeholder={activeView === 'COMM-LINK' ? t("mason_search_placeholder") || "Search posts..." : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates") || "Search Templates...") : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full flex-1 transition-all border border-transparent shadow-inner" />
                   {activeView !== 'COMM-LINK' && (
-                    <div className="w-[220px] shrink-0">
+                    <div className="min-w-[220px] w-fit max-w-[400px] shrink-0">
                       <CustomDropdown disableTint={true}
                         value={modCategory}
                         onChange={(v: any) => setModCategory(v[0])}
@@ -398,10 +431,21 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                               })) || [])
                             ];
                           } else if (activeView === 'LEXICONS') {
+                            const langs = Array.from(new Set(
+                              marketAssets.filter(a => a.asset_type === 'lexicon').map(a => {
+                                let lang = a.language;
+                                if (!lang && a.json_data) {
+                                  try {
+                                    const parsed = typeof a.json_data === 'string' ? JSON.parse(a.json_data) : a.json_data;
+                                    lang = parsed.language;
+                                  } catch (e) { }
+                                }
+                                return lang || "Custom";
+                              })
+                            ));
                             rawOpts = [
-                              { id: "ALL", label: t("filter_type"), icon: t("icon_folder") },
-                              { id: "Default", label: t("type_default"), icon: t("icon_inventory_2") },
-                              { id: "Theme", label: t("type_theme"), icon: t("icon_palette") }
+                              { id: "ALL", label: t("all_languages") || "Language", icon: t("icon_folder") },
+                              ...langs.map(l => ({ id: String(l), label: String(l), icon: t("icon_translate") || "translate" }))
                             ];
                           } else if (activeView === 'BLUEPRINTS') {
                             rawOpts = [{ id: "ALL", label: t("filter_all_versions"), icon: t("icon_folder") }];
@@ -437,11 +481,11 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                 {(activeView === 'MODS' || activeView === 'BLUEPRINTS') && (
                   <div className="flex items-center justify-end gap-2 w-full flex-wrap">
                     <button
-                      onClick={() => { 
+                      onClick={() => {
                         const newVal = !hidePaid;
-                        setHidePaid(newVal); 
+                        setHidePaid(newVal);
                         localStorage.setItem('sanctuary_hide_paid', String(newVal));
-                        setModPage(1); 
+                        setModPage(1);
                       }}
                       className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hidePaid ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
                     >
@@ -449,11 +493,11 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                       {t("filter_hide_paid") || "Hide Paid"}
                     </button>
                     <button
-                      onClick={() => { 
+                      onClick={() => {
                         const newVal = !hideEarlyAccess;
-                        setHideEarlyAccess(newVal); 
+                        setHideEarlyAccess(newVal);
                         localStorage.setItem('sanctuary_hide_ea', String(newVal));
-                        setModPage(1); 
+                        setModPage(1);
                       }}
                       className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideEarlyAccess ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
                     >
@@ -467,8 +511,8 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
 
             <div className="flex-1 overflow-y-auto custom-scrollbar content-start p-6 pb-32">
               {activeView === 'COMM-LINK' && <MasonProfileCommLink posts={posts} modSearch={modSearch} handlePostClick={handlePostClick} handleToggleLike={handleToggleLike} t={t} />}
-              {activeView === 'MODS' && <MasonProfileArtifacts filteredMods={filteredMods} onModClick={onModClick} mason={mason} activeGameSchema={activeGameSchema} t={t} />}
-              {['BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].includes(activeView) && <MasonProfileAssets activeView={activeView} marketAssets={marketAssets} modSearch={modSearch} modCategory={modCategory} hidePaid={hidePaid} hideEarlyAccess={hideEarlyAccess} mason={mason} setSelectedBlueprint={setSelectedBlueprint} setActiveAsset={setActiveAsset} isInstalled={isInstalled} isOutdated={isOutdated} importLexicon={importLexicon} importTheme={importTheme} vaultPath={vaultPath} exists={exists} importFs={importFs} setInstalledTemplates={setInstalledTemplates} getAssetDisplayVersion={getAssetDisplayVersion} useStore={useStore} t={t} />}
+              {activeView === 'MODS' && <MasonProfileArtifacts filteredMods={filteredMods} onModClick={onModClick} mason={mason} activeGameSchema={activeGameSchema} isOwner={isOwner} handlePin={handlePin} t={t} />}
+              {['BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].includes(activeView) && <MasonProfileAssets activeView={activeView} marketAssets={marketAssets} modSearch={modSearch} modCategory={modCategory} hidePaid={hidePaid} hideEarlyAccess={hideEarlyAccess} mason={mason} setSelectedBlueprint={setSelectedBlueprint} setActiveAsset={setActiveAsset} isInstalled={isInstalled} isOutdated={isOutdated} importLexicon={importLexicon} importTheme={importTheme} vaultPath={vaultPath} exists={exists} importFs={importFs} setInstalledTemplates={setInstalledTemplates} getAssetDisplayVersion={getAssetDisplayVersion} useStore={useStore} isOwner={isOwner} handlePin={handlePin} t={t} />}
             </div>
           </div>
         )}
@@ -498,6 +542,8 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
           onClose={() => setActiveAsset(null)}
         />
       )}
+
+      <SidePanelMasonPin isOpen={isPinPanelOpen} onClose={() => setIsPinPanelOpen(false)} mason={mason} mods={mods} marketAssets={marketAssets} handlePin={handlePin} activeGameSchema={activeGameSchema} t={t} />
     </div>
   );
 }

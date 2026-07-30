@@ -122,9 +122,9 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
   return createPortal(
     <>
       <div className="fixed top-[50px] bottom-[40px] left-0 right-0 z-[52000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" onClick={onClose} />
-      <div className="fixed top-[50px] right-0 bottom-[40px] w-full max-w-xl theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[52001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] rounded-tl-[3rem] rounded-bl-[3rem]">
-        <button onClick={onClose} className="absolute top-8 right-8 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-          <span className="material-symbols-outlined !text-[24px]">{t("icon_close")}</span>
+      <div className="fixed top-[50px] right-0 bottom-[40px] w-full max-w-xl theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[52001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none">
+        <button onClick={onClose} className="group absolute top-8 right-8 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
+          <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
         </button>
 
         {loading ? (
@@ -139,50 +139,74 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
         ) : data ? (
           <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
             <>
-              <div className="h-48 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-[var(--accent)]/5 blur-[50px] pointer-events-none rounded-full transform scale-150"></div>
-                <div className="w-24 h-24 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center relative z-10">
-                  <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '48px' }}>
-                    {assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}
-                  </span>
-                </div>
-                <div className="absolute bottom-4 left-4 z-30 flex items-center gap-2 pointer-events-auto">
-                  {data.is_early_access && (
-                    <div className="backdrop-blur-md bg-purple-500/10 border border-purple-500/30 px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2">
-                      <span className="material-symbols-outlined !text-[12px] text-purple-500">science</span>
-                      <span className="text-[8px] font-black uppercase tracking-widest text-purple-500">{t("badge_early_access") || "Early Access"}</span>
+              <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pt-6 pb-2 px-10">
+                <div className="absolute inset-0 bg-[var(--accent)]/5 blur-[50px] pointer-events-none rounded-full transform scale-150 -translate-y-1/2"></div>
+                <div className="flex items-start gap-6 relative z-10 w-full pr-12">
+                  <div className="w-20 h-20 shrink-0 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '40px' }}>
+                      {assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1 pt-1">
+                    <div className="flex justify-between items-start gap-4">
+                      <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate leading-tight pb-1">
+                        {(data.displayName || (data.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "")}
+                      </h3>
+                      {(data.is_paid || data.is_early_access) && (
+                        <div className="flex gap-2 shrink-0 flex-col items-end">
+                          {data.is_early_access && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-md shadow-lg">
+                              <span className="material-symbols-outlined !text-[12px] text-[#d8b4fe]">science</span>
+                              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access") || "Early Access"}</span>
+                            </div>
+                          )}
+                          {data.is_paid && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-md shadow-lg">
+                              <span className="material-symbols-outlined !text-[12px] text-[#fef08a]">monetization_on</span>
+                              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#fef08a]">{t("badge_paid") || "Paid"}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {data.is_paid && (
-                    <div className="backdrop-blur-md bg-yellow-500/10 border border-yellow-500/30 px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2">
-                      <span className="material-symbols-outlined !text-[12px] text-yellow-500">monetization_on</span>
-                      <span className="text-[8px] font-black uppercase tracking-widest text-yellow-500">{t("badge_paid") || "Paid"}</span>
+                    <div className="flex flex-wrap items-center gap-6 mt-4">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1">{t("update_version") || "VERSION"}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--text)] opacity-50">commit</span>
+                          <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest">
+                            {(() => {
+                              let versionText = data.version_label || data.version || t("vlocal") || "V.LOCAL";
+                              if (assetType === 'workbench_template' && data.json_data) {
+                                const parsedRaw = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
+                                const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
+                                if (parsed && parsed.template_version) {
+                                  versionText = `v${parsed.template_version}`;
+                                }
+                              }
+                              return versionText;
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-[1px] h-6 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent hidden sm:block"></div>
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1">{t("blueprint_author_label") || "AUTHOR"}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--text)] opacity-50">person</span>
+                          <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest">{data.author || data.master_author || t("vlocal") || "UNKNOWN"}</span>
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
-
-              <div className="px-10 pt-8 pb-4 relative shrink-0">
-                <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate">
-                  {(data.displayName || (data.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "")}
-                </h3>
-                <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-2">
-                  {(() => {
-                    let versionText = data.version_label || data.version || t("vlocal") || "V.LOCAL";
-                    if (assetType === 'workbench_template' && data.json_data) {
-                      const parsedRaw = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
-                      const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
-                      if (parsed && parsed.template_version) {
-                        versionText = `v${parsed.template_version}`;
-                      }
-                    }
-                    return versionText;
-                  })()} &bull; {data.author || data.master_author || t("vlocal") || "UNKNOWN"}
-                </p>
-              </div>
-              <div className="p-10 flex flex-col gap-6 shrink-0 relative z-10">
-                <div className="text-sm text-[var(--text)] leading-relaxed font-medium theme-glass-inner p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                  {data.description ? stripMarkdown(data.description) : t("no_desc_sub")}
+              <div className="px-10 py-6 flex flex-col gap-8 shrink-0 relative z-10">
+                <div className="flex flex-col gap-4">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("upload_desc") || "DESCRIPTION"}</h4>
+                  <div className="text-sm text-[var(--text)] leading-relaxed font-medium theme-glass-inner p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
+                    {data.description ? stripMarkdown(data.description) : t("no_desc_sub")}
+                  </div>
                 </div>
 
                 {assetType === 'workbench_template' && data.json_data && (() => {

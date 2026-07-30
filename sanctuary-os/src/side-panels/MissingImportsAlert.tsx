@@ -41,12 +41,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
     });
 
     const hashesToFetch = nextMods.filter((m: any) => m.hash && typeof m.is_paid === 'undefined').map((m: any) => m.hash);
-    if (hashesToFetch.length === 0) {
-      if (updated) setMissingImportMods(nextMods);
-      setHasFetchedHashes(true);
-      return;
-    }
-
+    
     const fetchMetadata = async () => {
       try {
         if (hashesToFetch.length > 0) {
@@ -56,8 +51,9 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
           } else if (data && data.length > 0) {
             data.forEach((dbMod: any) => {
                const targetIdx = nextMods.findIndex((m: any) => m.hash === dbMod.dna_hash);
-               if (targetIdx >= 0 && typeof nextMods[targetIdx].is_paid === 'undefined' && dbMod.mods) {
-                  nextMods[targetIdx] = { ...nextMods[targetIdx], is_paid: dbMod.mods.is_paid, is_early_access: dbMod.mods.is_early_access };
+               const modRef = Array.isArray(dbMod.mods) ? dbMod.mods[0] : dbMod.mods;
+               if (targetIdx >= 0 && typeof nextMods[targetIdx].is_paid === 'undefined' && modRef) {
+                  nextMods[targetIdx] = { ...nextMods[targetIdx], is_paid: modRef.is_paid, is_early_access: modRef.is_early_access };
                   updated = true;
                }
             });
@@ -65,25 +61,30 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
         }
 
         // Secondary Global Fuzzy Search for unresolved items
-        const unresolved = nextMods.filter((m: any) => typeof m.is_paid === 'undefined' && m.name);
+        const unresolved = nextMods.filter((m: any) => typeof m.is_paid === 'undefined' && (m.name || typeof m === 'string'));
         for (const uMod of unresolved) {
-            const baseQuery = uMod.name.replace(/^[^a-zA-Z0-9]+/, '').substring(0, 15);
+            const uName = typeof uMod === 'string' ? uMod : uMod.name;
+            const baseQuery = uName.replace(/^[^a-zA-Z0-9]+/, '').substring(0, 15);
             if (baseQuery.length > 5) {
                 const { data, error } = await supabase.from('mods').select('id, name, is_paid, is_early_access, mod_versions(dna_hash)').ilike('name', `%${baseQuery}%`).limit(10);
                 if (!error && data && data.length > 0) {
                     const cleanMissingName = cleanSearchName(uMod.name, schema);
                     let dbMatch = data.find((dm: any) => cleanSearchName(dm.name || '', schema) === cleanMissingName);
                     if (!dbMatch) {
+                        const superCleanTarget = cleanMissingName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
                         dbMatch = data.find((dm: any) => {
                             const cleanL = cleanSearchName(dm.name || '', schema);
-                            return cleanL.length > 10 && (cleanL.includes(cleanMissingName) || cleanMissingName.includes(cleanL));
+                            const superCleanL = cleanL.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                            return superCleanL.length > 10 && (superCleanL.includes(superCleanTarget) || superCleanTarget.includes(superCleanL));
                         });
                     }
                     if (dbMatch) {
-                        const targetIdx = nextMods.findIndex((m: any) => m.name === uMod.name);
+                        const targetIdx = nextMods.findIndex((m: any) => (typeof m === 'string' ? m : m.name) === uName);
                         if (targetIdx >= 0) {
                             const foundHash = (dbMatch.mod_versions && dbMatch.mod_versions.length > 0) ? dbMatch.mod_versions[0].dna_hash : undefined;
-                            nextMods[targetIdx] = { ...nextMods[targetIdx], hash: foundHash || nextMods[targetIdx].hash, is_paid: dbMatch.is_paid, is_early_access: dbMatch.is_early_access };
+                            const currentMod = nextMods[targetIdx];
+                            const baseMod = typeof currentMod === 'string' ? { name: currentMod, hash: foundHash } : currentMod;
+                            nextMods[targetIdx] = { ...baseMod, hash: foundHash || baseMod.hash, is_paid: dbMatch.is_paid, is_early_access: dbMatch.is_early_access };
                             updated = true;
                         }
                     }
@@ -94,13 +95,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
         console.error("Fetch metadata error:", err);
       } finally {
         if (updated) {
-          const standardLeft = nextMods.filter((m: any) => !m.is_paid && !m.is_early_access);
-          if (standardLeft.length === 0) {
-            finalizeImport(pendingImportSet);
-            setMissingImportMods(null);
-          } else {
-            setMissingImportMods(nextMods);
-          }
+          setMissingImportMods(nextMods);
         }
         setHasFetchedHashes(true);
       }

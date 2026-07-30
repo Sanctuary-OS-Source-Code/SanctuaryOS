@@ -1,4 +1,53 @@
 **Date: July 29, 2026**
+**Version: 0.4.88**
+
+## **UI/UX Polish & System Stability**
+
+### Updates Panel & Synchronization
+- **Updates Panel Deduplication**: Fixed an issue where multi-file mods (like UI Cheats with both `.package` and `.ts4script` files) would show up as duplicates in the active updates list. The deduplication engine now correctly groups updates by their `displayName`.
+- **Phantom Update Flashing**: Resolved a race condition where the Updates panel would briefly flash and then clear itself. The network sync engine was previously scanning script files (which lack readable version data) and falsely flagging them as outdated due to hash mismatches. The system now strictly prioritizes parsing `.package` files when verifying version strings against the cloud, eliminating false positives.
+
+### Core Systems & Interception
+- **Download Interception Restored**: Fixed a regression caused by the recent drag-and-drop refactor where the frontend failed to boot the Rust file watcher. The `start_downloads_watch` command and `download_intercepted` event listeners have been fully restored, meaning `.zip` and `.package` downloads are once again automatically intercepted and routed to the Vault.
+- **DNA Match Success State**: Polished the DNA Match modal to display a clear "Artifacts Imported Successfully" success state upon resolving conflicts, rather than abruptly disappearing.
+- **DNA Match Contrast**: Fixed severe contrast issues on the DNA Match "SKIP" and "KEEP ALL OLD" buttons. Replaced the heavy black backgrounds with standard translucent frosted glass (`bg-white/10`) and subtle borders, ensuring they remain highly legible against the dark modal backdrop while retaining their danger-red hover states.
+
+### Lexicon & Aesthetic Polish
+- **Showcase Card Refinements**: Repositioned the `EARLY ACCESS` and `PAID` badges on the Artifact and Asset Showcase cards to strictly align with the global bottom-right standard. Relocated the `PINNED` badge to sit neatly inline with the Creator's name, eliminating crowding near the `VIEW` hover text.
+- **Glassmorphism Alignment**: Applied standard dark glassmorphism classes to the main UI buttons across Nexus, Blueprints, and other side panels, replacing solid dark backgrounds with immersive translucent blurs and subtle borders.
+- **Mod Dossier Layout**: Tightened up the grid spacing between the two primary 4-block data rows in the Mod Dossier to reduce vertical bloat and create a more cohesive reading experience.
+- **Verified Badge Positioning**: Standardized the `VERIFIED` badge placement to consistently pin to the top-left corner of the thumbnail image across all artifact mini-cards.
+- **Blueprint Sanitize**: Fixed an issue where clicking the blueprint sanitize button would clear the UI without actually opening the panel.
+- **Browser Side Panel**: Adjusted the backdrop blur on the Browser Side Panel to be slightly lighter, harmonizing it with the rest of the application's glassmorphic design language.
+- **Sidebar Spacing**: Corrected a minor layout spacing issue with the search bar inside the tool sidebar.
+
+## **Feature Additions**
+- **Mason Profile Pinning**: Completely overhauled the profile showcase system. Previously, the profile simply displayed the creator's most recent mod and asset. We've introduced a true manual pinning system with a dedicated "Pin to Showcase" Side Panel, allowing creators to explicitly feature specific Artifacts and Assets directly on their public Mason Profile. Users can pin multiple items sequentially without the panel auto-closing.
+- **Blueprint Category Filtering**: Added a new tab filter to the Nexus Blueprint Import panel, allowing users to quickly drill down and isolate specific artifact classes (e.g., Collections vs. Traits) when importing massive blueprints.
+- **Seamless Blueprint Editing**: Re-routed the "Edit" button on local Blueprints to correctly invoke the native Blueprint Edit panel rather than accidentally triggering the Chameleon theme editor.
+- **Blueprint Uplink Panel**: Introduced a new dedicated Blueprint Uplink panel that displays all blueprint codes actively assigned to or created by you.
+- **Settings File Support**: The DNA Match Panel now officially recognizes and explicitly displays Settings Conflicts (e.g. `settings` files) as a dedicated group when processing incoming matches.
+
+### Core Systems & Database
+- **Database Schema Updates**: Expanded the `masons` Supabase schema to include a `pinned_ccset_id` column, ensuring Collections and specific Creator Sets can now be permanently pinned alongside individual mods.
+
+### Master Cache SQLite Migration
+- **Backend Memory Overhaul**: Migrated the legacy JSON-based Master Cache to an embedded SQLite database engine (`.sanctuary_cache.db`).
+- **Differential Write Pipeline**: Reworked cache persistence to calculate deltas and apply only changed records, wrapping batched `INSERT` and `DELETE` operations inside SQLite transactions. This avoids rewriting the entire master cache, reduces SSD churn, and greatly improves I/O performance on massive load orders.
+- **Frontend Projection Cache**: Retained lightweight JSON cache files such as `.sanctuary_master_cache.json` for React/UI hydration, while SQLite now acts as the backend source of truth.
+
+### Blueprint Infrastructure
+- **Algorithmic Import Optimizations**: Rewrote the cross-referencing algorithms for both local Blueprint importing and Nexus Cloud Syncs. The system now utilizes heavily memoized HashMaps instead of naive nested iterations, transforming O(N*M) bottlenecks into O(N+M) lookups. This drops processing times on massive loadouts from several seconds of UI freezing down to milliseconds.
+- **Nexus Local/All Mod Filters**: Added a new tab filter to the Nexus Blueprint viewer to easily toggle between viewing all mods in a Blueprint and only the mods you currently have installed locally.
+
+### Minor Improvements & Cleanup
+- **Architect Scout Queue**: Refactored the internal hardcoded threshold for `min_scout_submissions` to properly read and react to the `activeGameSchema`, allowing dynamic settings per workspace.
+- **Codebase Sanitization**: Completely purged the legacy unused `explicit_local_types` logic from the `schema.rs` taxonomy and the backend game logic.
+- **UI Consistency**: Fixed casing inconsistencies across the Nexus filtering dropdowns, forcing them to ALL CAPS to seamlessly align with the global Sanctuary OS design language.
+
+---
+
+**Date: July 29, 2026**
 **Version: 0.4.87**
 
 ## **Blueprint Infrastructure & UI Harmonization**

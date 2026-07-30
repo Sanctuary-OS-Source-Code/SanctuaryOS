@@ -45,21 +45,37 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
          }
       }
 
+      let successCount = 0;
+      let lastError = "";
+
+      let dnaMatchCount = 0;
       for (let i = 0; i < paths.length; i++) {
         setIngestProgress({ active: true, current: i + 1, total: paths.length });
         try {
           await invoke("ingest_dropped_file", { path: paths[i], forceReplace: false, targetFolder: groupFolder });
           needsSweep = true;
+          successCount++;
         } catch (err) {
-          if (err === "DNA_MATCH") {
+          if (err === "DNA_MATCH" || err === "SETTINGS_CONFLICT" || err === "ZIP_DNA_MATCH") {
+            dnaMatchCount++;
           } else if (err === "MALWARE") {
             hasMalware = true;
           } else {
-            setStatus(`${t("status_link_failed")}${err}`);
+            lastError = String(err);
           }
         }
       }
-      setStatus(t("status_ingest_success"));
+      
+      if (successCount > 0) {
+        setStatus(t("status_ingest_success"));
+      } else if (lastError) {
+        setStatus(`${t("status_link_failed")}${lastError}`);
+      } else if (dnaMatchCount > 0) {
+        setStatus(""); 
+      } else {
+        setStatus("No files were ingested."); 
+      }
+
       if (needsSweep) {
         runRadarSweep(true, true); 
       }

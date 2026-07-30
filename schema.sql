@@ -20,7 +20,11 @@ CREATE TABLE masons (
     website_url TEXT, 
     discord_url TEXT,
     compliance_tier INTEGER DEFAULT 0,
-    is_verified BOOLEAN DEFAULT false
+    is_verified BOOLEAN DEFAULT false,
+    pinned_mod_id UUID REFERENCES mods(id) ON DELETE SET NULL,
+    pinned_asset_id UUID,
+    pinned_blueprint_id INTEGER,
+    pinned_ccset_id TEXT
 );
   
 CREATE TABLE mason_followers (
@@ -435,3 +439,68 @@ CREATE TABLE homestead_workbench_templates (
     schema_data JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- ==========================================
+-- 10. SECURE CROSS-DATABASE AUTHENTICATION (OS -> GAME)
+-- ==========================================
+-- Enable HTTP extension to securely verify OS tokens
+CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
+
+-- Securely handle Follow/Unfollow by verifying OS Token via HTTP 
+-- bypassing Game RLS while strictly maintaining identity
+CREATE OR REPLACE FUNCTION secure_toggle_mason_follow(p_token text, p_mason_id uuid, p_action text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id uuid;
+  v_response http_response;
+  v_request http_request;
+  v_headers http_header[];
+BEGIN
+  -- Build headers for the Auth request
+  v_headers := ARRAY[
+    http_header('Authorization', 'Bearer ' || p_token),
+    http_header('apikey', 'sb_publishable_UfZsGP0-5CvUlFOXpLJXaw_eCqQoKaC')
+  ];
+
+  -- Create the HTTP request to Sanctuary OS
+  v_request := ROW(
+    'GET',
+    'https://tpsbtaqxlczrysqqmanp.supabase.co/auth/v1/user',
+    v_headers,
+    NULL,
+    NULL
+  )::http_request;
+
+  -- Verify the token with the OS Database
+  v_response := http(v_request);
+
+  IF v_response.status != 200 THEN
+    RAISE EXCEPTION 'Unauthorized: Invalid OS Token';
+  END IF;
+
+  -- Extract user_id from the JSON response
+  v_user_id := (v_response.content::json->>'id')::uuid;
+
+  -- Ensure profile exists in Game DB
+  INSERT INTO profiles (id, username) 
+  VALUES (v_user_id, 'Citizen_' || left(v_user_id::text, 6)) 
+  ON CONFLICT DO NOTHING;
+  
+  -- Handle Follow / Unfollow
+  IF p_action = 'follow' THEN
+    INSERT INTO mason_followers (user_id, mason_id) 
+    VALUES (v_user_id, p_mason_id) 
+    ON CONFLICT DO NOTHING;
+    RETURN true;
+  ELSIF p_action = 'unfollow' THEN
+    DELETE FROM mason_followers 
+    WHERE user_id = v_user_id AND mason_id = p_mason_id;
+    RETURN false;
+  ELSE
+    RAISE EXCEPTION 'Invalid action';
+  END IF;
+END;
+$$;

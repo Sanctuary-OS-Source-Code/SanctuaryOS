@@ -38,7 +38,7 @@ machine-uid = "0.6.0"
 walkdir = "2.5.0"
 chrono = "0.4.45"
 sysinfo = "0.39.5"
-
+rusqlite = { version = "0.31", features = ["bundled"] }
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_System_ProcessStatus", "Win32_System_Threading"] }
 

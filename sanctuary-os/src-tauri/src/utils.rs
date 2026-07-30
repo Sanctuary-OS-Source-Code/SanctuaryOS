@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use rusqlite::{params, Connection, OptionalExtension};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -83,26 +84,123 @@ pub fn get_vault_mods_lane(vault_path: &str) -> PathBuf {
 }
 
 pub fn get_cache_path(vault_path: &str) -> PathBuf {
-    Path::new(vault_path).join(".sanctuary_cache.json")
+    Path::new(vault_path).join(".sanctuary_cache.db")
+}
+
+pub fn get_db_conn(vault_path: &str) -> Connection {
+    let path = get_cache_path(vault_path);
+    let conn = Connection::open(&path).unwrap_or_else(|_| Connection::open_in_memory().unwrap());
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS cache (
+            path TEXT PRIMARY KEY,
+            mtime INTEGER NOT NULL,
+            dna_hash TEXT NOT NULL,
+            explicitly_local INTEGER NOT NULL,
+            quarantined INTEGER NOT NULL,
+            heuristic_malware_sig TEXT,
+            heuristic_sigs_mtime INTEGER NOT NULL
+        )",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_cache_hash ON cache (dna_hash)",
+        [],
+    );
+    conn
 }
 
 pub fn load_cache(vault_path: &str) -> BunkerCache {
-    let path = get_cache_path(vault_path);
-    if let Ok(file) = std::fs::File::open(&path) {
-        let reader = BufReader::new(file);
-        if let Ok(cache) = serde_json::from_reader(reader) {
-            return cache;
+    let conn = get_db_conn(vault_path);
+    let mut stmt = conn.prepare("SELECT path, mtime, dna_hash, explicitly_local, quarantined, heuristic_malware_sig, heuristic_sigs_mtime FROM cache").unwrap_or_else(|_| panic!("Failed to prepare select statement"));
+    let cache_iter = stmt.query_map([], |row| {
+        let path: String = row.get(0)?;
+        let mtime: u64 = row.get(1)?;
+        let dna_hash: String = row.get(2)?;
+        let explicitly_local_int: i32 = row.get(3)?;
+        let quarantined_int: i32 = row.get(4)?;
+        let heuristic_malware_sig: Option<String> = row.get(5)?;
+        let heuristic_sigs_mtime: u64 = row.get(6)?;
+        Ok((path, CacheEntry {
+            mtime,
+            dna_hash,
+            explicitly_local: explicitly_local_int != 0,
+            quarantined: quarantined_int != 0,
+            heuristic_malware_sig,
+            heuristic_sigs_mtime,
+        }))
+    }).unwrap();
+
+    let mut cache = HashMap::new();
+    for entry in cache_iter {
+        if let Ok((path, e)) = entry {
+            cache.insert(path, e);
         }
     }
-    HashMap::new()
+    cache
+}
+
+pub fn upsert_cache_entry(conn: &Connection, path: &str, entry: &CacheEntry) {
+    let explicitly_local_int = if entry.explicitly_local { 1 } else { 0 };
+    let quarantined_int = if entry.quarantined { 1 } else { 0 };
+    let _ = conn.execute(
+        "INSERT INTO cache (path, mtime, dna_hash, explicitly_local, quarantined, heuristic_malware_sig, heuristic_sigs_mtime) 
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+         ON CONFLICT(path) DO UPDATE SET
+            mtime=excluded.mtime,
+            dna_hash=excluded.dna_hash,
+            explicitly_local=excluded.explicitly_local,
+            quarantined=excluded.quarantined,
+            heuristic_malware_sig=excluded.heuristic_malware_sig,
+            heuristic_sigs_mtime=excluded.heuristic_sigs_mtime",
+        params![
+            path,
+            entry.mtime,
+            entry.dna_hash,
+            explicitly_local_int,
+            quarantined_int,
+            entry.heuristic_malware_sig,
+            entry.heuristic_sigs_mtime
+        ]
+    );
+}
+
+pub fn remove_cache_entry(conn: &Connection, path: &str) {
+    let _ = conn.execute("DELETE FROM cache WHERE path = ?1", params![path]);
+}
+
+pub fn clear_cache_db(conn: &Connection) {
+    let _ = conn.execute("DELETE FROM cache", []);
 }
 
 pub fn save_cache(vault_path: &str, cache: &BunkerCache) {
-    let path = get_cache_path(vault_path);
-    if let Ok(file) = std::fs::File::create(&path) {
-        let writer = BufWriter::new(file);
-        let _ = serde_json::to_writer(writer, cache);
+    let mut conn = get_db_conn(vault_path);
+    let current_db_cache = load_cache(vault_path);
+    
+    let tx = conn.transaction().unwrap();
+    
+    for (path, entry) in cache {
+        let needs_update = if let Some(old_entry) = current_db_cache.get(path) {
+            old_entry.mtime != entry.mtime 
+            || old_entry.quarantined != entry.quarantined 
+            || old_entry.explicitly_local != entry.explicitly_local 
+            || old_entry.heuristic_sigs_mtime != entry.heuristic_sigs_mtime
+            || old_entry.dna_hash != entry.dna_hash
+        } else {
+            true
+        };
+        
+        if needs_update {
+            upsert_cache_entry(&tx, path, entry);
+        }
     }
+    
+    for path in current_db_cache.keys() {
+        if !cache.contains_key(path) {
+            remove_cache_entry(&tx, path);
+        }
+    }
+    
+    tx.commit().unwrap();
 }
 
 pub fn calculate_hash(path: &Path) -> Result<String, std::io::Error> {

@@ -134,7 +134,7 @@ export default function CommandCenter({
       dbId: m.dbId,
     }));
     return Object.values(rawUpdates.reduce((acc: any, update: any) => {
-      const key = update.dbId || update.name;
+      const key = update.dbId || update.displayName || update.name;
       if (!acc[key]) acc[key] = update;
       return acc;
     }, {}));
@@ -587,6 +587,8 @@ export default function CommandCenter({
                 </div>
               </button>
             )}
+
+
 
             <div className="relative group/supportdesk w-full">
               {!session && (

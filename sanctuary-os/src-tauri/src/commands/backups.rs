@@ -67,6 +67,29 @@ pub async fn sanitize_vault(vault_path: String, state: tauri::State<'_, AppState
         }
     }
 
+    fn sweep_empty_dirs(dir: &std::path::Path) -> std::io::Result<bool> {
+        let mut is_empty = true;
+        if dir.is_dir() {
+            for entry in std::fs::read_dir(dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    let child_empty = sweep_empty_dirs(&path)?;
+                    if child_empty {
+                        let _ = std::fs::remove_dir(&path);
+                    } else {
+                        is_empty = false;
+                    }
+                } else {
+                    is_empty = false;
+                }
+            }
+        }
+        Ok(is_empty)
+    }
+
+    let _ = sweep_empty_dirs(&mods_lane);
+    
     Ok(moved.to_string())
 }
 

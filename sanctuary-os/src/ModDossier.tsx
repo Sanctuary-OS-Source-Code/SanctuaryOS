@@ -463,239 +463,235 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
           <div className="p-10 pt-14 flex flex-col gap-10 pb-32">
 
-            <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[120px] gap-4 mb-4 relative z-20">
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[120px] gap-4 relative z-20">
 
-              <div className={`col-span-2 flex flex-col p-6 theme-glass-panel backdrop-blur-3xl rounded-[var(--radius)] border transition-all hover:scale-[1.01] shadow-2xl relative overflow-hidden group ${
-                (() => {
+                <div className={`col-span-2 flex flex-col p-6 theme-glass-panel backdrop-blur-3xl rounded-[var(--radius)] border transition-all hover:scale-[1.01] shadow-2xl relative overflow-hidden group ${(() => {
                   const s = (mod.status || "").toLowerCase();
                   if (s === 'verified') return "border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--success-rgb),0.1)]";
                   if (s === 'unverified') return "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--danger-rgb),0.1)]";
                   if (s === 'broken') return "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--warning-rgb),0.1)]";
                   return "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--accent-rgb),0.1)]";
                 })()
-              }`}>
-                {/* Tech Background Effects */}
-                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" style={{ backgroundSize: '20px' }}></div>
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,currentColor_2%,transparent)] to-transparent opacity-50 pointer-events-none scanlines"></div>
+                  }`}>
+                  {/* Tech Background Effects */}
+                  <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" style={{ backgroundSize: '20px' }}></div>
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,currentColor_2%,transparent)] to-transparent opacity-50 pointer-events-none scanlines"></div>
 
-                <div className="flex h-full w-full relative z-10 gap-6 items-center">
-                  
-                  {/* Status Ring / Icon Area */}
-                  <div className="relative shrink-0 flex items-center justify-center w-28 h-28">
-                    {/* Animated Outer Ring */}
-                    <svg className="absolute inset-0 w-full h-full animate-[spin_10s_linear_infinite]" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="10 5" className="opacity-20" />
-                      <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="3 8" className="opacity-40" />
-                    </svg>
-                    
-                    {/* Inner Glowing Orb */}
-                    <div className={`absolute w-16 h-16 rounded-full blur-xl opacity-30 animate-pulse ${
-                      (() => {
+                  <div className="flex h-full w-full relative z-10 gap-6 items-center">
+
+                    {/* Status Ring / Icon Area */}
+                    <div className="relative shrink-0 flex items-center justify-center w-28 h-28">
+                      {/* Animated Outer Ring */}
+                      <svg className="absolute inset-0 w-full h-full animate-[spin_10s_linear_infinite]" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="10 5" className="opacity-20" />
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="3 8" className="opacity-40" />
+                      </svg>
+
+                      {/* Inner Glowing Orb */}
+                      <div className={`absolute w-16 h-16 rounded-full blur-xl opacity-30 animate-pulse ${(() => {
                         const s = (mod.status || "").toLowerCase();
                         if (s === 'verified') return "bg-[var(--success)]";
                         if (s === 'unverified') return "bg-[var(--danger)]";
                         if (s === 'broken') return "bg-[var(--warning)]";
                         return "bg-[var(--accent)]";
                       })()
-                    }`}></div>
-                    
-                    {/* Core Icon */}
-                    <div className={`relative z-10 w-16 h-16 rounded-full border border-white/10 flex items-center justify-center backdrop-blur-md shadow-inner ${
-                      (() => {
+                        }`}></div>
+
+                      {/* Core Icon */}
+                      <div className={`relative z-10 w-16 h-16 rounded-full border border-white/10 flex items-center justify-center backdrop-blur-md shadow-inner ${(() => {
                         const s = (mod.status || "").toLowerCase();
                         if (s === 'verified') return "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)]";
                         if (s === 'unverified') return "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]";
                         if (s === 'broken') return "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]";
                         return "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
                       })()
-                    }`}>
-                      <span className="material-symbols-outlined !text-3xl drop-shadow-md">
-                        {(() => {
-                          const s = (mod.status || "").toLowerCase();
-                          if (s === 'verified') return "verified_user";
-                          if (s === 'unverified') return "gpp_bad";
-                          if (s === 'broken') return "pest_control";
-                          return "hub";
-                        })()}
-                      </span>
+                        }`}>
+                        <span className="material-symbols-outlined !text-3xl drop-shadow-md">
+                          {(() => {
+                            const s = (mod.status || "").toLowerCase();
+                            if (s === 'verified') return "verified_user";
+                            if (s === 'unverified') return "gpp_bad";
+                            if (s === 'broken') return "pest_control";
+                            return "hub";
+                          })()}
+                        </span>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Text Details Area */}
-                  <div className="flex flex-col flex-1 h-full justify-center">
-                    <p className="text-[10px] font-mono text-[var(--text)] opacity-50 uppercase tracking-[0.3em] mb-1 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current opacity-70"></span>
-                      {t("system_status")}
-                    </p>
-                    
-                    <h3 className={`text-2xl lg:text-3xl font-black uppercase tracking-widest drop-shadow-md mb-1 ${
-                      (() => {
+                    {/* Text Details Area */}
+                    <div className="flex flex-col flex-1 h-full justify-center">
+                      <p className="text-[10px] font-mono text-[var(--text)] opacity-50 uppercase tracking-[0.3em] mb-1 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current opacity-70"></span>
+                        {t("system_status")}
+                      </p>
+
+                      <h3 className={`text-2xl lg:text-3xl font-black uppercase tracking-widest drop-shadow-md mb-1 ${(() => {
                         const s = (mod.status || "").toLowerCase();
                         if (s === 'verified') return "text-[var(--success)]";
                         if (s === 'unverified') return "text-[var(--danger)]";
                         if (s === 'broken') return "text-[var(--warning)]";
                         return "text-[var(--accent)]";
                       })()
-                    }`}>
-                      {(() => {
-                        const raw = (mod.status || "");
-                        const cleaned = raw.replace(/[\[\]]/g, "").toLowerCase();
-                        if (cleaned === 'broken') return t("status_broken");
-                        if (cleaned === 'verified') return t("verified");
-                        if (cleaned === 'unverified') return t("unverified");
-                        if (cleaned.includes('sandbox')) return t("filter_dev") || "SANDBOX";
-                        const translated = cleaned.includes('status_') ? t(cleaned) : cleaned.replace(/_/g, " ");
-                        return translated || t("unlinked_badge") || "LOCAL";
-                      })()}
-                    </h3>
+                        }`}>
+                        {(() => {
+                          const raw = (mod.status || "");
+                          const cleaned = raw.replace(/[\[\]]/g, "").toLowerCase();
+                          if (cleaned === 'broken') return t("status_broken");
+                          if (cleaned === 'verified') return t("verified");
+                          if (cleaned === 'unverified') return t("unverified");
+                          if (cleaned.includes('sandbox')) return t("filter_dev") || "SANDBOX";
+                          const translated = cleaned.includes('status_') ? t(cleaned) : cleaned.replace(/_/g, " ");
+                          return translated || t("unlinked_badge") || "LOCAL";
+                        })()}
+                      </h3>
 
-                    {mod.status_reason && (
-                      <div className="text-[10px] font-medium text-[var(--text)] opacity-70 leading-relaxed border-l-2 pl-2 border-current mt-2 line-clamp-2" title={mod.status_reason}>
-                        {mod.status_reason}
-                      </div>
-                    )}
+                      {mod.status_reason && (
+                        <div className="text-[10px] font-medium text-[var(--text)] opacity-70 leading-relaxed border-l-2 pl-2 border-current mt-2 line-clamp-2" title={mod.status_reason}>
+                          {mod.status_reason}
+                        </div>
+                      )}
 
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="col-span-2 md:col-span-2 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all hover:bg-white/5 hover:scale-[1.02] shadow-xl">
-                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("label_game_version")}</p>
-                {editMode ? (
-                  <div className="w-full scale-90 origin-top-left"><GameVersionMultiSelect selectedVersions={localCompatibleVersions || []} onChange={v => setLocalCompatibleVersions(v)} /></div>
-                ) : (
-                  <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full" title={familyVersion}>
-                    {familyVersion === "Unknown" || familyVersion === "ALL" || familyVersion === "" ? (t("any")) : familyVersion}
-                  </span>
-                )}
-              </div>
-
-              <div className="col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all hover:bg-white/5 hover:scale-[1.02] shadow-xl">
-                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("tab_compliance")}</p>
-                <div className="flex items-center gap-2 justify-start max-w-full">
-                  <span className={`text-xs font-black uppercase tracking-widest truncate ${mod.compliance_tier === 1 ? 'theme-text-warning' : 'text-[var(--text)] opacity-90'}`}>
-                    {mod.compliance_tier === 1 ? t("tier_nsfw") : (mod.compliance_tier === 2 ? t("tier_adult") : t("tier_clean"))}
-                  </span>
-                  {mod.compliance_tier === 1 && (
-                    <button onClick={async () => {
-                      if (!mod.dbId) return;
-                      const { error } = await supabase.from('mods').update({ compliance_tier: 0 }).eq('id', mod.dbId);
-                      if (!error) { useStore.getState().pushStatus(t("alert_compliance_cleared")); onClose(); }
-                    }} className="ml-1 w-6 h-6 flex items-center justify-center rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-50 hover:opacity-100"><span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span></button>
+                <div className="col-span-2 md:col-span-2 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all hover:bg-white/5 hover:scale-[1.02] shadow-xl">
+                  <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("label_game_version")}</p>
+                  {editMode ? (
+                    <div className="w-full scale-90 origin-top-left"><GameVersionMultiSelect selectedVersions={localCompatibleVersions || []} onChange={v => setLocalCompatibleVersions(v)} /></div>
+                  ) : (
+                    <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full" title={familyVersion}>
+                      {familyVersion === "Unknown" || familyVersion === "ALL" || familyVersion === "" ? (t("any")) : familyVersion}
+                    </span>
                   )}
                 </div>
-              </div>
 
-              <div className="col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all hover:bg-white/5 hover:scale-[1.02] shadow-xl">
-                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("label_mod_category")}</p>
-                {editMode && !isCollection && !mod.isFlavorFolder && !mod.isParent ? (
-                  <div className="w-full scale-90 origin-top-left">
-                    <CustomClassificationDropdown value={localCategory || "Script"} onChange={(val: string) => setLocalCategory(val)} />
+                <div className="col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all hover:bg-white/5 hover:scale-[1.02] shadow-xl">
+                  <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("tab_compliance")}</p>
+                  <div className="flex items-center gap-2 justify-start max-w-full">
+                    <span className={`text-xs font-black uppercase tracking-widest truncate ${mod.compliance_tier === 1 ? 'theme-text-warning' : 'text-[var(--text)] opacity-90'}`}>
+                      {mod.compliance_tier === 1 ? t("tier_nsfw") : (mod.compliance_tier === 2 ? t("tier_adult") : t("tier_clean"))}
+                    </span>
+                    {mod.compliance_tier === 1 && (
+                      <button onClick={async () => {
+                        if (!mod.dbId) return;
+                        const { error } = await supabase.from('mods').update({ compliance_tier: 0 }).eq('id', mod.dbId);
+                        if (!error) { useStore.getState().pushStatus(t("alert_compliance_cleared")); onClose(); }
+                      }} className="ml-1 w-6 h-6 flex items-center justify-center rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-50 hover:opacity-100"><span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span></button>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
-                    {isCollection ? t("collection") : mod.isFlavorFolder ? t("exclusive") : (mod.isParent ? t("folder") : (localCategory || t("uncategorized") || "UNCATEGORIZED"))}
-                  </span>
-                )}
-              </div>
+                </div>
 
-              <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border transition-all hover:scale-[1.02] shadow-xl ${
-                mod.is_early_access 
-                  ? 'border-[color-mix(in_srgb,#a855f7_30%,transparent)] bg-[color-mix(in_srgb,#a855f7_5%,transparent)]' 
+                <div className="col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all hover:bg-white/5 hover:scale-[1.02] shadow-xl">
+                  <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("label_mod_category")}</p>
+                  {editMode && !isCollection && !mod.isFlavorFolder && !mod.isParent ? (
+                    <div className="w-full scale-90 origin-top-left">
+                      <CustomClassificationDropdown value={localCategory || "Script"} onChange={(val: string) => setLocalCategory(val)} />
+                    </div>
+                  ) : (
+                    <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
+                      {isCollection ? t("collection") : mod.isFlavorFolder ? t("exclusive") : (mod.isParent ? t("folder") : (localCategory || t("uncategorized") || "UNCATEGORIZED"))}
+                    </span>
+                  )}
+                </div>
+
+                <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border transition-all hover:scale-[1.02] shadow-xl ${mod.is_early_access
+                  ? 'border-[color-mix(in_srgb,#a855f7_30%,transparent)] bg-[color-mix(in_srgb,#a855f7_5%,transparent)]'
                   : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5'
-              }`}>
-                <p className={`text-[9px] font-black opacity-80 uppercase tracking-[0.2em] mb-1 ${mod.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--subtext)]'}`}>
-                  {t("label_is_early_access") || "RELEASE TIER"}
-                </p>
-                <span className={`text-xs font-black uppercase tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--text)] opacity-90'}`}>
-                  <span className="material-symbols-outlined !text-[16px]">{mod.is_early_access ? 'science' : 'public'}</span>
-                  {mod.is_early_access ? (t("badge_early_access") || "EARLY ACCESS") : "STANDARD"}
-                </span>
-              </div>
+                  }`}>
+                  <p className={`text-[9px] font-black opacity-80 uppercase tracking-[0.2em] mb-1 ${mod.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--subtext)]'}`}>
+                    {t("label_is_early_access") || "RELEASE TIER"}
+                  </p>
+                  <span className={`text-xs font-black uppercase tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--text)] opacity-90'}`}>
+                    <span className="material-symbols-outlined !text-[16px]">{mod.is_early_access ? 'science' : 'public'}</span>
+                    {mod.is_early_access ? (t("badge_early_access") || "EARLY ACCESS") : "STANDARD"}
+                  </span>
+                </div>
 
-              <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border transition-all hover:scale-[1.02] shadow-xl ${
-                mod.is_paid 
-                  ? 'border-[color-mix(in_srgb,#eab308_30%,transparent)] bg-[color-mix(in_srgb,#eab308_5%,transparent)]' 
+                <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border transition-all hover:scale-[1.02] shadow-xl ${mod.is_paid
+                  ? 'border-[color-mix(in_srgb,#eab308_30%,transparent)] bg-[color-mix(in_srgb,#eab308_5%,transparent)]'
                   : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5'
-              }`}>
-                <p className={`text-[9px] font-black opacity-80 uppercase tracking-[0.2em] mb-1 ${mod.is_paid ? 'text-[#fef08a]' : 'text-[var(--subtext)]'}`}>
-                  {t("label_is_paid") || "LICENSE"}
-                </p>
-                <span className={`text-xs font-black uppercase tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_paid ? 'text-[#fef08a]' : 'text-[var(--text)] opacity-90'}`}>
-                  <span className="material-symbols-outlined !text-[16px]">{mod.is_paid ? 'monetization_on' : 'money_off'}</span>
-                  {mod.is_paid ? (t("badge_paid") || "PAID") : "FREE"}
-                </span>
-              </div>
-
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-8">
-
-              <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
-                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("mason")}</p>
-                {editMode ? (
-                  <input value={metaInputs.author} onChange={e => setMetaInputs.author(e.target.value)} className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-3 py-2 text-[var(--text)] placeholder:text-[var(--text)] placeholder:opacity-30 text-[11px] font-black focus:outline-none focus:border-[var(--accent)] text-left uppercase transition-all shadow-inner" placeholder={t("author_placeholder")} />
-                ) : (
-                  <button onClick={() => { if (mod.mason_id && onOpenMasonProfile) { onOpenMasonProfile(mod.mason_id); onClose(); } }} className="text-xs font-black text-[var(--text)] opacity-90 hover:theme-text-success transition-all uppercase tracking-widest truncate max-w-full">
-                    {mod.author || t("vlocal") || "UNKNOWN"}
-                  </button>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
-                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("revision")}</p>
-                {editMode ? (
-                  <input value={metaInputs.version || ""} onChange={e => setMetaInputs.version(e.target.value)} className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-3 py-2 text-[var(--text)] placeholder:text-[var(--text)] placeholder:opacity-30 text-[11px] font-black focus:outline-none focus:border-[var(--accent)] text-left uppercase transition-all shadow-inner" placeholder={t("vlocal")} />
-                ) : (
-                  <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
-                    {(() => {
-                      let v = mod.mod_versions?.[0]?.version_label || mod.version;
-                      if (!v && mod.isVirtual && mod.flavors) {
-                        const flavorV = mod.flavors.find((f: any) => f.mod_versions?.[0]?.version_label || f.version);
-                        if (flavorV) v = flavorV.mod_versions?.[0]?.version_label || flavorV.version;
-                      }
-                      return v || t("vlocal") || "V.LOCAL";
-                    })()}
+                  }`}>
+                  <p className={`text-[9px] font-black opacity-80 uppercase tracking-[0.2em] mb-1 ${mod.is_paid ? 'text-[#fef08a]' : 'text-[var(--subtext)]'}`}>
+                    {t("label_is_paid") || "LICENSE"}
+                  </p>
+                  <span className={`text-xs font-black uppercase tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_paid ? 'text-[#fef08a]' : 'text-[var(--text)] opacity-90'}`}>
+                    <span className="material-symbols-outlined !text-[16px]">{mod.is_paid ? 'monetization_on' : 'money_off'}</span>
+                    {mod.is_paid ? (t("badge_paid") || "PAID") : "FREE"}
                   </span>
-                )}
+                </div>
+
               </div>
 
-              <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
-                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("label_uploaded")}</p>
-                {editMode ? (
-                  <div className="w-full scale-90 origin-top-left"><CustomDatePicker value={localCreatedAt} onChange={setLocalCreatedAt} /></div>
-                ) : (
-                  <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
-                    {(() => {
-                      let dt = mod.created_at;
-                      if (!dt && mod.isVirtual && mod.flavors) {
-                        const dates = mod.flavors.map((f: any) => f.created_at).filter(Boolean).sort().reverse();
-                        if (dates.length > 0) dt = dates[0];
-                      }
-                      return dt ? new Date(dt).toLocaleDateString() : t("vlocal");
-                    })()}
-                  </span>
-                )}
-              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-8">
 
-              <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
-                <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("updated_date")}</p>
-                {editMode ? (
-                  <div className="w-full scale-90 origin-top-left"><CustomDatePicker value={localUpdatedAt} onChange={setLocalUpdatedAt} /></div>
-                ) : (
-                  <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
-                    {(() => {
-                      let dt = mod.updated_at;
-                      if (!dt && mod.isVirtual && mod.flavors) {
-                        const dates = mod.flavors.map((f: any) => f.updated_at).filter(Boolean).sort().reverse();
-                        if (dates.length > 0) dt = dates[0];
-                      }
-                      return dt ? new Date(dt).toLocaleDateString() : t("vlocal");
-                    })()}
-                  </span>
-                )}
-              </div>
+                <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
+                  <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("mason")}</p>
+                  {editMode ? (
+                    <input value={metaInputs.author} onChange={e => setMetaInputs.author(e.target.value)} className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-3 py-2 text-[var(--text)] placeholder:text-[var(--text)] placeholder:opacity-30 text-[11px] font-black focus:outline-none focus:border-[var(--accent)] text-left uppercase transition-all shadow-inner" placeholder={t("author_placeholder")} />
+                  ) : (
+                    <button onClick={() => { if (mod.mason_id && onOpenMasonProfile) { onOpenMasonProfile(mod.mason_id); onClose(); } }} className="text-xs font-black text-[var(--text)] opacity-90 hover:theme-text-success transition-all uppercase tracking-widest truncate max-w-full">
+                      {mod.author || t("vlocal") || "UNKNOWN"}
+                    </button>
+                  )}
+                </div>
 
+                <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
+                  <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("revision")}</p>
+                  {editMode ? (
+                    <input value={metaInputs.version || ""} onChange={e => setMetaInputs.version(e.target.value)} className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-3 py-2 text-[var(--text)] placeholder:text-[var(--text)] placeholder:opacity-30 text-[11px] font-black focus:outline-none focus:border-[var(--accent)] text-left uppercase transition-all shadow-inner" placeholder={t("vlocal")} />
+                  ) : (
+                    <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
+                      {(() => {
+                        let v = mod.mod_versions?.[0]?.version_label || mod.version;
+                        if (!v && mod.isVirtual && mod.flavors) {
+                          const flavorV = mod.flavors.find((f: any) => f.mod_versions?.[0]?.version_label || f.version);
+                          if (flavorV) v = flavorV.mod_versions?.[0]?.version_label || flavorV.version;
+                        }
+                        return v || t("vlocal") || "V.LOCAL";
+                      })()}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
+                  <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("label_uploaded")}</p>
+                  {editMode ? (
+                    <div className="w-full scale-90 origin-top-left"><CustomDatePicker value={localCreatedAt} onChange={setLocalCreatedAt} /></div>
+                  ) : (
+                    <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
+                      {(() => {
+                        let dt = mod.created_at;
+                        if (!dt && mod.isVirtual && mod.flavors) {
+                          const dates = mod.flavors.map((f: any) => f.created_at).filter(Boolean).sort().reverse();
+                          if (dates.length > 0) dt = dates[0];
+                        }
+                        return dt ? new Date(dt).toLocaleDateString() : t("vlocal");
+                      })()}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
+                  <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("updated_date")}</p>
+                  {editMode ? (
+                    <div className="w-full scale-90 origin-top-left"><CustomDatePicker value={localUpdatedAt} onChange={setLocalUpdatedAt} /></div>
+                  ) : (
+                    <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
+                      {(() => {
+                        let dt = mod.updated_at;
+                        if (!dt && mod.isVirtual && mod.flavors) {
+                          const dates = mod.flavors.map((f: any) => f.updated_at).filter(Boolean).sort().reverse();
+                          if (dates.length > 0) dt = dates[0];
+                        }
+                        return dt ? new Date(dt).toLocaleDateString() : t("vlocal");
+                      })()}
+                    </span>
+                  )}
+                </div>
+
+              </div>
             </div>
 
             {editMode && (
@@ -770,14 +766,12 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                           </span>
                           <div className="flex flex-wrap items-center gap-2 mt-1.5">
                             <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 shrink-0 bg-black/20 px-2 py-0.5 rounded-md">
-                              {kid.name?.includes('.') ? (
+                      {kid.name?.includes('.') ? (
                                 <>
                                   <span>{getFileLabel(kid.name, activeGameSchema)}</span>
-                                  <span className="opacity-50">•</span>
-                                  <span className="truncate max-w-[200px] normal-case tracking-normal">{(kid.name || '').split(/[/\\]/).pop()}</span>
                                 </>
                               ) : (
-                                <span>{(kid.type || kid.category_override || "MOD").toUpperCase()}</span>
+                                <span>{(kid.type || kid.category_override || t("label_artifact") || "MOD").toUpperCase()}</span>
                               )}
                               <span className="opacity-50">•</span>
                               <span className="truncate max-w-[140px] uppercase">{kid.mod_versions?.[0]?.version_label || kid.version || t("vlocal") || "V.LOCAL"}</span>
@@ -826,7 +820,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     {t("network_protocols")}
                   </h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-3">
                   {requirements.map((req: any, i: number) => {
                     const reqId = typeof req === 'string' ? req : req.id || req.dbId;
                     const reqUrl = typeof req === 'string' ? null : req.url;
@@ -835,7 +829,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     const searchUrl = reqUrl || `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanSearchName(displayName, activeGameSchema))}`;
                     return (
                       <div key={i} onClick={() => match ? setSelectedKid(match) : (setSideBrowserUrl(searchUrl), setIsSideBrowserOpen(true))} className={`group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl theme-glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/10 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] ${!match ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : ''}`}>
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
 
                           <span className={`text-sm font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm`}>{displayName}</span>
                         </div>
@@ -855,7 +849,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     const displayName = match ? (match.displayName || match.name) : (twin.displayName || twin.name);
                     return (
                       <div key={i} onClick={() => match && setSelectedKid(match)} className={`group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl theme-glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/10 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]`}>
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
 
                           <span className={`text-sm font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm`}>{displayName}</span>
                         </div>

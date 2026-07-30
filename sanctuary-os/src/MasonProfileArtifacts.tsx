@@ -1,6 +1,6 @@
 import { getModIcon } from './shared';
 
-export default function MasonProfileArtifacts({ filteredMods, onModClick, mason, activeGameSchema, t }: any) {
+export default function MasonProfileArtifacts({ filteredMods, onModClick, mason, activeGameSchema, isOwner, handlePin, t }: any) {
   return (
     <>
       {filteredMods.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("no_mods")}</div>}
@@ -31,9 +31,9 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                   </span>
                 </div>
               </div>
-              <div className="absolute top-4 right-4 flex gap-2 z-30">
-                <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                  {mod.category_override || "MOD"}
+              <div className="absolute top-4 right-4 flex flex-col items-end gap-2 z-30 pointer-events-auto">
+                <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest pointer-events-none">
+                  {mod.category_override || t("label_artifact") || "MOD"}
                 </span>
               </div>
               <div className="absolute bottom-3 right-3 flex items-center gap-2 z-30 pointer-events-auto">

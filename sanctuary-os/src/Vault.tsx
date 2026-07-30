@@ -427,7 +427,7 @@ const Vault = React.memo(function Vault(props: any) {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 pl-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-24 pl-2">
           {paginatedMods.length === 0 ? (
             <EmptyState icon="search_off" title={t("registry_no_mods")} subtitle={t("vault_no_results_sub")} className="col-span-full py-24" />
           ) : (
@@ -737,7 +737,7 @@ const Vault = React.memo(function Vault(props: any) {
                         <h3 className="text-xl font-black text-[var(--text)] uppercase">
                           {t("folder_prefix")}{" "}
                           <span className="theme-text-accent">
-                            {renderedMod.displayName}
+                            {formatDisplayName(renderedMod.displayName || renderedMod.name)}
                           </span>
                         </h3>
                         <button
@@ -745,9 +745,21 @@ const Vault = React.memo(function Vault(props: any) {
                             e.stopPropagation();
                             const flavorsToEquip = (renderedMod.flavors || []).filter((f: any) => {
                               if (activeSetMods.includes(f.name)) return false;
-                              let flavorDLC = f.requiredDLC || [];
-                              if (typeof flavorDLC === 'string') flavorDLC = flavorDLC.split(',').map((s: string) => s.trim()).filter(Boolean);
-                              const missingPacks = flavorDLC.filter((p: string) => !ownedDLC.includes(p) || maskedDLC.includes(p));
+                              let rawFlavorDLC: string[] = [];
+                              if (renderedMod.requiredDLC) {
+                                if (typeof renderedMod.requiredDLC === 'string') rawFlavorDLC.push(...renderedMod.requiredDLC.split(',').map((s: string) => s.trim()));
+                                else if (Array.isArray(renderedMod.requiredDLC)) rawFlavorDLC.push(...renderedMod.requiredDLC);
+                              }
+                              if (f.requiredDLC) {
+                                if (typeof f.requiredDLC === 'string') rawFlavorDLC.push(...f.requiredDLC.split(',').map((s: string) => s.trim()));
+                                else if (Array.isArray(f.requiredDLC)) rawFlavorDLC.push(...f.requiredDLC);
+                              }
+                              
+                              let flavorDLC = Array.from(new Set(rawFlavorDLC)).filter(Boolean);
+                              const missingPacks = flavorDLC.filter((p: string) => {
+                                const baseCode = p.split(' ')[0].toUpperCase();
+                                return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
+                              });
                               const hasMissingDeps = f.missingReqs && f.missingReqs.length > 0;
                               const isGameVersionMismatch = (f.compatible_versions && f.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(f.compatible_versions, selectedVersion)) || (renderedMod.compatible_versions && renderedMod.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(renderedMod.compatible_versions, selectedVersion));
                               return !(missingPacks.length > 0 || hasMissingDeps || f.isGhosted || isGameVersionMismatch);
@@ -820,8 +832,7 @@ const Vault = React.memo(function Vault(props: any) {
                                       activeSetMods.includes(f.name),
                                   )
                                   : [];
-                                drawerCasualties =
-                                  getDrawerDeepCasualties(rivals);
+                                drawerCasualties = getDrawerDeepCasualties(rivals);
                               } else {
                                 drawerCasualties = getDrawerDeepCasualties([
                                   flavor,
@@ -832,9 +843,22 @@ const Vault = React.memo(function Vault(props: any) {
                               if (anarchyRules?.intercept === false) {
                                 drawerCasualties = [];
                               }
-                              let flavorDLC = flavor.requiredDLC || [];
-                              if (typeof flavorDLC === 'string') flavorDLC = flavorDLC.split(',').map((s: string) => s.trim()).filter(Boolean);
-                              const missingPacks = flavorDLC.filter((p: string) => !ownedDLC.includes(p) || maskedDLC.includes(p));
+
+                              let rawFlavorDLC: string[] = [];
+                              if (renderedMod.requiredDLC) {
+                                if (typeof renderedMod.requiredDLC === 'string') rawFlavorDLC.push(...renderedMod.requiredDLC.split(',').map((s: string) => s.trim()));
+                                else if (Array.isArray(renderedMod.requiredDLC)) rawFlavorDLC.push(...renderedMod.requiredDLC);
+                              }
+                              if (flavor.requiredDLC) {
+                                if (typeof flavor.requiredDLC === 'string') rawFlavorDLC.push(...flavor.requiredDLC.split(',').map((s: string) => s.trim()));
+                                else if (Array.isArray(flavor.requiredDLC)) rawFlavorDLC.push(...flavor.requiredDLC);
+                              }
+                              
+                              let flavorDLC = Array.from(new Set(rawFlavorDLC)).filter(Boolean);
+                              const missingPacks = flavorDLC.filter((p: string) => {
+                                const baseCode = p.split(' ')[0].toUpperCase();
+                                return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
+                              });
                               const hasMissingDeps = flavor.missingReqs && flavor.missingReqs.length > 0;
 
                               const flavorVersionMismatch = (flavor.compatible_versions && flavor.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(flavor.compatible_versions, selectedVersion)) || (renderedMod.compatible_versions && renderedMod.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(renderedMod.compatible_versions, selectedVersion));
@@ -1080,7 +1104,7 @@ const Vault = React.memo(function Vault(props: any) {
           )}
         </div>
         {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-4 mb-12">
+          <div className="flex justify-center items-center gap-4 mt-4 mb-24">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}

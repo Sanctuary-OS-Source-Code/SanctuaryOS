@@ -29,7 +29,8 @@ pub fn mark_explicitly_local(vault_path: String, file_path: String) -> Result<()
     let mut cache = load_cache(&vault_path);
     if let Some(entry) = cache.get_mut(&file_path) {
         entry.explicitly_local = true;
-        save_cache(&vault_path, &cache);
+        let conn = get_db_conn(&vault_path);
+        upsert_cache_entry(&conn, &file_path, entry);
         Ok(())
     } else {
         Err("File not found in cache".to_string())

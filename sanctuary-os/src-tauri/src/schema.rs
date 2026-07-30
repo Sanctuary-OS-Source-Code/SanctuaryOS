@@ -63,6 +63,7 @@ pub struct SchemaPaths {
 pub struct SchemaExtensions {
     pub supported: Vec<String>,
     pub vault_visible: Option<Vec<String>>,
+    pub ignore_unidentified: Option<Vec<String>>,
     pub parsers: HashMap<String, String>,
     pub labels: HashMap<String, String>,
     pub cache_files: Option<Vec<String>>,
@@ -87,7 +88,6 @@ pub struct SchemaTaxonomy {
     pub harmless_types: Option<Vec<String>>,
     pub critical_types: Option<Vec<String>>,
     pub warning_types: Option<Vec<String>>,
-    pub explicit_local_types: Option<Vec<String>>,
     pub cas_part_type: Option<String>,
     pub obj_def_type: Option<String>,
 }

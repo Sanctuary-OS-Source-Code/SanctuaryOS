@@ -387,7 +387,7 @@ export function StatTile({ label, value, icon, color, onClick }: any) {
   );
 }
 
-export function SidebarActionButton({ id, icon, label, subtext, active, onClick, danger, success, customColorClass, className }: any) {
+export function SidebarActionButton({ id, icon, label, subtext, active, onClick, danger, success, customColorClass, className, iconClassName }: any) {
   const { t } = useLexicon();
   return (
     <button
@@ -409,7 +409,7 @@ export function SidebarActionButton({ id, icon, label, subtext, active, onClick,
               'from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent'
         }`} />
 
-      {icon && <span className={`material-symbols-outlined !text-[20px] shrink-0 relative z-10 transition-transform duration-300 group-hover:scale-110 ${active ? 'opacity-100 drop-shadow-md' : 'opacity-80'}`}>{icon}</span>}
+      {icon && <span className={`material-symbols-outlined !text-[20px] shrink-0 relative z-10 transition-transform duration-300 group-hover:scale-110 ${active ? 'opacity-100 drop-shadow-md' : 'opacity-80'} ${iconClassName || ''}`}>{icon}</span>}
       <div className="flex flex-col items-start gap-1 relative z-10 w-full pr-6 overflow-hidden">
         <span className="tracking-[0.15em] truncate w-full text-left pt-0.5">{label}</span>
         {subtext && <span className="text-[8px] font-bold opacity-60 normal-case tracking-normal whitespace-normal text-left leading-tight mt-0.5 w-full">{subtext}</span>}
@@ -477,7 +477,7 @@ export function FilterTabButton({ id, icon, label, activeTab, setTab, className 
   return (
     <button
       onClick={() => setTab(id)}
-      className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${isActive
+      className={`h-full flex-1 px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${isActive
         ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'
         } ${className}`}
     >
@@ -589,7 +589,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
   return (
     <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className}`}>
       <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full ${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} transition-all shadow-inner flex justify-between items-center text-sm font-bold focus:outline-none group relative z-[10] backdrop-blur-[3px] ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`}>
-        <span className="truncate pr-4 flex-1 text-left flex items-center h-full">{getSelectedLabel()}</span>
+        <span className="truncate pr-4 flex-1 text-left flex items-center h-full uppercase">{getSelectedLabel()}</span>
         <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)]'}`}><span className="material-symbols-outlined !text-[20px]">{isOpen ? 'expand_less' : 'expand_more'}</span></span>
       </button>
       {isOpen && createPortal(
@@ -1459,29 +1459,80 @@ export const enrichBlueprintsWithPremiumStatus = async (supabase: any, blueprint
      const promises = [];
      for (let i = 0; i < hashes.length; i += chunkSize) {
        promises.push(
-         supabase.from('mod_versions').select('dna_hash, mods(is_paid, is_early_access)').in('dna_hash', hashes.slice(i, i + chunkSize))
+         supabase.from('mod_versions').select('dna_hash, mods(id, is_paid, is_early_access)').in('dna_hash', hashes.slice(i, i + chunkSize))
        );
      }
      const results = await Promise.all(promises);
      const hashToPremium: Record<string, any> = {};
      results.forEach(({ data }) => {
        if (data) {
-         data.forEach((d: any) => {
-           if (d.mods && (d.mods.is_paid || d.mods.is_early_access)) {
-             hashToPremium[d.dna_hash] = { is_paid: d.mods.is_paid, is_early_access: d.mods.is_early_access };
-           }
-         });
+          data.forEach((d: any) => {
+            const modRef = Array.isArray(d.mods) ? d.mods[0] : d.mods;
+            if (modRef && (modRef.is_paid || modRef.is_early_access)) {
+              hashToPremium[d.dna_hash] = { is_paid: modRef.is_paid, is_early_access: modRef.is_early_access };
+            }
+          });
        }
      });
      
+     // Fetch all premium mods for a quick fuzzy search fallback
+     const { data: premiumMods } = await supabase.from('mods').select('id, name, is_paid, is_early_access').or('is_paid.eq.true,is_early_access.eq.true');
+     const premiumNameMap = new Map();
+     if (premiumMods) {
+        premiumMods.forEach((m: any) => {
+           if (m.name) premiumNameMap.set(cleanSearchName(m.name), m);
+        });
+     }
+
      blueprintsData.forEach((b: any) => {
         const artifacts = b.json_data?.artifacts || b.artifacts || [];
         let is_paid = false;
         let is_early_access = false;
-        artifacts.forEach((a: any) => {
-           if (a.hash && hashToPremium[a.hash]) {
-             if (hashToPremium[a.hash].is_paid) is_paid = true;
-             if (hashToPremium[a.hash].is_early_access) is_early_access = true;
+        artifacts.forEach((a: any, index: number) => {
+            const isStr = typeof a === 'string';
+            const aName = isStr ? a : a.name;
+            const aHash = isStr ? undefined : a.hash;
+
+            if (aHash && hashToPremium[aHash]) {
+              if (hashToPremium[aHash].is_paid) {
+                is_paid = true;
+                if (isStr) { artifacts[index] = { name: a, is_paid: true }; }
+                else { a.is_paid = true; }
+              }
+              if (hashToPremium[aHash].is_early_access) {
+                is_early_access = true;
+                if (isStr) { 
+                    if (typeof artifacts[index] === 'string') artifacts[index] = { name: a, is_early_access: true }; 
+                    else artifacts[index].is_early_access = true; 
+                } else { a.is_early_access = true; }
+              }
+            } else if (aName) {
+              const clean = cleanSearchName(aName);
+              let pMod = premiumNameMap.get(clean);
+              if (!pMod) {
+                 const superCleanTarget = clean.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                 for (const [pName, pObj] of premiumNameMap.entries()) {
+                    const superCleanP = pName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                    if (superCleanP.length > 10 && (superCleanTarget.includes(superCleanP) || superCleanP.includes(superCleanTarget))) {
+                       pMod = pObj;
+                       break;
+                    }
+                 }
+              }
+              if (pMod) {
+                 if (pMod.is_paid) {
+                    is_paid = true;
+                    if (isStr) { artifacts[index] = { name: a, is_paid: true }; }
+                    else { a.is_paid = true; }
+                 }
+                 if (pMod.is_early_access) {
+                    is_early_access = true;
+                    if (isStr) { 
+                        if (typeof artifacts[index] === 'string') artifacts[index] = { name: a, is_early_access: true }; 
+                        else artifacts[index].is_early_access = true; 
+                    } else { a.is_early_access = true; }
+                 }
+              }
            }
         });
         if (is_paid || is_early_access) {

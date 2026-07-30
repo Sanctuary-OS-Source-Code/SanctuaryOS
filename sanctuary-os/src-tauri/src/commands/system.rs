@@ -33,6 +33,16 @@ pub fn delete_local_file(path: String) -> Result<String, String> {
         } else {
             std::fs::remove_file(p).map_err(|e| e.to_string())?;
         }
+        
+        let mut current = p.parent().map(|d| d.to_path_buf());
+        while let Some(dir) = current {
+            if dir.file_name().and_then(|s| s.to_str()) == Some("Mods") { break; }
+            if std::fs::remove_dir(&dir).is_err() {
+                break;
+            }
+            current = dir.parent().map(|d| d.to_path_buf());
+        }
+        
         Ok("Deleted".into())
     } else {
         Err("File not found".into())

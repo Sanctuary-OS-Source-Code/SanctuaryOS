@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, isVersionMatch, SidePanel, SidebarActionButton, getExtensionRegex } from "./shared";
+import { ViewHeader, isVersionMatch, SidePanel, SidebarActionButton, getExtensionRegex, FilterTabs, FilterTabButton } from "./shared";
 import BlueprintMatrix from "./BlueprintMatrix";
 import BlueprintArchitect from "./BlueprintArchitect";
 import { GhostStringsModal } from "./side-panels/GhostStringsModal";
@@ -15,15 +16,53 @@ export default function Blueprints({
   const { t } = useLexicon();
   const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema } = useStore();
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
-  const [importStatus, setImportStatus] = useState<"idle" | "success" | "error" | "missing">("idle");
+  const [importStatus, setImportStatus] = useState<"idle" | "loading" | "success" | "error" | "missing">("idle");
+  const [isSyncing, setIsSyncing] = useState(false);
   const [ghostModalSet, setGhostModalSet] = useState<string | null>(null);
   const [ghostStrings, setGhostStrings] = useState<string[]>([]);
+  const [isCloudPanelOpen, setIsCloudPanelOpen] = useState(false);
+  const [myCloudBlueprints, setMyCloudBlueprints] = useState<any[]>([]);
+  const [cloudFilterTab, setCloudFilterTab] = useState<'all' | 'not_in_vault'>('all');
+
+  useEffect(() => {
+    if (isCloudPanelOpen) {
+      const session = useStore.getState().session;
+      if (session?.user?.id) {
+        supabase.from('masons')
+          .select('id')
+          .eq('profile_id', session.user.id)
+          .maybeSingle()
+          .then(({ data: masonData }) => {
+            if (masonData?.id) {
+              supabase.from('blueprints')
+                .select('name, code, created_at')
+                .eq('mason_id', masonData.id)
+                .order('created_at', { ascending: false })
+                .then(({ data }) => setMyCloudBlueprints(data || []));
+            } else {
+              setMyCloudBlueprints([]);
+            }
+          });
+      }
+    }
+  }, [isCloudPanelOpen]);
+
+  const handleSync = async () => {
+    if (syncCode && syncBlueprintByCode) {
+      setIsSyncing(true);
+      await syncBlueprintByCode(syncCode);
+      setIsSyncing(false);
+    }
+  };
 
   const handleImport = async () => {
+    setImportStatus("loading");
     const res = await importPlaySet();
     if (res) {
       setImportStatus(res);
       setTimeout(() => setImportStatus("idle"), 3000);
+    } else {
+      setImportStatus("idle");
     }
   };
 
@@ -179,6 +218,7 @@ export default function Blueprints({
   const [editingSetName, setEditingSetName] = useState<string | null>(null);
   const [newSetName, setNewSetName] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [cleanConfirm, setCleanConfirm] = useState<string | null>(null);
   const [isArchitectOpen, setIsArchitectOpen] = useState(false);
 
   const handleOpenMatrix = (setName: string) => {
@@ -361,13 +401,15 @@ export default function Blueprints({
                         setGhostStrings(missingStrings);
                         setGhostModalSet(set.name);
                       } else {
+                        setCleanConfirm(set.name);
+                        setTimeout(() => setCleanConfirm(null), 2000);
                         window.dispatchEvent(new CustomEvent('push-status', { detail: { message: t("status_blueprint_clean") || "Blueprint is already fully sanitized.", type: "success" } }));
                       }
                     }}
-                    className={`col-span-2 h-12 w-full mt-2 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 border shadow-lg hover:scale-[1.02] active:scale-[0.98] ${hasGhosts ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)] hover:shadow-[0_0_20px_rgba(var(--warning-rgb),0.2)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-black/20 hover:theme-bg-accent hover:text-white border-white/5 text-[var(--subtext)]/50'}`}
+                    className={`col-span-2 h-12 w-full mt-2 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 border shadow-lg hover:scale-[1.02] active:scale-[0.98] ${cleanConfirm === set.name ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : (hasGhosts ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)] hover:shadow-[0_0_20px_rgba(var(--warning-rgb),0.2)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-black/20 hover:theme-bg-accent hover:text-white border-white/5 text-[var(--subtext)]/50')}`}
                   >
-                    <span className="material-symbols-outlined !text-[16px]">cleaning_services</span>
-                    {t("action_clean_blueprint") || 'Sanitize'}
+                    <span className="material-symbols-outlined !text-[16px]">{cleanConfirm === set.name ? 'check_circle' : 'cleaning_services'}</span>
+                    {cleanConfirm === set.name ? (t("btn_clean_success") || "CLEAN") : (t("action_clean_blueprint") || 'Sanitize')}
                   </button>
                 </div>
               </div>
@@ -425,31 +467,26 @@ export default function Blueprints({
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("sidebar_uplink")}</h3>
             </div>
 
-            <div className="relative z-10 flex flex-col gap-4">
-              <div className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  value={syncCode || ""}
-                  onChange={(e) => setSyncCode && setSyncCode(e.target.value)}
-                  placeholder={t("sidebar_uplink_placeholder")}
-                  className="flex-1 bg-black/20 border border-white/10 rounded-2xl px-6 h-14 text-sm font-black tracking-widest text-center text-[var(--accent)] placeholder:text-[var(--subtext)]/30 focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all shadow-inner outline-none"
-                />
-                <button
-                  onClick={() => syncCode && syncBlueprintByCode && syncBlueprintByCode(syncCode)}
-                  disabled={isSearching}
-                  className="h-14 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shrink-0 border disabled:opacity-50 hover:scale-105 active:scale-95"
-                >
-                  {isSearching ? (
-                    <span className="material-symbols-outlined !text-[18px] animate-spin">{t("icon_refresh")}</span>
-                  ) : (
-                    <span className="material-symbols-outlined !text-[18px]">{t("icon_cloud_download")}</span>
-                  )}
-                  {t("btn_sync")}
-                </button>
-              </div>
-              <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 text-center px-4 leading-relaxed tracking-wide">{t("sidebar_uplink_desc")}</p>
+            <div className="relative z-10 flex flex-col gap-3">
+              <input
+                type="text"
+                value={syncCode || ""}
+                onChange={(e) => setSyncCode && setSyncCode(e.target.value)}
+                placeholder={t("sidebar_uplink_placeholder")}
+                className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 h-14 text-sm font-black tracking-widest text-center text-[var(--accent)] placeholder:text-[var(--subtext)]/30 focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all shadow-inner outline-none"
+              />
+              <SidebarActionButton
+                id="SYNC"
+                icon={isSyncing ? t("icon_refresh") : t("icon_cloud_download")}
+                label={isSyncing ? t("btn_importing") : t("btn_sync")}
+                subtext={t("sidebar_uplink_desc")}
+                onClick={handleSync}
+                active={isSyncing}
+                iconClassName={isSyncing ? "animate-spin" : ""}
+              />
             </div>
           </div>
+
 
           <div className="theme-glass-panel border border-white/5 rounded-[var(--radius)] p-6 shadow-lg relative overflow-hidden group/card">
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
@@ -463,22 +500,31 @@ export default function Blueprints({
             <div className="relative z-10 flex flex-col gap-3">
               <SidebarActionButton
                 id="IMPORT"
-                icon={importStatus === "success" ? "check" : importStatus === "error" ? "alert-triangle" : "download"}
-                label={importStatus === "success" ? t("status_profile_imported") : importStatus === "error" ? t("alert_import_failed") : t("playsets_btn_import")}
+                icon={importStatus === "loading" ? t("icon_refresh") : importStatus === "success" ? "check" : importStatus === "error" ? "alert-triangle" : "download"}
+                label={importStatus === "loading" ? t("btn_importing") : importStatus === "success" ? t("status_profile_imported") : importStatus === "error" ? t("alert_import_failed") : t("playsets_btn_import")}
                 subtext={t("import_desc")}
                 onClick={handleImport}
-                active={false}
+                active={importStatus === "loading"}
                 success={importStatus === "success"}
                 danger={importStatus === "error"}
+                iconClassName={importStatus === "loading" ? "animate-spin" : ""}
+              />
+              <SidebarActionButton
+                id="CLOUD_BPS"
+                icon="cloud"
+                label={t("btn_my_cloud_blueprints") || "MY CLOUD BLUEPRINTS"}
+                subtext={t("my_cloud_blueprints_subtitle")}
+                onClick={() => { setIsSidePanelOpen(false); setIsCloudPanelOpen(true); }}
+                active={false}
               />
               <SidebarActionButton id="SNAPSHOT" icon="camera" label={t("btn_snapshot")} subtext={t("snapshot_desc")} onClick={() => {
                 const activeSet = playSets[activePlaySetIndex];
                 if (!activeSet) return;
                 let copyIndex = 1;
-                let newName = `${activeSet.name} - Snapshot ${copyIndex}`;
+                let newName = `${activeSet.name} (Copy)`;
                 while (playSets.some((s: any) => s.name.toLowerCase() === newName.toLowerCase())) {
+                  newName = `${activeSet.name} (Copy) (${copyIndex})`;
                   copyIndex++;
-                  newName = `${activeSet.name} - Snapshot ${copyIndex}`;
                 }
                 const updatedSets = [...playSets, { name: newName, mods: [...activeSet.mods] }];
                 setPlaySets(updatedSets);
@@ -487,28 +533,90 @@ export default function Blueprints({
                 if (setActivePlaySetIndex) setActivePlaySetIndex(updatedSets.length - 1);
                 setIsSidePanelOpen(false);
               }} active={false} />
-
-              <SidebarActionButton
-                id="SANITIZE"
-                icon="cleaning_services"
-                label={t("action_clean_blueprint") || "Sanitize"}
-                subtext={t("clean_blueprint_desc") || "Clean missing artifacts"}
-                onClick={() => {
-                  const activeSet = playSets[activePlaySetIndex];
-                  if (!activeSet) return;
-                  const missingStrings = getMissingStrings ? getMissingStrings(activeSet.name) : [];
-                  if (missingStrings.length > 0) {
-                    setGhostStrings(missingStrings);
-                    setGhostModalSet(activeSet.name);
-                    setIsSidePanelOpen(false);
-                  } else {
-                    window.dispatchEvent(new CustomEvent('push-status', { detail: { message: t("status_blueprint_clean") || "Blueprint is already fully sanitized.", type: "success" } }));
-                  }
-                }}
-                active={false}
-                disabled={!playSets[activePlaySetIndex]}
-              />
             </div>
+          </div>
+        </div>
+      </SidePanel>
+
+      <SidePanel
+        isOpen={isCloudPanelOpen}
+        onClose={() => setIsCloudPanelOpen(false)}
+        title={t("my_cloud_blueprints_title") || "My Cloud Blueprints"}
+        subtitle={t("my_cloud_blueprints_subtitle")}
+        icon="cloud"
+        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+      >
+        <div className="flex flex-col gap-4 h-full">
+          <FilterTabs className="w-full shrink-0">
+            <FilterTabButton
+              id="all"
+              label={t("blueprint_tab_all") || "ALL"}
+              activeTab={cloudFilterTab}
+              setTab={setCloudFilterTab}
+              className="flex-1"
+            />
+            <FilterTabButton
+              id="not_in_vault"
+              label={t("blueprint_tab_missing") || "Missing Blueprints"}
+              activeTab={cloudFilterTab}
+              setTab={setCloudFilterTab}
+              className="flex-1"
+            />
+          </FilterTabs>
+
+          <div className="flex flex-col gap-3 h-full overflow-y-auto custom-scrollbar px-2 pb-4 pt-1 -mx-2">
+            {myCloudBlueprints.length === 0 ? (
+              <div className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] opacity-50 text-center py-6 border border-white/5 border-dashed rounded-xl mt-4">
+                {t("no_cloud_blueprints") || "NO CLOUD BLUEPRINTS FOUND"}
+              </div>
+            ) : (
+              myCloudBlueprints.filter(bp => {
+                const inVault = playSets.some((set: any) => set.code && set.code.toUpperCase() === bp.code.toUpperCase());
+                return cloudFilterTab === 'all' ? true : !inVault;
+              }).length === 0 ? (
+                <div className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] opacity-50 text-center py-6 border border-white/5 border-dashed rounded-xl mt-4">
+                  {t("no_cloud_blueprints") || "NO CLOUD BLUEPRINTS FOUND"}
+                </div>
+              ) : (
+                myCloudBlueprints.filter(bp => {
+                  const inVault = playSets.some((set: any) => set.code && set.code.toUpperCase() === bp.code.toUpperCase());
+                  return cloudFilterTab === 'all' ? true : !inVault;
+                }).map((bp, i) => {
+                  const inVault = playSets.some((set: any) => set.code && set.code.toUpperCase() === bp.code.toUpperCase());
+                  return (
+                    <button
+                      key={bp.code}
+                      onClick={() => {
+                        if (setSyncCode) setSyncCode(bp.code);
+                        setIsCloudPanelOpen(false);
+                        setIsSidePanelOpen(true);
+                      }}
+                      className={`flex flex-col items-start gap-2 p-5 rounded-2xl theme-glass-panel border transition-all text-left group/btn animate-in slide-in-from-right duration-500 fill-mode-both shadow-md hover:scale-[1.02] ${inVault ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:border-[var(--success)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]'}`}
+                      style={{ animationDelay: `${i * 50}ms` }}
+                    >
+                      <div className="flex flex-row items-start justify-between w-full gap-2">
+                        <span className={`text-lg font-black truncate transition-colors ${inVault ? 'text-[var(--text)]' : 'text-[var(--text)] group-hover/btn:text-[var(--accent)]'}`}>{bp.name}</span>
+                        {inVault ? (
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] rounded-lg shrink-0 mt-1">
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">check_circle</span>
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--success)]">{t("status_in_vault") || "IN VAULT"}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-[color-mix(in_srgb,var(--subtext)_10%,transparent)] border border-[color-mix(in_srgb,var(--subtext)_20%,transparent)] rounded-lg shrink-0 mt-1">
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)] opacity-60">cloud_download</span>
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-80">{t("status_not_in_vault") || "NOT IN VAULT"}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between w-full mt-2">
+                        <span className={`text-xs font-black tracking-[0.2em] uppercase opacity-80 ${inVault ? 'text-[var(--success)]' : 'text-[var(--accent)]'}`}>{bp.code}</span>
+                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-50 tracking-widest">{new Date(bp.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </button>
+                  )
+                })
+              )
+            )}
           </div>
         </div>
       </SidePanel>

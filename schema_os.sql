@@ -92,7 +92,7 @@ CREATE TRIGGER trg_prevent_audit_delete
 BEFORE DELETE ON audit_logs
 FOR EACH ROW EXECUTE FUNCTION prevent_audit_modifications();
 
-CREATE TABLE system_broadcasts (
+CREATE TABLE keeper_system_broadcasts (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
@@ -105,7 +105,7 @@ CREATE TABLE system_broadcasts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE sanctuary_tickets (
+CREATE TABLE keeper_tickets (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     author_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     assigned_to UUID REFERENCES profiles(id) ON DELETE SET NULL,
@@ -138,3 +138,17 @@ CREATE TABLE keeper_support_categories (
     attach_blueprints BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- ==========================================
+-- 6. KEEPERS ROW LEVEL SECURITY POLICIES
+-- ==========================================
+ALTER TABLE keeper_tickets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can create tickets" ON keeper_tickets FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "Users can view their own tickets" ON keeper_tickets FOR SELECT USING (auth.uid() = author_id);
+CREATE POLICY "Users can update their own tickets" ON keeper_tickets FOR UPDATE USING (auth.uid() = author_id) WITH CHECK (auth.uid() = author_id);
+
+ALTER TABLE keeper_support_categories ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can view support categories" ON keeper_support_categories FOR SELECT USING (true);
+
+ALTER TABLE keeper_system_broadcasts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can view system broadcasts" ON keeper_system_broadcasts FOR SELECT USING (true);

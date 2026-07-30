@@ -11,6 +11,7 @@ import { readDir, readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps
 import { appDataDir } from "@tauri-apps/api/path";
 import { invoke } from '@tauri-apps/api/core';
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
+import BlueprintMatrix from "./BlueprintMatrix";
 
 let cachedNexusItems: any[] | null = null;
 let lastNexusFetch = 0;
@@ -60,6 +61,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const setMarketSearchQuery = useStore(state => state.setMarketSearchQuery);
   const ownedDLC = useStore(state => state.ownedDLC) || [];
   const maskedDLC = useStore(state => state.maskedDLC) || [];
+  const playSets = useStore(state => state.playSets) || [];
   const { importTheme, CORE_THEMES, customThemes } = useTheme();
   const [assetResults, setAssetResults] = useState<any[]>([]);
   const [selectedBlueprint, setSelectedBlueprint] = useState<any>(null);
@@ -83,6 +85,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   });
   const [hideMissingDLC, setHideMissingDLC] = useState<boolean>(() => {
     return localStorage.getItem('sanctuary_hide_missing_dlc') === 'true';
+  });
+  const [hideInstalled, setHideInstalled] = useState<boolean>(() => {
+    return localStorage.getItem('sanctuary_hide_installed_assets') === 'true';
   });
 
   const [assetSearchQuery, setAssetSearchQuery] = useState(marketSearchQuery);
@@ -113,6 +118,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     assetType: null as string | null,
     reason: ''
   });
+
+  const [matrixBlueprintAsset, setMatrixBlueprintAsset] = useState<any>(null);
 
   const [isOffline, setIsOffline] = useState(!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true");
 
@@ -217,20 +224,25 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         }
 
         setAssetResults(data?.map(b => {
-          const artifacts = b.json_data?.artifacts || b.artifacts || [];
+          let parsedData = b.json_data;
+          if (typeof b.json_data === 'string') {
+            try { parsedData = JSON.parse(b.json_data); } catch { }
+          }
+          const artifacts = parsedData?.artifacts || b.artifacts || [];
           const premiumInfo = premiumMap[b.id];
           const isPaid = premiumInfo?.is_paid || b.is_paid || artifacts.some((a: any) => a.is_paid);
           const isEarlyAccess = premiumInfo?.is_early_access || b.is_early_access || artifacts.some((a: any) => a.is_early_access);
           return {
             id: b.id,
-            name: b.name,
+            name: parsedData?.name || b.name,
             author: masonData?.find((m: any) => m.id === b.mason_id)?.name || "Citizen",
             description: (artifacts.length || 0) + " " + (t("items")),
             created_at: b.created_at,
             asset_type: 'blueprint',
             is_paid: isPaid,
             is_early_access: isEarlyAccess,
-            json_data: b
+            downloads: b.downloads,
+            json_data: parsedData || b
           };
         }) || []);
       } else {
@@ -303,6 +315,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
   const handleEditAsset = (e: React.MouseEvent, asset: any) => {
     e.stopPropagation();
+    if (marketTab === 'BLUEPRINTS') {
+      setMatrixBlueprintAsset(asset);
+      return;
+    }
     setUploadState({
       isOpen: true,
       isEdit: true,
@@ -738,10 +754,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     }
   }
 
-  const categories = [t("ql_all"), ...Array.from(new Set(results.map((m: any) => m.category_override || "Uncategorized").filter(Boolean)))];
+  const categories = useMemo(() => [t("ql_all"), ...Array.from(new Set(results.map((m: any) => m.category_override || "Uncategorized").filter(Boolean)))], [results, t]);
 
   const ownedHashesSet = useMemo(() => new Set(ownedHashes), [ownedHashes]);
-  let filteredResults = results.filter((mod: any) => {
+  const filteredResults = useMemo(() => {
+    let filtered = results.filter((mod: any) => {
     const modName = (mod.name || "").toLowerCase().trim();
     const isOwned = (() => {
       if (mod.isVirtual || mod.isParent) {
@@ -830,7 +847,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     return matchesSearch && matchesCategory && matchesGameVersion && matchesDlc;
   });
 
-  filteredResults = filteredResults.sort((a: any, b: any) => {
+  return filtered.sort((a: any, b: any) => {
     switch (sortBy) {
       case "newest":
         return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
@@ -844,11 +861,13 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         return 0;
     }
   });
+  }, [results, ownedHashesSet, hidePaid, hideEarlyAccess, hideMissingDLC, ownedDLC, maskedDLC, searchQuery, categoryFilter, selectedGameVersion, dlcFilter, sortBy, t]);
 
   const totalPages = Math.max(1, Math.ceil(filteredResults.length / itemsPerPage));
-  const paginatedResults = filteredResults.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedResults = useMemo(() => filteredResults.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filteredResults, currentPage, itemsPerPage]);
 
-  let filteredAssetResults = assetResults.filter((asset: any) => {
+  const filteredAssetResults = useMemo(() => {
+    let filtered = assetResults.filter((asset: any) => {
     const search = assetSearchQuery.toLowerCase();
     const matchesSearch = !assetSearchQuery ||
       (asset.name || "").toLowerCase().includes(search) ||
@@ -861,6 +880,19 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     let matchesPaid = true;
     let matchesEA = true;
     let matchesDLC = true;
+    let matchesInstalled = true;
+
+    if (hideInstalled) {
+      if (marketTab === 'BLUEPRINTS') {
+        if (playSets.some((p: any) => p.code && asset.json_data?.code && p.code === asset.json_data.code)) {
+          matchesInstalled = false;
+        }
+      } else {
+        if (isInstalled(asset)) {
+          matchesInstalled = false;
+        }
+      }
+    }
 
     if (marketTab === 'BLUEPRINTS') {
       if (hidePaid && asset.is_paid) matchesPaid = false;
@@ -892,10 +924,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       if (themeModeFilter !== 'all') matchesMode = asset.theme_mode === themeModeFilter;
     }
 
-    return matchesSearch && matchesLang && matchesType && matchesMode && matchesPaid && matchesEA && matchesDLC;
+    return matchesSearch && matchesLang && matchesType && matchesMode && matchesPaid && matchesEA && matchesDLC && matchesInstalled;
   });
 
-  filteredAssetResults = filteredAssetResults.sort((a: any, b: any) => {
+  return filtered.sort((a: any, b: any) => {
     const aOutdated = isOutdated(a) ? 1 : 0;
     const bOutdated = isOutdated(b) ? 1 : 0;
     if (bOutdated !== aOutdated) return bOutdated - aOutdated;
@@ -913,9 +945,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         return 0;
     }
   });
+  }, [assetResults, assetSearchQuery, marketTab, hidePaid, hideEarlyAccess, hideMissingDLC, hideInstalled, playSets, ownedDLC, maskedDLC, languageFilter, lexiconTypeFilter, themeModeFilter, assetSortBy, isOutdated]);
 
   const assetTotalPages = Math.max(1, Math.ceil(filteredAssetResults.length / itemsPerPage));
-  const assetPaginatedResults = filteredAssetResults.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const assetPaginatedResults = useMemo(() => filteredAssetResults.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filteredAssetResults, currentPage, itemsPerPage]);
 
   if (isOffline) {
     return (
@@ -1111,7 +1144,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
                         <div className="absolute top-4 right-4 flex gap-2 z-30">
                           <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                            {mod.category_override || "MOD"}
+                            {mod.category_override || t("label_artifact") || "MOD"}
                           </span>
                         </div>
 
@@ -1286,44 +1319,61 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 />
               </div>
 
-              {(marketTab === 'MODS' || marketTab === 'BLUEPRINTS') && (
+              {marketTab !== 'MODS' && (
                 <div className="flex items-center gap-2 w-full mt-2 flex-wrap">
                   <button
                     onClick={() => { 
-                      const newVal = !hidePaid;
-                      setHidePaid(newVal); 
-                      localStorage.setItem('sanctuary_hide_paid', String(newVal));
+                      const newVal = !hideInstalled;
+                      setHideInstalled(newVal); 
+                      localStorage.setItem('sanctuary_hide_installed_assets', String(newVal));
                       setCurrentPage(1); 
                     }}
-                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hidePaid ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
+                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideInstalled ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
                   >
-                    <span className="material-symbols-outlined !text-[12px]">{hidePaid ? 'visibility_off' : 'monetization_on'}</span>
-                    {t("filter_hide_paid") || "Hide Paid"}
+                    <span className="material-symbols-outlined !text-[12px]">{hideInstalled ? 'visibility_off' : 'download_done'}</span>
+                    {t("filter_hide_installed") || "Hide Installed"}
                   </button>
-                  <button
-                    onClick={() => { 
-                      const newVal = !hideEarlyAccess;
-                      setHideEarlyAccess(newVal); 
-                      localStorage.setItem('sanctuary_hide_ea', String(newVal));
-                      setCurrentPage(1); 
-                    }}
-                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideEarlyAccess ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
-                  >
-                    <span className="material-symbols-outlined !text-[12px]">{hideEarlyAccess ? 'visibility_off' : 'science'}</span>
-                    {t("filter_hide_early_access") || "Hide Early Access"}
-                  </button>
-                  <button
-                    onClick={() => { 
-                      const newVal = !hideMissingDLC;
-                      setHideMissingDLC(newVal); 
-                      localStorage.setItem('sanctuary_hide_missing_dlc', String(newVal));
-                      setCurrentPage(1); 
-                    }}
-                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideMissingDLC ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
-                  >
-                    <span className="material-symbols-outlined !text-[12px]">{hideMissingDLC ? 'visibility_off' : 'extension'}</span>
-                    {t("filter_hide_dlc") || "Hide Missing DLC"}
-                  </button>
+
+                  {marketTab === 'BLUEPRINTS' && (
+                    <>
+                      <button
+                        onClick={() => { 
+                          const newVal = !hidePaid;
+                          setHidePaid(newVal); 
+                          localStorage.setItem('sanctuary_hide_paid', String(newVal));
+                          setCurrentPage(1); 
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hidePaid ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
+                      >
+                        <span className="material-symbols-outlined !text-[12px]">{hidePaid ? 'visibility_off' : 'monetization_on'}</span>
+                        {t("filter_hide_paid") || "Hide Paid"}
+                      </button>
+                      <button
+                        onClick={() => { 
+                          const newVal = !hideEarlyAccess;
+                          setHideEarlyAccess(newVal); 
+                          localStorage.setItem('sanctuary_hide_ea', String(newVal));
+                          setCurrentPage(1); 
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideEarlyAccess ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
+                      >
+                        <span className="material-symbols-outlined !text-[12px]">{hideEarlyAccess ? 'visibility_off' : 'science'}</span>
+                        {t("filter_hide_early_access") || "Hide Early Access"}
+                      </button>
+                      <button
+                        onClick={() => { 
+                          const newVal = !hideMissingDLC;
+                          setHideMissingDLC(newVal); 
+                          localStorage.setItem('sanctuary_hide_missing_dlc', String(newVal));
+                          setCurrentPage(1); 
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideMissingDLC ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
+                      >
+                        <span className="material-symbols-outlined !text-[12px]">{hideMissingDLC ? 'visibility_off' : 'extension'}</span>
+                        {t("filter_hide_dlc") || "Hide Missing DLC"}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1398,22 +1448,20 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       )}
 
                       <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                            {asset.downloads || 0} {t("auto_dl")}
-                          </span>
-                          <div className="flex flex-wrap gap-1">
-                            {marketTab !== 'MODS' && marketTab !== 'BLUEPRINTS' && (
-                              <span className="text-[10px] font-bold text-[var(--accent)] opacity-80 uppercase tracking-widest bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2 py-0.5 rounded-md">
-                                {asset.asset_type === 'lexicon' ? (t("tab_lexicons")) : asset.asset_type === 'workbench_template' ? (t("ql_templates")) : (t("type_theme"))}
+                        <div className="flex flex-col justify-center gap-1.5">
+                          <div className="flex flex-col gap-1.5 items-start">
+                            {asset.created_at && (
+                              <span className="flex items-center gap-1 text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">
+                                <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_calendar") || "event"}</span>
+                                {t("updated_date") || "LAST UPDATED"}: {new Date(asset.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                               </span>
                             )}
-                            {getAssetDisplayVersion(asset) && (
-                              <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest bg-[color-mix(in_srgb,var(--subtext)_15%,transparent)] px-2 py-0.5 rounded-md">
-                                v{getAssetDisplayVersion(asset)}
-                              </span>
-                            )}
+                            <span className="flex items-center gap-1 text-[10px] font-black text-[var(--accent)] uppercase tracking-widest">
+                              <span className="material-symbols-outlined !text-[14px]">download</span>
+                              {asset.downloads || 0} <span className="opacity-70">{t("auto_dl")}</span>
+                            </span>
                           </div>
+
                         </div>
                         <div className="flex gap-2">
                           {session?.user?.user_metadata?.username === asset.author && (
@@ -1424,17 +1472,20 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               {t("emote_edit")}
                             </button>
                           )}
-                          {marketTab === 'BLUEPRINTS' ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedBlueprint(asset);
-                              }}
-                              className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105"
-                            >
-                              {t("update_panel_install")}
-                            </button>
-                          ) : (
+                          {marketTab === 'BLUEPRINTS' ? (() => {
+                            const isInstalled = playSets.some((p: any) => p.code && asset.json_data?.code && p.code === asset.json_data.code);
+                            return (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedBlueprint(asset);
+                                }}
+                                className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105"
+                              >
+                                {isInstalled ? (t("btn_install_copy") || "INSTALL COPY") : (t("update_panel_install"))}
+                              </button>
+                            );
+                          })() : (
                             <button
                               onClick={async (e) => {
                                 e.stopPropagation();
@@ -1454,7 +1505,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   onSetStatus(`Successfully Installed Lexicon: ${asset.name}`);
                                 }
                                 try {
-                                  await supabase.rpc('increment_asset_downloads', { asset_id: asset.id });
+                                  if (marketTab === 'BLUEPRINTS') {
+                                    await supabase.rpc('increment_blueprint_downloads', { blueprint_id: asset.id });
+                                  } else {
+                                    await supabase.rpc('increment_asset_downloads', { asset_id: asset.id });
+                                  }
                                 } catch (e) { console.error("Could not increment downloads", e); }
                                 setAssetResults(prev => prev.map(a => a.id === asset.id ? { ...a, downloads: (a.downloads || 0) + 1 } : a));
                               }}
@@ -1531,6 +1586,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         onOpenDossier={onOpenDossier}
         cleanModName={cleanModName}
         syncBlueprintByCode={syncBlueprintByCode}
+        onDownloadSuccess={(id: any) => setAssetResults(prev => prev.map(a => a.id === id ? { ...a, downloads: (a.downloads || 0) + 1 } : a))}
       />
 
       {previewAsset && (
@@ -1539,6 +1595,36 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           assetType={previewAsset.type}
           onClose={() => setPreviewAsset(null)}
           onFlag={(id, type) => setReportState({ isOpen: true, assetId: id, assetType: type, reason: '' })}
+        />
+      )}
+
+      {matrixBlueprintAsset && (
+        <BlueprintMatrix
+          isOpen={true}
+          onClose={() => setMatrixBlueprintAsset(null)}
+          playSet={{
+            ...matrixBlueprintAsset.json_data,
+            mods: matrixBlueprintAsset.json_data?.artifacts?.map((a: any) => a.name) || matrixBlueprintAsset.json_data?.mods || [],
+            name: matrixBlueprintAsset.name,
+            code: matrixBlueprintAsset.json_data?.code || matrixBlueprintAsset.code
+          }}
+          modList={useStore.getState().modList}
+          onUpload={async (isPublic: boolean, isLocked: boolean, allowedMods: any[], isMarketListed: boolean) => {
+            try {
+              const { error } = await supabase.from('blueprints').update({
+                is_public: isPublic,
+                is_locked: isLocked,
+                is_market_listed: isMarketListed
+              }).eq('id', matrixBlueprintAsset.id);
+              if (error) throw error;
+              fetchNexusAssets();
+              return matrixBlueprintAsset.json_data?.code || matrixBlueprintAsset.code || "UPDATED";
+            } catch (err) {
+              console.error(err);
+              return null;
+            }
+          }}
+          onUpdatePlaySet={() => {}}
         />
       )}
     </div>

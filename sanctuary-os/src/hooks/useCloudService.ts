@@ -45,6 +45,14 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
     if (!targetSet) return;
     
     let code = targetSet.code;
+    
+    if (code && actualMasonId) {
+      const { data: codeCheck } = await supabase.from('blueprints').select('mason_id').eq('code', code).maybeSingle();
+      if (codeCheck && codeCheck.mason_id !== actualMasonId) {
+        code = undefined;
+      }
+    }
+
     if (!code && actualMasonId) {
       try {
         const { data: existing } = await supabase
@@ -80,7 +88,8 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
 
     const blueprintData = {
       name: targetSet.name,
-      mods: modsToUpload
+      mods: modsToUpload,
+      code: code
     };
     
     const hasTier2 = blueprintData.mods.some((m: any) => tier2Hashes.includes(m.hash));
@@ -100,6 +109,7 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         is_market_listed: isMarketListed,
         game_version: selectedVersion
       }], { onConflict: 'code' });
+      
       if (error) throw error;
       
       setPlaySets((prev: any[]) => {
@@ -119,36 +129,56 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
     }
   }
 
-  async function syncBlueprintByCode(code: string) {
+  async function syncBlueprintByCode(code: string, suffix: string = " (Synced)") {
     if (!code) return;
     setStatus(`${t("icon_radar")} ${t("status_sync_blueprint")}${code}...`);
     try {
       const { data, error } = await supabase.from('blueprints').select('*').eq('code', code.toUpperCase()).single();
       if (error || !data) throw new Error(t("status_invalid_code"));
-      const parsed = { sanctuary_profile: true, name: data.name, mods: data.artifacts };
+      const isCodeInUse = playSets.some((s: any) => s.code && s.code === code.toUpperCase());
+      const finalCode = isCodeInUse ? undefined : code.toUpperCase();
+
+      let baseName = `${data.name}${suffix}`;
+      let finalName = baseName;
+      let copyIndex = 1;
+      while (playSets.some((s: any) => s.name.toLowerCase() === finalName.toLowerCase())) {
+        finalName = `${baseName} (${copyIndex})`;
+        copyIndex++;
+      }
+
+      const parsed = { sanctuary_profile: true, name: finalName, mods: data.artifacts, code: finalCode };
+      const extRegex = getExtensionRegex(activeGameSchema);
+      const modMap = new Map();
+      const hashToMod = new Map();
+      const baseToMod = new Map();
+      
+      modList.forEach((local: any) => {
+         modMap.set(local.name, local);
+         if (local.hash) hashToMod.set(local.hash, local);
+         const mBase = local.name.split(/[\\/]/).pop()?.replace(extRegex, '');
+         if (mBase) baseToMod.set(mBase, local);
+      });
+
       const missing: any[] = [];
       parsed.mods.forEach((m: any) => {
-        const exists = modList.some((local: any) => {
-          if (local.hash && m.hash && local.hash === m.hash) return true;
-          if (local.name === m.name) return true;
-          const mBase = local.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
-          const targetBase = typeof m === 'string' ? m.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '') : (m.name || '').split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
-          return mBase && targetBase && mBase === targetBase;
-        });
-        if (!exists) missing.push(m);
+         let found = null;
+         if (m.hash) found = hashToMod.get(m.hash);
+         if (!found) {
+            const nameToCheck = typeof m === 'string' ? m : (m.name || m.path || '');
+            found = modMap.get(nameToCheck);
+            if (!found) {
+               const targetBase = nameToCheck.split(/[\\/]/).pop()?.replace(extRegex, '');
+               if (targetBase) found = baseToMod.get(targetBase);
+            }
+         }
+         if (!found) missing.push(m);
       });
+
       setPendingImportSet(parsed);
       if (missing.length > 0) {
         setMissingImportMods(missing);
       } else {
-        let baseName = `${parsed.name} (Synced)`;
-        let finalName = baseName;
-        let copyIndex = 1;
-        while (playSets.some((s: any) => s.name.toLowerCase() === finalName.toLowerCase())) {
-          finalName = `${baseName} (${copyIndex})`;
-          copyIndex++;
-        }
-        const updatedSets = [...playSets, { name: finalName, mods: parsed.mods.map((m: any) => m.name) }];
+        const updatedSets = [...playSets, { name: parsed.name, mods: parsed.mods.map((m: any) => m.name), code: parsed.code }];
         setPlaySets(updatedSets);
 
         setStatus(`${t("icon_check_circle")} ${t("status_blueprint_synced")}`);

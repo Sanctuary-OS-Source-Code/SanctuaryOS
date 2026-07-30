@@ -135,7 +135,7 @@ export const LexiconProvider = ({ children }: any) => {
             if (Object.keys(localData).length > 0) {
               let hasMissingKeys = false;
               for (const key in localData) {
-                if (row.lexicon_data[key] === undefined) {
+                if (row.lexicon_data[key] !== localData[key]) {
                   row.lexicon_data[key] = localData[key];
                   hasMissingKeys = true;
                 }

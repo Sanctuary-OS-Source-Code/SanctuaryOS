@@ -1,4 +1,4 @@
-import { stripMarkdown } from './shared';
+import { stripMarkdown, EmptyState } from './shared';
 
 export default function MasonProfileAssets({ 
   activeView, 
@@ -35,7 +35,7 @@ export default function MasonProfileAssets({
     });
     return (
       <>
-        {filteredBlueprints.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("no_blueprints")}</div>}
+        {filteredBlueprints.length === 0 && <EmptyState icon={t("icon_map") || "map"} title={t("no_blueprints") || "NO BLUEPRINTS"} minHeightClass="min-h-[400px]" />}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredBlueprints.map((asset: any) => (
             <div key={asset.id} onClick={() => setSelectedBlueprint(asset)} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">
@@ -94,7 +94,15 @@ export default function MasonProfileAssets({
   if (activeView === 'LEXICONS') {
     const filteredLexicons = marketAssets.filter((a: any) => {
       if (a.asset_type !== 'lexicon') return false;
-      if (modCategory !== "ALL" && a.lexicon_type !== modCategory) return false;
+      let lang = a.language;
+      if (!lang && a.json_data) {
+        try {
+          const parsed = typeof a.json_data === 'string' ? JSON.parse(a.json_data) : a.json_data;
+          lang = parsed.language;
+        } catch (e) {}
+      }
+      lang = lang || "Custom";
+      if (modCategory !== "ALL" && lang !== modCategory) return false;
       if (modSearch && !a.name.toLowerCase().includes(modSearch.toLowerCase())) return false;
       return true;
     }).sort((a: any, b: any) => {
@@ -104,7 +112,7 @@ export default function MasonProfileAssets({
     });
     return (
       <>
-        {filteredLexicons.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("no_lexicons")}</div>}
+        {filteredLexicons.length === 0 && <EmptyState icon={t("icon_translate") || "translate"} title={t("no_lexicons") || "NO LEXICONS"} minHeightClass="min-h-[400px]" />}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredLexicons.map((asset: any) => (
             <div key={asset.id} onClick={() => setActiveAsset({ type: 'lexicon', id: asset.id })} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">
@@ -160,7 +168,7 @@ export default function MasonProfileAssets({
     });
     return (
       <>
-        {filteredChameleons.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("no_chameleons")}</div>}
+        {filteredChameleons.length === 0 && <EmptyState icon={t("icon_palette") || "palette"} title={t("no_chameleons") || "NO CHAMELEONS"} minHeightClass="min-h-[400px]" />}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredChameleons.map((asset: any) => (
             <div key={asset.id} onClick={() => setActiveAsset({ type: 'chameleon', id: asset.id })} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">
@@ -214,7 +222,7 @@ export default function MasonProfileAssets({
     });
     return (
       <>
-        {filteredTemplates.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("empty_title_templates")}</div>}
+        {filteredTemplates.length === 0 && <EmptyState icon={t("icon_draw") || "draw"} title={t("empty_title_templates") || "NO TEMPLATES"} minHeightClass="min-h-[400px]" />}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredTemplates.map((asset: any) => (
             <div key={asset.id} onClick={() => setActiveAsset({ type: 'workbench_template', id: asset.id })} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">

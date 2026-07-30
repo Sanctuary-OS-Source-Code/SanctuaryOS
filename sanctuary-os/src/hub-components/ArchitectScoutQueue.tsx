@@ -32,6 +32,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
     const [activeScout, setActiveScout] = useState<any | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [lineageId, setLineageId] = useState<string>("");
+    const activeGameSchema = useStore(state => state.activeGameSchema);
   
     const [isMasonPanelOpen, setIsMasonPanelOpen] = useState(false);
     const [newMasonName, setNewMasonName] = useState("");
@@ -218,7 +219,8 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
     const seenHashes = new Set();
     filteredSubmissions = filteredSubmissions.filter((s: any) => {
       if (!s.dna_hash) return true;
-      if ((hashCounts.get(s.dna_hash) || 0) < 5) return false;
+      const minScoutSubmissions = activeGameSchema?.min_scout_submissions ?? 5;
+      if ((hashCounts.get(s.dna_hash) || 0) < minScoutSubmissions) return false;
       if (seenHashes.has(s.dna_hash)) return false;
       seenHashes.add(s.dna_hash);
       return true;

@@ -897,6 +897,30 @@ function App() {
     };
   }, []);
   useEffect(() => {
+    let unlisten: any;
+    
+    // Start the Rust downloads watcher
+    invoke("start_downloads_watch", { 
+      extensions: [".zip", ".rar", ".7z", ".package", ".ts4script"] 
+    }).catch(console.warn);
+
+    listen("download_intercepted", (event: any) => {
+      useModalStore.getState().setDownloadsQueue((prev: string[]) => {
+        if (!prev.includes(event.payload.path)) {
+          return [...prev, event.payload.path];
+        }
+        return prev;
+      });
+    }).then((handler) => {
+      unlisten = handler;
+    });
+    
+    return () => {
+      if (unlisten) unlisten();
+      invoke("stop_downloads_watch").catch(console.warn);
+    };
+  }, []);
+  useEffect(() => {
     fetchBackups();
   }, []);
   useEffect(() => {
@@ -1170,7 +1194,7 @@ function App() {
           const anyHashMatch = localMods.some(m => m.hash && latestData.dna_hash && m.hash.toLowerCase() === latestData.dna_hash.toLowerCase());
           const hashMismatch = latestData.dna_hash ? !anyHashMatch : false;
           
-          const primaryMod = localMods[0];
+          const primaryMod = localMods.find(m => m.version && m.version !== "v.Local") || localMods[0];
           
           const cleanLocalVer = String(primaryMod.version || "").toLowerCase().replace(/^v/, '').trim();
           const cleanCloudVer = String(latestData.version_label || "").toLowerCase().replace(/^v/, '').trim();

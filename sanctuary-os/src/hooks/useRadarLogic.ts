@@ -36,6 +36,13 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
     }
     try {
       const config: any = await invoke("get_saved_coordinates");
+      
+      try {
+        await invoke("sanitize_vault", { vaultPath: config.vault_path });
+      } catch (e) {
+        console.error("Failed to sanitize vault during radar sweep:", e);
+      }
+
       let currentOwnedDLC = ownedDLC;
       let currentMaskedDLC = maskedDLC;
       if (!quickScan) {

@@ -14,6 +14,8 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     if (isOpen && playSet) {
@@ -22,6 +24,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
       setIsLocked(playSet.is_locked ?? false);
       setIsMarketListed(playSet.is_market_listed ?? false);
       setUploadError("");
+      setUploadSuccess(false);
       setIsUploading(false);
 
       const fetchCloudState = async () => {
@@ -64,9 +67,12 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
   const handleUpload = async () => {
     setIsUploading(true);
     setUploadError("");
+    setUploadSuccess(false);
     const code = await onUpload(isPublic, isLocked, allowedMods, isMarketListed);
     if (code) {
       setGeneratedCode(code);
+      setUploadSuccess(true);
+      setTimeout(() => setUploadSuccess(false), 3000);
       useStore.getState().pushStatus(t("matrix_uplink_success"), "success");
       navigator.clipboard.writeText(code).catch(() => { });
     } else {
@@ -294,17 +300,31 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             <button
               onClick={() => {
                 if (generatedCode) {
-                  navigator.clipboard.writeText(generatedCode).catch(() => { });
+                  navigator.clipboard.writeText(generatedCode).then(() => {
+                    setIsCopied(true);
+                    setTimeout(() => setIsCopied(false), 2000);
+                  }).catch(() => { });
                 }
               }}
-              disabled={!generatedCode}
-              className={`px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${generatedCode ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--text)]' : 'bg-white/5 text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}
+              disabled={!generatedCode || isCopied}
+              className={`px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all w-28 text-center ${isCopied ? 'bg-[var(--success)]/20 text-[var(--success)] border border-[var(--success)]/30' : generatedCode ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--text)]' : 'bg-white/5 text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}
             >
-              {t("ctx_copy")}
+              {isCopied ? (t("btn_copied") || "COPIED") : t("ctx_copy")}
             </button>
           </div>
-          {uploadError && <span className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center justify-center gap-2 mt-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_error")}</span> {uploadError}</span>}
         </div>
+
+        {uploadError && <span className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center justify-center gap-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_error")}</span> {uploadError}</span>}
+        {uploadSuccess && (
+          <div className="flex justify-center -mt-2">
+            <div className="px-4 py-2 rounded-full bg-[var(--success)]/10 border border-[var(--success)]/30 shadow-[0_0_20px_rgba(var(--success-rgb),0.2)] flex items-center gap-2 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-300 backdrop-blur-md">
+              <div className="w-5 h-5 rounded-full bg-[var(--success)]/20 flex items-center justify-center border border-[var(--success)]/40 shadow-inner">
+                <span className="material-symbols-outlined !text-[12px] theme-text-success">{t("icon_check_circle")}</span>
+              </div>
+              <span className="text-[10px] font-black theme-text-success uppercase tracking-widest">{t("matrix_uplink_success") || "Upload Successful!"}</span>
+            </div>
+          </div>
+        )}
       </div>
     </SidePanel>,
     document.body

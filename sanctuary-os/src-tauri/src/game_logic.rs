@@ -56,6 +56,21 @@ pub fn get_supported_extensions(schema: &Option<GameSchema>) -> Vec<String> {
     }
 }
 
+pub fn get_vault_visible_extensions(schema: &Option<GameSchema>) -> Vec<String> {
+    let mut ext_list = Vec::new();
+    if let Some(s) = schema {
+        if let Some(visible) = &s.extensions.vault_visible {
+            ext_list.extend(visible.iter().map(|ext| ext.trim_start_matches('.').to_lowercase()));
+        }
+        if let Some(ignore) = &s.extensions.ignore_unidentified {
+            ext_list.extend(ignore.iter().map(|ext| ext.trim_start_matches('.').to_lowercase()));
+        }
+    } else {
+        ext_list.extend(vec!["package".to_string(), "ts4script".to_string(), "cfg".to_string(), "ini".to_string(), "json".to_string(), "txt".to_string(), "xml".to_string(), "log".to_string()]);
+    }
+    ext_list
+}
+
 pub fn is_cache_file(schema: &Option<GameSchema>, file_name: &str) -> bool {
     if let Some(s) = schema {
         if let Some(cache_files) = &s.extensions.cache_files {
@@ -185,13 +200,7 @@ pub fn is_explicitly_local_dbpf(schema: &Option<GameSchema>, resources: &[DbpfRe
 
             let cas_part_type = tax.cas_part_type.as_deref().and_then(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok()).unwrap_or(0);
             let obj_def_type = tax.obj_def_type.as_deref().and_then(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok()).unwrap_or(0);
-            
-            let explicit_types: Vec<u32> = tax.explicit_local_types.as_ref().map(|v| v.iter().filter_map(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok()).collect()).unwrap_or_default();
-
             for res in resources {
-                if explicit_types.contains(&res.t) {
-                    return true;
-                }
                 if res.t == cas_part_type && cas_part_type != 0 { casp_count += 1; }
                 if res.t == obj_def_type && obj_def_type != 0 { objd_count += 1; }
             }

@@ -29,7 +29,7 @@ export function UpdatesSidePanel({
             {activeUpdates.length > 0 ? (
               <div className="flex gap-2">
                 <span className="theme-text-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
-                  {Object.keys(activeUpdates.reduce((acc: any, update: any) => { acc[update.dbId || update.name] = true; return acc; }, {})).length} {t("items")}
+                  {Object.keys(activeUpdates.reduce((acc: any, update: any) => { acc[update.dbId || update.displayName || update.name] = true; return acc; }, {})).length} {t("items")}
                 </span>
               </div>
             ) : (
@@ -40,7 +40,7 @@ export function UpdatesSidePanel({
 
         <div className="flex flex-col gap-3 pb-24">
           {activeUpdates.length > 0 ? Object.values(activeUpdates.reduce((acc: any, update: any) => {
-            const key = update.dbId || update.name;
+            const key = update.dbId || update.displayName || update.name;
             if (!acc[key]) acc[key] = update;
             return acc;
           }, {})).map((update: any) => (
