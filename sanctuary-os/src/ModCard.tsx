@@ -1,11 +1,11 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { HoverTooltip, getFileLabel, formatDisplayName, isSupportedExtension, getExtensionRegex, getModIcon, CustomDropdown, cleanSearchName, mapDlcCode, isVersionMatch, getHighestVersion, getLowestVersion } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import defaultCover from "./assets/default-cover.jpg";
 
-export function ModCard({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, ownedDLC = [],
+function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, ownedDLC = [],
 maskedDLC =[], casualtyList = [], tier3List = [], missingDeps = "", isParent = false, isExpanded = false, onExpand = () => {},
 isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier3 = () => {}, anarchyRules = null, hideIneligible = false }: any) {
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
@@ -414,3 +414,20 @@ isBulkMode = false, isSelected = false, onToggleSelect = () => {}, onResolveTier
     </div>
   );
 }
+
+const arePropsEqual = (prev: any, next: any) => {
+  return (
+    prev.mod.hash === next.mod.hash &&
+    prev.isInActiveSet === next.isInActiveSet &&
+    prev.isExpanded === next.isExpanded &&
+    prev.isSelected === next.isSelected &&
+    (prev.missingDeps || []).length === (next.missingDeps || []).length &&
+    prev.hideIneligible === next.hideIneligible &&
+    prev.isBulkMode === next.isBulkMode &&
+    prev.gameVersion === next.gameVersion &&
+    (prev.casualtyList || []).length === (next.casualtyList || []).length &&
+    (prev.tier3List || []).length === (next.tier3List || []).length
+  );
+};
+
+export const ModCard = React.memo(ModCardInner, arePropsEqual);

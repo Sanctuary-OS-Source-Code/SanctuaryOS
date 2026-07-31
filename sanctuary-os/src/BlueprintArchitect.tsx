@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { formatDisplayName, ViewHeader, CustomDropdown, mapDlcCode, isVersionMatch, SidePanel, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getHighestVersion, getExtensionRegex } from "./shared";
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";
 import { tauriBridge } from "./lib/tauri-bridge";
+import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 
 
 export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, toggleInActiveSet, allow_write, vaultPath, onRefreshMods, renamePlaySet }: any) {
@@ -14,6 +15,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
   const activePlaySetIndex = useStore((state) => state.activePlaySetIndex);
   const setPlaySets = useStore((state) => state.setPlaySets);
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const ignoredGlobal = useStore((state) => state.ignoredGlobal);
   const [ignoredConflicts, setIgnoredConflicts] = useState<Set<string>>(new Set());
   const [ignoredBroken, setIgnoredBroken] = useState<Set<string>>(new Set());
 
@@ -21,37 +23,40 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
   const [newNameInput, setNewNameInput] = useState("");
 
   const extRegex = useMemo(() => getExtensionRegex(activeGameSchema), [activeGameSchema]);
-  const optimizedModList = useMemo(() => {
-    const map = new Map();
-    const fallbackArr: any[] = [];
-    (modList || []).forEach((m: any) => {
-      map.set(m.name, m);
-      const mBase = m.name?.split(/[\\/]/).pop()?.replace(extRegex, '');
-      const mExt = m.name?.split('.').pop()?.toLowerCase();
-      if (mBase && mExt) {
-          fallbackArr.push({ ...m, _mBase: mBase, _mExt: mExt });
-      }
-    });
-    return { map, fallbackArr };
-  }, [modList, extRegex]);
-
   const activeMods = useMemo(() => {
     const safeMods = Array.isArray(playSet?.mods) ? playSet.mods : [];
+    const safeList = Array.isArray(modList) ? modList : [];
+
+    const exactMatchMap = new Map();
+    const baseMatchMap = new Map();
+    
+    for (const m of safeList) {
+        if (!m.name) continue;
+        const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
+        exactMatchMap.set(exactKey, m);
+        
+        const baseKey = m.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
+        if (baseKey && !baseMatchMap.has(baseKey)) {
+            baseMatchMap.set(baseKey, m);
+        }
+    }
+
     return safeMods.map((rawMod: any) => {
       const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
+      const cleanModName = modName.replace(/^(sanctuary[/\\])+/i, '');
+      const modNameLow = cleanModName.toLowerCase().replace(/\\/g, '/');
       
-      const exactMatch = optimizedModList.map.get(modName);
+      const exactMatch = exactMatchMap.get(modNameLow);
       if (exactMatch) return { ...exactMatch, _originalSetName: modName };
 
-      const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
-      const targetExt = modName.split('.').pop()?.toLowerCase();
+      const mBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
+      const baseMatch = mBase ? baseMatchMap.get(mBase) : undefined;
       
-      const fallbackMatch = optimizedModList.fallbackArr.find((m: any) => m._mBase === targetBase && m._mExt === targetExt);
-      if (fallbackMatch) return { ...fallbackMatch, _originalSetName: modName };
+      if (baseMatch) return { ...baseMatch, _originalSetName: modName };
 
       return { name: modName, isFallback: true, _originalSetName: modName };
     });
-  }, [playSet?.mods, optimizedModList, extRegex]);
+  }, [playSet?.mods, modList, extRegex]);
 
   const renderSubtitle = () => {
     if (isEditingName) {
@@ -95,70 +100,49 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
 
   const activeConflicts = useMemo(() => {
     const conflicts: any[] = [];
-    activeMods.forEach((mod: any) => {
-      if (mod.conflicts && Array.isArray(mod.conflicts)) {
-        mod.conflicts.forEach((c: any) => {
-          const enemyActive = activeMods.find((em: any) => {
-            if (em.isFallback) return false;
-            if (c.enemy_id && String(em.dbId) === String(c.enemy_id)) return true;
-            if (c.enemy_name) {
-              const targetClean = String(c.enemy_name).toUpperCase();
-              const cleanN = String(em.name || '').toUpperCase();
-              const cleanDisp = String(em.displayName || '').toUpperCase();
-              if (cleanN.includes(targetClean) || cleanDisp.includes(targetClean)) return true;
-            }
-            return false;
-          });
-
-          if (enemyActive && mod.name && enemyActive.name && mod.name !== enemyActive.name) {
-            const pairId = [mod.name, enemyActive.name].sort().join("::");
-            if (!conflicts.find(ac => ac.pairId === pairId)) {
-              conflicts.push({ pairId, modA: mod, modB: enemyActive, conflict: c });
-            }
-          }
-        });
-      }
-    });
-
     try {
       const stored = localStorage.getItem("sanctuary_local_conflicts");
       if (stored) {
         const localConflicts = JSON.parse(stored);
         localConflicts.forEach((lc: any) => {
+          if (ignoredGlobal.includes(lc.mod_pair)) return;
+          
           const modAMatch = activeMods.find((em: any) => {
             if (em.isFallback) return false;
             const cleanN = String(em.name || '').toUpperCase();
             const cleanDisp = String(em.displayName || '').toUpperCase();
-            const targetClean = String(lc.modA).toUpperCase();
+            const targetClean = String(lc.modA || lc.mod_a || '').toUpperCase();
             return cleanN.includes(targetClean) || cleanDisp.includes(targetClean) || targetClean.includes(cleanN);
           });
           const modBMatch = activeMods.find((em: any) => {
             if (em.isFallback) return false;
             const cleanN = String(em.name || '').toUpperCase();
             const cleanDisp = String(em.displayName || '').toUpperCase();
-            const targetClean = String(lc.modB).toUpperCase();
+            const targetClean = String(lc.modB || lc.mod_b || '').toUpperCase();
             return cleanN.includes(targetClean) || cleanDisp.includes(targetClean) || targetClean.includes(cleanN);
           });
 
-          if (modAMatch && modBMatch && modAMatch.name !== modBMatch.name) {
-            const pairId = [modAMatch.name, modBMatch.name].sort().join("::");
-            if (!conflicts.find((ac: any) => ac.pairId === pairId)) {
-              conflicts.push({ pairId, modA: modAMatch, modB: modBMatch, conflict: { severity_rank: lc.severity_rank, resolution_note: lc.resolution_note || "Local Scan Detects Tuning Overlap" } });
-            }
+          if (modAMatch && modBMatch) {
+            const isWinnerA = modAMatch._originalSetName?.toLowerCase().startsWith("sanctuary") || modAMatch.name?.toLowerCase().startsWith("sanctuary");
+            const isWinnerB = modBMatch._originalSetName?.toLowerCase().startsWith("sanctuary") || modBMatch.name?.toLowerCase().startsWith("sanctuary");
+            if (isWinnerA || isWinnerB) return;
+
+            conflicts.push({
+              pairId: lc.mod_pair,
+              modA: modAMatch,
+              modB: modBMatch,
+              conflict: {
+                severity_rank: lc.severity_rank,
+                resolution_note: lc.resolution_note || "Local Scan Detects Tuning Overlap",
+              },
+            });
           }
         });
       }
     } catch (e) { }
 
-    return conflicts.filter((ac: any) => {
-      if (ac.conflict.severity_rank !== 3) return true;
-      const prefixA = (ac.modA._originalSetName || ac.modA.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
-      const prefixB = (ac.modB._originalSetName || ac.modB.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
-      const isWinnerA = prefixA.toLowerCase() === "sanctuary";
-      const isWinnerB = prefixB.toLowerCase() === "sanctuary";
-      return !isWinnerA && !isWinnerB;
-    });
-  }, [activeMods]);
+    return conflicts;
+  }, [activeMods, ignoredGlobal]);
 
   const brokenMods = useMemo(() => {
     return activeMods.map((mod: any) => {
@@ -238,46 +222,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
   const redMods = useMemo(() => brokenMods.filter((m: any) => m._alert_type === 'red'), [brokenMods]);
   const amberMods = useMemo(() => brokenMods.filter((m: any) => m._alert_type === 'amber'), [brokenMods]);
 
-  const setBlueprintLoadOrder = (updates: string | { name: string, prefix: string }[], prefix?: string) => {
-    try {
-      setPlaySets((prevSets: any) => {
-        if (!prevSets) return prevSets;
-        const currentSet = prevSets[activePlaySetIndex];
-        if (!currentSet) return prevSets;
-        const newMods = [...currentSet.mods];
-
-        const updateList = Array.isArray(updates) ? updates : [{ name: updates, prefix: prefix || "" }];
-
-        updateList.forEach(update => {
-          if (!update || !update.name) return;
-          const nameStr = String(update.name);
-          const baseName = nameStr.split(/[/\\]/).pop() || nameStr;
-
-          let found = false;
-          for (let i = 0; i < newMods.length; i++) {
-            const mLow = String(newMods[i]).toLowerCase();
-            const bLow = baseName.toLowerCase();
-            const tLow = nameStr.toLowerCase();
-            if (mLow === bLow || mLow === tLow || mLow.endsWith(`/${bLow}`) || mLow.endsWith(`\\${bLow}`)) {
-              newMods[i] = update.prefix ? `${update.prefix}/${baseName}` : baseName;
-              found = true;
-            }
-          }
-          if (!found) {
-            newMods.push(update.prefix ? `${update.prefix}/${baseName}` : baseName);
-          }
-        });
-
-        const newSets = [...prevSets];
-        newSets[activePlaySetIndex] = { ...currentSet, mods: newMods };
-
-        window.dispatchEvent(new Event("storage"));
-        return newSets;
-      });
-    } catch (e) {
-      console.error("setBlueprintLoadOrder error:", e);
-    }
-  };
+  const { applyConflictOverride } = usePlaySetLogic();
 
   const getPriorityDrop = (modData: any) => {
     if (!modData || modData.isFallback || !allow_write) return null;
@@ -382,10 +327,8 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                   const isIgnored = ignoredConflicts.has(ac.pairId);
                   const isTier4 = ac.conflict.severity_rank === 4;
 
-                  const prefixA = (ac.modA._originalSetName || ac.modA.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
-                  const prefixB = (ac.modB._originalSetName || ac.modB.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
-                  const isWinnerA = prefixA.toLowerCase() === "sanctuary";
-                  const isWinnerB = prefixB.toLowerCase() === "sanctuary";
+                  const isWinnerA = (ac.modA._originalSetName || ac.modA.name)?.toLowerCase().startsWith("sanctuary/") || (ac.modA._originalSetName || ac.modA.name)?.toLowerCase().startsWith("sanctuary\\");
+                  const isWinnerB = (ac.modB._originalSetName || ac.modB.name)?.toLowerCase().startsWith("sanctuary/") || (ac.modB._originalSetName || ac.modB.name)?.toLowerCase().startsWith("sanctuary\\");
 
                   const borderClass = isTier4 ? "border-red-500/30" : "border-amber-500/30";
                   const bgClass = isTier4 ? "bg-red-500/5 hover:bg-red-500/10" : "bg-amber-500/5 hover:bg-amber-500/10";
@@ -466,10 +409,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                 ) : (
                                   allow_write && (
                                     <button
-                                      onClick={() => setBlueprintLoadOrder([
-                                        { name: ac.modA._originalSetName || ac.modA.name, prefix: "Sanctuary" },
-                                        { name: ac.modB._originalSetName || ac.modB.name, prefix: "" }
-                                      ])}
+                                      onClick={() => applyConflictOverride(ac.modA._originalSetName || ac.modA.name, ac.pairId, playSet.name)}
                                       className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                     >
                                       <span className="material-symbols-outlined !text-[14px]">{t("icon_check_circle")}</span>
@@ -527,7 +467,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                 ) : (
                                   allow_write && (
                                     <button
-                                      onClick={() => setBlueprintLoadOrder([{ name: ac.modB._originalSetName || ac.modB.name, prefix: "Sanctuary" }, { name: ac.modA._originalSetName || ac.modA.name, prefix: "" }])}
+                                      onClick={() => applyConflictOverride(ac.modB._originalSetName || ac.modB.name, ac.pairId, playSet.name)}
                                       className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                     >
                                       <span className="material-symbols-outlined !text-[14px]">{t("icon_check_circle")}</span>

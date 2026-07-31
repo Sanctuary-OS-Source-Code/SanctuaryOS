@@ -1,3 +1,4 @@
+import React from "react";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { formatDisplayName , getFileLabel, isSupportedExtension} from "./shared";
@@ -53,7 +54,7 @@ const ModNameWithBadge = ({ name }: { name: string }) => {
   );
 };
 
-export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, isSelectedB, onToggleSelectA, onToggleSelectB, onClick, onIgnore, isBulkMode }: ConflictCardProps) {
+function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelectedB, onToggleSelectA, onToggleSelectB, onClick, onIgnore, isBulkMode }: ConflictCardProps) {
   const { t } = useLexicon();
   
   let label = "";
@@ -69,8 +70,23 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
   }
 
   const tColor = tier === 4 ? 'text-[var(--danger)]' : tier === 3 ? 'text-[var(--warning)]' : tier === 2 ? 'text-[var(--accent)]' : 'text-white/50';
-  const glowC = tier === 4 ? 'bg-[var(--danger)]/10 group-hover:bg-[var(--danger)]/20' : tier === 3 ? 'bg-[var(--warning)]/10 group-hover:bg-[var(--warning)]/20' : tier === 2 ? 'bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20' : 'bg-white/5 group-hover:bg-white/10';
   const borderHover = tier === 4 ? 'hover:border-[var(--danger)]/30' : tier === 3 ? 'hover:border-[var(--warning)]/30' : tier === 2 ? 'hover:border-[var(--accent)]/30' : 'hover:border-white/10';
+
+  const getGlowStyles = () => {
+    const aColor = isSelectedA ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 
+                   tier === 4 ? 'color-mix(in srgb, var(--danger) 15%, transparent)' : 
+                   tier === 3 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 
+                   tier === 2 ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 
+                   'color-mix(in srgb, white 5%, transparent)';
+                   
+    const bColor = isSelectedB ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 
+                   tier === 4 ? 'color-mix(in srgb, var(--danger) 15%, transparent)' : 
+                   tier === 3 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 
+                   tier === 2 ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 
+                   'color-mix(in srgb, white 5%, transparent)';
+                   
+    return `radial-gradient(circle at 100% 0%, ${aColor} 0%, transparent 50%), radial-gradient(circle at 0% 100%, ${bColor} 0%, transparent 50%)`;
+  };
 
   return (
     <div 
@@ -80,14 +96,13 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
         ${isSelected ? "border-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_15%,transparent)]" : "border-white/5"}
       `}
     >
-      <div className={`absolute top-0 right-0 w-48 h-48 blur-[50px] pointer-events-none mix-blend-screen transition-all duration-700 ${isSelectedA ? 'bg-[var(--accent)]/30' : glowC}`} />
-      <div className={`absolute bottom-0 left-0 w-48 h-48 blur-[50px] pointer-events-none mix-blend-screen transition-all duration-700 ${isSelectedB ? 'bg-[var(--accent)]/30' : glowC}`} />
+      <div className="absolute inset-0 pointer-events-none transition-all duration-700 opacity-60 group-hover:opacity-100" style={{ background: getGlowStyles() }} />
       
       {isSelected && (
         <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent blur-xl pointer-events-none" />
       )}
 
-      <div className="flex justify-between items-center z-10">
+      <div className="flex justify-between items-center z-10 relative">
         <div className="flex items-center gap-2">
           <span className={`material-symbols-outlined !text-[14px] ${tier === 4 ? 'text-[var(--danger)]' : tier === 3 ? 'text-[var(--warning)]' : tier === 2 ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>
             {tier === 4 ? 'error' : tier === 3 ? 'warning' : tier === 2 ? 'file_copy' : 'info'}
@@ -119,8 +134,8 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
               <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
             </span>
             {isBulkMode && (
-              <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] shrink-0 transition-all ${isSelectedA ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)] shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)]" : "border-white/10 text-transparent bg-black/20"}`}>
-                {isSelectedA ? "✓" : ""}
+              <div className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all duration-500 ${isSelectedA ? "border-[var(--accent)]/60 bg-[var(--accent)]/20 text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_40%,transparent),inset_0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)]" : "border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent bg-black/20 shadow-inner"}`}>
+                <span className={`material-symbols-outlined font-black transition-all duration-500 ${isSelectedA ? '!text-[14px] drop-shadow-[0_0_8px_var(--accent)] scale-110' : '!text-[12px] scale-90'}`}>{t("icon_check") || "check"}</span>
               </div>
             )}
           </div>
@@ -142,8 +157,8 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
               <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
             </span>
             {isBulkMode && (
-              <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] shrink-0 transition-all ${isSelectedB ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)] shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)]" : "border-white/10 text-transparent bg-black/20"}`}>
-                {isSelectedB ? "✓" : ""}
+              <div className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all duration-500 ${isSelectedB ? "border-[var(--accent)]/60 bg-[var(--accent)]/20 text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_40%,transparent),inset_0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)]" : "border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent bg-black/20 shadow-inner"}`}>
+                <span className={`material-symbols-outlined font-black transition-all duration-500 ${isSelectedB ? '!text-[14px] drop-shadow-[0_0_8px_var(--accent)] scale-110' : '!text-[12px] scale-90'}`}>{t("icon_check") || "check"}</span>
               </div>
             )}
           </div>
@@ -160,3 +175,16 @@ export default function ConflictCard({ conflict, tier, isSelected, isSelectedA, 
     </div>
   );
 }
+
+const arePropsEqual = (prev: ConflictCardProps, next: ConflictCardProps) => {
+  return (
+    prev.conflict.mod_pair === next.conflict.mod_pair &&
+    prev.tier === next.tier &&
+    prev.isSelected === next.isSelected &&
+    prev.isSelectedA === next.isSelectedA &&
+    prev.isSelectedB === next.isSelectedB &&
+    prev.isBulkMode === next.isBulkMode
+  );
+};
+
+export default React.memo(ConflictCardInner, arePropsEqual);

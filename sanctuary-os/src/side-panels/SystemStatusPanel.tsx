@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { SidePanel } from '../shared';
+import { SidePanel, FilterTabs, FilterTabButton } from '../shared';
 import { useModalStore } from '../store/modalStore';
 import { useLexicon } from '../LexiconContext';
 import packageJson from '../../package.json';
@@ -221,20 +221,22 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
               <span className="drop-shadow-sm">{t("sys_info_app_footprint")}</span>
             </h3>
 
-            <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner shrink-0 scale-90 origin-right">
-              <button
-                onClick={() => setUsePrivateMemory(false)}
-                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${!usePrivateMemory ? 'bg-[rgba(234,88,12,0.2)] text-[rgba(234,88,12,1)] border border-[rgba(234,88,12,0.3)] shadow-[0_0_15px_rgba(234,88,12,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
-              >
-                {t("sys_stat_working_set")}
-              </button>
-              <button
-                onClick={() => setUsePrivateMemory(true)}
-                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${usePrivateMemory ? 'bg-[rgba(234,88,12,0.2)] text-[rgba(234,88,12,1)] border border-[rgba(234,88,12,0.3)] shadow-[0_0_15px_rgba(234,88,12,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
-              >
-                {t("sys_stat_private_set")}
-              </button>
-            </div>
+            <FilterTabs className="shrink-0 scale-90 origin-right !h-auto">
+              <FilterTabButton
+                id={false}
+                activeTab={usePrivateMemory}
+                setTab={setUsePrivateMemory}
+                label={t("sys_stat_working_set")}
+                className="py-1.5 px-3 text-[9px] whitespace-nowrap"
+              />
+              <FilterTabButton
+                id={true}
+                activeTab={usePrivateMemory}
+                setTab={setUsePrivateMemory}
+                label={t("sys_stat_private_set")}
+                className="py-1.5 px-3 text-[9px] whitespace-nowrap"
+              />
+            </FilterTabs>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <StatBox

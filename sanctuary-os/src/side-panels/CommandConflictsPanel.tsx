@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { SidePanel, formatDisplayName, CustomDropdown } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { tauriBridge } from "../lib/tauri-bridge";
+import { useStore } from "../store";
 
 interface CommandConflictsPanelProps {
   isOpen: boolean;
@@ -15,10 +16,12 @@ interface CommandConflictsPanelProps {
     excludeBroken?: boolean,
     forceRemove?: boolean,
   ) => void;
-  setBlueprintLoadOrder: (
-    updates: string | { name: string; prefix: string }[],
-    prefix?: string,
+  applyConflictOverride: (
+    winnerName: string,
+    modPair: string,
+    currentScopeName: string
   ) => void;
+  activeSetName?: string;
 }
 
 export default function CommandConflictsPanel({
@@ -29,65 +32,29 @@ export default function CommandConflictsPanel({
   vaultPath,
   onRefreshMods,
   toggleInActiveSet,
-  setBlueprintLoadOrder,
+  applyConflictOverride,
+  activeSetName,
 }: CommandConflictsPanelProps) {
   const { t } = useLexicon();
+  const ignoredGlobal = useStore((state) => state.ignoredGlobal);
   const [ignoredConflicts, setIgnoredConflicts] = useState<Set<string>>(
     new Set(),
   );
 
   const activeConflicts = useMemo(() => {
     const conflicts: any[] = [];
-    activeMods.forEach((mod: any) => {
-      if (mod.conflicts && Array.isArray(mod.conflicts)) {
-        mod.conflicts.forEach((c: any) => {
-          const enemyActive = activeMods.find((em: any) => {
-            if (em.isFallback) return false;
-            if (c.enemy_id && String(em.dbId) === String(c.enemy_id))
-              return true;
-            if (c.enemy_name) {
-              const targetClean = String(c.enemy_name).toUpperCase();
-              const cleanN = String(em.name || "").toUpperCase();
-              const cleanDisp = String(em.displayName || "").toUpperCase();
-              if (
-                cleanN.includes(targetClean) ||
-                cleanDisp.includes(targetClean)
-              )
-                return true;
-            }
-            return false;
-          });
-
-          if (
-            enemyActive &&
-            mod.name &&
-            enemyActive.name &&
-            mod.name !== enemyActive.name
-          ) {
-            const pairId = [mod.name, enemyActive.name].sort().join("::");
-            if (!conflicts.find((ac: any) => ac.pairId === pairId)) {
-              conflicts.push({
-                pairId,
-                modA: mod,
-                modB: enemyActive,
-                conflict: c,
-              });
-            }
-          }
-        });
-      }
-    });
-
     try {
       const stored = localStorage.getItem("sanctuary_local_conflicts");
       if (stored) {
         const localConflicts = JSON.parse(stored);
         localConflicts.forEach((lc: any) => {
+          if (ignoredGlobal.includes(lc.mod_pair)) return;
+          
           const modAMatch = activeMods.find((em: any) => {
             if (em.isFallback) return false;
             const cleanN = String(em.name || "").toUpperCase();
             const cleanDisp = String(em.displayName || "").toUpperCase();
-            const targetClean = String(lc.modA).toUpperCase();
+            const targetClean = String(lc.modA || lc.mod_a || '').toUpperCase();
             return (
               cleanN.includes(targetClean) ||
               cleanDisp.includes(targetClean) ||
@@ -98,7 +65,7 @@ export default function CommandConflictsPanel({
             if (em.isFallback) return false;
             const cleanN = String(em.name || "").toUpperCase();
             const cleanDisp = String(em.displayName || "").toUpperCase();
-            const targetClean = String(lc.modB).toUpperCase();
+            const targetClean = String(lc.modB || lc.mod_b || '').toUpperCase();
             return (
               cleanN.includes(targetClean) ||
               cleanDisp.includes(targetClean) ||
@@ -106,42 +73,27 @@ export default function CommandConflictsPanel({
             );
           });
 
-          if (modAMatch && modBMatch && modAMatch.name !== modBMatch.name) {
-            const pairId = [modAMatch.name, modBMatch.name].sort().join("::");
-            if (!conflicts.find((ac: any) => ac.pairId === pairId)) {
-              conflicts.push({
-                pairId,
-                modA: modAMatch,
-                modB: modBMatch,
-                conflict: {
-                  severity_rank: lc.severity_rank,
-                  resolution_note:
-                    lc.resolution_note || "Local Scan Detects Tuning Overlap",
-                },
-              });
-            }
+          if (modAMatch && modBMatch) {
+            const isWinnerA = modAMatch._originalSetName?.toLowerCase().startsWith("sanctuary") || modAMatch.name?.toLowerCase().startsWith("sanctuary");
+            const isWinnerB = modBMatch._originalSetName?.toLowerCase().startsWith("sanctuary") || modBMatch.name?.toLowerCase().startsWith("sanctuary");
+            if (isWinnerA || isWinnerB) return;
+
+            conflicts.push({
+              pairId: lc.mod_pair,
+              modA: modAMatch,
+              modB: modBMatch,
+              conflict: {
+                severity_rank: lc.severity_rank,
+                resolution_note: lc.resolution_note || "Local Scan Detects Tuning Overlap",
+              },
+            });
           }
         });
       }
     } catch (e) { }
 
-    return conflicts.filter((ac: any) => {
-      if (ac.conflict.severity_rank !== 3) return true;
-      const prefixA =
-        (ac.modA._originalSetName || ac.modA.name)
-          ?.split(/[/\\]/)
-          .slice(0, -1)
-          .join("/") || "";
-      const prefixB =
-        (ac.modB._originalSetName || ac.modB.name)
-          ?.split(/[/\\]/)
-          .slice(0, -1)
-          .join("/") || "";
-      const isWinnerA = prefixA.toLowerCase() === "sanctuary";
-      const isWinnerB = prefixB.toLowerCase() === "sanctuary";
-      return !isWinnerA && !isWinnerB;
-    });
-  }, [activeMods]);
+    return conflicts;
+  }, [activeMods, ignoredGlobal]);
 
   const getPriorityDrop = (modData: any) => {
     if (!modData || modData.isFallback || !allow_write) return null;
@@ -387,24 +339,14 @@ export default function CommandConflictsPanel({
                                 {t("bp_overridden_by_winner")}
                               </div>
                             ) : (
-                              allow_write &&
-                              setBlueprintLoadOrder && (
+                              applyConflictOverride && activeSetName && (
                                 <button
                                   onClick={() =>
-                                    setBlueprintLoadOrder([
-                                      {
-                                        name:
-                                          ac.modA._originalSetName ||
-                                          ac.modA.name,
-                                        prefix: "Sanctuary",
-                                      },
-                                      {
-                                        name:
-                                          ac.modB._originalSetName ||
-                                          ac.modB.name,
-                                        prefix: "",
-                                      },
-                                    ])
+                                    applyConflictOverride(
+                                      ac.modA._originalSetName || ac.modA.name,
+                                      ac.pairId,
+                                      activeSetName
+                                    )
                                   }
                                   className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                 >
@@ -496,24 +438,14 @@ export default function CommandConflictsPanel({
                                 {t("bp_overridden_by_winner")}
                               </div>
                             ) : (
-                              allow_write &&
-                              setBlueprintLoadOrder && (
+                              applyConflictOverride && activeSetName && (
                                 <button
                                   onClick={() =>
-                                    setBlueprintLoadOrder([
-                                      {
-                                        name:
-                                          ac.modB._originalSetName ||
-                                          ac.modB.name,
-                                        prefix: "Sanctuary",
-                                      },
-                                      {
-                                        name:
-                                          ac.modA._originalSetName ||
-                                          ac.modA.name,
-                                        prefix: "",
-                                      },
-                                    ])
+                                    applyConflictOverride(
+                                      ac.modB._originalSetName || ac.modB.name,
+                                      ac.pairId,
+                                      activeSetName
+                                    )
                                   }
                                   className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                 >

@@ -504,3 +504,123 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- Securely upsert to sanctuary_schemas or sanctuary_lexicons using OS Token Verification
+CREATE OR REPLACE FUNCTION secure_upsert_cloud_file(p_token text, p_target text, p_payload jsonb)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id uuid;
+  v_response http_response;
+  v_request http_request;
+  v_headers http_header[];
+BEGIN
+  -- Build headers for the Auth request
+  v_headers := ARRAY[
+    http_header('Authorization', 'Bearer ' || p_token),
+    http_header('apikey', 'sb_publishable_UfZsGP0-5CvUlFOXpLJXaw_eCqQoKaC')
+  ];
+
+  -- Create the HTTP request to Sanctuary OS
+  v_request := ROW(
+    'GET',
+    'https://tpsbtaqxlczrysqqmanp.supabase.co/auth/v1/user',
+    v_headers,
+    NULL,
+    NULL
+  )::http_request;
+
+  -- Verify the token with the OS Database
+  v_response := http(v_request);
+
+  IF v_response.status != 200 THEN
+    RAISE EXCEPTION 'Unauthorized: Invalid OS Token';
+  END IF;
+
+  -- Perform the UPSERT action safely
+  IF p_target = 'sanctuary_schemas' THEN
+    INSERT INTO sanctuary_schemas (id, name, schema_data, version, updated_at) 
+    VALUES (
+      p_payload->>'id', 
+      p_payload->>'name', 
+      p_payload->'schema_data', 
+      COALESCE((p_payload->>'version')::int, 1), 
+      COALESCE((p_payload->>'updated_at')::timestamp with time zone, NOW())
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name,
+      schema_data = EXCLUDED.schema_data,
+      version = EXCLUDED.version,
+      updated_at = EXCLUDED.updated_at;
+      
+  ELSIF p_target = 'sanctuary_lexicons' THEN
+    INSERT INTO sanctuary_lexicons (id, name, badge, version, lexicon_data, updated_at) 
+    VALUES (
+      p_payload->>'id', 
+      p_payload->>'name', 
+      p_payload->>'badge', 
+      COALESCE((p_payload->>'version')::int, 1), 
+      p_payload->'lexicon_data', 
+      COALESCE((p_payload->>'updated_at')::timestamp with time zone, NOW())
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name,
+      badge = EXCLUDED.badge,
+      version = EXCLUDED.version,
+      lexicon_data = EXCLUDED.lexicon_data,
+      updated_at = EXCLUDED.updated_at;
+  ELSE
+    RAISE EXCEPTION 'Invalid target: %', p_target;
+  END IF;
+
+  RETURN true;
+END;
+$$;
+
+-- Securely delete from sanctuary_schemas or sanctuary_lexicons using OS Token Verification
+CREATE OR REPLACE FUNCTION secure_delete_cloud_file(p_token text, p_target text, p_id text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_response http_response;
+  v_request http_request;
+  v_headers http_header[];
+BEGIN
+  -- Build headers for the Auth request
+  v_headers := ARRAY[
+    http_header('Authorization', 'Bearer ' || p_token),
+    http_header('apikey', 'sb_publishable_UfZsGP0-5CvUlFOXpLJXaw_eCqQoKaC')
+  ];
+
+  -- Create the HTTP request to Sanctuary OS
+  v_request := ROW(
+    'GET',
+    'https://tpsbtaqxlczrysqqmanp.supabase.co/auth/v1/user',
+    v_headers,
+    NULL,
+    NULL
+  )::http_request;
+
+  -- Verify the token with the OS Database
+  v_response := http(v_request);
+
+  IF v_response.status != 200 THEN
+    RAISE EXCEPTION 'Unauthorized: Invalid OS Token';
+  END IF;
+
+  -- Perform the DELETE action safely
+  IF p_target = 'sanctuary_schemas' THEN
+    DELETE FROM sanctuary_schemas WHERE id = p_id;
+  ELSIF p_target = 'sanctuary_lexicons' THEN
+    DELETE FROM sanctuary_lexicons WHERE id = p_id;
+  ELSE
+    RAISE EXCEPTION 'Invalid target: %', p_target;
+  END IF;
+
+  RETURN true;
+END;
+$$;

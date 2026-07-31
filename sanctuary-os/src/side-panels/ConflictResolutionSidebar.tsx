@@ -132,21 +132,21 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                 <div className="flex flex-col relative z-10">
                   <div 
                     onClick={() => setSelectedMod(modName)}
-                    className={`relative group cursor-pointer w-full rounded-[var(--radius)] overflow-hidden transition-colors duration-300 border-2 ${
+                    className={`relative group cursor-pointer w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border theme-glass-panel backdrop-blur-2xl ${
                     isActive 
-                      ? `border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_10px_30px_color-mix(in_srgb,var(--accent)_20%,transparent)]` 
-                      : `border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]`
+                      ? `border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_20px_50px_color-mix(in_srgb,var(--accent)_20%,transparent),inset_0_0_30px_color-mix(in_srgb,var(--accent)_10%,transparent)] scale-[1.02] z-10` 
+                      : `border-white/5 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-white/5 hover:shadow-2xl`
                   }`}
                 >
-                  {isActive && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)] to-transparent opacity-10 pointer-events-none" />}
+                  {isActive && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)] to-transparent opacity-20 pointer-events-none mix-blend-overlay" />}
                   
                   <div className="relative p-6 flex items-center gap-6 z-10">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-300 ${
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-500 ${
                       isActive 
-                        ? 'border-transparent bg-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_40%,transparent)]' 
-                        : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'
+                        ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_40%,transparent),0_0_20px_color-mix(in_srgb,var(--accent)_30%,transparent)] backdrop-blur-md' 
+                        : 'theme-glass-panel border-white/10 group-hover:border-white/20 shadow-inner'
                     }`}>
-                      <span className={`material-symbols-outlined !text-[28px] transition-colors duration-300 ${isActive ? 'text-[var(--bg)]' : 'text-[var(--text)] opacity-50 group-hover:opacity-100'}`}>
+                      <span className={`material-symbols-outlined !text-[28px] transition-colors duration-500 ${isActive ? 'text-[var(--accent)] drop-shadow-[0_0_10px_var(--accent)]' : 'text-[var(--subtext)] opacity-70 group-hover:text-[var(--text)] group-hover:opacity-100'}`}>
                         {t("icon_extension")}
                       </span>
                     </div>
@@ -155,10 +155,10 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                       <ModNameWithBadge name={modName} />
                     </div>
 
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                      isActive ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--bg)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent group-hover:border-[color-mix(in_srgb,var(--text)_50%,transparent)]'
+                    <div className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all duration-500 ${
+                      isActive ? 'border-[var(--accent)]/60 bg-[var(--accent)]/20 text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_40%,transparent),inset_0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent group-hover:border-[color-mix(in_srgb,var(--text)_50%,transparent)] bg-black/20 shadow-inner'
                     }`}>
-                      <span className="material-symbols-outlined !text-[14px]">{t("icon_check")}</span>
+                      <span className={`material-symbols-outlined font-black transition-all duration-500 ${isActive ? '!text-[16px] drop-shadow-[0_0_8px_var(--accent)] scale-110' : '!text-[14px] scale-90'}`}>{t("icon_check")}</span>
                     </div>
                   </div>
                 </div>

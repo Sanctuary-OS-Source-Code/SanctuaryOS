@@ -92,12 +92,10 @@ pub async fn run_conflict_radar(
         conflicts
     });
 
-    let pool = rayon::ThreadPoolBuilder::new().build().unwrap();
-    pool.install(|| {
-        packages
-            .into_par_iter()
-            .for_each_with(tx, |s, path| {
-                let file_name = path
+    packages
+        .into_par_iter()
+        .for_each_with(tx, |s, path| {
+            let file_name = path
                 .strip_prefix(mods_dir)
                 .unwrap_or(&path)
                 .to_string_lossy()
@@ -114,7 +112,6 @@ pub async fn run_conflict_radar(
             }
             let _ = s.send((file_name, resources));
         });
-    });
 
     let conflicts = merge_thread.join().unwrap();
 

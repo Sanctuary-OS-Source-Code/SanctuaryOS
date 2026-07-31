@@ -15,7 +15,9 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
     ? (isEngineBackup ? t("overlay_sealing_engine_desc") : t("overlay_sealing_world_desc"))
     : (isEngineRestore ? t("overlay_restoring_engine_desc") : t("overlay_restoring_world_desc"));
 
-  const themeVar = (isEngineBackup || isEngineRestore) ? '#f43f5e' : '#6366f1';
+  const themeVar = isBackingUp 
+    ? (isEngineBackup ? '#f43f5e' : '#6366f1') 
+    : (isEngineRestore ? '#f43f5e' : '#6366f1');
   const icon = isBackingUp ? 'archive' : 'unarchive';
 
   if (!isBackingUp && !isRestoring) return null;

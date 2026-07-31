@@ -775,6 +775,7 @@
   "matrix_market": "MARKETPLACE LISTING",
   "matrix_public": "Public Access",
   "mount_subject": "MOUNT HASH SUBJECT",
+  "nav_load_more": "Load More",
   "no_additional": "NO ADDITIONAL TEMPLATES",
   "no_blueprints": "No play sets found.",
   "no_chameleons": "No themes deployed.",
@@ -1321,6 +1322,7 @@
   "btn_create_folder": "CREATE FOLDER",
   "btn_initiate_swap": "CONDUCT EXPERIMENT",
   "btn_link_existing": "LINK TO EXISTING Mod",
+  "btn_reset_ignored": "Reset Ignored",
   "btn_select_assets": "SELECT ASSETS",
   "cc_btn_delete_set": "DELETE COLLECTION",
   "chameleon_library": "Chameleon Library",
@@ -2299,9 +2301,9 @@
   "alert_error_mason_profile_missing": "Error: Creator Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
   "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
-  "label_artifact": "Artifact",
-  "chameleon": "Chameleon",
-  "blueprint": "Blueprint",
   "lexicon": "Lexicon",
-  "all_types": "All Types"
+  "all_types": "All Types",
+  "blueprint": "Blueprint",
+  "chameleon": "Chameleon",
+  "label_artifact": "Artifact"
 }

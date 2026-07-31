@@ -267,6 +267,79 @@ const Vault = React.memo(function Vault(props: any) {
   });
 
   const totalPages = Math.max(1, Math.ceil(finalVisibleMods.length / itemsPerPage));
+  const dependencyGraph = React.useMemo(() => {
+    const tStart = performance.now();
+    const graph = new Map<string, any[]>();
+    
+    // Create fast lookup maps for equipped mods
+    const equippedByName = new Map<string, any>();
+    const equippedById = new Map<string, any>();
+    const equippedByHash = new Map<string, any>();
+    const equippedByFuzzy = new Map<string, any>();
+    const equippedByFamily = new Map<string, any>();
+
+    equippedDisplayMods.forEach((m: any) => {
+       equippedByName.set(m.name, m);
+       if (m.dbId) equippedById.set(String(m.dbId), m);
+       if (m.hash) equippedByHash.set(m.hash, m);
+       if (m.familyId) equippedByFamily.set(String(m.familyId), m);
+       if (m.interchangeableIds) {
+           m.interchangeableIds.forEach((id: string) => equippedById.set(String(id), m));
+       }
+       if (m.displayName) {
+           const upper = m.displayName.toUpperCase();
+           equippedByFuzzy.set(upper, m);
+           equippedByFuzzy.set(upper.replace(/_/g, " "), m);
+       }
+    });
+
+    equippedDisplayMods.forEach((m: any) => {
+        let deps = new Set<any>();
+        
+        // 1. Requirements
+        if (m.requirements) {
+           m.requirements.forEach((r: any) => {
+               const reqIdStr = typeof r === 'string' ? r : r.id || r.dbId;
+               const reqName = typeof r === 'string' ? r : r.name;
+               let provider = null;
+               
+               if (reqIdStr) {
+                   provider = equippedById.get(String(reqIdStr)) || equippedByHash.get(String(reqIdStr));
+               }
+               
+               if (!provider && reqName && isNaN(Number(reqName))) {
+                   const reqBaseName = reqName.split(/[\\/]/).pop().replace(/\.[^/.]+$/, "").toUpperCase();
+                   
+                   // Fuzzy match: check all equipped mods
+                   for (const [key, p] of equippedByFuzzy.entries()) {
+                       if (key.includes(reqBaseName)) {
+                           provider = p;
+                           break;
+                       }
+                   }
+               }
+               
+               if (provider && provider.name !== m.name) deps.add(provider);
+           });
+        }
+        
+        // 2. Addons
+        if (m.relationshipType === 'addon' && m.familyId) {
+            const provider = equippedByFamily.get(String(m.familyId));
+            if (provider && provider.relationshipType !== 'addon' && provider.name !== m.name) {
+                deps.add(provider);
+            }
+        }
+        
+        deps.forEach((provider: any) => {
+            let arr = graph.get(provider.name);
+            if (!arr) { arr = []; graph.set(provider.name, arr); }
+            arr.push(m);
+        });
+    });
+    return graph;
+  }, [equippedDisplayMods]);
+
   const paginatedMods = finalVisibleMods.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
@@ -466,14 +539,7 @@ const Vault = React.memo(function Vault(props: any) {
                   const mData = mod;
                   if (mData?.requirements) {
                     mData.requirements.forEach((reqId: any) => {
-                      const isSatisfied = activeSetMods.some(
-                        (n: string) => {
-                          const match = modListIndex.namesAndDisplayNames.find((nEntry: any) => nEntry.name === n)?.orig;
-                          return (
-                            match && String(match.dbId) === String(reqId)
-                          );
-                        },
-                      );
+                      const isSatisfied = equippedDisplayMods.some((m: any) => String(m.dbId) === String(reqId));
                       if (!isSatisfied) {
                         const provider = modListIndex.byDbId.get(String(reqId));
                         if (provider?.flavorGroupId) {
@@ -495,26 +561,7 @@ const Vault = React.memo(function Vault(props: any) {
                   if (current.name !== mod.name) {
                     result.push(current.displayName || current.name);
                   }
-                  const dependents = equippedDisplayMods.filter(
-                    (m: any) =>
-                    (m.requirements?.some(
-                      (r: any) => {
-                        const reqIdStr = typeof r === 'string' ? r : r.id || r.dbId;
-                        const reqName = typeof r === 'string' ? r : r.name;
-                        const extRegex = getExtensionRegex(activeGameSchema);
-                        const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(extRegex, "").toUpperCase();
-                        const isReqNumeric = !isNaN(Number(reqName));
-                        return (reqIdStr && String(current.dbId) === String(reqIdStr)) ||
-                          (reqIdStr && current.hash === reqIdStr) ||
-                          (reqIdStr && current.interchangeableIds && current.interchangeableIds.includes(String(reqIdStr))) ||
-                          (!isReqNumeric && reqBaseName && current.displayName && (current.displayName.toUpperCase().includes(reqBaseName) || current.displayName.toUpperCase().replace(/_/g, " ").includes(reqBaseName.replace(/_/g, " "))));
-                      }
-                    ) ||
-                      (String(m.familyId) ===
-                        String(current.familyId || current.dbId) &&
-                        m.relationshipType === "addon" &&
-                        current.relationshipType !== "addon"))
-                  );
+                  const dependents = dependencyGraph.get(current.name) || [];
                   queue.push(...dependents);
                 }
                 return [...new Set(result)];
@@ -574,19 +621,17 @@ const Vault = React.memo(function Vault(props: any) {
                 const checkConflicts = (mObj: any) => {
                   if (mObj.conflicts && mObj.conflicts.length > 0) {
                     const conflictCasualties = mObj.conflicts.filter((c: any) => c.severity_rank === 4).map((c: any) => {
-                      const matchName = activeSetMods.find((n: string) => {
-                        const mData = modListIndex.namesAndDisplayNames.find((ne: any) => ne.name === n)?.orig;
+                      const matchObj = equippedDisplayMods.find((mData: any) => {
                         if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
                         if (c.enemy_name) {
                           const targetClean = c.enemy_name.toUpperCase();
-                          const cleanN = n.split(/[\\/]/).pop()?.replace(/\.(package|ts4script)$/i, "").toUpperCase();
+                          const cleanN = (mData.name || "").split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "").toUpperCase();
                           if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
                         }
                         return false;
                       });
-                      if (matchName) {
-                        const mData = modListIndex.namesAndDisplayNames.find((ne: any) => ne.name === matchName)?.orig;
-                        return mData ? { name: mData.displayName || matchName, note: c.conflict_note || c.resolution_note || "" } : { name: matchName, note: c.conflict_note || c.resolution_note || "" };
+                      if (matchObj) {
+                        return { name: matchObj.displayName || matchObj.name, note: c.conflict_note || c.resolution_note || "" };
                       }
                       return null;
                     }).filter(Boolean);

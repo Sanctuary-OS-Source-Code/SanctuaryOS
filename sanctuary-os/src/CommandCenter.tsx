@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
 import { DashboardStatTile, ViewHeader, isVersionMatch, SidePanel, getHighestVersion, handleOpenUrl, getExtensionRegex, HoverTooltip } from "./shared";
+import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import MasonFeed from "./MasonFeed";
@@ -32,6 +33,7 @@ export default function CommandCenter({
   const session = useStore((state) => state.session);
   const userRole = useStore((state) => state.userRole);
   const setPlaySets = useStore((state) => state.setPlaySets);
+  const ignoredGlobal = useStore((state) => state.ignoredGlobal);
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const status = useStore((state) => state.status);
   const [showUpdatesModal, setShowUpdatesModal] = useState(false);
@@ -111,22 +113,40 @@ export default function CommandCenter({
     const safeMods = Array.isArray(activePlaySet.mods) ? activePlaySet.mods : [];
     const safeList = Array.isArray(modList) ? modList : [];
 
+    const exactMatchMap = new Map();
+    const baseMatchMap = new Map();
+    
+    // Build O(1) lookup maps once
+    for (const m of safeList) {
+        if (!m.name) continue;
+        const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
+        exactMatchMap.set(exactKey, m);
+        
+        const baseKey = m.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
+        if (baseKey) {
+            // Only map the first occurrence to match the behavior of .find()
+            if (!baseMatchMap.has(baseKey)) {
+                baseMatchMap.set(baseKey, m);
+            }
+        }
+    }
+
     return safeMods.map((rawMod: any) => {
       const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
-      const modNameLow = modName.toLowerCase().replace(/\\/g, '/');
-      const exactMatch = safeList.find((m: any) => m.name && m.name.toLowerCase().replace(/\\/g, '/') === modNameLow);
+      const cleanModName = modName.replace(/^(sanctuary[/\\])+/i, '');
+      const modNameLow = cleanModName.toLowerCase().replace(/\\/g, '/');
+      
+      const exactMatch = exactMatchMap.get(modNameLow);
       if (exactMatch) return { ...exactMatch, _originalSetName: modName };
 
       const mBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
-      const baseMatch = safeList.find((m: any) => {
-        const tb = m.name?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
-        return mBase && tb && mBase === tb;
-      });
+      
+      const baseMatch = mBase ? baseMatchMap.get(mBase) : undefined;
       if (baseMatch) return { ...baseMatch, _originalSetName: modName };
 
       return { id: `missing-${modName}`, name: modName, isFallback: true, color: 'theme-border-danger', physical_path: null, hash: 'vlocal' };
     });
-  }, [activePlaySet, modList]);
+  }, [activePlaySet, modList, activeGameSchema]);
 
   const activeUpdates = React.useMemo(() => {
     const rawUpdates = activeBlueprintMods.filter((m: any) => m.hasUpdate).map((m: any) => ({
@@ -139,49 +159,14 @@ export default function CommandCenter({
       return acc;
     }, {}));
   }, [activeBlueprintMods]);
-
-  const setBlueprintLoadOrder = (updates: string | { name: string, prefix: string }[], prefix?: string) => {
-    try {
-      setPlaySets((prevSets: any) => {
-        if (!prevSets) return prevSets;
-        const currentSet = prevSets[activePlaySetIndex];
-        if (!currentSet) return prevSets;
-        const newMods = [...currentSet.mods];
-
-        const updateList = Array.isArray(updates) ? updates : [{ name: updates, prefix: prefix || "" }];
-
-        updateList.forEach(update => {
-          if (!update || !update.name) return;
-          const nameStr = String(update.name);
-          const baseName = nameStr.split(/[/\\]/).pop() || nameStr;
-
-          let found = false;
-          for (let i = 0; i < newMods.length; i++) {
-            const mLow = String(newMods[i]).toLowerCase();
-            const bLow = baseName.toLowerCase();
-            const tLow = nameStr.toLowerCase();
-            if (mLow === bLow || mLow === tLow || mLow.endsWith(`/${bLow}`) || mLow.endsWith(`\\${bLow}`)) {
-              newMods[i] = update.prefix ? `${update.prefix}/${baseName}` : baseName;
-              found = true;
-            }
-          }
-          if (!found) {
-            newMods.push(update.prefix ? `${update.prefix}/${baseName}` : baseName);
-          }
-        });
-
-        const newSets = [...prevSets];
-        newSets[activePlaySetIndex] = { ...currentSet, mods: newMods };
-
-        window.dispatchEvent(new Event("storage"));
-        return newSets;
-      });
-    } catch (e) {
-      console.error("setBlueprintLoadOrder error:", e);
-    }
-  };
-
+  const { applyConflictOverride } = usePlaySetLogic();
   const activeBrokenCounts = React.useMemo(() => {
+    const activeModNamesSet = new Set<string>();
+    activeBlueprintMods.forEach((am: any) => {
+      const name = (am._originalSetName || am.name);
+      if (name) activeModNamesSet.add(String(name).toLowerCase());
+    });
+
     return activeBlueprintMods.reduce((acc: { broken: number, unstable: number }, m: any) => {
     if (!m || m.isFallback) return acc;
     let isBroken = typeof m.status === 'string' && m.status.toLowerCase() === 'broken';
@@ -218,8 +203,7 @@ export default function CommandCenter({
         rawDeps = [...m.dependencies];
       }
       if (rawDeps.length > 0) {
-        const activeModNames = activeBlueprintMods.map((am: any) => (am._originalSetName || am.name)?.toLowerCase());
-        hasMissingDeps = rawDeps.some((req: string) => !activeModNames.includes(req.toLowerCase()));
+        hasMissingDeps = rawDeps.some((req: string) => !activeModNamesSet.has(req.toLowerCase()));
       }
     }
 
@@ -231,79 +215,47 @@ export default function CommandCenter({
     
     return acc;
   }, { broken: 0, unstable: 0 }) || { broken: 0, unstable: 0 };
-  }, [activeBlueprintMods]);
+  }, [activeBlueprintMods, selectedVersion, ownedDLC, maskedDLC]);
 
   const activeConflictCount = React.useMemo(() => {
-    const conflicts: any[] = [];
-    activeBlueprintMods.forEach((mod: any) => {
-      if (mod.conflicts && Array.isArray(mod.conflicts)) {
-        mod.conflicts.forEach((c: any) => {
-          const enemyActive = activeBlueprintMods.find((em: any) => {
-            if (em.isFallback) return false;
-            if (c.enemy_id && String(em.dbId) === String(c.enemy_id)) return true;
-            if (c.enemy_name) {
-              const targetClean = String(c.enemy_name).toUpperCase();
-              const cleanN = String(em.name || '').toUpperCase();
-              const cleanDisp = String(em.displayName || '').toUpperCase();
-              if (cleanN.includes(targetClean) || cleanDisp.includes(targetClean)) return true;
-            }
-            return false;
-          });
-
-          if (enemyActive && mod.name && enemyActive.name && mod.name !== enemyActive.name) {
-            const pairId = [mod.name, enemyActive.name].sort().join("::");
-            if (!conflicts.find((ac: any) => ac.pairId === pairId)) {
-              conflicts.push({ pairId, modA: mod, modB: enemyActive, conflict: c });
-            }
-          }
-        });
-      }
-    });
+    let tier3Count = 0;
+    let tier4Count = 0;
+    let total = 0;
 
     try {
       const stored = localStorage.getItem("sanctuary_local_conflicts");
       if (stored) {
         const localConflicts = JSON.parse(stored);
+        
         localConflicts.forEach((lc: any) => {
+          if (ignoredGlobal.includes(lc.mod_pair)) return;
+          
           const modAMatch = activeBlueprintMods.find((em: any) => {
             if (em.isFallback) return false;
             const cleanN = String(em.name || '').toUpperCase();
             const cleanDisp = String(em.displayName || '').toUpperCase();
-            const targetClean = String(lc.modA || lc.mod_a).toUpperCase();
+            const targetClean = String(lc.modA || lc.mod_a || '').toUpperCase();
             return cleanN.includes(targetClean) || cleanDisp.includes(targetClean) || targetClean.includes(cleanN);
           });
           const modBMatch = activeBlueprintMods.find((em: any) => {
             if (em.isFallback) return false;
             const cleanN = String(em.name || '').toUpperCase();
             const cleanDisp = String(em.displayName || '').toUpperCase();
-            const targetClean = String(lc.modB || lc.mod_b).toUpperCase();
+            const targetClean = String(lc.modB || lc.mod_b || '').toUpperCase();
             return cleanN.includes(targetClean) || cleanDisp.includes(targetClean) || targetClean.includes(cleanN);
           });
 
-          if (modAMatch && modBMatch && modAMatch.name !== modBMatch.name) {
-            const pairId = [modAMatch.name, modBMatch.name].sort().join("::");
-            if (!conflicts.find((ac: any) => ac.pairId === pairId)) {
-              conflicts.push({ pairId, modA: modAMatch, modB: modBMatch, conflict: { severity_rank: lc.severity_rank, resolution_note: lc.resolution_note || "Local Scan Detects Tuning Overlap" } });
-            }
+          if (modAMatch && modBMatch) {
+            total++;
+            if (lc.severity_rank === 4) tier4Count++;
+            else tier3Count++;
           }
         });
       }
     } catch (e) { }
 
-    const unresolvedConflicts = conflicts.filter((ac: any) => {
-      if (ac.conflict.severity_rank !== 3) return true;
-      const prefixA = (ac.modA._originalSetName || ac.modA.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
-      const prefixB = (ac.modB._originalSetName || ac.modB.name)?.split(/[/\\]/).slice(0, -1).join('/') || "";
-      const isWinnerA = prefixA.toLowerCase() === "sanctuary";
-      const isWinnerB = prefixB.toLowerCase() === "sanctuary";
-      return !isWinnerA && !isWinnerB;
-    });
-
-    const tier4Count = unresolvedConflicts.filter((c: any) => c.conflict.severity_rank === 4).length;
-    const tier3Count = unresolvedConflicts.filter((c: any) => c.conflict.severity_rank !== 4).length;
-
-    return { total: unresolvedConflicts.length, tier3: tier3Count, tier4: tier4Count };
-  }, [activeBlueprintMods]);
+    return { total, tier3: tier3Count, tier4: tier4Count };
+  }, [activeBlueprintMods, ignoredGlobal]);
 
   React.useEffect(() => {
     useStore.getState().setActiveConflictCount(activeConflictCount);
@@ -678,7 +630,8 @@ export default function CommandCenter({
           activeMods={activeBlueprintMods}
           allow_write={!activePlaySet?.read_only}
           toggleInActiveSet={toggleInActiveSet}
-          setBlueprintLoadOrder={setBlueprintLoadOrder}
+          applyConflictOverride={applyConflictOverride}
+          activeSetName={activePlaySet?.name}
           vaultPath={modsPath}
           onRefreshMods={runRadarSweep}
         />

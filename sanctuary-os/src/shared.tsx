@@ -187,10 +187,21 @@ export const cleanSearchName = (raw: string, schema?: any) => {
   return name.replace(/[_-]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim();
 };
 
+let _cachedExtSchema: any = null;
+let _cachedExtRegex: RegExp | null = null;
 export const getExtensionRegex = (schema: any) => {
+  const cacheKey = JSON.stringify(schema?.extensions?.supported || []);
+  if (_cachedExtSchema === cacheKey && _cachedExtRegex) return _cachedExtRegex;
   const exts = schema?.extensions?.supported || [];
-  if (exts.length === 0) return /\.[a-z0-9]+$/i;
-  return new RegExp(`\\.(${exts.map((e: any) => e.replace('.', '')).join('|')})$`, 'i');
+  let regex;
+  if (exts.length === 0) {
+    regex = /\.[a-z0-9]+$/i;
+  } else {
+    regex = new RegExp(`\\.(${exts.map((e: any) => e.replace('.', '')).join('|')})$`, 'i');
+  }
+  _cachedExtSchema = cacheKey;
+  _cachedExtRegex = regex;
+  return regex;
 };
 
 export const isSupportedExtension = (filename: string, schema: any): boolean => {

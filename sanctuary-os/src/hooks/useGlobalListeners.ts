@@ -58,6 +58,9 @@ export function useGlobalListeners(
   useEffect(() => {
     let unlisten: any = null;
     tauriBridge.listenToScanProgress((payload: any) => {
+      if (payload && payload.total) {
+        payload.total = payload.total * 2;
+      }
       setScanProgress(payload);
     }).then(u => { unlisten = u; });
 

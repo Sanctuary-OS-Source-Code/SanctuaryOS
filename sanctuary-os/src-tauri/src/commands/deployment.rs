@@ -150,23 +150,31 @@ pub async fn deploy_playset_bulk(
 
         let mut vault_index = std::collections::HashMap::new();
         let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
-        for f in folders_to_check.iter().rev() {
-            let dir_path = if f.is_empty() {
-                vault_mods_lane.clone()
-            } else {
-                vault_mods_lane.join(f)
-            };
-            if let Ok(entries) = std::fs::read_dir(&dir_path) {
+        
+        fn populate_vault_index(dir: &PathBuf, index: &mut std::collections::HashMap<String, PathBuf>) {
+            if let Ok(entries) = std::fs::read_dir(dir) {
                 for entry in entries.flatten() {
-                    if entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
-                        if let Some(file_name) = entry.file_name().to_str() {
-                            vault_index.insert(file_name.to_lowercase(), entry.path());
+                    let path = entry.path();
+                    if path.is_dir() {
+                        populate_vault_index(&path, index);
+                    } else if path.is_file() {
+                        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                            index.insert(file_name.to_lowercase(), path.clone());
                         }
                     }
                 }
             }
         }
 
+        for f in folders_to_check.iter().rev() {
+            let dir_path = if f.is_empty() {
+                vault_mods_lane.clone()
+            } else {
+                vault_mods_lane.join(f)
+            };
+            populate_vault_index(&dir_path, &mut vault_index);
+        }
+        
         use rayon::prelude::*;
         let count: usize = mods.into_par_iter().map(|m| {
             if let Some(structure_val) = &m.folder_structure {
@@ -183,10 +191,16 @@ pub async fn deploy_playset_bulk(
             }
 
             let mut search_name = Path::new(&m.path);
-            if m.path.starts_with("Sanctuary/") || m.path.starts_with("Sanctuary\\") {
+            loop {
                 if let Ok(stripped) = search_name.strip_prefix("Sanctuary") {
                     search_name = stripped;
+                    continue;
                 }
+                if let Ok(stripped) = search_name.strip_prefix("!Sanctuary") {
+                    search_name = stripped;
+                    continue;
+                }
+                break;
             }
 
             let mut source = vault_mods_lane.join(search_name);
@@ -292,7 +306,21 @@ pub async fn deploy_playset_bulk(
             };
             
             if m.path.starts_with("Sanctuary/") || m.path.starts_with("Sanctuary\\") {
-                if m.target_path.is_none() {
+                if let Some(ref t_path) = m.target_path {
+                    let mut clean_t = Path::new(t_path);
+                    loop {
+                        if let Ok(stripped) = clean_t.strip_prefix("Sanctuary") {
+                            clean_t = stripped;
+                            continue;
+                        }
+                        if let Ok(stripped) = clean_t.strip_prefix("!Sanctuary") {
+                            clean_t = stripped;
+                            continue;
+                        }
+                        break;
+                    }
+                    target = mods_dir.join("Sanctuary").join(clean_t);
+                } else {
                     target = mods_dir.join("Sanctuary").join(search_name);
                 }
             }

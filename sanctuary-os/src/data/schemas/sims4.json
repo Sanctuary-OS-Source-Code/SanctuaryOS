@@ -134,16 +134,8 @@
     ],
     "engine_state_targets": [
       {
-        "name": "Data",
-        "path": "Data"
-      },
-      {
-        "name": "Delta",
-        "path": "Delta"
-      },
-      {
-        "name": "Game",
-        "path": "Game"
+        "name": "EngineCore",
+        "path": ""
       }
     ]
   },

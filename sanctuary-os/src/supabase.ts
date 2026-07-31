@@ -28,7 +28,9 @@ export function getActiveGameClient(): SupabaseClient {
         if (currentGameId !== "legacy_fallback" || currentToken !== token) {
             currentGameId = "legacy_fallback";
             currentToken = token;
-            currentGameClient = createClient("https://chphhvpcgcpnyvshsudh.supabase.co", "sb_publishable_EdCfD4meHLUUgoTRkfwsTA_PFXnZx8D");
+            currentGameClient = createClient("https://chphhvpcgcpnyvshsudh.supabase.co", "sb_publishable_EdCfD4meHLUUgoTRkfwsTA_PFXnZx8D", {
+                auth: { persistSession: false }
+            });
         }
         return currentGameClient!;
     }
@@ -37,7 +39,9 @@ export function getActiveGameClient(): SupabaseClient {
     if (currentGameId !== activeWs.id || currentToken !== token) {
         currentGameId = activeWs.id;
         currentToken = token;
-        currentGameClient = createClient(activeWs.supabase_url, activeWs.supabase_anon_key);
+        currentGameClient = createClient(activeWs.supabase_url, activeWs.supabase_anon_key, {
+            auth: { persistSession: false }
+        });
     }
 
     return currentGameClient!;

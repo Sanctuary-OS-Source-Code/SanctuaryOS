@@ -9,8 +9,75 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
   const [activeSubType, setActiveSubType] = useState("ALL");
   const [expandedFolder, setExpandedFolder] = useState<string | null>(null);
 
+  const lookupMaps = useMemo(() => {
+    const modMap = new Map();
+    const fallbackMap = new Map<string, string>();
+    const extRegex = activeGameSchema?.extensions?.game_file ? new RegExp(`\\.(${activeGameSchema.extensions.game_file.join('|')})$`, 'i') : /\\.package$/i;
+    
+    displayModList.forEach((m: any) => {
+      if (m.isVirtual) {
+        if (m.flavors) {
+          m.flavors.forEach((f: any) => {
+            if (!f.name) return;
+            const lowerName = f.name.toLowerCase();
+            modMap.set(lowerName, f);
+            modMap.set(lowerName.replace(/\\/g, '/'), f);
+            modMap.set(lowerName.replace(/\//g, '\\'), f);
+            const mBase = f.name.split(/[\\/]/).pop()?.replace(extRegex, '')?.toLowerCase();
+            const mExt = f.name.split('.').pop()?.toLowerCase();
+            if (mBase && mExt) fallbackMap.set(`${mBase}___${mExt}`, f.name);
+          });
+        }
+        return;
+      }
+      if (!m.name) return;
+      const lowerName = m.name.toLowerCase();
+      modMap.set(lowerName, m);
+      modMap.set(lowerName.replace(/\\/g, '/'), m);
+      modMap.set(lowerName.replace(/\//g, '\\'), m);
+      
+      const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '')?.toLowerCase();
+      const mExt = m.name.split('.').pop()?.toLowerCase();
+      if (mBase && mExt) {
+        fallbackMap.set(`${mBase}___${mExt}`, m.name);
+      }
+    });
+
+    return { modMap, fallbackMap, extRegex };
+  }, [displayModList, activeGameSchema]);
+
+  const activeSetMods = useMemo(() => {
+    const rawSetMods = playSets.find((s: any) => s.name === activeSetName)?.mods || [];
+    const rawNames = rawSetMods.map((m: any) => typeof m === 'string' ? m : (m?.name || m?.path || ''));
+    const { modMap, fallbackMap, extRegex } = lookupMaps;
+
+    const names = rawNames.map((modName: string) => {
+      if (!modName) return '';
+      const lowerModName = modName.toLowerCase();
+      if (modMap.has(lowerModName)) return modMap.get(lowerModName).name;
+      
+      const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '')?.toLowerCase();
+      const targetExt = modName.split('.').pop()?.toLowerCase();
+      
+      const fallbackMatch = fallbackMap.get(`${targetBase}___${targetExt}`);
+      if (fallbackMatch) return fallbackMatch;
+      
+      return modName;
+    });
+    return new Set(names);
+  }, [playSets, activeSetName, lookupMaps]);
+
   const filteredMods = useMemo(() => {
-    return displayModList.reduce((acc: any[], mod: any) => {
+    const mfStart = performance.now();
+    const searchLower = searchQuery.toLowerCase();
+    const activeCatUpper = activeCategory.toUpperCase();
+    const activeSubUpper = activeSubType.toUpperCase();
+    const strVerified = (t("verified") || "verified").toLowerCase();
+    const strReview = (t("status_dd_review") || "review").toLowerCase();
+    const strUnverified = (t("unverified") || "unverified").toLowerCase();
+    const strLocal = (t("unlinked_badge") || "local").toLowerCase();
+
+    const res = displayModList.reduce((acc: any[], mod: any) => {
       if (!mod) return acc;
       const checkMatch = (m: any) => {
         if (!m.isVirtual && m.name) {
@@ -27,11 +94,9 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
         const name = (m.displayName || m.name || "").toLowerCase();
         const author = (m.author || "").toLowerCase();
         const matchesSearch =
-          name.includes(searchQuery.toLowerCase()) ||
-          author.includes(searchQuery.toLowerCase());
-        const activeSetMods =
-          playSets.find((s: any) => s.name === activeSetName)?.mods || [];
-        const isActuallyEquipped = activeSetMods.includes(m.name);
+          name.includes(searchLower) ||
+          author.includes(searchLower);
+        const isActuallyEquipped = activeSetMods.has(m.name);
         const matchesEquip =
           equipFilter === "ALL" ||
           equipFilter === "ARCHIVES" ||
@@ -40,15 +105,12 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
           (equipFilter === "UNEQUIPPED" && !isActuallyEquipped);
         const modType = (m.category_override || m.type || "NONE").toUpperCase();
         const matchesCategory =
-          activeCategory === "ALL" || modType === activeCategory.toUpperCase();
+          activeCategory === "ALL" || modType === activeCatUpper;
         const subType = (m.sub_type || "").toUpperCase();
         const matchesSubType =
-          activeSubType === "ALL" || subType === activeSubType.toUpperCase();
+          activeSubType === "ALL" || subType === activeSubUpper;
         const rawStatus = (m.status || "").toLowerCase();
-        const strVerified = (t("verified")).toLowerCase();
-        const strReview = (t("status_dd_review")).toLowerCase();
-        const strUnverified = (t("unverified")).toLowerCase();
-        const strLocal = (t("unlinked_badge")).toLowerCase();
+        
         let matchesStatus = false;
         if (filterStatus === "ALL") {
           matchesStatus = true;
@@ -81,7 +143,8 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
       }
       return acc;
     }, []);
-  }, [displayModList, searchQuery, filterStatus, equipFilter, activeCategory, activeSubType, playSets, activeSetName, activeGameSchema, t]);
+    return res;
+  }, [displayModList, searchQuery, filterStatus, equipFilter, activeCategory, activeSubType, activeSetMods, activeGameSchema, t]);
 
   return {
     searchQuery, setSearchQuery,

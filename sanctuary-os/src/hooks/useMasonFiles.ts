@@ -74,7 +74,16 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
                console.error("Cloud fetch error:", error);
                return;
             }
-            const mapped = (data || []).map((row: any) => ({ name: `${row.id}.json`, path: `cloud://${row.id}` }));
+            let mapped = (data || []).map((row: any) => ({ name: `${row.id}.json`, path: `cloud://${row.id}` }));
+            
+            // Hide OS/Master reference files from Wayfinders
+            if (!isKeepers) {
+                mapped = mapped.filter((f: any) => {
+                    const n = f.name.toLowerCase();
+                    return n !== 'en-default.json' && n !== 'en-sanctuary.json' && n !== 'default.json';
+                });
+            }
+
             mapped.sort((a: any, b: any) => a.name.localeCompare(b.name));
             setFiles(mapped);
          } catch (e) {
@@ -136,15 +145,16 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
             ? internalCloudTarget === 'sanctuary_lexicons'
             : (currentFile.content?.includes('_meta_lang') || currentFile.content?.includes('"a_citizen"') || currentFile.name.startsWith('en-') || currentFile.name.startsWith('de-') || currentFile.name.startsWith('es-') || currentFile.name.startsWith('fr-'));
 
-         const { supabaseAuth } = await import('../supabase');
+         const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
+         
          if (isLexicon) {
-            const { data } = await supabaseAuth.from('sanctuary_lexicons').select('lexicon_data').eq('id', 'en-default').maybeSingle();
+            const { data } = await client.from('sanctuary_lexicons').select('lexicon_data').eq('id', 'en-default').maybeSingle();
             if (data && Object.keys((data as any).lexicon_data || {}).length > 0) {
                setReferenceData((data as any).lexicon_data);
                setReferenceLabel("en-default.json Reference");
             }
          } else {
-            const { data } = await supabaseAuth.from('sanctuary_schemas').select('schema_data').eq('id', 'default').maybeSingle();
+            const { data } = await client.from('sanctuary_schemas').select('schema_data').eq('id', 'default').maybeSingle();
             if (data && Object.keys((data as any).schema_data || {}).length > 0) {
                setReferenceData((data as any).schema_data);
                setReferenceLabel("Keepers Master Schema");
@@ -270,8 +280,18 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
          if (isCloudMode) {
             const fileId = path.replace('cloud://', '');
             const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
-            const { error } = await client.from(internalCloudTarget).delete().eq('id', fileId);
-            if (error) throw error;
+            const token = session?.access_token;
+            if (!isKeepers && token) {
+                const { error } = await client.rpc('secure_delete_cloud_file', {
+                    p_token: token,
+                    p_target: internalCloudTarget,
+                    p_id: fileId
+                });
+                if (error) throw error;
+            } else {
+                const { error } = await client.from(internalCloudTarget).delete().eq('id', fileId);
+                if (error) throw error;
+            }
          } else {
             await remove(path);
          }
@@ -306,10 +326,17 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
             if (fetchErr) throw fetchErr;
             
             const newData = { ...oldData, id: newId, name: newId };
-            const { error: insertErr } = await client.from(internalCloudTarget).insert(newData);
-            if (insertErr) throw insertErr;
+            const token = session?.access_token;
             
-            await client.from(internalCloudTarget).delete().eq('id', oldId);
+            if (!isKeepers && token) {
+                const { error: insertErr } = await client.rpc('secure_upsert_cloud_file', { p_token: token, p_target: internalCloudTarget, p_payload: newData });
+                if (insertErr) throw insertErr;
+                await client.rpc('secure_delete_cloud_file', { p_token: token, p_target: internalCloudTarget, p_id: oldId });
+            } else {
+                const { error: insertErr } = await client.from(internalCloudTarget).insert(newData);
+                if (insertErr) throw insertErr;
+                await client.from(internalCloudTarget).delete().eq('id', oldId);
+            }
             
             const newName = newId + currentExt;
             const newPath = "cloud://" + newId;
@@ -363,7 +390,16 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
                ? { id: fileId, name: fileId, badge: 'Sanctuary', version: 1, lexicon_data: contentToSave }
                : { id: fileId, name: fileId, schema_data: contentToSave, version: 1, updated_at: new Date().toISOString() };
             
-            const { error } = await client.from(internalCloudTarget).insert(payload);
+            let error = null;
+            const token = session?.access_token;
+            if (!isKeepers && token) {
+                const res = await client.rpc('secure_upsert_cloud_file', { p_token: token, p_target: internalCloudTarget, p_payload: payload });
+                error = res.error;
+            } else {
+                const res = await client.from(internalCloudTarget).insert(payload);
+                error = res.error;
+            }
+
             if (error) {
                pushStatus(t("alert_error") || "File already exists or error", "error");
                return;

@@ -141,6 +141,8 @@ interface GlobalState {
   setPlaysetsLoaded: (loaded: boolean) => void;
   activeSetName: string | null;
   setActiveSetName: (activeSetName: string | null) => void;
+  ignoredGlobal: string[];
+  setIgnoredGlobal: (ignored: string[] | ((prev: string[]) => string[])) => void;
   activePlaySetIndex: number;
   setActivePlaySetIndex: (index: number) => void;
   quarantineList: string[];
@@ -310,6 +312,14 @@ export const useStore = create<GlobalState>((set) => ({
   setPlaysetsLoaded: (loaded) => set({ playsetsLoaded: loaded }),
   activeSetName: null,
   setActiveSetName: (activeSetName) => set({ activeSetName }),
+  ignoredGlobal: (() => {
+    try {
+      const stored = localStorage.getItem('sanctuary_ignored_conflicts');
+      const parsed = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch(e) { return []; }
+  })(),
+  setIgnoredGlobal: (ignored) => set((state) => ({ ignoredGlobal: typeof ignored === 'function' ? ignored(state.ignoredGlobal) : ignored })),
   activePlaySetIndex: 0,
   setActivePlaySetIndex: (activePlaySetIndex) => set({ activePlaySetIndex }),
   quarantineList: [],

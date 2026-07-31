@@ -25,9 +25,9 @@ async function fetchVault() {
 
 async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isSilent) {
     if (activeGameSchema?.features?.has_cc === false) return;
-    if (isScanning) return;
+    if (useModalStore.getState().isScanning) return;
     if (!isSilent) {
-      setIsScanning(true);
+      useModalStore.getState().setIsScanning(true);
       setScanProgress({
         current: 5,
         total: 100,
@@ -115,7 +115,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
 
       if (!allLocalMods || allLocalMods.length === 0) {
         setModList([]);
-        if (!isSilent) setIsScanning(false);
+        if (!isSilent) useModalStore.getState().setIsScanning(false);
         useStore.setState({ isGlobalConfigLoaded: true });
         return;
       }
@@ -160,14 +160,20 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         }
         return initialList;
       });
-      const hashes = localMods.map((m) => m.hash).filter((h) => !!h);
+      const hashes = [...new Set(localMods.map((m) => m.hash).filter((h) => !!h))];
       let allCloudData: any[] = [];
       const isOfflineMode = !navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true";
-      if (!isOfflineMode) {
-        const promises = [];
-        for (let i = 0; i < hashes.length; i += 200) {
-          const chunk = hashes.slice(i, i + 200);
-          promises.push((async () => {
+      
+        const runInBatches = async (items: any[], chunkSize: number, concurrency: number, processor: (chunk: any[]) => Promise<void>) => {
+         const chunks = [];
+         for (let i = 0; i < items.length; i += chunkSize) chunks.push(items.slice(i, i + chunkSize));
+         await Promise.all(chunks.map(chunk => processor(chunk)));
+        };
+
+        if (hashes.length > 0) {
+          const totalChunks = Math.ceil(hashes.length / 200);
+          let completedChunks = 0;
+          await runInBatches(hashes, 200, 0, async (chunk) => {
             let { data, error } = await supabase
               .from("mod_versions")
               .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, folder_structure, masons(name))")
@@ -181,17 +187,18 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                 .in("dna_hash", chunk);
               data = fallback.data as any;
             }
-            return data || [];
-          })());
+            allCloudData.push(...((data as any[]) || []));
+            completedChunks++;
+            if (!isSilent) setScanProgress({ current: 60 + Math.floor((completedChunks / totalChunks) * 20), total: 100, message: t("scan_identifying") || "IDENTIFYING FILES..." });
+          });
         }
-        const results = await Promise.all(promises);
-        allCloudData = results.flat();
-      }
+        if (!isSilent) setScanProgress({ current: 80, total: 100, message: t("scan_identifying") || "IDENTIFYING FILES..." });
+      
       const getDbMod = (sig: any) =>
         Array.isArray(sig?.mods) ? sig.mods[0] : sig?.mods;
-      const identifiedIds = allCloudData
+      const identifiedIds = [...new Set(allCloudData
         .map((c) => getDbMod(c)?.id)
-        .filter(Boolean);
+        .filter(Boolean))];
       let allRels: any[] = [],
         allDeps: any[] = [],
         parentNameMap: Record<string, any> = {};
@@ -202,6 +209,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         globalConflicts: any[] = [];
       try {
         if (!isOfflineMode) {
+          if (!isSilent) setScanProgress({ current: 80, total: 100, message: t("scan_fetching") || "FETCHING METADATA..." });
           const { data: members } = await supabase
           .from("collection_members")
           .select("set_id, mod_id");
@@ -211,46 +219,29 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         collectionsMetadata = sets || [];
         globalConflicts = rawConflicts || [];
         if (hashes.length > 0) {
-          const fPromises = [];
-          for (let i = 0; i < hashes.length; i += 200) {
-            const chunk = hashes.slice(i, i + 200);
-            fPromises.push(
-              supabase
+          await runInBatches(hashes, 200, 0, async (chunk) => {
+            const { data } = await supabase
                 .from("flavor_group_members")
                 .select("group_id, mod_hash")
-                .in("mod_hash", chunk)
-                .then((r: any) => r.data || [])
-            );
-          }
-          const fResults = await Promise.all(fPromises);
-          flavorData = fResults.flat();
+                .in("mod_hash", chunk);
+            flavorData.push(...((data as any[]) || []));
+          });
           const uniqueGroupIds = [
             ...new Set(flavorData.map((f) => f.group_id)),
           ];
           if (uniqueGroupIds.length > 0) {
-            const gPromises = [];
-            const pPromises = [];
-            for (let i = 0; i < uniqueGroupIds.length; i += 200) {
-              const chunk = uniqueGroupIds.slice(i, i + 200);
-              gPromises.push(
-                supabase
-                  .from("flavor_groups")
-                  .select("id, name")
-                  .in("id", chunk)
-                  .then((r: any) => r.data || [])
-              );
-              pPromises.push(
-                supabase
-                  .from("mods")
-                  .select("id, name, master_author, mason_id, image_url, url")
-                  .in("id", chunk)
-                  .then((r: any) => r.data || [])
-              );
-            }
-            const gResults = await Promise.all(gPromises);
-            const pResults = await Promise.all(pPromises);
+            let gResults: any[] = [];
+            let pResults: any[] = [];
+            await runInBatches(uniqueGroupIds, 200, 0, async (chunk) => {
+              const [gRes, pRes] = await Promise.all([
+                supabase.from("flavor_groups").select("id, name").in("id", chunk),
+                supabase.from("mods").select("id, name, master_author, mason_id, image_url, url").in("id", chunk)
+              ]);
+              gResults.push(...((gRes.data as any[]) || []));
+              pResults.push(...((pRes.data as any[]) || []));
+            });
 
-            gResults.flat().forEach((g: any) => {
+            gResults.forEach((g: any) => {
               flavorGroupNames[String(g.id)] = g.name;
             });
             pResults.flat().forEach((pm: any) => {
@@ -269,52 +260,23 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         console.error("Bridge Error:", err);
       }
       if (identifiedIds.length > 0 && !isOfflineMode) {
-        const relChildPromises = [];
-        const relParentPromises = [];
-        const depChildPromises = [];
-        const depParentPromises = [];
+        if (!isSilent) setScanProgress({ current: 90, total: 100, message: t("scan_relationships") || "ANALYZING RELATIONSHIPS..." });
+        const totalRelChunks = Math.ceil(identifiedIds.length / 200);
+        let completedRelChunks = 0;
+        await runInBatches(identifiedIds, 200, 0, async (chunk) => {
+          const [rC, rP, dC, dP] = await Promise.all([
+            supabase.from("mod_relationships").select("*").in("child_id", chunk),
+            supabase.from("mod_relationships").select("*").in("parent_id", chunk),
+            supabase.from("mod_dependencies").select("*").in("child_id", chunk),
+            supabase.from("mod_dependencies").select("*").in("parent_id", chunk)
+          ]);
+          
+          allRels.push(...((rC.data as any[]) || []), ...((rP.data as any[]) || []));
+          allDeps.push(...((dC.data as any[]) || []), ...((dP.data as any[]) || []));
 
-        for (let i = 0; i < identifiedIds.length; i += 200) {
-          const chunk = identifiedIds.slice(i, i + 200);
-          relChildPromises.push(
-            supabase
-              .from("mod_relationships")
-              .select("*")
-              .in("child_id", chunk)
-              .then((r: any) => r.data || [])
-          );
-          relParentPromises.push(
-            supabase
-              .from("mod_relationships")
-              .select("*")
-              .in("parent_id", chunk)
-              .then((r: any) => r.data || [])
-          );
-          depChildPromises.push(
-            supabase
-              .from("mod_dependencies")
-              .select("*")
-              .in("child_id", chunk)
-              .then((r: any) => r.data || [])
-          );
-          depParentPromises.push(
-            supabase
-              .from("mod_dependencies")
-              .select("*")
-              .in("parent_id", chunk)
-              .then((r: any) => r.data || [])
-          );
-        }
-        
-        const [rC, rP, dC, dP] = await Promise.all([
-          Promise.all(relChildPromises),
-          Promise.all(relParentPromises),
-          Promise.all(depChildPromises),
-          Promise.all(depParentPromises)
-        ]);
-        
-        allRels = [...rC.flat(), ...rP.flat()];
-        allDeps = [...dC.flat(), ...dP.flat()];
+          completedRelChunks++;
+          if (!isSilent) setScanProgress({ current: 90 + Math.floor((completedRelChunks / totalRelChunks) * 10), total: 100, message: t("scan_relationships") || "ANALYZING RELATIONSHIPS..." });
+        });
         const pIds = [
           ...new Set([
             ...allRels.map((r: any) => String(r.parent_id)),
@@ -324,25 +286,20 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           ]),
         ];
         if (pIds.length > 0) {
-          const pPromises = [];
-          for (let i = 0; i < pIds.length; i += 200) {
-            const chunk = pIds.slice(i, i + 200);
-            pPromises.push(
-              supabase
+          await runInBatches(pIds, 200, 0, async (chunk) => {
+            const { data } = await supabase
                 .from("mods")
                 .select("id, name, master_author, image_url, url")
-                .in("id", chunk)
-                .then((r: any) => r.data || [])
-            );
-          }
-          const pResults = await Promise.all(pPromises);
-          pResults.flat().forEach((pm: any) => {
-            parentNameMap[String(pm.id)] = {
-              name: pm.name,
-              author: pm.master_author || "Unknown",
-              image_url: pm.image_url,
-              url: pm.url,
-            };
+                .in("id", chunk);
+            
+            ((data as any[]) || []).forEach((pm: any) => {
+              parentNameMap[String(pm.id)] = {
+                name: pm.name,
+                author: pm.master_author || "Unknown",
+                image_url: pm.image_url,
+                url: pm.url,
+              };
+            });
           });
         }
       }
@@ -727,10 +684,16 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           setScoutQueue(unidentified);
         }
       const virtualCards: any[] = [];
+      const setMembersMap = new Map<string, any[]>();
+      physicalMods.forEach(m => {
+          if (m.setId) {
+              const sid = String(m.setId);
+              if (!setMembersMap.has(sid)) setMembersMap.set(sid, []);
+              setMembersMap.get(sid)!.push(m);
+          }
+      });
       collectionsMetadata.forEach((set) => {
-        const setMembers = physicalMods.filter(
-          (m) => String(m.setId) === String(set.id),
-        );
+        const setMembers = setMembersMap.get(String(set.id)) || [];
         if (setMembers.length > 0) {
           const verifiedCount = setMembers.filter((m) => m.status === (t("verified"))).length;
           const isAllVerified = verifiedCount === setMembers.length;
@@ -768,13 +731,18 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           });
         }
       });
-      const uniqueFamilyGroups = [
-        ...new Set(physicalMods.map((m) => m.familyId).filter(Boolean)),
-      ];
+      const familyMembersMap = new Map<string, any[]>();
+      physicalMods.forEach(m => {
+          if (m.familyId) {
+              const fid = String(m.familyId);
+              if (!familyMembersMap.has(fid)) familyMembersMap.set(fid, []);
+              familyMembersMap.get(fid)!.push(m);
+          }
+      });
+      
+      const uniqueFamilyGroups = Array.from(familyMembersMap.keys());
       uniqueFamilyGroups.forEach((fId) => {
-        const familyMembers = physicalMods.filter(
-          (m) => String(m.familyId) === String(fId)
-        );
+        const familyMembers = familyMembersMap.get(String(fId)) || [];
         const baseFId = fId.split('@')[0];
         const isFlavorFolder = !!flavorGroupNames[String(baseFId)] && !parentNameMap[String(baseFId)];
         
@@ -1020,10 +988,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       setModList(finalMasterList);
       useStore.setState({ isGlobalConfigLoaded: true });
       setScanProgress({ current: 100, total: 100, message: t("status_done") });
+      setTimeout(() => setScanProgress({ current: 0, total: 100, message: "" }), 2000);
       if (!isSilent) setStatus(t("status_radar_done"));
       try {
-        const config: any = await invoke("get_saved_coordinates");
-        if (config.vault_path) {
+        if (config && config.vault_path) {
           invoke("save_master_cache", {
             vaultPath: config.vault_path,
             content: JSON.stringify(finalMasterList),
@@ -1036,10 +1004,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
     } catch (err) {
       console.error("RADAR CRASH:", err);
       useStore.setState({ isGlobalConfigLoaded: true });
-      if (!isSilent) setIsScanning(false);
+      if (!isSilent) useModalStore.getState().setIsScanning(false);
       setScanProgress({ current: 0, total: 100, message: "" });
     } finally {
-      if (!isSilent) setIsScanning(false);
+      if (!isSilent) useModalStore.getState().setIsScanning(false);
     }
   }
 

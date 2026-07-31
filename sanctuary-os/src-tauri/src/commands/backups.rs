@@ -218,7 +218,15 @@ pub async fn backup_universe(
             let stripped = if let Ok(rel) = file_path.strip_prefix(&game_docs_path) {
                 rel.to_path_buf()
             } else {
-                PathBuf::from(file_path.file_name().unwrap())
+                let path_str = file_path.to_string_lossy().to_lowercase();
+                let prefix_str = game_docs_path.to_string_lossy().to_lowercase();
+                if path_str.starts_with(&prefix_str) {
+                    let stripped_str = &file_path.to_string_lossy()[prefix_str.len()..];
+                    let stripped_str = stripped_str.trim_start_matches(|c| c == '/' || c == '\\');
+                    PathBuf::from(stripped_str)
+                } else {
+                    PathBuf::from(file_path.file_name().unwrap())
+                }
             };
 
             if let Ok(mut f) = std::fs::File::open(file_path) {
@@ -343,7 +351,15 @@ pub async fn backup_engine_full(
             let stripped = if let Ok(rel) = file_path.strip_prefix(&base_path) {
                 rel.to_path_buf()
             } else {
-                PathBuf::from(file_path.file_name().unwrap())
+                let path_str = file_path.to_string_lossy().to_lowercase();
+                let prefix_str = base_path.to_string_lossy().to_lowercase();
+                if path_str.starts_with(&prefix_str) {
+                    let stripped_str = &file_path.to_string_lossy()[prefix_str.len()..];
+                    let stripped_str = stripped_str.trim_start_matches(|c| c == '/' || c == '\\');
+                    PathBuf::from(stripped_str)
+                } else {
+                    PathBuf::from(file_path.file_name().unwrap())
+                }
             };
 
             if let Ok(mut f) = std::fs::File::open(file_path) {

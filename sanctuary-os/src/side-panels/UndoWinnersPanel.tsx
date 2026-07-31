@@ -34,6 +34,7 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
         const currentSet = playsets.find((p: any) => p.name === scanScope);
         if (currentSet && Array.isArray(currentSet.mods)) {
           const blueprintOverrides = currentSet.mods
+            .map((m: any) => typeof m === 'string' ? m : (m.name || m.path || ''))
             .filter((m: string) => m.toLowerCase().startsWith("sanctuary/") || m.toLowerCase().startsWith("sanctuary\\"))
             .map((m: string) => m.replace(/^Sanctuary[/\\]/i, ""));
           for (const o of blueprintOverrides) {

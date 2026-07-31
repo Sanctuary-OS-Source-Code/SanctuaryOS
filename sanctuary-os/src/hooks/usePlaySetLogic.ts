@@ -7,7 +7,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { getExtensionRegex } from "../shared";
 
 export function usePlaySetLogic() {
-  const { playSets, setPlaySets, activePlaySetIndex, setActivePlaySetIndex, activeSetName, setActiveSetName, anarchyRules, modList, activeGameSchema, setStatus, ownedDLC, maskedDLC, } = useStore();
+  const { playSets, setPlaySets, activePlaySetIndex, setActivePlaySetIndex, activeSetName, setActiveSetName, anarchyRules, modList, activeGameSchema, setStatus, ownedDLC, maskedDLC, ignoredGlobal, setIgnoredGlobal } = useStore();
   const { t } = useLexicon();
   const { setPendingImportSet, setMissingImportMods } = useModalStore();
 
@@ -37,7 +37,23 @@ export function usePlaySetLogic() {
         dependencies: true,
         intercept: true,
       };
-      let newMods = new Set(currentSet.mods);
+      let rawNewMods = new Set<any>(currentSet.mods);
+      const healedMods = new Set<any>();
+      rawNewMods.forEach((mObj: any) => {
+         const m = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
+         if (m.toLowerCase().startsWith("sanctuary/") || m.toLowerCase().startsWith("sanctuary\\")) {
+             healedMods.add(mObj);
+         } else {
+             const cleanM = m.split(/[\\/]/).pop()?.toLowerCase();
+             const foundSanc = Array.from(rawNewMods).find((nmObj: any) => {
+                 const nm = typeof nmObj === 'string' ? nmObj : (nmObj.name || nmObj.path || '');
+                 return (nm.toLowerCase().startsWith("sanctuary/") || nm.toLowerCase().startsWith("sanctuary\\")) && nm.split(/[\\/]/).pop()?.toLowerCase() === cleanM;
+             });
+             if (foundSanc) healedMods.add(foundSanc);
+             else healedMods.add(mObj);
+         }
+      });
+      let newMods = healedMods;
 
       const byDbId = new Map();
       const byHash = new Map();
@@ -109,8 +125,12 @@ export function usePlaySetLogic() {
 
       const targetMod = byName.get(targetName) || modList.find((m: any) => m.name === targetName);
       if (!targetMod) {
-         if (forceRemove && newMods.has(targetName)) {
-            newMods.delete(targetName);
+         if (forceRemove) {
+            const toDelete = Array.from(newMods).find((m: any) => {
+                const strM = typeof m === 'string' ? m : (m.name || m.path || '');
+                return strM === targetName || strM.replace(/^(sanctuary[/\\])+/i, '') === targetName.replace(/^(sanctuary[/\\])+/i, '');
+            });
+            if (toDelete) newMods.delete(toDelete);
             const updatedSets = [...prevSets];
             updatedSets[activePlaySetIndex] = { ...currentSet, mods: Array.from(newMods) };
 
@@ -130,20 +150,22 @@ export function usePlaySetLogic() {
       const isActuallyFlavorFolder =
         targetMod.isVirtual && kids.some((k) => k.flavorGroupId != null);
       let isEquipping = targetMod.isVirtual
-        ? !kids.some((k) => newMods.has(k.name))
-        : !newMods.has(targetName);
+        ? !kids.some((k) => Array.from(newMods).some((mObj: any) => (typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '')) === k.name))
+        : !Array.from(newMods).some((mObj: any) => (typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '')) === targetName);
       if (forceRemove) isEquipping = false;
       if (forceActive) isEquipping = true;
       const deepDelete = (nameToDelete: string) => {
-        if (!newMods.has(nameToDelete)) return;
-        newMods.delete(nameToDelete);
+        const toDelete = Array.from(newMods).find((mObj: any) => (typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '')) === nameToDelete);
+        if (!toDelete) return;
+        newMods.delete(toDelete);
 
         const targetClean = nameToDelete.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
         if (targetClean) {
-           Array.from(newMods as Set<string>).forEach((depName: string) => {
+           Array.from(newMods).forEach((depObj: any) => {
+              const depName = typeof depObj === 'string' ? depObj : (depObj.name || depObj.path || '');
               const depClean = depName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
               if (depClean === targetClean && depName !== nameToDelete) {
-                  newMods.delete(depName);
+                  newMods.delete(depObj);
               }
            });
         }
@@ -614,6 +636,10 @@ export function usePlaySetLogic() {
                 targetPath = folderPath ? `${folderPath}/${flatFileName}` : flatFileName;
             }
             
+            if (modName.toLowerCase().startsWith("sanctuary/") || modName.toLowerCase().startsWith("sanctuary\\")) {
+                targetPath = `Sanctuary/${targetPath}`;
+            }
+            
             deployPayload.push({ path: modName, allow_write: modObj?.allow_write || false, target_path: targetPath });
         });
 
@@ -639,7 +665,10 @@ export function usePlaySetLogic() {
             if (!explicitlyDeployedFlatNames.has(flatLower)) {
                 const folderPath = fileNameToPathMap.get(flatLower) ?? fileNameToPathMap.get(noExt) ?? fileNameToPathMap.get(norm);
                 if (folderPath !== undefined && folderPath !== null) {
-                    const targetPath = folderPath ? `${folderPath}/${flatFileName}` : flatFileName;
+                    let targetPath = folderPath ? `${folderPath}/${flatFileName}` : flatFileName;
+                    if (m.name.toLowerCase().startsWith("sanctuary/") || m.name.toLowerCase().startsWith("sanctuary\\")) {
+                        targetPath = `Sanctuary/${targetPath}`;
+                    }
                     deployPayload.push({ path: m.name, allow_write: true, target_path: targetPath });
                     explicitlyDeployedFlatNames.add(flatLower);
                     deployPayloadPaths.add(m.name);
@@ -833,5 +862,57 @@ export function usePlaySetLogic() {
     });
   };
 
-  return { toggleInActiveSet, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet, getMissingStrings, ignoreMissingString, purgeMissingString };
+  const applyConflictOverride = (winnerName: string, modPair: string, currentScopeName: string) => {
+    console.log('[DEBUG] applyConflictOverride CALLED', {winnerName, modPair, currentScopeName});
+    console.log('[DEBUG] current ignored conflicts:', localStorage.getItem('sanctuary_ignored_conflicts'));
+    try {
+      setPlaySets((prevSets: any[]) => {
+        const playSetIndex = prevSets.findIndex((p: any) => p.name.toLowerCase() === currentScopeName.toLowerCase());
+        if (playSetIndex !== -1) {
+           const updatedSets = [...prevSets];
+           const currentSet = { ...updatedSets[playSetIndex] };
+           const newMods = [...currentSet.mods];
+           const cleanWinner = typeof winnerName === 'string' ? winnerName.replace(getExtensionRegex(activeGameSchema), "").toLowerCase().replace(/\\/g, '/') : '';
+           const index = newMods.findIndex((m: any) => {
+              const strM = typeof m === 'string' ? m : (m.name || m.path || '');
+              const cleanM = strM.replace(getExtensionRegex(activeGameSchema), "").toLowerCase().replace(/\\/g, '/');
+              return cleanM === cleanWinner || cleanM.endsWith(`/${cleanWinner}`);
+           });
+           if (index !== -1) {
+              const strM = typeof newMods[index] === 'string' ? newMods[index] : (newMods[index].name || newMods[index].path || '');
+              if (!strM.startsWith("Sanctuary/") && !strM.startsWith("Sanctuary\\")) {
+                 if (typeof newMods[index] === 'string') {
+                     newMods[index] = `Sanctuary/${strM}`;
+                 } else {
+                     newMods[index] = { ...newMods[index], name: `Sanctuary/${strM}`, path: `Sanctuary/${strM}` };
+                 }
+              }
+           } else {
+              newMods.push(`Sanctuary/${typeof winnerName === 'string' ? winnerName : (winnerName as any)?.name || ''}`);
+           }
+           currentSet.mods = newMods;
+           updatedSets[playSetIndex] = currentSet;
+           return updatedSets;
+        }
+        return prevSets;
+      });
+
+      setIgnoredGlobal((prevIgnored: string[]) => {
+        if (!prevIgnored.includes(modPair)) {
+          const updatedIgnored = [...prevIgnored, modPair];
+          localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(updatedIgnored));
+          window.dispatchEvent(new Event("storage"));
+          return updatedIgnored;
+        }
+        return prevIgnored;
+      });
+
+      return true;
+    } catch (err) {
+      console.error(`Error applying override: ${err}`);
+      return false;
+    }
+  };
+
+  return { toggleInActiveSet, applyConflictOverride, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet, getMissingStrings, ignoreMissingString, purgeMissingString };
 }

@@ -109,14 +109,20 @@ export const LexiconProvider = ({ children }: any) => {
       try {
         if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
 
-        // Fetch Core OS Lexicons
-        const osPromise = supabaseAuth.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
+        // Fetch Core OS Lexicons ONLY if they have access
+        const userRole = useStore.getState().userRole;
+        const hasOSAccess = ["keeper", "admin", "core_dev"].includes(userRole);
+        let osRes: { data: any[] | null, error: any } = { data: [], error: null };
+        
+        if (hasOSAccess) {
+            osRes = await supabaseAuth.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
+        }
         
         // Fetch Community Lexicons (via proxy to current game DB)
         const gamePromise = supabase.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
 
-        const [osRes, gameRes] = await Promise.all([osPromise, gamePromise]);
-        if (osRes.error) throw osRes.error;
+        const gameRes = await gamePromise;
+        if (hasOSAccess && osRes.error) throw osRes.error;
         if (gameRes.error && gameRes.error.code !== '42P01') console.error("Game lexicons error:", gameRes.error); // Ignore if table doesn't exist yet
         
         // Merge them, prioritizing Game Database over OS Database if there are conflicts, OR maybe OS takes priority?
@@ -125,7 +131,7 @@ export const LexiconProvider = ({ children }: any) => {
         const data = Array.from(new Map(mergedData.map(item => [item.id, item])).values());
 
         // --- TEMP: Force inject missing keys to cloud ---
-        if (data) {
+        if (data && hasOSAccess) {
           for (let row of data) {
             let localData: any = {};
             if (row.id === 'en-default') localData = enDefault;
@@ -141,7 +147,12 @@ export const LexiconProvider = ({ children }: any) => {
                 }
               }
               if (hasMissingKeys) {
-                await supabase.from('sanctuary_lexicons').update({ lexicon_data: row.lexicon_data }).eq('id', row.id);
+                const token = useStore.getState().session?.access_token;
+                if (token) {
+                  await supabase.rpc('secure_upsert_cloud_file', { p_token: token, p_target: 'sanctuary_lexicons', p_payload: row });
+                } else {
+                  await supabase.from('sanctuary_lexicons').update({ lexicon_data: row.lexicon_data }).eq('id', row.id);
+                }
               }
             }
           }
@@ -166,7 +177,7 @@ export const LexiconProvider = ({ children }: any) => {
           setLexiconMeta(meta);
 
           // If in local development, automatically sync cloud lexicons back to the source code files
-          if (import.meta.env.DEV) {
+          if (import.meta.env.DEV && hasOSAccess) {
             for (const row of data) {
               fetch('/__update-lexicon', {
                 method: 'POST',

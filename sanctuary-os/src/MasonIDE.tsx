@@ -116,8 +116,18 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                ? { id: fileId, name: fileId, badge: parsed._meta_badge || 'Sanctuary', version: parsed._meta_version || 1, lexicon_data: parsed, updated_at: new Date().toISOString() }
                : { id: fileId, name: parsed.manifest_name || fileId, schema_data: parsed, version: parsed.schema_version || 1, updated_at: new Date().toISOString() };
 
-            const { error } = await client.from(actualCloudTarget).upsert(payload);
-            if (error) throw error;
+            const token = useStore.getState().session?.access_token;
+            if (!isKeepers && token) {
+                const { error } = await client.rpc('secure_upsert_cloud_file', { 
+                    p_token: token, 
+                    p_target: actualCloudTarget, 
+                    p_payload: payload 
+                });
+                if (error) throw error;
+            } else {
+                const { error } = await client.from(actualCloudTarget).upsert(payload);
+                if (error) throw error;
+            }
 
             if (fileId === 'sims4') {
                useStore.getState().setActiveGameSchema(parsed);

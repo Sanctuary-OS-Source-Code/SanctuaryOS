@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import { ViewHeader, CustomDropdown, SidebarActionButton, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, SidePanel , getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex} from "./shared";
 import { useLexicon } from "./LexiconContext";
+import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { useStore } from "./store";
 import ConflictCard from "./ConflictCard";
 import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
@@ -23,6 +24,7 @@ const isCloneConflict = (modA: string, modB: string) => {
 export const DbpfScout = () => {
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const { t } = useLexicon();
+  const { applyConflictOverride } = usePlaySetLogic();
   const [loading, setLoading] = useState(false);
   const[error, setError] = useState<string | null>(null);
   const [hasScanned, setHasScanned] = useState(false);
@@ -39,15 +41,18 @@ export const DbpfScout = () => {
     }
   }, [playSets, activePlaySetIndex, scanScope]);
 
-  const [ignoredPairs, setIgnoredPairs] = useState<string[]>(() => {
-    const saved = localStorage.getItem("sanctuary_ignored_conflicts");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const ignoredPairs = useStore((state) => state.ignoredGlobal);
+  const setIgnoredPairs = useStore((state) => state.setIgnoredGlobal);
 
   const [fatalConflicts, setFatalConflicts] = useState<any[]>([]);
   const [tuningConflicts, setTuningConflicts] = useState<any[]>([]);
   const[cloneConflicts, setCloneConflicts] = useState<any[]>([]);
   const [softConflicts, setSoftConflicts] = useState<any[]>([]);
+  
+  const [visibleFatal, setVisibleFatal] = useState(50);
+  const [visibleTuning, setVisibleTuning] = useState(50);
+  const [visibleClone, setVisibleClone] = useState(50);
+  const [visibleSoft, setVisibleSoft] = useState(50);
 
   useEffect(() => {
     if (hasScanned) {
@@ -71,7 +76,12 @@ export const DbpfScout = () => {
     setSelectedForVault([]);
     setResolvingScript(null);
     setConfirmMassVault(false);
+    setConfirmMassVault(false);
     setStats({ packages: 0, totalClashes: 0 });
+    setVisibleFatal(50);
+    setVisibleTuning(50);
+    setVisibleClone(50);
+    setVisibleSoft(50);
 
     try {
       const config: any = await invoke("get_saved_coordinates");
@@ -195,21 +205,26 @@ export const DbpfScout = () => {
   };
 
   const targetHq = () => {
-    const newTargets: string[] = [...selectedForVault];
+    let newTargets: string[] = [...selectedForVault];
     cloneConflicts.forEach((c: any) => {
       const aIsHq = /_hq/i.test(c.modA);
       const bIsHq = /_hq/i.test(c.modB);
       let target = null;
-      if (aIsHq && !bIsHq) target = c.modA;
-      else if (bIsHq && !aIsHq) target = c.modB;
-      if (target && !newTargets.includes(target)) newTargets.push(target);
+      let nonTarget = null;
+      if (aIsHq && !bIsHq) { target = c.modA; nonTarget = c.modB; }
+      else if (bIsHq && !aIsHq) { target = c.modB; nonTarget = c.modA; }
+      
+      if (target) {
+        newTargets = newTargets.filter(m => m !== nonTarget);
+        if (!newTargets.includes(target)) newTargets.push(target);
+      }
     });
     setSelectedForVault(newTargets);
     setConfirmMassVault(false);
   };
 
   const targetNonHq = () => {
-    const newTargets: string[] = [...selectedForVault];
+    let newTargets: string[] = [...selectedForVault];
     cloneConflicts.forEach((c: any) => {
       const aIsHq = /_hq/i.test(c.modA);
       const bIsHq = /_hq/i.test(c.modB);
@@ -217,19 +232,32 @@ export const DbpfScout = () => {
       const bIsNonHq = /_nonhq/i.test(c.modB);
 
       let target = null;
-      if (aIsNonHq && !bIsNonHq) target = c.modA;
-      else if (bIsNonHq && !aIsNonHq) target = c.modB;
-      else if (!aIsHq && bIsHq) target = c.modA;
-      else if (!bIsHq && aIsHq) target = c.modB;
+      let nonTarget = null;
+      if (aIsNonHq && !bIsNonHq) { target = c.modA; nonTarget = c.modB; }
+      else if (bIsNonHq && !aIsNonHq) { target = c.modB; nonTarget = c.modA; }
+      else if (!aIsHq && bIsHq) { target = c.modA; nonTarget = c.modB; }
+      else if (!bIsHq && aIsHq) { target = c.modB; nonTarget = c.modA; }
 
-      if (target && !newTargets.includes(target)) newTargets.push(target);
+      if (target) {
+        newTargets = newTargets.filter(m => m !== nonTarget);
+        if (!newTargets.includes(target)) newTargets.push(target);
+      }
     });
     setSelectedForVault(newTargets);
     setConfirmMassVault(false);
   };
 
-  const toggleTarget = (modName: string) => {
-    setSelectedForVault((prev: string[]) => prev.includes(modName) ? prev.filter(m => m !== modName) : [...prev, modName]);
+  const toggleTarget = (selectedMod: string, otherMod: string) => {
+    setSelectedForVault((prev: string[]) => {
+      let newSelected = [...prev];
+      if (!newSelected.includes(selectedMod)) {
+        newSelected = newSelected.filter(m => m !== otherMod);
+        newSelected.push(selectedMod);
+      } else {
+        newSelected = newSelected.filter(m => m !== selectedMod);
+      }
+      return newSelected;
+    });
     setConfirmMassVault(false);
   };
 
@@ -289,38 +317,16 @@ export const DbpfScout = () => {
   const applyOverride = async (winnerName: string, modPair: string) => {
     try {
       if (activeConflictRes) {
-        const playSetIndex = playSets.findIndex((p: any) => p.name.toLowerCase() === scanScope.toLowerCase());
-        if (playSetIndex !== -1) {
-           const updatedSets = [...playSets];
-           const currentSet = updatedSets[playSetIndex];
-           const newMods = [...currentSet.mods];
-           const cleanWinner = winnerName.replace(getExtensionRegex(activeGameSchema), "").toLowerCase();
-           const index = newMods.findIndex((m: string) => {
-              const cleanM = m.replace(getExtensionRegex(activeGameSchema), "").toLowerCase();
-              return cleanM === cleanWinner || cleanM.endsWith(`/${cleanWinner}`) || cleanM.endsWith(`\\${cleanWinner}`);
-           });
-           if (index !== -1) {
-              if (!newMods[index].startsWith("Sanctuary/")) {
-                 newMods[index] = `Sanctuary/${winnerName}`;
-              }
-           } else {
-              newMods.push(`Sanctuary/${winnerName}`);
-           }
-           currentSet.mods = newMods;
-           setPlaySets(updatedSets);
-
-        }
+        applyConflictOverride(winnerName, modPair, scanScope);
       }
 
       const updatedIgnored = [...ignoredPairs, modPair];
       setIgnoredPairs(updatedIgnored);
-      localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(updatedIgnored));
 
       setTuningConflicts((prev: any[]) => prev.filter((c: any) => c.mod_pair !== modPair));
       setStats((prev: any) => ({ ...prev, totalClashes: prev.totalClashes - 1 }));
-      setResolvingScript(null);
       setActiveConflictRes(null);
-    } catch (err) { useStore.getState().pushStatus(`Override Error: ${err}`); }
+    } catch (err) { useStore.getState().pushStatus(`Error: ${err}`); }
   };
 
   const undoOverride = async (winnerName: string) => {
@@ -331,10 +337,12 @@ export const DbpfScout = () => {
       if (playSetIndex !== -1) {
          const updatedSets = [...playSets];
          const currentSet = { ...updatedSets[playSetIndex] };
-         currentSet.mods = currentSet.mods.map((m: string) => {
-            const cleanM = m.replace(getExtensionRegex(activeGameSchema), "").toLowerCase();
-            if (m.toLowerCase().startsWith("sanctuary") && (cleanM === `sanctuary/${cleanWinner}` || cleanM === `sanctuary\\${cleanWinner}` || cleanM.endsWith(`/${cleanWinner}`) || cleanM.endsWith(`\\${cleanWinner}`))) {
-               return m.replace(/^Sanctuary[/\\]/i, "");
+         currentSet.mods = currentSet.mods.map((m: any) => {
+            const strM = typeof m === 'string' ? m : (m.name || m.path || '');
+            const cleanM = strM.replace(getExtensionRegex(activeGameSchema), "").toLowerCase();
+            if (strM.toLowerCase().startsWith("sanctuary") && (cleanM === `sanctuary/${cleanWinner}` || cleanM === `sanctuary\\${cleanWinner}` || cleanM.endsWith(`/${cleanWinner}`) || cleanM.endsWith(`\\${cleanWinner}`))) {
+               if (typeof m === 'string') return strM.replace(/^Sanctuary[/\\]/i, "");
+               return { ...m, name: strM.replace(/^Sanctuary[/\\]/i, ""), path: (m.path || '').replace(/^Sanctuary[/\\]/i, "") };
             }
             return m;
          });
@@ -363,7 +371,10 @@ export const DbpfScout = () => {
       if (playSetIndex !== -1) {
          const updatedSets = [...playSets];
          const currentSet = { ...updatedSets[playSetIndex] };
-         currentSet.mods = currentSet.mods.map((m: string) => m.replace(/^Sanctuary[/\\]/i, ""));
+         currentSet.mods = currentSet.mods.map((m: any) => {
+             if (typeof m === 'string') return m.replace(/^Sanctuary[/\\]/i, "");
+             return { ...m, name: (m.name || '').replace(/^Sanctuary[/\\]/i, ""), path: (m.path || '').replace(/^Sanctuary[/\\]/i, "") };
+         });
          updatedSets[playSetIndex] = currentSet;
          setPlaySets(updatedSets);
 
@@ -399,21 +410,25 @@ export const DbpfScout = () => {
                   {t("icon_track_changes")}
                 </span>
               </div>
-              <div className="space-y-4 max-w-xl relative z-10">
-                <h2 className="text-4xl font-black text-[var(--text)] uppercase tracking-tighter drop-shadow-lg">
+              <div className="flex flex-col items-center gap-6 relative z-10 w-full animate-in fade-in slide-in-from-bottom-8 duration-700">
+              <div className="text-center space-y-2 mb-4">
+                <h2 className="text-2xl font-black uppercase tracking-widest text-white/90">
                   {t("landing_title")}
                 </h2>
                 <p className="text-sm font-medium leading-relaxed text-[var(--subtext)] opacity-80">
                   {t("landing_desc")}
                 </p>
               </div>
-              <button
-                onClick={runRadar}
-                className="px-10 py-5 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-105 transition-all flex items-center gap-3 relative z-10"
-              >
-                <span className="material-symbols-outlined !text-xl animate-pulse">{t("icon_track_changes")}</span>
-                <span className="text-xs font-black uppercase tracking-widest">{t("btn_sweep")}</span>
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={runRadar}
+                  className="px-10 py-5 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-105 transition-all flex items-center gap-3 relative z-10"
+                >
+                  <span className="material-symbols-outlined !text-xl animate-pulse">{t("icon_track_changes")}</span>
+                  <span className="text-xs font-black uppercase tracking-widest">{t("btn_sweep")}</span>
+                </button>
+              </div>
+            </div>
             </div>
           )}
 
@@ -497,7 +512,7 @@ export const DbpfScout = () => {
               </div>
 
               <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                {fatalConflicts.map((c: any) => (
+                {fatalConflicts.slice(0, visibleFatal).map((c: any) => (
                   <ConflictCard 
                     key={c.mod_pair} 
                     conflict={c} 
@@ -506,6 +521,13 @@ export const DbpfScout = () => {
                   />
                 ))}
               </div>
+              {fatalConflicts.length > visibleFatal && (
+                <div className="flex justify-center mt-8">
+                  <button onClick={() => setVisibleFatal(v => v + 100)} className="px-6 py-3 rounded-2xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                    {t("nav_load_more") || "Load More"} ({fatalConflicts.length - visibleFatal})
+                  </button>
+                </div>
+              )}
             </section>
           )}
 
@@ -524,7 +546,7 @@ export const DbpfScout = () => {
               </div>
 
               <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                {tuningConflicts.map((c: any) => (
+                {tuningConflicts.slice(0, visibleTuning).map((c: any) => (
                   <ConflictCard 
                     key={c.mod_pair} 
                     conflict={c} 
@@ -533,6 +555,13 @@ export const DbpfScout = () => {
                   />
                 ))}
               </div>
+              {tuningConflicts.length > visibleTuning && (
+                <div className="flex justify-center mt-8">
+                  <button onClick={() => setVisibleTuning(v => v + 100)} className="px-6 py-3 rounded-2xl theme-glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                    {t("nav_load_more") || "Load More"} ({tuningConflicts.length - visibleTuning})
+                  </button>
+                </div>
+              )}
             </section>
           )}
           {cloneConflicts.length > 0 && (
@@ -603,7 +632,7 @@ export const DbpfScout = () => {
               )}
 
               <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                {cloneConflicts.map((c: any) => (
+                {cloneConflicts.slice(0, visibleClone).map((c: any) => (
                   <ConflictCard 
                     key={c.mod_pair} 
                     conflict={c} 
@@ -611,12 +640,19 @@ export const DbpfScout = () => {
                     isBulkMode={isBulkMode}
                     isSelectedA={selectedForVault.includes(c.modA)}
                     isSelectedB={selectedForVault.includes(c.modB)}
-                    onToggleSelectA={() => toggleTarget(c.modA)}
-                    onToggleSelectB={() => toggleTarget(c.modB)}
+                    onToggleSelectA={() => toggleTarget(c.modA, c.modB)}
+                    onToggleSelectB={() => toggleTarget(c.modB, c.modA)}
                     onClick={() => setActiveConflictRes(c)}
                   />
                 ))}
               </div>
+              {cloneConflicts.length > visibleClone && (
+                <div className="flex justify-center mt-8">
+                  <button onClick={() => setVisibleClone(v => v + 100)} className="px-6 py-3 rounded-2xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                    {t("nav_load_more") || "Load More"} ({cloneConflicts.length - visibleClone})
+                  </button>
+                </div>
+              )}
             </section>
           )}
 
@@ -634,7 +670,7 @@ export const DbpfScout = () => {
                 <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest ml-9">{t("safe_textures")}</p>
               </summary>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pt-6 border-t border-white/5 mt-4">
-                {softConflicts.map((c: any) => (
+                {softConflicts.slice(0, visibleSoft).map((c: any) => (
                   <ConflictCard 
                     key={c.mod_pair} 
                     conflict={c} 
@@ -643,6 +679,13 @@ export const DbpfScout = () => {
                   />
                 ))}
               </div>
+              {softConflicts.length > visibleSoft && (
+                <div className="flex justify-center mt-6">
+                  <button onClick={() => setVisibleSoft(v => v + 100)} className="px-6 py-3 rounded-2xl theme-glass-panel border border-white/10 text-[var(--text)] hover:bg-white/5 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                    {t("nav_load_more") || "Load More"} ({softConflicts.length - visibleSoft})
+                  </button>
+                </div>
+              )}
             </details>
           )}
 
@@ -757,6 +800,12 @@ export const DbpfScout = () => {
              <div className="relative z-10 flex flex-col gap-3">
                <SidebarActionButton id="SWEEP" icon="track_changes" label={t("btn_sweep")} onClick={runRadar} active={false} />
                <SidebarActionButton id="UNDO" icon="undo" label={t("undo_title")} onClick={() => setShowUndoPanel(true)} active={showUndoPanel} />
+               {ignoredPairs.length > 0 && (
+                   <SidebarActionButton id="RESET" icon="restart_alt" label={t("btn_reset_ignored") || "Reset Ignored"} onClick={() => {
+                      setIgnoredPairs([]);
+                      localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify([]));
+                   }} active={false} />
+               )}
              </div>
            </div>
         </div>
