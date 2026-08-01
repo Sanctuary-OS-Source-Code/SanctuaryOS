@@ -143,15 +143,15 @@ export default function Blueprints({
             if (em.isFallback) return false;
             if (c.enemy_id && String(em.dbId) === String(c.enemy_id)) return true;
             if (c.enemy_name) {
-              const targetClean = String(c.enemy_name).toUpperCase();
+              const targetClean = String(c.enemy_name).replace(/\.[^/.]+$/i, "").toUpperCase();
               if (em._cleanN.includes(targetClean) || em._cleanDisp.includes(targetClean)) return true;
             }
             return false;
           });
           if (enemyActive && mod.name && enemyActive.name && mod.name !== enemyActive.name) {
             hasAlert = true;
-            if (c.severity_rank === 4) res.tier4++;
-            else if (c.severity_rank === 3) res.tier3++;
+            if (c.severity_rank == 4) res.tier4++;
+            else if (c.severity_rank == 3) res.tier3++;
             else res.broken++;
           }
         }
@@ -182,8 +182,8 @@ export default function Blueprints({
       });
 
       if (modAMatch && modBMatch && modAMatch.name !== modBMatch.name) {
-        if (lc.severity_rank === 4) res.tier4++;
-        else if (lc.severity_rank === 3) res.tier3++;
+        if (lc.severity_rank == 4) res.tier4++;
+        else if (lc.severity_rank == 3) res.tier3++;
         else res.broken++;
 
         res.total++;

@@ -105,7 +105,7 @@ function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelected
       <div className="flex justify-between items-center z-10 relative">
         <div className="flex items-center gap-2">
           <span className={`material-symbols-outlined !text-[14px] ${tier === 4 ? 'text-[var(--danger)]' : tier === 3 ? 'text-[var(--warning)]' : tier === 2 ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>
-            {tier === 4 ? 'error' : tier === 3 ? 'warning' : tier === 2 ? 'file_copy' : 'info'}
+            {tier === 4 ? (t("icon_crisis_alert") || 'crisis_alert') : tier === 3 ? (t("icon_tune") || 'tune') : tier === 2 ? 'file_copy' : 'info'}
           </span>
           <span className={`text-[10px] font-black uppercase tracking-widest opacity-80 ${tier === 4 ? 'text-[var(--danger)]' : tier === 3 ? 'text-[var(--warning)]' : tier === 2 ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>
             {label}

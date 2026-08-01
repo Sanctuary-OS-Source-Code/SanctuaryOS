@@ -111,8 +111,8 @@ export const DbpfScout = () => {
         const enrichedConflict = { ...c, modA, modB };
 
         if (isCloneConflict(modA, modB)) { clone.push(enrichedConflict); actionableClashes++; }
-        else if (c.severity_rank === 4) { fatal.push(enrichedConflict); actionableClashes++; }
-        else if (c.severity_rank === 3) { tuning.push(enrichedConflict); actionableClashes++; }
+        else if (c.severity_rank == 4) { fatal.push(enrichedConflict); actionableClashes++; }
+        else if (c.severity_rank == 3) { tuning.push(enrichedConflict); actionableClashes++; }
         else { soft.push(enrichedConflict); }
       });
 

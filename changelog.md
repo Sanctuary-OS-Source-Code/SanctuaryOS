@@ -1,3 +1,36 @@
+**Date: July 31, 2026**
+**Version: 0.4.89**
+
+## **Backup Architecture & Vault UX Polish**
+
+### Backup System & Core Integrations
+- **Hardlink-Based Incremental Backups (Time Capsule Overhaul)**: The Time Capsule backup system has been completely engineered from the ground up. We have moved away from legacy ZSTD compression in favor of a new ultra-fast, native OS hardlink engine. If a file hasn't changed since your last snapshot, Sanctuary OS no longer wastes time duplicating it—it simply creates a hardlink. This results in near-instant, zero-disk-footprint backups for all unmodified files, scaling based purely on your exact delta rather than your total game size.
+- **Engine Backups Relocation**: To support the new native hardlink engine (which strictly requires files to be on the same physical partition), Engine Core backups are no longer stored inside the Sanctuary Vault. They have been dynamically relocated to a hidden directory at the root of the drive where your game is installed (e.g., `C:\.sanctuary_backups`). This ensures hardlinks can be instantly created across the filesystem, completely independent of your Vault's location.
+- **High-Speed Differential Restores**: "Rollback Safety" no longer requires physically obliterating and re-extracting your entire game folder. Restores now utilize a highly optimized differential mirror process. The OS intelligently walks the directories, comparing your live game state to the backup snapshot. It instantly deletes rogue files and restores changed data, guaranteeing 100% timeline integrity while skipping the massive performance penalty of a full wipe.
+- **Automated Game Version Ripper**: The game version is now automatically detected by scanning the `Default.ini` executable manifest immediately prior to executing backups and post-restore. This guarantees complete state synchronization and zero version mismatches across your timeline. 
+
+### Tooltips & Hover States
+- **Custom Tooltips Integration**: Replaced standard native browser `title="..."` attributes with custom, stylized `<HoverTooltip />` components across `BlueprintArchitect` buttons, `SidePanel` elements, and core Vault actions.
+- **Hover Bleed Resolution**: Fixed a major CSS inheritance issue where hovering over a panel (like the Conflicts or Incompatible SidePanels) would inadvertently trigger every nested tooltip simultaneously. 
+- **Tooltip Anchoring**: Right-aligned tooltips on far-edge buttons (e.g., in the Blueprint Architect's compromised artifacts column) to ensure they expand inwards, preventing them from spilling off-screen and expanding horizontal bounds.
+- **Dynamic Tooltip Icons**: Upgraded the `<HoverTooltip />` architecture (and corresponding global tooltip store) to explicitly accept a dynamic `icon` prop, allowing context-aware iconography directly within tooltip bubbles based on exact error states.
+- **Hover Tooltip Delays**: Added a global 300ms hover delay to the `<HoverTooltip />` component to prevent aggressive pop-ups, flashes, and screen clutter during rapid scrolling.
+
+### Aesthetic Refinements
+- **Minimalist Headers**: Converted bulky, rounded-pill headers in the Command Center side panels (`CommandConflictsPanel`, `CommandIncompatiblePanel`, `CommandCenterSidePanels`) to a sleek, text-only minimalist layout (`X ITEMS • Y FATAL`).
+- **Shadow Glitch Fix**: Stripped erratic overlapping shadow bugs from the outer card wrappers in the Blueprint Architect to maintain a clean glassmorphism aesthetic.
+- **3D Mod Card Alerts**: Completely overhauled the Mod Card confirmation panels (Yeet Cascades, Conflicts, Missing DLC) to utilize a premium, hardware-accelerated 3D flip animation (`rotateY(180deg)`) instead of standard overlays, drastically improving the tactile feel of the UI.
+- **Card Iconography Standardization**: Standardized "Broken/Ghosted" iconography across the entire Mod Card. Game version mismatches now use the controller icon (`sports_esports`), missing dependencies use the puzzle piece (`extension`), missing DLC packs use the diamond (`currency_exchange`), and fatal conflicts use the target (`crisis_alert`).
+- **Mod Card Hover Polish**: Resolved a subpixel antialiasing blur issue on Mod Cards caused by 3D hardware-accelerated scaling, swapping the scale effect for a crisp vertical translation. Fixed the z-index of the hover overlay so it no longer washes out the card's text, and corrected the folder badge hover state to inherit the pill shape instead of defaulting to a rectangle.
+
+### Ghosted States & Mod Overrides
+- **Flavor Swap Integration**: Introduced a new `isFlavorSwap` "ghosted" state into `ModCard.tsx`. When a flavor swap conflict is detected, the card now properly visually fades (shadows) and displays the `swap_horiz` (FLAVOR SWAP) icon alongside an updated protocol override badge.
+- **Enhanced Conflict Detection Engine**: Updated `usePlaySetLogic.ts` and `CommandConflictsPanel.tsx` to utilize robust `cleanNLookup` filtering and string containment algorithms. This drastically improves performance via fast-rejection while accurately trapping deep-nested flavor overlaps and aliases between active subsets and local scans.
+- **Conflict Resolution Enforcement**: Fixed a critical bug in the Vault conflict resolution flow where selecting a "winner" between two colliding mods would fail to properly disable the "loser". The system now strictly enforces mutual exclusivity, explicitly deactivating the losing artifact and activating the winner when a severity 3 collision is manually resolved.
+- **Conflict UI Polish**: Upgraded the generic "Ignore" button inside the Mod Card conflict alerts to explicitly state "IGNORE CONFLICT" with a high-contrast danger aesthetic, ensuring users fully understand the risks of bypassing a known collision.
+
+---
+
 **Date: July 29, 2026**
 **Version: 0.4.88**
 

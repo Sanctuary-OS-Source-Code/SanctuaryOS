@@ -60,6 +60,7 @@ import KeepersCore from "./KeepersCore";
 import { UpdateSidePanel } from './side-panels/UpdateSidePanel';
 import CitizensWorkbench from "./CitizensWorkbench";
 import { ContextMenu } from "./ContextMenu";
+import { GlobalTooltip } from "./GlobalTooltip";
 
 const setupBtnStyle: React.CSSProperties = {
   padding: "12px",
@@ -2529,6 +2530,7 @@ function App() {
         <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
         <UpdateSidePanel />
         <ContextMenu />
+        <GlobalTooltip />
       </div>
 
       {!isGlobalConfigLoaded && (

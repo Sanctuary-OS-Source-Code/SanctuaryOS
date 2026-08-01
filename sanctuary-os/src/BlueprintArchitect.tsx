@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { formatDisplayName, ViewHeader, CustomDropdown, mapDlcCode, isVersionMatch, SidePanel, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getHighestVersion, getExtensionRegex } from "./shared";
+import { formatDisplayName, ViewHeader, CustomDropdown, mapDlcCode, isVersionMatch, SidePanel, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getHighestVersion, getExtensionRegex, HoverTooltip } from "./shared";
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";
 import { tauriBridge } from "./lib/tauri-bridge";
@@ -29,29 +29,29 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
 
     const exactMatchMap = new Map();
     const baseMatchMap = new Map();
-    
+
     for (const m of safeList) {
-        if (!m.name) continue;
-        const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
-        exactMatchMap.set(exactKey, m);
-        
-        const baseKey = m.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
-        if (baseKey && !baseMatchMap.has(baseKey)) {
-            baseMatchMap.set(baseKey, m);
-        }
+      if (!m.name) continue;
+      const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
+      exactMatchMap.set(exactKey, m);
+
+      const baseKey = m.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
+      if (baseKey && !baseMatchMap.has(baseKey)) {
+        baseMatchMap.set(baseKey, m);
+      }
     }
 
     return safeMods.map((rawMod: any) => {
       const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
       const cleanModName = modName.replace(/^(sanctuary[/\\])+/i, '');
       const modNameLow = cleanModName.toLowerCase().replace(/\\/g, '/');
-      
+
       const exactMatch = exactMatchMap.get(modNameLow);
       if (exactMatch) return { ...exactMatch, _originalSetName: modName };
 
       const mBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
       const baseMatch = mBase ? baseMatchMap.get(mBase) : undefined;
-      
+
       if (baseMatch) return { ...baseMatch, _originalSetName: modName };
 
       return { name: modName, isFallback: true, _originalSetName: modName };
@@ -106,7 +106,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
         const localConflicts = JSON.parse(stored);
         localConflicts.forEach((lc: any) => {
           if (ignoredGlobal.includes(lc.mod_pair)) return;
-          
+
           const modAMatch = activeMods.find((em: any) => {
             if (em.isFallback) return false;
             const cleanN = String(em.name || '').toUpperCase();
@@ -283,34 +283,27 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
       }
     >
       <div className="flex-1 min-h-0 flex gap-8 p-8 pb-12 w-full">
-        <div className="flex-1 flex flex-col relative group rounded-[var(--radius)] overflow-hidden transition-all duration-500 theme-glass-panel shadow-2xl min-h-0">
+        <div className="flex-1 flex flex-col relative rounded-[var(--radius)] overflow-hidden transition-all duration-500 theme-glass-panel shadow-2xl min-h-0">
           <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5 pointer-events-none" />
 
           <div className="relative z-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             {(() => {
-              const tier4Count = activeConflicts.filter(c => c.conflict.severity_rank === 4).length;
+              const tier4Count = activeConflicts.filter(c => c.conflict.severity_rank == 4).length;
               const tier3Count = activeConflicts.length - tier4Count;
               return (
-                <div className="px-8 py-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-between">
-                  <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">
-                    {t("bp_load_order_conflicts")}
-                  </h3>
+                <div className="px-8 py-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col gap-1.5">
                   <div className="flex items-center gap-2">
-                    {tier4Count > 0 && (
-                      <span className="text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
-                        {tier4Count} {t("stat_tier4")}
-                      </span>
-                    )}
-                    {tier3Count > 0 && (
-                      <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
-                        {tier3Count} {t("stat_tier3")}
-                      </span>
-                    )}
-                    {activeConflicts.length === 0 && (
-                      <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                        {t("bp_no_conflicts_detected")}
-                      </span>
-                    )}
+                    <span className="material-symbols-outlined !text-[18px] text-amber-500">{t("icon_tune")}</span>
+                    <h3 className="text-[14px] font-black text-[var(--text)] uppercase tracking-[0.25em] translate-y-[1px]">
+                      {t("bp_load_order_conflicts")}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest pl-[26px]">
+                    <span>{activeConflicts.length} {t("items")}</span>
+                    {(tier4Count > 0 || tier3Count > 0) && <span className="opacity-50">•</span>}
+                    {tier4Count > 0 && <span className="text-red-400">{tier4Count} {t("bp_pill_fatal")}</span>}
+                    {tier3Count > 0 && <span className="text-amber-400">{tier3Count} {t("bp_pill_overlaps")}</span>}
+                    {activeConflicts.length === 0 && <span className="text-[var(--success)]">• {t("bp_no_conflicts_detected")}</span>}
                   </div>
                 </div>
               );
@@ -325,7 +318,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
               ) : (
                 activeConflicts.map((ac) => {
                   const isIgnored = ignoredConflicts.has(ac.pairId);
-                  const isTier4 = ac.conflict.severity_rank === 4;
+                  const isTier4 = ac.conflict.severity_rank == 4;
 
                   const isWinnerA = (ac.modA._originalSetName || ac.modA.name)?.toLowerCase().startsWith("sanctuary/") || (ac.modA._originalSetName || ac.modA.name)?.toLowerCase().startsWith("sanctuary\\");
                   const isWinnerB = (ac.modB._originalSetName || ac.modB.name)?.toLowerCase().startsWith("sanctuary/") || (ac.modB._originalSetName || ac.modB.name)?.toLowerCase().startsWith("sanctuary\\");
@@ -338,24 +331,24 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                   return (
                     <div
                       key={ac.pairId}
-                      className={`w-full rounded-[var(--radius)] border transition-all duration-500 relative overflow-hidden group/alert shrink-0 ${isIgnored
+                      className={`w-full rounded-[var(--radius)] border transition-all duration-500 relative group/alert shrink-0 ${isIgnored
                         ? 'opacity-50 grayscale border-white/5 bg-black/20'
                         : `${borderClass} ${bgClass} shadow-lg ${shadowClass}`
                         }`}
                     >
 
-                      <div className="relative p-6 z-10 flex flex-col gap-5 w-full">
-                        <div className="flex justify-between items-start w-full">
-                          <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored ? 'border-white/10 bg-black/50' : `${isTier4 ? 'border-red-500/50 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.2)]' : 'border-amber-500/50 bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.2)]'}`
+                      <div className="relative p-5 z-10 flex flex-col gap-1 w-full">
+                        <div className="flex justify-between items-center w-full mb-1">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored ? 'border-white/10 bg-black/50' : `${isTier4 ? 'border-red-500/50 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-amber-500/50 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.2)]'}`
                               }`}>
-                              <span className={`material-symbols-outlined !text-[24px] ${isIgnored ? 'text-[var(--text)] opacity-30' : textClass}`}>{iconName}</span>
+                              <span className={`material-symbols-outlined !text-[20px] ${isIgnored ? 'text-[var(--text)] opacity-30' : textClass}`}>{iconName}</span>
                             </div>
                             <div className="flex flex-col">
-                              <span className={`text-xs font-black uppercase tracking-widest ${textClass}`}>
+                              <span className={`text-[11px] font-black uppercase tracking-widest ${textClass}`}>
                                 {isTier4 ? t("fatal_conflict") : t("tier3_conflict")}
                               </span>
-                              <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">
+                              <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-0.5">
                                 {ac.conflict.resolution_note || "Local Scan Detects Tuning Overlap"}
                               </span>
                             </div>
@@ -368,65 +361,68 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                               else newSet.add(ac.pairId);
                               setIgnoredConflicts(newSet);
                             }}
-                            className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 shrink-0 ml-4 flex items-center gap-2"
+                            className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all active:scale-95 flex items-center justify-center shrink-0 ml-4 group relative"
                           >
-                            <span className="material-symbols-outlined !text-[12px]">{isIgnored ? "visibility" : "visibility_off"}</span>
-                            {isIgnored ? t("bp_restore_alert") : t("btn_ignore")}
+                            <span className="material-symbols-outlined !text-[16px]">{isIgnored ? "visibility" : "visibility_off"}</span>
+                            <HoverTooltip title={isIgnored ? t("bp_restore_alert") : t("btn_ignore")} variant="default" className="!left-auto !right-0 !translate-x-0" />
                           </button>
                         </div>
 
-                        <div className={`flex flex-col gap-3 w-full mt-2 ${isIgnored ? 'opacity-30' : ''}`}>
-                          <div className={`flex-1 flex flex-col p-4 rounded-[1.25rem] border transition-all shadow-inner relative overflow-hidden group/card hover:border-white/20 ${isWinnerA && !isTier4 ? 'border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                        <div className={`flex flex-col gap-2 w-full mt-2 ${isIgnored ? 'opacity-30' : ''}`}>
+                          <div className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-white/20 ${isWinnerA && !isTier4 ? 'border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
 
-                            <div className="flex flex-col gap-1.5 relative z-10 w-full mb-3">
-                              <span className={`text-[11px] font-black uppercase leading-tight ${isWinnerA && !isTier4 ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>{formatDisplayName(ac.modA.name)}</span>
-                              <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded-md border border-cyan-400/20 w-fit">{ac.modA.version || "v.Local"}</span>
+                            <div className="flex flex-col gap-1 relative z-10 flex-1 min-w-0 pr-4 group/title">
+                              <span className={`text-[12px] font-semibold truncate ${isWinnerA && !isTier4 ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>
+                                {formatDisplayName(ac.modA.name)}
+                              </span>
+                              <HoverTooltip title={formatDisplayName(ac.modA.name)} variant="default" className="!hidden group-hover/title:!flex z-[100]" />
+                              <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded border border-cyan-400/20 w-fit">
+                                {ac.modA.version || "v.Local"}
+                              </span>
                             </div>
 
-                            <div className="relative z-10 flex items-center gap-2 w-full mt-auto">
-                              {ac.conflict.severity_rank === 4 ? (
+                            <div className="relative z-10 flex items-center shrink-0">
+                              {ac.conflict.severity_rank == 4 ? (
                                 allow_write && (
                                   <button
                                     onClick={() => toggleInActiveSet(ac.modA._originalSetName || ac.modA.name, true, true)}
-                                    className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                    className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center group relative"
                                   >
-                                    <span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span>
-                                    {t("bp_yeet_artifact")}
+                                    <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
+                                    <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" className="!left-auto !right-0 !translate-x-0" />
                                   </button>
                                 )
-                              ) : ac.conflict.severity_rank === 3 ? (
+                              ) : ac.conflict.severity_rank == 3 ? (
                                 isWinnerA ? (
-                                  <div className="w-full py-2.5 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
-                                    <span className="material-symbols-outlined !text-[14px]">{t("icon_star")}</span>
-                                    {t("bp_winning_artifact")}
+                                  <div className="h-8 w-8 rounded-lg bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] flex items-center justify-center shadow-[0_0_10px_rgba(var(--success-rgb),0.3)]" title={t("bp_winning_artifact")}>
+                                    <span className="material-symbols-outlined !text-[16px]">{t("icon_star")}</span>
                                   </div>
                                 ) : isWinnerB ? (
-                                  <div className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-                                    <span className="material-symbols-outlined !text-[12px]">{t("icon_block")}</span>
-                                    {t("bp_overridden_by_winner")}
+                                  <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 flex items-center justify-center" title={t("bp_overridden_by_winner")}>
+                                    <span className="material-symbols-outlined !text-[16px]">{t("icon_block")}</span>
                                   </div>
                                 ) : (
                                   allow_write && (
                                     <button
                                       onClick={() => applyConflictOverride(ac.modA._originalSetName || ac.modA.name, ac.pairId, playSet.name)}
-                                      className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                      className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
                                     >
-                                      <span className="material-symbols-outlined !text-[14px]">{t("icon_check_circle")}</span>
-                                      {t("bp_select_winning_artifact")}
+                                      <span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span>
+                                      <HoverTooltip title={t("bp_select_winning_artifact")} variant="default" className="!left-auto !right-0 !translate-x-0" />
                                     </button>
                                   )
                                 )
                               ) : (
-                                <div className="w-full flex gap-2">
-                                  <div className="flex-1">{getPriorityDrop(ac.modA)}</div>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-32">{getPriorityDrop(ac.modA)}</div>
                                   {allow_write && (
                                     <button
                                       onClick={() => toggleInActiveSet(ac.modA._originalSetName || ac.modA.name, true, true)}
-                                      className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center"
-                                      title={t("bp_yeet_artifact")}
+                                      className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center group relative"
                                     >
                                       <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
+                                      <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" className="!left-auto !right-0 !translate-x-0" />
                                     </button>
                                   )}
                                 </div>
@@ -434,57 +430,60 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                             </div>
                           </div>
 
-                          <div className={`flex-1 flex flex-col p-4 rounded-[1.25rem] border transition-all shadow-inner relative overflow-hidden group/card hover:border-white/20 ${isWinnerB && !isTier4 ? 'border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                          <div className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-white/20 ${isWinnerB && !isTier4 ? 'border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
 
-                            <div className="flex flex-col gap-1.5 relative z-10 w-full mb-3">
-                              <span className={`text-[11px] font-black uppercase leading-tight ${isWinnerB && !isTier4 ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>{formatDisplayName(ac.modB.name)}</span>
-                              <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded-md border border-cyan-400/20 w-fit">{ac.modB.version || "v.Local"}</span>
+                            <div className="flex flex-col gap-1 relative z-10 flex-1 min-w-0 pr-4 group/title">
+                              <span className={`text-[12px] font-semibold truncate ${isWinnerB && !isTier4 ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>
+                                {formatDisplayName(ac.modB.name)}
+                              </span>
+                              <HoverTooltip title={formatDisplayName(ac.modB.name)} variant="default" className="!hidden group-hover/title:!flex z-[100]" />
+                              <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded border border-cyan-400/20 w-fit">
+                                {ac.modB.version || "v.Local"}
+                              </span>
                             </div>
 
-                            <div className="relative z-10 flex items-center gap-2 w-full mt-auto">
-                              {ac.conflict.severity_rank === 4 ? (
+                            <div className="relative z-10 flex items-center shrink-0">
+                              {ac.conflict.severity_rank == 4 ? (
                                 allow_write && (
                                   <button
                                     onClick={() => toggleInActiveSet(ac.modB._originalSetName || ac.modB.name, true, true)}
-                                    className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                    className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center group relative"
                                   >
-                                    <span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span>
-                                    {t("bp_yeet_artifact")}
+                                    <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
+                                    <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" className="!left-auto !right-0 !translate-x-0" />
                                   </button>
                                 )
-                              ) : ac.conflict.severity_rank === 3 ? (
+                              ) : ac.conflict.severity_rank == 3 ? (
                                 isWinnerB ? (
-                                  <div className="w-full py-2.5 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
-                                    <span className="material-symbols-outlined !text-[14px]">{t("icon_star")}</span>
-                                    {t("bp_winning_artifact")}
+                                  <div className="h-8 w-8 rounded-lg bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] flex items-center justify-center shadow-[0_0_10px_rgba(var(--success-rgb),0.3)]" title={t("bp_winning_artifact")}>
+                                    <span className="material-symbols-outlined !text-[16px]">{t("icon_star")}</span>
                                   </div>
                                 ) : isWinnerA ? (
-                                  <div className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-                                    <span className="material-symbols-outlined !text-[12px]">{t("icon_block")}</span>
-                                    {t("bp_overridden_by_winner")}
+                                  <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 flex items-center justify-center" title={t("bp_overridden_by_winner")}>
+                                    <span className="material-symbols-outlined !text-[16px]">{t("icon_block")}</span>
                                   </div>
                                 ) : (
                                   allow_write && (
                                     <button
                                       onClick={() => applyConflictOverride(ac.modB._originalSetName || ac.modB.name, ac.pairId, playSet.name)}
-                                      className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                      className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
                                     >
-                                      <span className="material-symbols-outlined !text-[14px]">{t("icon_check_circle")}</span>
-                                      {t("bp_select_winning_artifact")}
+                                      <span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span>
+                                      <HoverTooltip title={t("bp_select_winning_artifact")} variant="default" />
                                     </button>
                                   )
                                 )
                               ) : (
-                                <div className="w-full flex gap-2">
-                                  <div className="flex-1">{getPriorityDrop(ac.modB)}</div>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-32">{getPriorityDrop(ac.modB)}</div>
                                   {allow_write && (
                                     <button
                                       onClick={() => toggleInActiveSet(ac.modB._originalSetName || ac.modB.name, true, true)}
-                                      className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center"
-                                      title={t("bp_yeet_artifact")}
+                                      className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center group relative"
                                     >
                                       <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
+                                      <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" />
                                     </button>
                                   )}
                                 </div>
@@ -501,37 +500,28 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col relative group rounded-[var(--radius)] overflow-hidden transition-all duration-500 theme-glass-panel shadow-2xl min-h-0">
+        <div className="flex-1 flex flex-col relative rounded-[var(--radius)] overflow-hidden transition-all duration-500 theme-glass-panel shadow-2xl min-h-0">
           <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5 pointer-events-none" />
 
           <div className="relative z-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-            <div className="px-8 py-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col gap-4 relative">
-              <div className="flex items-center justify-between w-full relative z-10">
-                <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("bp_compatibility_scanner")}</h3>
-                {brokenMods.length > 0 ? (
-                  <div className="flex gap-2">
-                    {redMods.length > 0 && (
-                      <span className="text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
-                        {redMods.length} {t("items")}
-                      </span>
-                    )}
-                    {amberMods.length > 0 && (
-                      <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
-
-                        {amberMods.length} {t("items")}
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
-
-                    {t("auto_0")} {t("items")}
-                  </span>
-                )}
+            <div className="px-8 py-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col gap-1.5 relative">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined !text-[18px] text-red-500">{t("icon_security")}</span>
+                <h3 className="text-[14px] font-black text-[var(--text)] uppercase tracking-[0.25em] translate-y-[1px]">
+                  {t("bp_compatibility_scanner")}
+                </h3>
               </div>
+              <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest pl-[26px]">
+                <span>{brokenMods.length} {t("items")}</span>
+                {(redMods.length > 0 || amberMods.length > 0) && <span className="opacity-50">•</span>}
+                {redMods.length > 0 && <span className="text-red-400">{redMods.length} {t("bp_pill_corrupted")}</span>}
+                {amberMods.length > 0 && <span className="text-amber-400">{amberMods.length} {t("bp_pill_unstable")}</span>}
+                {brokenMods.length === 0 && <span className="text-[var(--success)]">• {t("auto_0")} {t("items")}</span>}
+              </div>
+            </div>
 
               {allow_write && brokenMods.length > 0 && (
-                <div className="flex gap-2 w-full">
+                <div className="flex gap-2 w-full p-8 pb-0">
                   {redMods.length > 0 && (
                     <button onClick={() => {
                       redMods.forEach((m: any) => toggleInActiveSet(m._originalSetName || m.name, true, true));
@@ -550,8 +540,6 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                   )}
                 </div>
               )}
-            </div>
-
             <div className="p-8 flex flex-col gap-4 pb-24">
               {brokenMods.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4">
@@ -568,54 +556,58 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                     return (
                       <div
                         key={mod.name}
-                        className={`relative shrink-0 group w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border flex items-center ${isIgnored
+                        className={`relative shrink-0 group/alert w-full rounded-[var(--radius)] transition-all duration-500 border flex items-center ${isIgnored
                           ? 'opacity-50 grayscale border-white/5 bg-black/20'
                           : isAmber
-                            ? 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 shadow-lg hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]'
-                            : 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shadow-lg hover:shadow-[0_0_30px_color-mix(in_srgb,var(--danger)_20%,transparent)]'
+                            ? 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10'
+                            : 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]'
                           }`}
                       >
-                        <div className="relative p-6 z-10 flex items-center gap-5 w-full">
-                          <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored ? 'border-white/10 bg-black/50' : isAmber ? 'border-amber-500/50 bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.2)]' : 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)]'
+                        <div className="relative p-4 z-10 flex items-center gap-3 w-full">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored ? 'border-white/10 bg-black/50' : isAmber ? 'border-amber-500/50 bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.2)]' : 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)]'
                             }`}>
-                            <span className={`material-symbols-outlined !text-[24px] ${isIgnored ? 'text-[var(--text)] opacity-30' : isAmber ? 'text-amber-400' : 'theme-text-danger'}`}>{isAmber ? "gpp_maybe" : "gpp_bad"}</span>
+                            <span className={`material-symbols-outlined !text-[20px] ${isIgnored ? 'text-[var(--text)] opacity-30' : isAmber ? 'text-amber-400' : 'theme-text-danger'}`}>{isAmber ? "gpp_maybe" : "gpp_bad"}</span>
                           </div>
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="flex flex-col gap-1">
-                                <span className="text-xs font-black text-[var(--text)] uppercase break-words">
-                                  {formatDisplayName(mod.name)}
-                                </span>
-                                <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded-md border border-cyan-400/20 w-fit">
-                                  {mod.version || "v.Local"}
-                                </span>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  const newSet = new Set(ignoredBroken);
-                                  if (isIgnored) newSet.delete(mod.name);
-                                  else newSet.add(mod.name);
-                                  setIgnoredBroken(newSet);
-                                }}
-                                className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 shrink-0 ml-4"
-                              >
-                                {isIgnored ? t("bp_restore_alert") : t("btn_ignore")}
-                              </button>
-                            </div>
-                            <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest block mt-1">
-                              {mod._alert_reason}
+                          <div className="flex flex-col gap-0.5 flex-1 min-w-0 pr-4 group/title relative">
+                            <span className="text-[12px] font-semibold text-[var(--text)] truncate">
+                              {formatDisplayName(mod.name)}
                             </span>
+                            <HoverTooltip title={formatDisplayName(mod.name)} variant="default" className="!hidden group-hover/title:!flex z-[100]" />
+                            <div className="flex items-center gap-2 mt-0.5 overflow-hidden">
+                              <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded border border-cyan-400/20 shrink-0">
+                                {mod.version || "v.Local"}
+                              </span>
+                              <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate">
+                                {mod._alert_reason}
+                              </span>
+                            </div>
                           </div>
 
-                          {allow_write && !isIgnored && (
+                          <div className="relative z-10 flex items-center shrink-0 gap-2">
                             <button
-                              onClick={() => toggleInActiveSet(mod._originalSetName || mod.name, true, true)}
-                              className={`shrink-0 w-10 h-10 rounded-full border font-black transition-all backdrop-blur-md active:scale-95 flex items-center justify-center ${isAmber ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/30 hover:border-amber-500/60 hover:text-amber-200 hover:shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] hover:text-[var(--danger)] hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_40%,transparent)]'}`}
+                              onClick={() => {
+                                const newSet = new Set(ignoredBroken);
+                                if (isIgnored) newSet.delete(mod.name);
+                                else newSet.add(mod.name);
+                                setIgnoredBroken(newSet);
+                              }}
+                              className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all active:scale-95 flex items-center justify-center group relative"
                             >
-                              <span className="material-symbols-outlined !text-lg">{t("icon_close")}</span>
+                              <span className="material-symbols-outlined !text-[16px]">{isIgnored ? "visibility" : "visibility_off"}</span>
+                              <HoverTooltip title={isIgnored ? t("bp_restore_alert") : t("btn_ignore")} variant="default" className="!left-auto !right-0 !translate-x-0" />
                             </button>
-                          )}
+
+                            {allow_write && !isIgnored && (
+                              <button
+                                onClick={() => toggleInActiveSet(mod._originalSetName || mod.name, true, true)}
+                                className={`w-8 h-8 rounded-lg border transition-all active:scale-95 flex items-center justify-center group relative ${isAmber ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/30 hover:border-amber-500/60 hover:text-amber-200' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] hover:text-[var(--danger)]'}`}
+                              >
+                                <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
+                                <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" className="!left-auto !right-0 !translate-x-0" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );

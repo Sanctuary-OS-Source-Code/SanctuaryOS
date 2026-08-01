@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { SidePanel, formatDisplayName, CustomDropdown } from "../shared";
+import { SidePanel, formatDisplayName, CustomDropdown, HoverTooltip } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { tauriBridge } from "../lib/tauri-bridge";
 import { useStore } from "../store";
@@ -47,31 +47,50 @@ export default function CommandConflictsPanel({
       const stored = localStorage.getItem("sanctuary_local_conflicts");
       if (stored) {
         const localConflicts = JSON.parse(stored);
+        
+        const uppercaseActiveMods = activeMods.map((em: any) => {
+          if (em.isFallback) return null;
+          return {
+            em,
+            cleanN: String(em.name || "").toUpperCase(),
+            cleanDisp: String(em.displayName || "").toUpperCase()
+          };
+        }).filter(Boolean);
+
+        const giantActiveString = uppercaseActiveMods.map((m: any) => m.cleanN + " | " + m.cleanDisp).join(" | ");
+
         localConflicts.forEach((lc: any) => {
           if (ignoredGlobal.includes(lc.mod_pair)) return;
-          
-          const modAMatch = activeMods.find((em: any) => {
-            if (em.isFallback) return false;
-            const cleanN = String(em.name || "").toUpperCase();
-            const cleanDisp = String(em.displayName || "").toUpperCase();
-            const targetClean = String(lc.modA || lc.mod_a || '').toUpperCase();
+
+          const targetCleanA = String(lc.modA || lc.mod_a || '').toUpperCase();
+          const targetCleanB = String(lc.modB || lc.mod_b || '').toUpperCase();
+
+          // Fast rejection: if the target isn't found in any active mod name/display name, 
+          // AND no active mod name is found within the target, skip it.
+          const aMightMatch = giantActiveString.includes(targetCleanA) || uppercaseActiveMods.some((item: any) => targetCleanA.includes(item.cleanN));
+          if (!aMightMatch) return;
+
+          const bMightMatch = giantActiveString.includes(targetCleanB) || uppercaseActiveMods.some((item: any) => targetCleanB.includes(item.cleanN));
+          if (!bMightMatch) return;
+
+          const modAMatchItem = uppercaseActiveMods.find((item: any) => {
             return (
-              cleanN.includes(targetClean) ||
-              cleanDisp.includes(targetClean) ||
-              targetClean.includes(cleanN)
+              item.cleanN.includes(targetCleanA) ||
+              item.cleanDisp.includes(targetCleanA) ||
+              targetCleanA.includes(item.cleanN)
             );
           });
-          const modBMatch = activeMods.find((em: any) => {
-            if (em.isFallback) return false;
-            const cleanN = String(em.name || "").toUpperCase();
-            const cleanDisp = String(em.displayName || "").toUpperCase();
-            const targetClean = String(lc.modB || lc.mod_b || '').toUpperCase();
+
+          const modBMatchItem = uppercaseActiveMods.find((item: any) => {
             return (
-              cleanN.includes(targetClean) ||
-              cleanDisp.includes(targetClean) ||
-              targetClean.includes(cleanN)
+              item.cleanN.includes(targetCleanB) ||
+              item.cleanDisp.includes(targetCleanB) ||
+              targetCleanB.includes(item.cleanN)
             );
           });
+
+          const modAMatch = modAMatchItem?.em;
+          const modBMatch = modBMatchItem?.em;
 
           if (modAMatch && modBMatch) {
             const isWinnerA = modAMatch._originalSetName?.toLowerCase().startsWith("sanctuary") || modAMatch.name?.toLowerCase().startsWith("sanctuary");
@@ -166,22 +185,12 @@ export default function CommandConflictsPanel({
           <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">
             {t("bp_load_order_conflicts")}
           </h3>
-          <div className="flex items-center gap-2">
-            {tier4Count > 0 && (
-              <span className="text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
-                {tier4Count} {t("stat_tier4")}
-              </span>
-            )}
-            {tier3Count > 0 && (
-              <span className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-[9px] font-black shadow-inner flex items-center gap-1.5">
-                {tier3Count} {t("stat_tier3")}
-              </span>
-            )}
-            {activeConflicts.length === 0 && (
-              <span className="text-[var(--subtext)] opacity-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                {t("bp_no_conflicts_detected")}
-              </span>
-            )}
+          <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest">
+            <span>{activeConflicts.length} {t("items")}</span>
+            {(tier4Count > 0 || tier3Count > 0) && <span className="opacity-50">•</span>}
+            {tier4Count > 0 && <span className="text-red-400">{tier4Count} {t("bp_pill_fatal")}</span>}
+            {tier3Count > 0 && <span className="text-amber-400">{tier3Count} {t("bp_pill_overlaps")}</span>}
+            {activeConflicts.length === 0 && <span className="text-[var(--success)]">• {t("bp_no_conflicts_detected")}</span>}
           </div>
         </div>
 
@@ -230,36 +239,36 @@ export default function CommandConflictsPanel({
               return (
                 <div
                   key={ac.pairId}
-                  className={`w-full rounded-[var(--radius)] border transition-all duration-500 relative overflow-hidden group/alert shrink-0 ${isIgnored
+                  className={`w-full rounded-[var(--radius)] border transition-all duration-500 relative group/alert shrink-0 ${isIgnored
                     ? "opacity-50 grayscale border-white/5 bg-black/20"
                     : `${borderClass} ${bgClass} shadow-lg ${shadowClass}`
                     }`}
                 >
 
-                  <div className="relative p-6 z-10 flex flex-col gap-5 w-full">
-                    <div className="flex justify-between items-start w-full">
-                      <div className="flex items-center gap-4">
+                  <div className="relative p-5 z-10 flex flex-col gap-1 w-full">
+                    <div className="flex justify-between items-center w-full mb-1">
+                      <div className="flex items-center gap-3">
                         <div
-                          className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored
                             ? "border-white/10 bg-black/50"
-                            : `${isTier4 ? "border-red-500/50 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.2)]" : "border-amber-500/50 bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.2)]"}`
+                            : `${isTier4 ? "border-red-500/50 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.2)]" : "border-amber-500/50 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.2)]"}`
                             }`}
                         >
                           <span
-                            className={`material-symbols-outlined !text-[24px] ${isIgnored ? "text-[var(--text)] opacity-30" : textClass}`}
+                            className={`material-symbols-outlined !text-[20px] ${isIgnored ? "text-[var(--text)] opacity-30" : textClass}`}
                           >
                             {iconName}
                           </span>
                         </div>
                         <div className="flex flex-col">
                           <span
-                            className={`text-xs font-black uppercase tracking-widest ${textClass}`}
+                            className={`text-[11px] font-black uppercase tracking-widest ${textClass}`}
                           >
                             {isTier4
                               ? t("fatal_conflict")
                               : t("tier3_conflict")}
                           </span>
-                          <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">
+                          <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-0.5">
                             {ac.conflict.resolution_note ||
                               "Local Scan Detects Tuning Overlap"}
                           </span>
@@ -273,14 +282,12 @@ export default function CommandConflictsPanel({
                           else newSet.add(ac.pairId);
                           setIgnoredConflicts(newSet);
                         }}
-                        className="text-[9px] font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] px-4 py-1.5 rounded-full uppercase transition-all active:scale-95 shrink-0 ml-4 flex items-center gap-2"
+                        className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all active:scale-95 flex items-center justify-center shrink-0 ml-4 group relative"
                       >
-                        <span className="material-symbols-outlined !text-[12px]">
+                        <span className="material-symbols-outlined !text-[16px]">
                           {isIgnored ? "visibility" : "visibility_off"}
                         </span>
-                        {isIgnored
-                          ? t("bp_restore_alert")
-                          : t("btn_ignore")}
+                        <HoverTooltip title={isIgnored ? t("bp_restore_alert") : t("btn_ignore")} variant="default" />
                       </button>
                     </div>
 
@@ -288,22 +295,23 @@ export default function CommandConflictsPanel({
                       className={`flex flex-col gap-3 w-full mt-2 ${isIgnored ? "opacity-30" : ""}`}
                     >
                       <div
-                        className={`flex-1 flex flex-col p-4 rounded-[1.25rem] border transition-all shadow-inner relative overflow-hidden group/card hover:border-white/20 ${isWinnerA && !isTier4 ? "border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]" : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]"}`}
+                        className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-white/20 ${isWinnerA && !isTier4 ? "border-[var(--success)]/50 bg-[var(--success)]/10" : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]"}`}
                       >
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
 
-                        <div className="flex flex-col gap-1.5 relative z-10 w-full mb-3">
+                        <div className="flex flex-col gap-1 relative z-10 flex-1 min-w-0 pr-4 group/title">
                           <span
-                            className={`text-[11px] font-black uppercase leading-tight ${isWinnerA && !isTier4 ? "text-[var(--success)]" : "text-[var(--text)]"}`}
+                            className={`text-[12px] font-semibold truncate ${isWinnerA && !isTier4 ? "text-[var(--success)]" : "text-[var(--text)]"}`}
                           >
                             {formatDisplayName(ac.modA.name)}
                           </span>
-                          <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded-md border border-cyan-400/20 w-fit">
+                          <HoverTooltip title={formatDisplayName(ac.modA.name)} variant="default" className="!hidden group-hover/title:!flex z-[100]" />
+                          <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded border border-cyan-400/20 w-fit">
                             {ac.modA.version || "v.Local"}
                           </span>
                         </div>
 
-                        <div className="relative z-10 flex items-center gap-2 w-full mt-auto">
+                        <div className="relative z-10 flex items-center shrink-0 gap-2">
                           {ac.conflict.severity_rank === 4 ? (
                             allow_write &&
                             toggleInActiveSet && (
@@ -315,28 +323,28 @@ export default function CommandConflictsPanel({
                                     true,
                                   )
                                 }
-                                className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center group relative"
                               >
-                                <span className="material-symbols-outlined !text-[14px]">
+                                <span className="material-symbols-outlined !text-[16px]">
                                   {t("icon_delete")}
                                 </span>
-                                {t("bp_yeet_artifact")}
+                                <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" />
                               </button>
                             )
                           ) : ac.conflict.severity_rank === 3 ? (
                             isWinnerA ? (
-                              <div className="w-full py-2.5 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
-                                <span className="material-symbols-outlined !text-[14px]">
+                              <div className="h-8 w-8 rounded-lg bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] flex items-center justify-center shadow-[0_0_10px_rgba(var(--success-rgb),0.3)] group relative">
+                                <span className="material-symbols-outlined !text-[16px]">
                                   {t("icon_star")}
                                 </span>
-                                {t("bp_winning_artifact")}
+                                <HoverTooltip title={t("bp_winning_artifact")} variant="default" />
                               </div>
                             ) : isWinnerB ? (
-                              <div className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-                                <span className="material-symbols-outlined !text-[12px]">
+                              <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 flex items-center justify-center group relative">
+                                <span className="material-symbols-outlined !text-[16px]">
                                   {t("icon_block")}
                                 </span>
-                                {t("bp_overridden_by_winner")}
+                                <HoverTooltip title={t("bp_overridden_by_winner")} variant="default" />
                               </div>
                             ) : (
                               applyConflictOverride && activeSetName && (
@@ -348,18 +356,18 @@ export default function CommandConflictsPanel({
                                       activeSetName
                                     )
                                   }
-                                  className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                  className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
                                 >
-                                  <span className="material-symbols-outlined !text-[14px]">
+                                  <span className="material-symbols-outlined !text-[16px]">
                                     {t("icon_check_circle")}
                                   </span>
-                                  {t("bp_select_winning_artifact")}
+                                  <HoverTooltip title={t("bp_select_winning_artifact")} variant="default" />
                                 </button>
                               )
                             )
                           ) : (
-                            <div className="w-full flex gap-2">
-                              <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <div className="w-32">
                                 {getPriorityDrop(ac.modA)}
                               </div>
                               {allow_write && toggleInActiveSet && (
@@ -371,14 +379,12 @@ export default function CommandConflictsPanel({
                                       true,
                                     )
                                   }
-                                  className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center"
-                                  title={
-                                    t("bp_yeet_artifact")
-                                  }
+                                  className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center group relative"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">
                                     {t("icon_delete")}
                                   </span>
+                                  <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" />
                                 </button>
                               )}
                             </div>
@@ -387,22 +393,23 @@ export default function CommandConflictsPanel({
                       </div>
 
                       <div
-                        className={`flex-1 flex flex-col p-4 rounded-[1.25rem] border transition-all shadow-inner relative overflow-hidden group/card hover:border-white/20 ${isWinnerB && !isTier4 ? "border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]" : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]"}`}
+                        className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-white/20 ${isWinnerB && !isTier4 ? "border-[var(--success)]/50 bg-[var(--success)]/10" : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]"}`}
                       >
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
 
-                        <div className="flex flex-col gap-1.5 relative z-10 w-full mb-3">
+                        <div className="flex flex-col gap-1 relative z-10 flex-1 min-w-0 pr-4 group/title">
                           <span
-                            className={`text-[11px] font-black uppercase leading-tight ${isWinnerB && !isTier4 ? "text-[var(--success)]" : "text-[var(--text)]"}`}
+                            className={`text-[12px] font-semibold truncate ${isWinnerB && !isTier4 ? "text-[var(--success)]" : "text-[var(--text)]"}`}
                           >
                             {formatDisplayName(ac.modB.name)}
                           </span>
-                          <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded-md border border-cyan-400/20 w-fit">
+                          <HoverTooltip title={formatDisplayName(ac.modB.name)} variant="default" className="!hidden group-hover/title:!flex z-[100]" />
+                          <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-2 py-0.5 rounded border border-cyan-400/20 w-fit">
                             {ac.modB.version || "v.Local"}
                           </span>
                         </div>
 
-                        <div className="relative z-10 flex items-center gap-2 w-full mt-auto">
+                        <div className="relative z-10 flex items-center shrink-0 gap-2">
                           {ac.conflict.severity_rank === 4 ? (
                             allow_write &&
                             toggleInActiveSet && (
@@ -414,28 +421,28 @@ export default function CommandConflictsPanel({
                                     true,
                                   )
                                 }
-                                className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center group relative"
                               >
-                                <span className="material-symbols-outlined !text-[14px]">
+                                <span className="material-symbols-outlined !text-[16px]">
                                   {t("icon_delete")}
                                 </span>
-                                {t("bp_yeet_artifact")}
+                                <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" />
                               </button>
                             )
                           ) : ac.conflict.severity_rank === 3 ? (
                             isWinnerB ? (
-                              <div className="w-full py-2.5 rounded-xl bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--success-rgb),0.3)]">
-                                <span className="material-symbols-outlined !text-[14px]">
+                              <div className="h-8 w-8 rounded-lg bg-[var(--success)]/20 border border-[var(--success)]/50 text-[var(--success)] flex items-center justify-center shadow-[0_0_10px_rgba(var(--success-rgb),0.3)] group relative">
+                                <span className="material-symbols-outlined !text-[16px]">
                                   {t("icon_star")}
                                 </span>
-                                {t("bp_winning_artifact")}
+                                <HoverTooltip title={t("bp_winning_artifact")} variant="default" />
                               </div>
                             ) : isWinnerA ? (
-                              <div className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-                                <span className="material-symbols-outlined !text-[12px]">
+                              <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 flex items-center justify-center group relative">
+                                <span className="material-symbols-outlined !text-[16px]">
                                   {t("icon_block")}
                                 </span>
-                                {t("bp_overridden_by_winner")}
+                                <HoverTooltip title={t("bp_overridden_by_winner")} variant="default" />
                               </div>
                             ) : (
                               applyConflictOverride && activeSetName && (
@@ -447,18 +454,18 @@ export default function CommandConflictsPanel({
                                       activeSetName
                                     )
                                   }
-                                  className="w-full py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                  className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
                                 >
-                                  <span className="material-symbols-outlined !text-[14px]">
+                                  <span className="material-symbols-outlined !text-[16px]">
                                     {t("icon_check_circle")}
                                   </span>
-                                  {t("bp_select_winning_artifact")}
+                                  <HoverTooltip title={t("bp_select_winning_artifact")} variant="default" />
                                 </button>
                               )
                             )
                           ) : (
-                            <div className="w-full flex gap-2">
-                              <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <div className="w-32">
                                 {getPriorityDrop(ac.modB)}
                               </div>
                               {allow_write && toggleInActiveSet && (
@@ -470,14 +477,12 @@ export default function CommandConflictsPanel({
                                       true,
                                     )
                                   }
-                                  className="w-10 h-10 shrink-0 rounded-xl bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center"
-                                  title={
-                                    t("bp_yeet_artifact")
-                                  }
+                                  className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/30 hover:border-red-500 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 flex items-center justify-center group relative"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">
                                     {t("icon_delete")}
                                   </span>
+                                  <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" />
                                 </button>
                               )}
                             </div>

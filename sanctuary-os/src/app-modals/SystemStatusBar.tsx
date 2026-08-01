@@ -2,6 +2,7 @@ import React from 'react';
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
+import { HoverTooltip } from '../shared';
 
 export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen, setIsNotificationSidebarOpen, unreadNotificationCount, isLogExpanded, setIsLogExpanded, status, isScanning, scanProgress, isErrorStatus, isSuccessStatus, statusBgClass, statusAccentClass, statusIconClass, statusTextClass, updatePayload, isSystemStatusOpen, setIsSystemStatusOpen, setIsSideBrowserOpen }: any) {
   const { t } = useLexicon();
@@ -48,7 +49,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
 
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 h-10 backdrop-blur-2xl border-t flex items-center z-[140000] font-mono text-[10px] tracking-widest uppercase transition-all duration-300 ${statusBgClass} select-none border-[color-mix(in_srgb,var(--text)_5%,transparent)]`}
+      className={`fixed bottom-0 left-0 right-0 h-10 backdrop-blur-2xl border-t flex items-center z-[140000] text-xs font-bold transition-all duration-300 ${statusBgClass} select-none border-[color-mix(in_srgb,var(--text)_5%,transparent)]`}
     >
       <div
         className="h-full flex items-center justify-center border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0"
@@ -63,9 +64,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
               {t("icon_notifications")}
             </span>
           </div>
-          <div className="absolute bottom-full left-2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-            {t("tab_notifs")}
-          </div>
+          <HoverTooltip title={t("tab_notifs")} variant="default" noIcon={true} normalFont={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !left-2 !translate-x-0" />
         </div>
 
         <div
@@ -75,9 +74,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           <span className="material-symbols-outlined text-[16px] opacity-70 group-hover:opacity-100 transition-opacity">
             {t("icon_settings")}
           </span>
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl">
-            {t("sidebar_settings")}
-          </div>
+          <HoverTooltip title={t("sidebar_settings")} variant="default" noIcon={true} normalFont={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)]" />
         </div>
       </div>
 
@@ -117,7 +114,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent w-[200%] animate-pulse" />
               </div>
             </div>
-            <span className={`text-[9px] font-mono font-bold w-8 text-right ${statusTextClass}`}>{scanProgress?.total > 0 ? Math.round((scanProgress.current / scanProgress.total) * 100) : 0}%</span>
+            <span className={`text-[9px] font-black w-8 text-right ${statusTextClass}`}>{scanProgress?.total > 0 ? Math.round((scanProgress.current / scanProgress.total) * 100) : 0}%</span>
           </div>
         )}
 
@@ -131,9 +128,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
             className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group ${isDnaModalOpen ? 'bg-white/10 text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
           >
             <span className="material-symbols-outlined !text-[16px] text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)] animate-pulse">{t("icon_radar")}</span>
-            <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-              <span className="font-black text-orange-500">{dnaMatchQueue.length}</span> {t("radar_title")}
-            </div>
+            <HoverTooltip title={<><span className="font-black text-orange-500">{dnaMatchQueue.length}</span> {t("radar_title")}</>} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !right-0 !left-auto !translate-x-0" />
           </button>
         )}
 
@@ -147,9 +142,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
             className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group ${isScoutPanelOpen ? 'bg-white/10 text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
           >
             <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)] animate-pulse">{t("icon_biotech")}</span>
-            <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-              <span className="font-black text-[var(--accent)]">{scoutQueue.length}</span> {t("queue_title")}
-            </div>
+            <HoverTooltip title={<><span className="font-black text-[var(--accent)]">{scoutQueue.length}</span> {t("queue_title")}</>} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !right-0 !left-auto !translate-x-0" />
           </button>
         )}
 
@@ -166,9 +159,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
             className="flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group text-[var(--accent)] relative"
           >
             <span className="material-symbols-outlined !text-[16px] animate-pulse">cloud_download</span>
-            <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-              {nexusUpdatesCount} {t("updates_ready")}
-            </div>
+            <HoverTooltip title={<>{nexusUpdatesCount} {t("updates_ready")}</>} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !right-0 !left-auto !translate-x-0" />
           </button>
         )}
 
@@ -181,9 +172,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group ${isBlueprintSwapOpen ? 'bg-white/10 text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
         >
           <span className={`material-symbols-outlined !text-[16px]`}>{t("icon_map")}</span>
-          <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-            {t("playsets_title")}
-          </div>
+          <HoverTooltip title={t("playsets_title")} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !right-0 !left-auto !translate-x-0" />
         </button>
 
         {/* 5. Radar Sweep Panel */}
@@ -195,9 +184,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group ${useModalStore.getState().isConflictRadarOpen ? 'bg-white/10 text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
         >
           <span className={`material-symbols-outlined !text-[16px] ${radarIconColor}`}>{t("icon_radar")}</span>
-          <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-            {t("btn_radar")}
-          </div>
+          <HoverTooltip title={t("btn_radar")} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !right-0 !left-auto !translate-x-0" />
         </button>
 
         {/* 6. System Status */}
@@ -219,9 +206,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
               </span>
             )}
           </div>
-          <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-            {updatePayload ? t("sys_stat_update_available") : t("system_status")}
-          </div>
+          <HoverTooltip title={updatePayload ? t("sys_stat_update_available") : t("system_status")} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !right-0 !left-auto !translate-x-0" />
         </button>
 
         {/* 7. Side Browser */}
@@ -230,9 +215,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors group relative ${isSideBrowserOpen ? 'bg-white/10 text-white opacity-100' : 'hover:bg-white/5 text-[var(--text)] opacity-90 hover:opacity-100'}`}
         >
           <span className="material-symbols-outlined !text-[16px] transition-transform duration-500 group-hover:scale-110">public</span>
-          <div className="absolute bottom-full right-0 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-            {t("sidebar_web_browser")}
-          </div>
+          <HoverTooltip title={t("sidebar_web_browser")} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !right-0 !left-auto !translate-x-0" />
         </button>
       </div>
     </div>

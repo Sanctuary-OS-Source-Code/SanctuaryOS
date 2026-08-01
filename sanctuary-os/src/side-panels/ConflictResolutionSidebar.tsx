@@ -55,9 +55,9 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
   
   if (!conflict) return null;
   
-  const isTier4 = conflict.severity_rank === 4;
-  const isTier3 = conflict.severity_rank === 3;
-  const isTier2 = conflict.severity_rank === 2;
+  const isTier4 = conflict.severity_rank == 4;
+  const isTier3 = conflict.severity_rank == 3;
+  const isTier2 = conflict.severity_rank == 2;
 
   return (
     <SidePanel

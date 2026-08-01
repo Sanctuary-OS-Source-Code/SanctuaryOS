@@ -6,9 +6,13 @@ import { invoke } from '@tauri-apps/api/core';
 import { ModCard } from './ModCard';
 import { useStore } from './store';
 import { VaultToolsSidePanel, VaultLocalFolderEditorSidePanel } from './side-panels/VaultSidePanels';
+import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
+import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 const Vault = React.memo(function Vault(props: any) {
   const [isSidePanelOpen, setIsSidePanelOpen] = React.useState(false);
+  const [activeTier3Conflict, setActiveTier3Conflict] = React.useState<any>(null);
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
+  const { applyConflictOverride } = usePlaySetLogic();
   const {
     isBulkMode, setIsBulkMode, selectedMods, setSelectedMods, setConfirmDialog,
     setStatus, runRadarSweep, setIsDropzoneOpen, setLocalFolderModal, playSets,
@@ -46,7 +50,13 @@ const Vault = React.memo(function Vault(props: any) {
   }, [playSets, activePlaySetIndex]);
 
   const equippedDisplayMods = React.useMemo(() => {
-    return displayModList.filter((m: any) => activeSetModsMemo.includes(m.name));
+    return displayModList.filter((m: any) => {
+      const isNormal = activeSetModsMemo.includes(m.name);
+      if (isNormal) return true;
+      return activeSetModsMemo.some((sm: string) =>
+        sm.replace(/^(sanctuary[/\\])+/i, '') === m.name
+      );
+    });
   }, [displayModList, activeSetModsMemo]);
 
   const virtualFolderIds = React.useMemo(() => {
@@ -59,10 +69,38 @@ const Vault = React.memo(function Vault(props: any) {
     return ids;
   }, [displayModList]);
 
+  const localConflictsMemo = React.useMemo(() => {
+    try {
+      const stored = localStorage.getItem("sanctuary_local_conflicts");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.map((lc: any) => ({
+          ...lc,
+          modAUpper: String(lc.modA || lc.mod_a || "").toUpperCase(),
+          modBUpper: String(lc.modB || lc.mod_b || "").toUpperCase()
+        }));
+      }
+    } catch (e) { }
+    return [];
+  }, []);
+
+  const uppercaseEquippedMods = React.useMemo(() => {
+    return equippedDisplayMods.map((mData: any) => {
+      const nameRaw = String(mData.name || "").toUpperCase();
+      return {
+        mData,
+        emClean: nameRaw,
+        emBaseClean: nameRaw.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "") || nameRaw,
+        emDisp: String(mData.displayName || "").toUpperCase()
+      };
+    });
+  }, [equippedDisplayMods]);
+
   const modListIndex = React.useMemo(() => {
     const byDbId = new Map();
     const byHash = new Map();
     const byInterchangeableId = new Map();
+    const byName = new Map();
     const namesAndDisplayNames: { name: string, displayNameUpper: string, displayNameSpaced: string, orig: any, hash: string }[] = [];
 
     let hasMcCmdPkg = false;
@@ -72,6 +110,7 @@ const Vault = React.memo(function Vault(props: any) {
       if (!ml.isVirtual) {
         if (ml.dbId) byDbId.set(String(ml.dbId), ml);
         if (ml.hash) byHash.set(ml.hash, ml);
+        if (ml.name) byName.set(ml.name, ml);
         if (ml.interchangeableIds) {
           ml.interchangeableIds.forEach((id: string) => {
             byInterchangeableId.set(String(id), ml);
@@ -94,183 +133,190 @@ const Vault = React.memo(function Vault(props: any) {
       }
     });
 
-    return { byDbId, byHash, byInterchangeableId, namesAndDisplayNames, mcCmdCenter: { hasPkg: hasMcCmdPkg, hasScript: hasMcCmdScript } };
+    return { byDbId, byHash, byInterchangeableId, byName, namesAndDisplayNames, mcCmdCenter: { hasPkg: hasMcCmdPkg, hasScript: hasMcCmdScript } };
   }, [modList]);
 
 
-  const finalVisibleMods = visibleMods.filter((mod: any) => {
-    let modGameVersions: string[] = [];
-    if (mod.isVirtual) {
-      modGameVersions = Array.from(new Set((mod.flavors || []).flatMap((f: any) => {
-        const v = f.compatible_versions;
-        if (!v) return [];
-        if (typeof v === 'string') return v.split(',').map((s: string) => s.trim()).filter(Boolean);
-        return Array.isArray(v) ? v : [];
-      }))).filter(Boolean) as string[];
-    } else {
-      const v = mod.compatible_versions;
-      if (typeof v === 'string') {
-        modGameVersions = v.split(',').map((s: string) => s.trim()).filter(Boolean);
+  const finalVisibleMods = React.useMemo(() => {
+    const activeSetMods = playSets[activePlaySetIndex]?.mods || [];
+    const extRegex = getExtensionRegex(activeGameSchema);
+
+    const parsedActiveSetMods = activeSetMods.map((n: string) => {
+      const cleanNLookup = n.replace(/^(sanctuary[/\\])+/i, '');
+      const mData = modListIndex.byName.get(cleanNLookup) || modListIndex.namesAndDisplayNames.find((ne: any) => ne.name === cleanNLookup)?.orig;
+      const cleanN = n.split(/[\\/]/).pop()?.replace(extRegex, "").toUpperCase();
+      return { n, cleanNLookup, cleanN, mData };
+    });
+
+    return visibleMods.filter((mod: any) => {
+      let modGameVersions: string[] = [];
+      if (mod.isVirtual) {
+        modGameVersions = Array.from(new Set((mod.flavors || []).flatMap((f: any) => {
+          const v = f.compatible_versions;
+          if (!v) return [];
+          if (typeof v === 'string') return v.split(',').map((s: string) => s.trim()).filter(Boolean);
+          return Array.isArray(v) ? v : [];
+        }))).filter(Boolean) as string[];
       } else {
-        modGameVersions = Array.isArray(v) ? v : [];
-      }
-    }
-
-    let isCompatibleWithOS = true;
-    if (selectedVersion && selectedVersion !== "") {
-      isCompatibleWithOS = isVersionMatch(modGameVersions, selectedVersion);
-    }
-
-    if (hideGhostCards) {
-      if (!isCompatibleWithOS) return false;
-      if (mod.isGhosted) return false;
-      if (mod.missingReqs && mod.missingReqs.length > 0) return false;
-      
-      let isBroken = false;
-      const checkBroken = (mObj: any) => {
-        let broken = typeof mObj.status === 'string' && mObj.status.toLowerCase() === 'broken';
-        if (broken && mObj.compatible_versions && mObj.compatible_versions.length > 0 && selectedVersion) {
-           if (selectedVersion !== getHighestVersion(typeof mObj.compatible_versions === 'string' ? mObj.compatible_versions.split(',').map((s:string)=>s.trim()) : mObj.compatible_versions)) {
-               broken = false;
-           }
+        const v = mod.compatible_versions;
+        if (typeof v === 'string') {
+          modGameVersions = v.split(',').map((s: string) => s.trim()).filter(Boolean);
+        } else {
+          modGameVersions = Array.isArray(v) ? v : [];
         }
-        return broken;
-      };
-      
-      if (mod.isVirtual && mod.flavors) {
-         if (mod.flavors.length > 0 && mod.flavors.every(checkBroken)) isBroken = true;
-      } else {
-         isBroken = checkBroken(mod);
       }
-      
-      if (isBroken) return false;
 
-      let hasTier4Conflict = false;
-      const activeSetMods = playSets[activePlaySetIndex]?.mods || [];
-      const extRegex = getExtensionRegex(activeGameSchema);
-      
-      const checkConflictsFilter = (mObj: any) => {
-        if (mObj.conflicts && mObj.conflicts.length > 0) {
-          const hasConflict = mObj.conflicts.some((c: any) => {
-            if (c.severity_rank !== 4) return false;
-            return activeSetMods.some((n: string) => {
-              const mData = modListIndex.namesAndDisplayNames.find((ne: any) => ne.name === n)?.orig;
-              if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
-              if (c.enemy_name) {
-                const targetClean = c.enemy_name.toUpperCase();
-                const cleanN = n.split(/[\\/]/).pop()?.replace(extRegex, "").toUpperCase();
-                if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
-              }
-              return false;
+      let isCompatibleWithOS = true;
+      if (selectedVersion && selectedVersion !== "") {
+        isCompatibleWithOS = isVersionMatch(modGameVersions, selectedVersion);
+      }
+
+      if (hideGhostCards) {
+        if (!isCompatibleWithOS) return false;
+        if (mod.isGhosted) return false;
+        if (mod.missingReqs && mod.missingReqs.length > 0) return false;
+
+        let isBroken = false;
+        const checkBroken = (mObj: any) => {
+          let broken = typeof mObj.status === 'string' && mObj.status.toLowerCase() === 'broken';
+          if (broken && mObj.compatible_versions && mObj.compatible_versions.length > 0 && selectedVersion) {
+            if (selectedVersion !== getHighestVersion(typeof mObj.compatible_versions === 'string' ? mObj.compatible_versions.split(',').map((s: string) => s.trim()) : mObj.compatible_versions)) {
+              broken = false;
+            }
+          }
+          return broken;
+        };
+
+        if (mod.isVirtual && mod.flavors) {
+          if (mod.flavors.length > 0 && mod.flavors.every(checkBroken)) isBroken = true;
+        } else {
+          isBroken = checkBroken(mod);
+        }
+
+        if (isBroken) return false;
+
+        let hasTier4Conflict = false;
+
+        const checkConflictsFilter = (mObj: any) => {
+          if (mObj.conflicts && mObj.conflicts.length > 0) {
+            const hasConflict = mObj.conflicts.some((c: any) => {
+              if (c.severity_rank != 4) return false;
+              return parsedActiveSetMods.some(({ cleanNLookup, cleanN, mData }: any) => {
+                if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
+                if (c.enemy_name) {
+                  const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
+                  if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
+                }
+                return false;
+              });
             });
-          });
-          if (hasConflict) hasTier4Conflict = true;
-        }
-      };
-      
-      checkConflictsFilter(mod);
-      if (mod.isVirtual && mod.flavors) {
-        mod.flavors.forEach(checkConflictsFilter);
-      }
-      
-      if (hasTier4Conflict) return false;
-
-      let rawDLC: string[] = [];
-      if (mod.requiredDLC) {
-        if (typeof mod.requiredDLC === 'string') rawDLC.push(...mod.requiredDLC.split(',').map((s: string) => s.trim()));
-        else if (Array.isArray(mod.requiredDLC)) rawDLC.push(...mod.requiredDLC);
-      }
-      if (mod.flavors) {
-        mod.flavors.forEach((f: any) => {
-          if (f.requiredDLC) {
-            const fDLC = typeof f.requiredDLC === 'string' ? f.requiredDLC.split(',').map((s: string) => s.trim()) : f.requiredDLC;
-            if (Array.isArray(fDLC)) fDLC.forEach((d: string) => { if (!rawDLC.includes(d)) rawDLC.push(d); });
+            if (hasConflict) hasTier4Conflict = true;
           }
+        };
+
+        checkConflictsFilter(mod);
+        if (mod.isVirtual && mod.flavors) {
+          mod.flavors.forEach(checkConflictsFilter);
+        }
+
+        if (hasTier4Conflict) return false;
+
+        let rawDLC: string[] = [];
+        if (mod.requiredDLC) {
+          if (typeof mod.requiredDLC === 'string') rawDLC.push(...mod.requiredDLC.split(',').map((s: string) => s.trim()));
+          else if (Array.isArray(mod.requiredDLC)) rawDLC.push(...mod.requiredDLC);
+        }
+        if (mod.flavors) {
+          mod.flavors.forEach((f: any) => {
+            if (f.requiredDLC) {
+              const fDLC = typeof f.requiredDLC === 'string' ? f.requiredDLC.split(',').map((s: string) => s.trim()) : f.requiredDLC;
+              if (Array.isArray(fDLC)) fDLC.forEach((d: string) => { if (!rawDLC.includes(d)) rawDLC.push(d); });
+            }
+          });
+        }
+        const missingPacks = rawDLC.filter((p: string) => {
+          const baseCode = p.split(' ')[0].toUpperCase();
+          return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
         });
+        if (missingPacks.length > 0) return false;
       }
-      const missingPacks = rawDLC.filter((p: string) => {
-        const baseCode = p.split(' ')[0].toUpperCase();
-        return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
-      });
-      if (missingPacks.length > 0) return false;
-    }
 
-    const isSandboxMod = mod.hash?.startsWith('dev_vault_') || (typeof mod.status === 'string' && mod.status.toUpperCase().includes('SANDBOX')) || (mod.physical_path && (mod.physical_path.toLowerCase().includes('/dev/') || mod.physical_path.toLowerCase().includes('\\dev\\')));
-    if (equipFilter === "DEV") {
-      if (!isSandboxMod) return false;
-    } else if (equipFilter !== "EQUIPPED" && isSandboxMod) {
-      return false;
-    }
+      const isSandboxMod = mod.hash?.startsWith('dev_vault_') || (typeof mod.status === 'string' && mod.status.toUpperCase().includes('SANDBOX')) || (mod.physical_path && (mod.physical_path.toLowerCase().includes('/dev/') || mod.physical_path.toLowerCase().includes('\\dev\\')));
+      if (equipFilter === "DEV") {
+        if (!isSandboxMod) return false;
+      } else if (equipFilter !== "EQUIPPED" && isSandboxMod) {
+        return false;
+      }
 
-    if (equipFilter === "ARCHIVES") {
-      if (isCompatibleWithOS) return false;
-      if (archiveVersionFilter && archiveVersionFilter !== "") {
-        let highestArchiveVer = "0.0.0";
-        if (mod.isVirtual) {
-          const highestPerFlavor = (mod.flavors || []).map((f: any) => {
-            const v = f.compatible_versions;
-            const arr = typeof v === 'string' ? v.split(',').map((s: string) => s.trim()) : (v || []);
-            return getHighestVersion(arr);
-          });
-          highestArchiveVer = getLowestVersion(highestPerFlavor);
-        } else {
-          highestArchiveVer = getHighestVersion(modGameVersions);
+      if (equipFilter === "ARCHIVES") {
+        if (isCompatibleWithOS) return false;
+        if (archiveVersionFilter && archiveVersionFilter !== "") {
+          let highestArchiveVer = "0.0.0";
+          if (mod.isVirtual) {
+            const highestPerFlavor = (mod.flavors || []).map((f: any) => {
+              const v = f.compatible_versions;
+              const arr = typeof v === 'string' ? v.split(',').map((s: string) => s.trim()) : (v || []);
+              return getHighestVersion(arr);
+            });
+            highestArchiveVer = getLowestVersion(highestPerFlavor);
+          } else {
+            highestArchiveVer = getHighestVersion(modGameVersions);
+          }
+
+          const isCompatibleWithArchive = isVersionMatch([highestArchiveVer], archiveVersionFilter);
+          if (!isCompatibleWithArchive) return false;
         }
-
-        const isCompatibleWithArchive = isVersionMatch([highestArchiveVer], archiveVersionFilter);
-        if (!isCompatibleWithArchive) return false;
+      } else {
+        if (!isCompatibleWithOS) return false;
       }
-    } else {
-      if (!isCompatibleWithOS) return false;
-    }
 
-    if (equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") {
-      const activeSetMods = playSets[activePlaySetIndex]?.mods || [];
-      const isEquipped = mod.isParent
-        ? (() => {
-          const anchor = mod.dbId || mod.familyId;
-          if (mod.isFlavorFolder) {
+      if (equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") {
+        const isEquipped = mod.isParent
+          ? (() => {
+            const anchor = mod.dbId || mod.familyId;
+            if (mod.isFlavorFolder) {
+              return (mod.flavors || []).some((f: any) =>
+                parsedActiveSetMods.some(({ n, cleanNLookup }: any) => n === f.name || cleanNLookup === f.name),
+              );
+            }
+            if (anchor) {
+              return equippedDisplayMods.some(
+                (m: any) =>
+                  !m.isVirtual &&
+                  m.name &&
+                  (String(m.familyId) === String(anchor) ||
+                    String(m.dbId) === String(anchor) ||
+                    String(m.setId) === String(anchor))
+              );
+            }
             return (mod.flavors || []).some((f: any) =>
-              activeSetMods.includes(f.name),
+              parsedActiveSetMods.some(({ n, cleanNLookup }: any) => n === f.name || cleanNLookup === f.name),
             );
-          }
-          if (anchor) {
-            return equippedDisplayMods.some(
-              (m: any) =>
-                !m.isVirtual &&
-                m.name &&
-                (String(m.familyId) === String(anchor) ||
-                  String(m.dbId) === String(anchor) ||
-                  String(m.setId) === String(anchor))
-            );
-          }
-          return (mod.flavors || []).some((f: any) =>
-            activeSetMods.includes(f.name),
-          );
-        })()
-        : activeSetMods.includes(mod.name);
+          })()
+          : parsedActiveSetMods.some(({ n, cleanNLookup }: any) => n === mod.name || cleanNLookup === mod.name);
 
-      if (equipFilter === "EQUIPPED" && !isEquipped) return false;
-      if (equipFilter === "UNEQUIPPED") {
-        if (mod.isParent) {
-          const allEquipped = mod.flavors?.every((f: any) => activeSetMods.includes(f.name));
-          if (allEquipped) return false;
-        } else {
-          if (isEquipped) return false;
+        if (equipFilter === "EQUIPPED" && !isEquipped) return false;
+        if (equipFilter === "UNEQUIPPED") {
+          if (mod.isParent) {
+            const allEquipped = mod.flavors?.every((f: any) => parsedActiveSetMods.some(({ n, cleanNLookup }: any) => n === f.name || cleanNLookup === f.name));
+            if (allEquipped) return false;
+          } else {
+            if (isEquipped) return false;
+          }
         }
       }
-    }
 
-    if (mod.isVirtual) return true;
-    const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
-    return !folderExists;
-  });
+      if (mod.isVirtual) return true;
+      const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
+      return !folderExists;
+    });
+  }, [visibleMods, selectedVersion, hideGhostCards, playSets, activePlaySetIndex, activeGameSchema, equipFilter, archiveVersionFilter, ownedDLC, maskedDLC, virtualFolderIds, equippedDisplayMods, modListIndex]);
 
   const totalPages = Math.max(1, Math.ceil(finalVisibleMods.length / itemsPerPage));
   const dependencyGraph = React.useMemo(() => {
     const tStart = performance.now();
     const graph = new Map<string, any[]>();
-    
+
     // Create fast lookup maps for equipped mods
     const equippedByName = new Map<string, any>();
     const equippedById = new Map<string, any>();
@@ -279,63 +325,63 @@ const Vault = React.memo(function Vault(props: any) {
     const equippedByFamily = new Map<string, any>();
 
     equippedDisplayMods.forEach((m: any) => {
-       equippedByName.set(m.name, m);
-       if (m.dbId) equippedById.set(String(m.dbId), m);
-       if (m.hash) equippedByHash.set(m.hash, m);
-       if (m.familyId) equippedByFamily.set(String(m.familyId), m);
-       if (m.interchangeableIds) {
-           m.interchangeableIds.forEach((id: string) => equippedById.set(String(id), m));
-       }
-       if (m.displayName) {
-           const upper = m.displayName.toUpperCase();
-           equippedByFuzzy.set(upper, m);
-           equippedByFuzzy.set(upper.replace(/_/g, " "), m);
-       }
+      equippedByName.set(m.name, m);
+      if (m.dbId) equippedById.set(String(m.dbId), m);
+      if (m.hash) equippedByHash.set(m.hash, m);
+      if (m.familyId) equippedByFamily.set(String(m.familyId), m);
+      if (m.interchangeableIds) {
+        m.interchangeableIds.forEach((id: string) => equippedById.set(String(id), m));
+      }
+      if (m.displayName) {
+        const upper = m.displayName.toUpperCase();
+        equippedByFuzzy.set(upper, m);
+        equippedByFuzzy.set(upper.replace(/_/g, " "), m);
+      }
     });
 
     equippedDisplayMods.forEach((m: any) => {
-        let deps = new Set<any>();
-        
-        // 1. Requirements
-        if (m.requirements) {
-           m.requirements.forEach((r: any) => {
-               const reqIdStr = typeof r === 'string' ? r : r.id || r.dbId;
-               const reqName = typeof r === 'string' ? r : r.name;
-               let provider = null;
-               
-               if (reqIdStr) {
-                   provider = equippedById.get(String(reqIdStr)) || equippedByHash.get(String(reqIdStr));
-               }
-               
-               if (!provider && reqName && isNaN(Number(reqName))) {
-                   const reqBaseName = reqName.split(/[\\/]/).pop().replace(/\.[^/.]+$/, "").toUpperCase();
-                   
-                   // Fuzzy match: check all equipped mods
-                   for (const [key, p] of equippedByFuzzy.entries()) {
-                       if (key.includes(reqBaseName)) {
-                           provider = p;
-                           break;
-                       }
-                   }
-               }
-               
-               if (provider && provider.name !== m.name) deps.add(provider);
-           });
-        }
-        
-        // 2. Addons
-        if (m.relationshipType === 'addon' && m.familyId) {
-            const provider = equippedByFamily.get(String(m.familyId));
-            if (provider && provider.relationshipType !== 'addon' && provider.name !== m.name) {
-                deps.add(provider);
+      let deps = new Set<any>();
+
+      // 1. Requirements
+      if (m.requirements) {
+        m.requirements.forEach((r: any) => {
+          const reqIdStr = typeof r === 'string' ? r : r.id || r.dbId;
+          const reqName = typeof r === 'string' ? r : r.name;
+          let provider = null;
+
+          if (reqIdStr) {
+            provider = equippedById.get(String(reqIdStr)) || equippedByHash.get(String(reqIdStr));
+          }
+
+          if (!provider && reqName && isNaN(Number(reqName))) {
+            const reqBaseName = reqName.split(/[\\/]/).pop().replace(/\.[^/.]+$/, "").toUpperCase();
+
+            // Fuzzy match: check all equipped mods
+            for (const [key, p] of equippedByFuzzy.entries()) {
+              if (key.includes(reqBaseName)) {
+                provider = p;
+                break;
+              }
             }
-        }
-        
-        deps.forEach((provider: any) => {
-            let arr = graph.get(provider.name);
-            if (!arr) { arr = []; graph.set(provider.name, arr); }
-            arr.push(m);
+          }
+
+          if (provider && provider.name !== m.name) deps.add(provider);
         });
+      }
+
+      // 2. Addons
+      if (m.relationshipType === 'addon' && m.familyId) {
+        const provider = equippedByFamily.get(String(m.familyId));
+        if (provider && provider.relationshipType !== 'addon' && provider.name !== m.name) {
+          deps.add(provider);
+        }
+      }
+
+      deps.forEach((provider: any) => {
+        let arr = graph.get(provider.name);
+        if (!arr) { arr = []; graph.set(provider.name, arr); }
+        arr.push(m);
+      });
     });
     return graph;
   }, [equippedDisplayMods]);
@@ -343,7 +389,7 @@ const Vault = React.memo(function Vault(props: any) {
   const paginatedMods = finalVisibleMods.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 relative">
+    <div className="flex-1 overflow-visible pr-4 relative">
       <div className="flex flex-col gap-8 animate-in fade-in duration-700">
         <ViewHeader
           title={t("vault_title")}
@@ -352,7 +398,7 @@ const Vault = React.memo(function Vault(props: any) {
           iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
         >
           <div className="flex flex-wrap gap-4 items-center justify-end">
-            <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/10 shadow-inner">
+            <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
               <button onClick={() => setIsSidePanelOpen(true)} className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
                 <span className="material-symbols-outlined text-xl normal-case">{t("icon_tune")}</span>
                 <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_tools")}</span>
@@ -488,7 +534,7 @@ const Vault = React.memo(function Vault(props: any) {
           {(equipFilter === "ALL" || equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") && (
             <button
               onClick={() => setHideGhostCards(!hideGhostCards)}
-              className={`h-[42px] px-5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border shadow-lg hover:scale-[1.02] active:scale-95 ${hideGhostCards
+              className={`h-[42px] px-5 rounded-xl overflow-hidden text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border shadow-lg hover:scale-[1.02] active:scale-95 ${hideGhostCards
                 ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:shadow-[0_5px_20px_color-mix(in_srgb,var(--success)_20%,transparent)]'
                 : 'theme-glass-panel text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5'
                 }`}
@@ -500,7 +546,7 @@ const Vault = React.memo(function Vault(props: any) {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-24 pl-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-24 pl-2 pr-6">
           {paginatedMods.length === 0 ? (
             <EmptyState icon="search_off" title={t("registry_no_mods")} subtitle={t("vault_no_results_sub")} className="col-span-full py-24" />
           ) : (
@@ -513,25 +559,20 @@ const Vault = React.memo(function Vault(props: any) {
                   const anchor = mod.dbId || mod.familyId;
                   if (mod.isFlavorFolder) {
                     return (mod.flavors || []).some((f: any) =>
-                      activeSetMods.includes(f.name),
+                      activeSetMods.some((sm: string) => sm === f.name || sm.replace(/^(sanctuary[/\\])+/i, '') === f.name),
                     );
                   }
                   if (anchor) {
-                    return equippedDisplayMods.some(
-                      (m: any) =>
-                        !m.isVirtual &&
-                        m.name &&
-                        (String(m.familyId) === String(anchor) ||
-                          String(m.dbId) === String(anchor) ||
-                          String(m.setId) === String(anchor))
+                    return (mod.flavors || []).some((f: any) =>
+                      activeSetMods.some((sm: string) => sm === f.name || sm.replace(/^(sanctuary[/\\])+/i, '') === f.name),
                     );
                   }
                   return (mod.flavors || []).some((f: any) =>
-                    activeSetMods.includes(f.name),
+                    activeSetMods.some((sm: string) => sm === f.name || sm.replace(/^(sanctuary[/\\])+/i, '') === f.name),
                   );
                 })()
-                : activeSetMods.includes(mod.name);
-              const getDeepCasualties = (targetMods: any[]) => {
+                : activeSetMods.some((sm: string) => sm === mod.name || sm.replace(/^(sanctuary[/\\])+/i, '') === mod.name);
+              const getDeepCasualties = (targetMods: any[], shallow = false) => {
                 let queue = [...targetMods];
                 let seen = new Set<string>();
                 let result: string[] = [];
@@ -561,12 +602,16 @@ const Vault = React.memo(function Vault(props: any) {
                   if (current.name !== mod.name) {
                     result.push(current.displayName || current.name);
                   }
-                  const dependents = dependencyGraph.get(current.name) || [];
-                  queue.push(...dependents);
+                  if (!shallow) {
+                    const dependents = dependencyGraph.get(current.name) || [];
+                    queue.push(...dependents);
+                  }
                 }
                 return [...new Set(result)];
               };
-              let casualties: string[] = [];
+              let casualties: any[] = [];
+              let tier3List: any[] = [];
+              let isFlavorSwapCard = false;
               if (isEquipped) {
                 if (mod.isVirtual) {
                   const familyAnchor = mod.dbId || mod.familyId;
@@ -606,7 +651,8 @@ const Vault = React.memo(function Vault(props: any) {
                         String(firstFlavor.flavorGroupId) &&
                         m.name !== firstFlavor.name
                     );
-                    casualties = [...casualties, ...getDeepCasualties(rivals)];
+                    if (rivals.length > 0) isFlavorSwapCard = true;
+                    casualties = [...casualties, ...getDeepCasualties(rivals, true)];
                   }
                 } else if (mod.flavorGroupId) {
                   const rivals = equippedDisplayMods.filter(
@@ -615,30 +661,87 @@ const Vault = React.memo(function Vault(props: any) {
                       String(mod.flavorGroupId) &&
                       m.name !== mod.name
                   );
-                  casualties = [...casualties, ...getDeepCasualties(rivals)];
+                  if (rivals.length > 0) isFlavorSwapCard = true;
+                  casualties = [...casualties, ...getDeepCasualties(rivals, true)];
                 }
 
                 const checkConflicts = (mObj: any) => {
+                  const mObjCleanN = (mObj.name || "").split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "").toUpperCase();
+                  const mObjDispUpper = mObj.displayName?.toUpperCase();
+
                   if (mObj.conflicts && mObj.conflicts.length > 0) {
-                    const conflictCasualties = mObj.conflicts.filter((c: any) => c.severity_rank === 4).map((c: any) => {
-                      const matchObj = equippedDisplayMods.find((mData: any) => {
-                        if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
+                    const processSeverity = (targetRank: number, targetList: any[]) => {
+                      const found = mObj.conflicts.filter((c: any) => Number(c.severity_rank) == targetRank).map((c: any) => {
+                        const matchItem = uppercaseEquippedMods.find((item: any) => {
+                          const mData = item.mData;
+                          if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
+                          if (c.enemy_name) {
+                            const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
+                            if (item.emBaseClean === targetClean || item.emDisp === targetClean) return true;
+                          }
+                          return false;
+                        });
+                        if (matchItem) {
+                          const matchObj = matchItem.mData;
+                          return { name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: c.conflict_note || c.resolution_note || "" };
+                        }
+                        return null;
+                      }).filter(Boolean);
+                      if (found.length > 0) {
+                        targetList.push(...found);
+                      }
+                    };
+                    processSeverity(4, casualties);
+                    processSeverity(3, tier3List);
+                  }
+
+                  // Reverse conflicts: Do any equipped mods point to this mod?
+                  uppercaseEquippedMods.forEach((item: any) => {
+                    const mData = item.mData;
+                    if (mData.conflicts && mData.conflicts.length > 0) {
+                      const found = mData.conflicts.filter((c: any) => {
+                        if (c.enemy_id && String(mObj.dbId) === String(c.enemy_id)) return true;
                         if (c.enemy_name) {
-                          const targetClean = c.enemy_name.toUpperCase();
-                          const cleanN = (mData.name || "").split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "").toUpperCase();
-                          if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
+                          const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
+                          if (mObjCleanN === targetClean || mObjDispUpper === targetClean) return true;
                         }
                         return false;
                       });
-                      if (matchObj) {
-                        return { name: matchObj.displayName || matchObj.name, note: c.conflict_note || c.resolution_note || "" };
-                      }
-                      return null;
-                    }).filter(Boolean);
-                    if (conflictCasualties.length > 0) {
-                      casualties = [...casualties, ...conflictCasualties];
+
+                      found.forEach((c: any) => {
+                        const targetRank = Number(c.severity_rank);
+                        if (targetRank == 4) casualties.push({ name: mData.displayName || mData.name, rawName: mData.name, note: c.conflict_note || c.resolution_note || "" });
+                        if (targetRank == 3) tier3List.push({ name: mData.displayName || mData.name, rawName: mData.name, note: c.conflict_note || c.resolution_note || "" });
+                      });
                     }
-                  }
+                  });
+
+                  // Local conflicts
+                  localConflictsMemo.forEach((lc: any) => {
+                    const mObjClean = String(mObj.name || "").toUpperCase();
+                    const mObjDisp = String(mObj.displayName || "").toUpperCase();
+
+                    let isMObjA = mObjClean.includes(lc.modAUpper) || mObjDisp.includes(lc.modAUpper) || lc.modAUpper.includes(mObjClean);
+                    let isMObjB = mObjClean.includes(lc.modBUpper) || mObjDisp.includes(lc.modBUpper) || lc.modBUpper.includes(mObjClean);
+
+                    if (isMObjA || isMObjB) {
+                      const targetEnemy = isMObjA ? lc.modBUpper : lc.modAUpper;
+                      const matchItem = uppercaseEquippedMods.find((item: any) => {
+                        return item.emClean.includes(targetEnemy) || item.emDisp.includes(targetEnemy) || targetEnemy.includes(item.emClean);
+                      });
+
+                      if (matchItem) {
+                        const matchObj = matchItem.mData;
+                        const targetRank = Number(lc.severity_rank);
+                        const isWinnerMObj = mObj._originalSetName?.toLowerCase().startsWith("sanctuary") || mObj.name?.toLowerCase().startsWith("sanctuary");
+                        const isWinnerEnemy = matchObj._originalSetName?.toLowerCase().startsWith("sanctuary") || matchObj.name?.toLowerCase().startsWith("sanctuary");
+                        if (isWinnerMObj || isWinnerEnemy) return;
+
+                        if (targetRank == 4) casualties.push({ name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: lc.resolution_note || "Local Scan Detects Tuning Overlap" });
+                        if (targetRank == 3) tier3List.push({ name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: lc.resolution_note || "Local Scan Detects Tuning Overlap" });
+                      }
+                    }
+                  });
                 };
 
                 checkConflicts(mod);
@@ -647,6 +750,7 @@ const Vault = React.memo(function Vault(props: any) {
                 }
 
                 casualties = Array.from(new Map(casualties.map((item: any) => [item.name || item, item])).values());
+                tier3List = Array.from(new Map(tier3List.map((item: any) => [item.name || item, item])).values());
               }
               if (anarchyRules?.intercept === false) {
                 casualties = [];
@@ -669,14 +773,6 @@ const Vault = React.memo(function Vault(props: any) {
                   if (!missingReqs.some(r => r.id === id)) missingReqs.push({ id, url: finalUrl });
                   if (!m.missingReqs.some((r: any) => r.id === id)) m.missingReqs.push({ id, url: finalUrl });
                 };
-
-                const requiresMcCmd = m.twins?.some((t: any) => (t.name || "").toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER") || String(t.id) === "1000") ||
-                  m.requirements?.some((r: any) => (r.name || "").toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER") || String(r.id) === "1000");
-                if (requiresMcCmd || (m.displayName && m.displayName.toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER")) || (m.name && m.name.toUpperCase().replace(/_/g, " ").includes("MC CMD CENTER"))) {
-                  if (!modListIndex.mcCmdCenter.hasPkg || !modListIndex.mcCmdCenter.hasScript) {
-                    pushMissing("MC CMD CENTER CORE");
-                  }
-                }
 
 
                 if (m.requirements) {
@@ -726,7 +822,7 @@ const Vault = React.memo(function Vault(props: any) {
                 mod.flavors.forEach(checkModDeps);
               }
 
-              const tier3List: any[] = [];
+
 
               let renderedMod = mod;
 
@@ -746,6 +842,36 @@ const Vault = React.memo(function Vault(props: any) {
                       e.stopPropagation();
                       toggleInActiveSet(mod.name, excludeBroken);
                     }}
+                    onResolveConflict={(e: any, t3List: any[], m: any, winnerName?: string) => {
+                      if (t3List && t3List.length > 0) {
+                        const rival = t3List[0];
+                        const modA = m.name;
+                        const modB = rival.rawName || rival.name;
+                        const modPair = `${modA} <<<<<->>>>> ${modB}`;
+
+                        if (winnerName) {
+                          if (winnerName === modA) {
+                            toggleInActiveSet(modB, false, false, true); // Ensure loser is active
+                            toggleInActiveSet(modA, false, false, true); // Force active winner
+                            applyConflictOverride(modA, modPair, playSets[activePlaySetIndex]?.name);
+                          } else {
+                            toggleInActiveSet(modA, false, false, true); // Ensure loser is active
+                            toggleInActiveSet(modB, false, false, true); // Force active winner
+                            applyConflictOverride(modB, modPair, playSets[activePlaySetIndex]?.name);
+                          }
+                        } else {
+                          toggleInActiveSet(modA, false, false, true);
+                          setActiveTier3Conflict({
+                            mod_pair: modPair,
+                            modA,
+                            modB,
+                            severity_rank: 3
+                          });
+                        }
+                      } else {
+                        toggleInActiveSet(mod.name, false, false, true);
+                      }
+                    }}
                     onSelect={() => {
                       setMetaNameInput(mod.displayName || mod.name);
                       setMetaAuthorInput(mod.author || "");
@@ -760,6 +886,7 @@ const Vault = React.memo(function Vault(props: any) {
                     }}
                     isParent={mod.isParent}
                     isExpanded={expandedFolder === mainKey}
+                    isFlavorSwap={isFlavorSwapCard}
                     onExpand={() =>
                       setExpandedFolder(
                         expandedFolder === mainKey ? null : mainKey,
@@ -780,7 +907,7 @@ const Vault = React.memo(function Vault(props: any) {
                     <div className="col-span-full theme-glass-panel rounded-[var(--radius)] p-8 my-4">
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xl font-black text-[var(--text)] uppercase">
-                          {t("folder_prefix")}{" "}
+                          {" "}
                           <span className="theme-text-accent">
                             {formatDisplayName(renderedMod.displayName || renderedMod.name)}
                           </span>
@@ -799,7 +926,7 @@ const Vault = React.memo(function Vault(props: any) {
                                 if (typeof f.requiredDLC === 'string') rawFlavorDLC.push(...f.requiredDLC.split(',').map((s: string) => s.trim()));
                                 else if (Array.isArray(f.requiredDLC)) rawFlavorDLC.push(...f.requiredDLC);
                               }
-                              
+
                               let flavorDLC = Array.from(new Set(rawFlavorDLC)).filter(Boolean);
                               const missingPacks = flavorDLC.filter((p: string) => {
                                 const baseCode = p.split(' ')[0].toUpperCase();
@@ -813,7 +940,7 @@ const Vault = React.memo(function Vault(props: any) {
                               toggleInActiveSet(f.name, false, false, true);
                             });
                           }}
-                          className="h-10 px-4 rounded-xl theme-glass-inner flex items-center justify-center gap-2 text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:scale-105"
+                          className="h-10 px-4 rounded-xl overflow-hidden theme-glass-inner flex items-center justify-center gap-2 text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:scale-105"
                         >
                           <span className="material-symbols-outlined !text-[18px]">{t("icon_check_circle")}</span> {t("btn_equip_all")}
                         </button>
@@ -870,14 +997,21 @@ const Vault = React.memo(function Vault(props: any) {
                               };
                               let drawerCasualties: any[] = [];
                               if (!isFlavorEquipped) {
-                                const rivals = mod.isFlavorFolder
+                                const localRivals = mod.isVirtual
                                   ? (renderedMod.flavors || []).filter(
                                     (f: any) =>
                                       f.name !== flavor.name &&
                                       activeSetMods.includes(f.name),
                                   )
                                   : [];
-                                drawerCasualties = getDrawerDeepCasualties(rivals);
+                                const globalRivals = equippedDisplayMods.filter((m: any) => {
+                                  if (m.name === flavor.name) return false;
+                                  const isSameFlavorGroup = flavor.flavorGroupId && String(m.flavorGroupId) === String(flavor.flavorGroupId);
+                                  const isBetaRival = (flavor.relationshipType === 'beta' && m.relationshipType !== 'beta' || flavor.relationshipType !== 'beta' && m.relationshipType === 'beta') && (String(m.familyId) === String(flavor.familyId) || String(m.dbId) === String(flavor.familyId || flavor.dbId));
+                                  return isSameFlavorGroup || isBetaRival;
+                                });
+                                const allRivals = [...localRivals, ...globalRivals].filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
+                                drawerCasualties = getDrawerDeepCasualties(allRivals);
                               } else {
                                 drawerCasualties = getDrawerDeepCasualties([
                                   flavor,
@@ -889,6 +1023,11 @@ const Vault = React.memo(function Vault(props: any) {
                                 drawerCasualties = [];
                               }
 
+                              const isFlavorSwap = !isFlavorEquipped && (flavor.flavorGroupId != null || (mod.isVirtual && (renderedMod.flavors || []).some((f: any) => f.flavorGroupId != null)));
+                              const isBetaFlavor = flavor.relationshipType === 'beta' || (flavor.relationshipType !== 'core' && flavor.sub_type?.toLowerCase() === 'beta');
+                              const isBetaSwap = !isFlavorEquipped && isBetaFlavor;
+                              const isSwappedState = isFlavorSwap || isBetaSwap;
+
                               let rawFlavorDLC: string[] = [];
                               if (renderedMod.requiredDLC) {
                                 if (typeof renderedMod.requiredDLC === 'string') rawFlavorDLC.push(...renderedMod.requiredDLC.split(',').map((s: string) => s.trim()));
@@ -898,7 +1037,7 @@ const Vault = React.memo(function Vault(props: any) {
                                 if (typeof flavor.requiredDLC === 'string') rawFlavorDLC.push(...flavor.requiredDLC.split(',').map((s: string) => s.trim()));
                                 else if (Array.isArray(flavor.requiredDLC)) rawFlavorDLC.push(...flavor.requiredDLC);
                               }
-                              
+
                               let flavorDLC = Array.from(new Set(rawFlavorDLC)).filter(Boolean);
                               const missingPacks = flavorDLC.filter((p: string) => {
                                 const baseCode = p.split(' ')[0].toUpperCase();
@@ -912,26 +1051,9 @@ const Vault = React.memo(function Vault(props: any) {
 
                               const isConfirming = drawerConfirmHash === flavor.hash;
                               return (
-                                <div className="relative group/flavorshadow hover:z-50" key={`sub-${flavor.hash}-${subIdx}`}>
-                                  {isFlavorGhosted && !isConfirming && (
-                                    <HoverTooltip
-                                      className="group-hover/flavorshadow:flex"
-                                      variant="danger"
-                                      title={hasMissingDeps ? t("missing_artifacts") : flavorGhostReason === "VERSION_MISMATCH" ? t("unsupported_version") : t("missing_dlc")}
-                                      subtitle={hasMissingDeps
-                                        ? formatDisplayName(typeof flavor.missingReqs[0] === 'string' ? flavor.missingReqs[0] : (flavor.missingReqs[0]?.name || flavor.missingReqs[0]?.id || '')) + (flavor.missingReqs.length > 1 ? ` (+${flavor.missingReqs.length - 1})` : "")
-                                        : flavorGhostReason === "VERSION_MISMATCH"
-                                          ? (
-                                            <>
-                                              <div className="w-full truncate">Required: {getHighestVersion(flavor.compatible_versions || renderedMod.compatible_versions || [])}</div>
-                                              <div className="w-full truncate">Current: {selectedVersion || "Unknown"}</div>
-                                            </>
-                                          )
-                                          : missingPacks.map((p: string) => mapDlcCode(p)).join(", ")}
-                                    />
-                                  )}
+                                <div className="relative hover:z-50" key={`sub-${flavor.hash}-${subIdx}`}>
                                   <div
-                                    className={`p-3 rounded-xl relative flex transition-all cursor-pointer min-h-[56px] ${isConfirming ? "bg-transparent border-transparent flex-col items-stretch p-0" : isFlavorGhosted && !isFlavorEquipped ? "bg-red-950/20 border-[var(--danger)]/30 hover:border-[var(--danger)]/50 opacity-50 grayscale" : "theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm hover:shadow-md hover:scale-[1.02] hover:theme-border-accent"} ${isConfirming ? "" : "items-center justify-between"}`}
+                                    className={`p-3 rounded-xl overflow-hidden relative flex transition-all cursor-pointer min-h-[56px] ${isConfirming ? "bg-transparent border-transparent flex-col items-stretch p-0" : (isFlavorGhosted && !isFlavorEquipped) || isSwappedState ? `bg-black/20 opacity-50 grayscale border ${isSwappedState ? "border-[var(--accent)]/30 hover:border-[var(--accent)]/50" : "border-[var(--danger)]/30 hover:border-[var(--danger)]/50"}` : "theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm hover:shadow-md hover:scale-[1.02] hover:theme-border-accent"} ${isConfirming ? "" : "items-center justify-between"}`}
                                     onClick={() => {
                                       if (!isConfirming) {
                                         setMetaNameInput(flavor.displayName || flavor.name);
@@ -946,105 +1068,86 @@ const Vault = React.memo(function Vault(props: any) {
                                   >
                                     {isConfirming ? (
                                       <div
-                                        className="w-full flex flex-col rounded-[var(--radius)] border theme-glass-panel p-5 animate-in fade-in zoom-in-95 shadow-2xl border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]"
+                                        className={`w-full flex flex-col rounded-[calc(var(--radius)-4px)] overflow-hidden border theme-glass-panel animate-in fade-in zoom-in-95 shadow-2xl will-change-transform ${isSwappedState ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"}`}
                                       >
-                                        {isFlavorGhosted && !isFlavorEquipped ? (
-                                          <>
-                                            <div className="flex items-center gap-2 mb-3 shrink-0">
-                                              <div className="flex flex-col">
-                                                <span className="text-[10px] font-black theme-text-danger uppercase tracking-widest">
-                                                  {t("missing_deps")}
-                                                </span>
-                                                <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-tighter">
-                                                  {t("proceed_caution")}
-                                                </span>
-                                              </div>
-                                            </div>
-                                            <div className="flex-1 flex flex-col gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1 mb-4">
+                                        {/* Header */}
+                                        <div className={`relative z-10 p-3 flex items-center justify-center gap-2 border-b shrink-0 rounded-t-[calc(var(--radius)-4px)] ${isSwappedState ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]'}`}>
+                                          <span className={`material-symbols-outlined !text-[18px] ${isSwappedState ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>
+                                            {isFlavorGhosted && !isFlavorEquipped ? 'extension' : isSwappedState ? 'swap_horiz' : (!isFlavorEquipped ? (t("icon_crisis_alert") || 'crisis_alert') : 'delete')}
+                                          </span>
+                                          <span className={`text-[11px] font-black uppercase tracking-widest truncate ${isSwappedState ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>
+                                            {String(isFlavorGhosted && !isFlavorEquipped ? t("missing_artifacts") : isSwappedState ? (isBetaSwap ? t("beta_swap") : (t("flavor_swap") || "FLAVOR SWAP")) : (!isFlavorEquipped ? t("fatal_conflict") : t("yeet_cascade"))).replace(/:$/, '')}
+                                          </span>
+                                        </div>
+
+                                        {/* Scrolling Content */}
+                                        <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar p-4 pb-4 flex flex-col gap-2 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] max-h-48">
+                                          {isFlavorGhosted && !isFlavorEquipped ? (
+                                            <>
                                               {hasMissingDeps ? (
-                                                <>
-                                                  <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("vault_missing_artifacts")}</p>
-                                                  {flavor.missingReqs.map((req: any) => {
-                                                    const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
-                                                    const reqUrl = typeof req === 'string' ? null : req.url;
-                                                    const cleanName = cleanSearchName(reqIdStr, activeGameSchema);
-                                                    const searchUrl = reqUrl || `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanName)}`;
-                                                    return (
-                                                      <a
-                                                        key={reqIdStr}
-                                                        href="#"
-                                                        className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex items-center justify-between gap-2 mb-1 hover:bg-white/10 transition-colors cursor-pointer"
-                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openUrl(searchUrl); }}
-                                                      >
-                                                        <span className="truncate">{cleanName}</span>
-                                                        <span className="material-symbols-outlined !text-[14px] opacity-70">{reqUrl ? (t("icon_download")) : (t("icon_search"))}</span>
-                                                      </a>
-                                                    );
-                                                  })}
-                                                </>
-                                              ) : flavorGhostReason === "VERSION_MISMATCH" ? (
-                                                <>
-                                                  <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("unsupported_version")}</p>
-                                                  <div className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex flex-col gap-1 mb-1">
-                                                    <span>{t("game_versions")}: {([] as string[]).concat(flavor.compatible_versions || renderedMod.compatible_versions || []).join(", ") || t("shared_version_unknown") || "v.Unknown"}</span>
-                                                  </div>
-                                                </>
-                                              ) : (
-                                                <>
-                                                  <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">{t("vault_missing_dlc")}</p>
-                                                  {missingPacks.map((p: string) => (
-                                                    <div key={p} className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold theme-text-danger truncate flex items-center gap-2 mb-1">
-                                                      {mapDlcCode(p)}
+                                                flavor.missingReqs.map((req: any) => {
+                                                  const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
+                                                  return (
+                                                    <div key={reqIdStr} className="flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl">
+                                                      <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">extension</span>
+                                                      <div className="flex flex-col min-w-0">
+                                                        <span className="text-[8px] font-black text-[var(--danger)] opacity-70 uppercase tracking-widest">{t("missing_dependency") || "DEP"}</span>
+                                                        <span className="text-[10px] font-mono font-black text-[var(--danger)] uppercase tracking-widest truncate">{cleanSearchName(reqIdStr, activeGameSchema)}</span>
+                                                      </div>
                                                     </div>
-                                                  ))}
-                                                </>
-                                              )}
-                                            </div>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <div className="flex items-center gap-2 mb-3 shrink-0">
-                                              <div className="flex flex-col">
-                                                <span className="text-[10px] font-black theme-text-danger uppercase tracking-widest">
-                                                  {t("yeet_cascade")}
-                                                </span>
-                                                <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-tighter">
-                                                  {t("protocol_override")}
-                                                </span>
-                                              </div>
-                                            </div>
-                                            <div className="flex-1 flex flex-col gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1 mb-4">
-                                              <p className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase mb-1 ml-1">
-                                                {t("artifacts_removed")}
-                                              </p>
-                                              {drawerCasualties.map((r: any) => (
-                                                <div
-                                                  key={r.hash || r.name}
-                                                  className="theme-glass-inner px-3 py-2 rounded-xl text-[9px] font-bold text-[var(--text)]/80 truncate flex items-center gap-2"
-                                                >
-                                                  {(r.displayName || r.name || "").replace(/_/g, " ")}
+                                                  );
+                                                })
+                                              ) : flavorGhostReason === "VERSION_MISMATCH" ? (
+                                                <div className="flex items-center gap-3 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] p-2.5 rounded-lg border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                                                  <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">sports_esports</span>
+                                                  <div className="flex flex-col min-w-0">
+                                                    <span className="text-[8px] font-black text-[var(--danger)] opacity-70 uppercase tracking-widest">{t("required_version") || "REQUIRED"}</span>
+                                                    <span className="text-[10px] font-mono font-black text-[var(--danger)] uppercase tracking-widest truncate">{getHighestVersion(flavor.compatible_versions || renderedMod.compatible_versions || [])}</span>
+                                                  </div>
                                                 </div>
-                                              ))}
-                                            </div>
-                                          </>
-                                        )}
-                                        <div className="flex gap-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0">
+                                              ) : (
+                                                missingPacks.map((p: string) => (
+                                                  <div key={p} className="flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-2.5 rounded-lg">
+                                                    <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">currency_exchange</span>
+                                                    <div className="flex flex-col min-w-0">
+                                                      <span className="text-[8px] font-black text-[var(--danger)] opacity-70 uppercase tracking-widest">{t("missing_dlc") || "DLC"}</span>
+                                                      <span className="text-[10px] font-mono font-black text-[var(--danger)] uppercase tracking-widest truncate">{mapDlcCode(p)}</span>
+                                                    </div>
+                                                  </div>
+                                                ))
+                                              )}
+                                            </>
+                                          ) : (
+                                            drawerCasualties.map((r: any) => (
+                                              <div key={r.hash || r.name} className="flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl">
+                                                <span className={`material-symbols-outlined !text-[16px] shrink-0 ${isSwappedState ? 'theme-text-accent' : 'theme-text-danger'}`}>{isSwappedState ? 'swap_horiz' : (!isFlavorEquipped ? (t("icon_crisis_alert") || 'crisis_alert') : 'delete')}</span>
+                                                <div className="flex flex-col min-w-0">
+                                                  <span className={`text-[8px] font-black uppercase tracking-widest ${isSwappedState ? 'theme-text-accent opacity-70' : 'text-[var(--danger)] opacity-70'}`}>{isSwappedState ? (t("flavor_replaced") || "REPLACED") : (t("artifact_removed") || "REMOVED")}</span>
+                                                  <span className={`text-[10px] font-mono font-black uppercase tracking-widest truncate ${isSwappedState ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>{(r.displayName || r.name || "").replace(/_/g, " ")}</span>
+                                                </div>
+                                              </div>
+                                            ))
+                                          )}
+                                        </div>
+
+                                        {/* Footer Actions */}
+                                        <div className="mt-auto w-full z-20 px-4 pb-4 pt-4 flex flex-row gap-2 shrink-0 border-t border-white/5 will-change-transform">
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               toggleInActiveSet(flavor.name, false);
                                               setDrawerConfirmHash(null);
                                             }}
-                                            className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 transition-all shadow-lg"
+                                            className={`flex-1 py-2.5 rounded-xl overflow-hidden border font-black text-[9px] uppercase tracking-widest active:scale-95  truncate px-1 ${isFlavorGhosted && !isFlavorEquipped ? "bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)]" : isSwappedState ? "bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]" : "bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)]"}`}
                                           >
-                                            {t("modcard_btn_proceed")}
+                                            {isFlavorGhosted && !isFlavorEquipped ? t("btn_equip_anyway") : isSwappedState ? t("btn_swap_confirm") : t("btn_purge_confirm")}
                                           </button>
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               setDrawerConfirmHash(null);
                                             }}
-                                            className="flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:scale-105 transition-all shadow-lg"
+                                            className="flex-1 py-2.5 rounded-xl overflow-hidden border border-[color-mix(in_srgb,var(--safe)_50%,transparent)] bg-[color-mix(in_srgb,var(--safe)_10%,transparent)] text-[var(--safe)] font-black text-[9px] uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--safe)_20%,transparent)] active:scale-95  truncate px-1"
                                           >
                                             {t("btn_safety")}
                                           </button>
@@ -1086,7 +1189,7 @@ const Vault = React.memo(function Vault(props: any) {
                                             <div className="relative group/tooltip flex items-center">
                                               <div className="absolute bottom-full right-0 mb-2 hidden group-hover/tooltip:flex flex-col bg-black/95 backdrop-blur-md border border-white/10 rounded-lg p-3 shadow-2xl z-50 w-max max-w-48">
                                                 <span className="text-[8px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-1.5 border-b border-white/10 pb-1">
-                                                  {isFlavorEquipped
+                                                  {isSwappedState ? (isBetaSwap ? t("badge_beta") : (t("flavor_swap") || "FLAVOR SWAP")) : isFlavorEquipped
                                                     ? t("yeet_cascade")
                                                     : t(
                                                       "vault_auto_removing",
@@ -1126,11 +1229,33 @@ const Vault = React.memo(function Vault(props: any) {
                                                 );
                                               }
                                             }}
-                                            className={`w-8 h-8 flex items-center justify-center font-black rounded-xl backdrop-blur-md border transition-all shadow-xl ${isFlavorEquipped ? "bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] rotate-45 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_25%,transparent)] hover:scale-110" : "bg-[color-mix(in_srgb,var(--success)_5%,transparent)] border-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:scale-110"}`}
+                                            className={`relative w-8 h-8 flex items-center justify-center font-black rounded-xl overflow-hidden backdrop-blur-md border transition-all shadow-xl ${isFlavorEquipped ? "bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] rotate-45 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_25%,transparent)] hover:scale-110" : isSwappedState ? "bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:scale-110" : "bg-[color-mix(in_srgb,var(--success)_5%,transparent)] border-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:scale-110"}`}
                                           >
-                                            {isFlavorGhosted && !isFlavorEquipped
+                                            {(isFlavorGhosted || isSwappedState) && !isConfirming && (
+                                              <HoverTooltip
+                                                className="z-50 !right-0 !translate-x-0 !left-auto"
+                                                bgClass="!bg-[color-mix(in_srgb,var(--bg)_95%,transparent)] !backdrop-blur-3xl"
+                                                variant={(isFlavorGhosted && !isSwappedState) ? "danger" : isSwappedState ? "accent" : "warning"}
+                                                title={isSwappedState ? (isBetaSwap ? t("badge_beta") : (t("flavor_swap") || "FLAVOR SWAP")) : hasMissingDeps ? t("missing_artifacts") : flavorGhostReason === "VERSION_MISMATCH" ? t("unsupported_version") : t("missing_dlc")}
+                                                subtitle={isSwappedState
+                                                  ? formatDisplayName(drawerCasualties[0]?.name || drawerCasualties[0] || "") + (drawerCasualties.length > 1 ? ` (+${drawerCasualties.length - 1})` : "")
+                                                  : hasMissingDeps
+                                                    ? formatDisplayName(typeof flavor.missingReqs[0] === 'string' ? flavor.missingReqs[0] : (flavor.missingReqs[0]?.name || flavor.missingReqs[0]?.id || '')) + (flavor.missingReqs.length > 1 ? ` (+${flavor.missingReqs.length - 1})` : "")
+                                                    : flavorGhostReason === "VERSION_MISMATCH"
+                                                      ? (
+                                                        <>
+                                                          <div className="w-full truncate">Required: {getHighestVersion(flavor.compatible_versions || renderedMod.compatible_versions || [])}</div>
+                                                          <div className="w-full truncate">Current: {selectedVersion || "Unknown"}</div>
+                                                        </>
+                                                      )
+                                                      : missingPacks.map((p: string) => mapDlcCode(p)).join(", ")}
+                                              />
+                                            )}
+                                            {isFlavorGhosted && !isFlavorEquipped && !isSwappedState
                                               ? <span className="material-symbols-outlined !text-[14px]">{flavorGhostReason === "VERSION_MISMATCH" ? "hourglass_empty" : hasMissingDeps ? "extension" : "block"}</span>
-                                              : <span className="material-symbols-outlined !text-[20px]">{t("icon_add")}</span>}
+                                              : isSwappedState
+                                                ? <span className="material-symbols-outlined !text-[16px]">swap_horiz</span>
+                                                : <span className="material-symbols-outlined !text-[20px]">{t("icon_add")}</span>}
                                           </button>
                                         </div>
                                       </>
@@ -1153,7 +1278,7 @@ const Vault = React.memo(function Vault(props: any) {
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5"
+              className="px-6 py-3 theme-glass-inner rounded-xl overflow-hidden font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5"
             >
               {t("nav_prev")}
             </button>
@@ -1163,7 +1288,7 @@ const Vault = React.memo(function Vault(props: any) {
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5"
+              className="px-6 py-3 theme-glass-inner rounded-xl overflow-hidden font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5"
             >
               {t("nav_next")}
             </button>
@@ -1196,13 +1321,13 @@ const Vault = React.memo(function Vault(props: any) {
                   <div className="flex gap-2 mt-auto">
                     <button
                       onClick={() => restoreMod(filename)}
-                      className="flex-1 px-4 py-2 bg-[var(--success)] !text-black border-none border rounded-xl"
+                      className="flex-1 px-4 py-2 bg-[var(--success)] !text-black border-none border rounded-xl overflow-hidden"
                     >
                       {t("btn_restore")}
                     </button>
                     <button
                       onClick={() => purgeMod(filename)}
-                      className="flex-1 px-4 py-2 theme-panel-danger theme-btn-danger border rounded-xl"
+                      className="flex-1 px-4 py-2 theme-panel-danger theme-btn-danger border rounded-xl overflow-hidden"
                     >
                       {t("purge")}
                     </button>
@@ -1387,6 +1512,19 @@ const Vault = React.memo(function Vault(props: any) {
         runRadarSweep={runRadarSweep}
         displayModList={displayModList}
       />
+
+      {activeTier3Conflict && (
+        <div className="z-[9999] relative">
+          <ConflictResolutionSidebar
+            conflict={activeTier3Conflict}
+            onClose={() => setActiveTier3Conflict(null)}
+            onVault={() => { }}
+            onOverride={(winnerName, modPair) => {
+              applyConflictOverride(winnerName, modPair, playSets[activePlaySetIndex]?.name);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 });

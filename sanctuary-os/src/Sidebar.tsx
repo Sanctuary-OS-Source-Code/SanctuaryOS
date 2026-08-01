@@ -374,7 +374,7 @@ export function Sidebar({
 
       {isSidebarCollapsed && hoveredTooltip && (
         <div
-          className="fixed left-[96px] z-[1000] flex flex-col items-start justify-center theme-glass-panel !bg-black/50 px-5 py-3 max-w-[320px] w-max pointer-events-none shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] animate-in fade-in slide-in-from-left-2"
+          className="fixed left-[96px] z-[1000] flex flex-col items-start justify-center theme-glass-panel !bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] px-5 py-3 max-w-[320px] w-max pointer-events-none shadow-[0_20px_50px_color-mix(in_srgb,var(--text)_20%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] animate-in fade-in slide-in-from-left-2"
           style={{ top: hoveredTooltip.top, transform: 'translateY(-50%)' }}
         >
           <div className="relative z-10 flex flex-col items-start gap-1 w-full">

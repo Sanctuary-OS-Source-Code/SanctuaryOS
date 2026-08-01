@@ -99,7 +99,7 @@ export function GhostStringsModal({
                     className="w-10 h-10 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] rounded-xl transition-all text-[var(--text)] group/btn relative"
                   >
                     <span className="material-symbols-outlined !text-[18px]">search</span>
-                    <HoverTooltip title={t("btn_search_network") || "Search Network"} variant="info" className="group-hover/btn:flex z-[200]" />
+                    <HoverTooltip title={t("btn_search_network") || "Search Network"} variant="default" className="group-hover/btn:flex z-[200]" />
                   </button>
                   <button
                     onClick={() => onIgnore(mod)}

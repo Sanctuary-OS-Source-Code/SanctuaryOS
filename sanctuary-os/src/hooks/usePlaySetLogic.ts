@@ -11,20 +11,32 @@ export function usePlaySetLogic() {
   const { t } = useLexicon();
   const { setPendingImportSet, setMissingImportMods } = useModalStore();
 
-  const { modMap, hashToMod, baseToMod } = useMemo(() => {
+  const { modMap, hashToMod, baseToMod, byDbId, namesAndDisplayNames } = useMemo(() => {
     const extRegex = getExtensionRegex(activeGameSchema);
     const m1 = new Map<string, any>();
     const m2 = new Map<string, any>();
     const m3 = new Map<string, any>();
+    const byDbId = new Map<string, any>();
+    const namesAndDisplayNames: any[] = [];
     
     modList.forEach((m: any) => {
         m1.set(m.name, m);
         if (m.hash) m2.set(m.hash, m);
         const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '');
         if (mBase) m3.set(mBase, m);
+        if (!m.isVirtual) {
+            if (m.dbId) byDbId.set(String(m.dbId), m);
+            const dn = m.displayName || "";
+            namesAndDisplayNames.push({
+               name: m.name || "",
+               displayNameUpper: dn.toUpperCase(),
+               displayNameSpaced: dn.toUpperCase().replace(/_/g, " "),
+               orig: m
+            });
+        }
     });
     
-    return { modMap: m1, hashToMod: m2, baseToMod: m3 };
+    return { modMap: m1, hashToMod: m2, baseToMod: m3, byDbId, namesAndDisplayNames };
   }, [modList, activeGameSchema]);
 
   const toggleInActiveSet = (targetName: string, excludeBroken: boolean = true, forceRemove: boolean = false, forceActive: boolean = false) => {
@@ -55,26 +67,7 @@ export function usePlaySetLogic() {
       });
       let newMods = healedMods;
 
-      const byDbId = new Map();
-      const byHash = new Map();
-      const byName = new Map();
-      const namesAndDisplayNames: { name: string, displayNameUpper: string, displayNameSpaced: string, orig: any }[] = [];
 
-      modList.forEach((ml: any) => {
-         byName.set(ml.name, ml);
-         if (!ml.isVirtual) {
-            if (ml.dbId) byDbId.set(String(ml.dbId), ml);
-            if (ml.hash) byHash.set(ml.hash, ml);
-            const dn = ml.displayName || "";
-            namesAndDisplayNames.push({
-               name: ml.name || "",
-               displayNameUpper: dn.toUpperCase(),
-               displayNameSpaced: dn.toUpperCase().replace(/_/g, " "),
-               orig: ml
-            });
-         }
-      });
-      
       const checkGhosted = (mObj: any) => {
         if (mObj.isGhosted) return true;
         let rDLC = mObj.requiredDLC || [];
@@ -90,10 +83,10 @@ export function usePlaySetLogic() {
                const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase();
                const isReqNumeric = !isNaN(Number(reqName));
                let match = null;
-               if (reqId) {
-                   match = byDbId.get(String(reqId)) || byHash.get(reqId);
-                   if (!match) match = modList.find(m => m.interchangeableIds?.includes(String(reqId)));
-               }
+                   if (reqId) {
+                       match = byDbId.get(String(reqId)) || hashToMod.get(reqId);
+                       if (!match) match = modList.find(m => m.interchangeableIds?.includes(String(reqId)));
+                   }
                if (!match && !isReqNumeric && reqBaseName) {
                    match = namesAndDisplayNames.find(n => n.displayNameUpper.includes(reqBaseName) || n.displayNameSpaced.includes(reqBaseName.replace(/_/g, " ")))?.orig;
                }
@@ -103,12 +96,12 @@ export function usePlaySetLogic() {
         }
         if (mObj.conflicts) {
            const hasFatal = mObj.conflicts.some((c: any) => {
-              if (c.severity_rank === 4 && currentRules.intercept !== false) {
+              if (c.severity_rank == 4 && currentRules.intercept !== false) {
                  const matchStr = Array.from(newMods as Set<string>).find((n: string) => {
-                    const mData = byName.get(n);
+                    const mData = modMap.get(n);
                     if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
                     if (c.enemy_name) {
-                       const targetClean = c.enemy_name.toUpperCase();
+                       const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
                        const cleanN = n.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase();
                        if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
                     }
@@ -123,7 +116,7 @@ export function usePlaySetLogic() {
         return false;
       };
 
-      const targetMod = byName.get(targetName) || modList.find((m: any) => m.name === targetName);
+      const targetMod = modMap.get(targetName) || modList.find((m: any) => m.name === targetName);
       if (!targetMod) {
          if (forceRemove) {
             const toDelete = Array.from(newMods).find((m: any) => {
@@ -150,12 +143,21 @@ export function usePlaySetLogic() {
       const isActuallyFlavorFolder =
         targetMod.isVirtual && kids.some((k) => k.flavorGroupId != null);
       let isEquipping = targetMod.isVirtual
-        ? !kids.some((k) => Array.from(newMods).some((mObj: any) => (typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '')) === k.name))
-        : !Array.from(newMods).some((mObj: any) => (typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '')) === targetName);
+        ? !kids.some((k) => Array.from(newMods).some((mObj: any) => {
+            const strM = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
+            return strM === k.name || strM.replace(/^(sanctuary[/\\])+/i, '') === k.name.replace(/^(sanctuary[/\\])+/i, '');
+        }))
+        : !Array.from(newMods).some((mObj: any) => {
+            const strM = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
+            return strM === targetName || strM.replace(/^(sanctuary[/\\])+/i, '') === targetName.replace(/^(sanctuary[/\\])+/i, '');
+        });
       if (forceRemove) isEquipping = false;
       if (forceActive) isEquipping = true;
-      const deepDelete = (nameToDelete: string) => {
-        const toDelete = Array.from(newMods).find((mObj: any) => (typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '')) === nameToDelete);
+      const deepDelete = (nameToDelete: string, shallow: boolean = false) => {
+        const toDelete = Array.from(newMods).find((mObj: any) => {
+           const strM = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
+           return strM === nameToDelete || strM.replace(/^(sanctuary[/\\])+/i, '') === nameToDelete.replace(/^(sanctuary[/\\])+/i, '');
+        });
         if (!toDelete) return;
         newMods.delete(toDelete);
 
@@ -170,11 +172,11 @@ export function usePlaySetLogic() {
            });
         }
 
-        if (currentRules.dependencies !== false) {
-          const mData = byName.get(nameToDelete);
+        if (!shallow && currentRules.dependencies !== false) {
+          const mData = modMap.get(nameToDelete);
           if (mData) {
             Array.from(newMods as Set<string>).forEach((depName: string) => {
-               const dep = byName.get(depName);
+               const dep = modMap.get(depName);
                if (!dep || !dep.requirements) return;
                const dependsOnDeleted = dep.requirements.some((r: any) => {
                   const reqId = typeof r === 'string' ? r : r.id || r.dbId;
@@ -193,7 +195,7 @@ export function usePlaySetLogic() {
                       const isReqNumeric = !isNaN(Number(reqName));
                       
                       return Array.from(newMods as Set<string>).some((n: string) => {
-                         const equipped = byName.get(n);
+                         const equipped = modMap.get(n);
                          return equipped && (
                            String(equipped.dbId) === String(reqId) ||
                            (reqId && equipped.interchangeableIds && equipped.interchangeableIds.includes(String(reqId))) ||
@@ -210,25 +212,25 @@ export function usePlaySetLogic() {
       const applyConflicts = (modObj: any) => {
         if (currentRules.highlander !== false) {
           Array.from(newMods as Set<string>).forEach((mName: string) => {
-             const m = byName.get(mName);
+             const m = modMap.get(mName);
              if (m && m.name !== modObj.name) {
                  const isFlavorRival = m.flavorGroupId && String(m.flavorGroupId) === String(modObj.flavorGroupId) && m.relationshipType !== "twin" && modObj.relationshipType !== "twin";
-                 const isBetaRival = modObj.relationshipType !== 'beta' && m.relationshipType === 'beta' && (String(m.familyId) === String(modObj.familyId) || String(m.dbId) === String(modObj.familyId || modObj.dbId));
+                 const isBetaRival = ((modObj.relationshipType !== 'beta' && m.relationshipType === 'beta') || (modObj.relationshipType === 'beta' && m.relationshipType !== 'beta')) && (String(m.familyId) === String(modObj.familyId) || String(m.dbId) === String(modObj.familyId || modObj.dbId));
                  
                  if (isFlavorRival || isBetaRival) {
-                     deepDelete(m.name);
+                     deepDelete(m.name, true);
                  }
              }
           });
         }
         if (modObj.conflicts && currentRules.intercept !== false) {
            modObj.conflicts.forEach((c: any) => {
-              if (c.severity_rank === 4 && currentRules.intercept !== false) {
+              if (c.severity_rank == 4 && currentRules.intercept !== false) {
                  const matchStr = Array.from(newMods as Set<string>).find((n: string) => {
-                    const mData = byName.get(n);
+                    const mData = modMap.get(n);
                     if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
                     if (c.enemy_name) {
-                       const targetClean = c.enemy_name.toUpperCase();
+                       const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
                        const cleanN = n.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase();
                        if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
                     }
@@ -342,7 +344,7 @@ export function usePlaySetLogic() {
             const snapshot = Array.from(newMods);
             for (const name of snapshot) {
               if (!newMods.has(name)) continue;
-              const mData = byName.get(name as string);
+              const mData = modMap.get(name as string);
               if (mData?.requirements) {
                 for (const req of mData.requirements) {
                   const reqId = typeof req === 'string' ? req : req.id || req.dbId;
@@ -351,7 +353,7 @@ export function usePlaySetLogic() {
                   const isReqNumeric = !isNaN(Number(reqName));
                   
                   const alreadySatisfied = Array.from(newMods as Set<string>).some((n: string) => {
-                    const equipped = byName.get(n);
+                    const equipped = modMap.get(n);
                     return equipped && (
                       String(equipped.dbId) === String(reqId) ||
                       (reqId && equipped.interchangeableIds && equipped.interchangeableIds.includes(String(reqId))) ||
@@ -361,7 +363,7 @@ export function usePlaySetLogic() {
                   if (!alreadySatisfied) {
                     let provider = null;
                     if (reqId) {
-                        provider = byDbId.get(String(reqId)) || byHash.get(reqId);
+                        provider = byDbId.get(String(reqId)) || hashToMod.get(reqId);
                         if (!provider) provider = modList.find((m: any) => m.interchangeableIds?.includes(String(reqId)));
                     }
                     if (!provider && !isReqNumeric && reqBaseName) {
@@ -408,7 +410,7 @@ export function usePlaySetLogic() {
       
       const nextModHashes: Record<string, string> = {};
       Array.from(newMods as Set<string>).forEach((mName: string) => {
-         const mData = byName.get(mName);
+         const mData = modMap.get(mName);
          if (mData && mData.hash) {
              nextModHashes[mName] = mData.hash;
          } else if (currentSet.modHashes && currentSet.modHashes[mName]) {

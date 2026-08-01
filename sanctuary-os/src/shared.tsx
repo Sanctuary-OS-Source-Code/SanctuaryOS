@@ -41,28 +41,28 @@ export function LoadingScreen({ title, subtitle, icon = "sync" }: { title: strin
   return (
     <div className="w-full h-full flex items-center justify-center min-h-[400px]">
       <div className="relative p-12 rounded-[var(--radius)] overflow-hidden max-w-lg w-full mx-auto backdrop-blur-3xl"
-           style={{ 
-             backgroundColor: `color-mix(in srgb, var(--bg) 60%, transparent)`,
-             border: `1px solid color-mix(in srgb, var(--accent) 15%, transparent)`,
-             boxShadow: `0 40px 100px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 1px 1px color-mix(in srgb, var(--text) 5%, transparent)` 
-           }}>
+        style={{
+          backgroundColor: `color-mix(in srgb, var(--bg) 60%, transparent)`,
+          border: `1px solid color-mix(in srgb, var(--accent) 15%, transparent)`,
+          boxShadow: `0 40px 100px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 1px 1px color-mix(in srgb, var(--text) 5%, transparent)`
+        }}>
         <div className="absolute inset-0 animate-pulse pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)` }} />
         <div className="absolute top-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 50%, transparent), transparent)` }} />
         <div className="absolute bottom-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 20%, transparent), transparent)` }} />
-        
+
         <div className="flex flex-col items-center gap-6 relative z-10 text-center">
           <div className="relative w-24 h-24 rounded-full flex items-center justify-center shrink-0"
-               style={{ 
-                 backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)`,
-                 borderColor: `color-mix(in srgb, var(--accent) 30%, transparent)`,
-                 borderWidth: '1px',
-                 boxShadow: `0 0 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 5%, transparent)`
-               }}>
+            style={{
+              backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)`,
+              borderColor: `color-mix(in srgb, var(--accent) 30%, transparent)`,
+              borderWidth: '1px',
+              boxShadow: `0 0 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 5%, transparent)`
+            }}>
             <div className="absolute inset-0 rounded-full border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)` }} />
             <span className={`material-symbols-outlined !text-4xl ${icon === 'sync' ? 'animate-spin' : ''}`}
-                  style={{ color: 'var(--accent)', filter: `drop-shadow(0 0 15px var(--accent))` }}>{icon}</span>
+              style={{ color: 'var(--accent)', filter: `drop-shadow(0 0 15px var(--accent))` }}>{icon}</span>
           </div>
-          
+
           <div>
             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-2">
               {title}
@@ -176,7 +176,7 @@ export const cleanSearchName = (raw: string, schema?: any) => {
   if (!raw) return "";
   const parts = raw.split(/[/\\]/);
   let name = parts[parts.length - 1];
-  
+
   if (schema) {
     name = name.replace(getExtensionRegex(schema), "");
   } else if (name.includes('.')) {
@@ -213,14 +213,14 @@ export const DLC_MAP: Record<string, string> = {};
 
 export const loadDLCMap = async () => {
   try {
-    if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
+    if (!navigator.onLine) return;
     const { data } = await supabase.from('dlc_registry').select('id, name');
     if (data && data.length > 0) {
       for (const key of Object.keys(DLC_MAP)) {
         delete DLC_MAP[key];
       }
       data.forEach((d: any) => {
-        DLC_MAP[d.id] = d.name;
+        DLC_MAP[d.id.toUpperCase()] = d.name;
       });
     }
   } catch (e) {
@@ -228,10 +228,17 @@ export const loadDLCMap = async () => {
   }
 };
 
+export const LOCAL_DLC_MAP: Record<string, string> = {
+  "EP01":"Get to Work","EP02":"Get Together","EP03":"City Living","EP04":"Cats & Dogs","EP05":"Seasons","EP06":"Get Famous","EP07":"Island Living","EP08":"Discover University","EP09":"Eco Lifestyle","EP10":"Snowy Escape","EP11":"Cottage Living","EP12":"High School Years","EP13":"Growing Together","EP14":"Horse Ranch","EP15":"For Rent","EP16":"Lovestruck","EP17":"Life & Death",
+  "GP01":"Outdoor Retreat","GP02":"Spa Day","GP03":"Dine Out","GP04":"Vampires","GP05":"Parenthood","GP06":"Jungle Adventure","GP07":"StrangerVille","GP08":"Realm of Magic","GP09":"Star Wars: Journey to Batuu","GP10":"Dream Home Decorator","GP11":"My Wedding Stories","GP12":"Werewolves",
+  "SP01":"Luxury Party","SP02":"Perfect Patio","SP03":"Cool Kitchen","SP04":"Spooky Stuff","SP05":"Movie Hangout","SP06":"Romantic Garden","SP07":"Kids Room","SP08":"Backyard Stuff","SP09":"Vintage Glamour","SP10":"Bowling Night","SP11":"Fitness Stuff","SP12":"Toddler Stuff","SP13":"Laundry Day","SP14":"First Pet","SP15":"Moschino","SP16":"Tiny Living","SP17":"Nifty Knitting","SP18":"Paranormal","SP46":"Home Chef Hustle","SP47":"Crystal Creations",
+  "SP22":"Throwback Fit Kit","SP23":"Country Kitchen Kit","SP24":"Bust the Dust Kit","SP64":"Riviera Retreat Kit","SP65":"Cozy Bistro Kit","SP68":"SpongeBob’s House Kit","SP70":"SpongeBob Kid’s Room Kit","SP75":"Wonderland Playroom Set","SP81":"Prairie Dreams Set","SP82":"Yard Charm Kit"
+};
+
 export const mapDlcCode = (code: string) => {
   let baseCode = code.split(' ')[0].toUpperCase();
   baseCode = baseCode.replace(/^([A-Z]+)(\d)$/, '$10$2');
-  return DLC_MAP[baseCode] || code;
+  return DLC_MAP[baseCode] || LOCAL_DLC_MAP[baseCode] || code;
 };
 
 export const isVersionMatch = (reqs: string[] | string, userVer: string) => {
@@ -276,10 +283,10 @@ export function ViewHeader({ title, subtitle, icon, iconColorClass = "bg-gradien
     <header className="flex flex-col xl:flex-row w-full justify-between items-start mb-10 shrink-0 gap-6">
       <div className="flex items-center gap-5 flex-1 min-w-0 w-full">
         {icon && (
-          <div className={`w-14 h-14 rounded-[var(--radius)] flex items-center justify-center shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] shrink-0 relative overflow-hidden group theme-glass-panel border border-white/10 ${iconColorClass}`}>
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-md shrink-0 relative overflow-hidden group bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${iconColorClass}`}>
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             {typeof icon === "string" ? (
-              <span className="material-symbols-outlined text-[28px] drop-shadow-lg relative z-10">{icon}</span>
+              <span className="material-symbols-outlined text-[28px] relative z-10">{icon}</span>
             ) : (
               icon
             )}
@@ -352,7 +359,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
           return (
             <>
               <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-              <div className="fixed theme-glass-panel border-white/10 rounded-[var(--radius)] shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-[200001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+              <div className="fixed theme-glass-panel border-white/10 rounded-[var(--radius)] shadow-2xl overflow-hidden z-[200001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
                 top: shouldDropUp ? undefined : rect.bottom + 8,
                 bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
                 left: rect.left,
@@ -435,11 +442,10 @@ export function HubActionButton({ icon, label, onClick, className = "", isDanger
   return (
     <button
       onClick={onClick}
-      className={`h-10 px-5 rounded-full backdrop-blur-md transition-all flex items-center justify-center gap-2 shrink-0 font-black uppercase tracking-widest border ${
-        isDanger ? 'border-red-500/30 text-red-400 hover:text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] bg-red-500/10 hover:bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.3)]'
+      className={`h-10 px-5 rounded-full backdrop-blur-md transition-all flex items-center justify-center gap-2 shrink-0 font-black uppercase tracking-widest border ${isDanger ? 'border-red-500/30 text-red-400 hover:text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] bg-red-500/10 hover:bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.3)]'
         : isWarning ? 'border-amber-500/30 text-amber-400 hover:text-amber-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.5)] bg-amber-500/10 hover:bg-amber-500/20 shadow-[0_0_30px_rgba(251,191,36,0.3)]'
-        : 'border-white/10 bg-white/5 text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/15 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:border-[var(--accent)]/50'
-      } group ${className}`}
+          : 'border-white/10 bg-white/5 text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/15 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:border-[var(--accent)]/50'
+        } group ${className}`}
     >
       <span className={`material-symbols-outlined !text-[18px] transition-transform ${isDanger ? 'animate-bounce' : 'opacity-70 group-hover:opacity-100 group-hover:scale-110'}`}>
         {icon}
@@ -539,7 +545,7 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
       {isOpen && createPortal(
         <div
           ref={menuRef}
-          className="fixed mt-2 min-w-[200px] theme-glass-panel border border-[var(--accent)]/20 rounded-[calc(var(--radius)-4px)] shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-[200001] overflow-hidden flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
+          className="fixed mt-2 min-w-[200px] theme-glass-panel border border-[var(--accent)]/20 rounded-[calc(var(--radius)-4px)] shadow-xl z-[200001] overflow-hidden flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
           style={{
             top: btnRef.current?.getBoundingClientRect().bottom,
             left: btnRef.current?.getBoundingClientRect().left,
@@ -606,7 +612,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
       {isOpen && createPortal(
         <>
           <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-          <div className="fixed theme-glass-panel border border-white/10 rounded-[calc(var(--radius)-4px)] shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden z-[200001] animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col backdrop-blur-[3px]" style={{
+          <div className="fixed theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl overflow-hidden z-[200001] animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col backdrop-blur-[3px]" style={{
             top: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 ? undefined : (btnRef.current?.getBoundingClientRect().bottom || 0) + 8,
             bottom: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 ? window.innerHeight - (btnRef.current?.getBoundingClientRect().top || 0) + 8 : undefined,
             left: btnRef.current?.getBoundingClientRect().left,
@@ -707,7 +713,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
         className="w-full theme-glass-inner rounded-[calc(var(--radius)-4px)] px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all placeholder:opacity-30"
       />
       {isOpen && createPortal(
-        <div className="fixed mt-2 theme-glass-panel border-white/10 rounded-[calc(var(--radius)-4px)] shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto custom-scrollbar" style={{
+        <div className="fixed mt-2 theme-glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto custom-scrollbar" style={{
           top: containerRef.current?.getBoundingClientRect().bottom,
           left: containerRef.current?.getBoundingClientRect().left,
           width: containerRef.current?.getBoundingClientRect().width,
@@ -1026,7 +1032,7 @@ export function SidePanel({
       <div className={`fixed top-[50px] bottom-[40px] right-0 ${backdropZ} ${noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[2px]'} animate-in fade-in duration-500 transition-all`} style={position === "left" ? { right: 0, left: 0 } : { left: "var(--sidebar-width, 288px)" }} onClick={onClose} />
       <div
         ref={panelRef}
-        className={`fixed top-[50px] bottom-[40px] ${position === 'left' ? 'left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} ${position === 'left' ? '!rounded-r-[var(--radius)] !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[20px_0_50px_rgba(0,0,0,0.5)]] animate-in slide-in-from-left' : '!rounded-l-[var(--radius)] !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] animate-in slide-in-from-right'} duration-500 flex flex-col ${panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''}`}
+        className={`fixed top-[50px] bottom-[40px] ${position === 'left' ? 'left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} ${position === 'left' ? '!rounded-r-[var(--radius)] !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl animate-in slide-in-from-left' : '!rounded-l-[var(--radius)] !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]] animate-in slide-in-from-right'} duration-500 flex flex-col ${panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''}`}
         style={isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined, ...panelStyle } : panelStyle}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1200,7 +1206,7 @@ export function CustomTierDropdown({ value, onChange }: { value: number, onChang
 
 export function DashboardStatTile({ icon, number, label, colorClass, onClick, setStatus, disabled }: any) {
   return (
-    <div onClick={disabled ? undefined : onClick} className={`flex-1 flex flex-col justify-center items-start gap-1 p-6 rounded-[var(--radius)] border border-white/10 backdrop-blur-[40px] shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_8px_32px_rgba(0,0,0,0.3)] ${colorClass} transition-all relative overflow-hidden group ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1 hover:shadow-xl'}`}>
+    <div onClick={disabled ? undefined : onClick} className={`flex-1 flex flex-col justify-center items-start gap-1 p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-[40px] shadow-lg ${colorClass} transition-all relative overflow-hidden group ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1 hover:shadow-xl'}`}>
       <div className="absolute inset-0 bg-current opacity-[0.05] group-hover:opacity-[0.15] transition-opacity duration-300" />
       <div className="flex items-center gap-3 w-full relative z-10">
         <span className="text-3xl opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-110 transition-all drop-shadow-md">{icon}</span>
@@ -1211,42 +1217,136 @@ export function DashboardStatTile({ icon, number, label, colorClass, onClick, se
   );
 }
 
-export function HoverTooltip({ title, subtitle, variant = 'danger', className = '' }: any) {
-  const isDanger = variant === 'danger';
-  const isInfo = variant === 'info';
+import { useTooltipStore } from './store/tooltipStore';
 
-  let borderColorClass = 'border-orange-500/40';
-  let textColorClass = 'text-orange-500';
-  let iconName = 'warning';
+export function HoverTooltip({ title, subtitle, variant = 'default', className = '', noIcon = false, icon, normalFont = false, align: explicitAlign, vAlign: explicitVAlign, content, delay = 300 }: any) {
+  const { setTooltip, clearTooltip } = useTooltipStore();
+  const ref = React.useRef<HTMLDivElement>(null);
+  const propsRef = React.useRef({ title, subtitle, variant, className, noIcon, icon, normalFont, explicitAlign, explicitVAlign, content });
+  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+  
+  // Keep ref in sync and update store if currently hovered and already shown
+  React.useEffect(() => {
+    propsRef.current = { title, subtitle, variant, className, noIcon, icon, normalFont, explicitAlign, explicitVAlign, content };
+    const parent = ref.current?.parentElement;
+    if (parent && parent.matches(':hover') && !timerRef.current) {
+      const p = propsRef.current;
+      const rect = parent.getBoundingClientRect();
+      let x = rect.left + rect.width / 2;
+      let y = rect.top - 8;
+      let align: 'center' | 'left' | 'right' = p.explicitAlign || 'center';
+      let vAlign: 'top' | 'bottom' = p.explicitVAlign || 'top';
 
-  if (isDanger) {
-    borderColorClass = 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]';
-    textColorClass = 'text-[var(--danger)]';
-    iconName = 'error';
-  } else if (isInfo) {
-    borderColorClass = 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]';
-    textColorClass = 'text-[var(--text)]';
-    iconName = 'info';
-  }
+      if (!p.explicitAlign) {
+        if (p.className.includes('!right-0') || p.className.includes('right-0')) {
+          align = 'right';
+        } else if (p.className.includes('!left-0') || p.className.includes('left-0')) {
+          align = 'left';
+        }
+      }
 
-  const hasCustomHover = className?.includes('group-hover');
-  const baseHoverClass = hasCustomHover ? '' : 'group-hover:flex';
+      if (!p.explicitVAlign) {
+        if (p.className.includes('bottom-[calc(100%')) {
+          vAlign = 'top';
+        } else if (p.className.includes('top-[calc(100%')) {
+          vAlign = 'bottom';
+        }
+      }
 
-  return (
-    <div className={`absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-[70] hidden ${baseHoverClass} flex-col items-start justify-center theme-glass-panel !bg-black/50 px-5 py-3 max-w-[320px] w-max pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-2 shadow-[0_20px_50px_rgba(0,0,0,0.6)] ${borderColorClass} ${className}`}>
-      <div className="relative z-10 flex flex-col items-start gap-1 w-full">
-        <div className={`text-[10px] font-black uppercase tracking-[0.2em] flex items-start text-left gap-2 whitespace-pre-line ${textColorClass}`}>
-          <span className="material-symbols-outlined !text-[14px] shrink-0 mt-[1px]">{iconName}</span>
-          <span>{title}</span>
-        </div>
-        {subtitle && (
-          <div className="text-[10px] font-bold text-[var(--text)] opacity-60 text-left whitespace-normal leading-tight ml-[22px]">
-            {subtitle}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+      // Calculate base x and y based on final align/vAlign
+      if (align === 'left') {
+        x = rect.left;
+      } else if (align === 'right') {
+        x = rect.right;
+      }
+
+      if (vAlign === 'bottom') {
+        y = rect.bottom + 8;
+      } else {
+        y = rect.top - 8;
+      }
+
+      setTooltip({ ...p, x, y, align, vAlign });
+    }
+  }, [title, subtitle, variant, className, noIcon, icon, normalFont, explicitAlign, explicitVAlign, content, setTooltip]);
+
+  // Bind DOM events exactly once
+  React.useEffect(() => {
+    const parent = ref.current?.parentElement;
+    if (!parent) return;
+
+    const showTooltip = () => {
+      const p = propsRef.current;
+      const rect = parent.getBoundingClientRect();
+      let x = rect.left + rect.width / 2;
+      let y = rect.top - 8;
+      let align: 'center' | 'left' | 'right' = p.explicitAlign || 'center';
+      let vAlign: 'top' | 'bottom' = p.explicitVAlign || 'top';
+
+      if (!p.explicitAlign) {
+        if (p.className.includes('!right-0') || p.className.includes('right-0')) {
+          align = 'right';
+        } else if (p.className.includes('!left-0') || p.className.includes('left-0')) {
+          align = 'left';
+        }
+      }
+
+      if (!p.explicitVAlign) {
+        if (p.className.includes('bottom-[calc(100%')) {
+          vAlign = 'top';
+        } else if (p.className.includes('top-[calc(100%')) {
+          vAlign = 'bottom';
+        }
+      }
+
+      // Calculate base x and y based on final align/vAlign
+      if (align === 'left') {
+        x = rect.left;
+      } else if (align === 'right') {
+        x = rect.right;
+      }
+
+      if (vAlign === 'bottom') {
+        y = rect.bottom + 8;
+      } else {
+        y = rect.top - 8;
+      }
+
+      setTooltip({ ...p, x, y, align, vAlign });
+      timerRef.current = null;
+    };
+
+    const handleMouseEnter = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(showTooltip, delay);
+    };
+
+    const handleMouseLeave = () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      clearTooltip();
+    };
+
+    parent.addEventListener('mouseenter', handleMouseEnter);
+    parent.addEventListener('mouseleave', handleMouseLeave);
+
+    if (parent.matches(':hover')) {
+      handleMouseEnter();
+    }
+    
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      parent.removeEventListener('mouseenter', handleMouseEnter);
+      parent.removeEventListener('mouseleave', handleMouseLeave);
+      clearTooltip();
+    };
+  }, [setTooltip, clearTooltip, delay]);
+
+  return <div ref={ref} className="hidden" />;
 }
 
 export const isValidVersion = (version: string) => {
@@ -1460,96 +1560,96 @@ export const enrichBlueprintsWithPremiumStatus = async (supabase: any, blueprint
   let premiumMap: Record<string, any> = {};
   const allHashes = new Set<string>();
   blueprintsData.forEach((b: any) => {
-     const artifacts = b.json_data?.artifacts || b.artifacts || [];
-     artifacts.forEach((a: any) => { if (a.hash) allHashes.add(a.hash); });
+    const artifacts = b.json_data?.artifacts || b.artifacts || [];
+    artifacts.forEach((a: any) => { if (a.hash) allHashes.add(a.hash); });
   });
-  
+
   if (allHashes.size > 0) {
-     const hashes = Array.from(allHashes);
-     const chunkSize = 100;
-     const promises = [];
-     for (let i = 0; i < hashes.length; i += chunkSize) {
-       promises.push(
-         supabase.from('mod_versions').select('dna_hash, mods(id, is_paid, is_early_access)').in('dna_hash', hashes.slice(i, i + chunkSize))
-       );
-     }
-     const results = await Promise.all(promises);
-     const hashToPremium: Record<string, any> = {};
-     results.forEach(({ data }) => {
-       if (data) {
-          data.forEach((d: any) => {
-            const modRef = Array.isArray(d.mods) ? d.mods[0] : d.mods;
-            if (modRef && (modRef.is_paid || modRef.is_early_access)) {
-              hashToPremium[d.dna_hash] = { is_paid: modRef.is_paid, is_early_access: modRef.is_early_access };
+    const hashes = Array.from(allHashes);
+    const chunkSize = 100;
+    const promises = [];
+    for (let i = 0; i < hashes.length; i += chunkSize) {
+      promises.push(
+        supabase.from('mod_versions').select('dna_hash, mods(id, is_paid, is_early_access)').in('dna_hash', hashes.slice(i, i + chunkSize))
+      );
+    }
+    const results = await Promise.all(promises);
+    const hashToPremium: Record<string, any> = {};
+    results.forEach(({ data }) => {
+      if (data) {
+        data.forEach((d: any) => {
+          const modRef = Array.isArray(d.mods) ? d.mods[0] : d.mods;
+          if (modRef && (modRef.is_paid || modRef.is_early_access)) {
+            hashToPremium[d.dna_hash] = { is_paid: modRef.is_paid, is_early_access: modRef.is_early_access };
+          }
+        });
+      }
+    });
+
+    // Fetch all premium mods for a quick fuzzy search fallback
+    const { data: premiumMods } = await supabase.from('mods').select('id, name, is_paid, is_early_access').or('is_paid.eq.true,is_early_access.eq.true');
+    const premiumNameMap = new Map();
+    if (premiumMods) {
+      premiumMods.forEach((m: any) => {
+        if (m.name) premiumNameMap.set(cleanSearchName(m.name), m);
+      });
+    }
+
+    blueprintsData.forEach((b: any) => {
+      const artifacts = b.json_data?.artifacts || b.artifacts || [];
+      let is_paid = false;
+      let is_early_access = false;
+      artifacts.forEach((a: any, index: number) => {
+        const isStr = typeof a === 'string';
+        const aName = isStr ? a : a.name;
+        const aHash = isStr ? undefined : a.hash;
+
+        if (aHash && hashToPremium[aHash]) {
+          if (hashToPremium[aHash].is_paid) {
+            is_paid = true;
+            if (isStr) { artifacts[index] = { name: a, is_paid: true }; }
+            else { a.is_paid = true; }
+          }
+          if (hashToPremium[aHash].is_early_access) {
+            is_early_access = true;
+            if (isStr) {
+              if (typeof artifacts[index] === 'string') artifacts[index] = { name: a, is_early_access: true };
+              else artifacts[index].is_early_access = true;
+            } else { a.is_early_access = true; }
+          }
+        } else if (aName) {
+          const clean = cleanSearchName(aName);
+          let pMod = premiumNameMap.get(clean);
+          if (!pMod) {
+            const superCleanTarget = clean.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            for (const [pName, pObj] of premiumNameMap.entries()) {
+              const superCleanP = pName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+              if (superCleanP.length > 10 && (superCleanTarget.includes(superCleanP) || superCleanP.includes(superCleanTarget))) {
+                pMod = pObj;
+                break;
+              }
             }
-          });
-       }
-     });
-     
-     // Fetch all premium mods for a quick fuzzy search fallback
-     const { data: premiumMods } = await supabase.from('mods').select('id, name, is_paid, is_early_access').or('is_paid.eq.true,is_early_access.eq.true');
-     const premiumNameMap = new Map();
-     if (premiumMods) {
-        premiumMods.forEach((m: any) => {
-           if (m.name) premiumNameMap.set(cleanSearchName(m.name), m);
-        });
-     }
-
-     blueprintsData.forEach((b: any) => {
-        const artifacts = b.json_data?.artifacts || b.artifacts || [];
-        let is_paid = false;
-        let is_early_access = false;
-        artifacts.forEach((a: any, index: number) => {
-            const isStr = typeof a === 'string';
-            const aName = isStr ? a : a.name;
-            const aHash = isStr ? undefined : a.hash;
-
-            if (aHash && hashToPremium[aHash]) {
-              if (hashToPremium[aHash].is_paid) {
-                is_paid = true;
-                if (isStr) { artifacts[index] = { name: a, is_paid: true }; }
-                else { a.is_paid = true; }
-              }
-              if (hashToPremium[aHash].is_early_access) {
-                is_early_access = true;
-                if (isStr) { 
-                    if (typeof artifacts[index] === 'string') artifacts[index] = { name: a, is_early_access: true }; 
-                    else artifacts[index].is_early_access = true; 
-                } else { a.is_early_access = true; }
-              }
-            } else if (aName) {
-              const clean = cleanSearchName(aName);
-              let pMod = premiumNameMap.get(clean);
-              if (!pMod) {
-                 const superCleanTarget = clean.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-                 for (const [pName, pObj] of premiumNameMap.entries()) {
-                    const superCleanP = pName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-                    if (superCleanP.length > 10 && (superCleanTarget.includes(superCleanP) || superCleanP.includes(superCleanTarget))) {
-                       pMod = pObj;
-                       break;
-                    }
-                 }
-              }
-              if (pMod) {
-                 if (pMod.is_paid) {
-                    is_paid = true;
-                    if (isStr) { artifacts[index] = { name: a, is_paid: true }; }
-                    else { a.is_paid = true; }
-                 }
-                 if (pMod.is_early_access) {
-                    is_early_access = true;
-                    if (isStr) { 
-                        if (typeof artifacts[index] === 'string') artifacts[index] = { name: a, is_early_access: true }; 
-                        else artifacts[index].is_early_access = true; 
-                    } else { a.is_early_access = true; }
-                 }
-              }
-           }
-        });
-        if (is_paid || is_early_access) {
-           premiumMap[b.id] = { is_paid, is_early_access };
+          }
+          if (pMod) {
+            if (pMod.is_paid) {
+              is_paid = true;
+              if (isStr) { artifacts[index] = { name: a, is_paid: true }; }
+              else { a.is_paid = true; }
+            }
+            if (pMod.is_early_access) {
+              is_early_access = true;
+              if (isStr) {
+                if (typeof artifacts[index] === 'string') artifacts[index] = { name: a, is_early_access: true };
+                else artifacts[index].is_early_access = true;
+              } else { a.is_early_access = true; }
+            }
+          }
         }
-     });
+      });
+      if (is_paid || is_early_access) {
+        premiumMap[b.id] = { is_paid, is_early_access };
+      }
+    });
   }
   return premiumMap;
 };

@@ -395,33 +395,38 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
            }
         }
 
-        if (bId || cm) {
-            const dir = m.name.substring(0, Math.max(m.name.lastIndexOf("\\"), m.name.lastIndexOf("/")));
-            if (dir && dir.length > 0) {
-                const existing = dirMap.get(dir);
-                const isTwinGroup = myParentRels.some((r: any) => r.relationship_type === "twin") || myChildRels.some((r: any) => r.relationship_type === "twin");
-                
-                if (!existing || bId === dbId) {
-                    let shouldSet = true;
-                    let nextBossId: string | null = bId;
-                    if (existing && existing.bossId === bId) {
-                        if (!existing.isTwinGroup && isTwinGroup) {
-                            existing.isTwinGroup = true; 
-                        }
-                        if (existing.cloudMatch?.version_label && !cm?.version_label) {
-                            shouldSet = false;
-                        } 
-                        else if (existing.cloudMatch?.version_label && cm?.version_label && cm.version_label.localeCompare(existing.cloudMatch.version_label, undefined, { numeric: true, sensitivity: 'base' }) >= 0) {
-                            shouldSet = false; 
-                        }
-                    } else if (existing && existing.bossId !== bId) {
-                        nextBossId = null;
-                    } else if (existing && existing.isTwinGroup && !isTwinGroup) {
+        const dir = m.name.substring(0, Math.max(m.name.lastIndexOf("\\"), m.name.lastIndexOf("/")));
+        if (dir && dir.length > 0) {
+            const existing = dirMap.get(dir);
+            const isTwinGroup = myParentRels.some((r: any) => r.relationship_type === "twin") || myChildRels.some((r: any) => r.relationship_type === "twin");
+            
+            const effectiveBossId = bId || `local_dir_${dir}`;
+            
+            if (!existing || effectiveBossId === dbId || bId === dbId) {
+                let shouldSet = true;
+                let nextBossId: string | null = effectiveBossId;
+                if (existing && existing.bossId === effectiveBossId) {
+                    if (!existing.isTwinGroup && isTwinGroup) {
+                        existing.isTwinGroup = true; 
+                    }
+                    if (existing.cloudMatch?.version_label && !cm?.version_label) {
+                        shouldSet = false;
+                    } 
+                    else if (existing.cloudMatch?.version_label && cm?.version_label && cm.version_label.localeCompare(existing.cloudMatch.version_label, undefined, { numeric: true, sensitivity: 'base' }) >= 0) {
                         shouldSet = false; 
                     }
-                    if (shouldSet) {
-                        dirMap.set(dir, { bossId: nextBossId, cloudMatch: cm, dbMod: dbM, isTwinGroup: existing?.isTwinGroup || isTwinGroup });
+                } else if (existing && existing.bossId !== effectiveBossId) {
+                    // Only override if the existing bossId was a generic local_dir one, and we now have a real one
+                    if (existing.bossId?.startsWith('local_dir_') && !effectiveBossId.startsWith('local_dir_')) {
+                        nextBossId = effectiveBossId;
+                    } else if (!existing.bossId?.startsWith('local_dir_')) {
+                        nextBossId = existing.bossId;
                     }
+                } else if (existing && existing.isTwinGroup && !isTwinGroup) {
+                    shouldSet = false; 
+                }
+                if (shouldSet) {
+                    dirMap.set(dir, { bossId: nextBossId, cloudMatch: cm || existing?.cloudMatch, dbMod: dbM || existing?.dbMod, isTwinGroup: existing?.isTwinGroup || isTwinGroup });
                 }
             }
         }

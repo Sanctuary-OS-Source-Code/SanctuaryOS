@@ -467,7 +467,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
               <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[120px] gap-4 relative z-20">
 
                 <div className={`col-span-2 flex flex-col p-6 theme-glass-panel backdrop-blur-3xl rounded-[var(--radius)] border transition-all hover:scale-[1.01] shadow-2xl relative overflow-hidden group ${(() => {
-                  const s = (mod.status || "").toLowerCase();
+                  const s = (!mod.dbId || mod.version?.toLowerCase() === 'v.local') ? 'local' : (mod.status || "").toLowerCase();
                   if (s === 'verified') return "border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--success-rgb),0.1)]";
                   if (s === 'unverified') return "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--danger-rgb),0.1)]";
                   if (s === 'broken') return "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--warning-rgb),0.1)]";
@@ -490,7 +490,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
                       {/* Inner Glowing Orb */}
                       <div className={`absolute w-16 h-16 rounded-full blur-xl opacity-30 animate-pulse ${(() => {
-                        const s = (mod.status || "").toLowerCase();
+                        const s = (!mod.dbId || mod.version?.toLowerCase() === 'v.local') ? 'local' : (mod.status || "").toLowerCase();
                         if (s === 'verified') return "bg-[var(--success)]";
                         if (s === 'unverified') return "bg-[var(--danger)]";
                         if (s === 'broken') return "bg-[var(--warning)]";
@@ -500,7 +500,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
                       {/* Core Icon */}
                       <div className={`relative z-10 w-16 h-16 rounded-full border border-white/10 flex items-center justify-center backdrop-blur-md shadow-inner ${(() => {
-                        const s = (mod.status || "").toLowerCase();
+                        const s = (!mod.dbId || mod.version?.toLowerCase() === 'v.local') ? 'local' : (mod.status || "").toLowerCase();
                         if (s === 'verified') return "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)]";
                         if (s === 'unverified') return "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]";
                         if (s === 'broken') return "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]";
@@ -509,7 +509,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         }`}>
                         <span className="material-symbols-outlined !text-3xl drop-shadow-md">
                           {(() => {
-                            const s = (mod.status || "").toLowerCase();
+                            const s = (!mod.dbId || mod.version?.toLowerCase() === 'v.local') ? 'local' : (mod.status || "").toLowerCase();
                             if (s === 'verified') return "verified_user";
                             if (s === 'unverified') return "gpp_bad";
                             if (s === 'broken') return "pest_control";
@@ -527,7 +527,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       </p>
 
                       <h3 className={`text-2xl lg:text-3xl font-black uppercase tracking-widest drop-shadow-md mb-1 ${(() => {
-                        const s = (mod.status || "").toLowerCase();
+                        const s = (!mod.dbId || mod.version?.toLowerCase() === 'v.local') ? 'local' : (mod.status || "").toLowerCase();
                         if (s === 'verified') return "text-[var(--success)]";
                         if (s === 'unverified') return "text-[var(--danger)]";
                         if (s === 'broken') return "text-[var(--warning)]";
@@ -535,6 +535,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       })()
                         }`}>
                         {(() => {
+                          if (!mod.dbId || mod.version?.toLowerCase() === 'v.local') return t("unlinked_badge") || "LOCAL";
                           const raw = (mod.status || "");
                           const cleaned = raw.replace(/[\[\]]/g, "").toLowerCase();
                           if (cleaned === 'broken') return t("status_broken");
@@ -573,7 +574,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     <span className={`text-xs font-black uppercase tracking-widest truncate ${mod.compliance_tier === 1 ? 'theme-text-warning' : 'text-[var(--text)] opacity-90'}`}>
                       {mod.compliance_tier === 1 ? t("tier_nsfw") : (mod.compliance_tier === 2 ? t("tier_adult") : t("tier_clean"))}
                     </span>
-                    {mod.compliance_tier === 1 && (
+                    {editMode && mod.compliance_tier === 1 && (
                       <button onClick={async () => {
                         if (!mod.dbId) return;
                         const { error } = await supabase.from('mods').update({ compliance_tier: 0 }).eq('id', mod.dbId);

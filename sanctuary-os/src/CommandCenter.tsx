@@ -247,7 +247,7 @@ export default function CommandCenter({
 
           if (modAMatch && modBMatch) {
             total++;
-            if (lc.severity_rank === 4) tier4Count++;
+            if (lc.severity_rank == 4) tier4Count++;
             else tier3Count++;
           }
         });

@@ -205,9 +205,9 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
               const nameB = c.mod_b?.name || c.mod_b || "UNKNOWN";
               const isPending = c.status === 'pending';
 
-              const tierColor = c.severity_rank === 4 ? 'text-[var(--danger)]' : c.severity_rank === 3 ? 'text-[var(--warning)]' : c.severity_rank === 2 ? 'text-[var(--accent)]' : 'text-white/50';
-              const glowC = c.severity_rank === 4 ? 'bg-[var(--danger)]/10 group-hover:bg-[var(--danger)]/20' : c.severity_rank === 3 ? 'bg-[var(--warning)]/10 group-hover:bg-[var(--warning)]/20' : c.severity_rank === 2 ? 'bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20' : 'bg-white/5 group-hover:bg-white/10';
-              const borderHover = c.severity_rank === 4 ? 'hover:border-[var(--danger)]/30' : c.severity_rank === 3 ? 'hover:border-[var(--warning)]/30' : c.severity_rank === 2 ? 'hover:border-[var(--accent)]/30' : 'hover:border-white/10';
+              const tierColor = c.severity_rank == 4 ? 'text-[var(--danger)]' : c.severity_rank == 3 ? 'text-[var(--warning)]' : c.severity_rank == 2 ? 'text-[var(--accent)]' : 'text-white/50';
+              const glowC = c.severity_rank == 4 ? 'bg-[var(--danger)]/10 group-hover:bg-[var(--danger)]/20' : c.severity_rank == 3 ? 'bg-[var(--warning)]/10 group-hover:bg-[var(--warning)]/20' : c.severity_rank == 2 ? 'bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20' : 'bg-white/5 group-hover:bg-white/10';
+              const borderHover = c.severity_rank == 4 ? 'hover:border-[var(--danger)]/30' : c.severity_rank == 3 ? 'hover:border-[var(--warning)]/30' : c.severity_rank == 2 ? 'hover:border-[var(--accent)]/30' : 'hover:border-white/10';
 
               return (
                 <div key={c.id} onClick={() => handleEditConflict(c)} className={`theme-glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border hover:-translate-y-1 transition-all duration-500 overflow-hidden relative ${isPending ? 'border-orange-500/20 hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(249,115,22,0.15)]' : `border-white/5 hover:shadow-2xl ${borderHover}`}`}>
@@ -231,7 +231,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                          </>
                        )}
                      </div>
-                     <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${c.severity_rank === 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>{t("ui_icon_logo")}{c.severity_rank}</span>
+                     <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${c.severity_rank == 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>{t("ui_icon_logo")}{c.severity_rank}</span>
                   </div>
                 
                   <div className="flex flex-col gap-3 relative z-10">

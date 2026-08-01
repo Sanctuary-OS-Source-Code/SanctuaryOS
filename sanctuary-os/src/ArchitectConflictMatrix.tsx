@@ -268,9 +268,9 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
               {filteredPendingGhosts.length === 0 ? (
                 <EmptyState icon={searchTerm ? "search_off" : t("icon_verified_user") || "verified"} title={searchTerm ? t("no_matches") : t("no_pending_conflicts") || "No pending conflicts"} className="col-span-full py-16" />
               ) : filteredPendingGhosts.slice(0, visibleCount).map((g) => {
-                const tierColor = g.severity_rank === 4 ? 'text-[var(--danger)]' : g.severity_rank === 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]';
-                const glowC = g.severity_rank === 4 ? 'bg-[var(--danger)]/10 group-hover:bg-[var(--danger)]/20' : g.severity_rank === 3 ? 'bg-[var(--warning)]/10 group-hover:bg-[var(--warning)]/20' : 'bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20';
-                const borderHover = g.severity_rank === 4 ? 'hover:border-[var(--danger)]/30' : g.severity_rank === 3 ? 'hover:border-[var(--warning)]/30' : 'hover:border-[var(--accent)]/30';
+                const tierColor = g.severity_rank == 4 ? 'text-[var(--danger)]' : g.severity_rank == 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]';
+                const glowC = g.severity_rank == 4 ? 'bg-[var(--danger)]/10 group-hover:bg-[var(--danger)]/20' : g.severity_rank == 3 ? 'bg-[var(--warning)]/10 group-hover:bg-[var(--warning)]/20' : 'bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20';
+                const borderHover = g.severity_rank == 4 ? 'hover:border-[var(--danger)]/30' : g.severity_rank == 3 ? 'hover:border-[var(--warning)]/30' : 'hover:border-[var(--accent)]/30';
                 return (
                   <div key={g.id} onClick={() => handleEditConflict(g)} className={`theme-glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-1 ${borderHover} transition-all duration-500 overflow-hidden relative`}>
 
@@ -284,7 +284,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                         </div>
                         <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 opacity-90">{t("matrix_pending_queue")}</span>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank === 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>{t("ui_icon_logo")}{g.severity_rank}</span>
+                      <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank == 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>{t("ui_icon_logo")}{g.severity_rank}</span>
                     </div>
 
                     <div className="flex flex-col gap-3 relative z-10">
@@ -336,9 +336,9 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                   {filteredActiveGhosts.length === 0 ? (
                     <EmptyState icon={searchTerm ? "search_off" : t("icon_check_circle") || "check_circle"} title={searchTerm ? t("no_matches") : t("no_active_conflicts") || "No active directives"} className="col-span-full py-16" />
                   ) : filteredActiveGhosts.slice(0, visibleCount).map((g) => {
-                    const tierColor = g.severity_rank === 4 ? 'text-[var(--danger)]' : g.severity_rank === 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]';
-                    const glowC = g.severity_rank === 4 ? 'bg-[var(--danger)]/10 group-hover:bg-[var(--danger)]/20' : g.severity_rank === 3 ? 'bg-[var(--warning)]/10 group-hover:bg-[var(--warning)]/20' : 'bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20';
-                    const borderHover = g.severity_rank === 4 ? 'hover:border-[var(--danger)]/30' : g.severity_rank === 3 ? 'hover:border-[var(--warning)]/30' : 'hover:border-[var(--accent)]/30';
+                    const tierColor = g.severity_rank == 4 ? 'text-[var(--danger)]' : g.severity_rank == 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]';
+                    const glowC = g.severity_rank == 4 ? 'bg-[var(--danger)]/10 group-hover:bg-[var(--danger)]/20' : g.severity_rank == 3 ? 'bg-[var(--warning)]/10 group-hover:bg-[var(--warning)]/20' : 'bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20';
+                    const borderHover = g.severity_rank == 4 ? 'hover:border-[var(--danger)]/30' : g.severity_rank == 3 ? 'hover:border-[var(--warning)]/30' : 'hover:border-[var(--accent)]/30';
                     return (
                       <div key={g.id} onClick={() => handleEditConflict(g)} className={`theme-glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-1 ${borderHover} transition-all duration-500 overflow-hidden relative`}>
 
@@ -350,7 +350,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                             <span className="material-symbols-outlined !text-[12px] opacity-50">{t("icon_gavel")}</span>
                             <span className="text-[9px] font-black uppercase tracking-widest opacity-50">{t("active_network_directives")}</span>
                           </div>
-                          <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank === 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>{t("ui_icon_logo")}{g.severity_rank}</span>
+                          <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank == 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>{t("ui_icon_logo")}{g.severity_rank}</span>
                         </div>
 
                         <div className="flex flex-col gap-3 relative z-10">

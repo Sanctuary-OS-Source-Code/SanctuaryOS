@@ -186,7 +186,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
                     className="w-10 h-10 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] rounded-xl transition-all text-[var(--text)] group/btn relative"
                   >
                     <span className="material-symbols-outlined !text-[18px]">open_in_new</span>
-                    <HoverTooltip title={t("import_intel") || "Find Mod"} variant="info" className="group-hover/btn:flex z-[200]" />
+                    <HoverTooltip title={t("import_intel") || "Find Mod"} variant="default" className="group-hover/btn:flex z-[200]" />
                   </button>
                 </div>
               </div>
