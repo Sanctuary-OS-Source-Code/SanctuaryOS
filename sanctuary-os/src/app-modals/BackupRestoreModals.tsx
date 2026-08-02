@@ -1,5 +1,5 @@
-import React from 'react';
 import { useStore } from "../store";
+import { invoke } from "@tauri-apps/api/core";
 
 export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, restoreType, t }: any) {
   const backupProgress = useStore((state) => state.backupProgress);
@@ -89,7 +89,7 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
             <>
               <div className="flex justify-between items-end text-[11px] font-black uppercase tracking-[0.3em]"
                    style={{ color: `color-mix(in srgb, ${themeVar} 90%, transparent)` }}>
-                <span>{t("defcon_init_secure") || "INITIALIZING DATA STREAM..."}</span>
+                <span>{t("defcon_init_secure") || "INITIALIZING DATA STREAM..."} [DEBUG: {JSON.stringify(backupProgress)}]</span>
                 <span className="animate-pulse opacity-80">{t("defcon_stand_by") || "STAND BY"}</span>
               </div>
               <div className="w-full bg-black/80 rounded-full h-3 overflow-hidden border shadow-[inset_0_2px_5px_rgba(0,0,0,0.8)]"

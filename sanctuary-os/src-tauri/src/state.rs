@@ -140,6 +140,7 @@ pub struct QuarantineManifest {
 pub struct BackupInfo {
     pub name: String,
     pub size_mb: f64,
+    pub logical_size_mb: Option<f64>,
 }
 
 #[derive(Serialize, Clone)]

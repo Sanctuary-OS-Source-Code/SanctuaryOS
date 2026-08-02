@@ -4,7 +4,7 @@ import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { HoverTooltip } from '../shared';
 
-export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen, setIsNotificationSidebarOpen, unreadNotificationCount, isLogExpanded, setIsLogExpanded, status, isScanning, scanProgress, isErrorStatus, isSuccessStatus, statusBgClass, statusAccentClass, statusIconClass, statusTextClass, updatePayload, isSystemStatusOpen, setIsSystemStatusOpen, setIsSideBrowserOpen }: any) {
+export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen, setIsNotificationSidebarOpen, unreadNotificationCount, isLogExpanded, setIsLogExpanded, status, isScanning, isErrorStatus, isSuccessStatus, statusBgClass, statusAccentClass, statusIconClass, statusTextClass, updatePayload, isSystemStatusOpen, setIsSystemStatusOpen, setIsSideBrowserOpen }: any) {
   const { t } = useLexicon();
   const nexusUpdatesCount = useStore(state => state.nexusUpdatesCount);
   const nexusUpdateTabs = useStore(state => state.nexusUpdateTabs);
@@ -15,6 +15,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   const networkUpdates = useStore(state => state.networkUpdates) || { updated: [] };
   const activePlaySetIndex = useStore(state => state.activePlaySetIndex);
   const playSets = useStore(state => state.playSets);
+  const scanProgress = useStore((state: any) => state.scanProgress);
   const { isSideBrowserOpen, scoutQueue, setIsScoutPanelOpen, isScoutPanelOpen, dnaMatchQueue, isDnaModalOpen, setIsDnaModalOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen } = useModalStore();
 
   const updatesCount = React.useMemo(() => {

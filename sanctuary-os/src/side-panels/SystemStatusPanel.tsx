@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { SidePanel, FilterTabs, FilterTabButton } from '../shared';
 import { useModalStore } from '../store/modalStore';
+import { useStore } from '../store';
 import { useLexicon } from '../LexiconContext';
 import packageJson from '../../package.json';
 import { invoke } from '@tauri-apps/api/core';
@@ -34,6 +35,7 @@ function AnimatedNumber({ value, suffix = '' }: { value: number, suffix?: string
 
 export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { t } = useLexicon();
+  const { selectedVersion } = useStore();
   const { updatePayload, setIsUpdatePanelOpen, setUpdatePayload } = useModalStore();
   const [telemetry, setTelemetry] = useState<any>(null);
   const [vaultSize, setVaultSize] = useState<number | null>(null);
@@ -86,24 +88,24 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
       invoke('get_saved_coordinates').then(async (config: any) => {
         if (config && config.vault_path) {
           try {
-            const vSize = await invoke('get_directory_size', { path: config.vault_path });
-            setVaultSize(vSize as number);
-
             const { join } = await import('@tauri-apps/api/path');
             const modsPath = await join(config.vault_path, "Mods");
             const dataPath = await join(config.vault_path, "Data");
             const devPath = await join(config.vault_path, "Dev");
-            const backupsPath = await join(config.vault_path, "Backups");
 
             const aSize = await invoke('get_directory_size', { path: modsPath }).catch(() => 0);
             const dSize = await invoke('get_directory_size', { path: dataPath }).catch(() => 0);
             const sSize = await invoke('get_directory_size', { path: devPath }).catch(() => 0);
-            const bSize = await invoke('get_directory_size', { path: backupsPath }).catch(() => 0);
-
+            const backups = await invoke<any[]>('get_backups', { vaultPath: config.vault_path }).catch(() => []);
+            const bSize = backups.reduce((acc, b) => acc + (b.size_mb || 0) * 1048576, 0);
+            
             setArtifactsSize(aSize as number);
             setDataSize(dSize as number);
             setSandboxSize(sSize as number);
             setTimeCapsuleSize(bSize as number);
+            
+            // Total Vault Footprint is the sum of all components
+            setVaultSize((aSize as number) + (dSize as number) + (sSize as number) + bSize);
           } catch (err) {
             console.error("Failed to get vault sub-sizes", err);
           }
@@ -130,8 +132,11 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
       subtitle={t("sys_panel_desc")}
       icon="memory"
       widthClass="w-[575px]"
+      noPadding={true}
+      noScroll={true}
     >
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8">
+      <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+        <div className="p-6 flex flex-col gap-8">
 
         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10">
           <SectionHeader icon="terminal" title={t("sys_info_app")} glowColor="rgba(var(--accent-rgb),0.8)" />
@@ -175,27 +180,39 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
               label={t("sys_stat_online")}
               value={
                 <div className="flex items-center gap-2">
-                  <span className={telemetry ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]" : ""}>
+                  <span>
                     {telemetry ? t("sys_stat_connected_status") : t("sys_stat_scanning_status")}
                   </span>
                 </div>
               }
               icon="cloud"
-              glowColor="rgba(16,185,129,0.4)"
+              glowColor="rgba(255,255,255,0.2)"
             />
           </div>
         </div>
 
         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150 ease-out fill-mode-both relative z-10">
           <SectionHeader icon="public" title={t("sys_info_os")} glowColor="rgba(168,85,247,0.8)" />
-          <div className="theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-            <div className="flex flex-col relative z-10">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="material-symbols-outlined !text-[14px]" style={{ color: "rgba(168,85,247,0.8)" }}>devices</span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 group-hover:opacity-100 transition-opacity drop-shadow-sm">{t("sys_stat_os_name")}</span>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+              <div className="flex flex-col relative z-10 justify-center h-full">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="material-symbols-outlined !text-[14px]" style={{ color: "rgba(168,85,247,0.8)" }}>devices</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 group-hover:opacity-100 transition-opacity drop-shadow-sm">{t("sys_stat_os_name")}</span>
+                </div>
+                <div className="text-[14px] font-black uppercase tracking-tighter drop-shadow-md relative z-10 transition-colors text-white break-words leading-tight">{telemetry?.host_os || navigator.userAgent}</div>
               </div>
-              <div className="text-[20px] font-black uppercase tracking-tighter drop-shadow-md relative z-10 transition-colors text-white break-words">{telemetry?.host_os || navigator.userAgent}</div>
+            </div>
+            <div className="theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+              <div className="flex flex-col relative z-10 justify-center h-full">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="material-symbols-outlined !text-[14px]" style={{ color: "rgba(168,85,247,0.8)" }}>verified_user</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 group-hover:opacity-100 transition-opacity drop-shadow-sm">{t("target_patch") || "DETECTED PATCH"}</span>
+                </div>
+                <div className="text-[14px] font-black uppercase tracking-tighter drop-shadow-md relative z-10 transition-colors text-white break-words leading-tight">{selectedVersion || t("status_unknown")}</div>
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -334,6 +351,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
             </div>
           </div>
         )}
+        </div>
       </div>
     </SidePanel>
   );

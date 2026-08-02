@@ -1,7 +1,7 @@
 ## Sanctuary OS
 ## Forking & Architecture Guide
 #### Version: 4
-#### Last Updated: July 24, 2026
+#### Last Updated: July 31, 2026
 
 Welcome to the architecture and forking guide for Sanctuary OS. 
 Sanctuary OS has evolved from a robust mod manager into a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy. 

@@ -7,7 +7,8 @@ import defaultCover from "./assets/default-cover.jpg";
 
 function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, ownedDLC = [],
   maskedDLC = [], casualtyList = [], tier3List = [], missingDeps = "", isParent = false, isExpanded = false, onExpand = () => { },
-  isBulkMode = false, isSelected = false, onToggleSelect = () => { }, onResolveConflict, anarchyRules = null, hideIneligible = false, isFlavorSwap = false }: any) {
+  isBulkMode = false, isSelected = false, onToggleSelect = () => { }, onResolveConflict, anarchyRules = null, hideIneligible = false, isFlavorSwap = false,
+  onInspectItem }: any) {
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
@@ -260,19 +261,19 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                 <HoverTooltip
                   className="z-[100] !right-0 !translate-x-0 !left-auto"
                   variant={isShadowed && !isSwappedState ? 'danger' : isSwappedState ? 'accent' : 'warning'}
-                  icon={isNemesisEquipped ? (t("icon_crisis_alert") || 'crisis_alert') : hasMissingDeps ? 'extension' : isGameVersionMismatch ? 'sports_esports' : isGhosted ? 'currency_exchange' : isSwappedState ? 'swap_horiz' : (t("icon_tune") || 'tune')}
-                  title={isNemesisEquipped ? t("fatal_conflict") : hasMissingDeps ? t("missing_artifacts") : isGameVersionMismatch ? t("unsupported_version") : isGhosted ? t("missing_dlc") : isSwappedState ? (isBetaSwap ? t("badge_beta") : (t("flavor_swap") || "FLAVOR SWAP")) : t("tier3_conflict")}
+                  icon={isNemesisEquipped ? (t("icon_crisis_alert") || 'crisis_alert') : isGameVersionMismatch ? 'sports_esports' : hasMissingDeps ? 'extension' : isGhosted ? 'currency_exchange' : isSwappedState ? 'swap_horiz' : (t("icon_tune") || 'tune')}
+                  title={isNemesisEquipped ? t("fatal_conflict") : isGameVersionMismatch ? t("unsupported_version") : hasMissingDeps ? t("missing_artifacts") : isGhosted ? t("missing_dlc") : isSwappedState ? (isBetaSwap ? t("badge_beta") : (t("flavor_swap") || "FLAVOR SWAP")) : t("tier3_conflict")}
                   subtitle={isNemesisEquipped
                     ? formatDisplayName(casualtyList[0]?.name || casualtyList[0] || "") + (casualtyList[0]?.note ? ` - ${casualtyList[0].note}` : "") + (casualtyList.length > 1 ? ` (+${casualtyList.length - 1})` : "")
-                    : hasMissingDeps
-                      ? formatDisplayName(typeof missingDeps[0] === 'string' ? missingDeps[0] : (missingDeps[0]?.name || missingDeps[0]?.id || '')) + (missingDeps.length > 1 ? ` (+${missingDeps.length - 1})` : "")
-                      : isGameVersionMismatch
-                        ? (
-                          <>
-                            <div className="w-full truncate">Required: {getHighestVersion(requiredVersions || [])}</div>
-                            <div className="w-full truncate">Current: {gameVersion || "Unknown"}</div>
-                          </>
-                        )
+                    : isGameVersionMismatch
+                      ? (
+                        <>
+                          <div className="w-full truncate">{t("tooltip_required")} {getHighestVersion(requiredVersions || [])}</div>
+                          <div className="w-full truncate">{t("tooltip_current")} {gameVersion || t("unknown") || "Unknown"}</div>
+                        </>
+                      )
+                      : hasMissingDeps
+                        ? formatDisplayName(typeof missingDeps[0] === 'string' ? missingDeps[0] : (missingDeps[0]?.name || missingDeps[0]?.id || '')) + (missingDeps.length > 1 ? ` (+${missingDeps.length - 1})` : "")
                         : isGhosted
                           ? missingPacks.map((p: string) => mapDlcCode(p)).join(", ")
                           : isSwappedState
@@ -290,8 +291,8 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                   {isShadowed ? (
                     <span className="material-symbols-outlined !text-[18px]">
                       {isSwappedState ? "swap_horiz" : isNemesisEquipped ? (t("icon_crisis_alert") || 'crisis_alert')
-                        : hasMissingDeps ? "extension"
-                          : isGameVersionMismatch ? "sports_esports"
+                        : isGameVersionMismatch ? "sports_esports"
+                          : hasMissingDeps ? "extension"
                             : isGhosted ? "currency_exchange"
                               : "broken_image"}
                     </span>
@@ -367,18 +368,18 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                 {delayedConfirmMode === 'dlc' ? (
                   <>
                     {isGameVersionMismatch && (
-                      <div className="flex items-center gap-3 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] p-2.5 rounded-lg border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                      <div className="flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl">
                         <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">sports_esports</span>
-                        <div className="flex flex-col min-w-0">
+                        <div className="flex flex-col min-w-0 flex-1">
                           <span className="text-[8px] font-black text-[var(--danger)] opacity-70 uppercase tracking-widest">{t("required_version") || "REQUIRED"}</span>
                           <span className="text-[10px] font-mono font-black text-[var(--danger)] uppercase tracking-widest truncate">{getHighestVersion(requiredVersions || [])}</span>
                         </div>
                       </div>
                     )}
                     {missingPacks.length > 0 && missingPacks.map((p: string) => (
-                      <div key={p} className="flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-2.5 rounded-lg">
+                      <div key={p} className="flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl">
                         <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">currency_exchange</span>
-                        <div className="flex flex-col min-w-0">
+                        <div className="flex flex-col min-w-0 flex-1">
                           <span className="text-[8px] font-black text-[var(--danger)] opacity-70 uppercase tracking-widest">{t("missing_dlc") || "DLC"}</span>
                           <span className="text-[10px] font-mono font-black text-[var(--danger)] uppercase tracking-widest truncate">{mapDlcCode(p)}</span>
                         </div>
@@ -387,34 +388,49 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                     {hasMissingDeps && missingDeps.map((req: any) => {
                       const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
                       return (
-                        <div key={reqIdStr} className="flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl">
+                        <div key={reqIdStr} 
+                             onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(req); } }}
+                             className={`flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
                           <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">extension</span>
-                          <div className="flex flex-col min-w-0">
+                          <div className="flex flex-col min-w-0 flex-1">
                             <span className="text-[8px] font-black text-[var(--danger)] opacity-70 uppercase tracking-widest">{t("missing_dependency") || "DEP"}</span>
                             <span className="text-[10px] font-mono font-black text-[var(--danger)] uppercase tracking-widest truncate">{cleanSearchName(reqIdStr, activeGameSchema)}</span>
                           </div>
+                          {onInspectItem && (
+                            <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-0 group-hover/inspect:opacity-50 transition-opacity">open_in_new</span>
+                          )}
                         </div>
                       );
                     })}
                   </>
                 ) : (delayedConfirmMode === 'casualty' || delayedConfirmMode === 'flavor_swap') ? (
                   casualtyList.map((c: any, i: number) => (
-                    <div key={i} className="flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl">
+                    <div key={i} 
+                         onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(c); } }}
+                         className={`flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
                       <span className={`material-symbols-outlined !text-[16px] shrink-0 ${delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'theme-text-danger'}`}>{delayedConfirmMode === 'flavor_swap' ? 'swap_horiz' : (!isInActiveSet ? (t("icon_crisis_alert") || 'crisis_alert') : 'delete')}</span>
-                      <div className="flex flex-col min-w-0">
+                      <div className="flex flex-col min-w-0 flex-1">
                         <span className={`text-[8px] font-black uppercase tracking-widest ${delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent opacity-70' : 'text-[var(--danger)] opacity-70'}`}>{delayedConfirmMode === 'flavor_swap' ? (t("flavor_replaced") || "REPLACED") : (t("artifact_removed") || "REMOVED")}</span>
                         <span className={`text-[10px] font-mono font-black uppercase tracking-widest truncate ${delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>{formatDisplayName(c.name || c)}</span>
                       </div>
+                      {onInspectItem && (
+                        <span className={`material-symbols-outlined !text-[16px] opacity-0 group-hover/inspect:opacity-50 transition-opacity ${delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>open_in_new</span>
+                      )}
                     </div>
                   ))
                 ) : delayedConfirmMode === 'broken' ? (
                   brokenMods.map((b: any, i: number) => (
-                    <div key={i} className="flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl">
+                    <div key={i} 
+                         onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(b); } }}
+                         className={`flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
                       <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">broken_image</span>
-                      <div className="flex flex-col min-w-0">
+                      <div className="flex flex-col min-w-0 flex-1">
                         <span className="text-[8px] font-black text-[var(--danger)] opacity-70 uppercase tracking-widest">{t("status_broken") || "BROKEN"}</span>
                         <span className="text-[10px] font-mono font-black text-[var(--danger)] uppercase tracking-widest truncate">{formatDisplayName(b.displayName || b.name)}</span>
                       </div>
+                      {onInspectItem && (
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-0 group-hover/inspect:opacity-50 transition-opacity">open_in_new</span>
+                      )}
                     </div>
                   ))
                 ) : delayedConfirmMode === 'tier3' ? (

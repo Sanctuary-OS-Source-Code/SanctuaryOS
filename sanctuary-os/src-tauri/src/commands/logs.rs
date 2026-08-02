@@ -25,47 +25,51 @@ use crate::utils::*;
 
 
 #[tauri::command]
-pub fn scan_game_logs(docs_path: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
+pub async fn scan_game_logs(docs_path: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
-    let path = PathBuf::from(docs_path);
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = PathBuf::from(docs_path);
 
-    let mut exceptions = Vec::new();
-    let mut has_crash = false;
+        let mut exceptions = Vec::new();
+        let mut has_crash = false;
 
-    if let Ok(entries) = fs::read_dir(&path) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if crate::game_logic::is_exception_log(&game_schema, &name) {
-                if name.to_lowercase().contains("crash") {
-                    has_crash = true;
-                }
-                if let Ok(meta) = entry.metadata() {
-                    if let Ok(mtime) = meta.modified() {
-                        exceptions.push((mtime, entry.path()));
+        if let Ok(entries) = fs::read_dir(&path) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                if crate::game_logic::is_exception_log(&game_schema, &name) {
+                    if name.to_lowercase().contains("crash") {
+                        has_crash = true;
+                    }
+                    if let Ok(meta) = entry.metadata() {
+                        if let Ok(mtime) = meta.modified() {
+                            exceptions.push((mtime, entry.path()));
+                        }
                     }
                 }
             }
         }
-    }
 
-    if has_crash {
-        return Ok("crash_detected".into());
-    }
-
-    if exceptions.is_empty() {
-        return Ok("Clean".into());
-    }
-
-    exceptions.sort_by(|a, b| b.0.cmp(&a.0));
-    let latest = &exceptions[0].1;
-
-    match fs::read_to_string(latest) {
-        Ok(content) => {
-            let snippet = content.chars().take(1000).collect::<String>();
-            Ok(format!("ΓÜá∩╕Å EXCEPTION DETECTED: {}", snippet))
+        if has_crash {
+            return Ok("crash_detected".into());
         }
-        Err(e) => Err(format!("Failed to read log: {}", e)),
-    }
+
+        if exceptions.is_empty() {
+            return Ok("Clean".into());
+        }
+
+        exceptions.sort_by(|a, b| b.0.cmp(&a.0));
+        let latest = &exceptions[0].1;
+
+        match fs::File::open(latest) {
+            Ok(mut file) => {
+                let mut buffer = [0; 1000];
+                let bytes_read = file.read(&mut buffer).unwrap_or(0);
+                let snippet = String::from_utf8_lossy(&buffer[..bytes_read]).into_owned();
+                Ok(format!("⚠️ EXCEPTION DETECTED: {}", snippet))
+            }
+            Err(e) => Err(format!("Failed to read log: {}", e)),
+        }
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

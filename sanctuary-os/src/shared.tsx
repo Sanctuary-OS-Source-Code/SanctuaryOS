@@ -573,7 +573,7 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
   );
 }
 
-export function CustomDropdown({ value, selectedValues = [], options, onChange, placeholder, multiSelect, searchable, disableTint, className }: any) {
+export function CustomDropdown({ value, selectedValues = [], options, onChange, placeholder, multiSelect, searchable, disableTint, className, buttonClassName, flat }: any) {
   const { t } = useLexicon();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -605,9 +605,9 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
 
   return (
     <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className}`}>
-      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full ${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} transition-all shadow-inner flex justify-between items-center text-sm font-bold focus:outline-none group relative z-[10] backdrop-blur-[3px] ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`}>
+      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-between items-center focus:outline-none group relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-90' : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} shadow-inner text-sm font-bold backdrop-blur-[3px] ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`} ${buttonClassName || ''}`}>
         <span className="truncate pr-4 flex-1 text-left flex items-center h-full uppercase">{getSelectedLabel()}</span>
-        <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)]'}`}><span className="material-symbols-outlined !text-[20px]">{isOpen ? 'expand_less' : 'expand_more'}</span></span>
+        <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)]'}`}><span className={`material-symbols-outlined ${flat ? '!text-[16px]' : '!text-[20px]'}`}>{isOpen ? 'expand_less' : 'expand_more'}</span></span>
       </button>
       {isOpen && createPortal(
         <>
@@ -713,12 +713,13 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
         className="w-full theme-glass-inner rounded-[calc(var(--radius)-4px)] px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all placeholder:opacity-30"
       />
       {isOpen && createPortal(
-        <div className="fixed mt-2 theme-glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto custom-scrollbar" style={{
+        <div className="fixed mt-2 theme-glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
           top: containerRef.current?.getBoundingClientRect().bottom,
           left: containerRef.current?.getBoundingClientRect().left,
           width: containerRef.current?.getBoundingClientRect().width,
         }}>
-          {filtered.map(v => (
+          <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
+            {filtered.map(v => (
             <button
               key={v.version}
               type="button"
@@ -748,6 +749,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
               + {t("cc_btn_add")} "{query}"
             </button>
           )}
+          </div>
         </div>,
         document.body
       )}
@@ -755,7 +757,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
   );
 }
 
-export function CustomDatePicker({ value, onChange, placeholder }: { value: string | null, onChange: (date: string | null) => void, placeholder?: string }) {
+export function CustomDatePicker({ value, onChange, placeholder, className = "" }: { value: string | null, onChange: (date: string | null) => void, placeholder?: string, className?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const btnRef = React.useRef<HTMLButtonElement>(null);
 
@@ -780,7 +782,7 @@ export function CustomDatePicker({ value, onChange, placeholder }: { value: stri
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   return (
-    <div className="relative w-full">
+    <div className={`relative w-full ${className}`}>
       <button ref={btnRef} onClick={() => setIsOpen(!isOpen)} className="w-full h-12 px-5 rounded-[calc(var(--radius)-4px)] theme-glass-inner outline-none transition-all shadow-inner flex justify-between items-center text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent group hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-[10]">
         <span className="truncate pr-4">{value ? new Date(value).toLocaleDateString() : (placeholder || "Select Date...")}</span>
         <span className="text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)] transition-colors shrink-0 flex items-center justify-center"><span className="material-symbols-outlined !text-[20px]">{isOpen ? 'expand_less' : 'expand_more'}</span></span>
@@ -871,7 +873,7 @@ export const getModIcon = (mod: any, schema: any, t: any) => {
   return t("icon_extension") || "extension";
 };
 
-export function CustomClassificationDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+export function CustomClassificationDropdown({ value, onChange, className, buttonClassName, flat }: { value: string, onChange: (val: string) => void, className?: string, buttonClassName?: string, flat?: boolean }) {
   const { t } = useLexicon();
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const options = [
@@ -885,12 +887,14 @@ export function CustomClassificationDropdown({ value, onChange }: { value: strin
   return (
     <div className="w-full">
       <CustomDropdown
-
         value={value}
         options={options}
         onChange={(v: string[]) => onChange(v[0])}
         placeholder={t("shared_select_classification")}
         disableTint={true}
+        className={className}
+        buttonClassName={buttonClassName}
+        flat={flat}
       />
     </div>
   );

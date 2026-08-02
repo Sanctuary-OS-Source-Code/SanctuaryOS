@@ -316,7 +316,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative z-10 w-full">
 
-          <div className="h-[300px] relative z-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] shrink-0 flex flex-col justify-end">
+          <div className={`relative z-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] shrink-0 flex flex-col justify-end transition-all duration-300 ${editMode ? 'min-h-[380px]' : 'min-h-[300px]'}`}>
             <div className="absolute inset-0 z-0">
               {((showImages || editMode) && (mod.image_url || mod.imageUrl || metaInputs.image) && String(metaInputs.image || mod.image_url || mod.imageUrl) !== "null" && String(metaInputs.image || mod.image_url || mod.imageUrl).trim() !== "") ? (
                 <img src={metaInputs.image || mod.image_url || mod.imageUrl} className="w-full h-full object-cover opacity-60 mix-blend-luminosity" alt={t("cc_cover_url")} onError={(e) => e.currentTarget.style.display = 'none'} />
@@ -330,10 +330,10 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
               <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--bg)_60%,transparent)] via-[color-mix(in_srgb,var(--bg)_20%,transparent)] to-transparent z-10 pointer-events-none" />
             </div>
 
-            <div className="relative z-20 px-12 pb-18 w-full flex flex-col items-start gap-4">
-              <div className="w-full">
+            <div className="relative z-20 px-12 pb-10 w-full flex flex-col items-start gap-4">
+              <div className="w-full pr-12">
                 {editMode ? (
-                  <input value={metaInputs.name} onChange={e => setMetaInputs.name(e.target.value)} className="w-full bg-white/10 backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-[var(--radius)] px-6 py-4 text-4xl font-black text-[var(--text)] uppercase focus:outline-none focus:border-[var(--accent)] focus:bg-white/20 shadow-2xl transition-all" />
+                  <input value={metaInputs.name} onChange={e => setMetaInputs.name(e.target.value)} className="w-full bg-transparent border-b-2 border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)] focus:border-[var(--accent)] px-0 py-2 text-4xl lg:text-5xl font-black text-[var(--text)] uppercase tracking-tighter focus:outline-none transition-all drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] placeholder:text-[color-mix(in_srgb,var(--text)_30%,transparent)]" placeholder="Artifact Name" />
                 ) : (
                   <div className="flex flex-col items-start gap-2">
                     <h2 className="text-5xl lg:text-6xl font-black text-[var(--text)] tracking-tighter uppercase leading-[1.1] drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] pr-4">
@@ -349,81 +349,64 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   </div>
                 )}
               </div>
-              {editMode && (
-                <div className="w-full mt-2">
-                  <label className="text-[9px] font-black text-[var(--text)] uppercase tracking-widest drop-shadow-md">{t("cc_cover_url")}</label>
-                  <input value={metaInputs.image} onChange={e => setMetaInputs.image(e.target.value)} className="w-full mt-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-4 py-2 text-[var(--text)] placeholder:text-[var(--text)] placeholder:opacity-30 text-[10px] font-mono focus:outline-none focus:border-[var(--accent)] transition-all shadow-inner" placeholder={t("auto_https")} />
-                </div>
-              )}
             </div>
 
             <div className="absolute -bottom-6 w-full flex justify-center z-50 pointer-events-none">
-              <div className="inline-flex theme-glass-panel backdrop-blur-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full p-2 shadow-[0_20px_60px_rgba(0,0,0,0.6)] items-center gap-1 flex-nowrap custom-scrollbar max-w-full pointer-events-auto">
+              <div className="inline-flex theme-glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)] h-12 items-center flex-nowrap max-w-full pointer-events-auto">
                 {editMode ? (
                   <>
                     {!isCorrecting && (
                       <>
-                        <button onClick={handleSave} disabled={isSaving} className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-white/10 text-[var(--text)] opacity-80 hover:opacity-100 border border-transparent">
+                        <button onClick={handleSave} disabled={isSaving} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-[var(--text)] opacity-80 hover:opacity-100 hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed">
                           <span className="material-symbols-outlined !text-[16px]">{t("auto_save")}</span>
                           {isSaving ? t("dossier_btn_saving") : t("btn_save_local")}
                         </button>
                         {hasOverrides && (
-                          <>
-                            <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
-                            <button onClick={() => { if (onResetMetadata) onResetMetadata(mod.hash); onClose(); }} className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-red-500/10 text-red-400 opacity-80 hover:opacity-100 border border-transparent hover:border-red-500/30">
-                              <span className="material-symbols-outlined !text-[16px]">{t("icon_restart_alt")}</span>
-                              {t("btn_reset")}
-                            </button>
-                          </>
+                          <button onClick={() => { if (onResetMetadata) onResetMetadata(mod.hash); onClose(); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-red-400 opacity-80 hover:opacity-100 hover:bg-red-500/10">
+                            <span className="material-symbols-outlined !text-[16px]">{t("icon_restart_alt")}</span>
+                            {t("btn_reset")}
+                          </button>
                         )}
                       </>
                     )}
                     {isCorrecting && session && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
-                      <>
-                        <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
-                        <button onClick={handleSubmitToVault} disabled={isSaving} className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-emerald-500/10 text-emerald-400 opacity-80 hover:opacity-100 border border-transparent hover:border-emerald-500/30">
-                          <span className="material-symbols-outlined !text-[16px]">{t("icon_send")}</span>
-                          {isSaving ? t("btn_submitting") : t("btn_submit_corrections")}
-                        </button>
-                      </>
+                      <button onClick={handleSubmitToVault} disabled={isSaving} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-emerald-400 opacity-80 hover:opacity-100 hover:bg-emerald-500/10 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span className="material-symbols-outlined !text-[16px]">{t("icon_send")}</span>
+                        {isSaving ? t("btn_submitting") : t("btn_submit_corrections")}
+                      </button>
                     )}
                   </>
                 ) : (
                   <>
                     {(mod.hash?.startsWith('dev_sandbox_')) && (
-                      <button onClick={() => { if (onSyncToNetwork) onSyncToNetwork(mod); else setEditMode(true); }} className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-emerald-500/10 text-emerald-400 opacity-80 hover:opacity-100 border border-transparent hover:border-emerald-500/30">
+                      <button onClick={() => { if (onSyncToNetwork) onSyncToNetwork(mod); else setEditMode(true); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-emerald-400 opacity-80 hover:opacity-100 hover:bg-emerald-500/10">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_cloud_sync")}</span>
                         {t("btn_sync_network")}
                       </button>
                     )}
                     {mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
-                      <button onClick={() => { onClose(); onSendToLab(); }} className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-cyan-500/10 text-cyan-400 opacity-80 hover:opacity-100 border border-transparent hover:border-cyan-500/30">
+                      <button onClick={() => { onClose(); onSendToLab(); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-cyan-400 opacity-80 hover:opacity-100 hover:bg-cyan-500/10">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_science")}</span>
                         {t("btn_send_to_lab")}
                       </button>
                     )}
-                    <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
-                    <button onClick={() => setEditMode(true)} className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-yellow-500/10 text-yellow-400 opacity-80 hover:opacity-100 border border-transparent hover:border-yellow-500/30">
+                    <button onClick={() => setEditMode(true)} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-yellow-400 opacity-80 hover:opacity-100 hover:bg-yellow-500/10">
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_edit")}</span>
                       {isCorrecting ? t("btn_submit_corrections") : t("btn_edit")}
                     </button>
                     {userRole === 'oversight' && mod.compliance_tier === 3 && (
-                      <>
-                        <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
-                        <button onClick={() => { onClose(); onSecureShred(mod.name); }} className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-red-500/10 text-red-400 opacity-80 hover:opacity-100 border border-transparent hover:border-red-500/30">
-                          <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_forever")}</span>
-                          {t("malware_alert_btn_shred")}
-                        </button>
-                      </>
+                      <button onClick={() => { onClose(); onSecureShred(mod.name); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-red-400 opacity-80 hover:opacity-100 hover:bg-red-500/10">
+                        <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_forever")}</span>
+                        {t("malware_alert_btn_shred")}
+                      </button>
                     )}
                   </>
                 )}
                 {!editMode && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
                   <>
-                    <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
                     {targetDbId && session && !isBanned && (
-                      <div className="relative group/flag">
-                        <button onClick={() => setShowFlagModal(true)} className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-orange-500/10 text-orange-400 opacity-80 hover:opacity-100 hover:border-orange-500/30 cursor-pointer border border-transparent">
+                      <div className="h-full relative group/flag">
+                        <button onClick={() => setShowFlagModal(true)} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-orange-400 opacity-80 hover:opacity-100 hover:bg-orange-500/10 cursor-pointer">
                           <span className="material-symbols-outlined !text-[16px]">{t("icon_flag")}</span>
                           {t("btn_flag")}
                         </button>
@@ -431,31 +414,23 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     )}
                   </>
                 )}
-                {editMode ? (
-                  <>
-                    <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
-                    <input value={metaInputs.url} onChange={e => setMetaInputs.url(e.target.value)} className="shrink-0 px-5 py-2.5 bg-transparent border border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-full text-[10px] font-black text-[var(--text)] placeholder:text-[var(--text)] placeholder:opacity-40 focus:outline-none focus:border-[var(--accent)] w-[200px] transition-all opacity-80 hover:opacity-100 focus:opacity-100" placeholder={t("external_url_placeholder")} />
-                  </>
-                ) : (
-                  <>
-                    <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const url = mod.url || `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanSearchName(mod.displayName || mod.name || "", activeGameSchema))}`;
-                        if (useInternalBrowser) {
-                          setSideBrowserUrl(url);
-                          setIsSideBrowserOpen(true);
-                        } else {
-                          openUrl(url);
-                        }
-                      }}
-                      className="shrink-0 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-transparent hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] opacity-80 hover:opacity-100 border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">{mod.url ? t("icon_download") : t("icon_search")}</span>
-                      {mod.url ? t("btn_download") : t("btn_search_web")}
-                    </button>
-                  </>
+                {!editMode && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const url = mod.url || `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanSearchName(mod.displayName || mod.name || "", activeGameSchema))}`;
+                      if (useInternalBrowser) {
+                        setSideBrowserUrl(url);
+                        setIsSideBrowserOpen(true);
+                      } else {
+                        openUrl(url);
+                      }
+                    }}
+                    className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-[var(--accent)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]"
+                  >
+                    <span className="material-symbols-outlined !text-[16px]">{mod.url ? t("icon_download") : t("icon_search")}</span>
+                    {mod.url ? (t("btn_download") || "DOWNLOAD ARTIFACT") : (t("btn_search_web") || "SEARCH WEB")}
+                  </button>
                 )}
               </div>
             </div>
@@ -482,11 +457,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
                     {/* Status Ring / Icon Area */}
                     <div className="relative shrink-0 flex items-center justify-center w-28 h-28">
-                      {/* Animated Outer Ring */}
-                      <svg className="absolute inset-0 w-full h-full animate-[spin_10s_linear_infinite]" viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="10 5" className="opacity-20" />
-                        <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="3 8" className="opacity-40" />
-                      </svg>
 
                       {/* Inner Glowing Orb */}
                       <div className={`absolute w-16 h-16 rounded-full blur-xl opacity-30 animate-pulse ${(() => {
@@ -522,7 +492,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     {/* Text Details Area */}
                     <div className="flex flex-col flex-1 h-full justify-center">
                       <p className="text-[10px] font-mono text-[var(--text)] opacity-50 uppercase tracking-[0.3em] mb-1 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current opacity-70"></span>
                         {t("system_status")}
                       </p>
 
@@ -560,7 +529,9 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 <div className="col-span-2 md:col-span-2 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all hover:bg-white/5 hover:scale-[1.02] shadow-xl">
                   <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("label_game_version")}</p>
                   {editMode ? (
-                    <div className="w-full scale-90 origin-top-left"><GameVersionMultiSelect selectedVersions={localCompatibleVersions || []} onChange={v => setLocalCompatibleVersions(v)} /></div>
+                    <div className="w-full scale-90 origin-top-left">
+                      <GameVersionMultiSelect selectedVersions={localCompatibleVersions || []} onChange={v => setLocalCompatibleVersions(v)} />
+                    </div>
                   ) : (
                     <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full" title={familyVersion}>
                       {familyVersion === "Unknown" || familyVersion === "ALL" || familyVersion === "" ? (t("any")) : familyVersion}
@@ -587,8 +558,8 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 <div className="col-span-1 flex flex-col gap-1 p-6 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all hover:bg-white/5 hover:scale-[1.02] shadow-xl">
                   <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("label_mod_category")}</p>
                   {editMode && !isCollection && !mod.isFlavorFolder && !mod.isParent ? (
-                    <div className="w-full scale-90 origin-top-left">
-                      <CustomClassificationDropdown value={localCategory || "Script"} onChange={(val: string) => setLocalCategory(val)} />
+                    <div className="w-full">
+                      <CustomClassificationDropdown value={localCategory || "Script"} onChange={(val: string) => setLocalCategory(val)} flat={true} />
                     </div>
                   ) : (
                     <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
@@ -630,7 +601,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
                   <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("mason")}</p>
                   {editMode ? (
-                    <input value={metaInputs.author} onChange={e => setMetaInputs.author(e.target.value)} className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-3 py-2 text-[var(--text)] placeholder:text-[var(--text)] placeholder:opacity-30 text-[11px] font-black focus:outline-none focus:border-[var(--accent)] text-left uppercase transition-all shadow-inner" placeholder={t("author_placeholder")} />
+                    <input value={metaInputs.author} onChange={e => setMetaInputs.author(e.target.value)} className="w-full bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate placeholder:text-[color-mix(in_srgb,var(--text)_30%,transparent)] focus:outline-none transition-all" placeholder={t("author_placeholder")} />
                   ) : (
                     <button onClick={() => { if (mod.mason_id && onOpenMasonProfile) { onOpenMasonProfile(mod.mason_id); onClose(); } }} className="text-xs font-black text-[var(--text)] opacity-90 hover:theme-text-success transition-all uppercase tracking-widest truncate max-w-full">
                       {mod.author || t("vlocal") || "UNKNOWN"}
@@ -641,7 +612,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
                   <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("revision")}</p>
                   {editMode ? (
-                    <input value={metaInputs.version || ""} onChange={e => setMetaInputs.version(e.target.value)} className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-3 py-2 text-[var(--text)] placeholder:text-[var(--text)] placeholder:opacity-30 text-[11px] font-black focus:outline-none focus:border-[var(--accent)] text-left uppercase transition-all shadow-inner" placeholder={t("vlocal")} />
+                    <input value={metaInputs.version || ""} onChange={e => setMetaInputs.version(e.target.value)} className="w-full bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate placeholder:text-[color-mix(in_srgb,var(--text)_30%,transparent)] focus:outline-none transition-all" placeholder={t("vlocal")} />
                   ) : (
                     <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
                       {(() => {
@@ -659,7 +630,9 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
                   <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("label_uploaded")}</p>
                   {editMode ? (
-                    <div className="w-full scale-90 origin-top-left"><CustomDatePicker value={localCreatedAt} onChange={setLocalCreatedAt} /></div>
+                    <div className="w-full [&_button]:!bg-transparent [&_button]:!border-b-2 [&_button]:!border-transparent hover:[&_button]:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] [&_button]:!rounded-none [&_button]:!px-0 [&_button]:!py-1 [&_button]:!h-auto [&_button]:!min-h-0 [&_button]:!shadow-none [&_.truncate]:!text-xs [&_.truncate]:!font-black [&_.truncate]:!uppercase [&_.truncate]:!tracking-widest [&_.truncate]:!opacity-90">
+                      <CustomDatePicker value={localCreatedAt} onChange={setLocalCreatedAt} />
+                    </div>
                   ) : (
                     <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
                       {(() => {
@@ -677,7 +650,9 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 <div className="flex flex-col gap-1 p-5 theme-glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-white/5 shadow-md">
                   <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1">{t("updated_date")}</p>
                   {editMode ? (
-                    <div className="w-full scale-90 origin-top-left"><CustomDatePicker value={localUpdatedAt} onChange={setLocalUpdatedAt} /></div>
+                    <div className="w-full [&_button]:!bg-transparent [&_button]:!border-b-2 [&_button]:!border-transparent hover:[&_button]:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] [&_button]:!rounded-none [&_button]:!px-0 [&_button]:!py-1 [&_button]:!h-auto [&_button]:!min-h-0 [&_button]:!shadow-none [&_.truncate]:!text-xs [&_.truncate]:!font-black [&_.truncate]:!uppercase [&_.truncate]:!tracking-widest [&_.truncate]:!opacity-90">
+                      <CustomDatePicker value={localUpdatedAt} onChange={setLocalUpdatedAt} />
+                    </div>
                   ) : (
                     <span className="text-xs font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate max-w-full">
                       {(() => {
@@ -696,30 +671,49 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
             </div>
 
             {editMode && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 relative z-20">
-                <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${metaInputs.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                  <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${metaInputs.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
-                    {t("label_is_paid")}
-                  </span>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                    <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${metaInputs.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
+              <div className="grid grid-cols-1 gap-4 mb-8 relative z-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className={`flex flex-row items-center justify-between gap-4 p-5 py-4 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] border transition-all hover:scale-[1.02] shadow-xl cursor-pointer ${metaInputs.is_paid ? 'border-[color-mix(in_srgb,#eab308_30%,transparent)] bg-[color-mix(in_srgb,#eab308_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5'}`}>
+                    <div className="flex flex-col items-start gap-1">
+                      <p className={`text-[9px] font-black opacity-80 uppercase tracking-[0.2em] ${metaInputs.is_paid ? 'text-[#fef08a]' : 'text-[var(--subtext)]'}`}>{t("label_is_paid") || "LICENSE"}</p>
+                      <span className={`text-xs font-black uppercase tracking-widest truncate flex items-center gap-2 ${metaInputs.is_paid ? 'text-[#fef08a]' : 'text-[var(--text)] opacity-90'}`}>
+                        <span className="material-symbols-outlined !text-[16px]">{metaInputs.is_paid ? 'monetization_on' : 'money_off'}</span>
+                        {metaInputs.is_paid ? (t("badge_paid") || "PAID") : "FREE"}
+                      </span>
                     </div>
-                  </div>
-                  <input type="checkbox" checked={metaInputs.is_paid || false} onChange={e => setMetaInputs.is_paid(e.target.checked)} className="hidden" />
-                </label>
+                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${metaInputs.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
+                      </div>
+                    </div>
+                    <input type="checkbox" checked={metaInputs.is_paid || false} onChange={e => setMetaInputs.is_paid(e.target.checked)} className="hidden" />
+                  </label>
 
-                <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${metaInputs.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                  <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${metaInputs.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
-                    {t("label_is_early_access")}
-                  </span>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                    <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${metaInputs.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
+                  <label className={`flex flex-row items-center justify-between gap-4 p-5 py-4 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] border transition-all hover:scale-[1.02] shadow-xl cursor-pointer ${metaInputs.is_early_access ? 'border-[color-mix(in_srgb,#a855f7_30%,transparent)] bg-[color-mix(in_srgb,#a855f7_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5'}`}>
+                    <div className="flex flex-col items-start gap-1">
+                      <p className={`text-[9px] font-black opacity-80 uppercase tracking-[0.2em] ${metaInputs.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--subtext)]'}`}>{t("label_is_early_access") || "RELEASE TIER"}</p>
+                      <span className={`text-xs font-black uppercase tracking-widest truncate flex items-center gap-2 ${metaInputs.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--text)] opacity-90'}`}>
+                        <span className="material-symbols-outlined !text-[16px]">{metaInputs.is_early_access ? 'science' : 'public'}</span>
+                        {metaInputs.is_early_access ? (t("badge_early_access") || "EARLY ACCESS") : "STANDARD"}
+                      </span>
                     </div>
+                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${metaInputs.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
+                      </div>
+                    </div>
+                    <input type="checkbox" checked={metaInputs.is_early_access || false} onChange={e => setMetaInputs.is_early_access(e.target.checked)} className="hidden" />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2 p-5 py-4 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">link</span> {t("external_url_placeholder") || "DOWNLOAD URL"}</label>
+                    <input value={metaInputs.url} onChange={e => setMetaInputs.url(e.target.value)} className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] rounded-xl px-4 py-2 text-[var(--text)] text-xs font-black uppercase tracking-widest opacity-90 focus:outline-none transition-all shadow-inner" placeholder="https://..." />
                   </div>
-                  <input type="checkbox" checked={metaInputs.is_early_access || false} onChange={e => setMetaInputs.is_early_access(e.target.checked)} className="hidden" />
-                </label>
+                  <div className="flex flex-col gap-2 p-5 py-4 theme-glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">image</span> {t("cc_cover_url")}</label>
+                    <input value={metaInputs.image} onChange={e => setMetaInputs.image(e.target.value)} className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] rounded-xl px-4 py-2 text-[var(--text)] text-xs font-black uppercase tracking-widest opacity-90 focus:outline-none transition-all shadow-inner" placeholder="https://..." />
+                  </div>
+                </div>
               </div>
             )}
 
@@ -767,7 +761,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                           </span>
                           <div className="flex flex-wrap items-center gap-2 mt-1.5">
                             <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 shrink-0 bg-black/20 px-2 py-0.5 rounded-md">
-                      {kid.name?.includes('.') ? (
+                              {kid.name?.includes('.') ? (
                                 <>
                                   <span>{getFileLabel(kid.name, activeGameSchema)}</span>
                                 </>

@@ -115,6 +115,7 @@ fn main() {
             run_conflict_radar,
             rename_backup,
             backup_universe,
+
             backup_engine_full,
             restore_game_data,
 
@@ -177,7 +178,10 @@ fn main() {
             overwrite_local_schema,
             telemetry::fetch_system_telemetry,
             telemetry::fetch_app_footprint,
-            telemetry::get_directory_size])
+            telemetry::get_directory_size,
+            get_backup_contents,
+            extract_backup_file,
+            diff_backup])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

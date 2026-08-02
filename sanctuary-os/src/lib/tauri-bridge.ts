@@ -26,7 +26,7 @@ export const tauriBridge = {
   syncSecurityDefinitions: (malware: string[], tier2: string[]) => invoke('sync_security_definitions', { malware, tier2 }),
   listenToVaultChanges: (callback: (path?: string) => void) => listen("vault_changed", (event: any) => callback(event.payload)),
   listenToScanProgress: (callback: (payload: any) => void) => listen('scan-progress', (event: any) => callback(event.payload)),
-  listenToBackupProgress: (callback: (payload: any) => void) => listen('backup-progress', (event: any) => callback(event.payload)),
+  listenToBackupProgress: (callback: (payload: any) => void) => listen('backup-progress', (event: any) => callback(event)),
   listenToDnaMatch: (callback: (payload: any) => void) => listen('dna_match_detected', (event: any) => callback(event.payload)),
   setupDragDrop: (onEnter: () => void, onLeave: () => void, onDrop: (paths: string[]) => void): Promise<() => void> => {
     return getCurrentWebview().onDragDropEvent((event) => {

@@ -8,6 +8,7 @@ import { useStore } from './store';
 import { VaultToolsSidePanel, VaultLocalFolderEditorSidePanel } from './side-panels/VaultSidePanels';
 import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
+import { supabase } from "./supabase";
 const Vault = React.memo(function Vault(props: any) {
   const [isSidePanelOpen, setIsSidePanelOpen] = React.useState(false);
   const [activeTier3Conflict, setActiveTier3Conflict] = React.useState<any>(null);
@@ -841,6 +842,51 @@ const Vault = React.memo(function Vault(props: any) {
                     onToggleSet={(e: any, excludeBroken?: boolean) => {
                       e.stopPropagation();
                       toggleInActiveSet(mod.name, excludeBroken);
+                    }}
+                    onInspectItem={async (target: any) => {
+                      const name = typeof target === 'string' ? target : (target.name || target.id || target.hash);
+                      let foundMod = typeof target === 'object' && target.hash ? target : null;
+                      
+                      if (!foundMod) {
+                        foundMod = modListIndex.byHash.get(name) || 
+                                   modListIndex.byName.get(name) || 
+                                   modListIndex.byDbId.get(String(name)) || 
+                                   modListIndex.byInterchangeableId.get(String(name));
+                      }
+                      
+                      if (!foundMod && displayModList) {
+                        foundMod = displayModList.find((m: any) => m.name === name || m.id === name || m.hash === name || (m.flavors && m.flavors.some((f:any) => f.name === name)));
+                      }
+
+                      if (!foundMod) {
+                        try {
+                          const targetId = typeof target === 'object' ? (target.id || target.dbId) : null;
+                          let query = supabase.from('mods').select('*');
+                          if (targetId && /^[0-9a-f]{8}-/i.test(targetId)) {
+                            query = query.eq('id', targetId);
+                          } else {
+                            query = query.ilike('name', `%${name}%`).limit(1);
+                          }
+                          const { data } = await query.single();
+                          if (data) {
+                            foundMod = { ...data, dbId: data.id, isNexusView: true };
+                          }
+                        } catch (e) {
+                          // Silently fail and create stub below
+                        }
+                      }
+
+                      if (!foundMod) {
+                        foundMod = { name, isStub: true, displayName: name };
+                      }
+                      setMetaNameInput(foundMod.displayName || foundMod.name);
+                      setMetaAuthorInput(foundMod.author || "");
+                      setMetaDescInput(foundMod.description || "");
+                      setMetaImageInput(foundMod.image_url || foundMod.imageUrl || "");
+                      if (setMetaUrlInput) setMetaUrlInput(foundMod.url || "");
+                      if (setMetaVersionInput) setMetaVersionInput(foundMod.latest_version || foundMod.version || "");
+                      setMetaAllowWriteInput(foundMod.allow_write || false);
+                      setActiveDossier(foundMod);
                     }}
                     onResolveConflict={(e: any, t3List: any[], m: any, winnerName?: string) => {
                       if (t3List && t3List.length > 0) {

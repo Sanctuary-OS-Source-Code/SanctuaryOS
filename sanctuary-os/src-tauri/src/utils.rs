@@ -468,6 +468,15 @@ pub fn find_backup(vault_path: &str, file_name: &str) -> Option<PathBuf> {
             return Some(p2);
         }
     }
+    
+    let config = crate::commands::state_ops::get_saved_coordinates();
+    if let Some(engine_dir) = get_engine_backups_dir(&config.live_path, vault_path) {
+        let p3 = engine_dir.join(file_name);
+        if p3.exists() {
+            return Some(p3);
+        }
+    }
+    
     None
 }
 
@@ -490,14 +499,17 @@ pub fn get_all_files(dir: &Path) -> Vec<PathBuf> {
     files
 }
 
-pub fn enforce_retention_policy(vault_path: &str, category: &str, keep_count: u32) {
+pub fn enforce_retention_policy(target_dir: &Path, keep_count: u32) {
     if keep_count >= 999 { return; }
-    let target_dir = PathBuf::from(vault_path).join("Backups").join(category);
-    if let Ok(entries) = std::fs::read_dir(&target_dir) {
+    if let Ok(entries) = std::fs::read_dir(target_dir) {
         let mut backups: Vec<PathBuf> = entries
             .flatten()
             .map(|e| e.path())
-            .filter(|p| p.is_file() && (p.extension() == Some(std::ffi::OsStr::new("zst")) || p.extension() == Some(std::ffi::OsStr::new("tar"))))
+            .filter(|p| {
+                let name = p.file_name().unwrap_or_default().to_string_lossy();
+                (p.is_file() && (p.extension() == Some(std::ffi::OsStr::new("zst")) || p.extension() == Some(std::ffi::OsStr::new("tar"))))
+                || (p.is_dir() && (name.starts_with("World_State") || name.starts_with("Engine_Core")))
+            })
             .collect();
             
         backups.sort_by(|a, b| {
@@ -508,9 +520,107 @@ pub fn enforce_retention_policy(vault_path: &str, category: &str, keep_count: u3
 
         if backups.len() > keep_count as usize {
             for old_backup in backups.iter().skip(keep_count as usize) {
-                let _ = std::fs::remove_file(old_backup);
+                if old_backup.is_dir() {
+                    let _ = std::fs::remove_dir_all(old_backup);
+                } else {
+                    let _ = std::fs::remove_file(old_backup);
+                }
             }
         }
     }
+}
+
+pub fn get_engine_backups_dir(live_path: &str, vault_path: &str) -> Option<PathBuf> {
+    let p = PathBuf::from(live_path);
+    let root = p.ancestors().last()?;
+    
+    let vault_name = PathBuf::from(vault_path)
+        .file_name()
+        .unwrap_or(std::ffi::OsStr::new("default"))
+        .to_string_lossy()
+        .into_owned();
+        
+    Some(root.join(".sanctuary_backups").join(vault_name).join("Engine"))
+}
+
+#[cfg(windows)]
+pub fn calculate_sizes(path: &std::path::Path) -> (u64, u64) {
+    let mut total_size = 0;
+    let mut diff_size = 0; // Old backups on Windows will gracefully fallback to 0 delta size
+    let mut walker = walkdir::WalkDir::new(path).into_iter();
+    
+    while let Some(Ok(entry)) = walker.next() {
+        if let Ok(metadata) = entry.metadata() {
+            if metadata.is_file() {
+                total_size += metadata.len();
+            }
+        }
+    }
+    (total_size, diff_size)
+}
+
+#[cfg(not(windows))]
+pub fn calculate_sizes(path: &std::path::Path) -> (u64, u64) {
+    use std::os::unix::fs::MetadataExt;
+    let mut total_size = 0;
+    let mut diff_size = 0;
+    let mut walker = walkdir::WalkDir::new(path).into_iter();
+    
+    while let Some(Ok(entry)) = walker.next() {
+        if let Ok(metadata) = entry.metadata() {
+            if metadata.is_file() {
+                total_size += metadata.len();
+                if metadata.nlink() == 1 {
+                    diff_size += metadata.len();
+                }
+            }
+        }
+    }
+    (total_size, diff_size)
+}
+
+pub fn calculate_dir_size(path: &std::path::Path) -> u64 {
+    calculate_sizes(path).0
+}
+
+pub fn hardlink_mirror(
+    source_dir: &std::path::Path, 
+    dest_dir: &std::path::Path, 
+    previous_backup: Option<&std::path::Path>
+) -> std::io::Result<()> {
+    if !dest_dir.exists() {
+        std::fs::create_dir_all(dest_dir)?;
+    }
+    
+    if let Ok(entries) = std::fs::read_dir(source_dir) {
+        for e in entries.flatten() {
+            let src_path = e.path();
+            let file_name = e.file_name();
+            let dest_path = dest_dir.join(&file_name);
+            
+            if src_path.is_dir() {
+                let prev_sub = previous_backup.map(|p| p.join(&file_name));
+                hardlink_mirror(&src_path, &dest_path, prev_sub.as_deref())?;
+            } else {
+                let mut linked = false;
+                if let Some(prev) = previous_backup {
+                    let prev_file = prev.join(&file_name);
+                    if prev_file.exists() && prev_file.is_file() {
+                        if let (Ok(src_meta), Ok(prev_meta)) = (src_path.metadata(), prev_file.metadata()) {
+                            if src_meta.len() == prev_meta.len() && src_meta.modified().ok() == prev_meta.modified().ok() {
+                                if std::fs::hard_link(&prev_file, &dest_path).is_ok() {
+                                    linked = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                if !linked {
+                    let _ = std::fs::copy(&src_path, &dest_path);
+                }
+            }
+        }
+    }
+    Ok(())
 }
 

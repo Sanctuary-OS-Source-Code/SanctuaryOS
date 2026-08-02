@@ -19,7 +19,7 @@ import MasonPostViewer from "./side-panels/MasonPostViewer";
 
 
 export default function CommandCenter({
-  isScanning, scanProgress, modsPath, isConfigured, toggleInActiveSet,
+  isScanning, modsPath, isConfigured, toggleInActiveSet,
   modList, quarantineList, shelterContents, shelterActive, runRadarSweep, runSanitization, massIngestToCloud, triggerShelter, setView, setFilterStatus, setShowBrokenModal, setShowQuarantineModal, handleOpenMasonProfile, networkUpdates, setIsSupportDeskOpen, setIsCitizenTicketsOpen, equipPlaySet
 }: any) {
   const { t } = useLexicon();

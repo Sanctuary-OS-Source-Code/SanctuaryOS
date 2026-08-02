@@ -139,6 +139,9 @@ function App() {
     }
   }, [activeGameSchema]);
 
+
+
+
   const [forceSweepCounter, setForceSweepCounter] = useState(0);
 
   const { runRadarSweep, fetchVault, malwareAlert, setMalwareAlert } = useRadarLogic(checkNetworkUpdates);
@@ -270,7 +273,7 @@ function App() {
   const setShelterContents = useStore((state) => state.setShelterContents);
   const shelterActive = useStore((state) => state.shelterActive);
   const setShelterActive = useStore((state) => state.setShelterActive);
-  const scanProgress = useStore((state) => state.scanProgress);
+
   const setScanProgress = useStore((state) => state.setScanProgress);
   const backupList = useStore((state) => state.backupList);
   const setBackupList = useStore((state) => state.setBackupList);
@@ -1692,6 +1695,7 @@ function App() {
   const { handleQuickLaunch } = useLaunchLogic(askCustom, triggerPrePatchSnapshot, equipPlaySet);
 
   useDefconRadar(t, askCustom, triggerPrePatchSnapshot, triggerFullEngineBackup);
+  useGlobalListeners(fetchBackups, askCustom, t, triggerPrePatchSnapshot, triggerFullEngineBackup);
 
   async function executeHotSwap() {
     if (!activeLabMod) return;
@@ -2090,7 +2094,7 @@ function App() {
                     <CommandCenter
                       isScanning={isScanning}
                       runRadarSweep={runRadarSweep}
-                      scanProgress={scanProgress}
+
                       modList={modList}
                       quarantineList={quarantineList}
                       isConfigured={isConfigured}
@@ -2497,7 +2501,7 @@ function App() {
           isRestoring={isRestoring}
           ingestProgress={ingestProgress}
           isScanning={isScanning}
-          scanProgress={scanProgress}
+
           showDefconAlert={showDefconAlert}
           setShowDefconAlert={setShowDefconAlert}
           triggerFullEngineBackup={triggerFullEngineBackup}

@@ -375,10 +375,19 @@ export const useStore = create<GlobalState>((set) => ({
   setIsPatchDetected: (isPatchDetected) => set({ isPatchDetected }),
   backupProgress: null,
   setBackupProgress: (backupProgress) => set((state: any) => {
-    if (state.backupProgress && backupProgress && state.backupProgress.action === backupProgress.action) {
-      if (backupProgress.current < state.backupProgress.current) return state;
+    if (backupProgress === null || backupProgress === undefined) {
+        return { backupProgress: { current: 0, total: 100, action: "ERROR: NULL RECEIVED" } };
     }
-    return { backupProgress };
+    
+    let payload = backupProgress;
+    if (payload.payload) {
+        payload = payload.payload;
+    }
+    
+    if (state.backupProgress && payload && state.backupProgress.action === payload.action) {
+      if (payload.current < state.backupProgress.current) return state;
+    }
+    return { backupProgress: payload };
   }),
   hideIneligible: false,
   setHideIneligible: (hideIneligible) => set({ hideIneligible }),

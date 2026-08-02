@@ -22,6 +22,7 @@ export function useBackupLogic(detectGameVersion: () => void) {
 
   async function restoreGameBackup(filename: string) {
     setStatus(`${t("status_restoring_prefix")}${filename}...`);
+    useStore.getState().setBackupProgress(null);
     setIsRestoring(true);
     try {
       const config: any = await invoke("get_saved_coordinates");
@@ -42,9 +43,12 @@ export function useBackupLogic(detectGameVersion: () => void) {
 
   const deleteBackup = async (fileName: string) => {
     try {
+      const currentList = useStore.getState().backupList || [];
+      useStore.getState().setBackupList(currentList.filter(b => b.name !== fileName));
       await invoke("delete_backup", { fileName });
-      fetchBackups();
+      setTimeout(() => fetchBackups(), 500);
     } catch (err) {
+      fetchBackups();
       alert(`${t("alert_deletion_failed")}${err}`);
     }
   };
@@ -52,6 +56,7 @@ export function useBackupLogic(detectGameVersion: () => void) {
   const triggerFullEngineBackup = async () => {
     const config: any = await invoke("get_saved_coordinates");
     useModalStore.getState().setBackupType('engine');
+    useStore.getState().setBackupProgress(null);
     setIsBackingUp(true);
     try {
       await invoke("backup_engine_full", {

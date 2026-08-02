@@ -32,16 +32,24 @@ pub fn initialize_vault_watch(app_handle: tauri::AppHandle, app_state: tauri::St
     if !path_to_watch.exists() {
         return;
     }
-    let (tx, rx) = std::sync::mpsc::channel();
-    let mut watcher = notify::RecommendedWatcher::new(tx, notify::Config::default()).unwrap();
-    watcher
-        .watch(&path_to_watch, notify::RecursiveMode::Recursive)
-        .unwrap();
-    
     let mods_path_to_ignore = std::path::PathBuf::from(&config.mods_path);
     let is_deploying = app_state.inner().is_deploying.clone();
     
     std::thread::spawn(move || {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut watcher = match notify::RecommendedWatcher::new(tx, notify::Config::default()) {
+            Ok(w) => w,
+            Err(_) => return,
+        };
+        
+        let subdirs = vec!["Mods", "Blueprints", "Quarantine"];
+        for subdir in subdirs {
+            let subdir_path = path_to_watch.join(subdir);
+            if subdir_path.exists() {
+                let _ = watcher.watch(&subdir_path, notify::RecursiveMode::Recursive);
+            }
+        }
+        
         let _keep_alive = watcher;
         for res in rx {
             if let Ok(event) = res {
@@ -50,6 +58,9 @@ pub fn initialize_vault_watch(app_handle: tauri::AppHandle, app_state: tauri::St
                 }
                 
                 if let notify::EventKind::Access(_) = event.kind {
+                    continue;
+                }
+                if let notify::EventKind::Modify(notify::event::ModifyKind::Metadata(_)) = event.kind {
                     continue;
                 }
                 for path in event.paths {
@@ -145,7 +156,7 @@ pub fn initialize_settings_watch(mods_path: String, vault_path: String, app_stat
         use notify::Watcher;
         let mut watcher = notify::RecommendedWatcher::new(tx, notify::Config::default()).unwrap();
         if watcher
-            .watch(&path_to_watch, notify::RecursiveMode::Recursive)
+            .watch(&path_to_watch, notify::RecursiveMode::NonRecursive)
             .is_ok()
         {
             let _keep_alive = watcher;

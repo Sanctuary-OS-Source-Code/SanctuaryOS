@@ -1,20 +1,29 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, SidePanel, SidebarActionButton } from "./shared";
+import { ViewHeader, HubTabButton, SearchBar, CustomDropdown, CustomDatePicker, DashboardStatTile, ActionButton } from "./shared";
+import { TimeCapsuleSidePanel } from "./side-panels/TimeCapsuleSidePanels";
 import { useModalStore } from "./store/modalStore";
 
 export default function TimeCapsule({
   selectedVersion, isBackingUp, triggerPrePatchSnapshot, triggerFullEngineBackup,
   restoreGameBackup, renameGameBackup, deleteBackup, backupList, getBackupSignature
 }: any) {
-  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
+
   const { t } = useLexicon();
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [confirmRestoreBackup, setConfirmRestoreBackup] = useState<string | null>(null);
   const [confirmDeleteBackup, setConfirmDeleteBackup] = useState<string | null>(null);
   const [confirmSealWorld, setConfirmSealWorld] = useState<boolean>(false);
   const [confirmSealEngine, setConfirmSealEngine] = useState<boolean>(false);
   const [config, setConfig] = useState<any>(null);
+  const [selectedBackupForInspection, setSelectedBackupForInspection] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState("LANDING");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [versionFilter, setVersionFilter] = useState("ALL");
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchConfig() {
@@ -38,21 +47,70 @@ export default function TimeCapsule({
   const worldPercentage = vaultCapacityMb > 0 ? Math.min(100, (totalWorldSize / vaultCapacityMb) * 100) : 0;
   const enginePercentage = vaultCapacityMb > 0 ? Math.min(100, (totalEngineSize / vaultCapacityMb) * 100) : 0;
 
+  const uniqueVersions = useMemo(() => {
+    const versions = new Set<string>();
+    (backupList || []).forEach((backup: any) => {
+      const backupName = typeof backup === 'string' ? backup : backup.name;
+      const sig = getBackupSignature ? getBackupSignature(backupName) : null;
+      if (sig?.version) versions.add(sig.version);
+    });
+    return Array.from(versions);
+  }, [backupList, getBackupSignature]);
+
+  const passesFilters = (backup: any) => {
+    const backupName = typeof backup === 'string' ? backup : backup.name;
+    const sig = getBackupSignature ? getBackupSignature(backupName) : null;
+    const title = sig?.alias || (sig?.isEngine ? t("engine_full") : t("world_state"));
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!title.toLowerCase().includes(q) && !backupName.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+
+    if (versionFilter !== "ALL") {
+      if (sig?.version !== versionFilter) return false;
+    }
+
+    if (startDate || endDate) {
+      if (!sig?.timestamp || sig.timestamp === "0") return false;
+      const backupDate = new Date(Number(sig.timestamp) * 1000);
+      backupDate.setHours(0, 0, 0, 0);
+
+      if (startDate) {
+        const sd = new Date(startDate);
+        sd.setHours(0, 0, 0, 0);
+        if (backupDate < sd) return false;
+      }
+      if (endDate) {
+        const ed = new Date(endDate);
+        ed.setHours(0, 0, 0, 0);
+        if (backupDate > ed) return false;
+      }
+    }
+
+    return true;
+  };
+
   const worldBackups = (backupList || []).filter((backup: any) => {
     const backupName = typeof backup === 'string' ? backup : backup.name;
     const sig = getBackupSignature ? getBackupSignature(backupName) : null;
-    return sig ? !sig.isEngine : !backupName.toLowerCase().includes("engine");
+    const isWorld = sig ? !sig.isEngine : !backupName.toLowerCase().includes("engine");
+    return isWorld && passesFilters(backup);
   });
 
   const engineBackups = (backupList || []).filter((backup: any) => {
     const backupName = typeof backup === 'string' ? backup : backup.name;
     const sig = getBackupSignature ? getBackupSignature(backupName) : null;
-    return sig ? sig.isEngine : backupName.toLowerCase().includes("engine");
+    const isEngine = sig ? sig.isEngine : backupName.toLowerCase().includes("engine");
+    return isEngine && passesFilters(backup);
   });
 
   const renderBackupCard = (backup: any) => {
     const backupName = typeof backup === 'string' ? backup : backup.name;
     const sizeMb = typeof backup === 'string' ? 0 : backup.size_mb;
+    const logicalSizeMb = typeof backup === 'string' ? 0 : (backup.logical_size_mb ?? backup.size_mb);
     const sig = getBackupSignature ? getBackupSignature(backupName) : null;
     const isEngine = sig ? sig.isEngine : backupName.toLowerCase().includes("engine");
     const title = sig?.alias || (isEngine ? t("engine_full") : t("world_state"));
@@ -70,13 +128,13 @@ export default function TimeCapsule({
         <div className={`absolute inset-0 bg-gradient-to-br ${themeGradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
 
         <div className="flex justify-between items-start relative z-10">
-          <div className={`w-12 h-12 rounded-2xl ${themeBg} flex items-center justify-center ${themeColor} ${themeBorder} border shadow-sm shrink-0`}>
-            <span className="material-symbols-outlined !text-2xl">{icon}</span>
+          <div className={`w-12 h-12 rounded-xl theme-glass-panel border ${themeBorder} shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
+            <span className={`material-symbols-outlined !text-[24px] ${themeColor} opacity-90 drop-shadow-lg`}>{icon}</span>
           </div>
 
-          {sizeMb > 0 && (
-            <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 px-2.5 py-1 rounded-lg">{(sizeMb / 1024).toFixed(2)} {t("unit_gb")}</span>
-          )}
+          <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 px-2.5 py-1 rounded-lg">
+            {sizeMb < 1 ? (sizeMb * 1024).toFixed(2) + " MB" : (sizeMb / 1024).toFixed(2) + " " + t("unit_gb")}
+          </span>
         </div>
 
         <div className="flex flex-col relative z-10 mt-1">
@@ -97,10 +155,16 @@ export default function TimeCapsule({
           <div className={`absolute inset-0 flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName || confirmDeleteBackup === backupName ? 'opacity-0 translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
             <button
               onClick={() => setConfirmRestoreBackup(backupName)}
-              className={`flex-[3] h-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:${themeColor} bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all rounded-xl shadow-sm backdrop-blur-md`}
+              className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:${themeColor} bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all rounded-xl shadow-sm backdrop-blur-md`}
             >
               <span className={`material-symbols-outlined !text-sm`}>{t("icon_restore")}</span>
               {t("btn_restore")}
+            </button>
+            <button
+              onClick={() => { setSelectedBackupForInspection(backupName); setIsSidePanelOpen(true); }}
+              className="flex-[1] h-full flex items-center justify-center text-[var(--text)]/80 hover:text-[var(--text)] bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-[var(--text)]/30 transition-all rounded-xl shadow-sm backdrop-blur-md group/ins"
+            >
+              <span className="material-symbols-outlined !text-sm group-hover/ins:scale-110 transition-transform">search</span>
             </button>
             <button
               onClick={() => setConfirmDeleteBackup(backupName)}
@@ -141,124 +205,282 @@ export default function TimeCapsule({
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-700 pb-32 w-full">
-      <ViewHeader title={t("backups_title")} subtitle={t("backups_subtitle")} icon={t("icon_history")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30">
-        <div className="flex gap-4 items-center ml-auto shrink-0">
-          <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/10 shadow-inner">
-            <button onClick={() => setIsSidePanelOpen(true)} className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
-              <span className="material-symbols-outlined text-xl normal-case">{t("icon_tune")}</span>
-              <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_operations")}</span>
-            </button>
-          </div>
+      <ViewHeader title={t("backups_title")} subtitle={t("backups_subtitle")} icon={t("icon_history")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
+
+      <div className="flex flex-col gap-8 animate-in slide-in-from-top-4 duration-500 w-full mb-2">
+        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
+          <HubTabButton id="LANDING" icon="dashboard" label={t("tab_landing") || "LANDING"} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="WORLD" icon="public" label={t("world_state")} activeTab={activeTab} setTab={setActiveTab} />
+          <HubTabButton id="ENGINE" icon="settings" label={t("engine_full")} activeTab={activeTab} setTab={setActiveTab} />
         </div>
-      </ViewHeader>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10 w-full mb-4">
-
-        <div className="bg-black/5 dark:bg-white/5 p-6 rounded-[var(--radius)] border border-black/5 dark:border-white/5 shadow-md flex flex-col gap-6 relative overflow-hidden group hover:border-indigo-500/30 transition-all duration-500">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-[40px] rounded-full pointer-events-none group-hover:bg-indigo-500/20 transition-all duration-700" />
-
-          <div className="flex justify-between items-start relative z-10">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 shadow-sm shrink-0">
-              <span className="material-symbols-outlined !text-[24px]">{t("icon_public")}</span>
-            </div>
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 opacity-80 mb-1">{t("world_space")}</span>
-              <span className="text-2xl font-black text-[var(--text)] tracking-tighter">{(totalWorldSize / 1024).toFixed(2)} <span className="text-sm text-[var(--subtext)]">{t("unit_gb")}</span></span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 w-full mt-2 relative z-10">
-            <div className="flex justify-end items-center w-full">
-              <span className="text-[10px] font-black text-indigo-500 tracking-widest">{vaultCapacityGb > 0 ? `${worldPercentage.toFixed(1)}%` : t("capacity_unlimited")}</span>
-            </div>
-            <div className="h-1.5 w-full bg-black/10 dark:bg-black/40 rounded-full overflow-hidden flex shadow-inner border border-black/5 dark:border-white/5">
-              <div className="h-full bg-gradient-to-r from-indigo-500/60 to-indigo-500 transition-all duration-1000 relative" style={{ width: `${vaultCapacityGb > 0 ? worldPercentage : Math.max(0, (totalWorldSize / Math.max(1, totalSpace)) * 100)}%` }} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-black/5 dark:bg-white/5 p-6 rounded-[var(--radius)] border border-black/5 dark:border-white/5 shadow-md flex flex-col gap-6 relative overflow-hidden group hover:border-rose-500/30 transition-all duration-500">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 blur-[40px] rounded-full pointer-events-none group-hover:bg-rose-500/20 transition-all duration-700" />
-
-          <div className="flex justify-between items-start relative z-10">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shadow-sm shrink-0">
-              <span className="material-symbols-outlined !text-[24px]">{t("icon_settings")}</span>
-            </div>
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 opacity-80 mb-1">{t("engine_space")}</span>
-              <span className="text-2xl font-black text-[var(--text)] tracking-tighter">{(totalEngineSize / 1024).toFixed(2)} <span className="text-sm text-[var(--subtext)]">{t("unit_gb")}</span></span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 w-full mt-2 relative z-10">
-            <div className="flex justify-end items-center w-full">
-              <span className="text-[10px] font-black text-rose-500 tracking-widest">{vaultCapacityGb > 0 ? `${enginePercentage.toFixed(1)}%` : t("capacity_unlimited")}</span>
-            </div>
-            <div className="h-1.5 w-full bg-black/10 dark:bg-black/40 rounded-full overflow-hidden flex shadow-inner border border-black/5 dark:border-white/5">
-              <div className="h-full bg-gradient-to-r from-rose-500/60 to-rose-500 transition-all duration-1000 relative" style={{ width: `${vaultCapacityGb > 0 ? enginePercentage : Math.max(0, (totalEngineSize / Math.max(1, totalSpace)) * 100)}%` }} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-black/5 dark:bg-white/5 p-6 rounded-[var(--radius)] border border-black/5 dark:border-white/5 shadow-md flex flex-col gap-6 relative overflow-hidden group hover:border-emerald-500/30 transition-all duration-500">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-[40px] rounded-full pointer-events-none group-hover:bg-emerald-500/10 transition-all duration-700" />
-
-          <div className="flex justify-between items-start relative z-10">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-sm shrink-0">
-              <span className="material-symbols-outlined !text-[24px]">{t("icon_storage")}</span>
-            </div>
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 opacity-80 mb-1">{t("total_space")}</span>
-              <span className="text-2xl font-black text-[var(--text)] tracking-tighter">
-                {(totalSpace / 1024).toFixed(2)}
-                <span className="text-sm text-[var(--subtext)] ml-1">
-                  {vaultCapacityGb > 0 ? `/ ${vaultCapacityGb}` : ''} {t("unit_gb")}
-                </span>
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 w-full mt-2 relative z-10">
-            <div className="flex justify-end items-center w-full">
-              <span className="text-[10px] font-black text-emerald-500 tracking-widest">{vaultCapacityGb > 0 ? `${(worldPercentage + enginePercentage).toFixed(1)}%` : t("capacity_unlimited")}</span>
-            </div>
-            <div className="h-1.5 w-full bg-black/10 dark:bg-black/40 rounded-full overflow-hidden flex shadow-inner border border-black/5 dark:border-white/5">
-              <div className="h-full bg-gradient-to-r from-indigo-500/80 to-indigo-500 transition-all duration-1000" style={{ width: `${vaultCapacityGb > 0 ? worldPercentage : Math.max(0, (totalWorldSize / Math.max(1, totalSpace)) * 100)}%` }} />
-              <div className="h-full bg-gradient-to-r from-rose-500/80 to-rose-500 transition-all duration-1000" style={{ width: `${vaultCapacityGb > 0 ? enginePercentage : Math.max(0, (totalEngineSize / Math.max(1, totalSpace)) * 100)}%` }} />
-            </div>
-          </div>
-        </div>
-
       </div>
 
+      {activeTab === "LANDING" && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full relative z-10 animate-in slide-in-from-top-4 duration-500 mb-6">
+          <DashboardStatTile
+            icon={<span className="material-symbols-outlined !text-4xl">{t("icon_verified_user")}</span>}
+            number={selectedVersion || t("status_unknown")}
+            label={t("target_patch")}
+            colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
+          />
+          <DashboardStatTile
+            icon={<span className="material-symbols-outlined !text-4xl">{t("icon_public")}</span>}
+            number={(totalWorldSize / 1024).toFixed(2)}
+            label={`${t("unit_gb")} / ${t("world_space")}`}
+            colorClass="border-indigo-500/30 text-indigo-500 hover:border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 cursor-pointer"
+            onClick={() => setActiveTab("WORLD")}
+          />
+          <DashboardStatTile
+            icon={<span className="material-symbols-outlined !text-4xl">{t("icon_settings")}</span>}
+            number={(totalEngineSize / 1024).toFixed(2)}
+            label={`${t("unit_gb")} / ${t("engine_space")}`}
+            colorClass="border-rose-500/30 text-rose-500 hover:border-rose-500 bg-rose-500/10 hover:bg-rose-500/20 cursor-pointer"
+            onClick={() => setActiveTab("ENGINE")}
+          />
+          <DashboardStatTile
+            icon={<span className="material-symbols-outlined !text-4xl">{t("icon_storage")}</span>}
+            number={(totalSpace / 1024).toFixed(2)}
+            label={`${t("unit_gb")} / ${t("total_space")}`}
+            colorClass="border-cyan-500/30 text-cyan-500 hover:border-cyan-500 bg-cyan-500/10 hover:bg-cyan-500/20"
+          />
+        </div>
+      )}
+
+      {activeTab !== "LANDING" && (
+        <div className="flex items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full">
+          <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
+            <div className={`w-12 h-12 rounded-xl theme-glass-panel border ${activeTab === "WORLD" ? "border-indigo-500/30" : activeTab === "ENGINE" ? "border-rose-500/30" : "border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"} shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
+              <span className={`material-symbols-outlined !text-[24px] ${activeTab === "WORLD" ? "text-indigo-500" : activeTab === "ENGINE" ? "text-rose-500" : "theme-text-accent"} opacity-90 drop-shadow-lg`}>
+                {activeTab === "WORLD" ? "public" : activeTab === "ENGINE" ? "settings" : "history"}
+              </span>
+            </div>
+            <span className="truncate">
+              {activeTab === "LANDING" ? t("timecapsule_recent") || "RECENT CHRONOGRAMS" : activeTab === "WORLD" ? t("world_state") : t("section_engine")}
+            </span>
+          </h2>
+
+          <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
+            <div className="relative flex-1 h-12 min-w-[200px] max-w-[350px]">
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
+              <input
+                type="text"
+                placeholder={t("timecapsule_search") || "Search Chronograms..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
+                  <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
+                </button>
+              )}
+            </div>
+
+            <div className="w-max min-w-[180px] shrink-0">
+              <CustomDropdown disableTint={true}
+                value={versionFilter}
+                onChange={(val: string[]) => setVersionFilter(val[0])}
+                options={[
+                  { id: "ALL", label: t("ql_all") },
+                  ...uniqueVersions.map((v: string) => ({ id: v, label: v }))
+                ]}
+              />
+            </div>
+
+            <div className="w-max min-w-[150px] shrink-0">
+              <CustomDatePicker
+                value={startDate}
+                onChange={setStartDate}
+                placeholder={t("filter_start_date") || "Start Date"}
+              />
+            </div>
+            <div className="w-max min-w-[150px] shrink-0">
+              <CustomDatePicker
+                value={endDate}
+                onChange={setEndDate}
+                placeholder={t("filter_end_date") || "End Date"}
+              />
+            </div>
+
+            {activeTab === "WORLD" && (
+              <div className="shrink-0 h-12">
+                {!confirmSealWorld ? (
+                  <ActionButton
+                    icon="public"
+                    className="h-12 px-6 py-0"
+                    label={t("btn_seal_state")}
+                    onClick={() => setConfirmSealWorld(true)}
+                  />
+                ) : (
+                  <div className="flex gap-2 shrink-0">
+                    <ActionButton
+                      icon="check_circle"
+                      label={t("btn_confirm")}
+                      onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setConfirmSealWorld(false); }}
+                      className="h-12 px-6 py-0"
+                    />
+                    <ActionButton
+                      icon="close"
+                      onClick={() => setConfirmSealWorld(false)}
+                      className="h-12 w-12 px-0 py-0 flex items-center justify-center"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "ENGINE" && (
+              <div className="shrink-0 h-12">
+                {!confirmSealEngine ? (
+                  <ActionButton
+                    icon="settings"
+                    className="h-12 px-6 py-0"
+                    label={t("btn_seal_engine")}
+                    onClick={() => setConfirmSealEngine(true)}
+                  />
+                ) : (
+                  <div className="flex gap-2 shrink-0">
+                    <ActionButton
+                      icon="warning_amber"
+                      label={t("btn_confirm")}
+                      onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setConfirmSealEngine(false); }}
+                      className="h-12 px-6 py-0"
+                    />
+                    <ActionButton
+                      icon="close"
+                      onClick={() => setConfirmSealEngine(false)}
+                      className="h-12 w-12 px-0 py-0 flex items-center justify-center"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-10 pt-4">
         {backupList?.length > 0 ? (
           <>
-            {worldBackups.length > 0 && (
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-[0.2em] flex items-center gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shadow-sm">
-                    <span className="text-indigo-500 text-[20px] material-symbols-outlined">{t("icon_public")}</span>
+            {activeTab === "LANDING" && (
+              <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {worldBackups.length > 0 && (
+                  <div className="flex flex-col gap-6">
+                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+                      <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-[0.2em] flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-indigo-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined !text-[24px] text-indigo-500 opacity-90 drop-shadow-lg">{t("icon_public")}</span>
+                        </div>
+                        {t("recent_world_states") || "RECENT WORLD STATES"}
+                      </h3>
+                      {!confirmSealWorld ? (
+                        <ActionButton
+                          icon="public"
+                          className="h-10 px-6 py-0 shrink-0"
+                          label={t("btn_seal_state")}
+                          onClick={() => setConfirmSealWorld(true)}
+                        />
+                      ) : (
+                        <div className="flex gap-2 shrink-0">
+                          <ActionButton
+                            icon="check_circle"
+                            label={t("btn_confirm")}
+                            onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setConfirmSealWorld(false); }}
+                            className="h-10 px-6 py-0"
+                          />
+                          <ActionButton
+                            icon="close"
+                            onClick={() => setConfirmSealWorld(false)}
+                            className="h-10 w-10 px-0 py-0 flex items-center justify-center"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
+                      {worldBackups.slice(0, 6).map(renderBackupCard)}
+                    </div>
                   </div>
-                  {t("world_state")}
-                </h3>
+                )}
+
+                {engineBackups.length > 0 && (
+                  <div className="flex flex-col gap-6">
+                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+                      <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-[0.2em] flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-rose-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined !text-[24px] text-rose-500 opacity-90 drop-shadow-lg">{t("icon_settings")}</span>
+                        </div>
+                        {t("recent_engine_cores") || "RECENT ENGINE CORES"}
+                      </h3>
+                      {!confirmSealEngine ? (
+                        <ActionButton
+                          icon="settings"
+                          className="h-10 px-6 py-0 shrink-0"
+                          label={t("btn_seal_engine")}
+                          onClick={() => setConfirmSealEngine(true)}
+                        />
+                      ) : (
+                        <div className="flex gap-2 shrink-0">
+                          <ActionButton
+                            icon="warning_amber"
+                            label={t("btn_confirm")}
+                            onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setConfirmSealEngine(false); }}
+                            className="h-10 px-6 py-0"
+                          />
+                          <ActionButton
+                            icon="close"
+                            onClick={() => setConfirmSealEngine(false)}
+                            className="h-10 w-10 px-0 py-0 flex items-center justify-center"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
+                      {engineBackups.slice(0, 6).map(renderBackupCard)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "WORLD" && worldBackups.length > 0 && (
+              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                   {worldBackups.map(renderBackupCard)}
                 </div>
               </div>
             )}
 
-            {engineBackups.length > 0 && (
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
-                <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-[0.2em] flex items-center gap-4 border-b border-black/5 dark:border-white/5 pb-4 mt-4">
-                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shadow-sm">
-                    <span className="text-rose-500 text-[20px] material-symbols-outlined">{t("icon_settings")}</span>
-                  </div>
-                  {t("section_engine")}
-                </h3>
+            {activeTab === "ENGINE" && engineBackups.length > 0 && (
+              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                   {engineBackups.map(renderBackupCard)}
                 </div>
+              </div>
+            )}
+
+            {activeTab === "LANDING" && worldBackups.length === 0 && engineBackups.length === 0 && (
+              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
+                <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60 flex items-center gap-4">
+                  <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
+                  {t("timecapsule_no_backups")}
+                </span>
+              </div>
+            )}
+
+            {activeTab === "WORLD" && worldBackups.length === 0 && (
+              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
+                <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60 flex items-center gap-4">
+                  <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
+                  {t("timecapsule_no_backups")}
+                </span>
+              </div>
+            )}
+
+            {activeTab === "ENGINE" && engineBackups.length === 0 && (
+              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
+                <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60 flex items-center gap-4">
+                  <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
+                  {t("timecapsule_no_backups")}
+                </span>
               </div>
             )}
           </>
@@ -271,85 +493,7 @@ export default function TimeCapsule({
           </div>
         )}
       </div>
-
-      <SidePanel
-        isOpen={isSidePanelOpen}
-        onClose={() => setIsSidePanelOpen(false)}
-        title={t("tools_title")}
-        subtitle={t("tools_subtitle")}
-        icon="tune"
-        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
-      >
-        <div className="flex flex-col gap-6">
-          <div className="theme-glass-panel border border-white/5 rounded-[var(--radius)] p-6 shadow-lg relative overflow-hidden group/card">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
-            <div className="flex items-center gap-4 mb-6 relative z-10">
-              <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-emerald-500">
-                <span className="material-symbols-outlined !text-[20px]">{t("icon_verified_user")}</span>
-              </div>
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("target_patch")}</h3>
-            </div>
-
-            <div className="relative z-10">
-              <div className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 rounded-2xl px-6 py-4 flex items-center justify-between shadow-inner">
-                <span className="text-sm font-black tracking-widest text-[var(--text)] uppercase flex items-center gap-3">
-                  <span className="material-symbols-outlined !text-[18px] text-emerald-500">{t("icon_verified_user")}</span>
-                  {selectedVersion || "Latest"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="theme-glass-panel border border-white/5 rounded-[var(--radius)] p-6 shadow-lg relative overflow-hidden group/card">
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
-            <div className="flex items-center gap-4 mb-6 relative z-10">
-              <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--accent)]">
-                <span className="material-symbols-outlined !text-[20px]">{t("icon_bolt")}</span>
-              </div>
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("sidebar_actions")}</h3>
-            </div>
-
-            <div className="relative z-10 flex flex-col gap-3">
-              {!confirmSealWorld ? (
-                <SidebarActionButton
-                  icon="globe"
-                  customColorClass="text-indigo-500 border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 hover:border-indigo-500/50 hover:shadow-[0_0_20px_rgba(99,102,241,0.25)]"
-                  label={t("btn_seal_state")}
-                  onClick={() => setConfirmSealWorld(true)}
-                />
-              ) : (
-                <div className="flex gap-2 h-16">
-                  <button onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setIsSidePanelOpen(false); setConfirmSealWorld(false); }} className="flex-[2] h-full rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 border border-indigo-500/30 font-black text-[10px] tracking-widest flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined !text-sm">{t("icon_check_circle")}</span> {t("btn_confirm")}
-                  </button>
-                  <button onClick={() => setConfirmSealWorld(false)} className="flex-[1] h-full rounded-2xl bg-white/5 hover:bg-white/10 text-[var(--subtext)] hover:text-[var(--text)] border border-white/10 font-black text-[10px] tracking-widest flex items-center justify-center">
-                    {t("nav_cancel")}
-                  </button>
-                </div>
-              )}
-
-              {!confirmSealEngine ? (
-                <SidebarActionButton
-                  id="SEAL_ENGINE"
-                  icon="settings"
-                  customColorClass="text-rose-500 border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 hover:border-rose-500/50 hover:shadow-[0_0_20px_rgba(244,63,94,0.25)]"
-                  label={t("btn_seal_engine")}
-                  onClick={() => setConfirmSealEngine(true)}
-                />
-              ) : (
-                <div className="flex gap-2 h-16">
-                  <button onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setIsSidePanelOpen(false); setConfirmSealEngine(false); }} className="flex-[2] h-full rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 font-black text-[10px] tracking-widest flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined !text-sm">{t("icon_warning_amber")}</span> {t("btn_confirm")}
-                  </button>
-                  <button onClick={() => setConfirmSealEngine(false)} className="flex-[1] h-full rounded-2xl bg-white/5 hover:bg-white/10 text-[var(--subtext)] hover:text-[var(--text)] border border-white/10 font-black text-[10px] tracking-widest flex items-center justify-center">
-                    {t("nav_cancel")}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </SidePanel>
+      <TimeCapsuleSidePanel isOpen={isSidePanelOpen} onClose={() => setIsSidePanelOpen(false)} selectedBackup={selectedBackupForInspection} config={config} />
     </div>
   );
 }

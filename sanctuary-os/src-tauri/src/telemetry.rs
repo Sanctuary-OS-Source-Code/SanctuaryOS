@@ -13,46 +13,64 @@ pub struct SystemTelemetry {
 
 #[tauri::command]
 pub async fn fetch_system_telemetry() -> Result<SystemTelemetry, String> {
-    let sys_mutex = SYS.get_or_init(|| {
-        let mut s = sysinfo::System::new();
-        s.refresh_cpu_usage();
-        s.refresh_memory();
-        Mutex::new(s)
-    });
+    tauri::async_runtime::spawn_blocking(|| {
+        let sys_mutex = SYS.get_or_init(|| {
+            let mut s = sysinfo::System::new();
+            s.refresh_cpu_usage();
+            s.refresh_memory();
+            Mutex::new(s)
+        });
 
-    let mut sys = sys_mutex.lock().map_err(|_| "Failed to lock system mutex")?;
-    sys.refresh_memory();
-    sys.refresh_cpu_usage();
-    
-    let disks = Disks::new_with_refreshed_list();
-    let mut disk_total = 0;
-    let mut disk_used = 0;
-    
-    for disk in disks.list() {
-        disk_total += disk.total_space();
-        disk_used += disk.total_space() - disk.available_space();
-    }
-    
-    Ok(SystemTelemetry {
-        logical_cores: sys.cpus().len(),
-        physical_cores: sysinfo::System::physical_core_count().unwrap_or(0),
-        total_memory: sys.total_memory(),
-        total_swap: sys.total_swap(),
-        host_os: System::long_os_version().unwrap_or_else(|| "Unknown".to_string()),
-        disk_total,
-        disk_used,
-    })
+        let mut sys = sys_mutex.lock().map_err(|_| "Failed to lock system mutex")?;
+        sys.refresh_memory();
+        sys.refresh_cpu_usage();
+        
+        let disks = Disks::new_with_refreshed_list();
+        let mut disk_total = 0;
+        let mut disk_used = 0;
+        
+        for disk in disks.list() {
+            disk_total += disk.total_space();
+            disk_used += disk.total_space() - disk.available_space();
+        }
+        
+        Ok(SystemTelemetry {
+            logical_cores: sys.cpus().len(),
+            physical_cores: sysinfo::System::physical_core_count().unwrap_or(0),
+            total_memory: sys.total_memory(),
+            total_swap: sys.total_swap(),
+            host_os: System::long_os_version().unwrap_or_else(|| "Unknown".to_string()),
+            disk_total,
+            disk_used,
+        })
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
 pub async fn get_directory_size(path: String) -> Result<u64, String> {
-    let mut total_size = 0;
-    for entry in walkdir::WalkDir::new(&path).into_iter().filter_map(|e| e.ok()) {
-        if let Ok(metadata) = entry.metadata() {
-            total_size += metadata.len();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut total_size = 0;
+        let mut engine_core_seen = false;
+        
+        let mut walker = walkdir::WalkDir::new(&path).into_iter();
+        while let Some(Ok(entry)) = walker.next() {
+            let name = entry.file_name().to_string_lossy();
+            
+            // Cheap hardlink deduplication: only count the first Engine_Core we see
+            if entry.file_type().is_dir() && name.starts_with("Engine_Core") {
+                if engine_core_seen {
+                    walker.skip_current_dir();
+                    continue;
+                }
+                engine_core_seen = true;
+            }
+            
+            if let Ok(metadata) = entry.metadata() {
+                total_size += metadata.len();
+            }
         }
-    }
-    Ok(total_size)
+        Ok(total_size)
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[derive(serde::Serialize)]
@@ -94,25 +112,27 @@ static SYS: OnceLock<Mutex<sysinfo::System>> = OnceLock::new();
 
 #[tauri::command]
 pub async fn fetch_app_footprint() -> Result<AppFootprint, String> {
-    let pid = sysinfo::get_current_pid().map_err(|e| e.to_string())?;
-    
-    let sys_mutex = SYS.get_or_init(|| {
-        Mutex::new(sysinfo::System::new())
-    });
+    tauri::async_runtime::spawn_blocking(|| {
+        let pid = sysinfo::get_current_pid().map_err(|e| e.to_string())?;
+        
+        let sys_mutex = SYS.get_or_init(|| {
+            Mutex::new(sysinfo::System::new())
+        });
 
-    let mut sys = sys_mutex.lock().map_err(|_| "Failed to lock system mutex")?;
-    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
-    
-    if let Some(process) = sys.process(pid) {
-        let disk_usage = process.disk_usage();
-        Ok(AppFootprint {
-            memory_used: process.memory(),
-            memory_private: get_private_usage(),
-            cpu_usage: process.cpu_usage(),
-            disk_read: disk_usage.read_bytes,
-            disk_written: disk_usage.written_bytes,
-        })
-    } else {
-        Err("Process not found".to_string())
-    }
+        let mut sys = sys_mutex.lock().map_err(|_| "Failed to lock system mutex")?;
+        sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+        
+        if let Some(process) = sys.process(pid) {
+            let disk_usage = process.disk_usage();
+            Ok(AppFootprint {
+                memory_used: process.memory(),
+                memory_private: get_private_usage(),
+                cpu_usage: process.cpu_usage(),
+                disk_read: disk_usage.read_bytes,
+                disk_written: disk_usage.written_bytes,
+            })
+        } else {
+            Err("Process not found".to_string())
+        }
+    }).await.map_err(|e| e.to_string())?
 }
