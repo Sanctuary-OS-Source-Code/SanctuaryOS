@@ -1,7 +1,7 @@
 # Sanctuary OS 
 
-![Version](https://img.shields.io/badge/version-0.4.85-blue)
-![Last Updated](https://img.shields.io/badge/last_updated-July_24,_2026-brightgreen)
+![Version](https://img.shields.io/badge/version-0.4.9-blue)
+![Last Updated](https://img.shields.io/badge/last_updated-August_1st,_2026-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Alpha](https://img.shields.io/badge/Alpha-Early_Access-red)
 
@@ -78,7 +78,7 @@ Your Vault is your local library and secured asset storage. The game never touch
 - **Blueprint Hot-Swap:** Use the new dropdown directly in the Vault Header to switch your active mod profile without ever leaving the screen.
 - **Select Assets Bar:** A floating, pill-shaped bar at the bottom of the screen allows for bulk actions: Draft a Blueprint, Group into a Virtual Folder, or Purge Archives.
 - **Safety Protocol Filters:** Use the new filter dropdowns to instantly hide mods incompatible with your game version, or select "Only Show Eligible" to hide artifacts that are currently relied upon by other mods (preventing accidental breakage).
-- **Deep Yeet 2.0:** If you attempt to delete a core mod (e.g., XML Injector), Sanctuary OS will intercept the action and display a "Yeet Cascade" inline alert/side panel, automatically queuing all dependent add-ons for removal to keep your bunker sterile.
+- **Delete Cascade:** If you attempt to delete a core mod (e.g., XML Injector), Sanctuary OS will intercept the action and display a "Delete Cascade" inline alert/side panel, automatically queuing all dependent add-ons for removal to keep your bunker sterile.
 - **Ghosted States:** Visually, broken or missing mods will be "Ghosted" with dynamic tooltips explaining exactly what is wrong (e.g., Game Version Unsupported, Missing DLC, Conflict Collision Severity 3/4).
 - **Duplicate Intercept:** If you ingest a mod with a SHA-256 hash identical to one you already own, a DNA Match Side Panel will intercept you, allowing you to instantly replace/overwrite or ignore the clone.
 
@@ -202,7 +202,7 @@ Your System. Your Sovereignty. Your Preferences.
 4. **Check your Status:** If your Command Center tile is Amber or Red, run a Radar Sweep and follow the Citizen Action Recommended Alert.
 5. **Watch the Launch Button:** Green is all clear. If it’s Red, that means a Patch Update is currently rolling out.
 6. **Account Not Required:** The offline version of Sanctuary OS does not require an account.
-   - The Nexus, Comm-Link, Blueprint Uplinks, Deep Yeet, Ghosted States, DEFCON Alerts, and Malware Intercepts will be unavailable while offline/logged out.
+   - The Nexus, Comm-Link, Blueprint Uplinks, Delete Cascades, Ghosted States, DEFCON Alerts, and Malware Intercepts will be unavailable while offline/logged out.
 
 ---
 
