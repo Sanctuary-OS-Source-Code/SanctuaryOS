@@ -107,9 +107,9 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
               </div>
             </span>
             <span className="relative group/tooltip flex items-center gap-1 hover:text-[var(--text)] cursor-pointer" onClick={(e) => onToggleLike(e, post)}>
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_sync")}</span> {(post.likes?.[0]?.count || 0).toLocaleString()}
+              <span className="material-symbols-outlined !text-[14px]">{t("icon_favorite")}</span> {(post.likes?.[0]?.count || 0).toLocaleString()}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-                {t("ui.syncs")}
+                {t("ui_likes") || "Likes"}
               </div>
             </span>
             <span className="relative group/tooltip flex items-center gap-1 hover:text-[var(--text)] cursor-pointer">

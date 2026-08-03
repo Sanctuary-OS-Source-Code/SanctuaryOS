@@ -34,11 +34,12 @@ export default function MasonRecentRepliesSidePanel({
       setIsLoading(false);
       return;
     }
-    const myPostIds = myPosts.map(p => p.id);
 
+    const postIds = myPosts.map(p => p.id);
     const { data: comments, error } = await supabase.from("mason_post_comments")
-      .select("*, mason_posts(title)")
-      .in("post_id", myPostIds)
+      .select("*")
+      .in("post_id", postIds)
+      .neq("author_id", userProfileId)
       .order("created_at", { ascending: false })
       .limit(20);
 
@@ -50,11 +51,14 @@ export default function MasonRecentRepliesSidePanel({
       return;
     }
 
+    const posts = myPosts.filter(p => postIds.includes(p.id));
+
     const authorIds = [...new Set(comments.map(c => c.author_id))];
     const { data: profiles } = await supabase.from("profiles").select("id, username").in("id", authorIds);
     
     const merged = comments.map(c => ({
        ...c,
+       mason_posts: posts?.find(p => p.id === c.post_id),
        profiles: profiles?.find(p => p.id === c.author_id)
     }));
     setReplies(merged);
@@ -121,6 +125,11 @@ export default function MasonRecentRepliesSidePanel({
                                 <span className="text-[10px] font-bold text-[var(--text)] truncate max-w-[200px]">
                                     {reply.mason_posts?.title || t("unknown_mason") || "Unknown Mason"}
                                 </span>
+                                {reply.mason_posts?.masons && (
+                                    <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60">
+                                        by {reply.mason_posts.masons.name}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     ))

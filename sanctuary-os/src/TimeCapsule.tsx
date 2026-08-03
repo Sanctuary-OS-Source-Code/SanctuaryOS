@@ -204,10 +204,10 @@ export default function TimeCapsule({
   };
 
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in duration-700 pb-32 w-full">
+    <div className="flex flex-col gap-0 animate-in fade-in duration-700 pb-32 w-full">
       <ViewHeader title={t("backups_title")} subtitle={t("backups_subtitle")} icon={t("icon_history")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
 
-      <div className="flex flex-col gap-8 animate-in slide-in-from-top-4 duration-500 w-full mb-2">
+      <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6">
         <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
           <HubTabButton id="LANDING" icon="dashboard" label={t("tab_landing") || "LANDING"} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="WORLD" icon="public" label={t("world_state")} activeTab={activeTab} setTab={setActiveTab} />
@@ -216,7 +216,7 @@ export default function TimeCapsule({
       </div>
 
       {activeTab === "LANDING" && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full relative z-10 animate-in slide-in-from-top-4 duration-500 mb-6">
+        <div className="flex flex-wrap gap-6 w-full relative z-10 animate-in slide-in-from-top-4 duration-500 mb-6">
           <DashboardStatTile
             icon={<span className="material-symbols-outlined !text-4xl">{t("icon_verified_user")}</span>}
             number={selectedVersion || t("status_unknown")}

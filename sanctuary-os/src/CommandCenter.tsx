@@ -15,8 +15,7 @@ import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
 import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
 import { UpdatesSidePanel } from './side-panels/CommandCenterSidePanels';
 import MasonPostViewer from "./side-panels/MasonPostViewer";
-
-
+import { CommandScreenStats } from "./hub-components/SharedCommandScreenLayout";
 
 export default function CommandCenter({
   isScanning, modsPath, isConfigured, toggleInActiveSet,
@@ -284,7 +283,7 @@ export default function CommandCenter({
     <div className="flex flex-col gap-8 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <ViewHeader title={t("center_title")} subtitle={t("center_subtitle")} icon={t("icon_desktop_windows")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 w-full">
+      <CommandScreenStats>
         <DashboardStatTile
           icon={<span className="material-symbols-outlined !text-4xl">{t("icon_radar")}</span>}
           number={
@@ -327,7 +326,7 @@ export default function CommandCenter({
           colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20"
           onClick={() => { if (activeGameSchema?.features?.has_cc !== false) setIsBlueprintSwapOpen(true); }}
         />
-        <div className="relative group/ticket flex-1 flex">
+        <div className="relative group/ticket flex-1 flex min-w-[200px] xl:min-w-[250px]">
           {!session && (
             <HoverTooltip
               variant="danger"
@@ -345,7 +344,7 @@ export default function CommandCenter({
             disabled={!session}
           />
         </div>
-      </div>
+      </CommandScreenStats>
 
       {urgentBroadcast && localStorage.getItem("sanctuary_notify_alert_banner") !== "false" && (
         <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full border border-[var(--danger)]/30 bg-[var(--danger)]/10 rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center gap-6 shadow-[0_0_40px_rgba(239,68,68,0.1)] cursor-pointer hover:bg-[var(--danger)]/20 transition-all group overflow-hidden relative backdrop-blur-md">

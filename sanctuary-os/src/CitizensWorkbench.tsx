@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { ViewHeader, HubTabButton, SidePanel, standardButtonClass, standardDangerButtonClass } from './shared';
+import { ViewHeader, HubTabButton, SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton } from './shared';
 import { WorkbenchFileGrid } from './workbench/WorkbenchFileGrid';
 import { WorkbenchSidePanel } from './workbench/WorkbenchSidePanel';
 import { PushTemplateSidePanel } from './side-panels/PushTemplateSidePanel';
@@ -82,41 +82,59 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
    return (
       <div className="flex flex-col w-full relative animate-in fade-in slide-in-from-bottom-4 duration-700">
-         <ViewHeader title={t("workbench_title") || "CITIZENS WORKBENCH"} subtitle={t("workbench_subtitle")} icon="tune">
-            {mainTab === "TEMPLATES" && (
-               <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/10 shadow-inner">
-                  <button onClick={() => layoutState.setIsTemplateGuideOpen(true)} className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
-                     <span className="material-symbols-outlined text-xl normal-case">{t("icon_help")}</span>
-                     <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_info")}</span>
-                  </button>
+         <ViewHeader title={t("workbench_title") || "CITIZENS WORKBENCH"} subtitle={t("workbench_subtitle")} icon="tune" />
 
-                  <button onClick={fileState.handleNewTemplate} className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black">
-                     <span className="material-symbols-outlined text-xl normal-case">{t("icon_add")}</span>
-                     <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_new_template")}</span>
-                  </button>
-               </div>
-            )}
-         </ViewHeader>
-
-         <div className="flex flex-col gap-6 min-h-max w-full max-w-[1600px] mx-auto p-8 lg:p-12">
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500">
+         <div className="flex flex-col gap-0 min-h-max w-full">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mb-6">
                <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
                   <HubTabButton id="CONFIGS" icon="settings" label={t("configs")} activeTab={mainTab} setTab={setMainTab as any} />
                   <HubTabButton id="TEMPLATES" icon="data_object" label={t("ql_templates")} activeTab={mainTab} setTab={setMainTab as any} />
                </div>
             </div>
 
-            <div className="theme-glass-panel p-6 rounded-[var(--radius)] shadow-xl border border-white/10 mb-8 animate-in slide-in-from-top-4 duration-500 flex flex-wrap gap-4 items-center relative z-20">
-               <div className="flex-1 min-w-[250px] relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--accent)] text-lg flex items-center justify-center">
-                     <span className="material-symbols-outlined !text-[20px] drop-shadow-md">{t("icon_search")}</span>
+            <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
+               <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest hidden xl:flex items-center gap-3 shrink-0">
+                  <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                     <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">
+                        {mainTab === "TEMPLATES" ? "data_object" : "settings"}
+                     </span>
                   </div>
-                  <input
-                     value={mainSearchQuery}
-                     onChange={e => setMainSearchQuery(e.target.value)}
-                     placeholder={t("search_files")}
-                     className="w-full theme-glass-inner rounded-2xl pl-12 pr-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all shadow-inner"
-                  />
+                  <span className="truncate">
+                     {mainTab === "TEMPLATES" ? (t("ql_templates") || "TEMPLATES") : (t("configs") || "CONFIGURATIONS")}
+                  </span>
+               </h2>
+               
+               <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
+                  <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[350px]">
+                     <input
+                        value={mainSearchQuery}
+                        onChange={e => setMainSearchQuery(e.target.value)}
+                        placeholder={t("search_files") || "Search files..."}
+                        className="w-full h-12 bg-black/40 border border-white/10 rounded-xl pl-12 pr-10 text-xs font-mono text-white placeholder-white/30 focus:outline-none focus:border-[var(--accent)] transition-all"
+                     />
+                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-[18px]">{t("icon_search")}</span>
+                     {mainSearchQuery && (
+                        <button onClick={() => setMainSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors">
+                           <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
+                        </button>
+                     )}
+                  </div>
+                  {mainTab === "TEMPLATES" && (
+                     <>
+                        <ActionButton 
+                           icon={t("icon_help")} 
+                           label={t("btn_info") || "TEMPLATE GUIDE"} 
+                           onClick={() => layoutState.setIsTemplateGuideOpen(true)} 
+                           className="!h-12 !py-0 !px-6 !rounded-xl"
+                        />
+                        <ActionButton 
+                           icon={t("icon_add")} 
+                           label={t("btn_new_template") || "NEW TEMPLATE"} 
+                           onClick={fileState.handleNewTemplate} 
+                           className="!h-12 !py-0 !px-6 !rounded-xl"
+                        />
+                     </>
+                  )}
                </div>
             </div>
 

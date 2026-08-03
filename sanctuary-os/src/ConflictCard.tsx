@@ -9,11 +9,10 @@ interface ConflictCardProps {
   isSelected?: boolean; 
   isSelectedA?: boolean;
   isSelectedB?: boolean;
-  onToggleSelectA?: () => void;
-  onToggleSelectB?: () => void;
-  onClick?: () => void;
+  onKeepA?: () => void;
+  onKeepB?: () => void;
   onIgnore?: () => void;
-  isBulkMode?: boolean;
+  onClick?: () => void;
 }
 
 const extractType = (name: string) => {
@@ -54,7 +53,7 @@ const ModNameWithBadge = ({ name }: { name: string }) => {
   );
 };
 
-function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelectedB, onToggleSelectA, onToggleSelectB, onClick, onIgnore, isBulkMode }: ConflictCardProps) {
+function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelectedB, onKeepA, onKeepB, onClick, onIgnore }: ConflictCardProps) {
   const { t } = useLexicon();
   
   let label = "";
@@ -90,9 +89,9 @@ function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelected
 
   return (
     <div 
-      onClick={!isBulkMode ? onClick : undefined}
+      onClick={(!onKeepA && !onKeepB) ? onClick : undefined}
       className={`theme-glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group border transition-all duration-500 relative overflow-hidden
-        ${!isBulkMode ? `cursor-pointer hover:shadow-2xl hover:-translate-y-1 ${borderHover}` : ""}
+        ${(!onKeepA && !onKeepB) ? `cursor-pointer hover:shadow-2xl hover:-translate-y-1 ${borderHover}` : `hover:shadow-2xl hover:-translate-y-1 ${borderHover}`}
         ${isSelected ? "border-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_15%,transparent)]" : "border-white/5"}
       `}
     >
@@ -126,16 +125,16 @@ function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelected
 
       <div className="flex flex-col gap-3 relative z-10">
         <div 
-          onClick={isBulkMode ? (e) => { e.stopPropagation(); onToggleSelectA && onToggleSelectA(); } : undefined}
-          className={`p-4 rounded-2xl border shadow-inner flex flex-col relative transition-colors duration-500 ${isBulkMode ? 'cursor-pointer hover:bg-white/10' : ''} ${isSelectedA ? 'bg-[var(--accent)]/20 border-[var(--accent)]/50' : 'bg-black/10 dark:bg-white/5 border-white/10'}`}
+          onClick={onKeepA ? (e) => { e.stopPropagation(); onKeepA(); } : undefined}
+          className={`p-4 rounded-2xl border shadow-inner flex flex-col relative transition-colors duration-500 group/moda ${onKeepA ? 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:border-[var(--success)]/50' : ''} bg-black/10 dark:bg-white/5 border-white/10`}
         >
           <div className="flex justify-between items-start mb-1">
             <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tColor}`}>
               <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
             </span>
-            {isBulkMode && (
-              <div className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all duration-500 ${isSelectedA ? "border-[var(--accent)]/60 bg-[var(--accent)]/20 text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_40%,transparent),inset_0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)]" : "border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent bg-black/20 shadow-inner"}`}>
-                <span className={`material-symbols-outlined font-black transition-all duration-500 ${isSelectedA ? '!text-[14px] drop-shadow-[0_0_8px_var(--accent)] scale-110' : '!text-[12px] scale-90'}`}>{t("icon_check") || "check"}</span>
+            {onKeepA && (
+              <div className="w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all duration-500 border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-transparent bg-black/20 shadow-inner group-hover/moda:border-[var(--success)]/60 group-hover/moda:bg-[var(--success)]/20 group-hover/moda:text-[var(--success)] group-hover/moda:shadow-[0_0_15px_color-mix(in_srgb,var(--success)_40%,transparent),inset_0_0_10px_color-mix(in_srgb,var(--success)_20%,transparent)]">
+                <span className="material-symbols-outlined font-black transition-all duration-500 !text-[12px] scale-90 group-hover/moda:scale-110 group-hover/moda:drop-shadow-[0_0_8px_var(--success)]">check</span>
               </div>
             )}
           </div>
@@ -149,16 +148,16 @@ function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelected
         </div>
 
         <div 
-          onClick={isBulkMode ? (e) => { e.stopPropagation(); onToggleSelectB && onToggleSelectB(); } : undefined}
-          className={`p-4 rounded-2xl border shadow-inner flex flex-col relative transition-colors duration-500 ${isBulkMode ? 'cursor-pointer hover:bg-white/10' : ''} ${isSelectedB ? 'bg-[var(--accent)]/20 border-[var(--accent)]/50' : 'bg-black/10 dark:bg-white/5 border-white/10'}`}
+          onClick={onKeepB ? (e) => { e.stopPropagation(); onKeepB(); } : undefined}
+          className={`p-4 rounded-2xl border shadow-inner flex flex-col relative transition-colors duration-500 group/modb ${onKeepB ? 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:border-[var(--success)]/50' : ''} bg-black/10 dark:bg-white/5 border-white/10`}
         >
           <div className="flex justify-between items-start mb-1">
             <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tColor}`}>
               <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
             </span>
-            {isBulkMode && (
-              <div className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all duration-500 ${isSelectedB ? "border-[var(--accent)]/60 bg-[var(--accent)]/20 text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_40%,transparent),inset_0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)]" : "border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent bg-black/20 shadow-inner"}`}>
-                <span className={`material-symbols-outlined font-black transition-all duration-500 ${isSelectedB ? '!text-[14px] drop-shadow-[0_0_8px_var(--accent)] scale-110' : '!text-[12px] scale-90'}`}>{t("icon_check") || "check"}</span>
+            {onKeepB && (
+              <div className="w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all duration-500 border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-transparent bg-black/20 shadow-inner group-hover/modb:border-[var(--success)]/60 group-hover/modb:bg-[var(--success)]/20 group-hover/modb:text-[var(--success)] group-hover/modb:shadow-[0_0_15px_color-mix(in_srgb,var(--success)_40%,transparent),inset_0_0_10px_color-mix(in_srgb,var(--success)_20%,transparent)]">
+                <span className="material-symbols-outlined font-black transition-all duration-500 !text-[12px] scale-90 group-hover/modb:scale-110 group-hover/modb:drop-shadow-[0_0_8px_var(--success)]">check</span>
               </div>
             )}
           </div>
@@ -182,8 +181,7 @@ const arePropsEqual = (prev: ConflictCardProps, next: ConflictCardProps) => {
     prev.tier === next.tier &&
     prev.isSelected === next.isSelected &&
     prev.isSelectedA === next.isSelectedA &&
-    prev.isSelectedB === next.isSelectedB &&
-    prev.isBulkMode === next.isBulkMode
+    prev.isSelectedB === next.isSelectedB
   );
 };
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HubTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, enrichBlueprintsWithPremiumStatus } from "./shared";
+import { ViewHeader, CustomDropdown, HubTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, enrichBlueprintsWithPremiumStatus, FilterTabs } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel } from './side-panels/NexusSidePanels';
@@ -967,10 +967,39 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     );
   }
 
+  const viewFilterOptions = useMemo(() => [
+    { id: "hide_installed", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">download_done</span> {t("filter_hide_installed") || "Hide Installed"}</span> },
+    { id: "hide_paid", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">monetization_on</span> {t("filter_hide_paid") || "Hide Paid"}</span> },
+    { id: "hide_ea", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">science</span> {t("filter_hide_early_access") || "Hide Early Access"}</span> },
+    { id: "hide_missing_dlc", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">extension</span> {t("filter_hide_dlc") || "Hide Missing DLC"}</span> }
+  ], [t]);
+
+  const activeViewFilters = useMemo(() => {
+    const arr: string[] = [];
+    if (hideInstalled) arr.push("hide_installed");
+    if (hidePaid) arr.push("hide_paid");
+    if (hideEarlyAccess) arr.push("hide_ea");
+    if (hideMissingDLC) arr.push("hide_missing_dlc");
+    return arr;
+  }, [hideInstalled, hidePaid, hideEarlyAccess, hideMissingDLC]);
+
+  const handleViewFiltersChange = (newVals: string[]) => {
+    const nInstalled = newVals.includes("hide_installed");
+    const nPaid = newVals.includes("hide_paid");
+    const nEa = newVals.includes("hide_ea");
+    const nDlc = newVals.includes("hide_missing_dlc");
+
+    if (hideInstalled !== nInstalled) { setHideInstalled(nInstalled); localStorage.setItem('sanctuary_hide_installed_assets', String(nInstalled)); }
+    if (hidePaid !== nPaid) { setHidePaid(nPaid); localStorage.setItem('sanctuary_hide_paid', String(nPaid)); }
+    if (hideEarlyAccess !== nEa) { setHideEarlyAccess(nEa); localStorage.setItem('sanctuary_hide_ea', String(nEa)); }
+    if (hideMissingDLC !== nDlc) { setHideMissingDLC(nDlc); localStorage.setItem('sanctuary_hide_missing_dlc', String(nDlc)); }
+    setCurrentPage(1);
+  };
+
 
 
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <ViewHeader
         title={t("market_title")}
         subtitle={`${t("subtitle_suffix")}`}
@@ -989,7 +1018,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       </ViewHeader>
 
       <div className="flex flex-col">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mb-8 w-full">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mb-6 w-full">
           <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
             {['MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
               <HubTabButton
@@ -1006,104 +1035,89 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
         {marketTab === 'MODS' ? (
           <>
-            <div className="theme-glass-panel p-6 rounded-[var(--radius)] shadow-xl border border-white/10 mb-8 animate-in slide-in-from-top-4 duration-500 flex flex-wrap gap-4 items-center relative z-20">
-              <div className="flex-1 min-w-[250px] relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text)] opacity-50 flex items-center justify-center">
-                  <span className="material-symbols-outlined !text-[20px]">{t("icon_search")}</span>
+            <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
+              <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] hidden xl:flex items-center gap-3 shrink-0">
+                <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">extension</span>
                 </div>
-                <input
-                  type="text"
-                  placeholder={t("search_placeholder")}
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full theme-glass-inner rounded-[var(--radius)] pl-12 pr-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all shadow-inner"
-                />
-              </div>
+                <span className="truncate">{t("tab_mods") || "ARTIFACTS"}</span>
+              </h2>
 
-              <div className="w-max min-w-[180px] max-w-xs">
-                <CustomDropdown disableTint={true}
-                  value={selectedGameVersion}
-                  onChange={(val: string[]) => {
-                    setSelectedGameVersion(val[0]);
-                    setCurrentPage(1);
-                  }}
-                  options={[
-                    { id: "all", label: "ALL VERSIONS" },
-                    ...gameVersions.map(v => ({ id: v, label: v }))
-                  ]}
-                />
-              </div>
-
-              <div className="w-max min-w-[180px] max-w-xs">
-                <CustomDropdown disableTint={true}
-                  value={sortBy}
-                  onChange={(val: string[]) => setSortBy(val[0])}
-                  options={[
-                    { id: "newest", label: t("sort_newest") },
-                    { id: "oldest", label: t("sort_oldest") },
-                    { id: "name", label: t("sort_name") },
-                    { id: "author", label: t("sort_author") }
-                  ]}
-                />
-              </div>
-
-              <div className="w-max min-w-[180px] max-w-xs">
-                <CustomDropdown disableTint={true}
-                  value={categoryFilter}
-                  onChange={(val: string[]) => {
-                    setCategoryFilter(val[0]);
-                    setCurrentPage(1);
-                  }}
-                  options={[
-                    { id: "ALL", label: "ALL CATEGORIES" },
-                    ...categories.filter(c => c !== "ALL").map(cat => ({ id: cat, label: cat }))
-                  ]}
-                />
-              </div>
-
-              {(marketTab === 'MODS' || marketTab === 'BLUEPRINTS') && (
-                <div className="flex items-center gap-2 w-full mt-2 flex-wrap">
-                  <button
-                    onClick={() => { 
-                      const newVal = !hidePaid;
-                      setHidePaid(newVal); 
-                      localStorage.setItem('sanctuary_hide_paid', String(newVal));
-                      setCurrentPage(1); 
+              <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
+                <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
+                  <input
+                    type="text"
+                    placeholder={t("search_placeholder")}
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1);
                     }}
-                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hidePaid ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
-                  >
-                    <span className="material-symbols-outlined !text-[12px]">{hidePaid ? 'visibility_off' : 'monetization_on'}</span>
-                    {t("filter_hide_paid") || "Hide Paid"}
-                  </button>
-                  <button
-                    onClick={() => { 
-                      const newVal = !hideEarlyAccess;
-                      setHideEarlyAccess(newVal); 
-                      localStorage.setItem('sanctuary_hide_ea', String(newVal));
-                      setCurrentPage(1); 
-                    }}
-                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideEarlyAccess ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
-                  >
-                    <span className="material-symbols-outlined !text-[12px]">{hideEarlyAccess ? 'visibility_off' : 'science'}</span>
-                    {t("filter_hide_early_access") || "Hide Early Access"}
-                  </button>
-                  <button
-                    onClick={() => { 
-                      const newVal = !hideMissingDLC;
-                      setHideMissingDLC(newVal); 
-                      localStorage.setItem('sanctuary_hide_missing_dlc', String(newVal));
-                      setCurrentPage(1); 
-                    }}
-                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideMissingDLC ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
-                  >
-                    <span className="material-symbols-outlined !text-[12px]">{hideMissingDLC ? 'visibility_off' : 'extension'}</span>
-                    {t("filter_hide_dlc") || "Hide Missing DLC"}
-                  </button>
+                    className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => { setSearchQuery(""); setCurrentPage(1); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
+                      <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
+                    </button>
+                  )}
                 </div>
-              )}
+
+                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
+                  <CustomDropdown disableTint={true}
+                    value={selectedGameVersion}
+                    onChange={(val: string[]) => {
+                      setSelectedGameVersion(val[0]);
+                      setCurrentPage(1);
+                    }}
+                    options={[
+                      { id: "all", label: "ALL VERSIONS" },
+                      ...gameVersions.map(v => ({ id: v, label: v }))
+                    ]}
+                  />
+                </div>
+
+                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
+                  <CustomDropdown disableTint={true}
+                    value={sortBy}
+                    onChange={(val: string[]) => setSortBy(val[0])}
+                    options={[
+                      { id: "newest", label: t("sort_newest") },
+                      { id: "oldest", label: t("sort_oldest") },
+                      { id: "name", label: t("sort_name") },
+                      { id: "author", label: t("sort_author") }
+                    ]}
+                  />
+                </div>
+
+                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[49] h-12">
+                  <CustomDropdown disableTint={true}
+                    value={categoryFilter}
+                    onChange={(val: string[]) => {
+                      setCategoryFilter(val[0]);
+                      setCurrentPage(1);
+                    }}
+                    options={[
+                      { id: "ALL", label: "ALL CATEGORIES" },
+                      ...categories.filter(c => c !== "ALL").map(cat => ({ id: cat, label: cat }))
+                    ]}
+                  />
+                </div>
+
+                {(marketTab === 'MODS' || marketTab === 'BLUEPRINTS') && (
+                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[48] h-12">
+                    <CustomDropdown
+                      disableTint={true}
+                      multiSelect={true}
+                      placeholder={t("filter_view_options") || "View Options"}
+                      value={activeViewFilters}
+                      selectedValues={activeViewFilters}
+                      onChange={handleViewFiltersChange}
+                      options={viewFilterOptions.filter(o => o.id !== 'hide_installed')}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
@@ -1233,149 +1247,119 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           </>
         ) : (
           <div className="flex flex-col">
-            <div className="theme-glass-panel p-6 rounded-[var(--radius)] shadow-xl border border-white/10 mb-8 animate-in slide-in-from-top-4 duration-500 flex flex-wrap gap-4 items-center relative z-20">
-              <div className="flex-1 min-w-[250px] relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text)] opacity-50 flex items-center justify-center">
-                  <span className="material-symbols-outlined !text-[20px]">{t("icon_search")}</span>
+            <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
+              <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] hidden xl:flex items-center gap-3 shrink-0">
+                <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">
+                    {marketTab === 'BLUEPRINTS' ? 'map' : marketTab === 'LEXICONS' ? 'translate' : marketTab === 'TEMPLATES' ? 'draw' : 'palette'}
+                  </span>
                 </div>
-                <input
-                  type="text"
-                  placeholder={marketTab === 'LEXICONS' ? (t("search_lexicons")) : marketTab === 'TEMPLATES' ? (t("search_tmpl")) : marketTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_chameleons"))}
-                  value={assetSearchQuery}
-                  onChange={(e) => {
-                    setAssetSearchQuery(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full theme-glass-inner rounded-[var(--radius)] pl-12 pr-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all shadow-inner"
-                />
-              </div>
+                <span className="truncate">{t(`tab_${marketTab.toLowerCase()}`) || marketTab}</span>
+              </h2>
 
-              {marketTab === 'BLUEPRINTS' && gameVersions.length > 0 && (
-                <div className="w-max min-w-[180px] max-w-xs">
-                  <CustomDropdown disableTint={true}
-                    value={selectedGameVersion}
-                    onChange={(val: string[]) => {
-                      setSelectedGameVersion(val[0]);
+              <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
+                <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
+                  <input
+                    type="text"
+                    placeholder={marketTab === 'LEXICONS' ? (t("search_lexicons")) : marketTab === 'TEMPLATES' ? (t("search_tmpl")) : marketTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_chameleons"))}
+                    value={assetSearchQuery}
+                    onChange={(e) => {
+                      setAssetSearchQuery(e.target.value);
                       setCurrentPage(1);
                     }}
-                    options={[
-                      { id: "all", label: "ALL VERSIONS" },
-                      ...gameVersions.map(v => ({ id: v, label: v }))
-                    ]}
+                    className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
                   />
-                </div>
-              )}
-
-              {(marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') && (
-                <div className="w-max min-w-[180px] max-w-xs">
-                  <CustomDropdown disableTint={true}
-                    value={languageFilter}
-                    onChange={(val: string[]) => { setLanguageFilter(val[0]); setCurrentPage(1); }}
-                    options={[
-                      { id: "all", label: marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates") || "Templates") },
-                      ...availableLanguages.map(l => ({ id: l, label: l }))
-                    ]}
-                  />
-                </div>
-              )}
-              {marketTab === 'LEXICONS' && (
-                <div className="w-max min-w-[180px] max-w-xs">
-                  <CustomDropdown disableTint={true}
-                    value={lexiconTypeFilter}
-                    onChange={(val: string[]) => { setLexiconTypeFilter(val[0]); setCurrentPage(1); }}
-                    options={[
-                      { id: "all", label: t("filter_type") },
-                      { id: "Default", label: t("type_default") },
-                      { id: "Theme", label: t("type_theme") }
-                    ]}
-                  />
-                </div>
-              )}
-
-              {marketTab === 'CHAMELEONS' && (
-                <div className="w-max min-w-[180px] max-w-xs">
-                  <CustomDropdown disableTint={true}
-                    value={themeModeFilter}
-                    onChange={(val: string[]) => { setThemeModeFilter(val[0]); setCurrentPage(1); }}
-                    options={[
-                      { id: "all", label: t("filter_mode") },
-                      { id: "Dark", label: t("mode_dark") },
-                      { id: "Light", label: t("mode_light") }
-                    ]}
-                  />
-                </div>
-              )}
-
-              <div className="w-max min-w-[180px] max-w-xs">
-                <CustomDropdown disableTint={true}
-                  value={assetSortBy}
-                  onChange={(val: string[]) => setAssetSortBy(val[0])}
-                  options={[
-                    { id: "newest", label: t("sort_newest") },
-                    { id: "oldest", label: t("sort_oldest") },
-                    { id: "name", label: t("sort_name") },
-                    { id: "author", label: t("sort_author") }
-                  ]}
-                />
-              </div>
-
-              {marketTab !== 'MODS' && (
-                <div className="flex items-center gap-2 w-full mt-2 flex-wrap">
-                  <button
-                    onClick={() => { 
-                      const newVal = !hideInstalled;
-                      setHideInstalled(newVal); 
-                      localStorage.setItem('sanctuary_hide_installed_assets', String(newVal));
-                      setCurrentPage(1); 
-                    }}
-                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideInstalled ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
-                  >
-                    <span className="material-symbols-outlined !text-[12px]">{hideInstalled ? 'visibility_off' : 'download_done'}</span>
-                    {t("filter_hide_installed") || "Hide Installed"}
-                  </button>
-
-                  {marketTab === 'BLUEPRINTS' && (
-                    <>
-                      <button
-                        onClick={() => { 
-                          const newVal = !hidePaid;
-                          setHidePaid(newVal); 
-                          localStorage.setItem('sanctuary_hide_paid', String(newVal));
-                          setCurrentPage(1); 
-                        }}
-                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hidePaid ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[12px]">{hidePaid ? 'visibility_off' : 'monetization_on'}</span>
-                        {t("filter_hide_paid") || "Hide Paid"}
-                      </button>
-                      <button
-                        onClick={() => { 
-                          const newVal = !hideEarlyAccess;
-                          setHideEarlyAccess(newVal); 
-                          localStorage.setItem('sanctuary_hide_ea', String(newVal));
-                          setCurrentPage(1); 
-                        }}
-                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideEarlyAccess ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[12px]">{hideEarlyAccess ? 'visibility_off' : 'science'}</span>
-                        {t("filter_hide_early_access") || "Hide Early Access"}
-                      </button>
-                      <button
-                        onClick={() => { 
-                          const newVal = !hideMissingDLC;
-                          setHideMissingDLC(newVal); 
-                          localStorage.setItem('sanctuary_hide_missing_dlc', String(newVal));
-                          setCurrentPage(1); 
-                        }}
-                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideMissingDLC ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[12px]">{hideMissingDLC ? 'visibility_off' : 'extension'}</span>
-                        {t("filter_hide_dlc") || "Hide Missing DLC"}
-                      </button>
-                    </>
+                  {assetSearchQuery && (
+                    <button onClick={() => { setAssetSearchQuery(""); setCurrentPage(1); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
+                      <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
+                    </button>
                   )}
                 </div>
-              )}
+
+                {marketTab === 'BLUEPRINTS' && gameVersions.length > 0 && (
+                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
+                    <CustomDropdown disableTint={true}
+                      value={selectedGameVersion}
+                      onChange={(val: string[]) => {
+                        setSelectedGameVersion(val[0]);
+                        setCurrentPage(1);
+                      }}
+                      options={[
+                        { id: "all", label: "ALL VERSIONS" },
+                        ...gameVersions.map(v => ({ id: v, label: v }))
+                      ]}
+                    />
+                  </div>
+                )}
+
+                {(marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') && (
+                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
+                    <CustomDropdown disableTint={true}
+                      value={languageFilter}
+                      onChange={(val: string[]) => { setLanguageFilter(val[0]); setCurrentPage(1); }}
+                      options={[
+                        { id: "all", label: marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates") || "Templates") },
+                        ...availableLanguages.map(l => ({ id: l, label: l }))
+                      ]}
+                    />
+                  </div>
+                )}
+                {marketTab === 'LEXICONS' && (
+                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
+                    <CustomDropdown disableTint={true}
+                      value={lexiconTypeFilter}
+                      onChange={(val: string[]) => { setLexiconTypeFilter(val[0]); setCurrentPage(1); }}
+                      options={[
+                        { id: "all", label: t("filter_type") },
+                        { id: "Default", label: t("type_default") },
+                        { id: "Theme", label: t("type_theme") }
+                      ]}
+                    />
+                  </div>
+                )}
+
+                {marketTab === 'CHAMELEONS' && (
+                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
+                    <CustomDropdown disableTint={true}
+                      value={themeModeFilter}
+                      onChange={(val: string[]) => { setThemeModeFilter(val[0]); setCurrentPage(1); }}
+                      options={[
+                        { id: "all", label: t("filter_mode") },
+                        { id: "Dark", label: t("mode_dark") },
+                        { id: "Light", label: t("mode_light") }
+                      ]}
+                    />
+                  </div>
+                )}
+
+                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[49] h-12">
+                  <CustomDropdown disableTint={true}
+                    value={assetSortBy}
+                    onChange={(val: string[]) => setAssetSortBy(val[0])}
+                    options={[
+                      { id: "newest", label: t("sort_newest") },
+                      { id: "oldest", label: t("sort_oldest") },
+                      { id: "name", label: t("sort_name") },
+                      { id: "author", label: t("sort_author") }
+                    ]}
+                  />
+                </div>
+
+                {marketTab !== 'MODS' && (
+                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[48] h-12">
+                    <CustomDropdown
+                      disableTint={true}
+                      multiSelect={true}
+                      placeholder={t("filter_view_options") || "View Options"}
+                      value={activeViewFilters}
+                      selectedValues={activeViewFilters}
+                      onChange={handleViewFiltersChange}
+                      options={viewFilterOptions.filter(o => marketTab === 'BLUEPRINTS' ? true : o.id === 'hide_installed')}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8">
               {loading ? (

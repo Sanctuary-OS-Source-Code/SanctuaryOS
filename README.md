@@ -31,8 +31,8 @@ This repository contains the official guides for Sanctuary OS, covering both sta
   - [Masons (Mod Creators)](#masons-mod-creators)
   - [Architects (Moderators)](#architects-moderators)
   - [Oversight (System Administrators)](#oversight-system-administrators)
-  - [Wayfinders (Game Developers)](#wayfinders-game-developers)
-  - [Keepers (Core Infrastructure)](#keepers-core-infrastructure)
+  - [Wayfinders (Game Developers)](#wayfinders-community-managers)
+  - [Keepers (Core Infrastructure)](#keepers-core-app-team--sanctuary-developers)
   - [Role Protocols](#role-protocols)
 
 ---

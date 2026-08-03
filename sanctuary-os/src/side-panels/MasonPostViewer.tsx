@@ -231,6 +231,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
           message: `${senderName} replied to your comment.`
         });
       }
+      
       useStore.getState().setMasonCommentDrafts(prev => {
         const next = { ...prev };
         delete next[post.id];

@@ -4,7 +4,7 @@ import { extractPostImage, stripMarkdown } from '../shared';
 
 export function DashboardStatTile({ icon, number, label, colorClass, onClick, setStatus }: any) {
   return (
-    <div onClick={onClick} className={`flex-1 flex flex-col justify-center items-start gap-1 p-6 rounded-[var(--radius)] border border-white/10 backdrop-blur-[3px] ${colorClass} transition-all cursor-pointer shadow-lg relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl`}>
+    <div onClick={onClick} className={`flex-1 min-w-[200px] xl:min-w-[250px] h-full flex flex-col justify-center items-start gap-1 p-6 rounded-[var(--radius)] border border-white/10 backdrop-blur-[3px] ${colorClass} transition-all cursor-pointer shadow-lg relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl`}>
       <div className="absolute inset-0 bg-current opacity-0 group-hover:opacity-[0.15] transition-opacity duration-300" />
       <div className="flex items-center gap-3 w-full relative z-10">
         <span className="text-3xl opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-110 transition-all drop-shadow-md">{icon}</span>
@@ -16,7 +16,7 @@ export function DashboardStatTile({ icon, number, label, colorClass, onClick, se
 }
 export function CommandScreenLayout({ children }: any) {
   return (
-    <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32 mt-8">
+    <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32">
       {children}
     </div>
   );
@@ -24,7 +24,7 @@ export function CommandScreenLayout({ children }: any) {
 
 export function CommandScreenStats({ children }: any) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full">
+    <div className="flex flex-wrap items-stretch gap-6 w-full">
       {children}
     </div>
   );
