@@ -13,9 +13,9 @@
     "windows": [
       {
         "fullscreen": false,
-        "width": 1700,
+        "width": 1800,
         "height": 1200,
-        "minWidth": 1500,
+        "minWidth": 1600,
         "minHeight": 1000,
         "resizable": true,
         "center": true,

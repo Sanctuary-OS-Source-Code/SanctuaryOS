@@ -69,6 +69,18 @@ export default function NetworkTab() {
             <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${useInternalBrowser ? 'translate-x-8' : 'translate-x-0'}`} />
           </div>
         </div>
+        <div className="flex items-center justify-between p-8 rounded-[var(--radius)] theme-glass-panel hover:theme-border-danger transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={() => {
+          localStorage.removeItem('sanctuary_local_overrides');
+          useStore.getState().pushStatus(t("local_overrides_cleared") || "All local overrides have been cleared.");
+        }}>
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--danger)] group-hover:text-red-400 transition-colors">{t("btn_reset_all_local")}</span>
+            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("reset_all_local_desc")}</span>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 group-hover:bg-red-500/20 group-hover:scale-110 transition-all shrink-0">
+            <span className="material-symbols-outlined !text-[24px]">delete_forever</span>
+          </div>
+        </div>
         <div className="relative group/malware">
           <div className={`flex items-center justify-between p-8 rounded-[var(--radius)] theme-glass-panel transition-all ${!session || isBanned ? 'opacity-40 grayscale cursor-not-allowed' : 'hover:theme-border-accent cursor-pointer shadow-xl hover:scale-[1.02] active:scale-95'}`} onClick={() => {
             if (!session || isBanned) return;

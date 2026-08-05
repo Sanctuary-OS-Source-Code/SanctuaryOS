@@ -14,7 +14,15 @@ export async function logArchitectAction(action: string, target_table: string, t
       reason: customReason || `Automated from the ${sourceHub}`
     };
 
-    await client.from('audit_logs').insert(logData);
+    if (!isKeepers) {
+      await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '',
+        p_target: 'audit_logs',
+        p_payload: logData
+      });
+    } else {
+      await client.from('audit_logs').insert(logData);
+    }
 
     if (!isKeepers) {
       const state = useStore.getState();

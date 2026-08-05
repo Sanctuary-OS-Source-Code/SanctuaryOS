@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton } from "../shared";
 import { ArtifactCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -157,13 +157,21 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
         widthClass="w-[600px]"
         panelZ="z-[50001]"
         footer={
-          <div className="flex justify-center items-center gap-4 w-full">
-            <button onClick={() => setActiveMod(null)} disabled={isCommitting} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
-            <button onClick={handleCommitChanges} disabled={isCommitting} className={standardAccentGlassButtonClass}>
-              {isCommitting ? t("btn_saving") : t("save_meta")}
-            </button>
+          <div className="flex justify-center items-center gap-4 w-full px-8">
+            <ActionButton 
+              onClick={() => setActiveMod(null)} 
+              disabled={isCommitting} 
+              label={t("nav_cancel")}
+              icon="close"
+              className="flex-1"
+            />
+            <ActionButton 
+              onClick={handleCommitChanges} 
+              disabled={isCommitting} 
+              label={isCommitting ? (t("btn_saving") || "SAVING...") : (t("save_meta") || "SAVE METADATA")}
+              icon="save"
+              className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[var(--accent)]/50"
+            />
           </div>
         }
       >
@@ -544,13 +552,21 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         subtitle={`UUID: ${activeMod?.id}`}
         icon={t("icon_inventory_2")}
         footer={
-          <div className="flex justify-center items-center gap-4 w-full">
-            <button onClick={() => setActiveMod(null)} disabled={isCommitting} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
-            <button onClick={handleCommitChanges} disabled={isCommitting} className={standardAccentGlassButtonClass}>
-              {isCommitting ? (t("dossier_btn_saving")) : (t("ui_btn_commit"))}
-            </button>
+          <div className="flex justify-center items-center gap-4 w-full px-8">
+            <ActionButton 
+              onClick={() => setActiveMod(null)} 
+              disabled={isCommitting} 
+              label={t("nav_cancel")}
+              icon="close"
+              className="flex-1"
+            />
+            <ActionButton 
+              onClick={handleCommitChanges} 
+              disabled={isCommitting} 
+              label={isCommitting ? (t("dossier_btn_saving") || "SAVING...") : (t("ui_btn_commit") || "COMMIT CHANGES")}
+              icon="save"
+              className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[var(--accent)]/50"
+            />
           </div>
         }
       >
@@ -694,13 +710,19 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         icon="person_add"
         widthClass="w-[450px]"
         footer={
-          <div className="flex justify-end gap-4 w-full">
-            <button onClick={() => setIsMasonPanelOpen(false)} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
-            <button onClick={handleCreateMason} className={standardAccentGlassButtonClass}>
-              {t("create_btn_create")}
-            </button>
+          <div className="flex justify-center items-center gap-4 w-full px-8">
+            <ActionButton 
+              onClick={() => setIsMasonPanelOpen(false)} 
+              label={t("nav_cancel")}
+              icon="close"
+              className="flex-1"
+            />
+            <ActionButton 
+              onClick={handleCreateMason} 
+              label={t("create_btn_create") || "CREATE"}
+              icon="person_add"
+              className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[var(--accent)]/50"
+            />
           </div>
         }
       >

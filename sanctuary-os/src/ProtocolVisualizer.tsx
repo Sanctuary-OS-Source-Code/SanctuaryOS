@@ -137,9 +137,11 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
     if (!targetMod) return;
     
     if (relType === 'dependency') {
-      await supabase.from('mod_dependencies').insert({ parent_id: targetId, child_id: targetMod.id });
+      const { error } = await supabase.from('mod_dependencies').insert({ parent_id: targetId, child_id: targetMod.id });
+      if (error) useStore.getState().pushStatus(`Failed to add dependency: ${error.message}`);
     } else {
-      await supabase.from('mod_relationships').insert({ parent_id: targetMod.id, child_id: targetId, relationship_type: relType });
+      const { error } = await supabase.from('mod_relationships').insert({ parent_id: targetMod.id, child_id: targetId, relationship_type: relType });
+      if (error) useStore.getState().pushStatus(`Failed to add link: ${error.message}`);
     }
     await loadLinks();
     setShowLinkModal(null);
@@ -255,7 +257,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-black text-[var(--text)] uppercase tracking-wide group-hover/item:theme-text-accent transition-colors">{item.name}</span>
                 <span className="text-[9px] font-bold text-[var(--subtext)] opacity-70 uppercase tracking-[0.2em]">
-                  {item.latest_version ? `v${item.latest_version} • ` : ''}{item.sub_type || 'Package'}
+                  {item.latest_version ? `v${item.latest_version} • ` : ''}{item.file_extension || item.sub_type || 'Package'}
                 </span>
               </div>
             </div>
@@ -310,9 +312,11 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
             <div className="flex flex-col flex-1 gap-3 relative z-10">
               <span className="text-[10px] font-black theme-text-accent uppercase tracking-[0.3em] bg-[var(--accent)]/10 px-3 py-1 rounded-full w-max shadow-sm border border-[var(--accent)]/20">{t("protocol_target")}</span>
               <h2 className="text-3xl font-black text-[var(--text)] uppercase tracking-tight drop-shadow-lg">{targetMod.name}</h2>
-              <span className="text-[11px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest flex items-center gap-3">
-                 <span className="material-symbols-outlined !text-[14px]">{t("icon_category")}</span>
-                 {targetMod.sub_type || 'Package'}
+              <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-[0.2em] flex items-center gap-2">
+                <span className="material-symbols-outlined !text-[12px] opacity-70">
+                  {targetMod.file_extension?.toLowerCase().includes('script') || targetMod.sub_type?.toLowerCase() === 'script' ? 'data_object' : 'package'}
+                </span>
+                {targetMod.file_extension || targetMod.sub_type || 'Package'}
               </span>
             </div>
           </div>
@@ -500,11 +504,19 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
             ) : (showLinkModal?.type === 'dependency' ? allModsForDependencies : cloudMods).filter(m => 
               m.id !== targetMod?.id && 
               (showLinkModal?.type === 'dependency' || !masonId || m.mason_id === masonId) &&
-              (!modalSearch || m.name.toLowerCase().includes(modalSearch.toLowerCase()))
+              (!modalSearch || m.name.toLowerCase().includes(modalSearch.toLowerCase())) &&
+              (showLinkModal?.type === 'dependency' 
+                ? !dependencies.find(d => d.id === m.id)
+                : showLinkModal?.type === 'flavor' || showLinkModal?.type === 'beta'
+                  ? !alternatives.find(a => a.id === m.id)
+                  : !twinsAndAddons.find(t => t.id === m.id))
             ).slice(0, 500).map(mod => (
               <div key={mod.id} className="flex justify-between items-center theme-glass-inner border border-white/5 hover:border-[var(--accent)]/50 p-4 rounded-xl transition-colors">
                 <div className="flex flex-col flex-1 min-w-0 overflow-hidden pr-4">
-                  <span className="text-[11px] font-black uppercase text-[var(--text)] truncate">{mod.name}</span>
+                  <span className="text-[11px] font-black uppercase text-[var(--text)] truncate flex items-center gap-2">
+                    {mod.name}
+                    {mod.file_extension && <span className="px-2 py-0.5 rounded-md bg-[var(--text)]/10 text-[var(--subtext)] text-[9px] shrink-0">{mod.file_extension.replace(/^\./, '')}</span>}
+                  </span>
                   <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60">{mod.latest_version ? `v${mod.latest_version}` : t("modal_no_version")}</span>
                 </div>
                 {showLinkModal?.type === 'twin' ? (

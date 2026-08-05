@@ -345,11 +345,11 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
         setIsSaving(true);
         try {
             if (draft.id) {
-                const { error } = await supabase.from('sanctuary_support_categories').update(draft).eq('id', draft.id);
+                const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'sanctuary_support_categories', p_payload: draft });
                 if (error) throw error;
                 await logArchitectAction("Updated Support Category", "sanctuary_support_categories", draft.category_name, actionReason, "Oversight Command");
             } else {
-                const { error } = await supabase.from('sanctuary_support_categories').insert([draft]);
+                const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'sanctuary_support_categories', p_payload: draft });
                 if (error) throw error;
                 await logArchitectAction("Created Support Category", "sanctuary_support_categories", draft.category_name, actionReason, "Oversight Command");
             }
@@ -371,7 +371,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
         if (!draft.id) return;
         setIsSaving(true);
         try {
-            const { error } = await supabase.from('sanctuary_support_categories').delete().eq('id', draft.id);
+            const { error } = await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'sanctuary_support_categories', p_id: draft.id });
             if (error) throw error;
             await logArchitectAction("Deleted Support Category", "sanctuary_support_categories", draft.category_name, actionReason, "Oversight Command");
             useStore.getState().pushStatus(t("auto_category_deleted_successfully_34"), "success");
@@ -702,12 +702,12 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
         setIsSaving(true);
         try {
             if (draft.id) {
-                const { error } = await supabase.from('sanctuary_telemetry_sources').update(draft).eq('id', draft.id);
+                const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'sanctuary_telemetry_sources', p_payload: draft });
                 if (error) throw error;
                 await logArchitectAction("Updated Log Source", "sanctuary_telemetry_sources", draft.label, actionReason, "Oversight Command");
             } else {
                 const { id, ...insertData } = draft;
-                const { error } = await supabase.from('sanctuary_telemetry_sources').insert([insertData]);
+                const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'sanctuary_telemetry_sources', p_payload: insertData });
                 if (error) throw error;
                 await logArchitectAction("Created Log Source", "sanctuary_telemetry_sources", draft.label, actionReason, "Oversight Command");
             }
@@ -729,7 +729,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
         if (!draft.id) return;
         setIsSaving(true);
         try {
-            const { error } = await supabase.from('sanctuary_telemetry_sources').delete().eq('id', draft.id);
+            const { error } = await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'sanctuary_telemetry_sources', p_id: draft.id });
             if (error) throw error;
             await logArchitectAction("Deleted Log Source", "sanctuary_telemetry_sources", draft.label, actionReason, "Oversight Command");
             useStore.getState().pushStatus(t("auto_log_source_deleted_36"), "success");

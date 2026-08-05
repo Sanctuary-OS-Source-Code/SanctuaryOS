@@ -123,7 +123,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       let targetName = null;
 
       if (manualSelectedMod) {
-        const { error } = await supabase.from('mods').update({ compliance_tier: manualTier }).eq('id', manualSelectedMod.id);
+        const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: manualSelectedMod.id, compliance_tier: manualTier } });
         if (error) throw error;
         targetId = manualSelectedMod.id;
         targetName = manualSelectedMod.name;
@@ -133,33 +133,35 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q);
 
         if (isUUID) {
-          const { error } = await supabase.from('mods').upsert({ id: q, name: 'Manual Flag (Unknown)', compliance_tier: manualTier });
+          const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: q, name: 'Manual Flag (Unknown)', compliance_tier: manualTier } });
           if (error) throw error;
           targetId = q;
           targetName = q;
         } else if (isHash) {
-          const { data: newMod, error: modErr } = await supabase.from('mods').insert({ name: 'Manual Flag (Hash)', compliance_tier: manualTier }).select('id').single();
+          const newId = crypto.randomUUID();
+          const { error: modErr } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: newId, name: 'Manual Flag (Hash)', compliance_tier: manualTier } });
           if (modErr) throw modErr;
-          const { error: verErr } = await supabase.from('mod_versions').upsert({ mod_id: newMod.id, dna_hash: q, version_label: 'vlocal' }, { onConflict: 'dna_hash' });
+          const { error: verErr } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mod_versions', p_payload: { mod_id: newId, dna_hash: q, version_label: 'vlocal' } });
           if (verErr) throw verErr;
-          targetId = newMod.id;
+          targetId = newId;
           targetName = q;
         } else {
-          const { data: newMod, error: modErr } = await supabase.from('mods').insert({ name: q, compliance_tier: manualTier }).select('id').single();
+          const newId = crypto.randomUUID();
+          const { error: modErr } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: newId, name: q, compliance_tier: manualTier } });
           if (modErr) throw modErr;
-          targetId = newMod.id;
+          targetId = newId;
           targetName = q;
         }
       }
       
       const userRes = await supabase.auth.getUser();
-      await getActiveGameClient().from('audit_logs').insert({
+      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
          action: `Manually flagged with tier ${manualTier}`,
          target_table: 'mods',
          target_name: targetName || targetId,
          actor_id: userRes.data.user?.id,
          reason: registryReason.trim()
-      });
+      }});
 
       useStore.getState().pushStatus(t("comp_manual_alert_success"));
       onClose();
@@ -194,16 +196,16 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         notes
       };
 
-      const { error } = await supabase.from('heuristic_signatures').upsert(newObj);
+      const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'heuristic_signatures', p_payload: newObj });
       if (error && error.code !== '23505') throw error;
       
-      await getActiveGameClient().from('audit_logs').insert({
+      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
          action: editingId ? `Updated heuristic signature: ${id}` : `Added heuristic signature: ${id}`,
          target_table: 'heuristic_signatures',
          target_name: id,
          actor_id: userRes.data?.user?.id,
          reason: "Manual addition/edit via Oversight"
-      });
+      }});
 
       const updated = editingId 
         ? signatures.map(s => s.id === id ? newObj : s)
@@ -238,16 +240,16 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
 
   const handleRemoveHeuristic = async (id: string) => {
     try {
-      await supabase.from('heuristic_signatures').delete().eq('id', id);
+      await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'heuristic_signatures', p_id: id });
       
       const userRes = await supabase.auth.getUser();
-      await getActiveGameClient().from('audit_logs').insert({
+      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
          action: `Removed heuristic signature: ${id}`,
          target_table: 'heuristic_signatures',
          target_name: id,
          actor_id: userRes.data?.user?.id,
          reason: "Manual removal via Oversight"
-      });
+      }});
 
       const updated = signatures.filter(s => s.id !== id);
       const config = await invoke<any>('get_saved_coordinates');

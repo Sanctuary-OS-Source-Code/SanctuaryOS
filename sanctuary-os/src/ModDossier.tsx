@@ -361,12 +361,10 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                           <span className="material-symbols-outlined !text-[16px]">{t("auto_save")}</span>
                           {isSaving ? t("dossier_btn_saving") : t("btn_save_local")}
                         </button>
-                        {hasOverrides && (
-                          <button onClick={() => { if (onResetMetadata) onResetMetadata(mod.hash); onClose(); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-red-400 opacity-80 hover:opacity-100 hover:bg-red-500/10">
-                            <span className="material-symbols-outlined !text-[16px]">{t("icon_restart_alt")}</span>
-                            {t("btn_reset")}
-                          </button>
-                        )}
+                        <button onClick={() => { if (onResetMetadata) onResetMetadata(mod.hash); onClose(); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-red-400 opacity-80 hover:opacity-100 hover:bg-red-500/10">
+                          <span className="material-symbols-outlined !text-[16px]">{t("icon_restart_alt")}</span>
+                          {t("btn_reset_local")}
+                        </button>
                       </>
                     )}
                     {isCorrecting && session && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (

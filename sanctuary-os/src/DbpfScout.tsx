@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HubTabButton, DashboardStatTile } from "./shared";
@@ -95,8 +95,6 @@ export const DbpfScout = () => {
     setVisibleTuning(50);
     setVisibleClone(50);
     setVisibleSoft(50);
-    setActiveTab("DASHBOARD");
-
     try {
       const config: any = await invoke("get_saved_coordinates");
       let targetPath = `${config.vault_path}/Mods`;
@@ -195,11 +193,6 @@ export const DbpfScout = () => {
       setCloneConflicts(clone);
       setSoftConflicts(soft);
 
-      if (actionableClashes > 0) {
-        setActiveTab("CONFLICTS");
-      } else {
-        setActiveTab("COMMAND");
-      }
     } catch (err) {
       setError(String(err));
     }
@@ -440,7 +433,17 @@ export const DbpfScout = () => {
         <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6">
           <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
             <HubTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
-            <HubTabButton id="CONFLICTS" icon="warning" label={t("conflicts")} activeTab={activeTab} setTab={setActiveTab} badge={(fatalConflicts.length + tuningConflicts.length) > 0 ? (fatalConflicts.length + tuningConflicts.length) : null} />
+            <HubTabButton
+              id="CONFLICTS"
+              icon="warning"
+              label={t("conflicts")}
+              activeTab={activeTab}
+              setTab={setActiveTab}
+              badge={(fatalConflicts.length + tuningConflicts.length) > 0 ? (fatalConflicts.length + tuningConflicts.length) : null}
+              activeColorClass={fatalConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--danger)_10%,transparent)]' : tuningConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] text-[var(--warning)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--warning)_10%,transparent)]' : undefined}
+              inactiveColorClass={fatalConflicts.length > 0 ? 'text-[var(--danger)] hover:bg-white/5 opacity-80 hover:opacity-100' : tuningConflicts.length > 0 ? 'text-[var(--warning)] hover:bg-white/5 opacity-80 hover:opacity-100' : undefined}
+              badgeColorClass={fatalConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[var(--danger)]/50 text-[var(--danger)]' : tuningConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[var(--warning)]/50 text-[var(--warning)]' : undefined}
+            />
             <HubTabButton id="OVERRIDES" icon="rule" label={t("overrides")} activeTab={activeTab} setTab={setActiveTab} badge={ignoredPairs.length > 0 ? ignoredPairs.length : null} />
           </div>
         </div>
@@ -452,31 +455,38 @@ export const DbpfScout = () => {
               <CommandScreenStats>
                 <DashboardStatTile
                   label={t("total_severity_4") || "TOTAL FATAL"}
-                  number={playSets.reduce((acc: number, bp: any) => {
-                    const cachedStatsStr = localStorage.getItem(`radar_stats_${bp.name}`);
+                  number={(() => {
+                    const cachedStatsStr = localStorage.getItem(`radar_stats_${scanScope}`);
                     const cachedStats = cachedStatsStr ? JSON.parse(cachedStatsStr) : { fatal: 0 };
-                    return acc + (scanScope === bp.name && hasScanned ? fatalConflicts.length : cachedStats.fatal);
-                  }, 0).toString()}
-                  icon={<span className="material-symbols-outlined !text-[32px]">skull</span>}
+                    return hasScanned ? fatalConflicts.length.toString() : cachedStats.fatal.toString();
+                  })()}
+                  icon={<span className="material-symbols-outlined !text-[32px]">crisis_alert</span>}
                   colorClass="text-[var(--danger)]"
+                  onClick={() => { setActiveTab("CONFLICTS"); setActiveConflictSeverity(4); }}
+                  className="cursor-pointer hover:scale-105 transition-transform"
                 />
                 <DashboardStatTile
                   label={t("total_severity_3") || "TOTAL TUNING"}
-                  number={playSets.reduce((acc: number, bp: any) => {
-                    const cachedStatsStr = localStorage.getItem(`radar_stats_${bp.name}`);
+                  number={(() => {
+                    const cachedStatsStr = localStorage.getItem(`radar_stats_${scanScope}`);
                     const cachedStats = cachedStatsStr ? JSON.parse(cachedStatsStr) : { tuning: 0 };
-                    return acc + (scanScope === bp.name && hasScanned ? tuningConflicts.length : cachedStats.tuning);
-                  }, 0).toString()}
-                  icon={<span className="material-symbols-outlined !text-[32px]">warning</span>}
+                    return hasScanned ? tuningConflicts.length.toString() : cachedStats.tuning.toString();
+                  })()}
+                  icon={<span className="material-symbols-outlined !text-[32px]">tune</span>}
                   colorClass="text-[var(--warning)]"
+                  onClick={() => { setActiveTab("CONFLICTS"); setActiveConflictSeverity(3); }}
+                  className="cursor-pointer hover:scale-105 transition-transform"
                 />
                 <DashboardStatTile
                   label={t("total_overrides") || "TOTAL OVERRIDES"}
-                  number={playSets.reduce((acc: number, bp: any) => {
-                    return acc + bp.mods.filter((m: any) => (typeof m === 'string' ? m : (m.name || m.path || '')).toLowerCase().startsWith("sanctuary")).length;
-                  }, 0).toString()}
+                  number={(() => {
+                    const bp = playSets.find((p: any) => p.name === scanScope);
+                    return bp ? bp.mods.filter((m: any) => (typeof m === 'string' ? m : (m.name || m.path || '')).toLowerCase().startsWith("sanctuary")).length.toString() : "0";
+                  })()}
                   icon={<span className="material-symbols-outlined !text-[32px]">rule</span>}
                   colorClass="text-[var(--accent)]"
+                  onClick={() => { setActiveTab("OVERRIDES"); setOverrideTab("ACTIVE"); }}
+                  className="cursor-pointer hover:scale-105 transition-transform"
                 />
                 <DashboardStatTile
                   label={t("total_ignores") || "TOTAL IGNORED"}
@@ -522,7 +532,7 @@ export const DbpfScout = () => {
                         const sCount = scanScope === blueprint.name && hasScanned ? softConflicts.length : cachedStats.soft;
 
                         return (
-                          <div key={blueprint.name} className={`theme-glass-panel rounded-2xl p-6 border ${scanScope === blueprint.name ? 'border-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'border-white/5'} shadow-lg flex flex-col gap-4 group transition-all hover:border-[var(--accent)]/30 hover:-translate-y-1`}>
+                          <div key={blueprint.name} className={`theme-glass-panel rounded-2xl p-6 border ${scanScope === blueprint.name ? 'border-[var(--accent)]' : 'border-white/5'} shadow-lg flex flex-col gap-4 group transition-all hover:border-[var(--accent)]/30 hover:-translate-y-1 relative overflow-hidden`} style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', boxShadow: '0 0 40px color-mix(in srgb, var(--accent) 15%, transparent)' } : {}}>
                             <div className="flex items-start justify-between">
                               <div className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-xl ${scanScope === blueprint.name ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[var(--accent)]/20'} border flex items-center justify-center transition-colors relative`}>
@@ -531,9 +541,6 @@ export const DbpfScout = () => {
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <h3 className="font-black uppercase tracking-widest text-[var(--text)]">{blueprint.name}</h3>
-                                    {scanScope === blueprint.name && (
-                                      <span className="px-1.5 py-0.5 rounded border border-[var(--accent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[8px] font-black uppercase tracking-widest">{t("shared_selected") || "SELECTED"}</span>
-                                    )}
                                   </div>
                                   <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">{blueprint.mods.length} {t("items") || "ARTIFACTS"}</p>
                                 </div>
@@ -558,12 +565,14 @@ export const DbpfScout = () => {
                                 <span className="text-[8px] font-black uppercase tracking-widest text-blue-400 opacity-80">{t("stat_soft")}</span>
                               </div>
                             </div>
-                            <ActionButton
-                              label={t("btn_sweep_sidebar")}
-                              icon="track_changes"
+                            <button
                               onClick={() => { setScanScope(blueprint.name); runRadar(blueprint.name); }}
-                              className="w-full mt-4"
-                            />
+                              className={`w-full mt-4 h-[38px] rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 relative ${scanScope === blueprint.name ? 'border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] backdrop-blur-md' : 'theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm hover:scale-[1.02]'}`}
+                              style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)', boxShadow: '0 0 20px color-mix(in srgb, var(--accent) 20%, transparent)' } : {}}
+                            >
+                              {scanScope === blueprint.name ? <span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle") || "check_circle"}</span> : <span className="material-symbols-outlined !text-[16px]">track_changes</span>}
+                              {scanScope === blueprint.name ? (t("btn_selected") || "SELECTED") : (t("btn_select") || "SELECT")}
+                            </button>
                           </div>
                         )
                       })}
@@ -577,7 +586,7 @@ export const DbpfScout = () => {
                       disableTint={true}
                       options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
                       value={scanScope}
-                      onChange={(val: any) => { setScanScope(val); runRadar(val); }}
+                      onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
                       icon="map"
                     />
                   </div>
@@ -623,7 +632,7 @@ export const DbpfScout = () => {
                       disableTint={true}
                       options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
                       value={scanScope}
-                      onChange={(val: any) => { setScanScope(val); runRadar(val); }}
+                      onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
                       icon="map"
                     />
                   </div>
@@ -894,7 +903,7 @@ export const DbpfScout = () => {
                       disableTint={true}
                       options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
                       value={scanScope}
-                      onChange={(val: any) => { setScanScope(val); runRadar(val); }}
+                      onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
                       icon="map"
                     />
                   </div>

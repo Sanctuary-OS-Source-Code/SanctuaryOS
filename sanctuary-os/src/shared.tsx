@@ -455,21 +455,24 @@ export function HubActionButton({ icon, label, onClick, className = "", isDanger
   );
 }
 
-export function HubTabButton({ id, icon, label, activeTab, setTab, badge, disabled }: any) {
+export function HubTabButton({ id, icon, label, activeTab, setTab, badge, disabled, activeColorClass, inactiveColorClass, badgeColorClass }: any) {
   const isActive = activeTab === id;
+  const activeClass = activeColorClass || 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]';
+  const inactiveClass = inactiveColorClass || 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)] opacity-60 hover:opacity-100';
+
   return (
     <button
       onClick={() => setTab(id)}
       disabled={disabled}
       className={`h-full px-4 py-3 flex-1 flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${isActive
-        ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]'
-        : 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)] opacity-60 hover:opacity-100'
+        ? activeClass
+        : inactiveClass
         } ${disabled ? 'opacity-30 cursor-not-allowed hover:bg-transparent hover:text-[var(--subtext)]' : ''}`}
     >
       {icon && <span className="material-symbols-outlined !text-lg">{icon}</span>}
       {label}
       {badge !== undefined && badge !== null && (
-        <span className={`ml-2 px-1.5 py-0.5 rounded-full border text-[10px] font-black ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)]/50 text-[var(--accent)]' : 'bg-white/5 border-white/10 text-[var(--subtext)]'}`}>
+        <span className={`ml-2 px-1.5 py-0.5 rounded-full border text-[10px] font-black ${badgeColorClass ? badgeColorClass : isActive ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)]/50 text-[var(--accent)]' : 'bg-white/5 border-white/10 text-[var(--subtext)]'}`}>
           {badge}
         </span>
       )}
@@ -669,6 +672,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
 import { supabase } from "./supabase";
 
 export function GameVersionMultiSelect({ selectedVersions, onChange }: { selectedVersions: string[], onChange: (v: string[]) => void }) {
+  selectedVersions = Array.isArray(selectedVersions) ? selectedVersions : (typeof selectedVersions === 'string' ? [selectedVersions] : []);
   const { t } = useLexicon();
   const [query, setQuery] = useState("");
   const [versions, setVersions] = useState<any[]>([]);

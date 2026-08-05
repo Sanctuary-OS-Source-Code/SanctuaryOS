@@ -82,50 +82,50 @@ export function GameManagementOversight() {
 
     if (isDelete) {
       if (sidePanelMode === 'edit_version') {
-        await supabase.from('game_versions').delete().eq('version', panelTarget);
-        await getActiveGameClient().from('audit_logs').insert({
+        await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'game_versions', p_id: panelTarget });
+        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
           action: `Deleted Game Version ${panelTarget}`, target_table: 'game_versions', target_name: panelTarget, actor_id: userRes.data.user?.id, reason: panelReason
-        });
+        }});
         useStore.getState().pushStatus(`Deleted Game Version ${panelTarget}`, "success");
         fetchVersions();
       } else if (sidePanelMode === 'edit_dlc') {
-        await supabase.from('dlc_registry').delete().eq('id', panelTarget.id);
+        await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'dlc_registry', p_id: panelTarget.id });
         await loadDLCMap();
-        await getActiveGameClient().from('audit_logs').insert({
+        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
           action: `Deleted DLC Pack ${panelTarget.id}`, target_table: 'dlc_registry', target_name: panelTarget.id, actor_id: userRes.data.user?.id, reason: panelReason
-        });
+        }});
         useStore.getState().pushStatus(`Deleted DLC Pack ${panelTarget.id}`, "success");
         fetchDlcs();
       }
     } else {
       if (sidePanelMode === 'add_version') {
-        await supabase.from('game_versions').insert([{ version: panelInput1 }]);
-        await getActiveGameClient().from('audit_logs').insert({
+        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'game_versions', p_payload: { version: panelInput1 } });
+        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
           action: `Added Game Version ${panelInput1}`, target_table: 'game_versions', target_name: panelInput1, actor_id: userRes.data.user?.id, reason: panelReason
-        });
+        }});
         useStore.getState().pushStatus(`Added Game Version ${panelInput1}`, "success");
         fetchVersions();
       } else if (sidePanelMode === 'edit_version') {
-        await supabase.from('game_versions').update({ version: panelInput1 }).eq('version', panelTarget);
-        await getActiveGameClient().from('audit_logs').insert({
+        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'game_versions', p_payload: { version: panelInput1 } });
+        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
           action: `Edited Game Version ${panelTarget} -> ${panelInput1}`, target_table: 'game_versions', target_name: panelInput1, actor_id: userRes.data.user?.id, reason: panelReason
-        });
+        }});
         useStore.getState().pushStatus(`Edited Game Version ${panelTarget} -> ${panelInput1}`, "success");
         fetchVersions();
       } else if (sidePanelMode === 'add_dlc') {
-        await supabase.from('dlc_registry').insert([{ id: panelInput1.toUpperCase(), name: panelInput2, type: resolvedType }]);
+        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'dlc_registry', p_payload: { id: panelInput1.toUpperCase(), name: panelInput2, type: resolvedType } });
         await loadDLCMap();
-        await getActiveGameClient().from('audit_logs').insert({
+        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
           action: `Added DLC Pack [${panelInput1.toUpperCase()}] ${panelInput2}`, target_table: 'dlc_registry', target_name: panelInput1.toUpperCase(), actor_id: userRes.data.user?.id, reason: panelReason
-        });
+        }});
         useStore.getState().pushStatus(`Added DLC Pack [${panelInput1.toUpperCase()}] ${panelInput2}`, "success");
         fetchDlcs();
       } else if (sidePanelMode === 'edit_dlc') {
-        await supabase.from('dlc_registry').update({ id: panelInput1.toUpperCase(), name: panelInput2, type: resolvedType }).eq('id', panelTarget.id);
+        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'dlc_registry', p_payload: { id: panelInput1.toUpperCase(), name: panelInput2, type: resolvedType } });
         await loadDLCMap();
-        await getActiveGameClient().from('audit_logs').insert({
+        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
           action: `Edited DLC Pack [${panelTarget.id}] -> [${panelInput1.toUpperCase()}] ${panelInput2}`, target_table: 'dlc_registry', target_name: panelInput1.toUpperCase(), actor_id: userRes.data.user?.id, reason: panelReason
-        });
+        }});
         useStore.getState().pushStatus(`Edited DLC Pack [${panelTarget.id}]`, "success");
         fetchDlcs();
       }
@@ -300,22 +300,25 @@ export function GameManagementOversight() {
         subtitle={sidePanelMode?.includes('version') ? (t("panel_sub_version")) : (t("dlc_registry"))}
         icon={sidePanelMode?.includes('version') ? "gamepad" : "extension"}
         footer={
-          <div className="flex justify-center items-center gap-4 w-full">
+          <div className="flex justify-center items-center gap-4 w-full px-8">
             {(sidePanelMode === 'add_version' || sidePanelMode === 'add_dlc') && (
-              <button onClick={() => setSidePanelMode(null)} className={standardButtonClass}>
-                {t("nav_cancel")}
-              </button>
+              <ActionButton 
+                onClick={() => setSidePanelMode(null)} 
+                label={t("nav_cancel")}
+                icon="close"
+                className="flex-1"
+              />
             )}
             {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && (
-              <button
+              <ActionButton
                 disabled={!panelReason.trim() || isPanelSubmitting}
                 onClick={() => handlePanelCommit(true)}
-                className={standardDangerButtonClass}
-              >
-                {isPanelSubmitting ? t("ui_btn_processing") : (t("purge"))}
-              </button>
+                label={isPanelSubmitting ? t("ui_btn_processing") : (t("purge") || "PURGE")}
+                icon="delete"
+                className="flex-1 !theme-bg-danger/20 !theme-text-danger !border-[var(--danger)]/50"
+              />
             )}
-            <button
+            <ActionButton
               onClick={() => handlePanelCommit(false)}
               disabled={
                 isPanelSubmitting ||
@@ -323,10 +326,10 @@ export function GameManagementOversight() {
                 ((sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && !panelInput1.trim()) ||
                 ((sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (!panelInput1.trim() || !panelInput2.trim()))
               }
-              className={standardSuccessButtonClass}
-            >
-              {isPanelSubmitting ? (t("ui_btn_processing")) : (t("ui_btn_commit"))}
-            </button>
+              label={isPanelSubmitting ? (t("ui_btn_processing") || "PROCESSING...") : (t("ui_btn_commit") || "COMMIT CHANGES")}
+              icon="save"
+              className="flex-1 !theme-bg-success/20 !theme-text-success !border-[var(--success)]/50"
+            />
           </div>
         }
       >

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, getActiveGameClient } from '../supabase';
 import { useLexicon } from '../LexiconContext';
+import { useStore } from '../store';
 import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, ActionButton } from '../shared';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
 
@@ -50,15 +51,15 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     }
     setLoading(true);
     try {
-      await supabase.from('mods').update({ compliance_tier: 0, status: 'verified' }).eq('id', mod.id);
+      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: mod.id, compliance_tier: 0, status: 'verified' } });
       const userRes = await supabase.auth.getUser();
-      await getActiveGameClient().from('audit_logs').insert({
+      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
         action: `Cleared compliance flag for artifact: ${mod.name}`,
         target_table: 'mods',
         target_name: mod.id,
         actor_id: userRes.data?.user?.id,
         reason: editReason
-      });
+      }});
       setEditReason("");
       fetchMods();
     } catch (err) {
@@ -75,15 +76,15 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     }
     setLoading(true);
     try {
-      await supabase.from('mods').update({ compliance_tier: 2, status: 'blacklisted' }).eq('id', mod.id);
+      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: mod.id, compliance_tier: 2, status: 'blacklisted' } });
       const userRes = await supabase.auth.getUser();
-      await getActiveGameClient().from('audit_logs').insert({
+      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
         action: `Set compliance flag for artifact: ${mod.name} to Tier 2`,
         target_table: 'mods',
         target_name: mod.id,
         actor_id: userRes.data?.user?.id,
         reason: editReason
-      });
+      }});
       setEditReason("");
       fetchMods();
     } catch (err) {
@@ -112,19 +113,19 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     setStatus("Updating...");
 
     try {
-      const { error } = await supabase.from('mods').update({ compliance_tier: editTier }).eq('id', selectedMod.id);
+      const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: selectedMod.id, compliance_tier: editTier } });
       if (error) throw error;
 
       const userRes = await supabase.auth.getUser();
       const myId = userRes.data.user?.id;
 
-      await getActiveGameClient().from('audit_logs').insert({
+      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
         action: `Changed compliance tier from ${selectedMod.compliance_tier} to ${editTier}`,
         target_table: 'mods',
         target_name: selectedMod.name || selectedMod.id,
         actor_id: myId,
         reason: editReason.trim() || "Compliance Update"
-      });
+      }});
 
       setStatus("Success");
       setSelectedMod(null);

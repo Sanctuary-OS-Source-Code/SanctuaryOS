@@ -1351,7 +1351,7 @@ const Vault = React.memo(function Vault(props: any) {
             </button>
           </div>
         )}
-        {quarantineList.length > 0 && (
+        {/* quarantineList.length > 0 && (
           <div
             id="quarantine-zone"
             className="mt-12 p-10 theme-panel-danger border rounded-[var(--radius)] space-y-6 animate-in slide-in-from-bottom-8"
@@ -1393,7 +1393,7 @@ const Vault = React.memo(function Vault(props: any) {
               ))}
             </div>
           </div>
-        )}
+        ) */}
       </div>
       {isBulkMode && createPortal(
         <div className="fixed bottom-16 right-0 z-[3000] pointer-events-none flex justify-center items-end" style={{ left: 'var(--sidebar-width, 288px)' }}>

@@ -60,7 +60,7 @@ CREATE TRIGGER on_auth_user_created
 -- ==========================================
 CREATE TABLE game_versions (
     version TEXT PRIMARY KEY,
-    display_name TEXT
+    release_date DATE
 );
   
 CREATE TABLE mods (
@@ -571,6 +571,106 @@ BEGIN
       version = EXCLUDED.version,
       lexicon_data = EXCLUDED.lexicon_data,
       updated_at = EXCLUDED.updated_at;
+  ELSIF p_target = 'game_versions' THEN
+    INSERT INTO game_versions (version, release_date)
+    VALUES (p_payload->>'version', COALESCE((p_payload->>'release_date')::date, CURRENT_DATE))
+    ON CONFLICT (version) DO UPDATE SET release_date = EXCLUDED.release_date;
+  ELSIF p_target = 'dlc_registry' THEN
+    INSERT INTO dlc_registry SELECT * FROM jsonb_populate_record(null::dlc_registry, p_payload)
+    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, release_date = EXCLUDED.release_date;
+  ELSIF p_target = 'audit_logs' THEN
+    INSERT INTO audit_logs (id, action, actor_id, target_table, target_name, reason, created_at)
+    VALUES (
+      COALESCE((p_payload->>'id')::uuid, uuid_generate_v4()),
+      p_payload->>'action',
+      (p_payload->>'actor_id')::uuid,
+      p_payload->>'target_table',
+      p_payload->>'target_name',
+      p_payload->>'reason',
+      COALESCE((p_payload->>'created_at')::timestamp with time zone, NOW())
+    );
+  ELSIF p_target = 'logical_conflicts' THEN
+    IF p_payload->>'id' IS NULL THEN
+      INSERT INTO logical_conflicts (mod_a, mod_b, mod_a_id, mod_b_id, severity_rank)
+      VALUES (p_payload->>'mod_a', p_payload->>'mod_b', (p_payload->>'mod_a_id')::uuid, (p_payload->>'mod_b_id')::uuid, (p_payload->>'severity_rank')::int);
+    ELSE
+      INSERT INTO logical_conflicts (id, mod_a, mod_b, mod_a_id, mod_b_id, severity_rank)
+      VALUES ((p_payload->>'id')::int, p_payload->>'mod_a', p_payload->>'mod_b', (p_payload->>'mod_a_id')::uuid, (p_payload->>'mod_b_id')::uuid, (p_payload->>'severity_rank')::int)
+      ON CONFLICT (id) DO UPDATE SET mod_a = EXCLUDED.mod_a, mod_b = EXCLUDED.mod_b, mod_a_id = EXCLUDED.mod_a_id, mod_b_id = EXCLUDED.mod_b_id, severity_rank = EXCLUDED.severity_rank;
+    END IF;
+  ELSIF p_target = 'sanctuary_support_categories' THEN
+    IF p_payload->>'id' IS NULL THEN
+      INSERT INTO sanctuary_support_categories (category_code, category_name, description, is_active)
+      VALUES (p_payload->>'category_code', p_payload->>'category_name', p_payload->>'description', (p_payload->>'is_active')::boolean);
+    ELSE
+      INSERT INTO sanctuary_support_categories (id, category_code, category_name, description, is_active)
+      VALUES ((p_payload->>'id')::int, p_payload->>'category_code', p_payload->>'category_name', p_payload->>'description', (p_payload->>'is_active')::boolean)
+      ON CONFLICT (id) DO UPDATE SET category_code = EXCLUDED.category_code, category_name = EXCLUDED.category_name, description = EXCLUDED.description, is_active = EXCLUDED.is_active;
+    END IF;
+  ELSIF p_target = 'sanctuary_telemetry_sources' THEN
+    INSERT INTO sanctuary_telemetry_sources (id, label, description, type, search_path)
+    VALUES (
+      COALESCE((p_payload->>'id')::uuid, uuid_generate_v4()),
+      p_payload->>'label',
+      p_payload->>'description',
+      p_payload->>'type',
+      p_payload->>'search_path'
+    )
+    ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label, description = EXCLUDED.description, type = EXCLUDED.type, search_path = EXCLUDED.search_path;
+  ELSIF p_target = 'content_flags' THEN
+    INSERT INTO content_flags (id, content_id, content_type, reporter_id, reason, created_at)
+    VALUES (
+      COALESCE((p_payload->>'id')::uuid, uuid_generate_v4()),
+      p_payload->>'content_id',
+      p_payload->>'content_type',
+      (p_payload->>'reporter_id')::uuid,
+      p_payload->>'reason',
+      COALESCE((p_payload->>'created_at')::timestamp with time zone, NOW())
+    )
+    ON CONFLICT (id) DO UPDATE SET content_id = EXCLUDED.content_id, content_type = EXCLUDED.content_type, reporter_id = EXCLUDED.reporter_id, reason = EXCLUDED.reason;
+  ELSIF p_target = 'heuristic_signatures' THEN
+    INSERT INTO heuristic_signatures (id, signature, match_type, source, severity, created_at)
+    VALUES (
+      COALESCE((p_payload->>'id')::uuid, uuid_generate_v4()),
+      p_payload->>'signature',
+      p_payload->>'match_type',
+      p_payload->>'source',
+      p_payload->>'severity',
+      COALESCE((p_payload->>'created_at')::timestamp with time zone, NOW())
+    )
+    ON CONFLICT (id) DO UPDATE SET signature = EXCLUDED.signature, match_type = EXCLUDED.match_type, source = EXCLUDED.source, severity = EXCLUDED.severity;
+  ELSIF p_target = 'mods' THEN
+    INSERT INTO mods (id, name, status, category_override, sub_type, compliance_tier, compatible_versions, created_at)
+    VALUES (
+      COALESCE((p_payload->>'id')::uuid, uuid_generate_v4()),
+      p_payload->>'name',
+      p_payload->>'status',
+      p_payload->>'category_override',
+      p_payload->>'sub_type',
+      p_payload->>'compliance_tier',
+      (p_payload->>'compatible_versions')::jsonb,
+      COALESCE((p_payload->>'created_at')::timestamp with time zone, NOW())
+    )
+    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status, category_override = EXCLUDED.category_override, sub_type = EXCLUDED.sub_type, compliance_tier = EXCLUDED.compliance_tier, compatible_versions = EXCLUDED.compatible_versions;
+  ELSIF p_target = 'mod_versions' THEN
+    INSERT INTO mod_versions (dna_hash, mod_id, version_label, game_version, created_at)
+    VALUES (
+      p_payload->>'dna_hash',
+      (p_payload->>'mod_id')::uuid,
+      p_payload->>'version_label',
+      p_payload->>'game_version',
+      COALESCE((p_payload->>'created_at')::timestamp with time zone, NOW())
+    )
+    ON CONFLICT (dna_hash) DO UPDATE SET mod_id = EXCLUDED.mod_id, version_label = EXCLUDED.version_label, game_version = EXCLUDED.game_version;
+  ELSIF p_target = 'wf_comms_title' THEN
+    INSERT INTO wf_comms_title (id, sender_id, message, created_at)
+    VALUES (
+      COALESCE((p_payload->>'id')::uuid, uuid_generate_v4()),
+      (p_payload->>'sender_id')::uuid,
+      p_payload->>'message',
+      COALESCE((p_payload->>'created_at')::timestamp with time zone, NOW())
+    )
+    ON CONFLICT (id) DO UPDATE SET message = EXCLUDED.message;
   ELSE
     RAISE EXCEPTION 'Invalid target: %', p_target;
   END IF;
@@ -617,6 +717,26 @@ BEGIN
     DELETE FROM sanctuary_schemas WHERE id = p_id;
   ELSIF p_target = 'sanctuary_lexicons' THEN
     DELETE FROM sanctuary_lexicons WHERE id = p_id;
+  ELSIF p_target = 'game_versions' THEN
+    DELETE FROM game_versions WHERE version = p_id;
+  ELSIF p_target = 'dlc_registry' THEN
+    DELETE FROM dlc_registry WHERE id = p_id;
+  ELSIF p_target = 'logical_conflicts' THEN
+    DELETE FROM logical_conflicts WHERE id = p_id::int;
+  ELSIF p_target = 'sanctuary_support_categories' THEN
+    DELETE FROM sanctuary_support_categories WHERE id = p_id::uuid;
+  ELSIF p_target = 'sanctuary_telemetry_sources' THEN
+    DELETE FROM sanctuary_telemetry_sources WHERE id = p_id::uuid;
+  ELSIF p_target = 'content_flags' THEN
+    DELETE FROM content_flags WHERE id = p_id::uuid;
+  ELSIF p_target = 'heuristic_signatures' THEN
+    DELETE FROM heuristic_signatures WHERE id = p_id::uuid;
+  ELSIF p_target = 'mods' THEN
+    DELETE FROM mods WHERE id = p_id::uuid;
+  ELSIF p_target = 'mod_versions' THEN
+    DELETE FROM mod_versions WHERE id = p_id::uuid;
+  ELSIF p_target = 'wf_comms_title' THEN
+    DELETE FROM wf_comms_title WHERE id = p_id::uuid;
   ELSE
     RAISE EXCEPTION 'Invalid target: %', p_target;
   END IF;

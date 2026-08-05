@@ -2305,6 +2305,10 @@
   "alert_error_mason_profile_missing": "Error: Mason Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
   "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
+  "settings_use_internal_browser": "Use the Sanctuary Browser",
+  "all_logs": "All Logs",
+  "fatal": "Fatal",
+  "copied": "Copied",
   "active": "Active",
   "ignored": "Ignored",
   "revert": "revert",
@@ -2509,5 +2513,8 @@
   "active_override": "Active Override",
   "revert_override": "Revert Override",
   "ignored_file_a": "Artifact A",
-  "ignored_file_b": "Artifact B"
+  "ignored_file_b": "Artifact B",
+  "no_issues_detected": "No Issues Detected. Click to Conclude Test.",
+  "btn_select": "Target Blueprint",
+  "btn_selected": "Target Selected"
 }

@@ -82,21 +82,22 @@ export function WayfinderComms() {
     if (!user) return;
 
     if (editingCommId) {
-      const { error } = await supabase.from('wf_comms_title').update({ message: commsInput.trim() }).eq('id', editingCommId);
+      const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'wf_comms_title', p_payload: { id: editingCommId, message: commsInput.trim() } });
       if (error) useStore.getState().pushStatus(t("comms_update_error") || "Update Error:" + " " + error.message);
       setEditingCommId(null);
     } else {
-      const { error } = await supabase.from('wf_comms_title').insert({
+      const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'wf_comms_title', p_payload: {
+        id: crypto.randomUUID(),
         sender_id: user.id,
         message: commsInput.trim()
-      });
+      }});
       if (error) useStore.getState().pushStatus(t("comms_insert_error") || "Insert Error:" + " " + error.message);
     }
     setCommsInput("");
   };
 
   const deleteComm = async (id: number | string) => {
-    const { error } = await supabase.from('wf_comms_title').delete().eq('id', id);
+    const { error } = await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'wf_comms_title', p_id: id });
     if (error) useStore.getState().pushStatus(t("comms_delete_error") || "Delete Error:" + " " + error.message);
   };
 

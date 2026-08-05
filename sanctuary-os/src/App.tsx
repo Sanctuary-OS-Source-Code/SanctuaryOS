@@ -1865,21 +1865,33 @@ function App() {
     try {
       let modId = mod.dbId;
       if (!modId) {
-        const { data: verData } = await supabase
-          .from("mod_versions")
-          .select("mod_id")
-          .eq("dna_hash", mod.hash)
-          .single();
-        modId = verData?.mod_id;
+        if (mod.hash) {
+          const { data: mvInDb } = await supabase
+            .from("mod_versions")
+            .select("mod_id, mods!inner(file_extension)")
+            .eq("dna_hash", mod.hash)
+            .maybeSingle();
+          if (mvInDb) {
+            const isLocalScript = mod.name?.toLowerCase().includes("script");
+            const isDBScript = (mvInDb.mods as any)?.file_extension?.toLowerCase().includes("script");
+            if (!!isLocalScript === !!isDBScript) {
+              modId = mvInDb.mod_id;
+            }
+          }
+        }
       }
       if (!modId) {
-        const cleanMod = (mod.name || "").split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
-        const { data: modInDb } = await supabase
+        const cleanMod = (mod.name || "").replace(/_/g, " ").replace(/(\.| |-)*(\(|\[)?(package|ts4scripts?|scripts?|zip)(\)|\])?/gi, "").trim();
+        const { data: modsInDb } = await supabase
           .from("mods")
-          .select("id")
-          .ilike("name", cleanMod || "")
-          .maybeSingle();
-        modId = modInDb?.id;
+          .select("id, file_extension")
+          .ilike("name", `%${cleanMod}%`);
+          
+        if (modsInDb && modsInDb.length > 0) {
+          const isScript = mod.name?.toLowerCase().includes("script");
+          const exactMatch = modsInDb.find((m: any) => isScript ? m.file_extension?.toLowerCase().includes("script") : !m.file_extension?.toLowerCase().includes("script"));
+          modId = exactMatch ? exactMatch.id : modsInDb[0].id;
+        }
       }
 
       if (modId) {
@@ -1899,6 +1911,11 @@ function App() {
             .select("child_id")
             .eq("parent_id", modInDb.id)
             .eq("relationship_type", "twin");
+          const { data: twinParents } = await supabase
+            .from("mod_relationships")
+            .select("parent_id")
+            .eq("child_id", modInDb.id)
+            .eq("relationship_type", "twin");
           const { data: addonParents } = await supabase
             .from("mod_relationships")
             .select("parent_id")
@@ -1908,13 +1925,15 @@ function App() {
           const relatedIds = [
             ...(deps?.map((d) => String(d.parent_id)) || []),
             ...(twins?.map((t) => String(t.child_id)) || []),
+            ...(twinParents?.map((t) => String(t.parent_id)) || []),
             ...(addonParents?.map((a) => String(a.parent_id)) || []),
           ];
           if (relatedIds.length > 0) {
-            const { data: relatedMods } = await supabase
+            const { data: relatedMods, error } = await supabase
               .from("mods")
-              .select("name, master_author")
+              .select("id, name, master_author, file_extension")
               .in("id", relatedIds);
+            if (error) console.error("Error fetching associated mods:", error);
             setAssociatedMods(relatedMods || []);
           } else {
             setAssociatedMods([]);
@@ -2250,6 +2269,7 @@ function App() {
                       conflictTarget={conflictTarget}
                       runLabSimulation={runLabSimulation}
                       isLoadingAssociated={isLoadingAssociated}
+                      associatedMods={associatedMods}
                       runProvingRun={runProvingRun}
                       labConflicts={labConflicts}
                       setLabConflicts={setLabConflicts}

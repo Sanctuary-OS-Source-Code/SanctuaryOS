@@ -79,12 +79,12 @@ export function MassUpdateOversight() {
         if (massConflictId) {
           const mod = mods.find(m => m.id === id);
           if (mod) {
-            await supabase.from('logical_conflicts').insert([{ mod_a_id: id, mod_b_id: massConflictId.id, mod_a: mod.name, mod_b: massConflictId.name, severity_rank: 4 }]);
+            await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'logical_conflicts', p_payload: { mod_a_id: id, mod_b_id: massConflictId.id, mod_a: mod.name, mod_b: massConflictId.name, severity_rank: 4 } });
           }
         }
 
         if (Object.keys(modUpdates).length > 0) {
-          await supabase.from('mods').update(modUpdates).eq('id', id);
+          await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id, ...modUpdates } });
         }
       }
 
@@ -100,13 +100,13 @@ export function MassUpdateOversight() {
       if (massConflictId) changes.push(`Added Conflict`);
       actionStr += changes.join(", ");
 
-      await getActiveGameClient().from('audit_logs').insert({
+      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
         action: actionStr,
         target_table: 'mods',
         target_name: 'BATCH OPERATION',
         actor_id: myId,
         reason: editReason.trim()
-      });
+      }});
 
       setMassStatus(""); setMassCategory(""); setMassSubCategory(""); setMassCompliance(""); setMassGameVersions([]); setMassConflictId(null); setEditReason("");
       setSelectedIds(new Set());

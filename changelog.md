@@ -1,3 +1,13 @@
+**Date: August 5, 2026**
+**Version: 0.4.92**
+ 
+ 
+ ### **Major Systems Overhaul**
+  - **Visual Polish**: Standardized the active target "Selected" scan buttons, and applied dynamic glowing background tints to active blueprint cards across both the Blueprints Hub and Conflict Radar.
+
+
+---
+
 **Date: August 3, 2026**
 **Version: 0.4.91**
 
@@ -11,6 +21,9 @@
   - **Overridden File Recovery**: Fixed a logic flaw where the UI would duplicate the winning file in the Active Overrides view. The UI now dynamically intercepts and unpacks the raw conflict string from the background `sanctuary_ignored_conflicts` cache to accurately identify and display the overwritten file.
   - **Seamless Reversion**: Tied conflict un-ignoring directly into the "Revert Override" action, ensuring that reverted mods instantly reappear on the radar instead of remaining permanently suppressed.
   - **Visual Polish**: Swapped out the broken 'ghost' fallback with the official 'visibility_off' material symbol.
+  - **Dynamic Scope Scanning**: Connected the blueprint dropdowns across all Radar tabs to seamlessly rescan the correct blueprint on change, fixing a core logic flaw that caused the scanner to fall back to the actively deployed game folder.
+  - **Command Telemetry Tiles**: Integrated comprehensive stat tiles into the `COMMAND` overview page to provide at-a-glance metrics for Total Fatal, Total Tuning, Total Overrides, and Total Ignored conflicts for the currently selected blueprint.
+  - **Persistent Tab Navigation**: Removed jarring, automatic tab-jumping behaviors during scans. The UI now respects your current tab and dynamically updates the data underneath you when changing blueprints.
 - **Homestead Lab Redesign**: The Homestead Lab was completely rebuilt from the ground up. Introduced a tabbed interface (`DASHBOARD`, `BUILDER`, `REPORTS`) and purged the legacy table-based logs. Telemetry is now displayed via a modern, responsive grid of rich cards featuring glowing success/danger indicators, timestamp tracking, and fluid hover animations revealing deep-link action buttons.
 - **Comm-Link Feed Revamp**: Overhauled the Comm-Link Feed, splitting it into `NETWORK SWEEP` and `SUBSCRIBED CHANNELS`. The interface now utilizes completely redesigned, premium transmission cards with pinned states, view metrics, and unified glassmorphic styling.
 - **Blueprints Polish**: Upgraded the Blueprints hub to leverage the new layout architecture, bringing its grid and action buttons into perfect alignment with the rest of the OS.
@@ -20,8 +33,6 @@
 - **Search & Title Harmonization**: Unified the title/search rows in the **Vault**, **Nexus**, and **Workbench**. They now share the exact same `bg-black/40`, `h-12`, `rounded-xl`, `font-mono` input design.
 - **Action Button Standardization**: Relocated the Template Action buttons in Citizens Workbench into the new standardized title row with matched `rounded-xl` CSS overrides to sit perfectly alongside the search bar.
 
-### **Localization Polish**
-- **Zero Hardcoding**: Enforced strict localization across all the newly revamped screens. All hardcoded UI text strings, quick link titles, and telemetry labels were systematically purged and wired into the global `t()` lexicon system across `en-default`, `en-sanctuary`, and `Simlish` dictionaries.
 
 ---
 

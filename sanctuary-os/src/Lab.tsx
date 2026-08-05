@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, ModSearchDropdown, HubTabButton, CustomDropdown, ActionButton } from "./shared";
+import { ViewHeader, ModSearchDropdown, HubTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel } from "./shared";
 import { CommandScreenLayout, DashboardStatTile, CommandScreenStats, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
@@ -9,13 +9,23 @@ export default function Lab({
   activeLabMod, setActiveLabMod, modList = [],
   concludeTest, executeHotSwap, shelterActive, conflictTarget, setConflictTarget,
   testErrorFound, testLogSnippet, isSubmittingReport, submitLabReport,
-  labQueue = [], labVerificationQueue = [], labConflicts = []
+  labQueue = [], labVerificationQueue = [], labConflicts = [],
+  associatedMods = []
 }: any) {
   const { t } = useLexicon();
 
   const [stagedExtras, setStagedExtras] = useState<any[]>([]);
   const [conflictExtras, setConflictExtras] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<string>("DASHBOARD");
+  const [lastTestResult, setLastTestResult] = useState<any>(null);
+  const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [testHistory, setTestHistory] = useState<any[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("sanctuary_test_history") || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   const [searchLogs, setSearchLogs] = useState("");
   const [logFilter, setLogFilter] = useState("all");
@@ -23,8 +33,87 @@ export default function Lab({
   useEffect(() => {
     if (testLogSnippet) {
       setActiveTab("REPORTS");
+      if (activeLabMod) {
+        setSelectedReport({
+          id: "concluding_test",
+          mod: activeLabMod,
+          errorFound: testErrorFound,
+          time: new Date().toISOString(),
+          logSnippet: testLogSnippet,
+          conflictTarget: conflictTarget,
+          stagedExtras: stagedExtras,
+          conflictExtras: conflictExtras,
+          isConcluding: true
+        });
+      }
     }
-  }, [testLogSnippet]);
+  }, [testLogSnippet, activeLabMod, testErrorFound, conflictTarget, stagedExtras, conflictExtras]);
+
+  useEffect(() => {
+    let depsToStage: any[] = [];
+    
+    if (activeLabMod && activeLabMod.dependencies) {
+      let rawDeps: string[] = [];
+      if (typeof activeLabMod.dependencies === 'string') {
+        rawDeps = activeLabMod.dependencies.split(',').map((s: string) => s.trim()).filter(Boolean);
+      } else if (Array.isArray(activeLabMod.dependencies)) {
+        rawDeps = [...activeLabMod.dependencies].filter(Boolean);
+      }
+      
+      const cleanName = (name: string) => name ? name.replace(/_/g, " ").replace(/(\.| |-)*(\(|\[)?(package|ts4scripts?|scripts?|zip)(\)|\])?/gi, "").trim().toUpperCase() : "";
+
+      const foundDeps = rawDeps
+        .map(depName => modList.find((m: any) => {
+          if (m === activeLabMod) return false;
+          if (m.hash && activeLabMod.hash && m.hash === activeLabMod.hash) return false;
+          if (m.name && activeLabMod.name && m.name === activeLabMod.name) return false;
+          
+          if (!m.name) return false;
+          
+          const isDBScript = depName.toLowerCase().includes("script");
+          const isLocalScript = m.name.toLowerCase().includes("script");
+          if (isDBScript !== isLocalScript) return false;
+
+          return (cleanName(m.name) === cleanName(depName) || cleanName(m.displayName) === cleanName(depName) || (m.path && m.path.includes(depName) && depName.length > 3));
+        }))
+        .filter(Boolean);
+      
+      depsToStage = [...depsToStage, ...foundDeps];
+    }
+
+    if (activeLabMod && associatedMods && associatedMods.length > 0) {
+      const extraDeps = associatedMods
+        .map((am: any) => modList.find((m: any) => {
+          if (m === activeLabMod) return false;
+          if (m.hash && activeLabMod.hash && m.hash === activeLabMod.hash) return false;
+          if (m.name && activeLabMod.name && m.name === activeLabMod.name) return false;
+          
+          if (am.hash && m.hash === am.hash) return true;
+          if (am.id && m.id === am.id) return true;
+          
+          if (!am.name || !m.name) return false;
+          
+          const isDBScript = (am.file_extension && am.file_extension.toLowerCase().includes("script")) || (am.name && am.name.toLowerCase().includes("script"));
+          const isLocalScript = m.name && m.name.toLowerCase().includes("script");
+          if (isDBScript !== isLocalScript) return false;
+          
+          const cleanName = (name: string) => name ? name.replace(/_/g, " ").replace(/(\.| |-)*(\(|\[)?(package|ts4scripts?|scripts?|zip)(\)|\])?/gi, "").trim().toUpperCase() : "";
+          if (cleanName(m.displayName || m.name) === cleanName(am.name)) return true;
+          
+          return false;
+        }))
+        .filter(Boolean);
+      
+      depsToStage = [...depsToStage, ...extraDeps];
+    }
+    
+    if (activeLabMod) {
+      const uniqueDeps = Array.from(new Map(depsToStage.map(item => [item.hash || item.name, item])).values());
+      setStagedExtras(uniqueDeps);
+    } else {
+      setStagedExtras([]);
+    }
+  }, [activeLabMod, associatedMods, modList]);
 
   const handleExportLogs = async () => {
     try {
@@ -55,14 +144,79 @@ export default function Lab({
     setActiveTab("DASHBOARD");
   };
 
-  const realStats = {
-    tested: (labVerificationQueue?.length || 0) + (labConflicts?.length || 0),
-    untested: labQueue?.length || 0,
-    totalRan: (labVerificationQueue?.length || 0) + (labConflicts?.length || 0),
-    passed: labVerificationQueue?.length || 0,
-    failed: labConflicts?.length || 0,
-    lastTest: testLogSnippet ? (t("time_just_now") || "JUST NOW") : "--"
+  const handleConcludeTest = () => {
+    const ctx = {
+      conflictTarget: conflictTarget?.name,
+      dependencies: [...stagedExtras.map(m => m.name), ...conflictExtras.map(m => m.name)]
+    };
+    
+    const result = {
+      id: crypto.randomUUID(),
+      mod: activeLabMod,
+      errorFound: testErrorFound,
+      time: new Date().toISOString(),
+      logSnippet: testLogSnippet,
+      conflictTarget: conflictTarget,
+      stagedExtras: stagedExtras,
+      conflictExtras: conflictExtras
+    };
+    
+    setLastTestResult(result);
+    setTestHistory((prev: any[]) => {
+      const newHistory = [result, ...prev].slice(0, 50);
+      localStorage.setItem("sanctuary_test_history", JSON.stringify(newHistory));
+      return newHistory;
+    });
+    
+    concludeTest(ctx);
+    setStagedExtras([]);
+    setConflictExtras([]);
+    setConflictTarget(null);
+    setSelectedReport(null);
+    setActiveTab("DASHBOARD");
   };
+
+  const passedCount = testHistory.filter((m: any) => !m.errorFound).length;
+  const failedCount = testHistory.filter((m: any) => m.errorFound).length;
+  const totalRanCount = testHistory.length;
+  const untestedCount = modList.length - (new Set(testHistory.map(t => t.mod?.hash)).size);
+
+  const realStats = {
+    tested: totalRanCount,
+    untested: untestedCount,
+    totalRan: totalRanCount,
+    passed: passedCount,
+    failed: failedCount,
+    lastTest: testHistory.length > 0 ? (t("time_just_now") || "JUST NOW") : "--"
+  };
+
+  let reportsToList = [...testHistory];
+  const isConcluding = testLogSnippet || testErrorFound;
+  if (isConcluding && activeLabMod) {
+    reportsToList.unshift({
+      id: "concluding_test",
+      mod: activeLabMod,
+      errorFound: testErrorFound,
+      time: new Date().toISOString(),
+      logSnippet: testLogSnippet,
+      conflictTarget: conflictTarget,
+      stagedExtras: stagedExtras,
+      conflictExtras: conflictExtras,
+      isConcluding: true
+    });
+  }
+
+  const filteredReports = reportsToList.filter((report: any) => {
+     const m = report.mod;
+     if (searchLogs && !m?.name?.toLowerCase().includes(searchLogs.toLowerCase()) && !m?.displayName?.toLowerCase().includes(searchLogs.toLowerCase())) return false;
+     
+     const isError = report.errorFound;
+     const isPass = !report.errorFound;
+     
+     if (logFilter === 'pass' && !isPass) return false;
+     if (logFilter === 'errors' && !isError) return false;
+     return true;
+  });
 
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 w-full relative z-10">
@@ -80,7 +234,7 @@ export default function Lab({
       </div>
 
       {activeTab === "DASHBOARD" && (
-        <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full mt-6">
+        <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full">
           <div className="flex flex-col gap-10 w-full">
             <CommandScreenStats>
               <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">science</span>} number={realStats.tested} label={t("stat_mods_tested")} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" />
@@ -88,7 +242,6 @@ export default function Lab({
               <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">play_circle</span>} number={realStats.totalRan} label={t("stat_total_tests")} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" />
               <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">check_circle</span>} number={realStats.passed} label={t("stat_tests_passed")} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" />
               <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">warning</span>} number={realStats.failed} label={t("stat_tests_failed")} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">history</span>} number={realStats.lastTest} label={t("stat_last_test")} colorClass="border-slate-500/30 text-slate-400 hover:border-slate-500 bg-slate-500/10 hover:bg-slate-500/20" />
             </CommandScreenStats>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 w-full pb-16">
@@ -96,24 +249,25 @@ export default function Lab({
                 <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] opacity-80">{t("recent_tests_title") || "RECENT TELEMETRY"}</h2>
 
                 <div className="grid grid-cols-1 gap-4">
-                  {testLogSnippet || testErrorFound ? (
-                    <div className={`theme-glass-panel rounded-2xl p-5 border shadow-md transition-colors flex flex-col gap-3 relative overflow-hidden group cursor-default ${testErrorFound ? 'border-[var(--danger)]/30 hover:border-[var(--danger)]/50 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[var(--success)]/30 hover:border-[var(--success)]/50'}`}>
-                      <div className={`absolute top-0 left-0 w-1 h-full opacity-50 group-hover:opacity-100 transition-opacity ${testErrorFound ? 'bg-[var(--danger)]' : 'bg-[var(--success)]'}`} />
-                      <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${testErrorFound ? 'bg-[var(--danger)]/10' : 'bg-[var(--success)]/10'}`} />
+                  {testHistory.length > 0 ? (
+                    testHistory.slice(0, 3).map((test: any, index: number) => (
+                      <div key={test.id || index} onClick={() => { setActiveTab("REPORTS"); setSelectedReport(test); }} className={`theme-glass-panel rounded-2xl p-5 border shadow-md transition-colors flex flex-col gap-3 relative overflow-hidden group cursor-pointer ${test.errorFound ? 'border-[var(--danger)]/30 hover:border-[var(--danger)]/50 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[var(--success)]/30 hover:border-[var(--success)]/50'}`}>
+                        <div className={`absolute top-0 left-0 w-1 h-full opacity-50 group-hover:opacity-100 transition-opacity ${test.errorFound ? 'bg-[var(--danger)]' : 'bg-[var(--success)]'}`} />
+                        <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${test.errorFound ? 'bg-[var(--danger)]/10' : 'bg-[var(--success)]/10'}`} />
 
-                      <div className="flex items-center gap-3 relative z-10">
-                        <span className={`material-symbols-outlined !text-[20px] ${testErrorFound ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>{testErrorFound ? 'warning' : 'check_circle'}</span>
-                        <span className={`text-xs font-black uppercase tracking-widest ${testErrorFound ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>{testErrorFound ? t("fatal_collision") : t("successful_injection")}</span>
-                        <span className="text-[10px] font-bold opacity-50 ml-auto">{t("time_just_now") || "JUST NOW"}</span>
+                        <div className="flex items-center gap-3 relative z-10">
+                          <span className={`material-symbols-outlined !text-[20px] ${test.errorFound ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>{test.errorFound ? 'warning' : 'check_circle'}</span>
+                          <span className={`text-xs font-black uppercase tracking-widest ${test.errorFound ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>{test.errorFound ? t("fatal_collision") : t("successful_injection")}</span>
+                          <span className="text-[10px] font-bold opacity-50 ml-auto">{new Date(test.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="text-sm font-bold text-[var(--text)] opacity-90 pl-8 line-clamp-1 relative z-10">
+                          {test.mod ? getModName(test.mod) : (t("ecosystem_forge") || "ECOSYSTEM FORGE")}
+                        </div>
+                        <div className="pl-8 text-xs opacity-60 relative z-10 font-mono line-clamp-1">
+                          {test.conflictTarget ? `vs ${getModName(test.conflictTarget)}` : t("target_engine_core") || "Target: Engine Core"}
+                        </div>
                       </div>
-                      <div className="text-sm font-bold text-[var(--text)] opacity-90 pl-8 line-clamp-1 relative z-10">
-                        {activeLabMod ? getModName(activeLabMod) : (t("ecosystem_forge") || "ECOSYSTEM FORGE")}
-                      </div>
-                      <div className="pl-8 text-xs opacity-60 relative z-10 font-mono">{t("target_engine_core")}</div>
-                      <div className="pl-8 mt-2 opacity-0 h-0 group-hover:h-auto group-hover:opacity-100 transition-all duration-300 relative z-10">
-                        <ActionButton icon="terminal" label={t("view_detailed_log")} onClick={() => { setActiveTab("REPORTS"); setLogFilter(testErrorFound ? "errors" : "pass"); }} className={`!h-10 !px-4 ${testErrorFound ? '!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] !text-[var(--danger)] !border-[var(--danger)]/30 hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : ''}`} />
-                      </div>
-                    </div>
+                    ))
                   ) : (
                     <div className="theme-glass-panel rounded-2xl p-8 border border-white/5 flex flex-col items-center justify-center opacity-50 space-y-4 shadow-inner">
                       <span className="material-symbols-outlined !text-[48px] text-[var(--subtext)]">history</span>
@@ -129,7 +283,7 @@ export default function Lab({
                   <CommandScreenQuickLink
                     icon="science"
                     title="Run Test"
-                    subtitle="Ecosystem Forge"
+                    subtitle={testHistory.length > 0 ? `Last scan: ${new Date(testHistory[0].time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : "Ecosystem Forge"}
                     onClick={() => setActiveTab("BUILDER")}
                   />
                   <CommandScreenQuickLink
@@ -192,7 +346,7 @@ export default function Lab({
                   {!shelterActive ? (
                     <ActionButton icon="bolt" label={t("btn_initiate_swap") || "CONDUCT EXPERIMENT"} onClick={runCombinedHotSwap} />
                   ) : (
-                    <ActionButton icon="science" label={t("btn_conclude_experiment") || "CONCLUDE TEST"} onClick={() => setActiveTab("REPORTS")} className="!bg-[color-mix(in_srgb,var(--success)_10%,transparent)] !border-[var(--success)]/30 !text-[var(--success)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)]" />
+                    <ActionButton icon="science" label={t("btn_conclude_experiment") || "CONCLUDE TEST"} onClick={handleConcludeTest} className="!bg-[color-mix(in_srgb,var(--success)_10%,transparent)] !border-[var(--success)]/30 !text-[var(--success)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)]" />
                   )}
                 </div>
               </div>
@@ -311,7 +465,7 @@ export default function Lab({
                     />
                   ) : (
                     <ModSearchDropdown
-                      modList={modList.filter((m: any) => !m.isVirtual && m.hash !== activeLabMod.hash && m.hash !== conflictTarget?.hash && !stagedExtras.find(e => e.hash === m.hash))}
+                      modList={modList.filter((m: any) => !m.isVirtual && m.hash !== activeLabMod?.hash && m.hash !== conflictTarget?.hash && !stagedExtras.find(e => e.hash === m.hash))}
                       selectedItem={null}
                       onSelect={(m: any) => { if (m && !conflictExtras.find(e => e.hash === m.hash)) setConflictExtras([...conflictExtras, m]); }}
                       onClear={() => { }}
@@ -380,82 +534,106 @@ export default function Lab({
                 )}
               </div>
 
-              <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-50 h-12">
-                <CustomDropdown disableTint={true}
-                  options={[
-                    { id: 'all', label: 'All Logs' },
-                    { id: 'pass', label: 'Passed Tests' },
-                    { id: 'errors', label: 'Errors Only' },
-                    { id: 'warnings', label: 'Warnings' }
-                  ]}
-                  value={logFilter}
-                  onChange={(val: any) => setLogFilter(val[0])}
-                />
+              <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[300px] shrink-0 relative z-50 h-12">
+                <FilterTabs className="w-full">
+                  <FilterTabButton id="all" label={t("all_logs") || "All Logs"} activeTab={logFilter} setTab={setLogFilter} />
+                  <FilterTabButton id="pass" label={t("verified") || "Verified"} activeTab={logFilter} setTab={setLogFilter} />
+                  <FilterTabButton id="errors" label={t("fatal") || "Fatal"} activeTab={logFilter} setTab={setLogFilter} />
+                </FilterTabs>
               </div>
             </div>
           </div>
 
-          {!testLogSnippet && !testErrorFound ? (
-            <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-6 mt-10">
-              <span className="material-symbols-outlined !text-[80px] text-[var(--subtext)]">terminal</span>
-              <div className="space-y-2 text-center">
-                <h2 className="text-2xl font-black uppercase tracking-widest text-[var(--text)]">{t("lab_reports_empty")}</h2>
-                <p className="text-sm font-medium text-[var(--subtext)]">{t("lab_reports_empty_desc")}</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col h-full relative flex-1 min-h-[500px] mt-4">
-              <div className="flex items-center justify-between gap-4 w-full mb-6">
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shadow-inner ${testErrorFound ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)]'}`}>
-                    <span className={`material-symbols-outlined !text-[24px] ${testErrorFound ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>{testErrorFound ? 'warning' : 'science'}</span>
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-black uppercase tracking-widest text-[var(--text)]">{t("tier3_results")}</h2>
-                    <p className={`text-[12px] font-bold uppercase tracking-widest ${testErrorFound ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>{testErrorFound ? (t("status_broken")) : (t("verified"))}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={handleExportLogs}
-                    className="py-3 px-6 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-white/10 rounded-[var(--radius)] font-black text-[11px] uppercase tracking-[0.2em] text-[var(--text)] transition-all flex items-center justify-center gap-3 shrink-0 shadow-lg"
-                  >
-                    <span className="material-symbols-outlined !text-[18px]">download</span>
-                    {t("export_logs")}
-                  </button>
-                  <button
-                    onClick={() => {
-                      const ctx = {
-                        conflictTarget: conflictTarget?.name,
-                        dependencies: [...stagedExtras.map(m => m.name), ...conflictExtras.map(m => m.name)]
-                      };
-                      concludeTest(ctx);
-                      setStagedExtras([]);
-                      setConflictExtras([]);
-                      setActiveTab("DASHBOARD");
-                    }}
-                    className={`py-3 px-8 rounded-[var(--radius)] font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 border shadow-xl ${testErrorFound ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] hover:border-[var(--danger)] shadow-[0_10px_30px_color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)] shadow-[0_10px_30px_color-mix(in_srgb,var(--success)_20%,transparent)]'}`}
-                  >
-                    <span className="material-symbols-outlined !text-[18px]">{testErrorFound ? 'shield' : 'verified_user'}</span>
-                    {testErrorFound ? (t("secure_broken")) : (t("secure_verified"))}
-                  </button>
-                </div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-32">
+            {filteredReports.map((report: any) => {
+              const isError = report.errorFound;
+              return (
+                <div key={report.id} onClick={() => setSelectedReport(report)} className={`theme-glass-panel rounded-2xl p-5 border shadow-md transition-all flex flex-col gap-3 relative overflow-hidden group cursor-pointer hover:-translate-y-1 hover:shadow-xl ${isError ? 'border-[var(--danger)]/30 hover:border-[var(--danger)]/50 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[var(--success)]/30 hover:border-[var(--success)]/50'}`}>
+                  <div className={`absolute top-0 left-0 w-1 h-full opacity-50 group-hover:opacity-100 transition-opacity ${isError ? 'bg-[var(--danger)]' : 'bg-[var(--success)]'}`} />
+                  <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${isError ? 'bg-[var(--danger)]/10' : 'bg-[var(--success)]/10'}`} />
 
-              <div className="flex-1 min-h-[400px] bg-black/40 backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl p-6 font-mono text-[13px] text-[var(--text)] overflow-y-auto custom-scrollbar shadow-inner relative flex flex-col z-10 w-full mb-10">
-                <div className="flex items-center gap-2 mb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 shrink-0">
-                  <span className="material-symbols-outlined text-[var(--subtext)] opacity-50 !text-[16px]">{t("icon_terminal")}</span>
-                  <span className="text-[var(--subtext)] opacity-70 uppercase tracking-widest">{t("execution_logs")} {t("system_stdout")}</span>
+                  <div className="flex items-center gap-3 relative z-10">
+                    <span className={`material-symbols-outlined !text-[20px] ${isError ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>{isError ? 'warning' : 'check_circle'}</span>
+                    <span className={`text-xs font-black uppercase tracking-widest ${isError ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>{isError ? t("fatal_collision") : t("successful_injection")}</span>
+                    {report.isConcluding && <span className="text-[10px] font-bold opacity-50 ml-auto text-amber-400 animate-pulse">PENDING REVIEW</span>}
+                  </div>
+                  <div className="text-sm font-bold text-[var(--text)] opacity-90 pl-8 line-clamp-1 relative z-10">
+                    {getModName(report.mod)}
+                  </div>
+                  <div className="pl-8 text-xs opacity-60 relative z-10 font-mono line-clamp-1">
+                    {report.conflictTarget ? `vs ${getModName(report.conflictTarget)}` : t("target_engine_core") || "Target: Engine Core"}
+                  </div>
                 </div>
-
-                <pre className="whitespace-pre-wrap break-all leading-relaxed flex-1 opacity-80 font-mono">
-                  {testLogSnippet || t("no_logs") || "No logs available for this session. System reports standard exit code."}
-                </pre>
+              );
+            })}
+            
+            {filteredReports.length === 0 && (
+              <div className="col-span-full flex flex-col items-center justify-center space-y-6 mt-10">
+                <div className="opacity-50 flex flex-col items-center justify-center space-y-6">
+                  <span className="material-symbols-outlined !text-[80px] text-[var(--subtext)]">terminal</span>
+                  <div className="space-y-2 text-center">
+                    <h2 className="text-2xl font-black uppercase tracking-widest text-[var(--text)]">{t("lab_reports_empty")}</h2>
+                    <p className="text-sm font-medium text-[var(--subtext)]">{t("lab_reports_empty_desc")}</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
+
+      {selectedReport && (() => {
+        const isError = selectedReport.errorFound;
+        const logData = selectedReport.logSnippet;
+        
+        return (
+          <SidePanel
+            isOpen={true}
+            onClose={() => setSelectedReport(null)}
+            title={getModName(selectedReport.mod)}
+            subtitle={isError ? t("status_broken") : t("verified")}
+            icon={isError ? "warning" : "science"}
+            iconColorClass={isError ? "text-[var(--danger)]" : "text-[var(--success)]"}
+            widthClass="w-[90vw] md:w-[800px]"
+            headerActions={
+              <div className="flex flex-wrap items-center gap-4 mt-4 lg:mt-0">
+                  <button onClick={handleExportLogs} className="py-2.5 px-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[var(--radius)] font-black text-[10px] uppercase tracking-[0.2em] text-[var(--text)] transition-all flex items-center justify-center gap-2 shadow-sm">
+                    <span className="material-symbols-outlined !text-[16px]">download</span>
+                    {t("export_logs")}
+                  </button>
+                  {selectedReport.isConcluding && shelterActive && (
+                    <button
+                      onClick={handleConcludeTest}
+                      className={`py-2.5 px-6 rounded-[var(--radius)] font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border shadow-sm ${isError ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] hover:border-[var(--danger)]' : 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)]'}`}
+                    >
+                      <span className="material-symbols-outlined !text-[16px]">{isError ? 'shield' : 'verified_user'}</span>
+                      {isError ? (t("secure_broken")) : (t("secure_verified"))}
+                    </button>
+                  )}
+              </div>
+            }
+          >
+            <div className="flex-1 min-h-[400px] theme-glass-panel backdrop-blur-xl border border-white/5 rounded-2xl p-6 font-mono text-[13px] text-[var(--text)] overflow-y-auto custom-scrollbar shadow-inner relative flex flex-col mb-10 mt-6">
+              <div className="flex items-center gap-3 mb-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4 shrink-0">
+                <span className="material-symbols-outlined text-[var(--subtext)] opacity-50 !text-[18px]">{t("icon_terminal") || "terminal"}</span>
+                <span className="text-[var(--subtext)] opacity-70 uppercase tracking-widest text-[11px] font-black">
+                   {t("execution_logs") || "EXECUTION LOGS"} // {t("system_stdout") || "SYSTEM_STDOUT"}
+                </span>
+                
+                {isError && (
+                  <div className="ml-auto flex items-center gap-2 text-[10px] font-bold text-[var(--danger)] uppercase tracking-widest bg-[var(--danger)]/10 border border-[var(--danger)]/20 px-3 py-1.5 rounded-lg">
+                    <span className="material-symbols-outlined !text-[14px]">warning</span>
+                    CRITICAL FAILURE
+                  </div>
+                )}
+              </div>
+              <pre className="whitespace-pre-wrap break-all leading-relaxed flex-1 opacity-80 font-mono">
+                {logData || t("no_logs") || "No logs available for this session. System reports standard exit code."}
+              </pre>
+            </div>
+          </SidePanel>
+        );
+      })()}
 
 
 

@@ -2305,6 +2305,14 @@
   "alert_error_mason_profile_missing": "Error: Creator Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
   "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
+  "btn_reset_local": "Reset Local",
+  "btn_reset_all_local": "Reset All Local Overrides",
+  "reset_all_local_desc": "Permanently clear all locally saved metadata overrides for all mods.",
+  "local_overrides_cleared": "All local metadata overrides have been cleared.",
+  "settings_use_internal_browser": "Use the Sanctuary Browser",
+  "all_logs": "All Logs",
+  "fatal": "Fatal",
+  "copied": "Copied",
   "active": "Active",
   "ignored": "Ignored",
   "revert": "revert",
@@ -2514,5 +2522,8 @@
   "active_override": "Active Override",
   "revert_override": "Revert Override",
   "ignored_file_a": "Artifact A",
-  "ignored_file_b": "Artifact B"
+  "ignored_file_b": "Artifact B",
+  "no_issues_detected": "No Crash Detected. Click to End Test.",
+  "btn_select": "Select",
+  "btn_selected": "Selected"
 }
