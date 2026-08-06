@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { GameVersionMultiSelect, SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, ModSearchDropdown } from "./shared";
+import { GameVersionMultiSelect, SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, ModSearchDropdown, ActionButton } from "./shared";
 import { useStore } from './store';
 
 interface ModLineageTreeProps {
@@ -329,20 +329,18 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
       icon="add_box"
       footer={
         <div className="flex justify-end gap-4 w-full">
-          <button
-            onClick={() => { setShowAddModal(false); setNewVersionLabel(''); setNewGameVersion(''); setNewDnaHash(''); }}
-            className="px-6 py-3 rounded-2xl bg-[var(--text)]/5 border border-white/5 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:border-white/20 hover:bg-[var(--text)]/10 transition-all active:scale-95"
+          <ActionButton
+            onClick={() => { setShowAddModal(false); setNewVersionLabel(''); setNewGameVersion(''); setNewDnaHash(''); }} label={t("nav_cancel")}
           >
-            {t("nav_cancel")}
-          </button>
-          <button
+            
+          </ActionButton>
+          <ActionButton
             onClick={handleAddVersion}
-            disabled={!newVersionLabel.trim() || !newDnaHash.trim()}
-            className="px-6 py-3 rounded-2xl bg-[var(--accent)]/20 border border-[var(--accent)]/50 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:bg-[var(--accent)]/30 hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
+            disabled={!newVersionLabel.trim() || !newDnaHash.trim()} label={t("lineage_add_version")} icon={t("icon_save")}
           >
-            <span className="material-symbols-outlined !text-[16px]">{t("icon_save")}</span>
-            {t("lineage_add_version")}
-          </button>
+            
+            
+          </ActionButton>
         </div>
       }
     >

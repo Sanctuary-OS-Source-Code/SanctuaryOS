@@ -55,3 +55,49 @@ export const TabContainer = ({ title, icon, actions, children }: any) => (
     </div>
   </div>
 );
+export function SettingsGrid({ children }: any) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full relative z-10">
+      {children}
+    </div>
+  );
+}
+
+export function SettingCard({ title, description, icon, action, children, onClick, danger, active }: any) {
+  return (
+    <div 
+      onClick={onClick} 
+      className={`flex flex-col p-6 rounded-[var(--radius)] theme-glass-panel transition-all shadow-xl hover:-translate-y-1 hover:shadow-2xl active:scale-95 border ${onClick ? 'cursor-pointer' : ''} ${active ? 'theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : danger ? 'border-red-500/30 hover:border-red-500 hover:bg-red-500/10' : 'border-white/5 hover:border-white/20'}`}
+    >
+      <div className="flex items-start justify-between mb-8 gap-4">
+        {icon ? (
+          <span className={`material-symbols-outlined !text-3xl ${danger ? 'text-red-500' : 'theme-text-accent'}`}>{icon}</span>
+        ) : (
+          <div className="w-8 h-8" />
+        )}
+        {action && (
+          <div className="shrink-0 flex items-center justify-end">
+            {action}
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col gap-2 mb-4">
+        <span className={`text-[12px] font-black uppercase tracking-[0.2em] ${danger ? "text-red-400" : "text-[var(--text)]"}`}>{title}</span>
+        {description && <span className={`text-[10px] font-bold opacity-60 uppercase tracking-widest leading-relaxed ${danger ? "text-red-400" : "text-[var(--subtext)]"}`}>{description}</span>}
+      </div>
+      {children && (
+        <div className="mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function SettingsToggle({ checked, danger }: any) {
+  return (
+    <div className={`w-12 h-6 rounded-full transition-colors flex items-center p-1 shrink-0 ${checked ? (danger ? "bg-[var(--danger)] shadow-[0_0_15px_var(--danger)]" : "theme-bg-accent shadow-[0_0_15px_var(--accent)]") : "bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]"}`}>
+      <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 ${checked ? "translate-x-6" : "translate-x-0"}`} />
+    </div>
+  );
+}

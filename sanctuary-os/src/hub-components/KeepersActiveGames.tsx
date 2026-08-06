@@ -131,13 +131,13 @@ export default function KeepersActiveGames() {
         icon="dns"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
-            <button type="button" onClick={() => setSidePanelMode(null)} className={standardButtonClass}>
-              {t("nav_cancel") || "CANCEL"}
-            </button>
-            <button onClick={handleSaveGame} className={standardSuccessButtonClass}>
-              <span className="material-symbols-outlined">save</span>
-              {t("btn_save") || "SAVE DATABASE NODE"}
-            </button>
+            <ActionButton type="button" onClick={() => setSidePanelMode(null)} label={t("nav_cancel") || "CANCEL"}>
+              
+            </ActionButton>
+            <ActionButton onClick={handleSaveGame} label={t("btn_save") || "SAVE DATABASE NODE"} icon="save">
+              
+              
+            </ActionButton>
           </div>
         }
       >

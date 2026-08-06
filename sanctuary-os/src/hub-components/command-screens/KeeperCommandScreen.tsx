@@ -5,7 +5,7 @@ import { useStore } from "../../store";
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
 import { ServerHealthSidePanel } from '../../side-panels/WayfinderSidePanels';
 import MasonPostViewer from "../../side-panels/MasonPostViewer";
-import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile } from "../SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 
 export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
   const { t } = useLexicon();
@@ -100,7 +100,7 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">local_activity</span>} number={stats.tickets} label="Support Queue" colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("tickets")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">campaign</span>} number={stats.activeBroadcasts} label="Active Broadcasts" colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => setIsAlertsOpen(true)} />
 
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">engineering</span>} number={stats.architects} label="Keepers" colorClass="border-cyan-500/30 text-cyan-500 hover:border-cyan-500 bg-cyan-500/10 hover:bg-cyan-500/20" onClick={() => setTab("identities_admin")} />
+
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">group</span>} number={stats.citizens} label="Citizen Oversight" colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => setTab("identities_citizen")} />
       </CommandScreenStats>
 
@@ -128,13 +128,13 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
 
       <CommandScreenBody>
         <CommandScreenMain>
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wf_comms_title") || "LATEST DISPATCH"}</h2>
+          <CommandScreenSectionHeading title={t("wf_comms_title") || "LATEST DISPATCH"} icon="history" />
           <div className="flex flex-col gap-8 w-full mb-8">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
           </div>
         </CommandScreenMain>
 
-        <CommandScreenSidebar title="KEEPER QUICK LINKS">
+        <CommandScreenSidebar title="KEEPER QUICK LINKS" icon="rocket_launch">
           {stats.urgentBroadcast && (
             <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-white/5 transition-all text-left group relative overflow-hidden h-24">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />

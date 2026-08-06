@@ -165,12 +165,12 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         icon="add_circle"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
-            <button type="button" onClick={() => setIsForgePanelOpen(false)} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
-            <button type="button" onClick={handleCreateSet} disabled={!newSetName.trim()} className={standardAccentGlassButtonClass}>
-              {t("forge_init_set")}
-            </button>
+            <ActionButton type="button" onClick={() => setIsForgePanelOpen(false)} label={t("nav_cancel")}>
+              
+            </ActionButton>
+            <ActionButton type="button" onClick={handleCreateSet} disabled={!newSetName.trim()} label={t("forge_init_set")}>
+              
+            </ActionButton>
           </div>
         }
       >
@@ -195,12 +195,12 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         icon="library_books"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
-            <button type="button" onDoubleClick={handleDeleteSet} disabled={isSaving} className={`${standardDangerButtonClass}`}>
-              <span>{t("cc_btn_delete_set")}</span>
-            </button>
-            <button type="button" onClick={handleSaveSetMeta} disabled={isSaving} className={standardAccentGlassButtonClass}>
-              {isSaving ? (t("btn_saving")) : (t("cc_save_set"))}
-            </button>
+            <ActionButton type="button" onDoubleClick={handleDeleteSet} disabled={isSaving}>
+              
+            </ActionButton>
+            <ActionButton type="button" onClick={handleSaveSetMeta} disabled={isSaving} label={isSaving ? (t("btn_saving")) : (t("cc_save_set"))}>
+              
+            </ActionButton>
           </div>
         }
       >
@@ -491,12 +491,12 @@ export function CollectionForge({ setStatus }: any) {
         icon="add_circle"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
-            <button type="button" onClick={() => setIsForgePanelOpen(false)} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
-            <button type="button" onClick={createSet} disabled={!setName.trim()} className={standardAccentGlassButtonClass}>
-              {t("forge_init_set")}
-            </button>
+            <ActionButton type="button" onClick={() => setIsForgePanelOpen(false)} label={t("nav_cancel")}>
+              
+            </ActionButton>
+            <ActionButton type="button" onClick={createSet} disabled={!setName.trim()} label={t("forge_init_set")}>
+              
+            </ActionButton>
           </div>
         }
       >
@@ -538,12 +538,12 @@ export function CollectionForge({ setStatus }: any) {
         icon="library_books"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
-            <button type="button" onDoubleClick={handleDeleteSet} disabled={isSaving} className={`${standardDangerButtonClass}`}>
-              <span>{t("cc_btn_delete_set")}</span>
-            </button>
-            <button type="button" onClick={saveSetMeta} disabled={isSaving} className={standardAccentGlassButtonClass}>
-              {isSaving ? (t("ui_loading")) : (t("cc_save_set"))}
-            </button>
+            <ActionButton type="button" onDoubleClick={handleDeleteSet} disabled={isSaving}>
+              
+            </ActionButton>
+            <ActionButton type="button" onClick={saveSetMeta} disabled={isSaving} label={isSaving ? (t("ui_loading")) : (t("cc_save_set"))}>
+              
+            </ActionButton>
           </div>
         }
       >
@@ -660,12 +660,12 @@ export function CollectionForge({ setStatus }: any) {
         widthClass="w-[450px]"
         footer={
           <div className="flex justify-end gap-4 w-full">
-            <button onClick={() => setIsMasonPanelOpen(false)} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
-            <button onClick={handleCreateMason} className={standardAccentGlassButtonClass}>
-              {t("create_btn_create")}
-            </button>
+            <ActionButton onClick={() => setIsMasonPanelOpen(false)} label={t("nav_cancel")}>
+              
+            </ActionButton>
+            <ActionButton onClick={handleCreateMason} label={t("create_btn_create")}>
+              
+            </ActionButton>
           </div>
         }
       >

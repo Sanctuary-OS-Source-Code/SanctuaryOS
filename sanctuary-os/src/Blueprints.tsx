@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { ViewHeader, isVersionMatch, SidePanel, SidebarActionButton, getExtensionRegex, FilterTabs, FilterTabButton, HubTabButton, DashboardStatTile, ActionButton, HoverTooltip } from "./shared";
-import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 import BlueprintMatrix from "./BlueprintMatrix";
 import BlueprintArchitect from "./BlueprintArchitect";
 import { GhostStringsModal } from "./side-panels/GhostStringsModal";
@@ -390,8 +390,8 @@ export default function Blueprints({
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 w-full">
       <ViewHeader title={t("playsets_title")} subtitle={t("playsets_subtitle")} icon={t("icon_map")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
 
-      <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
+      <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
+        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
           <HubTabButton id="LANDING" icon="dashboard" label={t("tab_landing") || "LANDING"} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="VAULT" icon="map" label={t("playsets_title") || "VAULT"} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="NETWORK" icon="cloud" label={t("btn_my_cloud_blueprints") || "NETWORK"} activeTab={activeTab} setTab={setActiveTab} iconColorClass="text-sky-500" />
@@ -435,12 +435,11 @@ export default function Blueprints({
             <CommandScreenBody>
               <CommandScreenMain>
                 <div className="flex flex-col gap-6 w-full">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl theme-glass-inner flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] shrink-0">
-                      <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-90 drop-shadow-lg">keep</span>
-                    </div>
-                    <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)]">{t("pinned_blueprints") || "PINNED BLUEPRINTS"}</h2>
-                  </div>
+                  <CommandScreenSectionHeading 
+                    shape="circle"
+                    title={t("pinned_blueprints") || "PINNED BLUEPRINTS"} 
+                    icon="keep"
+                  />
 
                   {pinnedBlueprints.length > 0 ? (
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
@@ -454,7 +453,7 @@ export default function Blueprints({
                 </div>
               </CommandScreenMain>
 
-              <CommandScreenSidebar title={t("quick_actions") || "QUICK ACTIONS"}>
+              <CommandScreenSidebar title={t("quick_actions") || "QUICK ACTIONS"} icon="bolt">
                 <CommandScreenQuickLink
                   icon="add_circle"
                   title={t("draft_new") || "DRAFT NEW BLUEPRINT"}

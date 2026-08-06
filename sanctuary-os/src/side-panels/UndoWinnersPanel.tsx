@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, formatDisplayName , getFileLabel, isSupportedExtension, getExtensionRegex} from "../shared";
+import { SidePanel, formatDisplayName , getFileLabel, isSupportedExtension, getExtensionRegex, ActionButton } from "../shared";
 import { useStore } from '../store';
 
 interface UndoWinnersPanelProps {
@@ -82,18 +82,13 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
       widthClass="w-[525px]"
       footer={
         <div className="flex flex-col gap-3 w-full">
-          <button 
+          <ActionButton 
             onClick={clearAllOverrides}
-            disabled={overrides.length === 0}
-            className={`flex-1 py-4 text-xs font-black tracking-widest uppercase rounded-xl transition-all flex items-center justify-center gap-2 ${
-              overrides.length === 0 
-                ? "bg-white/5 text-white/20 cursor-not-allowed"
-                : "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] shadow-lg hover:scale-105"
-            }`}
+            disabled={overrides.length === 0} icon={t("icon_warning_amber")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
           >
-            <span className="material-symbols-outlined !text-sm">{t("icon_warning_amber")}</span>
-            <span>{t("wf_health_clear_all_overrides")}</span>
-          </button>
+            
+            
+          </ActionButton>
         </div>
       }
     >

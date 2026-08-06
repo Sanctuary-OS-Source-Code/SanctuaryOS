@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+// Force Vite HMR reload
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { open } from "@tauri-apps/plugin-dialog";
@@ -8,12 +9,11 @@ import { ViewHeader, HubTabButton } from "./shared";
 import { useStore } from "./store";
 import { supabase } from "./supabase";
 
-import SystemTab from './settings-tabs/SystemTab';
-import AuthTab from './settings-tabs/AuthTab';
-import NetworkTab from './settings-tabs/NetworkTab';
+import CoreTab from './settings-tabs/CoreTab';
+import EngineTab from './settings-tabs/EngineTab';
+import ClientTab from './settings-tabs/ClientTab';
 import NotificationsTab from './settings-tabs/NotificationsTab';
-import ChameleonTab from './settings-tabs/ChameleonTab';
-import LexiconTab from './settings-tabs/LexiconTab';
+import AestheticsTab from './settings-tabs/AestheticsTab';
 import LogicTab from './settings-tabs/LogicTab';
 import MalwareTab from './settings-tabs/MalwareTab';
 
@@ -27,7 +27,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       localStorage.removeItem("sanctuary_settings_tab");
       return override;
     }
-    return 'SYSTEM';
+    return 'CORE';
   });
   const [appVersion, setAppVersion] = useState("v1.0.1");
 
@@ -107,12 +107,11 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   ];
 
   const TABS = [
-    { id: 'SYSTEM', icon: t("icon_push_pin"), label: t("tab_system") },
-    { id: 'AUTH', icon: t("icon_lock"), label: t("tab_identities") },
-    { id: 'NETWORK', icon: t("icon_public"), label: t("tab_network") },
+    { id: 'CORE', icon: t("icon_account_circle") || "account_circle", label: t("tab_core") || "Core" },
+    { id: 'ENGINE', icon: t("icon_history") || "history", label: t("tab_engine") || "Engine" },
+    { id: 'CLIENT', icon: t("icon_tune") || "tune", label: t("tab_preferences") || "Preferences" },
     { id: 'NOTIFICATIONS', icon: t("icon_notifications"), label: t("tab_notifs") },
-    { id: 'CHAMELEON', icon: t("icon_palette"), label: t("type_theme") },
-    { id: 'LEXICON', icon: t("icon_language"), label: t("tab_lexicons") },
+    { id: 'AESTHETICS', icon: t("icon_format_paint") || "format_paint", label: t("tab_aesthetics") || "Aesthetics" },
     { id: 'LOGIC', icon: t("icon_flag"), label: t("tab_logic") }
   ];
   if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull") || "skull", label: t("malware_btn") });
@@ -159,12 +158,11 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
       <div className="flex flex-col gap-4 relative">
         <div className="w-full relative">
-          {activeTab === 'SYSTEM' && <SystemTab config={config} updateConfig={updateConfig} pickPath={pickPath} pathMap={pathMap} />}
-          {activeTab === 'AUTH' && <AuthTab />}
-          {activeTab === 'NETWORK' && <NetworkTab />}
-          {activeTab === 'NOTIFICATIONS' && <NotificationsTab />}
-          {activeTab === 'CHAMELEON' && <ChameleonTab config={config} />}
-          {activeTab === 'LEXICON' && <LexiconTab />}
+          {activeTab === 'CORE' && <CoreTab config={config} updateConfig={updateConfig} pickPath={pickPath} pathMap={pathMap} />}
+          {activeTab === 'ENGINE' && <EngineTab config={config} updateConfig={updateConfig} />}
+          {activeTab === 'CLIENT' && <ClientTab />}
+          { activeTab === 'NOTIFICATIONS' && <NotificationsTab /> }
+          { activeTab === 'AESTHETICS' && <AestheticsTab config={config} /> }
           {activeTab === 'LOGIC' && <LogicTab anarchyRules={anarchyRules} setAnarchyRules={setAnarchyRules} />}
           {activeTab === 'MALWARE' && <MalwareTab />}
         </div>

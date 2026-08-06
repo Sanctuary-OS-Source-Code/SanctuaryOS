@@ -274,13 +274,13 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                 <div className="flex flex-col gap-4 w-full">
                     <div className="flex justify-center items-center gap-4 w-full">
                         {draft.id && (
-                            <button onClick={handleDelete} disabled={isSaving} className={standardDangerButtonClass}>
-                                {t("purge")}
-                            </button>
+                            <ActionButton onClick={handleDelete} disabled={isSaving} label={t("purge")}>
+                                
+                            </ActionButton>
                         )}
-                        <button onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name} className={standardSuccessButtonClass}>
-                            {isSaving ? "..." : (t("save"))}
-                        </button>
+                        <ActionButton onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name} label={isSaving ? "..." : (t("save"))}>
+                            
+                        </ActionButton>
                     </div>
                 </div>
             }

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SidePanel, standardAccentGlassButtonClass, standardButtonClass } from "../shared";
+import { SidePanel, standardAccentGlassButtonClass, standardButtonClass, ActionButton } from "../shared";
 import WayfinderKeeperTickets from "../WayfinderKeeperTickets";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import WayfinderSupportSidePanel from "./WayfinderSupportSidePanel";
@@ -29,15 +29,14 @@ export default function WayfinderKeeperSidePanel({ isOpen, onClose, userId }: Ci
         widthClass="w-[700px]"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
-            <button onClick={onClose} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
-            <button 
-              onClick={() => setIsCreateModalOpen(true)}
-              className={standardAccentGlassButtonClass}
+            <ActionButton onClick={onClose} label={t("nav_cancel")}>
+              
+            </ActionButton>
+            <ActionButton 
+              onClick={() => setIsCreateModalOpen(true)} label={t("support_title")} icon={t("icon_add_circle")}
             >
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_add_circle")}</span> {t("support_title")}
-            </button>
+               
+            </ActionButton>
           </div>
         }
       >

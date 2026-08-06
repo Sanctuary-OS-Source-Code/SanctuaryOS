@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { SidePanel, EmptyState } from '../shared';
+import { SidePanel, EmptyState, ActionButton } from '../shared';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { supabase } from '../supabase';
@@ -8,7 +8,7 @@ import { useTheme } from '../ThemeContext';
 import { ThemeCard } from '../chameleon-components/ThemeCard';
 import { ChameleonControlDashboard } from '../chameleon-components/ChameleonControlDashboard';
 import { ChameleonSandboxPreview } from '../chameleon-components/ChameleonSandboxPreview';
-import { standardButtonClass, ActionButton } from '../shared';
+import { standardButtonClass } from '../shared';
 
 export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean }) {
   const { t } = useLexicon();
@@ -244,16 +244,10 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
         }
         footer={
           <>
-            <button onClick={saveToCloud} disabled={isSaving || !hasChanges} className={
-              hasChanges 
-                ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_25%,transparent)] hover:shadow-[0_5px_20px_rgba(245,158,11,0.4)]')
-                : standardButtonClass
-            }>
-              <span className={`material-symbols-outlined !text-[18px] ${isSaving ? 'animate-spin' : ''}`}>
-                {isSaving ? 'sync' : 'cloud_upload'}
-              </span>
-              {t("btn_publish") || "SAVE TO CLOUD"}
-            </button>
+            <ActionButton onClick={saveToCloud} disabled={isSaving || !hasChanges} label={t("btn_publish") || "SAVE TO CLOUD"}>
+              
+              
+            </ActionButton>
           </>
         }
       >

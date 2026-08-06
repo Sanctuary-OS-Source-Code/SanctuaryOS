@@ -266,16 +266,15 @@ export function MasonLinker() {
               </div>
             )}
             <div className="flex justify-center items-center gap-4 w-full">
-              <button type="button" onClick={handleClosePanel} disabled={isSubmitting} className={standardButtonClass}>
-                {t("nav_cancel")}
-              </button>
-              <button
+              <ActionButton type="button" onClick={handleClosePanel} disabled={isSubmitting} label={t("nav_cancel")}>
+                
+              </ActionButton>
+              <ActionButton
                 onClick={handleSave}
-                disabled={isSubmitting || !editName.trim()}
-                className={standardAccentGlassButtonClass}
+                disabled={isSubmitting || !editName.trim()} label={isSubmitting ? t("identities_updating") : (isCreating ? t("btn_create_mason_naked") : t("ui_btn_commit"))}
               >
-                {isSubmitting ? t("identities_updating") : (isCreating ? t("btn_create_mason_naked") : t("ui_btn_commit"))}
-              </button>
+                
+              </ActionButton>
             </div>
           </div>
         }

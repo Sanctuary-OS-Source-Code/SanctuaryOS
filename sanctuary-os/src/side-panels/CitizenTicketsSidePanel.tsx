@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SidePanel, standardAccentGlassButtonClass, standardButtonClass } from "../shared";
+import { SidePanel, SidePanelActionFooter, standardAccentGlassButtonClass, standardButtonClass } from "../shared";
 import CitizenTickets from "../CitizenTickets";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import { useLexicon } from "../LexiconContext";
@@ -26,19 +26,15 @@ export default function CitizenTicketsSidePanel({ isOpen, onClose, userId }: Cit
         icon={t("icon_support_agent")}
         widthClass="w-[700px]"
         footer={
-          <div className="flex justify-center items-center gap-4 w-full">
-            <button onClick={onClose} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
-            <button 
-              onClick={() => {
-                document.dispatchEvent(new CustomEvent('open-support-modal'));
-              }}
-              className={standardAccentGlassButtonClass}
-            >
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_add_circle")}</span> {t("support_title")}
-            </button>
-          </div>
+          <SidePanelActionFooter
+            onCancel={onClose}
+            cancelLabel={t("nav_cancel")}
+            onAction={() => {
+              document.dispatchEvent(new CustomEvent('open-support-modal'));
+            }}
+            actionLabel={t("support_title")}
+            actionIcon={t("icon_add_circle")}
+          />
         }
       >
         <div className="h-full relative pb-10">

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { formatDisplayName, ViewHeader, CustomDropdown, mapDlcCode, isVersionMatch, SidePanel, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getHighestVersion, getExtensionRegex, HoverTooltip } from "./shared";
+import { formatDisplayName, ViewHeader, CustomDropdown, mapDlcCode, isVersionMatch, SidePanel, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getHighestVersion, getExtensionRegex, HoverTooltip, ActionButton } from "./shared";
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";
 import { tauriBridge } from "./lib/tauri-bridge";
@@ -271,14 +271,14 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
       noPadding={true}
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
-          <button onClick={onClose} className={standardButtonClass}>
-            <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-            {t("nav_cancel")}
-          </button>
-          <button onClick={onClose} className={standardAccentGlassButtonClass}>
-            <span className="material-symbols-outlined !text-[18px]">{allow_write ? "done_all" : "logout"}</span>
-            {allow_write ? t("bp_btn_finalize") : t("bp_btn_exit_preview")}
-          </button>
+          <ActionButton onClick={onClose} label={t("nav_cancel")} icon={t("icon_close")}>
+            
+            
+          </ActionButton>
+          <ActionButton onClick={onClose} label={allow_write ? t("bp_btn_finalize") : t("bp_btn_exit_preview")} icon={allow_write ? "done_all" : "logout"}>
+            
+            
+          </ActionButton>
         </div>
       }
     >

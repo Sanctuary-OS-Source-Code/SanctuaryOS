@@ -212,8 +212,8 @@ interface GlobalState {
   setMasonCommentDrafts: (drafts: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => void;
   masonHubDrafts: Record<string, any>;
   setMasonHubDrafts: (drafts: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => void;
-  cwMainTab: "CONFIGS" | "TEMPLATES";
-  setCwMainTab: (tab: "CONFIGS" | "TEMPLATES") => void;
+  cwMainTab: "COMMAND" | "CONFIGS" | "TEMPLATES";
+  setCwMainTab: (tab: "COMMAND" | "CONFIGS" | "TEMPLATES") => void;
   wayfinderActiveTab: string;
   setWayfinderActiveTab: (tab: string) => void;
   keepersActiveTab: string;
@@ -264,7 +264,7 @@ export const useStore = create<GlobalState>((set) => ({
   }),
   wayfinderActiveTab: "command_center",
   setWayfinderActiveTab: (tab) => set({ wayfinderActiveTab: tab }),
-  cwMainTab: "CONFIGS",
+  cwMainTab: "COMMAND",
   setCwMainTab: (tab) => set({ cwMainTab: tab }),
   statusLog: [],
   pushStatus: (message, type = 'info') => set((state) => {

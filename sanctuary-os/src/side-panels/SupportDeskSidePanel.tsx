@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, ModSearchDropdown, SidePanel, standardButtonClass, standardAccentGlassButtonClass , getExtensionRegex} from "../shared";
+import { CustomDropdown, ModSearchDropdown, SidePanel, SidePanelActionFooter, standardButtonClass, standardAccentGlassButtonClass , getExtensionRegex} from "../shared";
 import { useStore } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -256,14 +256,15 @@ export default function SupportDeskSidePanel({
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
       footer={
-        <div className="flex flex-row items-center justify-center gap-4 w-full">
-           <button onClick={onClose} className={standardButtonClass}>
-             {t("nav_cancel")}
-           </button>
-           <button onClick={submitTicket} disabled={isSubmitting} className={`${standardAccentGlassButtonClass} disabled:opacity-50`}>
-             {isSubmitting ? (t("scanning")) : (t("support_submit"))}
-           </button>
-        </div>
+        <SidePanelActionFooter
+          onCancel={onClose}
+          cancelLabel={t("nav_cancel")}
+          onAction={submitTicket}
+          actionDisabled={isSubmitting}
+          actionLabel={t("support_submit")}
+          isProcessing={isSubmitting}
+          processingLabel={t("scanning")}
+        />
       }
     >
       <div className="flex flex-col gap-6 relative">

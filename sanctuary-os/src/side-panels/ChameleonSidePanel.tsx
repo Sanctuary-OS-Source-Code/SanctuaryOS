@@ -4,8 +4,7 @@ import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { useLexicon } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
 import { useStore } from '../store';
-import { TabContainer } from './shared';
-import { CustomDropdown, HoverTooltip } from '../shared';
+import { SidePanel, CustomDropdown, HoverTooltip } from '../shared';
 import { ChameleonEditorPanel } from '../side-panels/ChameleonEditorPanel';
 
 const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
@@ -18,7 +17,7 @@ const getLuminance = (hex: string) => {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 };
 
-export default function ChameleonTab({ config }: any) {
+export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
   const { t } = useLexicon();
   const { currentTheme, activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, renameTheme, createNewTheme, importTheme, deleteTheme, useGlobalTheme, setUseGlobalTheme } = useTheme();
   const setView = useStore(state => state.setView);
@@ -93,7 +92,9 @@ export default function ChameleonTab({ config }: any) {
   const uniqueModes = [t("mode_dark") || "Dark", t("mode_light") || "Light"];
 
   return (
-    <TabContainer
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
       title={t("chameleon_title")}
       icon="palette"
       actions={
@@ -101,7 +102,7 @@ export default function ChameleonTab({ config }: any) {
           <div className="relative group">
             <button
               onClick={() => setUseGlobalTheme(!useGlobalTheme)}
-              className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border ${useGlobalTheme ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-xl hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]' : 'theme-glass-inner text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} flex items-center justify-center gap-2`}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border ${useGlobalTheme ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-xl hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]' : 'theme-glass-inner text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} flex items-center justify-center gap-2`}
             >
               <span className="material-symbols-outlined !text-[14px]">{useGlobalTheme ? 'public' : 'grid_view'}</span>
               {useGlobalTheme ? t("scope_global") || 'Global Scope' : t("scope_workspace") || 'Workspace Scope'}
@@ -112,13 +113,13 @@ export default function ChameleonTab({ config }: any) {
               variant="info" 
             />
           </div>
-          <button onClick={() => { setMarketTab('CHAMELEONS'); setView('nexus'); }} className={standardButtonClass}>{t("btn_browse")}</button>
-          <button onClick={handleImportTheme} className={standardButtonClass}>{t("btn_import")}</button>
-          <button onClick={createNewTheme} className={standardButtonClass}>{t("auto_create")}</button>
+          <button onClick={() => { setMarketTab('CHAMELEONS'); setView('nexus'); onClose(); }} className="p-2 rounded-xl theme-glass-inner hover:theme-text-accent transition-all flex items-center justify-center"><span className="material-symbols-outlined !text-lg">explore</span></button>
+          <button onClick={handleImportTheme} className="p-2 rounded-xl theme-glass-inner hover:theme-text-accent transition-all flex items-center justify-center"><span className="material-symbols-outlined !text-lg">download</span></button>
+          <button onClick={createNewTheme} className="p-2 rounded-xl theme-glass-inner hover:theme-text-accent transition-all flex items-center justify-center"><span className="material-symbols-outlined !text-lg">add</span></button>
         </>
       }
     >
-      <div className="flex flex-col gap-12">
+      <div className="flex flex-col gap-8 p-8">
       
         {favoriteThemes.length > 0 && (
             <div className="flex flex-col gap-6">
@@ -344,6 +345,6 @@ export default function ChameleonTab({ config }: any) {
       </div>
       
       <ChameleonEditorPanel isOpen={isEditorOpen} onClose={() => setIsEditorOpen(false)} />
-    </TabContainer>
+    </SidePanel>
   );
 }

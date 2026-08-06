@@ -39,8 +39,8 @@ const WorkbenchFileCard = React.memo(({
             className={`w-full text-left p-6 rounded-[var(--radius)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative group-hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] ${hasUnsavedEdits ? 'border border-amber-500/30 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-500/50 backdrop-blur-[3px] shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}
          >
             <div className="absolute inset-0 rounded-[var(--radius)] bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-            <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner group-hover:border-[var(--accent)]/50 transition-colors">
-               <span className="material-symbols-outlined !text-2xl text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors">{isTmpl ? (t("icon_data_object")) : (t("icon_settings"))}</span>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-inner group-hover:border-[var(--accent)]/50 transition-colors ${isTmpl ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' : 'bg-blue-500/10 text-blue-500 border-blue-500/30'}`}>
+               <span className="material-symbols-outlined !text-2xl transition-colors">{isTmpl ? (t("icon_data_object") || "data_object") : (t("icon_settings") || "settings")}</span>
             </div>
             <div className={`flex flex-col gap-1 z-10 w-full ${renamingFile !== file.path ? 'pr-10' : ''}`} onClick={(e) => renamingFile === file.path ? e.stopPropagation() : undefined}>
                {renamingFile === file.path ? (

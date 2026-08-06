@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardGlassButtonClass, standardAccentGlassButtonClass, standardPrimaryButtonClass, EmptyState, HoverTooltip, FilterTabs, FilterTabButton } from "../shared";
+import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardGlassButtonClass, standardAccentGlassButtonClass, standardPrimaryButtonClass, EmptyState, HoverTooltip, FilterTabs, FilterTabButton, ActionButton } from "../shared";
 import Editor from "@monaco-editor/react";
 import VersionTimeline from "../VersionTimeline";
 import { invoke } from '@tauri-apps/api/core';
@@ -147,20 +147,13 @@ export default function MasonEditorPanel({
                         <HoverTooltip title={t("unsaved_changes")} variant="warning" className="z-[100]" />
                      )}
 
-                     <button
+                     <ActionButton
                         onClick={saveFile}
-                        disabled={!activeFile || !isDirty || problemsList.length > 0 || (!isKeepers && validationStats ? validationStats.missing > 0 : false)}
-                        className={
-                           isDirty
-                              ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_25%,transparent)] hover:shadow-[0_5px_20px_rgba(245,158,11,0.4)]')
-                              : standardButtonClass
-                        }
+                        disabled={!activeFile || !isDirty || problemsList.length > 0 || (!isKeepers && validationStats ? validationStats.missing > 0 : false)} label={isCloudMode ? (t("btn_publish") || "Publish") : t("save")}
                      >
-                        <span className="material-symbols-outlined !text-[18px]">
-                           {isCloudMode ? "cloud_upload" : t("icon_save")}
-                        </span>
-                        {isCloudMode ? (t("btn_publish") || "Publish") : t("save")}
-                     </button>
+                        
+                        
+                     </ActionButton>
                   </div>
 
                   {activeFile && activeFile.name.match(/^[a-z]{2}-.+\.json$/i) && !isCloudMode && (
@@ -168,18 +161,13 @@ export default function MasonEditorPanel({
                         {(problemsList.length > 0 || (validationStats && validationStats.missing > 0)) && (
                            <HoverTooltip title={problemsList.length > 0 ? t("publish_disabled_errors_desc") : t("lexicon_missing_keys_btn")} variant="error" className="z-[100]" />
                         )}
-                        <button
+                        <ActionButton
                            onClick={() => handlePublishLexicon(activeFile)}
-                           disabled={problemsList.length > 0 || (validationStats ? validationStats.missing > 0 : false)}
-                           className={
-                              (problemsList.length > 0 || (validationStats ? validationStats.missing > 0 : false))
-                                 ? standardButtonClass.replace('hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', '').replace('active:scale-95', '') + ' opacity-50 cursor-not-allowed grayscale'
-                                 : standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)]')
-                           }
+                           disabled={problemsList.length > 0 || (validationStats ? validationStats.missing > 0 : false)} label={activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? (t("sandbox_btn_sync") || "SYNC LEXICON") : "SYNC SCHEMA"} icon={t("icon_upload") || "cloud_upload"}
                         >
-                           <span className="material-symbols-outlined !text-[18px]">{t("icon_upload") || "cloud_upload"}</span>
-                           {activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? (t("sandbox_btn_sync") || "SYNC LEXICON") : "SYNC SCHEMA"}
-                        </button>
+                           
+                           
+                        </ActionButton>
                      </div>
                   )}
                </div>

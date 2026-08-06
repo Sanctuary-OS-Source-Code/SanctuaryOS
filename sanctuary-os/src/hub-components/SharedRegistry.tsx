@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton } from "../shared";
+import { EmptyState, SidePanel, SidePanelActionFooter, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton } from "../shared";
 import { ArtifactCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -157,22 +157,18 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
         widthClass="w-[600px]"
         panelZ="z-[50001]"
         footer={
-          <div className="flex justify-center items-center gap-4 w-full px-8">
-            <ActionButton 
-              onClick={() => setActiveMod(null)} 
-              disabled={isCommitting} 
-              label={t("nav_cancel")}
-              icon="close"
-              className="flex-1"
-            />
-            <ActionButton 
-              onClick={handleCommitChanges} 
-              disabled={isCommitting} 
-              label={isCommitting ? (t("btn_saving") || "SAVING...") : (t("save_meta") || "SAVE METADATA")}
-              icon="save"
-              className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[var(--accent)]/50"
-            />
-          </div>
+          <SidePanelActionFooter
+            onCancel={() => setActiveMod(null)}
+            cancelLabel={t("nav_cancel")}
+            cancelIcon="close"
+            onAction={handleCommitChanges}
+            actionLabel={t("save_meta") || "SAVE METADATA"}
+            actionIcon="save"
+            actionDisabled={isCommitting}
+            isProcessing={isCommitting}
+            processingLabel={t("btn_saving") || "SAVING..."}
+            className="flex justify-center items-center gap-4 w-full px-8"
+          />
         }
       >
         {activeMod && (

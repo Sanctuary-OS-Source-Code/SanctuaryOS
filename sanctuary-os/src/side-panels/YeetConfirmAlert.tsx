@@ -1,5 +1,5 @@
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, standardDangerButtonClass, standardButtonClass } from "../shared";
+import { SidePanel, standardDangerButtonClass, standardButtonClass, ActionButton } from "../shared";
 
 export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending, }: any) {
   const { t } = useLexicon();
@@ -17,20 +17,18 @@ export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending, }:
       widthClass="w-[600px]"
       footer={
         <div className="flex flex-row justify-center gap-4 w-full">
-          <button
-            onClick={() => setYeetConfirmPending(null)}
-            className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+          <ActionButton
+            onClick={() => setYeetConfirmPending(null)} label={t("yeet_btn_abort")} icon={t("icon_close")}
           >
-            <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-            {t("yeet_btn_abort")}
-          </button>
-          <button
-            onClick={() => { yeetConfirmPending.onConfirm(); setYeetConfirmPending(null); }}
-            className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--danger-rgb),0.2)]"
+            
+            
+          </ActionButton>
+          <ActionButton
+            onClick={() => { yeetConfirmPending.onConfirm(); setYeetConfirmPending(null); }} label={t("yeet_btn_confirm")} icon={t("icon_delete")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
           >
-            <span className="material-symbols-outlined !text-[18px]">{t("icon_delete")}</span>
-            {t("yeet_btn_confirm")}
-          </button>
+            
+            
+          </ActionButton>
         </div>
       }
     >

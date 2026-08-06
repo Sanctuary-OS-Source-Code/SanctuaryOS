@@ -380,12 +380,12 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             panelZ="z-[50001]"
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
-                <button onClick={handlePurge} disabled={isCommitting} className={standardButtonClass + (confirmPurge ? " !border-[var(--danger)] !text-[var(--danger)] !bg-[var(--danger)]/20 shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_40%,transparent)]" : " !border-[var(--danger)]/30 !text-[var(--danger)] hover:!border-[var(--danger)]/60 hover:!bg-[var(--danger)]/10")}>
-                  {confirmPurge ? (t("ui_confirm_delete") || "ARE YOU SURE?") : (t("purge") || "PURGE")}
-                </button>
-                <button onClick={handleSyncToNetwork} disabled={isCommitting} className={standardSuccessButtonClass}>
-                  {isCommitting ? t("btn_syncing") : (t("sandbox_btn_sync"))}
-                </button>
+                <ActionButton onClick={handlePurge} disabled={isCommitting} label={confirmPurge ? (t("ui_confirm_delete") || "ARE YOU SURE?") : (t("purge") || "PURGE")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                  
+                </ActionButton>
+                <ActionButton onClick={handleSyncToNetwork} disabled={isCommitting} label={isCommitting ? t("btn_syncing") : (t("sandbox_btn_sync"))}>
+                  
+                </ActionButton>
               </div>
             }
           >

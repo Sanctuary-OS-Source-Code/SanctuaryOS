@@ -3,7 +3,7 @@ import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
-import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile } from "../SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, SystemBroadcastsGrid, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 
 export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPost }: any) {
   const { t } = useLexicon();
@@ -172,8 +172,7 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
     <CommandScreenLayout>
       <CommandScreenStats>
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_warning_amber")}</span>} number={defconLevel} label={t("defcon_global")} colorClass={getDefconColor(defconLevel)} onClick={onOpenDefcon} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_18_up_rating")}</span>} number={stats.nsfw} label={t("stat_nsfw_flags")} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => { setComplianceFilter('nsfw'); setTab("compliance"); }} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_block")}</span>} number={stats.explicit} label={t("stat_explicit_flags")} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { setComplianceFilter('explicit'); setTab("compliance"); }} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_18_up_rating")}</span>} number={stats.nsfw + stats.explicit} label={`${t("stat_nsfw_flags")} / ${t("stat_explicit_flags")}`} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => { setComplianceFilter('nsfw'); setTab("compliance"); }} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_coronavirus")}</span>} number={stats.malware} label={t("wf_stat_quarantined")} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => { setComplianceFilter('pending'); setTab("malware_oversight"); }} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_threat_intelligence")}</span>} number={stats.oversightQueueNew} label={t("stat_malware_logs")} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => setTab("oversight_reports")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_local_activity")}</span>} number={stats.tickets} label={t("stat_support_tickets")} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("sanctuary_tickets")} />
@@ -203,12 +202,12 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
 
       <CommandScreenBody>
         <CommandScreenMain>
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wf_comms_title")}</h2>
+          <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
 
           <div className="flex flex-col gap-8 w-full">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
 
-            <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("metrics")}</h2>
+            <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
               <CommandScreenMetricTile value={stats.citizens + stats.masons} label={t("stat_users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
               <CommandScreenMetricTile value={stats.masons} label={t("tab_linker")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
@@ -219,7 +218,7 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
           </div>
         </CommandScreenMain>
 
-        <CommandScreenSidebar title={t("wf_quick_links")}>
+        <CommandScreenSidebar title={t("wf_quick_links")} icon="rocket_launch">
           {stats.urgentBroadcast && (
             <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-white/5 transition-all text-left group relative overflow-hidden h-24">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />

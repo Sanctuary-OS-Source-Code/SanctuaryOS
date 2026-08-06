@@ -8,7 +8,7 @@ import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { useStore } from './store';
-import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 import MasonRecentRepliesSidePanel from "./side-panels/MasonRecentRepliesSidePanel";
 import MasonRecentPostsSidePanel from "./side-panels/MasonRecentPostsSidePanel";
 
@@ -177,7 +177,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         <span className="material-symbols-outlined !text-[6rem] opacity-20 text-[var(--text)] drop-shadow-lg">wifi_off</span>
         <h2 className="text-2xl font-black uppercase tracking-[0.2em] opacity-50">{t("offline_mode_title")}</h2>
         <p className="text-xs font-bold uppercase tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc")}</p>
-        <button 
+        <button
           onClick={() => window.location.reload()}
           className="mt-4 px-8 py-4 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest group"
         >
@@ -196,26 +196,23 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         icon={t("icon_satellite_alt")}
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
       />
-      <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6">
+      <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
         <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
           <HubTabButton id="OVERVIEW" icon="dashboard" label={t("tab_overview")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
           <HubTabButton id="DISCOVER" icon="explore" label={t("tab_discover")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
           <HubTabButton id="FOLLOWING" icon="diversity_1" label={t("tab_following")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
         </div>
+      </div>
 
-        {activeTab !== "OVERVIEW" && (
-          <div className="flex flex-col gap-4 mb-8 mx-2 animate-in slide-in-from-top-4 duration-500">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined !text-xl text-[var(--text)]">
-                    {activeTab === "DISCOVER" ? "explore" : "diversity_1"}
-                  </span>
-                </div>
-                <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-[0.2em]">
-                  {activeTab === "DISCOVER" ? t("tab_discover") : t("tab_following")}
-                </h2>
-              </div>
+
+      {activeTab !== "OVERVIEW" && (
+        <div className="flex flex-col gap-4 mb-8 mx-2 animate-in slide-in-from-top-4 duration-500">
+          <CommandScreenSectionHeading
+            shape="circle"
+            title={activeTab === "DISCOVER" ? t("tab_discover") : t("tab_following")}
+            icon={activeTab === "DISCOVER" ? "explore" : "diversity_1"}
+            className="mb-8 w-full relative z-20"
+            rightContent={
               <div className="flex items-center gap-4 flex-1 justify-end">
                 <div className="relative flex-1 max-w-[300px] h-12">
                   <input
@@ -257,135 +254,136 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                   />
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            }
+          />
+        </div>
+      )}
 
-        {activeTab === "OVERVIEW" ? (
-          <div className="flex-1 w-full">
-            <CommandScreenLayout>
-              <CommandScreenStats>
-                <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_group")}</span>} number={overviewStats.nodes} label={t("feed_stat_nodes")} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" />
-                <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_dynamic_feed") || "dynamic_feed"}</span>} number={overviewStats.posts} label={t("feed_stat_replies")} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setIsPostsOpen(true)} className="cursor-pointer" />
-                <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_favorite")}</span>} number={overviewStats.likes + overviewStats.replies} label={t("feed_stat_activity")} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => setIsRepliesOpen(true)} className="cursor-pointer" />
-                <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_diversity_1") || "diversity_1"}</span>} number={overviewStats.followingPosts} label={t("feed_stat_following") || "Following (Past 30 Days)"} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => { setActiveTab("FOLLOWING"); setStartDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); }} className="cursor-pointer" />
-              </CommandScreenStats>
+      {activeTab === "OVERVIEW" ? (
+        <div className="flex-1 w-full">
+          <CommandScreenLayout>
+            <CommandScreenStats>
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_group")}</span>} number={overviewStats.nodes} label={t("feed_stat_nodes")} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_dynamic_feed") || "dynamic_feed"}</span>} number={overviewStats.posts} label={t("feed_stat_replies")} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setIsPostsOpen(true)} className="cursor-pointer" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_favorite")}</span>} number={overviewStats.likes + overviewStats.replies} label={t("feed_stat_activity")} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => setIsRepliesOpen(true)} className="cursor-pointer" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_diversity_1") || "diversity_1"}</span>} number={overviewStats.followingPosts} label={t("feed_stat_following") || "Following (Past 30 Days)"} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => { setActiveTab("FOLLOWING"); setStartDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); }} className="cursor-pointer" />
+            </CommandScreenStats>
 
-              <CommandScreenBody>
-                <CommandScreenMain>
-                  <div className="flex flex-col gap-6 w-full">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl theme-glass-inner flex items-center justify-center border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)] shrink-0">
-                        <span className="material-symbols-outlined !text-2xl text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]">diversity_1</span>
-                      </div>
-                      <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)]">{t("feed_sub_feed")}</h2>
+            <CommandScreenBody>
+              <CommandScreenMain>
+                <div className="flex flex-col gap-6 w-full">
+                  <CommandScreenSectionHeading
+                    title={t("feed_sub_feed")}
+                    icon="diversity_1"
+                  />
+
+                  {loading ? (
+                    <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
+                  ) : !userId ? (
+                    <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("login_required")}</div>
+                  ) : filteredPosts.length === 0 ? (
+                    <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("no_posts")}</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6 pb-8">
+                      {filteredPosts.map((p, index) => (
+                        <MasonPostCard
+                          key={p.id}
+                          post={p}
+                          index={index}
+                          onPostClick={handlePostClick}
+                          onToggleLike={handleToggleLike}
+                          onOpenMasonProfile={onOpenMasonProfile}
+                        />
+                      ))}
                     </div>
-
-                    {loading ? (
-                      <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
-                    ) : !userId ? (
-                      <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("login_required")}</div>
-                    ) : filteredPosts.length === 0 ? (
-                      <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("no_posts")}</div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6 pb-8">
-                        {filteredPosts.map((p, index) => (
-                          <MasonPostCard
-                            key={p.id}
-                            post={p}
-                            index={index}
-                            onPostClick={handlePostClick}
-                            onToggleLike={handleToggleLike}
-                            onOpenMasonProfile={onOpenMasonProfile}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </CommandScreenMain>
-
-                <CommandScreenSidebar title={t("feed_quick_actions")}>
-                  <CommandScreenQuickLink icon="explore" title={t("feed_btn_discover")} subtitle={t("feed_btn_discover_desc")} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} />
-                  {masonProfileId && (
-                    <CommandScreenQuickLink icon="reply" title={t("feed_my_replies")} subtitle={t("feed_my_replies_desc")} onClick={() => setIsRepliesOpen(true)} dotColorClass="bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]" iconBorderHoverClass="group-hover:border-purple-500/30" />
                   )}
-                  <CommandScreenQuickLink icon="diversity_1" title={t("tab_following")} subtitle={t("feed_view_full")} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" iconBorderHoverClass="group-hover:border-emerald-500/30" />
-                </CommandScreenSidebar>
-              </CommandScreenBody>
-            </CommandScreenLayout>
-          </div>
-        ) : (
-          <div className="flex-1 pr-4 pb-32">
-            {loading ? (
-              <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
-            ) : activeTab === "FOLLOWING" && !userId ? (
-              <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("login_required")}</div>
-            ) : filteredPosts.length === 0 ? (
-              <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("no_posts")}</div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6">
-                {filteredPosts.map((p, index) => {
-                  const isCompact = filteredPosts.length >= 3 && index > 0;
-                  return (
-                    <div key={p.id}>
-                      <MasonPostCard
-                        post={p}
-                        index={index}
-                        onPostClick={handlePostClick}
-                        onToggleLike={handleToggleLike}
-                        onOpenMasonProfile={onOpenMasonProfile}
-                        isCompact={isCompact}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+                </div>
+              </CommandScreenMain>
 
-        {selectedPost && (
-          <MasonPostViewer
-            post={selectedPost}
-            onClose={() => setSelectedPost(null)}
-            onOpenMasonProfile={onOpenMasonProfile}
-            onAssetClick={(type, id) => setActiveAsset({ type, id })}
-            userId={userId}
-          />
-        )}
+              <CommandScreenSidebar title={t("feed_quick_actions")} icon="explore">
+                <CommandScreenQuickLink icon="explore" title={t("feed_btn_discover")} subtitle={t("feed_btn_discover_desc")} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} />
+                {masonProfileId && (
+                  <CommandScreenQuickLink icon="reply" title={t("feed_my_replies")} subtitle={t("feed_my_replies_desc")} onClick={() => setIsRepliesOpen(true)} dotColorClass="bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]" iconBorderHoverClass="group-hover:border-purple-500/30" />
+                )}
+                <CommandScreenQuickLink icon="diversity_1" title={t("tab_following")} subtitle={t("feed_view_full")} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" iconBorderHoverClass="group-hover:border-emerald-500/30" />
+              </CommandScreenSidebar>
+            </CommandScreenBody>
+          </CommandScreenLayout>
+        </div>
+      ) : (
+        <div className="flex-1 pr-4 pb-32">
+          {loading ? (
+            <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
+          ) : activeTab === "FOLLOWING" && !userId ? (
+            <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("login_required")}</div>
+          ) : filteredPosts.length === 0 ? (
+            <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("no_posts")}</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6">
+              {filteredPosts.map((p, index) => {
+                const isCompact = filteredPosts.length >= 3 && index > 0;
+                return (
+                  <div key={p.id}>
+                    <MasonPostCard
+                      post={p}
+                      index={index}
+                      onPostClick={handlePostClick}
+                      onToggleLike={handleToggleLike}
+                      onOpenMasonProfile={onOpenMasonProfile}
+                      isCompact={isCompact}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
-        {activeAsset && (
-          <AssetPreviewSidebar
-            assetType={activeAsset.type}
-            assetId={activeAsset.id}
-            onClose={() => setActiveAsset(null)}
-          />
-        )}
-
-        <MasonRecentRepliesSidePanel
-          isOpen={isRepliesOpen}
-          onClose={() => setIsRepliesOpen(false)}
-          masonId={masonProfileId || undefined}
-          userProfileId={userId || undefined}
-          onReplyClick={(postId) => {
-             setIsRepliesOpen(false);
-          }}
+      {selectedPost && (
+        <MasonPostViewer
+          post={selectedPost}
+          onClose={() => setSelectedPost(null)}
+          onOpenMasonProfile={onOpenMasonProfile}
+          onAssetClick={(type, id) => setActiveAsset({ type, id })}
+          userId={userId}
         />
+      )}
 
-        <MasonRecentPostsSidePanel
-          isOpen={isPostsOpen}
-          onClose={() => setIsPostsOpen(false)}
-          posts={posts}
-          onPostClick={(post) => {
-            setSelectedPost(post);
-            setIsPostsOpen(false);
-          }}
-          onToggleLike={handleToggleLike}
-          onOpenMasonProfile={(masonId) => {
-             if (onOpenMasonProfile) onOpenMasonProfile(masonId);
-          }}
+      {activeAsset && (
+        <AssetPreviewSidebar
+          assetType={activeAsset.type}
+          assetId={activeAsset.id}
+          onClose={() => setActiveAsset(null)}
         />
-      </div>
+      )}
+
+      <MasonRecentRepliesSidePanel
+        isOpen={isRepliesOpen}
+        onClose={() => setIsRepliesOpen(false)}
+        masonId={masonProfileId || undefined}
+        userProfileId={userId || undefined}
+        onReplyClick={(postId) => {
+          setIsRepliesOpen(false);
+        }}
+      />
+
+      <MasonRecentPostsSidePanel
+        isOpen={isPostsOpen}
+        onClose={() => setIsPostsOpen(false)}
+        posts={posts}
+        onPostClick={(post) => {
+          setSelectedPost(post);
+          setIsPostsOpen(false);
+        }}
+        onToggleLike={handleToggleLike}
+        onOpenMasonProfile={(masonId) => {
+          if (onOpenMasonProfile) onOpenMasonProfile(masonId);
+        }}
+      />
     </div>
   );
 }
+
+
+

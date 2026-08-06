@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import { logArchitectAction } from "./lib/audit";
 import { useLexicon } from "./LexiconContext";
-import { HubTabDropdown, HubTabButton, SidePanel, CustomDropdown, HoverTooltip, FilterTabs, FilterTabButton, ModSearchDropdown, DLC_MAP, formatDisplayName, GameVersionMultiSelect, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, EmptyState } from "./shared";
+import { HubTabDropdown, HubTabButton, SidePanel, CustomDropdown, HoverTooltip, FilterTabs, FilterTabButton, ModSearchDropdown, DLC_MAP, formatDisplayName, GameVersionMultiSelect, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, EmptyState, ActionButton } from "./shared";
 import ModLineageTree from "./ModLineageTree";
 import { useStore } from './store';
 
@@ -447,20 +447,18 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
         icon="hub"
         footer={
           <div className="flex justify-end gap-4 w-full">
-            <button
-              onClick={() => { setShowFlavorGroupModal(false); setNewFlavorGroupName(''); }}
-              className="px-6 py-3 rounded-2xl bg-[var(--text)]/5 border border-white/5 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:border-white/20 hover:bg-[var(--text)]/10 transition-all active:scale-95"
+            <ActionButton
+              onClick={() => { setShowFlavorGroupModal(false); setNewFlavorGroupName(''); }} label={t("nav_cancel")}
             >
-              {t("nav_cancel")}
-            </button>
-            <button
+              
+            </ActionButton>
+            <ActionButton
               onClick={handleCreateFlavorGroup}
-              disabled={!newFlavorGroupName.trim()}
-              className="px-6 py-3 rounded-2xl bg-[var(--accent)]/20 border border-[var(--accent)]/50 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:bg-[var(--accent)]/30 hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
+              disabled={!newFlavorGroupName.trim()} label={t("modal_btn_create")} icon={t("icon_add_circle")}
             >
-              <span className="material-symbols-outlined !text-[16px]">{t("icon_add_circle")}</span>
-              {t("modal_btn_create")}
-            </button>
+              
+              
+            </ActionButton>
           </div>
         }
       >

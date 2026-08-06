@@ -7,7 +7,7 @@ import { ServerHealthSidePanel } from '../../side-panels/WayfinderSidePanels';
 import { DefconSidePanel } from "../SADefcon";
 import MasonPostViewer from "../../side-panels/MasonPostViewer";
 import WayfinderKeeperSidePanel from "../../side-panels/WayfinderKeeperSidePanel";
-import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile } from "../SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 
 export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMasonProfile }: any) {
   const { t } = useLexicon();
@@ -205,33 +205,9 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
     fetchStats();
   }, [activeWorkspaceId]);
 
-  const getDefconColor = (level: number) => {
-    if (level === 5) return "border-green-500/30 text-green-500 hover:border-green-500 bg-green-500/10 hover:bg-green-500/20";
-    if (level === 4) return "border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20";
-    if (level === 3) return "border-yellow-500/30 text-yellow-500 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20";
-    if (level === 2) return "border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20";
-    return "border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20";
-  };
-
-  const getNetworkColor = (status: string, latency: number | null) => {
-    if (status !== 'ONLINE') return "border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20";
-    if (latency && latency > 500) return "border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20";
-    if (latency && latency > 150) return "border-yellow-500/30 text-yellow-500 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20";
-    return "border-green-500/30 text-green-500 hover:border-green-500 bg-green-500/10 hover:bg-green-500/20";
-  };
-
-  const getNetworkIcon = (status: string, latency: number | null) => {
-    if (status !== 'ONLINE') return t("icon_wifi_off");
-    if (latency && latency > 500) return t("icon_network_wifi_1_bar");
-    if (latency && latency > 150) return t("icon_network_wifi_2_bar");
-    if (latency && latency > 50) return t("icon_network_wifi_3_bar");
-    return t("icon_wifi");
-  };
-
   return (
     <CommandScreenLayout>
       <CommandScreenStats>
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_warning_amber")}</span>} number={defconLevel} label={t("defcon_global")} colorClass={getDefconColor(defconLevel)} onClick={() => setDefconOpen(true)} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_dns")}</span>} number={stats.networkLatency ? `${stats.networkLatency}` : "---"} label={stats.networkStatus === "ONLINE" ? (t("wf_stat_server_nominal")) : (t("wf_stat_server_degraded"))} colorClass={stats.networkStatus === "ONLINE" ? "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" : "border-yellow-500/30 text-yellow-500 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20"} onClick={() => setHealthOpen(true)} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_local_activity")}</span>} number={stats.supportQueue} label={t("ql_support")} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("sanctuary_tickets")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_flag")}</span>} number={stats.flaggedQueue} label={t("wf_stat_flagged")} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => { if (setComplianceFilter) setComplianceFilter('flagged'); setTab("compliance"); }} />
@@ -263,12 +239,12 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
 
       <CommandScreenBody>
         <CommandScreenMain>
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wf_comms_title")}</h2>
+          <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
           <div className="flex flex-col gap-8 w-full mb-8">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
           </div>
 
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("metrics")}</h2>
+          <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
             <CommandScreenMetricTile value={stats.citizens} label={t("stat_users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
             <CommandScreenMetricTile value={stats.masons} label={t("tab_linker")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
@@ -278,7 +254,7 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
           </div>
         </CommandScreenMain>
 
-        <CommandScreenSidebar title={t("wf_quick_links")}>
+        <CommandScreenSidebar title={t("wf_quick_links")} icon="rocket_launch">
           {stats.urgentBroadcast && (
             <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-white/5 transition-all text-left group relative overflow-hidden h-24">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />

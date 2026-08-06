@@ -295,29 +295,26 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             <div className="flex justify-center items-center gap-4 w-full">
               {(selectedMod?.status === 'pending' || selectedMod?.status === 'under_review') ? (
                 <>
-                  <button
+                  <ActionButton
                     onClick={(e) => { e.preventDefault(); handleClearFlag(e, selectedMod); setSelectedMod(null); }}
-                    className={standardSuccessButtonClass}
-                    disabled={isSubmitting || !editReason.trim()}
+                    disabled={isSubmitting || !editReason.trim()} label={t("btn_clear_flag")}
                   >
-                    {t("btn_clear_flag")}
-                  </button>
-                  <button
+                    
+                  </ActionButton>
+                  <ActionButton
                     onClick={(e) => { e.preventDefault(); handleSetFlag(e, selectedMod); setSelectedMod(null); }}
-                    className={standardDangerButtonClass}
-                    disabled={isSubmitting || !editReason.trim()}
+                    disabled={isSubmitting || !editReason.trim()} label={t("btn_set_flag")}
                   >
-                    {t("btn_set_flag")}
-                  </button>
+                    
+                  </ActionButton>
                 </>
               ) : (
-                <button
+                <ActionButton
                   onClick={handleSaveTier}
-                  disabled={isSubmitting || !editReason.trim()}
-                  className={standardSuccessButtonClass}
+                  disabled={isSubmitting || !editReason.trim()} label={isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
                 >
-                  {isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
-                </button>
+                  
+                </ActionButton>
               )}
             </div>
           </div>

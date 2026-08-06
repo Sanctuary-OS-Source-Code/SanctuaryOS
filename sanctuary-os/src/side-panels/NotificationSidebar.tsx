@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";
-import { SidePanel, standardButtonClass, standardDangerButtonClass } from "../shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton } from "../shared";
 
 interface NotificationSidebarProps {
   onClose: () => void;
@@ -121,25 +121,23 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
           {!notifications.some(n => !n.is_read) && (
-            <button type="button" onClick={onClose} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
+            <ActionButton type="button" onClick={onClose} label={t("nav_cancel")}>
+              
+            </ActionButton>
           )}
           {notifications.some(n => !n.is_read) && (
-            <button
-              onClick={markAllRead}
-              className={standardButtonClass}
+            <ActionButton
+              onClick={markAllRead} label={t("notif_mark_read")}
             >
-              {t("notif_mark_read")}
-            </button>
+              
+            </ActionButton>
           )}
           {notifications.length > 0 && (
-            <button
-              onClick={clearAll}
-              className={standardDangerButtonClass}
+            <ActionButton
+              onClick={clearAll} label={t("notif_clear_all")}
             >
-              {t("notif_clear_all")}
-            </button>
+              
+            </ActionButton>
           )}
         </div>
       }

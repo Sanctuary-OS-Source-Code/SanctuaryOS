@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
 import { ViewHeader, HubTabButton, SearchBar, CustomDropdown, CustomDatePicker, DashboardStatTile, ActionButton } from "./shared";
-import { TimeCapsuleSidePanel } from "./side-panels/TimeCapsuleSidePanels";
+import { CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 import { useModalStore } from "./store/modalStore";
+import { TimeCapsuleSidePanel } from "./side-panels/TimeCapsuleSidePanels";
 
 export default function TimeCapsule({
   selectedVersion, isBackingUp, triggerPrePatchSnapshot, triggerFullEngineBackup,
@@ -207,8 +208,8 @@ export default function TimeCapsule({
     <div className="flex flex-col gap-0 animate-in fade-in duration-700 pb-32 w-full">
       <ViewHeader title={t("backups_title")} subtitle={t("backups_subtitle")} icon={t("icon_history")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
 
-      <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
+      <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
+        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
           <HubTabButton id="LANDING" icon="dashboard" label={t("tab_landing") || "LANDING"} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="WORLD" icon="public" label={t("world_state")} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="ENGINE" icon="settings" label={t("engine_full")} activeTab={activeTab} setTab={setActiveTab} />
@@ -216,7 +217,7 @@ export default function TimeCapsule({
       </div>
 
       {activeTab === "LANDING" && (
-        <div className="flex flex-wrap gap-6 w-full relative z-10 animate-in slide-in-from-top-4 duration-500 mb-6">
+        <div className="flex flex-wrap items-stretch gap-6 w-full relative z-10 animate-in slide-in-from-top-4 duration-500 mb-6">
           <DashboardStatTile
             icon={<span className="material-symbols-outlined !text-4xl">{t("icon_verified_user")}</span>}
             number={selectedVersion || t("status_unknown")}
@@ -247,19 +248,15 @@ export default function TimeCapsule({
       )}
 
       {activeTab !== "LANDING" && (
-        <div className="flex items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full">
-          <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-            <div className={`w-12 h-12 rounded-xl theme-glass-panel border ${activeTab === "WORLD" ? "border-indigo-500/30" : activeTab === "ENGINE" ? "border-rose-500/30" : "border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"} shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
-              <span className={`material-symbols-outlined !text-[24px] ${activeTab === "WORLD" ? "text-indigo-500" : activeTab === "ENGINE" ? "text-rose-500" : "theme-text-accent"} opacity-90 drop-shadow-lg`}>
-                {activeTab === "WORLD" ? "public" : activeTab === "ENGINE" ? "settings" : "history"}
-              </span>
-            </div>
-            <span className="truncate">
-              {activeTab === "LANDING" ? t("timecapsule_recent") || "RECENT CHRONOGRAMS" : activeTab === "WORLD" ? t("world_state") : t("section_engine")}
-            </span>
-          </h2>
-
-          <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
+        <CommandScreenSectionHeading
+          shape="circle"
+          title={activeTab === "LANDING" ? (t("timecapsule_recent") || "RECENT CHRONOGRAMS") : activeTab === "WORLD" ? t("world_state") : t("section_engine")}
+          icon={activeTab === "WORLD" ? "public" : activeTab === "ENGINE" ? "settings" : "history"}
+          colorClass={`theme-glass-inner border ${activeTab === "WORLD" ? "border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)] bg-indigo-500/5" : activeTab === "ENGINE" ? "border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)] bg-rose-500/5" : "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_15%,transparent)] bg-[var(--accent)]/5"}`}
+          iconColorClass={activeTab === "WORLD" ? "text-indigo-500 drop-shadow-[0_0_8px_rgba(99,102,241,0.6)]" : activeTab === "ENGINE" ? "text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]" : "theme-text-accent drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_60%,transparent)]"}
+          className="py-4 border-b border-white/5 w-full shrink-0"
+          rightContent={
+            <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
             <div className="relative flex-1 h-12 min-w-[200px] max-w-[350px]">
               <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
               <input
@@ -356,7 +353,8 @@ export default function TimeCapsule({
               </div>
             )}
           </div>
-        </div>
+          }
+        />
       )}
       <div className="flex flex-col gap-10 pt-4">
         {backupList?.length > 0 ? (

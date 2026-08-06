@@ -22,11 +22,23 @@ export const standardSuccessButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-
 export const standardDangerButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
 export const standardAccentGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
 
-export function ActionButton({ icon, label, onClick, disabled, className = "", type = "button", children }: any) {
+export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, className = "", type = "button", form, children }: {
+  icon?: string;
+  label?: React.ReactNode;
+  onClick?: (e?: any) => void;
+  onDoubleClick?: (e?: any) => void;
+  disabled?: boolean;
+  className?: string;
+  type?: "button" | "submit" | "reset";
+  form?: string;
+  children?: React.ReactNode;
+}) {
   return (
     <button
       type={type}
+      form={form}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       disabled={disabled}
       className={`px-8 py-4 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-[var(--text)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:border-[var(--accent)]/50 hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${className}`}
     >
@@ -1227,15 +1239,17 @@ export function CustomTierDropdown({ value, onChange }: { value: number, onChang
 }
 
 
-export function DashboardStatTile({ icon, number, label, colorClass, onClick, setStatus, disabled }: any) {
+export function DashboardStatTile({ icon, number, label, colorClass, onClick, setStatus, disabled, className = "" }: any) {
   return (
-    <div onClick={disabled ? undefined : onClick} className={`flex-1 min-w-[200px] xl:min-w-[250px] h-full flex flex-col justify-center items-start gap-1 p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-[40px] shadow-lg ${colorClass} transition-all relative overflow-hidden group ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1 hover:shadow-xl'}`}>
+    <div onClick={disabled ? undefined : onClick} className={`flex-1 min-w-[200px] xl:min-w-[250px] h-[130px] shrink-0 flex flex-col justify-center items-start gap-1 p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-[40px] shadow-lg ${colorClass} transition-all relative overflow-hidden group ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1 hover:shadow-xl'} ${className}`}>
       <div className="absolute inset-0 bg-current opacity-[0.05] group-hover:opacity-[0.15] transition-opacity duration-300" />
       <div className="flex items-center gap-3 w-full relative z-10">
         <span className="text-3xl opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-110 transition-all drop-shadow-md">{icon}</span>
-        <span className={`text-4xl lg:text-5xl font-black drop-shadow-lg tracking-tighter`}>{number}</span>
+        <span className={`text-4xl lg:text-5xl font-black drop-shadow-lg tracking-tighter truncate`}>{number}</span>
       </div>
-      <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-[var(--subtext)] opacity-60 mt-2">{label}</span>
+      <div className="h-[28px] mt-2 flex items-start w-full relative z-10">
+        <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-[var(--subtext)] opacity-60 leading-tight line-clamp-2">{label}</span>
+      </div>
     </div>
   );
 }
@@ -1676,3 +1690,92 @@ export const enrichBlueprintsWithPremiumStatus = async (supabase: any, blueprint
   }
   return premiumMap;
 };
+
+export function SidePanelActionFooter({
+  onCancel,
+  cancelLabel,
+  cancelIcon,
+  hideCancel = false,
+
+  onAction,
+  actionLabel, 
+  actionIcon,
+  actionDisabled = false,
+  actionVariant = "accent",
+  
+  isProcessing = false,
+  processingLabel,
+
+  onDanger,
+  dangerLabel,
+  dangerIcon,
+  dangerDisabled = false,
+  
+  className = "flex flex-row items-center justify-center gap-4 w-full"
+}: {
+  onCancel?: () => void;
+  cancelLabel?: string;
+  cancelIcon?: string;
+  hideCancel?: boolean;
+  onAction?: () => void;
+  actionLabel?: string;
+  actionIcon?: string;
+  actionDisabled?: boolean;
+  actionVariant?: "accent" | "success" | "danger" | "primary" | "glass";
+  isProcessing?: boolean;
+  processingLabel?: string;
+  onDanger?: () => void;
+  dangerLabel?: string;
+  dangerIcon?: string;
+  dangerDisabled?: boolean;
+  className?: string;
+}) {
+  const { t } = useLexicon();
+
+  const getActionClass = () => {
+    switch (actionVariant) {
+      case "success": return "!border-[color-mix(in_srgb,var(--success)_50%,transparent)] !text-[var(--success)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--success-rgb),0.4)]";
+      case "danger": return "!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]";
+      case "primary": return "";
+      case "glass": return "!bg-white/5 !border-white/10 hover:!bg-white/10";
+      case "accent":
+      default: return "!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)]";
+    }
+  };
+
+  return (
+    <div className={className}>
+      {onDanger && (
+         <ActionButton 
+           onClick={onDanger} 
+           disabled={dangerDisabled || isProcessing} 
+           className={`mr-auto !border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]`}
+           icon={dangerIcon}
+           label={dangerLabel || t("ui_btn_delete")}
+         />
+      )}
+      
+      {!hideCancel && (
+         <ActionButton 
+           onClick={onCancel} 
+           disabled={isProcessing} 
+           icon={cancelIcon}
+           label={cancelLabel || t("nav_cancel")}
+           className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]"
+         />
+      )}
+      
+      {onAction && (
+         <ActionButton 
+           onClick={onAction} 
+           disabled={actionDisabled || isProcessing} 
+           className={getActionClass()}
+           icon={isProcessing ? "sync" : actionIcon}
+           label={isProcessing ? (processingLabel || t("ui_btn_processing")) : actionLabel}
+         >
+           {isProcessing && <style>{`.material-symbols-outlined.animate-spin { animation: spin 1s linear infinite; } @keyframes spin { 100% { transform: rotate(360deg); } }`}</style>}
+         </ActionButton>
+      )}
+    </div>
+  );
+}

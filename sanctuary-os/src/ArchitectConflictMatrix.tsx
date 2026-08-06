@@ -413,8 +413,8 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                       className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--danger)]/50 transition-all text-[var(--text)] placeholder:opacity-40 border border-[var(--danger)]/20"
                     />
                     <div className="flex gap-3">
-                      <button type="button" onClick={handleConfirmSidePanelDelete} className="flex-1 py-3 bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/50 rounded-xl uppercase font-black text-[10px] tracking-widest hover:bg-[var(--danger)] hover:text-white transition-all disabled:opacity-50 disabled:pointer-events-none">{t("yeet_btn_confirm")}</button>
-                      <button type="button" onClick={() => { setIsDeleting(false); setDeleteReason(""); }} className="flex-1 py-3 bg-white/5 text-[var(--text)] rounded-xl uppercase font-black text-[10px] tracking-widest border border-white/10 hover:bg-white/10 transition-all">{t("nav_cancel")}</button>
+                      <ActionButton type="button" onClick={handleConfirmSidePanelDelete} label={t("yeet_btn_confirm")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"></ActionButton>
+                      <ActionButton type="button" onClick={() => { setIsDeleting(false); setDeleteReason(""); }} label={t("nav_cancel")}></ActionButton>
                     </div>
                   </div>
                 ) : (
@@ -429,24 +429,24 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                     )}
                     <div className="flex justify-center items-center gap-4 mt-2 w-full">
                       {!editConflictId && (
-                        <button type="button" onClick={() => setIsSidePanelOpen(false)} className={standardButtonClass}>
-                          {t("nav_cancel")}
-                        </button>
+                        <ActionButton type="button" onClick={() => setIsSidePanelOpen(false)} label={t("nav_cancel")}>
+                          
+                        </ActionButton>
                       )}
                       {editConflictId && (
-                        <button type="button" onClick={() => setIsDeleting(true)} className={standardDangerButtonClass}>
-                          {editingGhost?.status === 'pending' ? (t("matrix_btn_reject")) : (t("purge"))}
-                        </button>
+                        <ActionButton type="button" onClick={() => setIsDeleting(true)} label={editingGhost?.status === 'pending' ? (t("matrix_btn_reject")) : (t("purge"))}>
+                          
+                        </ActionButton>
                       )}
                       {editingGhost?.status !== 'pending' && (
-                        <button type="button" onClick={() => handleAddGhost()} disabled={!modA || !modB || (!!editConflictId && !updateReason.trim())} className={standardAccentGlassButtonClass}>
-                          {editConflictId ? (t("edit_side_panel")) : (t("inject"))}
-                        </button>
+                        <ActionButton type="button" onClick={() => handleAddGhost()} disabled={!modA || !modB || (!!editConflictId && !updateReason.trim())} label={editConflictId ? (t("edit_side_panel")) : (t("inject"))}>
+                          
+                        </ActionButton>
                       )}
                       {editingGhost?.status === 'pending' && (
-                        <button type="button" onClick={() => handleConfirmSidePanelApprove()} className={standardSuccessButtonClass}>
-                          {t("ui_btn_approve")}
-                        </button>
+                        <ActionButton type="button" onClick={() => handleConfirmSidePanelApprove()} label={t("ui_btn_approve")}>
+                          
+                        </ActionButton>
                       )}
                     </div>
                   </div>

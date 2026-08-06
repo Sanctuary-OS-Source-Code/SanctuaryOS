@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, ModSearchDropdown, SidePanel, standardButtonClass, standardAccentGlassButtonClass , getExtensionRegex} from "../shared";
+import { CustomDropdown, ModSearchDropdown, SidePanel, standardButtonClass, standardAccentGlassButtonClass , getExtensionRegex, ActionButton } from "../shared";
 import { useStore } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -257,12 +257,12 @@ export default function WayfinderSupportSidePanel({
       panelZ="z-[50001]"
       footer={
         <div className="flex flex-row items-center justify-center gap-4 w-full">
-           <button onClick={onClose} className={standardButtonClass}>
-             {t("nav_cancel")}
-           </button>
-           <button onClick={submitTicket} disabled={isSubmitting} className={`${standardAccentGlassButtonClass} disabled:opacity-50`}>
-             {isSubmitting ? (t("scanning")) : (t("support_submit"))}
-           </button>
+           <ActionButton onClick={onClose} label={t("nav_cancel")}>
+             
+           </ActionButton>
+           <ActionButton onClick={submitTicket} disabled={isSubmitting} label={isSubmitting ? (t("scanning")) : (t("support_submit"))}>
+             
+           </ActionButton>
         </div>
       }
     >

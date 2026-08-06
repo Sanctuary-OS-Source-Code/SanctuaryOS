@@ -10,8 +10,7 @@ import {
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen
-} from "./shared";
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen, ActionButton } from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
 import { MasonStatusDropdown } from "./MasonHub";
@@ -266,7 +265,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
             {uploadState.editId && !uploadState.isHidden ? (
-              <button
+              <ActionButton
                 type="button"
                 onClick={async (e) => {
                   if (e.currentTarget.textContent === "ARE YOU SURE?") {
@@ -291,27 +290,24 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                       }
                     }, 3000);
                   }
-                }}
-                className={standardDangerButtonClass}
+                }} label={t("btn_remove_asset") || "REMOVE ASSET"}
               >
-                {t("btn_remove_asset") || "REMOVE ASSET"}
-              </button>
+                
+              </ActionButton>
             ) : (
-              <button
+              <ActionButton
                 type="button"
-                onClick={() => setUploadState(s => ({ ...s, isOpen: false }))}
-                className={standardButtonClass}
+                onClick={() => setUploadState(s => ({ ...s, isOpen: false }))} label={t("nav_cancel") || "Cancel"}
               >
-                {t("nav_cancel") || "Cancel"}
-              </button>
+                
+              </ActionButton>
             )}
-            <button
+            <ActionButton
               onClick={submitUpload}
-              disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
-              className={standardAccentGlassButtonClass}
+              disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)} label={uploadState.editId ? (uploadState.isHidden ? (t("upload_btn_relink") || "RELINK LISTING") : (t("upload_btn_update") || "UPDATE LISTING")) : (t("upload_btn_publish") || "PUBLISH ASSET")}
             >
-              {uploadState.editId ? (uploadState.isHidden ? (t("upload_btn_relink") || "RELINK LISTING") : (t("upload_btn_update") || "UPDATE LISTING")) : (t("upload_btn_publish") || "PUBLISH ASSET")}
-            </button>
+              
+            </ActionButton>
           </div>
         }
       >

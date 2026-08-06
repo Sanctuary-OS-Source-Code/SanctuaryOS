@@ -7,7 +7,7 @@ import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMu
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, 
   standardDangerButtonClass, standardAccentGlassButtonClass, 
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion } from "../shared";
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, SidePanelActionFooter } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -60,14 +60,7 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
       icon={t("icon_settings")}
       widthClass="w-[500px]"
       footer={
-        <div className="flex justify-center items-center gap-4 w-full">
-          <button onClick={onClose} className={standardButtonClass}>
-             {t("nav_cancel")}
-          </button>
-          <button onClick={handleSave} disabled={isSaving} className={standardAccentGlassButtonClass}>
-            {isSaving ? t("saving_settings") : t("save_configuration")}
-          </button>
-        </div>
+        <SidePanelActionFooter onCancel={onClose} cancelLabel={t("nav_cancel")} onAction={handleSave} actionDisabled={isSaving} actionLabel={t("save_configuration")} isProcessing={isSaving } processingLabel={t("saving_settings")} />
       }
     >
     <div className="w-full flex flex-col gap-6">

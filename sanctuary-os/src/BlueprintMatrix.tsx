@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { formatDisplayName, ViewHeader, SidePanel, standardButtonClass, standardAccentGlassButtonClass, HoverTooltip } from "./shared";
+import { formatDisplayName, ViewHeader, SidePanel, standardButtonClass, standardAccentGlassButtonClass, HoverTooltip, ActionButton } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { createPortal } from "react-dom";
@@ -138,9 +138,9 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
       subtitle={t("matrix_subtitle")}
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
-          <button onClick={onClose} className={standardButtonClass}>
-            {t("nav_cancel")}
-          </button>
+          <ActionButton onClick={onClose} label={t("nav_cancel")}>
+            
+          </ActionButton>
           <div className="relative group/uplinkbtn">
             {isUploadBlocked && (
               <HoverTooltip
@@ -150,13 +150,12 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
                 className="group-hover/uplinkbtn:flex z-[1000]"
               />
             )}
-            <button
+            <ActionButton
               onClick={handleUpload}
-              disabled={isUploading || isUploadBlocked}
-              className={`${standardAccentGlassButtonClass} ${isUploadBlocked ? 'opacity-30 grayscale cursor-not-allowed' : ''}`}
+              disabled={isUploading || isUploadBlocked} label={isUploading ? (t("scanning")) : (t("matrix_btn_upload"))}
             >
-              {isUploading ? (t("scanning")) : (t("matrix_btn_upload"))}
-            </button>
+              
+            </ActionButton>
           </div>
         </div>
       }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, standardButtonClass, standardDangerButtonClass, CustomDropdown, CustomComplianceDropdown } from "../shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, CustomDropdown, CustomComplianceDropdown, ActionButton } from "../shared";
 import { useStore } from '../store';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
@@ -272,16 +272,15 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       iconColorClass={isMalwareOnly ? "text-[var(--danger)] border-[var(--danger)]/30" : "text-[var(--accent)] border-[var(--accent)]/30"}
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
-            <button onClick={onClose} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
-          <button 
+            <ActionButton onClick={onClose} label={t("nav_cancel")}>
+              
+            </ActionButton>
+          <ActionButton 
             onClick={activeTab === 'registry' ? handleManualFlag : handleAddHeuristic} 
-            disabled={isSubmitting || (activeTab === 'registry' && ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())) || (activeTab === 'heuristic' && (!newSig.trim() || !notes.trim()))} 
-            className={isMalwareOnly ? standardDangerButtonClass : standardButtonClass + " !border-[var(--accent)]/30 !text-[var(--accent)] hover:!border-[var(--accent)] hover:!bg-[var(--accent)]/10"}
+            disabled={isSubmitting || (activeTab === 'registry' && ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())) || (activeTab === 'heuristic' && (!newSig.trim() || !notes.trim()))} label={isSubmitting ? (t("btn_submitting")) : (t("comp_manual_btn_insert"))}
           >
-            {isSubmitting ? (t("btn_submitting")) : (t("comp_manual_btn_insert"))}
-          </button>
+            
+          </ActionButton>
         </div>
       }
     >

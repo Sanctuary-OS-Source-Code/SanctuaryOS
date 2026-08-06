@@ -429,13 +429,13 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                     </div>
                     <div className="flex justify-center items-center gap-4 w-full">
                         {draft.id && (
-                            <button onClick={handleDelete} disabled={isSaving || !actionReason} className={standardDangerButtonClass}>
-                                {t("purge")}
-                            </button>
+                            <ActionButton onClick={handleDelete} disabled={isSaving || !actionReason} label={t("purge")}>
+                                
+                            </ActionButton>
                         )}
-                        <button onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name || !actionReason} className={standardSuccessButtonClass}>
-                            {isSaving ? "..." : (t("save"))}
-                        </button>
+                        <ActionButton onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name || !actionReason} label={isSaving ? "..." : (t("save"))}>
+                            
+                        </ActionButton>
                     </div>
                 </div>
             }
@@ -769,13 +769,13 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                     </div>
                     <div className="flex justify-center items-center gap-4 w-full">
                         {draft.id && (
-                            <button onClick={deleteSource} disabled={isSaving} className={standardDangerButtonClass}>
-                                {t("purge")}
-                            </button>
+                            <ActionButton onClick={deleteSource} disabled={isSaving} label={t("purge")}>
+                                
+                            </ActionButton>
                         )}
-                        <button onClick={save} disabled={isSaving} className={standardSuccessButtonClass}>
-                            {isSaving ? (t("btn_saving")) : (t("save"))}
-                        </button>
+                        <ActionButton onClick={save} disabled={isSaving} label={isSaving ? (t("btn_saving")) : (t("save"))}>
+                            
+                        </ActionButton>
                     </div>
                 </div>
             }

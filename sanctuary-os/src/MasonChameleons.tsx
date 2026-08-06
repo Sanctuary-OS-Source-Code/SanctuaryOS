@@ -8,6 +8,7 @@ import { useTheme } from './ThemeContext';
 import { useStore } from './store';
 import { MarketUploadPanel } from "./side-panels/NexusSidePanels";
 import { standardButtonClass, standardAccentGlassButtonClass, ActionButton } from './shared';
+import { CommandScreenSectionHeading } from './hub-components/SharedCommandScreenLayout';
 
 import { ThemeCard } from './chameleon-components/ThemeCard';
 import { ChameleonControlDashboard } from './chameleon-components/ChameleonControlDashboard';
@@ -133,49 +134,49 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
 
   return (
     <div className="flex flex-col w-full h-[calc(100vh-180px)] xl:h-[calc(100vh-140px)] relative transition-all duration-500">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-10">
-        <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">palette</span>
-          </div>
-          <span className="truncate">{t("forge_title") || "MATRIX FORGE"}</span>        </h2>
-        <div className="flex items-center gap-3 flex-1 justify-end">
+      <CommandScreenSectionHeading
+        shape="circle"
+        title={t("forge_title") || "MATRIX FORGE"}
+        icon="palette"
+        className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-10 shrink-0"
+        rightContent={
+          <div className="flex items-center gap-3 flex-1 justify-end">
           <div className="relative flex-1 max-w-[300px]">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search") || "search"}</span>
             <input
-               value={searchQuery}
-               onChange={e => setSearchQuery(e.target.value)}
-               placeholder={t("ui_search_chameleons") || "Search Themes..."}
-               className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={t("ui_search_chameleons") || "Search Themes..."}
+              className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
           <ActionButton onClick={() => setIsCreatePanelOpen(true)} className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]" icon="add" label={t("auto_create") || "CREATE"} />
         </div>
-      </div>
+      } />
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">
           {Object.entries(customThemes).filter(([id, theme]: any) => !searchQuery || theme.name.toLowerCase().includes(searchQuery.toLowerCase())).map(([id, theme]: any) => (
-            <ThemeCard 
-              key={id} 
-              id={id} 
-              theme={theme} 
-              isDev={false} 
-              onClick={() => openEditor(id)} 
-              onDelete={deleteTheme} 
+            <ThemeCard
+              key={id}
+              id={id}
+              theme={theme}
+              isDev={false}
+              onClick={() => openEditor(id)}
+              onDelete={deleteTheme}
               confirmDelete={confirmDelete}
               setConfirmDelete={setConfirmDelete}
             />
           ))}
 
           {Object.entries(devThemes).filter(([id, theme]: any) => !searchQuery || theme.name.toLowerCase().includes(searchQuery.toLowerCase())).map(([id, theme]: any) => (
-            <ThemeCard 
-              key={id} 
-              id={id} 
-              theme={theme} 
-              isDev={true} 
-              onClick={() => openEditor(id)} 
-              onDelete={deleteTheme} 
+            <ThemeCard
+              key={id}
+              id={id}
+              theme={theme}
+              isDev={true}
+              onClick={() => openEditor(id)}
+              onDelete={deleteTheme}
               confirmDelete={confirmDelete}
               setConfirmDelete={setConfirmDelete}
             />
@@ -249,13 +250,13 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         }
       >
         <div className="flex-1 flex w-full h-full overflow-hidden">
-          <ChameleonControlDashboard 
+          <ChameleonControlDashboard
             currentTheme={currentTheme}
             handleUpdateTheme={handleUpdateTheme}
             editingThemeId={editingThemeId}
             renameTheme={renameTheme}
           />
-          <ChameleonSandboxPreview 
+          <ChameleonSandboxPreview
             currentTheme={currentTheme}
           />
         </div>

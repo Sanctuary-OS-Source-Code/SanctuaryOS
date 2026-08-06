@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HubTabButton, DashboardStatTile } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HubTabButton, DashboardStatTile, SearchBar } from "./shared";
 import { getExtensionRegex, formatDisplayName, getFileLabel } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
@@ -9,7 +9,7 @@ import { useStore } from "./store";
 import ConflictCard from "./ConflictCard";
 import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
 import UndoWinnersPanel from "./side-panels/UndoWinnersPanel";
-import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenStats } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenStats, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 
 const isCloneConflict = (modA: string, modB: string) => {
   if (!modA || !modB) return false;
@@ -430,7 +430,7 @@ export const DbpfScout = () => {
       <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 w-full relative z-10">
         <ViewHeader title={t("radar_title")} subtitle={t("radar_subtitle")} icon={t("icon_track_changes")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
 
-        <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6">
+        <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
           <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
             <HubTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
             <HubTabButton
@@ -499,29 +499,20 @@ export const DbpfScout = () => {
               <CommandScreenBody>
                 <CommandScreenMain>
                   <div className="flex flex-col gap-6 w-full">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl theme-glass-inner flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] shrink-0">
-                          <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-90 drop-shadow-lg">map</span>
+                    <CommandScreenSectionHeading
+                      title={t("target_blueprints")}
+                      icon="map"
+                      rightContent={
+                        <div className="relative w-full md:w-64 shrink-0">
+                          <SearchBar
+                            value={blueprintSearch}
+                            onChange={setBlueprintSearch}
+                            placeholder={t("search_blueprints")}
+                            className="w-full"
+                          />
                         </div>
-                        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)]">{t("target_blueprints")}</h2>
-                      </div>
-                      <div className="relative w-full md:w-64">
-                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">search</span>
-                        <input
-                          type="text"
-                          placeholder={t("search_blueprints") || "SEARCH..."}
-                          value={blueprintSearch}
-                          onChange={(e) => setBlueprintSearch(e.target.value)}
-                          className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
-                        />
-                        {blueprintSearch && (
-                          <button onClick={() => setBlueprintSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
-                            <span className="material-symbols-outlined text-sm">close</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                      }
+                    />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {playSets.filter((bp: any) => !blueprintSearch || bp.name.toLowerCase().includes(blueprintSearch.toLowerCase())).map((blueprint: any) => {
                         const cachedStatsStr = localStorage.getItem(`radar_stats_${blueprint.name}`);
@@ -580,7 +571,7 @@ export const DbpfScout = () => {
                   </div>
                 </CommandScreenMain>
 
-                <CommandScreenSidebar title={t("quick_actions")}>
+                <CommandScreenSidebar title={t("quick_actions")} icon="bolt">
                   <div className="mb-4">
                     <CustomDropdown
                       disableTint={true}

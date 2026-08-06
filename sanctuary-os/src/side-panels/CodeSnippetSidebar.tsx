@@ -1,7 +1,7 @@
 import React from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { SidePanel, standardButtonClass, standardAccentGlassButtonClass } from '../shared';
+import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, ActionButton } from '../shared';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 
@@ -34,18 +34,16 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
       defaultWidth={750}
       footer={
         <div className="flex items-center justify-center w-full gap-4">
-          <button 
-            onClick={onClose} 
-            className={standardButtonClass}
+          <ActionButton 
+            onClick={onClose} label={t("btn_close")}
           >
-            {t("btn_close")}
-          </button>
-          <button 
-            onClick={() => { navigator.clipboard.writeText(code); useStore.getState().pushStatus(t("alert_copied")); }} 
-            className={standardAccentGlassButtonClass}
+            
+          </ActionButton>
+          <ActionButton 
+            onClick={() => { navigator.clipboard.writeText(code); useStore.getState().pushStatus(t("alert_copied")); }} label={t("ui_btn_copy_all")} icon={t("icon_content_copy")}
           >
-            <span className="material-symbols-outlined !text-[18px]">{t("icon_content_copy")}</span> {t("ui_btn_copy_all")}
-          </button>
+             
+          </ActionButton>
         </div>
       }
     >

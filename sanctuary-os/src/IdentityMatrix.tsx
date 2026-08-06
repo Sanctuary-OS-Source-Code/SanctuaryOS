@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
-import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState } from './shared';
+import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton } from './shared';
 import { useStore } from './store';
 
 export const ROLES = ['citizen', 'mason', 'architect', 'oversight', 'wayfinder'];
@@ -149,16 +149,15 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
             </div>
           )}
           <div className="flex justify-center items-center gap-4 w-full">
-            <button type="button" onClick={onClose} disabled={isSubmitting} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
-            <button
+            <ActionButton type="button" onClick={onClose} disabled={isSubmitting} label={t("nav_cancel")}>
+              
+            </ActionButton>
+            <ActionButton
               onClick={handleUpdateRole}
-              disabled={isSubmitting || (isBanned && !editReason.trim()) || (isCommBanned && !editCommReason.trim()) || (!isWayfinder && profile?.role === 'wayfinder')}
-              className={(isBanned || isCommBanned) ? standardDangerButtonClass : standardSuccessButtonClass}
+              disabled={isSubmitting || (isBanned && !editReason.trim()) || (isCommBanned && !editCommReason.trim()) || (!isWayfinder && profile?.role === 'wayfinder')} label={isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
             >
-              {isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
-            </button>
+              
+            </ActionButton>
           </div>
         </div>
       }

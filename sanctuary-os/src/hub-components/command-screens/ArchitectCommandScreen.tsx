@@ -3,7 +3,7 @@ import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
 import { WayfinderPostsEditor } from "../WayfinderPostsEditor";
-import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile } from "../SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 
 export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }: any) {
   const { t } = useLexicon();
@@ -166,20 +166,19 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_handyman")}</span>} number={stats.masonQueue} label={t("stat_mason_queue")} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => onNavigate("mason_queue")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_flag")}</span>} number={stats.nexusReports} label={t("title_reports")} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => onNavigate("nexus_reports")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_local_activity")}</span>} number={stats.supportTickets} label={t("ql_support")} colorClass="border-indigo-500/30 text-indigo-500 hover:border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20" onClick={() => onNavigate("support_tickets")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_18_up_rating")}</span>} number={stats.nsfw} label={t("stat_nsfw_flags")} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => onNavigate('registry', 'nsfw')} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_block")}</span>} number={stats.explicit} label={t("stat_explicit_reports")} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" onClick={() => onNavigate('registry', 'explicit')} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_18_up_rating")}</span>} number={stats.nsfw + stats.explicit} label={`${t("stat_nsfw_flags")} / ${t("stat_explicit_reports")}`} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => onNavigate('registry', 'nsfw')} />
       </CommandScreenStats>
 
       <UrgentBroadcastBanner urgentBroadcast={urgentBroadcast} setViewingPost={setViewingPost} setUrgentBroadcast={setUrgentBroadcast} />
 
       <CommandScreenBody>
         <CommandScreenMain>
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wf_comms_title")}</h2>
+          <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
 
           <div className="flex flex-col gap-8 w-full">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
 
-            <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("metrics")}</h2>
+            <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
               <CommandScreenMetricTile value={stats.totalArtifacts} label={t("items")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
               <CommandScreenMetricTile value={stats.unverifiedMods} label={t("unverified")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
@@ -190,7 +189,7 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
           </div>
         </CommandScreenMain>
 
-        <CommandScreenSidebar title={t("wf_quick_links")}>
+        <CommandScreenSidebar title={t("wf_quick_links")} icon="rocket_launch">
           {urgentBroadcast && (
             <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-white/5 transition-all text-left group relative overflow-hidden h-24">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />

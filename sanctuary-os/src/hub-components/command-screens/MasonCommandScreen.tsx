@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
-import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile } from "../SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 
 export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies, onOpenSupportDesk, setViewingPost }: any) {
   const { t } = useLexicon();
@@ -111,7 +111,7 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
       <CommandScreenStats>
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_deployed_code")}</span>} number={stats.artifacts} label={t("items")} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => onNavigate("registry")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_collections_bookmark")}</span>} number={stats.collections} label={t("tab_cc")} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => onNavigate("collections")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_edit_document")}</span>} number={stats.posts} label={t("tab_posts")} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => onNavigate("posts")} />
+
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_bug_report")}</span>} number={stats.bugs} label={t("stat_bugs")} colorClass="border-rose-500/30 text-rose-500 hover:border-rose-500 bg-rose-500/10 hover:bg-rose-500/20" onClick={() => onNavigate("bug_reports")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_forum")}</span>} number={repliesCount} label={t("ui.replies")} colorClass="border-indigo-500/30 text-indigo-500 hover:border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20" onClick={onOpenRecentReplies} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_local_activity")}</span>} number={stats.support} label={t("wf_tab_tickets")} colorClass="border-pink-500/30 text-pink-500 hover:border-pink-500 bg-pink-500/10 hover:bg-pink-500/20" onClick={onOpenSupportDesk} />
@@ -121,11 +121,11 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
 
       <CommandScreenBody>
         <CommandScreenMain>
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6 shrink-0">{t("wf_comms_title")}</h2>
+          <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
 
           <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
 
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mt-4 mb-2 shrink-0">{t("metrics")}</h2>
+          <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
             <CommandScreenMetricTile value={t("auto_7")} label={t("items")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
             <CommandScreenMetricTile value={t("auto_1")} label={t("playsets_title")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
@@ -135,7 +135,7 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
           </div>
         </CommandScreenMain>
 
-        <CommandScreenSidebar title={t("wf_quick_links")}>
+        <CommandScreenSidebar title={t("wf_quick_links")} icon="rocket_launch">
           {urgentBroadcast && (
             <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-white/5 transition-all text-left group relative overflow-hidden h-24">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />

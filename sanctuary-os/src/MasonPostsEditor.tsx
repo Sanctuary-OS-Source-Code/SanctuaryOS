@@ -496,11 +496,11 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
                 {((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? (
-                  <button onClick={handleDiscardChanges} disabled={isSubmitting} className={standardButtonClass + (confirmDiscard ? " !border-[var(--danger)] !text-[var(--danger)] !bg-[var(--danger)]/20 shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_40%,transparent)]" : " !border-[var(--danger)]/30 !text-[var(--danger)] hover:!border-[var(--danger)]/60 hover:!bg-[var(--danger)]/10")}>
-                    {confirmDiscard ? (t("ui_confirm_discard") || "Confirm Discard") : (t("ui_btn_discard_edits") || "DISCARD EDITS")}
-                  </button>
+                  <ActionButton onClick={handleDiscardChanges} disabled={isSubmitting} label={confirmDiscard ? (t("ui_confirm_discard") || "Confirm Discard") : (t("ui_btn_discard_edits") || "DISCARD EDITS")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                    
+                  </ActionButton>
                 ) : (
-                  <button onClick={closeEditor} disabled={isSubmitting} className={standardButtonClass}>{t("nav_cancel")}</button>
+                  <ActionButton onClick={closeEditor} disabled={isSubmitting} label={t("nav_cancel")}></ActionButton>
                 )}
                 <div className="relative group/btn flex">
                   <ActionButton

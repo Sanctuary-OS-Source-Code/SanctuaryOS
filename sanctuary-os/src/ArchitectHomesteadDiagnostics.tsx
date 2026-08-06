@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { DashboardStatTile, fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName } from "./shared";
+import { DashboardStatTile, fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, ActionButton } from "./shared";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
@@ -653,13 +653,13 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         footer={
           <div className="flex flex-col gap-4 mt-4 w-full">
             {activeReport?.download_url ? (
-              <button onClick={() => window.open(activeReport.download_url, "_blank")} className="w-full h-14 theme-glass-panel border border-[var(--warning)]/50 text-[var(--warning)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--warning)]/10 transition-all shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined !text-[16px]">{t("btn_download")}</span> {t("download_source")}
-              </button>
+              <ActionButton onClick={() => window.open(activeReport.download_url, "_blank")} label={t("download_source")} icon={t("btn_download")}>
+                 
+              </ActionButton>
             ) : null}
-            <button onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((useStore.getState().activeGameSchema?.display_name || "Mod") + ' ' + cleanSearchName(activeReport?.name || '', useStore.getState().activeGameSchema))}`, "_blank")} className="w-full h-14 theme-glass-panel border border-[var(--accent)]/50 text-[var(--accent)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--accent)]/10 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined !text-[16px]">{t("icon_search")}</span> {t("search_web")}
-            </button>
+            <ActionButton onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((useStore.getState().activeGameSchema?.display_name || "Mod") + ' ' + cleanSearchName(activeReport?.name || '', useStore.getState().activeGameSchema))}`, "_blank")} label={t("search_web")} icon={t("icon_search")}>
+               
+            </ActionButton>
           </div>
         }
       >

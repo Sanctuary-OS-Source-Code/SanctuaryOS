@@ -560,16 +560,16 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
                 {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? (
-                  <button onClick={handleDiscardChanges} disabled={isSubmitting} className={standardButtonClass + (confirmDiscard ? " !border-[var(--danger)] !text-[var(--danger)] !bg-[var(--danger)]/20 shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_40%,transparent)]" : " !border-[var(--danger)]/30 !text-[var(--danger)] hover:!border-[var(--danger)]/60 hover:!bg-[var(--danger)]/10")}>
-                    {confirmDiscard ? (t("ui_confirm_discard") || "Confirm Discard") : (t("ui_btn_discard_edits") || "DISCARD EDITS")}
-                  </button>
+                  <ActionButton onClick={handleDiscardChanges} disabled={isSubmitting} label={confirmDiscard ? (t("ui_confirm_discard") || "Confirm Discard") : (t("ui_btn_discard_edits") || "DISCARD EDITS")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                    
+                  </ActionButton>
                 ) : (
-                  <button onClick={closeEditor} disabled={isSubmitting} className={standardButtonClass}>{t("nav_cancel")}</button>
+                  <ActionButton onClick={closeEditor} disabled={isSubmitting} label={t("nav_cancel")}></ActionButton>
                 )}
                 <div className="relative group/btn flex">
-                  <button onClick={handleSubmit} disabled={isSubmitting || !title || !content} className={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? standardAccentGlassButtonClass.replace('bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--accent)_30%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]').replace('text-[var(--accent)]', 'text-[var(--warning)]').replace('hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]', 'hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]') : standardAccentGlassButtonClass}>
-                    {isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
-                  </button>
+                  <ActionButton onClick={handleSubmit} disabled={isSubmitting || !title || !content} label={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}>
+                    
+                  </ActionButton>
                   {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
                     <HoverTooltip title={t("ph_unsaved_changes") || "UNSAVED EDITS"} variant="warning" className="group-hover/btn:flex z-[100]" />
                   )}

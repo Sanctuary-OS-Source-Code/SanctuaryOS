@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, standardButtonClass, standardDangerButtonClass } from "../shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton } from "../shared";
 import { useStore } from '../store';
 
 interface FlagContentSidePanelProps {
@@ -55,22 +55,20 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
       panelZ={panelZ || "z-[110006]"}
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
-          <button 
+          <ActionButton 
             type="button" 
-            onClick={onClose} 
-            className={standardButtonClass}
-            disabled={isSubmitting}
+            onClick={onClose}
+            disabled={isSubmitting} label={t("nav_cancel")}
           >
-            {t("nav_cancel")}
-          </button>
-          <button 
+            
+          </ActionButton>
+          <ActionButton 
             type="submit" 
             form="flag-form"
-            disabled={!reason.trim() || isSubmitting} 
-            className={standardDangerButtonClass}
+            disabled={!reason.trim() || isSubmitting} label={t("flag_submit")}
           >
-            {t("flag_submit")}
-          </button>
+            
+          </ActionButton>
         </div>
       }
     >

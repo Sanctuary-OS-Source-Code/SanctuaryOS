@@ -4,12 +4,11 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { supabase } from '../supabase';
-import { TabContainer } from './shared';
-import { CustomDropdown, HoverTooltip } from '../shared';
+import { SidePanel, CustomDropdown, HoverTooltip } from '../shared';
 
 const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
 
-export default function LexiconTab() {
+export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { t, registry, activeLang, setActiveLang, importLexicon, deleteLexicon, lexiconMeta, useGlobalLexicon, setUseGlobalLexicon } = useLexicon();
   const setView = useStore(state => state.setView);
   const setMarketTab = useStore(state => state.setMarketTab);
@@ -88,7 +87,9 @@ export default function LexiconTab() {
   };
 
   return (
-    <TabContainer
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
       title={t("lexicon_title")}
       icon="language"
       actions={
@@ -96,7 +97,7 @@ export default function LexiconTab() {
           <div className="relative group">
             <button
               onClick={() => setUseGlobalLexicon(!useGlobalLexicon)}
-              className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border ${useGlobalLexicon ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-xl hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]' : 'theme-glass-inner text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} flex items-center justify-center gap-2`}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border ${useGlobalLexicon ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-xl hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]' : 'theme-glass-inner text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} flex items-center justify-center gap-2`}
             >
               <span className="material-symbols-outlined !text-[14px]">{useGlobalLexicon ? 'public' : 'grid_view'}</span>
               {useGlobalLexicon ? t("scope_global") || 'Global Scope' : t("scope_workspace") || 'Workspace Scope'}
@@ -107,12 +108,12 @@ export default function LexiconTab() {
               variant="info" 
             />
           </div>
-          <button onClick={() => { setMarketTab('LEXICONS'); setView('nexus'); }} className={standardButtonClass}>{t("btn_browse")}</button>
-          <button onClick={handleImportLexicon} className={standardButtonClass}>{t("btn_import")}</button>
+          <button onClick={() => { setMarketTab('LEXICONS'); setView('nexus'); onClose(); }} className="p-2 rounded-xl theme-glass-inner hover:theme-text-accent transition-all flex items-center justify-center"><span className="material-symbols-outlined !text-lg">explore</span></button>
+          <button onClick={handleImportLexicon} className="p-2 rounded-xl theme-glass-inner hover:theme-text-accent transition-all flex items-center justify-center"><span className="material-symbols-outlined !text-lg">download</span></button>
         </>
       }
     >
-      <div className="flex flex-col gap-12">
+      <div className="flex flex-col gap-8 p-8">
 
         <div className="flex flex-col gap-6">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("installed_lexicons")}</h3>
@@ -157,46 +158,48 @@ export default function LexiconTab() {
             {t("library")}
           </h3>
 
-          <div className="flex items-center gap-4 w-full mt-4">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-4 w-full mt-4">
+            <div className="relative w-full">
               <input
                 type="text"
                 value={lexiconSearch}
                 onChange={e => setLexiconSearch(e.target.value)}
                 placeholder={t("ui_search_lexicons") || "Search lexicons..."}
-                className="w-full theme-glass-panel rounded-2xl px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text)] outline-none focus:theme-border-accent transition-all shadow-inner"
+                className="w-full theme-glass-panel rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text)] outline-none focus:theme-border-accent transition-all shadow-inner"
               />
               <span className="absolute right-6 top-1/2 -translate-y-1/2 opacity-50 text-xl material-symbols-outlined">{t("icon_search")}</span>
             </div>
 
-            <div className="w-[220px] shrink-0">
-              <CustomDropdown
-                value={selectedLibraryLang}
-                options={[
-                  { id: null, label: t("all_languages") || "All Languages" },
-                  ...uniqueLanguages.map(lang => ({ id: lang, label: lang }))
-                ]}
-                onChange={(val: any) => setSelectedLibraryLang(val?.[0] ?? null)}
-                placeholder={t("all_languages") || "All Languages"}
-                disableTint={true}
-              />
-            </div>
+            <div className="flex gap-4 w-full">
+              <div className="flex-1 min-w-0">
+                <CustomDropdown
+                  value={selectedLibraryLang}
+                  options={[
+                    { id: null, label: t("all_languages") || "All Languages" },
+                    ...uniqueLanguages.map(lang => ({ id: lang, label: lang }))
+                  ]}
+                  onChange={(val: any) => setSelectedLibraryLang(val?.[0] ?? null)}
+                  placeholder={t("all_languages") || "All Languages"}
+                  disableTint={true}
+                />
+              </div>
 
-            <div className="w-[220px] shrink-0">
-              <CustomDropdown
-                value={selectedLibraryCommunity}
-                options={[
-                  { id: null, label: "ALL COMMUNITIES" },
-                  ...uniqueCommunities.map(community => ({ id: community, label: typeof community === 'string' ? community.toUpperCase() : community }))
-                ]}
-                onChange={(val: any) => setSelectedLibraryCommunity(val?.[0] ?? null)}
-                placeholder="ALL COMMUNITIES"
-                disableTint={true}
-              />
+              <div className="flex-1 min-w-0">
+                <CustomDropdown
+                  value={selectedLibraryCommunity}
+                  options={[
+                    { id: null, label: "ALL COMMUNITIES" },
+                    ...uniqueCommunities.map(community => ({ id: community, label: typeof community === 'string' ? community.toUpperCase() : community }))
+                  ]}
+                  onChange={(val: any) => setSelectedLibraryCommunity(val?.[0] ?? null)}
+                  placeholder="ALL COMMUNITIES"
+                  disableTint={true}
+                />
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8 mt-6">
+          <div className="flex flex-col gap-4 mt-6">
             {allLexiconCodes
               .filter(code => !favoriteLexicons.includes(code))
               .filter(code => !selectedLibraryLang || getLexiconMetadata(code).language === selectedLibraryLang)
@@ -249,6 +252,6 @@ export default function LexiconTab() {
           </div>
         </div>
       </div>
-    </TabContainer>
+    </SidePanel>
   );
 }

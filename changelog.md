@@ -1,9 +1,30 @@
+**Date: August 6, 2026**
+**Version: 0.4.93**
+ 
+### **Settings Hub Architecture & Polish**
+- **Grid Architecture Revamp**: Completely tore down the legacy table rows across the Settings Hub, replacing them with a modern `SettingsGrid` and modular glassmorphic `SettingCard` components.
+- **Tab Re-Categorization**: Restructured the Settings Hub for perfect balance and mental mapping:
+  - **CORE**: Merges Identity, Auth, and Storage Path settings. Features sleek new side-panel workflows for updating emails and passwords.
+  - **ENGINE**: A dedicated tab for all game state management, timeline retention, backup targets, and defcon policies. Grouped all retention policies logically together.
+  - **PREFERENCES**: Repurposed the old Network "junk drawer" into a clean catch-all client preferences tab (Internal Browser, Offline Mode, Malware Reporting).
+- **Privacy Obfuscation Engine**: Built-in privacy masking for streamers and screenshotters. The OS now automatically intercepts and masks your Windows username in all path displays (e.g. `C:\Users\***\Desktop\...`) and correctly obfuscates your authenticated email address on the Core tab.
+- **Nuclear Override Redesign**: Scrapped the oversized, legacy red warning box in favor of a cohesive, perfectly aligned `danger` variant `SettingCard`. The critical action now perfectly matches the OS aesthetic while still demanding respect.
+- **Lexicon Harmonization**: Mapped all new settings strings across the `en-default`, `en-sanctuary`, and `Simlish` dictionaries. Renamed the confusing "Vault Max Capacity" label to "Time Capsule Limit" to correctly reflect its purpose within the Engine tab.
+- **Component Polish**: Unclamped `SettingCard` descriptions to ensure that long-form explanations (like Defcon targets) fully wrap and display without truncation.
+
+---
+
 **Date: August 5, 2026**
 **Version: 0.4.92**
  
  
  ### **Major Systems Overhaul**
   - **Visual Polish**: Standardized the active target "Selected" scan buttons, and applied dynamic glowing background tints to active blueprint cards across both the Blueprints Hub and Conflict Radar.
+  - **Ecosystem Forge Enhancements**: 
+    - **Missing Dependency Detection**: Upgraded the dependency resolution logic to correctly identify virtual/uninstalled artifacts, triggering a localized UI alert when required symbiotic entities are missing from the local vault.
+    - **Active Test Side Panel**: Replaced the raw button swaps with a massive new animated `SidePanel` component to indicate when an experiment is underway, featuring unified Action Button footer controls.
+    - **UI Polish**: Stripped redundant abort controls from the top header, updated the "Subject Isolation" badge to automatically adapt to OS theme styles (preventing dark mode text clashing on light themes), and refactored core subject buttons to leverage the official OS `ActionButton` components.
+    - **Core UI Architecture**: Fixed a TypeScript destructuring oversight in the shared `ActionButton` component, fully unlocking `form` and `onDoubleClick` prop pass-through capabilities.
 
 
 ---

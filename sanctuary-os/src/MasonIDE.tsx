@@ -515,13 +515,12 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             icon={t("icon_add")}
             footer={
                <div className="flex justify-center items-center gap-4 w-full">
-                  <button
+                  <ActionButton
                      type="button"
-                     onClick={() => { setIsCreatePanelOpen(false); setCreateFileName(""); }}
-                     className={standardGlassButtonClass}
+                     onClick={() => { setIsCreatePanelOpen(false); setCreateFileName(""); }} label={t("nav_cancel") || "Cancel"}
                   >
-                     {t("nav_cancel") || "Cancel"}
-                  </button>
+                     
+                  </ActionButton>
                   <ActionButton
                      onClick={handleCreateSubmit}
                      disabled={!createFileName.trim() || !createFileExt.trim()}

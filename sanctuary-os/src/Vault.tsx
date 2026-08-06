@@ -9,6 +9,40 @@ import { VaultToolsSidePanel, VaultLocalFolderEditorSidePanel } from './side-pan
 import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { supabase } from "./supabase";
+
+function DebouncedSearchInput({ value, onChange, placeholder }: { value: string, onChange: (val: string) => void, placeholder: string }) {
+  const [localValue, setLocalValue] = React.useState(value);
+  const { t } = useLexicon();
+
+  React.useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      if (localValue !== value) onChange(localValue);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [localValue, onChange, value]);
+
+  return (
+    <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
+      <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+      />
+      {localValue && (
+        <button onClick={() => { setLocalValue(""); onChange(""); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
+          <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
+        </button>
+      )}
+    </div>
+  );
+}
 const Vault = React.memo(function Vault(props: any) {
   const [isSidePanelOpen, setIsSidePanelOpen] = React.useState(false);
   const [activeTier3Conflict, setActiveTier3Conflict] = React.useState<any>(null);
@@ -427,21 +461,7 @@ const Vault = React.memo(function Vault(props: any) {
           </h2>
 
           <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-            <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-              <input
-                type="text"
-                placeholder={t("search_ph")}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
-                  <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-                </button>
-              )}
-            </div>
+            <DebouncedSearchInput value={searchQuery} onChange={setSearchQuery} placeholder={t("search_ph")} />
 
             <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-50 h-12">
               <CustomDropdown disableTint={true}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { SidePanel, standardButtonClass, standardDangerButtonClass, HubTabButton, HoverTooltip, CustomDropdown } from '../shared';
+import { SidePanel, standardButtonClass, standardDangerButtonClass, HubTabButton, HoverTooltip, CustomDropdown, ActionButton, SearchBar } from '../shared';
 import { WorkbenchRawEditor } from './WorkbenchRawEditor';
 import { WorkbenchVisualEditor } from './WorkbenchVisualEditor';
 import { WorkbenchEmptyVisualState } from './WorkbenchEmptyVisualState';
@@ -124,50 +124,46 @@ export function WorkbenchSidePanel({
                            className="group-hover/publishbtn:flex z-[1000] left-1/2 -translate-x-1/2 bottom-[120%]"
                         />
                      ) : null}
-                     <button
+                     <ActionButton
                         onClick={() => setIsPushModalOpen(true)}
-                        disabled={editorState.problemsList.length > 0 || !session || localStorage.getItem("sanctuary_blacklisted") === "true"}
-                        className={`${standardButtonClass} disabled:opacity-30 disabled:saturate-0`}
+                        disabled={editorState.problemsList.length > 0 || !session || localStorage.getItem("sanctuary_blacklisted") === "true"} label={t("btn_publish")} icon={t("icon_cloud_upload")}
                      >
-                        <span className="material-symbols-outlined !text-[18px]">{t("icon_cloud_upload")}</span>
-                        {t("btn_publish")}
-                     </button>
+                        
+                        
+                     </ActionButton>
                   </div>
                )}
                <div className="relative group">
                   {editorState.problemsList.length > 0 && hasUnsavedChanges ? (
                      layoutState.confirmSaveWithErrors ? (
                         <div className="flex items-center gap-2">
-                           <button
-                              onClick={() => layoutState.setConfirmSaveWithErrors(false)}
-                              className="px-6 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all hover:scale-105 active:scale-95 group"
+                           <ActionButton
+                              onClick={() => layoutState.setConfirmSaveWithErrors(false)} label={t("nav_cancel")} icon="close"
                            >
-                              <span className="material-symbols-outlined !text-[20px] opacity-60 group-hover:opacity-100 transition-opacity">close</span>
-                              {t("nav_cancel")}
-                           </button>
-                           <button
+                              
+                              
+                           </ActionButton>
+                           <ActionButton
                               onClick={() => {
                                  layoutState.setConfirmSaveWithErrors(false);
                                  fileState.saveConfig(editorState.rawText);
                               }}
-                              disabled={fileState.isSaving}
-                              className={`${standardDangerButtonClass} shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)]`}
+                              disabled={fileState.isSaving} label={t("btn_confirm_save_errors") || "FORCE SAVE"} icon="check" className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
                            >
-                              <span className="material-symbols-outlined !text-[18px]">check</span>
-                              {t("btn_confirm_save_errors") || "FORCE SAVE"}
-                           </button>
+                              
+                              
+                           </ActionButton>
                         </div>
                      ) : (
                         <div className="relative group">
                            <HoverTooltip title={t("save_with_errors_warning") || "Saving not recommended until errors resolved"} variant="danger" className="z-[100] right-0 translate-x-0 left-auto bottom-[120%]" />
-                           <button
+                           <ActionButton
                               onClick={() => layoutState.setConfirmSaveWithErrors(true)}
-                              disabled={fileState.isSaving}
-                              className={standardDangerButtonClass}
+                              disabled={fileState.isSaving} label={fileState.isSaving ? (t("btn_saving")) : (t("btn_save_with_errors") || "SAVE WITH ERRORS")} icon="warning"
                            >
-                              <span className={`material-symbols-outlined !text-[18px] ${fileState.isSaving ? 'animate-spin' : ''}`}>warning</span>
-                              {fileState.isSaving ? (t("btn_saving")) : (t("btn_save_with_errors") || "SAVE WITH ERRORS")}
-                           </button>
+                              
+                              
+                           </ActionButton>
                         </div>
                      )
                   ) : (
@@ -175,18 +171,13 @@ export function WorkbenchSidePanel({
                         {hasUnsavedChanges && (
                            <HoverTooltip title={t("unsaved_changes")} variant="warning" className="z-[100] right-0 translate-x-0 left-auto bottom-[120%]" />
                         )}
-                        <button
+                        <ActionButton
                            onClick={() => fileState.saveConfig(editorState.rawText)}
-                           disabled={!hasUnsavedChanges || fileState.isSaving}
-                           className={
-                              hasUnsavedChanges
-                                 ? standardButtonClass.replace('bg-[color-mix(in_srgb,var(--text)_5%,transparent)]', 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]').replace('border-[color-mix(in_srgb,var(--text)_10%,transparent)]', 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_25%,transparent)] hover:shadow-[0_5px_20px_rgba(245,158,11,0.4)]')
-                                 : standardButtonClass
-                           }
+                           disabled={!hasUnsavedChanges || fileState.isSaving} label={fileState.isSaving ? (t("btn_saving")) : (t("save"))} icon={t("icon_save")}
                         >
-                           <span className={`material-symbols-outlined !text-[18px] ${fileState.isSaving ? 'animate-spin' : ''}`}>{t("icon_save")}</span>
-                           {fileState.isSaving ? (t("btn_saving")) : (t("save"))}
-                        </button>
+                           
+                           
+                        </ActionButton>
                      </div>
                   )}
                </div>
@@ -218,15 +209,11 @@ export function WorkbenchSidePanel({
                            <div className="flex flex-col gap-2 shrink-0 mb-4">
                               <div className="flex flex-row items-center gap-2 w-full">
                                  <div className="flex-[2] min-w-[120px] relative">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] flex items-center pointer-events-none">
-                                       <span className="material-symbols-outlined !text-[18px]">{t("icon_search")}</span>
-                                    </div>
-                                    <input
-                                       type="text"
-                                       placeholder={t("workbench_search_placeholder")}
+                                    <SearchBar
                                        value={searchQuery}
-                                       onChange={(e) => setSearchQuery(e.target.value)}
-                                       className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl pl-12 pr-5 py-2.5 h-10 text-[var(--text)] text-[11px] font-black tracking-wider focus:outline-none focus:theme-border-accent transition-all shadow-inner"
+                                       onChange={setSearchQuery}
+                                       placeholder={t("workbench_search_placeholder") || "Search..."}
+                                       className="rounded-xl h-10"
                                     />
                                  </div>
 

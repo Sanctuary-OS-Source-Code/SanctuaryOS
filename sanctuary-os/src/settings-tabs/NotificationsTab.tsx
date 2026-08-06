@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLexicon } from '../LexiconContext';
-import { TabContainer } from './shared';
+import { TabContainer, SettingsGrid, SettingCard, SettingsToggle } from './shared';
 import { SidePanel } from '../shared';
 import { supabase } from '../supabase';
 
@@ -90,67 +90,50 @@ export default function NotificationsTab() {
           </button>
         }
       >
-      <div className="grid xl:grid-cols-2 gap-8">
-        <div className="flex items-center justify-between p-8 rounded-[var(--radius)] theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={toggleNotifyReplies}>
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("ui.replies")}</span>
-            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("notify_replies_desc")}</span>
-          </div>
-          <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${notifyReplies ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-            <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${notifyReplies ? 'translate-x-8' : 'translate-x-0'}`} />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-8 rounded-[var(--radius)] theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={toggleNotifySupport}>
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("notify_support")}</span>
-            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("notify_support_desc")}</span>
-          </div>
-          <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${notifySupport ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-            <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${notifySupport ? 'translate-x-8' : 'translate-x-0'}`} />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-8 rounded-[var(--radius)] theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={toggleNotifyNewPosts}>
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("notify_new_posts")}</span>
-            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("notify_new_posts_desc")}</span>
-          </div>
-          <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${notifyNewPosts ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-            <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${notifyNewPosts ? 'translate-x-8' : 'translate-x-0'}`} />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-8 rounded-[var(--radius)] theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={toggleNotifyAuthorOnly}>
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("notify_author_only")}</span>
-            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("notify_author_only_desc")}</span>
-          </div>
-          <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${notifyAuthorOnly ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-            <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${notifyAuthorOnly ? 'translate-x-8' : 'translate-x-0'}`} />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-8 rounded-[var(--radius)] theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={toggleNotifySystemDispatch}>
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("notify_system_dispatch") || "System Dispatch"}</span>
-            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("notify_system_dispatch_desc") || "Receive notifications for system broadcasts and urgent alerts"}</span>
-          </div>
-          <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${notifySystemDispatch ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-            <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${notifySystemDispatch ? 'translate-x-8' : 'translate-x-0'}`} />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-8 rounded-[var(--radius)] theme-glass-panel hover:theme-border-accent transition-all cursor-pointer group shadow-xl hover:scale-[1.02] active:scale-95" onClick={toggleNotifyAlertBanner}>
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("notify_alert_banner") || "Alert Banners"}</span>
-            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-relaxed">{t("notify_alert_banner_desc") || "Show urgent alert banners prominently on your dashboard."}</span>
-          </div>
-          <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${notifyAlertBanner ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-            <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${notifyAlertBanner ? 'translate-x-8' : 'translate-x-0'}`} />
-          </div>
-        </div>
-        </div>
+        <SettingsGrid>
+          <SettingCard 
+            title={t("ui.replies") || "Replies"} 
+            description={t("notify_replies_desc")} 
+            icon="chat_bubble"
+            onClick={toggleNotifyReplies}
+            action={<SettingsToggle checked={notifyReplies} />}
+          />
+          <SettingCard 
+            title={t("btn_new_posts") || "New Posts"} 
+            description={t("notify_new_posts_desc")} 
+            icon="post_add"
+            onClick={toggleNotifyNewPosts}
+            action={<SettingsToggle checked={notifyNewPosts} />}
+          />
+          <SettingCard 
+            title={t("notify_system_dispatch") || "System Dispatch"} 
+            description={t("notify_system_dispatch_desc")} 
+            icon="admin_panel_settings"
+            onClick={toggleNotifySystemDispatch}
+            action={<SettingsToggle checked={notifySystemDispatch} />}
+          />
+          <SettingCard 
+            title={t("notify_alert_banner") || "Alert Banners"} 
+            description={t("notify_alert_banner_desc")} 
+            icon="warning"
+            onClick={toggleNotifyAlertBanner}
+            action={<SettingsToggle checked={notifyAlertBanner} />}
+          />
+          <SettingCard 
+            title={t("notify_support") || "Support Replies"} 
+            description={t("notify_support_desc")} 
+            icon="contact_support"
+            onClick={toggleNotifySupport}
+            action={<SettingsToggle checked={notifySupport} />}
+          />
+          <SettingCard 
+            title={t("notify_author_only") || "Author Only"} 
+            description={t("notify_author_only_desc")} 
+            icon="person"
+            onClick={toggleNotifyAuthorOnly}
+            action={<SettingsToggle checked={notifyAuthorOnly} />}
+          />
+        </SettingsGrid>
       </TabContainer>
 
       <SidePanel
@@ -161,19 +144,20 @@ export default function NotificationsTab() {
         icon={t("icon_notifications")}
         iconColorClass="theme-text-accent"
       >
-        <div className="flex flex-col space-y-4 relative z-10 w-full h-full p-4">
+        <div className="flex flex-col space-y-4 relative z-10 w-full h-full p-4 overflow-y-auto accent-scrollbar">
           {followedMasons.length === 0 && <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 text-center mt-12 p-8 theme-glass-inner border border-dashed border-white/10 rounded-[var(--radius)]">{t("settings_no_masons")}</div>}
-          {followedMasons.map(m => (
-            <div key={m.id} className="flex items-center justify-between p-6 rounded-[var(--radius)] theme-glass-inner border border-white/10 hover:border-white/30 hover:-translate-y-1 backdrop-blur-xl transition-all group cursor-pointer shadow-lg hover:shadow-2xl" onClick={() => toggleMasonAlert(m.id)}>
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-black uppercase tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors">{m.name}</span>
-                <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 tracking-widest">{m.handle}</span>
-              </div>
-              <div className={`w-16 h-8 rounded-full transition-colors flex items-center p-1 shrink-0 ${masonAlerts[m.id] ? 'theme-bg-accent shadow-[0_0_15px_var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-                <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-[0_0_10px_rgba(0,0,0,0.5)] ${masonAlerts[m.id] ? 'translate-x-8' : 'translate-x-0'}`} />
-              </div>
-            </div>
-          ))}
+          <SettingsGrid>
+            {followedMasons.map(m => (
+              <SettingCard 
+                key={m.id} 
+                title={m.name} 
+                description={m.handle} 
+                icon="person"
+                onClick={() => toggleMasonAlert(m.id)}
+                action={<SettingsToggle checked={masonAlerts[m.id]} />}
+              />
+            ))}
+          </SettingsGrid>
         </div>
       </SidePanel>
     </>
