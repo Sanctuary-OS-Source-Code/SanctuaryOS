@@ -60,6 +60,7 @@ textarea,
   --bg-primary: #0f172a;
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.1);
+  --radius: 1.5rem;
   --radius-main: 1.5rem;
   --radius-card: 2.5rem;
 }

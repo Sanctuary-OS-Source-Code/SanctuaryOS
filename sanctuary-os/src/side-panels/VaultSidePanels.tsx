@@ -35,16 +35,13 @@ export function VaultToolsSidePanel({
       >
         <div className="flex flex-col gap-6">
            {playSets && playSets.length > 0 && (
-             <div className="theme-glass-panel border border-white/5 rounded-[var(--radius)] p-6 shadow-lg relative overflow-hidden group/card">
-               <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
-               <div className="flex items-center gap-4 mb-6 relative z-10">
-                 <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--accent)]">
-                   <span className="material-symbols-outlined !text-[20px]">{t("icon_layers")}</span>
-                 </div>
-                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("type_blueprint")}</h3>
+             <div className="flex flex-col gap-4 pb-6 border-b border-white/5">
+               <div className="flex items-center gap-3">
+                 <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">{t("icon_layers")}</span>
+                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("type_blueprint")}</h3>
                </div>
                
-               <div className="flex gap-2 relative z-10">
+               <div className="flex gap-2">
                  <div className="flex-1">
                    <CustomDropdown
                      disableTint={true}
@@ -55,53 +52,22 @@ export function VaultToolsSidePanel({
                  </div>
                  <button
                    onClick={() => equipPlaySet && equipPlaySet(playSets[activePlaySetIndex]?.name)}
-                   className="h-14 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] text-[10px] font-black uppercase tracking-widest shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-2 shrink-0"
+                   className="h-10 px-4 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0"
                  >
-                   <span className="material-symbols-outlined !text-[18px]">{t("icon_check_circle")}</span> {t("auto_save")}
+                   <span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span> {t("auto_save")}
                  </button>
                </div>
              </div>
            )}
 
-           <div className="theme-glass-panel border border-white/5 rounded-[var(--radius)] p-6 shadow-lg relative overflow-hidden group/card">
-             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
-             <div className="flex items-center gap-4 mb-6 relative z-10">
-               <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--text)]">
-                 <span className="material-symbols-outlined !text-[20px]">{t("icon_bolt")}</span>
-               </div>
-               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("sidebar_actions")}</h3>
+           <div className="flex flex-col gap-4 pb-6 border-b border-white/5">
+             <div className="flex items-center gap-3">
+               <span className="material-symbols-outlined !text-[18px] text-[var(--text)]">{t("icon_bolt")}</span>
+               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("sidebar_actions")}</h3>
              </div>
              
-             <div className="flex flex-col gap-3 relative z-10">
+             <div className="flex flex-col gap-2">
                <SidebarActionButton id="REFRESH" icon="refresh" label={t("btn_radar")} onClick={() => { runRadarSweep(true); setIsSidePanelOpen(false); }} active={false} />
-               <SidebarActionButton 
-                 id="SELECT_ASSETS" 
-                 icon={isBulkMode ? "cancel" : "checklist"} 
-                 label={isBulkMode ? t("nav_cancel") : t("btn_select_assets")} 
-                 onClick={() => { setIsBulkMode(!isBulkMode); setIsSidePanelOpen(false); }} 
-                 active={isBulkMode} 
-                 danger={isBulkMode}
-               />
-               <SidebarActionButton 
-                 id="SELECT_ALL" 
-                 icon="library_add_check" 
-                 label={t("btn_select_all")} 
-                 onClick={() => {
-                   if (!isBulkMode) setIsBulkMode(true);
-                   const allNames = finalVisibleMods.map((m: any) => m.name);
-                   if (allNames.length > 0) {
-                     const allSelected = allNames.every((n: string) => selectedMods.includes(n));
-                     if (allSelected) {
-                       setSelectedMods([]);
-                     } else {
-                       const newSelected = new Set([...selectedMods, ...allNames]);
-                       setSelectedMods(Array.from(newSelected));
-                     }
-                   }
-                   setIsSidePanelOpen(false);
-                 }} 
-                 active={false} 
-               />
                {equipFilter === "ARCHIVES" && (
                  <SidebarActionButton 
                    id="PURGE_FOLDER" 
@@ -134,16 +100,13 @@ export function VaultToolsSidePanel({
              if (localSets.length === 0) return null;
              
              return (
-               <div className="theme-glass-panel border border-white/5 rounded-[var(--radius)] p-6 shadow-lg relative overflow-hidden group/card mt-2">
-                 <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                 <div className="flex items-center gap-4 mb-6 relative z-10">
-                   <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--accent)]">
-                     <span className="material-symbols-outlined !text-[20px]">{t("icon_folder")}</span>
-                   </div>
-                   <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("local_folders")}</h3>
+               <div className="flex flex-col gap-4">
+                 <div className="flex items-center gap-3">
+                   <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">{t("icon_folder")}</span>
+                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("local_folders")}</h3>
                  </div>
                  
-                 <div className="flex gap-2 relative z-10">
+                 <div className="flex gap-2">
                    <div className="flex-1">
                      <CustomDropdown
                        disableTint={true}
@@ -158,9 +121,9 @@ export function VaultToolsSidePanel({
                          if (!target) return;
                          setIsLocalFolderEditorOpen(true);
                      }}
-                     className="h-14 px-4 rounded-2xl bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-white/10 text-[var(--text)]/70 backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:text-[var(--text)] font-black shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center shrink-0"
+                     className="h-10 px-4 rounded-xl theme-glass-inner text-[var(--text)] hover:bg-white/10 hover:text-white transition-all flex items-center justify-center shrink-0 border border-white/5"
                    >
-                     <span className="material-symbols-outlined !text-[18px]">{t("icon_edit")}</span>
+                     <span className="material-symbols-outlined !text-[16px]">{t("icon_edit")}</span>
                    </button>
                  </div>
                </div>
@@ -216,58 +179,52 @@ export function VaultLocalFolderEditorSidePanel({
           if (!targetSet) return null;
           
           return (
-            <div className="flex flex-col gap-6 h-full">
-              <div className="theme-glass-panel border border-white/5 rounded-[var(--radius)] p-6 shadow-lg relative overflow-hidden group/card shrink-0">
-                 <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                 <div className="flex flex-col gap-3 relative z-10">
-                   <label className="text-[9px] font-black uppercase text-[var(--subtext)] tracking-widest pl-2 opacity-60">
-                     {t("local_folders_rename_prompt")}
-                   </label>
-                   <div className="flex gap-2">
-                     <input
-                       type="text"
-                       value={renameFolderInput === "" ? targetSet.name : renameFolderInput}
-                       onChange={(e) => setRenameFolderInput(e.target.value)}
-                       className="flex-1 h-14 bg-black/20 border border-white/10 rounded-2xl px-4 text-[11px] font-black uppercase tracking-widest text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-all"
-                     />
-                     <button
-                       onClick={() => {
-                           const val = renameFolderInput === "" ? targetSet.name : renameFolderInput;
-                           if (val.trim() && val.trim() !== targetSet.name) {
-                               const updated = localSets.map((s: any) => s.id === target ? { ...s, name: val.trim() } : s);
-                               localStorage.setItem("sanctuary_local_sets", JSON.stringify(updated));
-                               setRenameFolderInput("");
-                               runRadarSweep(true);
-                           }
-                       }}
-                       className="h-14 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] font-black shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center shrink-0 uppercase tracking-widest text-[10px]"
-                     >
-                       {t("auto_save")}
-                     </button>
-                   </div>
+            <div className="flex flex-col gap-8 h-full p-4">
+              <div className="flex flex-col gap-4">
+                 <label className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest opacity-60">
+                   {t("local_folders_rename_prompt")}
+                 </label>
+                 <div className="flex gap-2">
+                   <input
+                     type="text"
+                     value={renameFolderInput === "" ? targetSet.name : renameFolderInput}
+                     onChange={(e) => setRenameFolderInput(e.target.value)}
+                     className="flex-1 h-10 bg-black/20 border border-white/10 rounded-xl px-4 text-[11px] font-black uppercase tracking-widest text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-all"
+                   />
+                   <button
+                     onClick={() => {
+                         const val = renameFolderInput === "" ? targetSet.name : renameFolderInput;
+                         if (val.trim() && val.trim() !== targetSet.name) {
+                             const updated = localSets.map((s: any) => s.id === target ? { ...s, name: val.trim() } : s);
+                             localStorage.setItem("sanctuary_local_sets", JSON.stringify(updated));
+                             setRenameFolderInput("");
+                             runRadarSweep(true);
+                         }
+                     }}
+                     className="h-10 px-4 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] font-black transition-all flex items-center justify-center shrink-0 uppercase tracking-widest text-[10px]"
+                   >
+                     {t("auto_save")}
+                   </button>
                  </div>
               </div>
 
-              <div className="theme-glass-panel border border-white/5 rounded-[var(--radius)] p-6 shadow-lg relative overflow-hidden group/card flex-1 flex flex-col min-h-0">
-                 <div className="absolute inset-0 bg-gradient-to-tl from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                 <div className="flex items-center gap-4 mb-6 relative z-10 shrink-0">
-                   <div className="w-10 h-10 rounded-[0.85rem] bg-black/20 flex items-center justify-center border border-white/10 shadow-inner text-[var(--text)]">
-                     <span className="material-symbols-outlined !text-[20px]">{t("icon_inventory_2")}</span>
-                   </div>
-                   <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("local_folders_contents")}</h3>
+              <div className="flex-1 flex flex-col min-h-0 pt-6 border-t border-white/5">
+                 <div className="flex items-center gap-3 mb-6 shrink-0">
+                   <span className="material-symbols-outlined !text-[18px] text-[var(--text)]">{t("icon_inventory_2")}</span>
+                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("local_folders_contents")}</h3>
                  </div>
                  
-                 <div className="flex-1 flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-2 relative z-10">
+                 <div className="flex-1 flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-2">
                    {targetSet.items.map((hash: string) => {
                      const art = displayModList.find((m: any) => m.hash === hash);
                      if (!art) return null;
                      return (
-                       <div key={hash} className="theme-glass-inner p-3 rounded-2xl flex items-center gap-4 group/item transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/5 hover:theme-border-accent">
+                       <div key={hash} className="theme-glass-inner p-3 rounded-xl flex items-center gap-4 group/item transition-colors hover:bg-white/5 border border-white/5 hover:border-white/10">
                          <div className="flex-1 flex flex-col min-w-0">
                            <span className="text-[11px] font-black text-[var(--text)] truncate uppercase">
                              {(art.displayName || art.name).replace(/_/g, " ").replace(/\.[^/.]+$/, "")}
                            </span>
-                           <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">
+                           <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">
                              {art.author || t("unknown_mason") || "Unknown Mason"}
                            </span>
                          </div>
@@ -278,9 +235,9 @@ export function VaultLocalFolderEditorSidePanel({
                              localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
                              runRadarSweep(true);
                            }}
-                           className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border border-white/5 text-[var(--text)]/50 flex items-center justify-center shrink-0 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:text-[var(--danger)] transition-all hover:scale-110"
+                           className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border border-white/5 text-[var(--text)]/50 flex items-center justify-center shrink-0 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:text-[var(--danger)] transition-all hover:scale-110"
                          >
-                           <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
+                           <span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span>
                          </button>
                        </div>
                      );
@@ -293,7 +250,7 @@ export function VaultLocalFolderEditorSidePanel({
                    )}
                  </div>
                  
-                 <div className="pt-6 mt-2 border-t border-white/5 shrink-0 relative z-10">
+                 <div className="pt-6 mt-4 border-t border-white/5 shrink-0">
                    <button
                      onClick={() => {
                        if (confirmDeleteId === target) {
@@ -307,7 +264,7 @@ export function VaultLocalFolderEditorSidePanel({
                          setConfirmDeleteId(target);
                        }
                      }}
-                     className={`w-full h-14 rounded-2xl border backdrop-blur-md font-black shadow-sm transition-all flex items-center justify-center uppercase tracking-widest text-[11px] ${confirmDeleteId === target ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] shadow-[0_0_20px_rgba(220,38,38,0.2)] animate-pulse' : 'bg-transparent border-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)]/60 hover:bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)]'}`}
+                     className={`w-full h-10 rounded-xl border font-black transition-all flex items-center justify-center uppercase tracking-widest text-[10px] ${confirmDeleteId === target ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] shadow-[0_0_20px_rgba(220,38,38,0.2)] animate-pulse' : 'bg-transparent border-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)]/60 hover:bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)]'}`}
                    >
                      {confirmDeleteId === target ? (t("local_folders_confirm_delete")) : (t("local_folders_delete"))}
                    </button>

@@ -388,7 +388,7 @@ export default function Blueprints({
 
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 w-full">
-      <ViewHeader title={t("playsets_title")} subtitle={t("playsets_subtitle")} icon={t("icon_map")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
+      <ViewHeader title={t("playsets_title")} subtitle={t("playsets_subtitle")} icon={t("icon_map")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" shape="circle" />
 
       <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
         <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
@@ -436,7 +436,6 @@ export default function Blueprints({
               <CommandScreenMain>
                 <div className="flex flex-col gap-6 w-full">
                   <CommandScreenSectionHeading 
-                    shape="circle"
                     title={t("pinned_blueprints") || "PINNED BLUEPRINTS"} 
                     icon="keep"
                   />
@@ -562,7 +561,7 @@ export default function Blueprints({
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
           <div className="flex items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full">
             <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-indigo-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-full theme-glass-panel border border-indigo-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-[24px] text-indigo-500 opacity-90 drop-shadow-lg">map</span>
               </div>
               <span className="truncate">{t("playsets_title") || "VAULT"}</span>

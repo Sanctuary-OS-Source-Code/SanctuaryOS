@@ -299,11 +299,24 @@ export function MarketBlueprintPanel({
       setEnrichedBlueprint(null);
       return;
     }
-    setEnrichedBlueprint(selectedBlueprint);
+
+    let parsedJson = selectedBlueprint.json_data;
+    if (typeof parsedJson === 'string') {
+      try { parsedJson = JSON.parse(parsedJson); } catch (e) { parsedJson = {}; }
+    }
+    parsedJson = parsedJson || {};
+
+    // Ensure artifacts are picked up even if stored at the root of the blueprint
+    parsedJson.artifacts = parsedJson.artifacts || selectedBlueprint.artifacts || [];
+
+    setEnrichedBlueprint({
+      ...selectedBlueprint,
+      json_data: parsedJson
+    });
     setVisibleCount(100);
 
     const fetchPremiumStatus = async () => {
-      const artifacts = selectedBlueprint.json_data?.artifacts || [];
+      const artifacts = parsedJson.artifacts || [];
       const hashes = artifacts.map((a: any) => a.hash).filter(Boolean);
       if (hashes.length === 0) return;
 
@@ -361,7 +374,7 @@ export function MarketBlueprintPanel({
         ...selectedBlueprint,
         is_paid: selectedBlueprint.is_paid || finalArtifacts.some((a: any) => a.is_paid),
         is_early_access: selectedBlueprint.is_early_access || finalArtifacts.some((a: any) => a.is_early_access),
-        json_data: { ...selectedBlueprint.json_data, artifacts: finalArtifacts }
+        json_data: { ...parsedJson, artifacts: finalArtifacts }
       });
     };
     fetchPremiumStatus();
@@ -442,8 +455,8 @@ export function MarketBlueprintPanel({
                 <span className="theme-text-accent">{enrichedBlueprint.json_data.artifacts?.length || 0}</span> {t("blueprint_included")}
               </h3>
               <FilterTabs className="h-9">
-                <FilterTabButton id="ALL" label={t("blueprint_tab_all") || "All Artifacts"} activeTab={filterTab} setTab={setFilterTab} />
-                <FilterTabButton id="MISSING" label={t("blueprint_tab_missing") || "Missing from Vault"} activeTab={filterTab} setTab={setFilterTab} />
+                <FilterTabButton id="ALL" label={t("artifacts_tab_all") || "All Artifacts"} activeTab={filterTab} setTab={setFilterTab} />
+                <FilterTabButton id="MISSING" label={t("artifacts_tab_missing") || "Missing from Vault"} activeTab={filterTab} setTab={setFilterTab} />
               </FilterTabs>
             </div>
 

@@ -894,9 +894,11 @@ function App() {
   useEffect(() => {
     let unlisten: any;
 
+    if (!activeGameSchema?.extensions?.supported) return;
+
     // Start the Rust downloads watcher
     invoke("start_downloads_watch", {
-      extensions: [".zip", ".rar", ".7z", ".package", ".ts4script"]
+      extensions: activeGameSchema.extensions.supported
     }).catch(console.warn);
 
     listen("download_intercepted", (event: any) => {
@@ -914,7 +916,7 @@ function App() {
       if (unlisten) unlisten();
       invoke("stop_downloads_watch").catch(console.warn);
     };
-  }, []);
+  }, [activeGameSchema]);
   useEffect(() => {
     fetchBackups();
   }, []);
@@ -2249,6 +2251,7 @@ function App() {
                 {view === "lab" && (
                   <ErrorBoundary moduleName="Homestead Lab">
                     <Lab
+                      onOpenDossier={setActiveDossier}
                       executeHotSwap={runProvingRun}
                       shelterActive={shelterActive}
                       labSearchQuery={labSearchQuery}
@@ -2478,6 +2481,20 @@ function App() {
           finalizeImport={finalizeImport}
           setIsDropzoneOpen={setIsDropzoneOpen}
           confirmDialog={confirmDialog}
+          resolveDisplayName={(modName: string) => {
+            if (modName.startsWith("FOLDER ")) {
+              const id = modName.replace("FOLDER ", "");
+              const ls = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]").find((s: any) => s.id === id);
+              if (ls) return ls.name;
+            }
+            if (modName.startsWith("SET ")) {
+              const id = modName.replace("SET ", "");
+              const ps = playSets.find((s: any) => s.id === id);
+              if (ps) return ps.name;
+            }
+            const found = modList.find((m: any) => m.name === modName);
+            return found ? (found.displayName || found.name) : modName.replace(/_/g, " ").replace(/\.[^/.]+$/, "");
+          }}
           setConfirmDialog={setConfirmDialog}
           isBulkMode={isBulkMode}
           openBulk={setBulkModal}

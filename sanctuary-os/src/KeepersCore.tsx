@@ -6,10 +6,11 @@ import { IdentityMatrix } from './IdentityMatrix';
 import MasonIDE from './MasonIDE';
 import { WayfinderChameleons } from './hub-components/WayfinderChameleons';
 import KeepersActiveGames from './hub-components/KeepersActiveGames';
+import { KeeperCommandScreen } from "./hub-components/CommandScreens";
 
 export default function KeepersCore() {
   const { t } = useLexicon();
-  const activeTab = useStore(state => state.keepersActiveTab || "active_games");
+  const activeTab = useStore(state => state.keepersActiveTab || "command_center");
   const setActiveTab = useStore(state => state.setKeepersActiveTab || (() => { }));
 
   return (
@@ -19,6 +20,7 @@ export default function KeepersCore() {
 
       <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
         <div className="flex items-center overflow-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 shrink-0">
+          <HubTabButton id="command_center" icon={t("icon_desktop_windows") || "desktop_windows"} label={t("wf_tab_command") || "Command Center"} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="active_games" icon="dns" label="Active Workspaces" activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="identities" icon="group" label="Citizen Oversight" activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="ide" icon="code" label="Keepers IDE" activeTab={activeTab} setTab={setActiveTab} />
@@ -27,6 +29,7 @@ export default function KeepersCore() {
       </div>
 
       <div className="w-full flex-1 flex flex-col min-h-0">
+        {activeTab === "command_center" && <KeeperCommandScreen setTab={setActiveTab} />}
         {activeTab === "active_games" && <KeepersActiveGames />}
         {activeTab === "identities" && <IdentityMatrix isWayfinder={false} isKeepers={true} />}
         {activeTab === "ide" && <MasonIDE isCloudMode={true} cloudTarget="sanctuary_lexicons" isKeepers={true} />}

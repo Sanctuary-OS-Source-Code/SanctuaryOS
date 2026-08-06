@@ -4,7 +4,7 @@ import { isSupportedExtension } from '../shared';
 export function useModFiltering(displayModList: any[], playSets: any[], activeSetName: string, activeGameSchema: any, t: any) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
-  const [equipFilter, setEquipFilter] = useState("ALL");
+  const [equipFilter, setEquipFilter] = useState("OVERVIEW");
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [activeSubType, setActiveSubType] = useState("ALL");
   const [expandedFolder, setExpandedFolder] = useState<string | null>(null);
@@ -105,7 +105,7 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
           (equipFilter === "UNEQUIPPED" && !isActuallyEquipped);
         const modType = (m.category_override || m.type || "NONE").toUpperCase();
         const matchesCategory =
-          activeCategory === "ALL" || modType === activeCatUpper;
+          activeCategory === "ALL" || (activeCategory === "LOCAL_FOLDERS" ? (m.isVirtual || mod.isVirtual) : modType === activeCatUpper);
         const subType = (m.sub_type || "").toUpperCase();
         const matchesSubType =
           activeSubType === "ALL" || subType === activeSubUpper;

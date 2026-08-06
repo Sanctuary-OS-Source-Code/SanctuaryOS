@@ -38,6 +38,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
         subtitle={t("cc_subtitle")}
         icon={t("icon_cloud")}
         iconColorClass="text-sky-400 border-sky-500/30"
+        shape="circle"
       >
         <div className="flex flex-col items-end">
           <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("cc_deployed")}</span>

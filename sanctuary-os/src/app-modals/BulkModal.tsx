@@ -1,36 +1,45 @@
 import React from 'react';
-import { createPortal } from "react-dom";
 import { useLexicon } from "../LexiconContext";
+import { SidePanel, SidePanelActionFooter } from "../shared";
 
-export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods }: any) {
+export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods, resolveDisplayName }: any) {
   const { t } = useLexicon();
 
   if (!bulkModal) return null;
 
-  return createPortal(
-    <>
-      <div className="fixed top-0 right-0 bottom-10 z-[115000] bg-black/0 backdrop-blur-[2px] animate-in fade-in duration-500 transition-all" style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setBulkModal(false)} />
-      <div className="fixed top-0 right-0 bottom-10 w-full max-w-xl theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex flex-col z-[115001] animate-in slide-in-from-right duration-500" onClick={e => e.stopPropagation()}>
-        <button onClick={() => setBulkModal(false)} className="absolute top-12 right-6 z-50 w-12 h-12 bg-black/40 backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--text)]/70 hover:text-[var(--accent)] rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-110 active:scale-95">
-          <span className="material-symbols-outlined !text-[24px]">{t("icon_close")}</span>
-        </button>
-
-        <div className="h-40 relative bg-black border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden">
-          <div className="w-full h-full flex items-center justify-center opacity-40 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-            <span className="material-symbols-outlined text-[var(--accent)] !leading-none" style={{ fontSize: '100px' }}>{t("icon_architecture")}</span>
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--accent)_30%,transparent)] to-transparent pointer-events-none" />
-        </div>
-        
-        <div className="px-10 pt-8 pb-4 relative shrink-0">
-          <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate">{t("bulk_title")}</h3>
-          <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-2">
-            {t("bulk_desc1")} <span className="text-[var(--text)] font-black">{selectedMods?.length || 0}</span> {t("bulk_desc2")}
-          </p>
-        </div>
-
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-10 flex flex-col gap-6">
-          <div className="space-y-4">
+  return (
+    <SidePanel
+      isOpen={bulkModal}
+      onClose={() => setBulkModal(false)}
+      title={t("bulk_title")}
+      subtitle={`${t("bulk_desc1")} ${selectedMods?.length || 0} ${t("bulk_desc2")}`}
+      icon="architecture"
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[700px]"
+      backdropZ="z-[115000]"
+      panelZ="z-[115001]"
+      ambientGlows={
+        <>
+          <div className="absolute -top-20 -right-20 w-96 h-96 bg-[var(--accent)] opacity-20 blur-[100px] rounded-full pointer-events-none" />
+          <div className="absolute bottom-1/3 -left-32 w-96 h-96 bg-[var(--text)] opacity-10 blur-[100px] rounded-full pointer-events-none" />
+        </>
+      }
+      footer={
+        <SidePanelActionFooter
+          actionLabel={t("btn_draft")}
+          actionIcon="add_box"
+          onAction={executeBulkDraft}
+          actionVariant="accent"
+          cancelLabel={t("nav_cancel")}
+          onCancel={() => setBulkModal(false)}
+        />
+      }
+    >
+      <div className="flex flex-col gap-6 p-8 h-full min-h-[400px]">
+        {/* Sleek Segmented Input Row */}
+        <div className="flex items-center w-full overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0">
+          <div className="relative flex-1 h-full flex items-center">
+            <span className="absolute left-4 opacity-50 text-[18px] material-symbols-outlined pointer-events-none">architecture</span>
             <input 
               autoFocus 
               type="text" 
@@ -38,21 +47,39 @@ export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, exec
               onChange={(e) => setBulkName(e.target.value)} 
               onKeyDown={(e) => e.key === "Enter" && executeBulkDraft()} 
               placeholder={t("draft_placeholder")}
-              className="w-full theme-glass-inner px-5 py-4 rounded-xl text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all" 
+              className="w-full h-full bg-transparent border-none outline-none px-4 pl-12 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text)]"
             />
           </div>
-        </div>
-        
-        <div className="p-8 flex justify-center items-center gap-4 shrink-0 relative z-20 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
           <button 
-            onClick={executeBulkDraft}
-            className="px-16 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all hover:scale-[1.02] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center gap-2"
+             onClick={executeBulkDraft}
+             disabled={!bulkName?.trim() || selectedMods?.length === 0}
+             className="h-full px-6 text-[10px] font-black uppercase tracking-widest transition-all bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black flex items-center justify-center gap-2 shrink-0 border-none outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span className="material-symbols-outlined !text-[18px]">{t("icon_add_box")}</span>
-            {t("btn_draft")}
+             <span className="material-symbols-outlined text-[16px]">add_box</span>
+             {t("btn_draft")}
           </button>
         </div>
+
+        {/* Selected Files List */}
+        <div className="flex-1 flex flex-col min-h-0 pt-6 border-t border-white/5">
+          <div className="flex items-center gap-3 mb-6 shrink-0">
+            <span className="material-symbols-outlined !text-[18px] text-[var(--text)]">{t("icon_inventory_2") || "inventory_2"}</span>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("artifacts_linked") || "ARTIFACTS LINKED"} ({(selectedMods || []).length})</h3>
+          </div>
+          
+          <div className="flex-1 grid grid-cols-2 gap-2 overflow-y-auto custom-scrollbar pr-2 items-start content-start">
+            {(selectedMods || []).map((modName: string, i: number) => {
+              const displayName = resolveDisplayName ? resolveDisplayName(modName) : modName.replace(/_/g, " ").replace(/\.[^/.]+$/, "");
+              return (
+                <div key={i} className="theme-glass-inner p-3 rounded-xl flex items-center gap-4 group/item transition-colors hover:bg-white/5 border border-white/5 hover:border-white/10">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-50">description</span>
+                  <span className="text-[11px] font-black text-[var(--text)] uppercase truncate">{displayName}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
-    </>, document.body
+    </SidePanel>
   );
 }

@@ -29,7 +29,7 @@ export function AppModals(props: any) {
   const [isSystemStatusOpen, setIsSystemStatusOpen] = React.useState(false);
   const {
     snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, executeSnapshot, playSets, activePlaySetIndex, toggleInActiveSet,
-    bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods,
+    bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods, resolveDisplayName,
     renameModal, setRenameModal, executeRename,
     renameTarget, setRenameTarget, nameInput, setNameInput, confirmRename,
     localFolderModal, setLocalFolderModal, localFolderType, setLocalFolderType, localFolderName, setLocalFolderName, createLocalFolder,
@@ -103,9 +103,9 @@ export function AppModals(props: any) {
     <>
       <MalwareAlertModal malwareAlert={malwareAlert} setMalwareAlert={setMalwareAlert} droppedFiles={droppedFiles} runRadarSweep={runRadarSweep} setStatus={setStatus} />
       <SnapshotModal snapshotModal={snapshotModal} setSnapshotModal={setSnapshotModal} snapshotName={snapshotName} setSnapshotName={setSnapshotName} executeSnapshot={executeSnapshot} />
-      <BulkModal bulkModal={bulkModal} setBulkModal={setBulkModal} bulkName={bulkName} setBulkName={setBulkName} executeBulkDraft={executeBulkDraft} selectedMods={selectedMods} />
+      <BulkModal bulkModal={bulkModal} setBulkModal={setBulkModal} bulkName={bulkName} setBulkName={setBulkName} executeBulkDraft={executeBulkDraft} selectedMods={selectedMods} resolveDisplayName={resolveDisplayName} />
       <RenameModal renameModal={renameModal} setRenameModal={setRenameModal} executeRename={executeRename} renameTarget={renameTarget} setRenameTarget={setRenameTarget} nameInput={nameInput} setNameInput={setNameInput} confirmRename={confirmRename} />
-      <LocalFolderModal localFolderModal={localFolderModal} setLocalFolderModal={setLocalFolderModal} localFolderType={localFolderType} setLocalFolderType={setLocalFolderType} localFolderName={localFolderName} setLocalFolderName={setLocalFolderName} createLocalFolder={createLocalFolder} />
+      <LocalFolderModal localFolderModal={localFolderModal} setLocalFolderModal={setLocalFolderModal} localFolderType={localFolderType} setLocalFolderType={setLocalFolderType} localFolderName={localFolderName} setLocalFolderName={setLocalFolderName} createLocalFolder={createLocalFolder} selectedMods={selectedMods} resolveDisplayName={resolveDisplayName} />
       <QuarantineModal showQuarantineModal={showQuarantineModal} setShowQuarantineModal={setShowQuarantineModal} quarantineList={quarantineList} restoreMod={restoreMod} purgeMod={purgeMod} />
       
       {(missingImportMods && missingImportMods.length > 0) && pendingImportSet && (

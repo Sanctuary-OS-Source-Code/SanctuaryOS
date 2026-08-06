@@ -22,16 +22,39 @@ export function CommandScreenLayout({ children }: any) {
     );
 }
 
-export function CommandScreenSectionHeading({ title, icon, actions, className = "" }: any) {
+export function CommandScreenSectionHeading({ 
+  title, subtitle, icon, actions, rightContent, 
+  className = "", shape = "circle", 
+  colorClass = "bg-white/5 border-white/10", 
+  iconColorClass = "theme-text-accent" 
+}: any) {
   const { t } = useLexicon();
+  const shapeClass = shape === "square" ? "rounded-lg" : "rounded-full";
+  
   return (
-    <div className={`flex justify-between items-center border-b border-white/10 pb-6 relative z-10 w-full mb-8 ${className}`}>
+    <div className={`flex justify-between items-center border-b border-white/10 pb-6 w-full mb-8 relative z-10 ${className}`}>
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[var(--accent)]/50 to-transparent" />
-      <h2 className="text-2xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-4 drop-shadow-lg">
-        {icon && <span className="material-symbols-outlined !text-4xl opacity-50 theme-text-accent">{icon}</span>}
-        {title}
-      </h2>
-      {actions && <div className="absolute right-0 bottom-4 flex gap-3 z-10">{actions}</div>}
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        {icon && (
+          <div className={`w-12 h-12 ${shapeClass} flex items-center justify-center shrink-0 border theme-glass-panel relative overflow-hidden group shadow-md`}>
+            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className={`material-symbols-outlined !text-[24px] relative z-10 ${iconColorClass}`}>{icon}</span>
+          </div>
+        )}
+        <div className="flex flex-col gap-1 items-start text-left flex-1 min-w-0">
+          <h2 className="text-2xl font-black text-[var(--text)] uppercase tracking-widest drop-shadow-lg m-0 truncate">
+            {title}
+          </h2>
+          {subtitle && (
+            <p className="font-black tracking-[0.3em] text-[10px] uppercase opacity-70 m-0 text-[var(--subtext)] drop-shadow-sm truncate">
+              {subtitle}
+            </p>
+          )}
+        </div>
+      </div>
+      {(actions || rightContent) && (
+        <div className="flex items-center gap-3 shrink-0 ml-4 relative z-10">{actions || rightContent}</div>
+      )}
     </div>
   );
 }
@@ -46,7 +69,7 @@ export function CommandScreenStats({ children }: any) {
 
 export function CommandScreenBody({ children }: any) {
     return (
-        <div className="flex flex-col lg:flex-row gap-8 w-full">
+        <div className="flex flex-col lg:flex-row gap-8 w-full min-h-0 flex-1">
             {children}
         </div>
     );
@@ -60,11 +83,23 @@ export function CommandScreenMain({ children }: any) {
     );
 }
 
-export function CommandScreenSidebar({ title, children }: any) {
+export function CommandScreenSidebar({ title, icon, shape = "square", children }: any) {
     const { t } = useLexicon();
+    const shapeClass = shape === "square" ? "rounded-lg" : "rounded-full";
     return (
         <div className="w-[380px] shrink-0 flex flex-col">
-            <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-6">{title}</h2>
+            <div className="flex items-center gap-4 mb-6 border-b border-white/10 pb-6 relative z-10 w-full">
+                <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[var(--accent)]/50 to-transparent" />
+                {icon && (
+                    <div className={`w-12 h-12 ${shapeClass} flex items-center justify-center shrink-0 border theme-glass-panel relative overflow-hidden group shadow-md`}>
+                        <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span className="material-symbols-outlined !text-[24px] relative z-10 theme-text-accent">{icon}</span>
+                    </div>
+                )}
+                <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] m-0 p-0 text-left truncate flex-1 min-w-0">
+                    {title}
+                </h2>
+            </div>
             <div className="flex flex-col gap-4">
                 {children}
             </div>
@@ -81,7 +116,7 @@ export function UrgentBroadcastBanner({ urgentBroadcast, setViewingPost, setUrge
         <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full theme-glass-panel border border-[var(--danger)]/30 bg-[var(--danger)]/10 rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center gap-6 shadow-[0_0_40px_rgba(239,68,68,0.1)] cursor-pointer hover:bg-[var(--danger)]/20 transition-all group overflow-hidden relative backdrop-blur-md">
             <div className="absolute inset-0 bg-gradient-to-r from-[var(--danger)]/5 to-transparent z-0 pointer-events-none" />
             <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--danger)]/10 blur-[50px] rounded-full pointer-events-none" />
-            <div className="w-16 h-16 rounded-[var(--radius)] bg-[var(--danger)]/10 border border-[var(--danger)]/30 flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform shadow-inner">
+            <div className="w-16 h-16 rounded-full bg-[var(--danger)]/10 border border-[var(--danger)]/30 flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform shadow-inner">
                 <span className="material-symbols-outlined !text-4xl text-[var(--danger)] animate-pulse">{t("icon_warning_amber")}</span>
             </div>
             <div className="flex flex-col gap-2 flex-1 z-10">
@@ -122,7 +157,9 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                                 <span className="px-2 py-0.5 theme-glass-inner text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg">{t("category_system")}</span>
                             </div>
                             <h3 className="text-lg font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors mb-3 leading-tight line-clamp-2">{post.title}</h3>
-                            <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 mb-6 line-clamp-3 flex-1">{post.description ? post.description : stripMarkdown(post.message)}</p>
+                            <div className="flex-1 min-h-0 mb-4">
+                                <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3">{post.description ? post.description : stripMarkdown(post.message)}</p>
+                            </div>
                             <div className="mt-auto flex items-center justify-between pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
                                 <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(post.created_at).toLocaleDateString()}</span>
                                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">{t("wayfinder_read_more")} <span className="material-symbols-outlined !text-sm">{t("icon_arrow_forward")}</span></span>
@@ -140,11 +177,12 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
 }
 
 
-export function CommandScreenMetricTile({ value, label, valueColorClass = "theme-text-accent", hoverBorderClass = "hover:border-[var(--accent)]/30" }: any) {
+export function CommandScreenMetricTile({ icon, value, label, valueColorClass = "theme-text-accent", hoverBorderClass = "hover:border-[var(--accent)]/30" }: any) {
     return (
-        <div className={`theme-glass-panel border border-white/5 rounded-[var(--radius)] p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 ${hoverBorderClass} transition-all text-center h-32`}>
-            <span className={`text-3xl font-black ${valueColorClass}`}>{value}</span>
-            <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight">{label}</span>
+        <div className={`min-w-0 theme-glass-panel border border-white/5 rounded-[var(--radius)] p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 ${hoverBorderClass} transition-all text-center h-32 relative overflow-hidden group`}>
+            {icon && <span className={`absolute -left-4 -bottom-4 text-[80px] opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all material-symbols-outlined grayscale group-hover:grayscale-0 ${valueColorClass}`}>{icon}</span>}
+            <span className={`text-3xl font-black relative z-10 ${valueColorClass}`}>{value}</span>
+            <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight relative z-10 truncate w-full">{label}</span>
         </div>
     );
 }
@@ -154,12 +192,12 @@ export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColo
         <button onClick={onClick} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
             <div className="flex items-center gap-5 h-full relative z-10">
-                <div className={`w-12 h-12 rounded-xl theme-glass-inner border flex items-center justify-center shrink-0 transition-colors border-white/10 ${iconBorderHoverClass} ${isAlert ? 'text-[var(--danger)] border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : ''}`}>
+                <div className={`w-12 h-12 rounded-lg theme-glass-inner border flex items-center justify-center shrink-0 transition-colors border-white/10 ${iconBorderHoverClass} ${isAlert ? 'text-[var(--danger)] border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : ''}`}>
                     <span className={`material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 ${iconShadowClass} ${isAlert ? 'animate-pulse' : ''}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0">
                     <h3 className={`text-[11px] font-black uppercase tracking-widest transition-colors truncate ${isAlert ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>{title}</h3>
-                    <span className={`text-[8px] uppercase font-bold opacity-80 tracking-widest flex items-center gap-2 ${textColorClass} ${hoverTextColorClass}`}>{subtitle}
+                    <span className={`text-[8px] uppercase font-bold opacity-80 tracking-widest flex items-center gap-2 truncate ${textColorClass} ${hoverTextColorClass}`}>{subtitle}
                     </span>
                 </div>
             </div>

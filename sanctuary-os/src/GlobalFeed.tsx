@@ -195,6 +195,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         subtitle={t("feed_subtitle")}
         icon={t("icon_satellite_alt")}
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+        shape="circle"
       />
       <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
         <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">

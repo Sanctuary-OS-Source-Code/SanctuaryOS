@@ -1,23 +1,25 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, ModSearchDropdown, HubTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter } from "./shared";
+import { ViewHeader, ModSearchDropdown, HubTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter, getExtensionRegex } from "./shared";
 import { CommandScreenLayout, DashboardStatTile, CommandScreenStats, CommandScreenQuickLink, CommandScreenSectionHeading, CommandScreenBody, CommandScreenMain, CommandScreenSidebar } from "./hub-components/SharedCommandScreenLayout";
-import { save } from "@tauri-apps/plugin-dialog";
 import { useStore } from "./store";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
+import { save } from "@tauri-apps/plugin-dialog";
+import { supabase } from "./supabase";
 
 export default function Lab({
-  activeLabMod, setActiveLabMod, modList = [],
+  activeLabMod, setActiveLabMod, modList = [], onOpenDossier,
   concludeTest, executeHotSwap, shelterActive, conflictTarget, setConflictTarget,
   testErrorFound, testLogSnippet, isSubmittingReport, submitLabReport,
   labQueue = [], labVerificationQueue = [], labConflicts = [],
   associatedMods = []
 }: any) {
   const { t } = useLexicon();
+  const activeGameSchema = useStore(s => s.activeGameSchema);
 
   const [stagedExtras, setStagedExtras] = useState<any[]>([]);
   const [conflictExtras, setConflictExtras] = useState<any[]>([]);
-  const [missingDeps, setMissingDeps] = useState<string[]>([]);
+  const [missingDeps, setMissingDeps] = useState<any[]>([]);
   const [showTestPanel, setShowTestPanel] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("DASHBOARD");
   const [lastTestResult, setLastTestResult] = useState<any>(null);
@@ -54,17 +56,18 @@ export default function Lab({
 
   useEffect(() => {
     let depsToStage: any[] = [];
-    let missing: string[] = [];
+    let missing: any[] = [];
     
+    const cleanName = (name: string) => name ? name.replace(/['"]/g, "").replace(/_/g, " ").replace(getExtensionRegex(activeGameSchema), "").trim().toUpperCase() : "";
+
     if (activeLabMod && activeLabMod.dependencies) {
       let rawDeps: string[] = [];
       if (typeof activeLabMod.dependencies === 'string') {
         rawDeps = activeLabMod.dependencies.split(',').map((s: string) => s.trim()).filter(Boolean);
       } else if (Array.isArray(activeLabMod.dependencies)) {
-        rawDeps = [...activeLabMod.dependencies].filter(Boolean);
+        rawDeps = [...activeLabMod.dependencies].map(s => typeof s === 'string' ? s.trim() : s).filter(Boolean);
       }
       
-      const cleanName = (name: string) => name ? name.replace(/_/g, " ").replace(/(\.| |-)*(\(|\[)?(package|ts4scripts?|scripts?|zip)(\)|\])?/gi, "").trim().toUpperCase() : "";
 
       const foundDeps = rawDeps
         .map(depName => {
@@ -83,7 +86,7 @@ export default function Lab({
             return (cleanName(m.name) === cleanName(depName) || cleanName(m.displayName) === cleanName(depName) || (m.path && m.path.includes(depName) && depName.length > 3));
           });
           
-          if (!found) missing.push(depName);
+          if (!found) missing.push({ name: depName, displayName: depName });
           return found;
         })
         .filter(Boolean);
@@ -115,7 +118,7 @@ export default function Lab({
             return false;
           });
           
-          if (!found) missing.push(am.displayName || am.name || "Unknown Mod");
+          if (!found) missing.push(am);
           return found;
         })
         .filter(Boolean);
@@ -126,7 +129,27 @@ export default function Lab({
     if (activeLabMod) {
       const uniqueDeps = Array.from(new Map(depsToStage.map(item => [item.hash || item.name, item])).values());
       setStagedExtras(uniqueDeps);
-      setMissingDeps(missing);
+      
+      const groupedMissing = new Map<string, any[]>();
+      missing.forEach(item => {
+        let nameToClean = typeof item === 'string' ? item : (item.displayName || item.name || "");
+        let key = cleanName(nameToClean);
+        if (!groupedMissing.has(key)) groupedMissing.set(key, []);
+        groupedMissing.get(key)!.push(item);
+      });
+
+      const uniqueMissing: any[] = [];
+      groupedMissing.forEach((items) => {
+        const withId = items.filter(i => typeof i !== 'string' && i.id);
+        if (withId.length > 0) {
+          const uniqueById = Array.from(new Map(withId.map(i => [i.id, i])).values());
+          uniqueMissing.push(...uniqueById);
+        } else {
+          uniqueMissing.push(items[0]);
+        }
+      });
+      
+      setMissingDeps(uniqueMissing);
     } else {
       setStagedExtras([]);
       setMissingDeps([]);
@@ -438,11 +461,31 @@ export default function Lab({
                       <div className="text-[10px] text-[var(--danger)]/80 uppercase font-bold">
                         {t("missing_deps_warning_desc")}
                       </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {missingDeps.map(dep => (
-                          <span key={dep} onClick={() => { useStore.getState().setMarketSearchQuery(dep); useStore.getState().setView("nexus"); }} className="text-[10px] bg-[var(--danger)]/20 px-2 py-1 rounded font-mono text-[var(--danger)] cursor-pointer hover:bg-[var(--danger)]/40 hover:text-white transition-all">{dep}</span>
-                        ))}
-                      </div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {missingDeps.map((depObj, idx) => {
+                            const depName = typeof depObj === 'string' ? depObj : (depObj.displayName || depObj.name || "Unknown Mod");
+                            const depId = typeof depObj === 'string' ? null : depObj.id;
+                            return (
+                              <span key={depId || idx} onClick={async () => { 
+                                let data = null;
+                                if (depId) {
+                                  const { data: d } = await supabase.from('mods').select('*').eq('id', depId).single();
+                                  data = d;
+                                } else {
+                                  const searchTerms = depName.split(' ').map((t: string) => t.trim()).filter(Boolean).join('%');
+                                  const { data: d } = await supabase.from('mods').select('*').ilike('name', `%${searchTerms}%`).limit(1).maybeSingle();
+                                  data = d;
+                                }
+
+                                if (data) {
+                                  onOpenDossier({ ...data, isNexusView: true });
+                                } else {
+                                  onOpenDossier({ name: depName, displayName: depName, isNexusView: true, description: "Artifact not found in the global registry." });
+                                }
+                              }} className="text-[10px] bg-[var(--danger)]/20 px-2 py-1 rounded font-mono text-[var(--danger)] cursor-pointer hover:bg-[var(--danger)]/40 hover:text-white transition-all">{depName}</span>
+                            );
+                          })}
+                        </div>
                     </div>
                   )}
                   <ModSearchDropdown

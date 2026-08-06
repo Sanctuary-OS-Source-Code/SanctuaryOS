@@ -427,9 +427,13 @@ CREATE TABLE collection_members (
 
 CREATE TABLE homestead_lab_logs (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    mod_id UUID REFERENCES mods(id) ON DELETE CASCADE,
+    mod_version_id UUID REFERENCES mod_versions(id) ON DELETE CASCADE,
     session_id TEXT,
     log_text TEXT,
     severity TEXT,
+    tester_note TEXT,
+    status TEXT DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

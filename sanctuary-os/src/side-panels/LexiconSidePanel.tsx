@@ -4,7 +4,8 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { supabase } from '../supabase';
-import { SidePanel, CustomDropdown, HoverTooltip } from '../shared';
+import { SidePanel, CustomDropdown, HoverTooltip, SearchBar, HubTabs, FilterTabs, FilterTabButton } from '../shared';
+import { CommandScreenQuickLink } from '../hub-components/SharedCommandScreenLayout';
 
 const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
 
@@ -38,23 +39,23 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
 
   const getLexiconMetadata = (code: string) => {
     const cleanName = (val: string) => val.includes(':') ? val.split(':')[1].trim() : val;
-    
+
     // Core Built-in OS Lexicons
     if (code === 'en-sanctuary') return { community: 'Sanctuary', language: 'English', name: cleanName(t("lang_sanctuary") || "English: Sanctuary") };
     if (code === 'en-default') return { community: 'Sanctuary', language: 'English', name: cleanName(t("lang_standard") || "English: Default") };
-    
+
     // Community Lexicons (Pulled from DB)
     const meta = lexiconMeta?.find((m: any) => m.id === code);
     if (meta) {
       let badge = meta.badge || 'Community';
       const state = useStore.getState();
-      
+
       if (badge === 'Sanctuary' && state.activeGameSchema?.display_name) {
         badge = state.activeGameSchema.display_name;
       }
       return { community: badge, language: meta.lang || 'English', name: meta.name };
     }
-    
+
     // Imported/Custom JSONs
     return { community: 'Custom', language: registry?.[code]?._meta_lang || dbLanguages[code] || 'English', name: code };
   };
@@ -92,166 +93,227 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
       onClose={onClose}
       title={t("lexicon_title")}
       icon="language"
-      actions={
-        <>
-          <div className="relative group">
-            <button
-              onClick={() => setUseGlobalLexicon(!useGlobalLexicon)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg border ${useGlobalLexicon ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-xl hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]' : 'theme-glass-inner text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} flex items-center justify-center gap-2`}
-            >
-              <span className="material-symbols-outlined !text-[14px]">{useGlobalLexicon ? 'public' : 'grid_view'}</span>
-              {useGlobalLexicon ? t("scope_global") || 'Global Scope' : t("scope_workspace") || 'Workspace Scope'}
-            </button>
-            <HoverTooltip 
-              title={useGlobalLexicon ? t("scope_global_title") || "GLOBAL SCOPE" : t("scope_workspace_title") || "WORKSPACE SCOPE"} 
-              subtitle={useGlobalLexicon ? t("scope_global_desc_lexicon") || "This lexicon applies across all environments." : t("scope_workspace_desc_lexicon") || "This lexicon is bound only to the active environment."} 
-              variant="info" 
+      widthClass="w-[900px]"
+      footer={null}
+      noPadding
+    >
+      <div className="flex flex-col gap-6 p-10 pt-2 h-full min-h-[600px]">
+        <div className="flex flex-col gap-3 w-full shrink-0 z-50 mb-2 px-1">
+          {/* Row 1: Actions */}
+          <div className="w-full h-12">
+            <HubTabs
+              className="h-full w-full !rounded-2xl"
+              tabs={[
+                { id: 'nexus', icon: 'explore', label: t("tab_nexus") || "Nexus" },
+                { id: 'import', icon: 'download', label: t("btn_import") || "Import" }
+              ]}
+              activeTab={null}
+              setTab={(id: string) => {
+                if (id === 'nexus') { setMarketTab('LEXICONS'); setView('nexus'); onClose(); }
+                if (id === 'import') handleImportLexicon();
+              }}
             />
           </div>
-          <button onClick={() => { setMarketTab('LEXICONS'); setView('nexus'); onClose(); }} className="p-2 rounded-xl theme-glass-inner hover:theme-text-accent transition-all flex items-center justify-center"><span className="material-symbols-outlined !text-lg">explore</span></button>
-          <button onClick={handleImportLexicon} className="p-2 rounded-xl theme-glass-inner hover:theme-text-accent transition-all flex items-center justify-center"><span className="material-symbols-outlined !text-lg">download</span></button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-8 p-8">
 
-        <div className="flex flex-col gap-6">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("installed_lexicons")}</h3>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
-            {favoriteLexicons.map(code => (
-              <button 
-                key={code} 
-                onClick={() => setActiveLang(code)} 
-                className={`p-6 rounded-[var(--radius)] border transition-all text-left flex justify-between items-center group relative backdrop-blur-xl shadow-lg ${activeLang === code ? 'theme-border-accent' : 'theme-glass-panel opacity-80 hover:opacity-100'}`}
-                style={activeLang === code ? {
-                  backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
-                  boxShadow: '0 0 30px rgba(var(--accent-rgb), 0.2)'
-                } : undefined}
-              >
-                <div className="flex flex-col gap-1 pr-4 break-words">
-                  <span className={`text-[12px] font-black uppercase tracking-[0.2em] mb-1 ${activeLang === code ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{getLexiconMetadata(code).name}</span>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-0.5 rounded border border-white/10 bg-white/5 text-[8px] font-black uppercase tracking-widest text-[var(--text)] opacity-80">{getLexiconMetadata(code).language}</span>
-                    <span className="px-2 py-0.5 rounded border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] opacity-90">{getLexiconMetadata(code).community}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <div 
-                    onClick={(e) => toggleFavoriteLexicon(code, e)} 
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${favoriteLexicons.includes(code) ? 'theme-border-accent shadow-sm hover:scale-110' : 'border border-white/5 bg-white/5 text-[var(--subtext)] opacity-40 hover:opacity-100 hover:theme-text-accent'}`}
-                    style={favoriteLexicons.includes(code) ? {
-                      backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
-                      color: 'var(--accent)'
-                    } : undefined}
-                  >
-                    <span className="material-symbols-outlined !text-[16px]">star</span>
-                  </div>
-                </div>
-              </button>
-            ))}
+          {/* Row 2: Search */}
+          <div className="w-full h-12">
+            <SearchBar
+              value={lexiconSearch}
+              onChange={setLexiconSearch}
+              placeholder={t("ui_search_lexicons") || "Search lexicons..."}
+              className="h-full w-full !rounded-2xl"
+            />
+          </div>
+
+          {/* Row 3: Filters */}
+          <div className="flex items-center gap-4 w-full h-10">
+            <div className="flex-1 h-full">
+              <FilterTabs className="h-full !rounded-xl">
+                <FilterTabButton
+                  id="workspace"
+                  icon="grid_view"
+                  label={t("scope_workspace") || "Workspace"}
+                  activeTab={!useGlobalLexicon ? "workspace" : ""}
+                  setTab={() => setUseGlobalLexicon(false)}
+                />
+                <FilterTabButton
+                  id="global"
+                  icon="public"
+                  label={t("scope_global") || "Global"}
+                  activeTab={useGlobalLexicon ? "global" : ""}
+                  setTab={() => setUseGlobalLexicon(true)}
+                />
+              </FilterTabs>
+            </div>
+            
+            <div className="flex-1 h-full">
+              <CustomDropdown
+                className="h-full"
+                value={selectedLibraryLang}
+                options={[
+                  { id: null, label: t("all_languages") || "All Languages" },
+                  ...uniqueLanguages.map(lang => ({ id: lang, label: lang }))
+                ]}
+                onChange={(val: any) => setSelectedLibraryLang(val?.[0] ?? null)}
+                placeholder={t("all_languages") || "All Languages"}
+              />
+            </div>
+            
+            <div className="flex-1 h-full">
+              <CustomDropdown
+                className="h-full"
+                value={selectedLibraryCommunity}
+                options={[
+                  { id: null, label: "ALL COMMUNITIES" },
+                  ...uniqueCommunities.map(community => ({ id: community, label: typeof community === 'string' ? community.toUpperCase() : community }))
+                ]}
+                onChange={(val: any) => setSelectedLibraryCommunity(val?.[0] ?? null)}
+                placeholder="ALL COMMUNITIES"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-6 mt-16 pt-12 border-t border-white/5">
-          <h3 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-2 flex items-center gap-3">
-            <span className="material-symbols-outlined text-2xl theme-text-accent">{t("icon_menu_book")}</span>
-            {t("library")}
-          </h3>
-
-          <div className="flex flex-col gap-4 w-full mt-4">
-            <div className="relative w-full">
-              <input
-                type="text"
-                value={lexiconSearch}
-                onChange={e => setLexiconSearch(e.target.value)}
-                placeholder={t("ui_search_lexicons") || "Search lexicons..."}
-                className="w-full theme-glass-panel rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text)] outline-none focus:theme-border-accent transition-all shadow-inner"
-              />
-              <span className="absolute right-6 top-1/2 -translate-y-1/2 opacity-50 text-xl material-symbols-outlined">{t("icon_search")}</span>
+        {favoriteLexicons.length > 0 && (
+          <div className="flex flex-col gap-4 w-full mb-6 z-10">
+            <div className="flex items-center gap-3 pl-1 mb-1">
+              <span className="material-symbols-outlined text-[var(--accent)] !text-[16px]">{t("icon_keep") || "keep"}</span>
+              <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("installed_lexicons")}</h3>
+              <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_40%,transparent)] to-transparent" />
             </div>
-
-            <div className="flex gap-4 w-full">
-              <div className="flex-1 min-w-0">
-                <CustomDropdown
-                  value={selectedLibraryLang}
-                  options={[
-                    { id: null, label: t("all_languages") || "All Languages" },
-                    ...uniqueLanguages.map(lang => ({ id: lang, label: lang }))
-                  ]}
-                  onChange={(val: any) => setSelectedLibraryLang(val?.[0] ?? null)}
-                  placeholder={t("all_languages") || "All Languages"}
-                  disableTint={true}
-                />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <CustomDropdown
-                  value={selectedLibraryCommunity}
-                  options={[
-                    { id: null, label: "ALL COMMUNITIES" },
-                    ...uniqueCommunities.map(community => ({ id: community, label: typeof community === 'string' ? community.toUpperCase() : community }))
-                  ]}
-                  onChange={(val: any) => setSelectedLibraryCommunity(val?.[0] ?? null)}
-                  placeholder="ALL COMMUNITIES"
-                  disableTint={true}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4 mt-6">
-            {allLexiconCodes
-              .filter(code => !favoriteLexicons.includes(code))
-              .filter(code => !selectedLibraryLang || getLexiconMetadata(code).language === selectedLibraryLang)
-              .filter(code => !selectedLibraryCommunity || getLexiconMetadata(code).community === selectedLibraryCommunity)
-              .filter(code => getLexiconMetadata(code).name.toLowerCase().includes(lexiconSearch.toLowerCase()) || code.toLowerCase().includes(lexiconSearch.toLowerCase()))
-              .map(code => (
-                <div 
-                  key={code} 
-                  className={`p-6 rounded-[var(--radius)] border transition-all flex justify-between items-center group relative cursor-pointer backdrop-blur-xl shadow-lg ${activeLang === code ? 'theme-border-accent' : 'theme-glass-panel opacity-80 hover:opacity-100'}`} 
+            <div className="grid grid-cols-2 gap-4">
+              {favoriteLexicons.map(code => (
+                <div
+                  key={code}
                   onClick={() => setActiveLang(code)}
-                  style={activeLang === code ? {
-                    backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
-                    boxShadow: '0 0 30px rgba(var(--accent-rgb), 0.2)'
-                  } : undefined}
+                  className={`flex flex-col p-4 rounded-xl theme-glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeLang === code
+                      ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+                      : 'border-white/5 hover:border-white/20'
+                    }`}
                 >
-                  <div className="flex flex-col gap-1 pr-4 break-words">
-                    <span className={`text-[12px] font-black uppercase tracking-widest mb-1 ${activeLang === code ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{getLexiconMetadata(code).name}</span>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="px-2 py-0.5 rounded border border-white/10 bg-white/5 text-[8px] font-black uppercase tracking-widest text-[var(--text)] opacity-80">{getLexiconMetadata(code).language}</span>
-                      <span className="px-2 py-0.5 rounded border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] opacity-90">{getLexiconMetadata(code).community}</span>
+                  {activeLang === code && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
+
+                  <div className="flex justify-between items-start mb-4 relative z-10">
+                    <div className="w-8 h-8 rounded-full shadow-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shrink-0 flex items-center justify-center text-[var(--accent)]">
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_translate") || "translate"}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity absolute right-3 top-3">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleFavoriteLexicon(code, e); }}
+                        className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-white/10 hover:border-white/30 backdrop-blur-sm shadow-md ${favoriteLexicons.includes(code)
+                            ? 'text-[var(--accent)] border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] drop-shadow-[0_0_5px_currentColor]'
+                            : 'text-[var(--subtext)] hover:text-white'
+                          }`}
+                      >
+                        <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ fontVariationSettings: favoriteLexicons.includes(code) ? "'FILL' 1" : "'FILL' 0" }}>{t("icon_star") || "star"}</span>
+                      </button>
+
+                      {lexiconMeta && lexiconMeta.find((m: any) => m.id === code) === undefined && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirmDelete === code) { deleteLexicon(code); setConfirmDelete(false); }
+                            else { setConfirmDelete(code); }
+                          }}
+                          onMouseLeave={() => setConfirmDelete(false)}
+                          className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-white/10 backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === code ? 'bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-red-500/10 hover:border-red-500/50 theme-text-danger'}`}
+                        >
+                          <span className="material-symbols-outlined !text-[16px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === code ? t("icon_warning") || 'warning' : t("icon_delete") || 'delete'}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button 
-                      onClick={(e) => toggleFavoriteLexicon(code, e)} 
-                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${favoriteLexicons.includes(code) ? 'theme-border-accent shadow-sm hover:scale-110' : 'border border-white/5 bg-white/5 text-[var(--subtext)] opacity-40 hover:opacity-100 hover:theme-text-accent'}`}
-                      style={favoriteLexicons.includes(code) ? {
-                        backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
-                        color: 'var(--accent)'
-                      } : undefined}
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">star</span>
-                    </button>
-                    {lexiconMeta && lexiconMeta.find((m: any) => m.id === code) === undefined && (
-                      <button 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          if (confirmDelete === code) { deleteLexicon(code); setConfirmDelete(false); }
-                          else { setConfirmDelete(code); }
-                        }} 
-                        onMouseLeave={() => setConfirmDelete(false)}
-                        className={`p-2 rounded-full text-sm transition-all shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 ${confirmDelete === code ? 'bg-red-500/20 text-red-500 scale-110 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'hover:bg-red-500/20 theme-text-danger'}`}
-                      >
-                        <span className="material-symbols-outlined !text-lg">{confirmDelete === code ? t("icon_warning") || 'warning' : t("icon_delete")}</span>
-                      </button>
-                    )}
+
+                  <div className="flex flex-col gap-1 relative z-10">
+                    <span className={`text-[12px] font-black uppercase tracking-[0.2em] truncate ${activeLang === code ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{getLexiconMetadata(code).name}</span>
+                    <div className="flex items-center gap-2 mt-1 opacity-80">
+                      <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] truncate border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
+                        {getLexiconMetadata(code).community}
+                      </span>
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--subtext)] truncate">
+                        {getLexiconMetadata(code).language}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
+            </div>
           </div>
-        </div>
-      </div>
+        )}
+
+        <div className="flex flex-col gap-4 w-full z-10">
+          <div className="flex items-center gap-3 pl-1 mb-1">
+            <span className="material-symbols-outlined text-[var(--subtext)] !text-[16px]">{t("icon_grid_view") || "grid_view"}</span>
+                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)] opacity-80 drop-shadow-md">Library</h3>
+                <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 w-full">
+                {allLexiconCodes
+                  .filter(code => !favoriteLexicons.includes(code))
+                  .filter(code => !selectedLibraryLang || getLexiconMetadata(code).language === selectedLibraryLang)
+                  .filter(code => !selectedLibraryCommunity || getLexiconMetadata(code).community === selectedLibraryCommunity)
+                  .filter(code => getLexiconMetadata(code).name.toLowerCase().includes(lexiconSearch.toLowerCase()) || code.toLowerCase().includes(lexiconSearch.toLowerCase()))
+                  .map(code => (
+                    <div
+                      key={code}
+                      onClick={() => setActiveLang(code)}
+                      className={`flex flex-col p-4 rounded-xl theme-glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeLang === code
+                          ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+                          : 'border-white/5 hover:border-white/20'
+                        }`}
+                    >
+                      {activeLang === code && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
+
+                      <div className="flex justify-between items-start mb-4 relative z-10">
+                        <div className="w-8 h-8 rounded-full shadow-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shrink-0 flex items-center justify-center text-[var(--accent)]">
+                          <span className="material-symbols-outlined !text-[16px]">{t("icon_translate") || "translate"}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity absolute right-3 top-3">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleFavoriteLexicon(code, e); }}
+                            className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-white/10 hover:border-white/30 backdrop-blur-sm shadow-md ${favoriteLexicons.includes(code)
+                                ? 'text-[var(--accent)] border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] drop-shadow-[0_0_5px_currentColor]'
+                                : 'text-[var(--subtext)] hover:text-white'
+                              }`}
+                          >
+                            <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ fontVariationSettings: favoriteLexicons.includes(code) ? "'FILL' 1" : "'FILL' 0" }}>{t("icon_star") || "star"}</span>
+                          </button>
+
+                          {lexiconMeta && lexiconMeta.find((m: any) => m.id === code) === undefined && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirmDelete === code) { deleteLexicon(code); setConfirmDelete(false); }
+                                else { setConfirmDelete(code); }
+                              }}
+                              onMouseLeave={() => setConfirmDelete(false)}
+                              className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-white/10 backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === code ? 'bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-red-500/10 hover:border-red-500/50 theme-text-danger'}`}
+                            >
+                              <span className="material-symbols-outlined !text-[16px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === code ? t("icon_warning") || 'warning' : t("icon_delete") || 'delete'}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1 relative z-10">
+                        <span className={`text-[12px] font-black uppercase tracking-[0.2em] truncate ${activeLang === code ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{getLexiconMetadata(code).name}</span>
+                        <div className="flex items-center gap-2 mt-1 opacity-80">
+                          <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] truncate border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
+                            {getLexiconMetadata(code).community}
+                          </span>
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--subtext)] truncate">
+                            {getLexiconMetadata(code).language}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
     </SidePanel>
   );
 }

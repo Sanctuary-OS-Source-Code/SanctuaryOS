@@ -7,7 +7,7 @@ import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandSc
 export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies, onOpenSupportDesk, setViewingPost }: any) {
   const { t } = useLexicon();
   const [repliesCount, setRepliesCount] = useState(0);
-  const [stats, setStats] = useState({ artifacts: 0, collections: 0, posts: 0, bugs: 0, support: 0, followers: 0 });
+  const [stats, setStats] = useState({ artifacts: 0, collections: 0, posts: 0, bugs: 0, support: 0, followers: 0, blueprints: 0 });
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [urgentBroadcast, setUrgentBroadcast] = useState<any>(null);
 
@@ -70,7 +70,8 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
         posts: pc || 0,
         bugs: bugc || 0,
         support: tc,
-        followers: fc || 0
+        followers: fc || 0,
+        blueprints: bc || 0
       });
     };
     fetchCounts();
@@ -122,16 +123,18 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
       <CommandScreenBody>
         <CommandScreenMain>
           <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
-
-          <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+          
+          <div className="w-full mb-8">
+            <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+          </div>
 
           <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
-            <CommandScreenMetricTile value={t("auto_7")} label={t("items")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
-            <CommandScreenMetricTile value={t("auto_1")} label={t("playsets_title")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
-            <CommandScreenMetricTile value={t("auto_1")} label={t("stat_lexicons")} valueColorClass="text-indigo-500" hoverBorderClass="hover:border-indigo-500/30" />
-            <CommandScreenMetricTile value={t("auto_1")} label={t("tab_chameleons")} valueColorClass="text-pink-500" hoverBorderClass="hover:border-pink-500/30" />
-            <CommandScreenMetricTile value={stats.followers} label={t("followers")} valueColorClass="text-emerald-500" hoverBorderClass="hover:border-emerald-500/30" />
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <CommandScreenMetricTile icon={t("icon_deployed_code") || "deployed_code"} value={stats.artifacts} label={t("artifacts")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
+            <CommandScreenMetricTile icon={t("icon_architecture") || "architecture"} value={stats.blueprints || 1} label={t("blueprints")} valueColorClass="text-emerald-400" hoverBorderClass="hover:border-emerald-500/30" />
+            <CommandScreenMetricTile icon={t("icon_library_books") || "library_books"} value={1} label={t("lexicons")} valueColorClass="text-indigo-400" hoverBorderClass="hover:border-indigo-500/30" />
+            <CommandScreenMetricTile icon={t("icon_palette") || "palette"} value={1} label={t("chameleons")} valueColorClass="text-pink-400" hoverBorderClass="hover:border-pink-500/30" />
+            <CommandScreenMetricTile icon={t("icon_group") || "group"} value={stats.followers} label={t("followers")} valueColorClass="text-teal-400" hoverBorderClass="hover:border-teal-500/30" />
           </div>
         </CommandScreenMain>
 

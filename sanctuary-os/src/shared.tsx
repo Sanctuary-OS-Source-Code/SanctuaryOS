@@ -177,7 +177,6 @@ export const formatDisplayName = (name: string, t?: (key: string) => string, sch
 export const getFileLabel = (filename: string, schema: any): string => {
   if (!filename) return "UNKNOWN";
   if (!schema || !schema.extensions || !schema.extensions.labels) {
-    if (filename.toLowerCase().endsWith('.zip') || filename.toLowerCase().endsWith('.rar')) return "ARCHIVE";
     return filename.split('.').pop()?.toUpperCase() || "FILE";
   }
   const ext = Object.keys(schema.extensions.labels).find(e => filename.toLowerCase().endsWith(e.toLowerCase()));
@@ -290,12 +289,13 @@ export const getHighestVersion = (reqs: string[] | string) => {
   return sorted[0];
 };
 
-export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(--accent)] border-[var(--accent)]/30", children, onSubtitleClick }: any) {
+export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(--accent)] border-[var(--accent)]/30", children, onSubtitleClick, shape = "circle" }: any) {
+  const shapeClass = shape === "square" ? "rounded-xl" : "rounded-full";
   return (
     <header className="flex flex-col xl:flex-row w-full justify-between items-start mb-6 shrink-0 gap-6">
       <div className="flex items-center gap-5 flex-1 min-w-0 w-full">
         {icon && (
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-md shrink-0 relative overflow-hidden group bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${iconColorClass}`}>
+          <div className={`w-14 h-14 ${shapeClass} flex items-center justify-center shadow-md shrink-0 relative overflow-hidden group bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${iconColorClass}`}>
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             {typeof icon === "string" ? (
               <span className="material-symbols-outlined text-[28px] relative z-10">{icon}</span>
@@ -476,15 +476,15 @@ export function HubTabButton({ id, icon, label, activeTab, setTab, badge, disabl
     <button
       onClick={() => setTab(id)}
       disabled={disabled}
-      className={`h-full px-4 py-3 flex-1 flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${isActive
+      className={`h-full px-4 py-3 flex-1 min-w-0 flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest transition-all ${isActive
         ? activeClass
         : inactiveClass
         } ${disabled ? 'opacity-30 cursor-not-allowed hover:bg-transparent hover:text-[var(--subtext)]' : ''}`}
     >
-      {icon && <span className="material-symbols-outlined !text-lg">{icon}</span>}
-      {label}
+      {icon && <span className="material-symbols-outlined !text-lg shrink-0">{icon}</span>}
+      <span className="truncate">{label}</span>
       {badge !== undefined && badge !== null && (
-        <span className={`ml-2 px-1.5 py-0.5 rounded-full border text-[10px] font-black ${badgeColorClass ? badgeColorClass : isActive ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)]/50 text-[var(--accent)]' : 'bg-white/5 border-white/10 text-[var(--subtext)]'}`}>
+        <span className={`ml-2 px-1.5 py-0.5 rounded-full border text-[10px] font-black shrink-0 ${badgeColorClass ? badgeColorClass : isActive ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)]/50 text-[var(--accent)]' : 'bg-white/5 border-white/10 text-[var(--subtext)]'}`}>
           {badge}
         </span>
       )}
@@ -515,7 +515,7 @@ export function FilterTabButton({ id, icon, label, activeTab, setTab, className 
   return (
     <button
       onClick={() => setTab(id)}
-      className={`h-full flex-1 px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${isActive
+      className={`h-full flex-1 px-5 rounded-none flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${isActive
         ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'
         } ${className}`}
     >

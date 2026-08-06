@@ -12,6 +12,7 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { invoke } from '@tauri-apps/api/core';
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import BlueprintMatrix from "./BlueprintMatrix";
+import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 
 let cachedNexusItems: any[] | null = null;
 let lastNexusFetch = 0;
@@ -123,6 +124,72 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
   const [isOffline, setIsOffline] = useState(!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true");
 
+  const [stats, setStats] = useState({ artifacts: 0, blueprints: 0, lexicons: 0, chameleons: 0, templates: 0 });
+  const [recentFeed, setRecentFeed] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (marketSearchQuery) {
+      setSearchQuery(marketSearchQuery);
+      setAssetSearchQuery(marketSearchQuery);
+    }
+  }, [marketSearchQuery]);
+
+  useEffect(() => {
+    if (marketTab === 'HOME' && !isOffline) {
+      const fetchHomeData = async () => {
+        try {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          const isoDate = thirtyDaysAgo.toISOString();
+
+          const [
+            { count: artifactsCount },
+            { count: blueprintsCount },
+            { count: lexiconsCount },
+            { count: chameleonsCount },
+            { count: templatesCount }
+          ] = await Promise.all([
+            supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 0),
+            supabase.from('blueprints').select('*', { count: 'exact', head: true }).eq('is_public', true),
+            supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'lexicon').or('is_public.eq.true,is_public.is.null'),
+            supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'chameleon').or('is_public.eq.true,is_public.is.null'),
+            supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'workbench_template').or('is_public.eq.true,is_public.is.null')
+          ]);
+
+          setStats({
+            artifacts: artifactsCount || 0,
+            blueprints: blueprintsCount || 0,
+            lexicons: lexiconsCount || 0,
+            chameleons: chameleonsCount || 0,
+            templates: templatesCount || 0
+          });
+
+          const [
+            { data: recentMods },
+            { data: recentBps },
+            { data: recentAssets }
+          ] = await Promise.all([
+            supabase.from('mods').select('*').order('created_at', { ascending: false }).limit(20),
+            supabase.from('blueprints').select('*').eq('is_public', true).order('created_at', { ascending: false }).limit(20),
+            supabase.from('nexus_assets').select('*').order('created_at', { ascending: false }).limit(20)
+          ]);
+
+          const combined = [
+            ...(recentMods || []).map(m => ({ ...m, feed_type: 'artifact' })),
+            ...(recentBps || []).map(b => ({ ...b, feed_type: 'blueprint' })),
+            ...(recentAssets || []).map(a => ({ ...a, feed_type: a.asset_type === 'workbench_template' ? 'template' : a.asset_type }))
+          ];
+
+          combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          setRecentFeed(combined.slice(0, 20));
+        } catch (err) {
+          console.error("Failed to fetch home data:", err);
+        }
+      };
+      fetchHomeData();
+    }
+  }, [marketTab, isOffline]);
+
   useEffect(() => {
     const fetchLocalTemplates = async () => {
       try {
@@ -143,7 +210,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   const currentVersion = map[data.name] || '0.0.0';
                   const parsedVersion = data.template_version || data.version || '1.0.0';
                   if (compareVersions(parsedVersion, currentVersion) >= 0) {
-                     map[data.name] = parsedVersion;
+                    map[data.name] = parsedVersion;
                   }
                 }
               } catch { }
@@ -212,7 +279,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
         const { data, error } = await query;
         if (error) throw error;
-        
+
         let premiumMap: Record<string, any> = {};
         if (data && data.length > 0) {
           premiumMap = await enrichBlueprintsWithPremiumStatus(supabase, data);
@@ -759,108 +826,108 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const ownedHashesSet = useMemo(() => new Set(ownedHashes), [ownedHashes]);
   const filteredResults = useMemo(() => {
     let filtered = results.filter((mod: any) => {
-    const modName = (mod.name || "").toLowerCase().trim();
-    const isOwned = (() => {
-      if (mod.isVirtual || mod.isParent) {
-        return mod.flavors?.some((f: any) =>
-          ownedHashesSet.has(f.hash) ||
-          f.mod_versions?.some((v: any) => ownedHashesSet.has(v.dna_hash))
-        );
+      const modName = (mod.name || "").toLowerCase().trim();
+      const isOwned = (() => {
+        if (mod.isVirtual || mod.isParent) {
+          return mod.flavors?.some((f: any) =>
+            ownedHashesSet.has(f.hash) ||
+            f.mod_versions?.some((v: any) => ownedHashesSet.has(v.dna_hash))
+          );
+        }
+        return ownedHashesSet.has(mod.hash) ||
+          mod.mod_versions?.some((v: any) => ownedHashesSet.has(v.dna_hash));
+      })();
+
+      if (isOwned) return false;
+
+      if (hidePaid && mod.is_paid) return false;
+      if (hideEarlyAccess && mod.is_early_access) return false;
+
+      if (hideMissingDLC) {
+        let rawDLC: string[] = [];
+        if (mod.requiredDLC) {
+          if (typeof mod.requiredDLC === 'string') {
+            rawDLC = mod.requiredDLC.split(',').map((s: string) => s.trim());
+          } else if (Array.isArray(mod.requiredDLC)) {
+            rawDLC = [...mod.requiredDLC];
+          }
+        }
+        if (mod.flavors) {
+          mod.flavors.forEach((f: any) => {
+            if (f.requiredDLC) {
+              let fDLC = f.requiredDLC;
+              if (typeof fDLC === 'string') fDLC = fDLC.split(',').map((s: string) => s.trim());
+              if (Array.isArray(fDLC)) {
+                fDLC.forEach((d: string) => { if (!rawDLC.includes(d)) rawDLC.push(d); });
+              }
+            }
+          });
+        }
+        let missingPacks = rawDLC.filter((p: string) => {
+          const baseCode = p.split(' ')[0].toUpperCase();
+          return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
+        });
+        if (missingPacks.length > 0) return false;
       }
-      return ownedHashesSet.has(mod.hash) ||
-        mod.mod_versions?.some((v: any) => ownedHashesSet.has(v.dna_hash));
-    })();
 
-    if (isOwned) return false;
+      const masonName = Array.isArray(mod.masons) ? mod.masons[0]?.name : mod.masons?.name;
+      const searchText = searchQuery.toLowerCase();
+      const matchesSearch = !searchQuery ||
+        (mod.name || "").toLowerCase().includes(searchText) ||
+        (mod.master_author || "").toLowerCase().includes(searchText) ||
+        (masonName || "").toLowerCase().includes(searchText) ||
+        (mod.description || "").toLowerCase().includes(searchText);
 
-    if (hidePaid && mod.is_paid) return false;
-    if (hideEarlyAccess && mod.is_early_access) return false;
+      const matchesCategory = categoryFilter === (t("ql_all")) ||
+        categoryFilter === "ALL" ||
+        mod.category_override === categoryFilter;
+      let matchesGameVersion = false;
+      if (selectedGameVersion === "all") {
+        matchesGameVersion = true;
+      } else {
+        const modsToCheck = (mod.isVirtual || mod.isParent) && mod.flavors ? mod.flavors : [mod];
+        matchesGameVersion = modsToCheck.some((m: any) => {
+          const versions = Array.isArray(m.compatible_versions) ? m.compatible_versions : [];
+          if (versions.length === 0) return true;
+          return versions.some((v: string) => v === selectedGameVersion);
+        });
+      }
 
-    if (hideMissingDLC) {
-      let rawDLC: string[] = [];
-      if (mod.requiredDLC) {
-        if (typeof mod.requiredDLC === 'string') {
-          rawDLC = mod.requiredDLC.split(',').map((s: string) => s.trim());
-        } else if (Array.isArray(mod.requiredDLC)) {
-          rawDLC = [...mod.requiredDLC];
+      let matchesDlc = false;
+      if (dlcFilter === "all") {
+        matchesDlc = true;
+      } else {
+        const modsToCheck = (mod.isVirtual || mod.isParent) && mod.flavors ? mod.flavors : [mod];
+        if (dlcFilter === "base_game_only") {
+          matchesDlc = modsToCheck.every((m: any) => {
+            const dlcs = Array.isArray(m.requiredDLC) ? m.requiredDLC : [];
+            return dlcs.length === 0;
+          });
+        } else {
+          matchesDlc = modsToCheck.some((m: any) => {
+            const dlcs = Array.isArray(m.requiredDLC) ? m.requiredDLC : [];
+            return dlcs.includes(dlcFilter);
+          });
         }
       }
-      if (mod.flavors) {
-        mod.flavors.forEach((f: any) => {
-          if (f.requiredDLC) {
-            let fDLC = f.requiredDLC;
-            if (typeof fDLC === 'string') fDLC = fDLC.split(',').map((s: string) => s.trim());
-            if (Array.isArray(fDLC)) {
-              fDLC.forEach((d: string) => { if (!rawDLC.includes(d)) rawDLC.push(d); });
-            }
-          }
-        });
+
+      return matchesSearch && matchesCategory && matchesGameVersion && matchesDlc;
+    });
+
+    return filtered.sort((a: any, b: any) => {
+      switch (sortBy) {
+        case "newest":
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        case "oldest":
+          return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+        case "name":
+          return (a.name || "").localeCompare(b.name || "");
+        case "author":
+          return (a.master_author || "").localeCompare(b.master_author || "");
+        default:
+          return 0;
       }
-      let missingPacks = rawDLC.filter((p: string) => {
-        const baseCode = p.split(' ')[0].toUpperCase();
-        return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
-      });
-      if (missingPacks.length > 0) return false;
-    }
-
-    const masonName = Array.isArray(mod.masons) ? mod.masons[0]?.name : mod.masons?.name;
-    const searchText = searchQuery.toLowerCase();
-    const matchesSearch = !searchQuery ||
-      (mod.name || "").toLowerCase().includes(searchText) ||
-      (mod.master_author || "").toLowerCase().includes(searchText) ||
-      (masonName || "").toLowerCase().includes(searchText) ||
-      (mod.description || "").toLowerCase().includes(searchText);
-
-    const matchesCategory = categoryFilter === (t("ql_all")) ||
-      categoryFilter === "ALL" ||
-      mod.category_override === categoryFilter;
-    let matchesGameVersion = false;
-    if (selectedGameVersion === "all") {
-      matchesGameVersion = true;
-    } else {
-      const modsToCheck = (mod.isVirtual || mod.isParent) && mod.flavors ? mod.flavors : [mod];
-      matchesGameVersion = modsToCheck.some((m: any) => {
-        const versions = Array.isArray(m.compatible_versions) ? m.compatible_versions : [];
-        if (versions.length === 0) return true;
-        return versions.some((v: string) => v === selectedGameVersion);
-      });
-    }
-
-    let matchesDlc = false;
-    if (dlcFilter === "all") {
-      matchesDlc = true;
-    } else {
-      const modsToCheck = (mod.isVirtual || mod.isParent) && mod.flavors ? mod.flavors : [mod];
-      if (dlcFilter === "base_game_only") {
-        matchesDlc = modsToCheck.every((m: any) => {
-          const dlcs = Array.isArray(m.requiredDLC) ? m.requiredDLC : [];
-          return dlcs.length === 0;
-        });
-      } else {
-        matchesDlc = modsToCheck.some((m: any) => {
-          const dlcs = Array.isArray(m.requiredDLC) ? m.requiredDLC : [];
-          return dlcs.includes(dlcFilter);
-        });
-      }
-    }
-
-    return matchesSearch && matchesCategory && matchesGameVersion && matchesDlc;
-  });
-
-  return filtered.sort((a: any, b: any) => {
-    switch (sortBy) {
-      case "newest":
-        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-      case "oldest":
-        return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
-      case "name":
-        return (a.name || "").localeCompare(b.name || "");
-      case "author":
-        return (a.master_author || "").localeCompare(b.master_author || "");
-      default:
-        return 0;
-    }
-  });
+    });
   }, [results, ownedHashesSet, hidePaid, hideEarlyAccess, hideMissingDLC, ownedDLC, maskedDLC, searchQuery, categoryFilter, selectedGameVersion, dlcFilter, sortBy, t]);
 
   const totalPages = Math.max(1, Math.ceil(filteredResults.length / itemsPerPage));
@@ -868,83 +935,83 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
   const filteredAssetResults = useMemo(() => {
     let filtered = assetResults.filter((asset: any) => {
-    const search = assetSearchQuery.toLowerCase();
-    const matchesSearch = !assetSearchQuery ||
-      (asset.name || "").toLowerCase().includes(search) ||
-      (asset.author || "").toLowerCase().includes(search) ||
-      (asset.description || "").toLowerCase().includes(search);
+      const search = assetSearchQuery.toLowerCase();
+      const matchesSearch = !assetSearchQuery ||
+        (asset.name || "").toLowerCase().includes(search) ||
+        (asset.author || "").toLowerCase().includes(search) ||
+        (asset.description || "").toLowerCase().includes(search);
 
-    let matchesLang = true;
-    let matchesType = true;
-    let matchesMode = true;
-    let matchesPaid = true;
-    let matchesEA = true;
-    let matchesDLC = true;
-    let matchesInstalled = true;
+      let matchesLang = true;
+      let matchesType = true;
+      let matchesMode = true;
+      let matchesPaid = true;
+      let matchesEA = true;
+      let matchesDLC = true;
+      let matchesInstalled = true;
 
-    if (hideInstalled) {
-      if (marketTab === 'BLUEPRINTS') {
-        if (playSets.some((p: any) => p.code && asset.json_data?.code && p.code === asset.json_data.code)) {
-          matchesInstalled = false;
-        }
-      } else {
-        if (isInstalled(asset)) {
-          matchesInstalled = false;
-        }
-      }
-    }
-
-    if (marketTab === 'BLUEPRINTS') {
-      if (hidePaid && asset.is_paid) matchesPaid = false;
-      if (hideEarlyAccess && asset.is_early_access) matchesEA = false;
-      
-      if (hideMissingDLC && asset.json_data && asset.json_data.artifacts) {
-        const activeDLC = ownedDLC.filter((d: string) => !maskedDLC.includes(d));
-        for (const mod of asset.json_data.artifacts) {
-          if (mod.requiredDLC) {
-            let rawDLC: string[] = [];
-            if (typeof mod.requiredDLC === 'string') rawDLC = mod.requiredDLC.split(',').map((s: string) => s.trim());
-            else if (Array.isArray(mod.requiredDLC)) rawDLC = [...mod.requiredDLC];
-            
-            const isMissing = rawDLC.some((req: string) => {
-              const cleanReq = req.replace(/['"]/g, '').trim().toUpperCase();
-              return !activeDLC.some((owned: string) => owned.toUpperCase() === cleanReq);
-            });
-            if (isMissing) {
-              matchesDLC = false;
-              break;
-            }
+      if (hideInstalled) {
+        if (marketTab === 'BLUEPRINTS') {
+          if (playSets.some((p: any) => p.code && asset.json_data?.code && p.code === asset.json_data.code)) {
+            matchesInstalled = false;
+          }
+        } else {
+          if (isInstalled(asset)) {
+            matchesInstalled = false;
           }
         }
       }
-    } else if (marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') {
-      if (languageFilter !== 'all') matchesLang = asset.language === languageFilter;
-      if (marketTab === 'LEXICONS' && lexiconTypeFilter !== 'all') matchesType = asset.lexicon_type === lexiconTypeFilter;
-    } else if (marketTab === 'CHAMELEONS') {
-      if (themeModeFilter !== 'all') matchesMode = asset.theme_mode === themeModeFilter;
-    }
 
-    return matchesSearch && matchesLang && matchesType && matchesMode && matchesPaid && matchesEA && matchesDLC && matchesInstalled;
-  });
+      if (marketTab === 'BLUEPRINTS') {
+        if (hidePaid && asset.is_paid) matchesPaid = false;
+        if (hideEarlyAccess && asset.is_early_access) matchesEA = false;
 
-  return filtered.sort((a: any, b: any) => {
-    const aOutdated = isOutdated(a) ? 1 : 0;
-    const bOutdated = isOutdated(b) ? 1 : 0;
-    if (bOutdated !== aOutdated) return bOutdated - aOutdated;
+        if (hideMissingDLC && asset.json_data && asset.json_data.artifacts) {
+          const activeDLC = ownedDLC.filter((d: string) => !maskedDLC.includes(d));
+          for (const mod of asset.json_data.artifacts) {
+            if (mod.requiredDLC) {
+              let rawDLC: string[] = [];
+              if (typeof mod.requiredDLC === 'string') rawDLC = mod.requiredDLC.split(',').map((s: string) => s.trim());
+              else if (Array.isArray(mod.requiredDLC)) rawDLC = [...mod.requiredDLC];
 
-    switch (assetSortBy) {
-      case "newest":
-        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-      case "oldest":
-        return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
-      case "name":
-        return (a.name || "").localeCompare(b.name || "");
-      case "author":
-        return (a.author || "").localeCompare(b.author || "");
-      default:
-        return 0;
-    }
-  });
+              const isMissing = rawDLC.some((req: string) => {
+                const cleanReq = req.replace(/['"]/g, '').trim().toUpperCase();
+                return !activeDLC.some((owned: string) => owned.toUpperCase() === cleanReq);
+              });
+              if (isMissing) {
+                matchesDLC = false;
+                break;
+              }
+            }
+          }
+        }
+      } else if (marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') {
+        if (languageFilter !== 'all') matchesLang = asset.language === languageFilter;
+        if (marketTab === 'LEXICONS' && lexiconTypeFilter !== 'all') matchesType = asset.lexicon_type === lexiconTypeFilter;
+      } else if (marketTab === 'CHAMELEONS') {
+        if (themeModeFilter !== 'all') matchesMode = asset.theme_mode === themeModeFilter;
+      }
+
+      return matchesSearch && matchesLang && matchesType && matchesMode && matchesPaid && matchesEA && matchesDLC && matchesInstalled;
+    });
+
+    return filtered.sort((a: any, b: any) => {
+      const aOutdated = isOutdated(a) ? 1 : 0;
+      const bOutdated = isOutdated(b) ? 1 : 0;
+      if (bOutdated !== aOutdated) return bOutdated - aOutdated;
+
+      switch (assetSortBy) {
+        case "newest":
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        case "oldest":
+          return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+        case "name":
+          return (a.name || "").localeCompare(b.name || "");
+        case "author":
+          return (a.author || "").localeCompare(b.author || "");
+        default:
+          return 0;
+      }
+    });
   }, [assetResults, assetSearchQuery, marketTab, hidePaid, hideEarlyAccess, hideMissingDLC, hideInstalled, playSets, ownedDLC, maskedDLC, languageFilter, lexiconTypeFilter, themeModeFilter, assetSortBy, isOutdated]);
 
   const assetTotalPages = Math.max(1, Math.ceil(filteredAssetResults.length / itemsPerPage));
@@ -1020,20 +1087,130 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       <div className="flex flex-col">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mb-6 w-full">
           <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
-            {['MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
+            {['HOME', 'MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
               <HubTabButton
                 key={tab}
                 id={tab}
                 activeTab={marketTab}
                 setTab={setMarketTab}
-                label={t(`tab_${tab.toLowerCase()}`) || tab}
-                icon={tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : tab === 'TEMPLATES' ? "draw" : "palette"}
+                label={tab === 'HOME' ? t('tab_overview') || 'Overview' : t(`tab_${tab.toLowerCase()}`) || tab}
+                icon={tab === 'HOME' ? 'dashboard' : tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : tab === 'TEMPLATES' ? "draw" : "palette"}
               />
             ))}
           </div>
         </div>
 
-        {marketTab === 'MODS' ? (
+        {marketTab === 'HOME' ? (
+          <CommandScreenLayout>
+            <CommandScreenStats>
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">extension</span>} number={stats.artifacts} label={t("tab_mods") || "Artifacts"} colorClass="border-cyan-500/30 text-cyan-400 hover:border-cyan-500/60 bg-cyan-500/10 hover:bg-cyan-500/20 cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.05)]" onClick={() => setMarketTab('MODS')} />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">map</span>} number={stats.blueprints} label={t("tab_blueprints") || "Blueprints"} colorClass="border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] cursor-pointer" onClick={() => setMarketTab('BLUEPRINTS')} />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">translate</span>} number={stats.lexicons} label={t("tab_lexicons") || "Lexicons"} colorClass="border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:border-[var(--warning)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] cursor-pointer" onClick={() => setMarketTab('LEXICONS')} />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">palette</span>} number={stats.chameleons} label={t("tab_chameleons") || "Chameleons"} colorClass="border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] cursor-pointer" onClick={() => setMarketTab('CHAMELEONS')} />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">draw</span>} number={stats.templates} label={t("tab_templates") || "Templates"} colorClass="border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] cursor-pointer" onClick={() => setMarketTab('TEMPLATES')} />
+            </CommandScreenStats>
+
+            <CommandScreenBody>
+              <CommandScreenMain>
+                <div className="flex flex-col gap-6 w-full">
+                  <CommandScreenSectionHeading
+                    title={t("recent_activity") || "RECENT ACTIVITY"}
+                    icon="history"
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+                    {recentFeed.length > 0 ? recentFeed.map(item => (
+                      <div key={`${item.feed_type}-${item.id}`} className="theme-glass-panel p-6 rounded-2xl border border-white/5 flex flex-col gap-4 hover:bg-white/5 hover:border-white/10 transition-colors cursor-pointer group shadow-lg" onClick={() => {
+                        if (item.feed_type === 'artifact') {
+                          if (onOpenDossier) onOpenDossier({ ...item, isNexusView: true });
+                        } else if (item.feed_type === 'blueprint') {
+                          setSelectedBlueprint(item);
+                        } else if (item.feed_type === 'lexicon') {
+                          setPreviewAsset({ id: item.id, type: 'lexicon' });
+                        } else if (item.feed_type === 'chameleon') {
+                          setPreviewAsset({ id: item.id, type: 'chameleon' });
+                        } else if (item.feed_type === 'template') {
+                          setPreviewAsset({ id: item.id, type: 'workbench_template' });
+                        }
+                      }}>
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent)]">
+                            <span className="material-symbols-outlined !text-[28px]">
+                              {item.feed_type === 'artifact' ? 'extension' : item.feed_type === 'blueprint' ? 'map' : item.feed_type === 'lexicon' ? 'translate' : item.feed_type === 'template' ? 'draw' : 'palette'}
+                            </span>
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="text-[12px] font-black text-[var(--text)] truncate uppercase tracking-widest">{item.name || item.title}</span>
+                            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">BY {item.author || "Citizen"} • {new Date(item.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="theme-glass-panel p-8 rounded-2xl border border-white/5 border-dashed flex flex-col items-center justify-center gap-3 text-center opacity-70">
+                        <span className="material-symbols-outlined !text-4xl text-[var(--subtext)]">history</span>
+                        <span className="text-xs font-black uppercase tracking-widest text-[var(--subtext)]">{t("no_recent_activity") || "NO RECENT ACTIVITY FOUND"}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CommandScreenMain>
+
+              <CommandScreenSidebar title={t("wf_quick_links") || "QUICK LINKS"} icon="bolt">
+                <div className="flex flex-col gap-4">
+                  <CommandScreenQuickLink
+                    icon="extension"
+                    title={t("tab_mods") || "Artifacts"}
+                    subtitle={`${t("btn_browse") || "BROWSE"} ${t("ql_all") || "ALL"} ${stats.artifacts} ${t("tab_mods") || "ARTIFACTS"}`}
+                    onClick={() => setMarketTab('MODS')}
+                    textColorClass="text-emerald-500"
+                    hoverTextColorClass="group-hover:text-emerald-400"
+                    iconShadowClass="drop-shadow-[0_0_8px_rgba(16,185,129,0.5)] text-emerald-500"
+                    iconBorderHoverClass="group-hover:border-emerald-500/30"
+                  />
+                  <CommandScreenQuickLink
+                    icon="map"
+                    title={t("tab_blueprints") || "Blueprints"}
+                    subtitle={`${t("btn_browse") || "BROWSE"} ${t("ql_all") || "ALL"} ${stats.blueprints} ${t("tab_blueprints") || "BLUEPRINTS"}`}
+                    onClick={() => setMarketTab('BLUEPRINTS')}
+                    textColorClass="text-blue-500"
+                    hoverTextColorClass="group-hover:text-blue-400"
+                    iconShadowClass="drop-shadow-[0_0_8px_rgba(59,130,246,0.5)] text-blue-500"
+                    iconBorderHoverClass="group-hover:border-blue-500/30"
+                  />
+                  <CommandScreenQuickLink
+                    icon="translate"
+                    title={t("tab_lexicons") || "Lexicons"}
+                    subtitle={`${t("btn_browse") || "BROWSE"} ${t("ql_all") || "ALL"} ${stats.lexicons} ${t("tab_lexicons") || "LEXICONS"}`}
+                    onClick={() => setMarketTab('LEXICONS')}
+                    textColorClass="text-purple-500"
+                    hoverTextColorClass="group-hover:text-purple-400"
+                    iconShadowClass="drop-shadow-[0_0_8px_rgba(168,85,247,0.5)] text-purple-500"
+                    iconBorderHoverClass="group-hover:border-purple-500/30"
+                  />
+                  <CommandScreenQuickLink
+                    icon="palette"
+                    title={t("tab_chameleons") || "Chameleons"}
+                    subtitle={`${t("btn_browse") || "BROWSE"} ${t("ql_all") || "ALL"} ${stats.chameleons} ${t("tab_chameleons") || "CHAMELEONS"}`}
+                    onClick={() => setMarketTab('CHAMELEONS')}
+                    textColorClass="text-rose-500"
+                    hoverTextColorClass="group-hover:text-rose-400"
+                    iconShadowClass="drop-shadow-[0_0_8px_rgba(244,63,94,0.5)] text-rose-500"
+                    iconBorderHoverClass="group-hover:border-rose-500/30"
+                  />
+                  <CommandScreenQuickLink
+                    icon="draw"
+                    title={t("tab_templates") || "Templates"}
+                    subtitle={`${t("btn_browse") || "BROWSE"} ${t("ql_all") || "ALL"} ${stats.templates} ${t("tab_templates") || "TEMPLATES"}`}
+                    onClick={() => setMarketTab('TEMPLATES')}
+                    textColorClass="text-amber-500"
+                    hoverTextColorClass="group-hover:text-amber-400"
+                    iconShadowClass="drop-shadow-[0_0_8px_rgba(245,158,11,0.5)] text-amber-500"
+                    iconBorderHoverClass="group-hover:border-amber-500/30"
+                  />
+                </div>
+              </CommandScreenSidebar>
+            </CommandScreenBody>
+          </CommandScreenLayout>
+        ) : marketTab === 'MODS' ? (
           <>
             <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
               <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] hidden xl:flex items-center gap-3 shrink-0">
@@ -1072,6 +1249,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     }}
                     options={[
                       { id: "all", label: "ALL VERSIONS" },
+                      ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
                       ...gameVersions.map(v => ({ id: v, label: v }))
                     ]}
                   />
@@ -1287,6 +1465,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       }}
                       options={[
                         { id: "all", label: "ALL VERSIONS" },
+                        ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
                         ...gameVersions.map(v => ({ id: v, label: v }))
                       ]}
                     />
@@ -1401,7 +1580,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="absolute top-4 right-4 flex flex-col items-end gap-2 z-30">
                         <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest shadow-lg">
                           {marketTab === 'BLUEPRINTS' ? (t("type_blueprint")) : marketTab === 'CHAMELEONS' ? (t("type_theme")) : marketTab === 'TEMPLATES' ? (t("type_template")) : (t("tab_lexicons"))}
@@ -1608,7 +1787,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               return null;
             }
           }}
-          onUpdatePlaySet={() => {}}
+          onUpdatePlaySet={() => { }}
         />
       )}
     </div>

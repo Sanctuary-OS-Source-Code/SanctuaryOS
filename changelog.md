@@ -1,6 +1,8 @@
-**Date: August 6, 2026**
-**Version: 0.4.93**
+**Date: August 5, 2026**
+**Version: 0.4.92**
  
+## The Hub Unification & Architecture Update
+
 ### **Settings Hub Architecture & Polish**
 - **Grid Architecture Revamp**: Completely tore down the legacy table rows across the Settings Hub, replacing them with a modern `SettingsGrid` and modular glassmorphic `SettingCard` components.
 - **Tab Re-Categorization**: Restructured the Settings Hub for perfect balance and mental mapping:
@@ -12,19 +14,39 @@
 - **Lexicon Harmonization**: Mapped all new settings strings across the `en-default`, `en-sanctuary`, and `Simlish` dictionaries. Renamed the confusing "Vault Max Capacity" label to "Time Capsule Limit" to correctly reflect its purpose within the Engine tab.
 - **Component Polish**: Unclamped `SettingCard` descriptions to ensure that long-form explanations (like Defcon targets) fully wrap and display without truncation.
 
----
+### **Command Screen & Dashboard Refinement**
+- **Aesthetic Standardization**: Unified all primary icon boxes across the Command Center (Quick Links, Alert Banners, and Section Headings) to utilize perfectly circular (`rounded-full`) borders, replacing the mixed squircle (`rounded-[var(--radius)]`/`rounded-xl`) styling for a much more cohesive UI language.
+- **Layout Integrity Fixes**: Hardened the CSS Flexbox and Grid boundaries across the dashboard. Applied strict `min-w-0` and truncation to stat tiles to prevent container blowouts, and wrapped text descriptions in `SystemBroadcastsGrid` with `flex-1 min-h-0` to properly calculate margins without text bleeding.
+- **Visual Restorations**: Replaced uncompiled Tailwind color strings with the official `theme-glass-panel` utility class on header boxes to restore their frosted glass backgrounds. Injected proper 32px vertical breathing room below the Latest Dispatch card.
+- **State Resolutions**: Resolved state initialization errors within the Mason Command Screen by explicitly typing and tracking the active blueprints count.
 
-**Date: August 5, 2026**
-**Version: 0.4.92**
- 
- 
- ### **Major Systems Overhaul**
-  - **Visual Polish**: Standardized the active target "Selected" scan buttons, and applied dynamic glowing background tints to active blueprint cards across both the Blueprints Hub and Conflict Radar.
-  - **Ecosystem Forge Enhancements**: 
-    - **Missing Dependency Detection**: Upgraded the dependency resolution logic to correctly identify virtual/uninstalled artifacts, triggering a localized UI alert when required symbiotic entities are missing from the local vault.
-    - **Active Test Side Panel**: Replaced the raw button swaps with a massive new animated `SidePanel` component to indicate when an experiment is underway, featuring unified Action Button footer controls.
-    - **UI Polish**: Stripped redundant abort controls from the top header, updated the "Subject Isolation" badge to automatically adapt to OS theme styles (preventing dark mode text clashing on light themes), and refactored core subject buttons to leverage the official OS `ActionButton` components.
-    - **Core UI Architecture**: Fixed a TypeScript destructuring oversight in the shared `ActionButton` component, fully unlocking `form` and `onDoubleClick` prop pass-through capabilities.
+### **Lexicon & Chameleon Panel Overhauls**
+- **Card-Based UI Revamp**: Scrapped the compact, linear row designs in both the Theme (Chameleon) and Language (Lexicon) side panels. They now feature massive, premium glassmorphic cards laid out in a clean grid.
+- **Interactive Polish**: The new cards feature fluid `shadow-xl` hover elevations (`hover:-translate-y-1`), animated circular aesthetic previews, and deeply integrated quick-action buttons for saving, editing, and favoriting.
+- **Inline Editing Upgrade**: Restyled the inline renaming inputs to utilize a heavy `bg-black/20` design with crisp padding and accent-colored focus states, drastically improving visibility against the complex frosted backgrounds.
+
+### **Nexus Core Refinements**
+- **Dashboard Telemetry Fix**: Resolved a critical issue where the Nexus dashboard incorrectly queried the deprecated `nexus_mods` table instead of the active `mods` table, successfully restoring all-time count statistics and the recent activity feed.
+- **Stats Filtering**: Enforced strict `compliance_tier=0` and `is_public=true` filters across all artifact, blueprint, and asset stat tiles to accurately exclude hidden and unverified items from global counts.
+- **Global Search Synchronization**: Patched a missing lifecycle hook that prevented the global search query from syncing properly. Additionally, clicking items on the Recent Activity feed now instantly opens their dedicated inspector panel without forcing a jarring tab swap or overriding your local search filters.
+- **Dropdown State Integrity**: Fixed a race condition in the Game Version filter dropdowns (Artifact and Blueprint tabs) that caused them to default to their placeholders by dynamically injecting the active game version into the list before the database fetch completes.
+- **Quick Links Consolidation**: Cleaned up the Nexus sidebar by stripping redundant telemetry row headers. Quick Links now natively display dynamic item counts within their localized subtitles.
+- **Landing Page Redesign**: Rebuilt the main Nexus `HOME` tab using the new `SharedCommandScreenLayout`. Added a "Recent Activity" grid displaying the latest uploads and dedicated stat tiles tracking global ecosystem counts across all artifact types.
+- **Blueprint Inspector Resiliency**: Patched a fatal crash that occurred when clicking recently uploaded blueprints from the Nexus feed due to unparsed JSON. Additionally, fixed a bug where older blueprints would falsely report "0 INCLUDED ARTIFACTS" by adding a fallback to scan the root database columns.
+
+### **Vault & Library Enhancements**
+- **Command Screen Architecture**: The Vault overview tab has been completely redesigned to utilize the `SharedCommandScreenLayout`. It now features centralized stat tiles (Total Schematics, In Blueprint, Unverified, Local Nodes), a "Recent Injections" grid, and a streamlined "Quick Actions" sidebar for bulk overrides and archive purging.
+- **Bulk Action Bar Upgrade**: The Vault's bulk selection toolkit received a major usability pass. Added dedicated "Select All" and "Clear" action buttons to rapidly manage large loadouts. The toggle itself was restyled to match the native `theme-glass-panel` aesthetic.
+- **Telemetry Expansion**: Added a brand new "Virtual Folders" stat tile to the top of the Vault to track active local folder mappings alongside Unverified artifacts.
+- **Architecture Cleanup**: Deprecated and purged the redundant `VaultToolsSidePanel` from the Vault ecosystem.
+
+### **Homestead Lab & Conflict Radar**
+- **Visual Polish**: Standardized the active target "Selected" scan buttons, and applied dynamic glowing background tints to active blueprint cards across both the Blueprints Hub and Conflict Radar.
+- **Ecosystem Forge Enhancements**: 
+  - **Missing Dependency Detection**: Upgraded the dependency resolution logic to correctly identify virtual/uninstalled artifacts, triggering a localized UI alert when required symbiotic entities are missing from the local vault.
+  - **Active Test Side Panel**: Replaced the raw button swaps with a massive new animated `SidePanel` component to indicate when an experiment is underway, featuring unified Action Button footer controls.
+  - **UI Polish**: Stripped redundant abort controls from the top header, updated the "Subject Isolation" badge to automatically adapt to OS theme styles (preventing dark mode text clashing on light themes), and refactored core subject buttons to leverage the official OS `ActionButton` components.
+  - **Core UI Architecture**: Fixed a TypeScript destructuring oversight in the shared `ActionButton` component, fully unlocking `form` and `onDoubleClick` prop pass-through capabilities.
 
 
 ---

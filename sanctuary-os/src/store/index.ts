@@ -391,7 +391,7 @@ export const useStore = create<GlobalState>((set) => ({
   }),
   hideIneligible: false,
   setHideIneligible: (hideIneligible) => set({ hideIneligible }),
-  marketTab: 'MODS',
+  marketTab: 'HOME',
   setMarketTab: (marketTab) => set({ marketTab }),
   nexusUpdatesCount: 0,
   setNexusUpdatesCount: (nexusUpdatesCount) => set({ nexusUpdatesCount }),
