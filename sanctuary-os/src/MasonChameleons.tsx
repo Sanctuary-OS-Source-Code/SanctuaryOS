@@ -25,8 +25,8 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
           <span className="material-symbols-outlined !text-[24px]">{t("icon_close")}</span>
         </button>
         <div className="px-8 pt-10 pb-6 relative flex-shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-          <h3 className="text-2xl font-black text-[var(--text)] uppercase">Select Base Theme</h3>
-          <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">Choose a blueprint to start your new signature</p>
+          <h3 className="text-2xl font-black text-[var(--text)] uppercase">{t("theme_select_base")}</h3>
+          <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("theme_choose_blueprint")}</p>
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-4">
           <button onClick={() => onSelect(null)} className="w-full p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 group text-left">
@@ -34,29 +34,29 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
               <span className="material-symbols-outlined text-[var(--accent)]">add</span>
             </div>
             <div>
-              <h4 className="text-sm font-black text-[var(--accent)] uppercase tracking-widest">Blank Signature</h4>
-              <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80">Start completely from scratch</p>
+              <h4 className="text-sm font-black text-[var(--accent)] uppercase tracking-widest">{t("theme_blank")}</h4>
+              <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80">{t("theme_scratch_desc")}</p>
             </div>
           </button>
 
-          <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-4 ml-2">Core Architectures</h4>
+          <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-4 ml-2">{t("theme_core_arch")}</h4>
           {Object.entries(CORE_THEMES).map(([id, theme]: any) => (
             <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left">
               <div className="w-12 h-12 rounded-xl shrink-0" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-black text-[var(--text)] uppercase tracking-widest truncate">{theme.name}</h4>
-                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">Core OS Theme</p>
+                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">{t("theme_core_os")}</p>
               </div>
             </button>
           ))}
 
-          <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-4 ml-2">Your Personal Themes</h4>
+          <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-4 ml-2">{t("theme_personal")}</h4>
           {Object.entries(customThemes).map(([id, theme]: any) => (
             <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left">
               <div className="w-12 h-12 rounded-xl shrink-0" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-black text-[var(--text)] uppercase tracking-widest truncate">{theme.name}</h4>
-                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">Custom Theme</p>
+                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">{t("theme_custom")}</p>
               </div>
             </button>
           ))}

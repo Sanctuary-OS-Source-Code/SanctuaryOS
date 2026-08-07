@@ -601,7 +601,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
               {viewMode === 'edit' ? (
                 <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="flex flex-col items-center justify-center gap-3 w-full mb-2">
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-70">Transmission Type</span>
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-70">{t("trans_type")}</span>
                     <div className="flex p-1 rounded-full theme-glass-panel bg-black/40 border border-white/5 shadow-inner">
                       <button 
                         onClick={() => { setDeliveryMethod("Dispatch"); setIsUrgent(false); if (category === "Alert") setCategory("Update"); }}

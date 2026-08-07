@@ -301,7 +301,7 @@ export function AuditLogViewer({
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8 pb-32">
               {selectedLog.game_name && (
                 <div className="flex flex-col gap-2">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">ENVIRONMENT</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("env_title")}</h3>
                   <div className="theme-glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[var(--accent)] text-sm font-black tracking-widest uppercase shadow-inner">
                     {selectedLog.game_name}
                   </div>

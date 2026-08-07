@@ -8,7 +8,7 @@ import defaultCover from "./assets/default-cover.jpg";
 function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, ownedDLC = [],
   maskedDLC = [], casualtyList = [], tier3List = [], missingDeps = "", isParent = false, isExpanded = false, onExpand = () => { },
   isBulkMode = false, isSelected = false, onToggleSelect = () => { }, onResolveConflict, anarchyRules = null, hideIneligible = false, isFlavorSwap = false,
-  onInspectItem }: any) {
+  onInspectItem, onContextMenu }: any) {
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
@@ -119,21 +119,57 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
 
         <div
           onClick={(e) => { if (isShadowed) { e.preventDefault(); return; } onSelect(e); }}
+          draggable={!mod.name?.startsWith('LOCAL_SET_')}
+          onDragStart={(e) => {
+            if (mod.name?.startsWith('LOCAL_SET_')) return;
+            e.dataTransfer.setData('sanctuary/mod-hash', mod.hash);
+            e.dataTransfer.effectAllowed = 'copyMove';
+            e.currentTarget.style.opacity = '0.5';
+          }}
+          onDragEnd={(e) => {
+            e.currentTarget.style.opacity = '1';
+          }}
+          onDragOver={(e) => {
+            if (mod.name?.startsWith('LOCAL_SET_')) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+              e.currentTarget.classList.add('scale-[1.02]', 'shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
+            }
+          }}
+          onDragLeave={(e) => {
+            if (mod.name?.startsWith('LOCAL_SET_')) {
+              e.currentTarget.classList.remove('scale-[1.02]', 'shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
+            }
+          }}
+          onDrop={(e) => {
+            if (mod.name?.startsWith('LOCAL_SET_')) {
+              e.preventDefault();
+              e.currentTarget.classList.remove('scale-[1.02]', 'shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
+              const droppedHash = e.dataTransfer.getData('sanctuary/mod-hash');
+              if (droppedHash) {
+                const localSts = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
+                const updatedSets = localSts.map((ls: any) => ls.id === mod.dbId ? { ...ls, items: Array.from(new Set([...ls.items, droppedHash])) } : ls);
+                localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                if (window.dispatchEvent) {
+                  window.dispatchEvent(new CustomEvent('runRadarSweep'));
+                  window.dispatchEvent(new CustomEvent('showSystemAlert', { detail: { message: 'Artifact added to folder', type: 'success' } }));
+                }
+              }
+            }
+          }}
+          onContextMenu={(e) => {
+            if (onContextMenu) {
+              e.preventDefault();
+              e.stopPropagation();
+              onContextMenu(e);
+            }
+          }}
           className={`relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] transition-all duration-500 shadow-xl overflow-hidden group/maincard [backface-visibility:hidden] ${delayedConfirmMode ? 'pointer-events-none !border-transparent' : ''} ${isShadowed ? `opacity-30 grayscale border ${isSwappedState ? 'border-[var(--accent)]/50' : 'border-[var(--danger)]'}` : `cursor-pointer border border-transparent ${delayedConfirmMode ? '' : 'hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(var(--accent-rgb),0.15)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}`}
         >
           {!isShadowed && (
             <div className={`absolute inset-0 z-0 pointer-events-none transition-all duration-500 ${delayedConfirmMode ? '' : 'group-hover/maincard:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]'}`} />
           )}
-          {isBulkMode && (
-            <div
-              onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
-              className="absolute inset-0 z-50 bg-black/50 backdrop-blur-[3px] rounded-[var(--radius)] flex flex-col items-center justify-start pt-12 cursor-pointer transition-all hover:bg-black/40"
-            >
-              <div className={`w-14 h-14 rounded-[var(--radius)] border flex items-center justify-center transition-all duration-300 ${isSelected ? 'theme-glass-panel bg-[color-mix(in_srgb,var(--success)_25%,transparent)] border-[color-mix(in_srgb,var(--success)_50%,transparent)] shadow-[0_10px_30px_rgba(var(--success-rgb),0.3)] scale-110' : 'theme-glass-panel border-white/10 hover:bg-white/5 hover:scale-105'}`}>
-                {isSelected && <span className="text-3xl text-[var(--success)] font-black drop-shadow-[0_0_10px_rgba(var(--success-rgb),0.5)]">✓</span>}
-              </div>
-            </div>
-          )}
+
 
           <div className={`relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] transition-colors duration-700 ${delayedConfirmMode ? '' : 'group-hover/maincard:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
             <div className="absolute inset-0 overflow-hidden z-0">
@@ -198,6 +234,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                         if (isSelfBroken) return t("status_broken");
                         if (cleaned.toLowerCase() === 'broken' && !isSelfBroken) return t("badge_stable");
                         if (cleaned.toLowerCase() === 'unverified') return t("unverified");
+                        if (cleaned.toLowerCase() === 'local folder' || cleaned.toLowerCase() === 'local node') return t("local_node") || "LOCAL FOLDER";
                         if (cleaned.toLowerCase() === 'unstable') return t("label_unstable");
                         return cleaned.toUpperCase();
                       })()}
@@ -388,9 +425,9 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                     {hasMissingDeps && missingDeps.map((req: any) => {
                       const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
                       return (
-                        <div key={reqIdStr} 
-                             onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(req); } }}
-                             className={`flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
+                        <div key={reqIdStr}
+                          onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(req); } }}
+                          className={`flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
                           <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">extension</span>
                           <div className="flex flex-col min-w-0 flex-1">
                             <span className="text-[8px] font-black text-[var(--danger)] opacity-70 uppercase tracking-widest">{t("missing_dependency") || "DEP"}</span>
@@ -405,9 +442,9 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                   </>
                 ) : (delayedConfirmMode === 'casualty' || delayedConfirmMode === 'flavor_swap') ? (
                   casualtyList.map((c: any, i: number) => (
-                    <div key={i} 
-                         onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(c); } }}
-                         className={`flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
+                    <div key={i}
+                      onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(c); } }}
+                      className={`flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
                       <span className={`material-symbols-outlined !text-[16px] shrink-0 ${delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'theme-text-danger'}`}>{delayedConfirmMode === 'flavor_swap' ? 'swap_horiz' : (!isInActiveSet ? (t("icon_crisis_alert") || 'crisis_alert') : 'delete')}</span>
                       <div className="flex flex-col min-w-0 flex-1">
                         <span className={`text-[8px] font-black uppercase tracking-widest ${delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent opacity-70' : 'text-[var(--danger)] opacity-70'}`}>{delayedConfirmMode === 'flavor_swap' ? (t("flavor_replaced") || "REPLACED") : (t("artifact_removed") || "REMOVED")}</span>
@@ -420,9 +457,9 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                   ))
                 ) : delayedConfirmMode === 'broken' ? (
                   brokenMods.map((b: any, i: number) => (
-                    <div key={i} 
-                         onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(b); } }}
-                         className={`flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
+                    <div key={i}
+                      onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(b); } }}
+                      className={`flex items-center gap-3 theme-glass-panel backdrop-blur-md border border-white/5 shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
                       <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">broken_image</span>
                       <div className="flex flex-col min-w-0 flex-1">
                         <span className="text-[8px] font-black text-[var(--danger)] opacity-70 uppercase tracking-widest">{t("status_broken") || "BROKEN"}</span>
@@ -446,7 +483,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                       </button>
                       <div className="absolute top-1/2 left-[calc(50%-12px)] -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
                         <div className="theme-glass-panel shadow-sm px-2.5 h-5 border border-white/10 text-orange-500 rounded-full flex items-center justify-center">
-                          <span className="text-[9px] font-black leading-none tracking-[0.1em] mt-[1px]">VS</span>
+                          <span className="text-[9px] font-black leading-none tracking-[0.1em] mt-[1px]">{t("vs")}</span>
                         </div>
                       </div>
                       <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, tier3List[0]?.rawName || tier3List[0]?.name); } }, 10); }} className="flex items-center justify-between gap-3 theme-glass-panel backdrop-blur-md border border-white/5 hover:border-[color-mix(in_srgb,orange_30%,transparent)] hover:bg-white/5 active:scale-95  duration-300 p-3 rounded-2xl w-full text-left group/btn shadow-md hover:shadow-lg">

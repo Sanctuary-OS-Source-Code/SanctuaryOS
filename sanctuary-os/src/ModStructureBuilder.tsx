@@ -184,7 +184,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                    <span className={`text-sm font-mono truncate tracking-tight ${isConfigFile ? 'text-[var(--warning)] opacity-80' : 'theme-text-accent font-black'}`}>
                      {isConfigFile ? node.assignedModName.replace(/^\[|\]$/g, '') : `[${node.assignedModName}]`}
                    </span>
-                   {isPackage && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-black tracking-widest border border-blue-500/20 leading-none">PKG</span>}
+                   {isPackage && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-black tracking-widest border border-blue-500/20 leading-none">{t("badge_pkg")}</span>}
                    {isTs4script && <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 font-black tracking-widest border border-green-500/20 leading-none">TS4</span>}
                 </div>
               ) : (

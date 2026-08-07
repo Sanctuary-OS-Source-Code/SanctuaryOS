@@ -110,9 +110,9 @@ export default function KeepersActiveGames() {
 
         <div className="flex items-center gap-3 flex-1 justify-end">
           <div className="flex items-center theme-glass-panel rounded-xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
-            <button onClick={() => setFilter('all')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>All</button>
-            <button onClick={() => setFilter('active')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'active' ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>Active</button>
-            <button onClick={() => setFilter('inactive')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'inactive' ? 'text-red-500 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-red-400 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>Inactive</button>
+            <button onClick={() => setFilter('all')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_all")}</button>
+            <button onClick={() => setFilter('active')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'active' ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_active")}</button>
+            <button onClick={() => setFilter('inactive')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'inactive' ? 'text-red-500 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-red-400 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_inactive")}</button>
           </div>
           <ActionButton
             onClick={() => { setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", icon: "" }); setSidePanelMode('add'); }}
@@ -187,7 +187,7 @@ export default function KeepersActiveGames() {
                   <div>
                     <h3 className="text-xl font-bold text-[var(--headerText)] flex items-center gap-2">
                       {game.name}
-                      {game.is_active === false && <span className="text-[9px] font-black uppercase bg-red-500/20 text-red-500 px-2 py-0.5 rounded-full">INACTIVE</span>}
+                      {game.is_active === false && <span className="text-[9px] font-black uppercase bg-red-500/20 text-red-500 px-2 py-0.5 rounded-full">{t("filter_inactive")}</span>}
                     </h3>
                     <p className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{game.schema_id}</p>
                   </div>

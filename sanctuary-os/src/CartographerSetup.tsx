@@ -285,7 +285,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
               </div>
               <div className="theme-glass-panel p-5 rounded-2xl border border-[var(--warning)]/30 flex flex-col gap-2 relative overflow-hidden hover:border-[var(--warning)]/50 transition-colors shadow-xl">
                 <div className="absolute inset-0 bg-[var(--warning)]/10" />
-                <span className="text-[9px] font-black tracking-[0.2em] text-[var(--warning)] uppercase opacity-90 relative z-10">DEFCON</span>
+                <span className="text-[9px] font-black tracking-[0.2em] text-[var(--warning)] uppercase opacity-90 relative z-10">{t("defcon_label")}</span>
                 <div className="flex items-center gap-2.5 relative z-10">
                   <span className="material-symbols-outlined !text-[16px] text-[var(--warning)] drop-shadow-[0_0_8px_var(--warning)]">warning</span>
                   <span className="text-sm font-bold text-[var(--text)] tracking-wide">LEVEL 3</span>

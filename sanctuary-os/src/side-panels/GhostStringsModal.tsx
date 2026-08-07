@@ -129,7 +129,7 @@ export function GhostStringsModal({
                       <span className="material-symbols-outlined !text-[20px]">auto_fix_high</span>
                     </div>
                     <div className="flex flex-col flex-1">
-                      <span className="text-xs font-black text-yellow-500 uppercase tracking-widest">Premium Artifacts Detected</span>
+                      <span className="text-xs font-black text-yellow-500 uppercase tracking-widest">{t("premium_detected")}</span>
                       <span className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-wider opacity-80">
                         {premiumGhosts.filter((m: string) => ghostsMeta[m]?.is_paid).length} Paid, {premiumGhosts.filter((m: string) => ghostsMeta[m]?.is_early_access).length} Early Access
                       </span>
@@ -142,7 +142,7 @@ export function GhostStringsModal({
                         className="px-3 py-1.5 flex items-center gap-2 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[var(--accent)]/30 rounded-xl transition-all"
                       >
                         <span className="material-symbols-outlined !text-[14px]">visibility_off</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest">Ignore</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_ignore_issue")}</span>
                       </button>
                       <button
                         onClick={() => {
@@ -151,7 +151,7 @@ export function GhostStringsModal({
                         className="px-3 py-1.5 flex items-center gap-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] border border-[var(--danger)]/30 rounded-xl transition-all"
                       >
                         <span className="material-symbols-outlined !text-[14px]">delete</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest">Purge</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_purge_issue")}</span>
                       </button>
                     </div>
                   </div>
@@ -164,7 +164,7 @@ export function GhostStringsModal({
                   {premiumGhosts.length > 0 && (
                     <div className="flex items-center gap-4 mt-2 mb-2">
                       <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[var(--text)]/10 to-transparent" />
-                      <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-60">Standard Artifacts</span>
+                      <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-60">{t("standard_artifacts")}</span>
                       <div className="h-[1px] flex-1 bg-gradient-to-r from-[var(--text)]/10 via-transparent to-transparent" />
                     </div>
                   )}

@@ -1611,7 +1611,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
 
       <div className="p-4 max-h-[300px] overflow-y-auto custom-scrollbar">
         {filteredCategories.length === 0 ? (
-          <div className="text-center text-[var(--subtext)] text-xs py-8 opacity-50">No icons found.</div>
+          <div className="text-center text-[var(--subtext)] text-xs py-8 opacity-50">{t("no_icons")}</div>
         ) : (
           <div className="flex flex-col gap-6">
             {filteredCategories.map(cat => (

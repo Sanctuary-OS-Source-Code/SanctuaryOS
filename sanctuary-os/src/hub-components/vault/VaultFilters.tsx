@@ -51,7 +51,9 @@ export function VaultFilters({
   displayModList,
   selectedVersion,
   hideGhostCards,
-  setHideGhostCards
+  setHideGhostCards,
+  onCreateLocalFolder,
+  setSelectedMods
 }: any) {
   return (
     <div className={`flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500`}>
@@ -62,23 +64,25 @@ export function VaultFilters({
         <span className="truncate">{t("title_artifacts") || "YOUR ARTIFACTS"}</span>
       </h2>
 
-      <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-        <DebouncedSearchInput value={searchQuery} onChange={setSearchQuery} placeholder={t("search_ph")} t={t} />
+        <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
+          <DebouncedSearchInput value={searchQuery} onChange={setSearchQuery} placeholder={t("search_ph")} t={t} />
 
-        <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-50 h-12">
-          <CustomDropdown disableTint={true}
-            value={activeCategory}
-            onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
-            options={[
-              { id: "ALL", label: t("ql_all") || "ALL" },
-              ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
-                id: cat.id,
-                label: t(cat.lexicon_key) || cat.id
-              })) || []),
-              { id: "LOCAL_FOLDERS", label: t("filter_local") || "LOCAL FOLDERS" }
-            ]}
-          />
-        </div>
+          <div className="flex items-center gap-2 flex-1 xl:flex-none xl:w-max min-w-[140px] shrink-0 relative z-50 h-12">
+            <div className="flex-1 xl:max-w-[200px] h-full">
+                <CustomDropdown disableTint={true}
+                  value={activeCategory}
+                  onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
+                  options={[
+                    { id: "ALL", label: t("ql_all") || "ALL" },
+                    ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                      id: cat.id,
+                      label: t(cat.lexicon_key) || cat.id
+                    })) || []),
+                    { id: "LOCAL_FOLDERS", label: t("filter_local") || "LOCAL FOLDERS" }
+                  ]}
+                />
+            </div>
+          </div>
 
         {(() => {
           const activeSchemaCategory = activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
@@ -163,6 +167,16 @@ export function VaultFilters({
               );
             })()}
           </div>
+        )}
+
+        {onCreateLocalFolder && (
+          <button
+            onClick={() => { setSelectedMods && setSelectedMods([]); onCreateLocalFolder(); }}
+            className="h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border shadow-lg hover:scale-[1.02] active:scale-95 shrink-0 theme-glass-panel text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5"
+          >
+            <span className="material-symbols-outlined !text-[18px]">add_circle</span>
+            {t("btn_create_node") || "NEW NODE"}
+          </button>
         )}
 
         {(equipFilter === "ALL" || equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") && (

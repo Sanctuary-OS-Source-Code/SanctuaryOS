@@ -105,7 +105,7 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
           (equipFilter === "UNEQUIPPED" && !isActuallyEquipped);
         const modType = (m.category_override || m.type || "NONE").toUpperCase();
         const matchesCategory =
-          activeCategory === "ALL" || (activeCategory === "LOCAL_FOLDERS" ? (m.isVirtual || mod.isVirtual) : modType === activeCatUpper);
+          activeCategory === "ALL" || (activeCategory === "LOCAL_FOLDERS" ? ((m.isVirtual || mod.isVirtual) && (m.hash?.startsWith('local_set_') || mod.hash?.startsWith('local_set_')) && !(m.isCollection || mod.isCollection)) : modType === activeCatUpper);
         const subType = (m.sub_type || "").toUpperCase();
         const matchesSubType =
           activeSubType === "ALL" || subType === activeSubUpper;

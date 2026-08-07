@@ -1,3 +1,19 @@
+**Date: August 6, 2026**
+**Version: 0.4.93**
+
+## **Local Node & Dossier Architecture**
+
+### **Vault & Library Enhancements**
+- **Local Folder Revamp**: Completely replaced the tedious grid-based multi-select logic with a direct, Discord-style search-and-add interface for creating and managing Local Folders.
+- **Local Node Filtering**: Re-engineered the Local Folders filter in the Vault to strictly display true local folders by enforcing strict metadata checks, preventing collections and families from bleeding into the folder view.
+- **Local Node Telemetry Visibility**: Re-mapped the "Unverified" system status badge for structural Local Folders to explicitly display "LOCAL NODE" with a dedicated blue accent color. Broken items inside a folder will still properly trigger the red warning, ensuring a clear visual hierarchy without burying the alert.
+- **Cascade Stability Upgrades**: Hardened the "Yeet Cascade" un-equip logic in the Dossier and Vault Drawer to strictly reference `activeMods`. This correctly excludes unequipped Addons and Twins from triggering false-positive deletion warnings, and prevents the Drawer from incorrectly forcing Addons to equip alongside their Core.
+
+### **Nexus Core Refinements**
+- **Download Engine Stability**: Overhauled the Sanctuary Nexus download process to utilize intelligent chunking and debounced state updates. This significantly improves visual stability for the progress bars, completely eliminating the jarring UI jumps during asset retrieval.
+
+---
+
 **Date: August 5, 2026**
 **Version: 0.4.92**
  

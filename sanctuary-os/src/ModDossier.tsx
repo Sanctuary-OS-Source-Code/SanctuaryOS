@@ -84,9 +84,14 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
       const familyAnchor = mod.familyId || mod.dbId;
       const isMaster = mod.dbId && String(mod.dbId) === String(familyAnchor);
+      
+      const localSets = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
+      const isArchMember = localSets.some((s: any) => s.archetypes?.core === mod.hash || s.archetypes?.twins?.includes(mod.hash));
+      
       if (
         mod.isVirtual ||
         (isMaster ||
+          isArchMember ||
           mod.relationshipType === "twin" ||
           mod.relationshipType === "core" ||
           mod.relationshipType === "beta")
@@ -96,9 +101,12 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
             (m: any) =>
               (String(m.familyId) === String(familyAnchor) ||
                 String(m.dbId) === String(familyAnchor) ||
-                String(m.setId) === String(mod.dbId)) &&
+                String(m.setId) === String(mod.dbId) ||
+                (isArchMember && localSets.some((s: any) => (s.archetypes?.core === mod.hash || s.archetypes?.twins?.includes(mod.hash)) && s.items.includes(m.hash)))) &&
               m.name &&
-              !m.isVirtual
+              !m.isVirtual &&
+              m.name !== mod.name &&
+              activeMods.includes(m.name)
           )
           .forEach((m: any) => toDelete.add(m.name));
       }
@@ -388,10 +396,20 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         {t("btn_send_to_lab")}
                       </button>
                     )}
-                    <button onClick={() => setEditMode(true)} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-yellow-400 opacity-80 hover:opacity-100 hover:bg-yellow-500/10">
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_edit")}</span>
-                      {isCorrecting ? t("btn_submit_corrections") : t("btn_edit")}
-                    </button>
+                    {mod.name?.startsWith('LOCAL_SET_') ? (
+                      <button onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: mod.dbId })); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-yellow-400 opacity-80 hover:opacity-100 hover:bg-yellow-500/10">
+                        <span className="material-symbols-outlined !text-[16px]">{t("icon_tune") || "tune"}</span>
+                        {t("local_folders_edit") || "MANAGE FOLDER"}
+                      </button>
+                    ) : (
+                      <>
+                        <button onClick={() => setEditMode(true)} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-yellow-400 opacity-80 hover:opacity-100 hover:bg-yellow-500/10">
+                          <span className="material-symbols-outlined !text-[16px]">{t("icon_edit")}</span>
+                          {isCorrecting ? t("btn_submit_corrections") : t("btn_edit")}
+                        </button>
+
+                      </>
+                    )}
                     {userRole === 'oversight' && mod.compliance_tier === 3 && (
                       <button onClick={() => { onClose(); onSecureShred(mod.name); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap text-red-400 opacity-80 hover:opacity-100 hover:bg-red-500/10">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_forever")}</span>
@@ -508,6 +526,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                           if (cleaned === 'broken') return t("status_broken");
                           if (cleaned === 'verified') return t("verified");
                           if (cleaned === 'unverified') return t("unverified");
+                          if (cleaned === 'local folder' || cleaned === 'local node') return t("local_node") || "LOCAL FOLDER";
                           if (cleaned.includes('sandbox')) return t("filter_dev") || "SANDBOX";
                           const translated = cleaned.includes('status_') ? t(cleaned) : cleaned.replace(/_/g, " ");
                           return translated || t("unlinked_badge") || "LOCAL";
@@ -753,10 +772,11 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         onClick={() => setSelectedKid(kid)}
                         className={`group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl ${isEquipped ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_5px_15px_rgba(var(--accent-rgb),0.2)]' : 'theme-glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/10 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                           }`}>
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-sm font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm">
+                        <div className="flex flex-col min-w-0 flex-1 relative group/title">
+                          <span className="text-xs font-extrabold text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm">
                             {(kid.displayName || (kid.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "")}
                           </span>
+                          <HoverTooltip title={kid.displayName || (kid.name || '').split('/').pop() || ""} variant="default" className="!hidden group-hover/title:!flex z-[100] left-0 bottom-full mb-1" />
                           <div className="flex flex-wrap items-center gap-2 mt-1.5">
                             <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 shrink-0 bg-black/20 px-2 py-0.5 rounded-md">
                               {kid.name?.includes('.') ? (
@@ -792,7 +812,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         {!isNexusView && (
                           <button
                             onClick={(e) => { e.stopPropagation(); safeToggle(kid.name); }}
-                            className={`relative w-10 h-10 shrink-0 rounded-[0.8rem] flex items-center justify-center font-black transition-all hover:scale-110 active:scale-95 shadow-lg backdrop-blur-md border ${isEquipped ? 'bg-red-500/20 text-red-400 border-red-500/50 hover:bg-red-500/40 hover:text-white' : 'theme-bg-success/20 text-[var(--success)] border-[var(--success)] hover:bg-[var(--success)] hover:text-[var(--bg)]'
+                            className={`relative w-10 h-10 shrink-0 rounded-[0.8rem] flex items-center justify-center font-black transition-all hover:scale-110 active:scale-95 shadow-lg backdrop-blur-md border ${isEquipped ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:text-white' : 'bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:text-white'
                               }`}
                           >
                             <span className="material-symbols-outlined mt-[-1px] !text-[20px]">{isEquipped ? t("icon_close") : t("icon_add")}</span>

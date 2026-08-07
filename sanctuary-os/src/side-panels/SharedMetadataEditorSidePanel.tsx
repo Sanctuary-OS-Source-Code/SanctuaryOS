@@ -130,7 +130,7 @@ export function SharedMetadataEditorSidePanel({
       ) : modForm._error ? (
         <div className="flex flex-col items-center justify-center h-48 opacity-80 font-black tracking-widest text-red-400 text-[10px] uppercase gap-2 text-center">
           <span className="material-symbols-outlined !text-[32px] text-red-500">error</span>
-          <span>Failed to load Mod Metadata.</span>
+          <span>{t("err_load_meta")}</span>
           <span className="opacity-50 text-[8px] mt-2">ID: {modForm.id || "Unknown"}</span>
         </div>
       ) : (

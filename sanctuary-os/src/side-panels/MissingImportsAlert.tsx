@@ -202,7 +202,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
                       <span className="material-symbols-outlined !text-[20px]">auto_fix_high</span>
                     </div>
                     <div className="flex flex-col flex-1">
-                      <span className="text-xs font-black text-yellow-500 uppercase tracking-widest">Premium Artifacts Detected</span>
+                      <span className="text-xs font-black text-yellow-500 uppercase tracking-widest">{t("premium_detected")}</span>
                       <span className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-wider opacity-80">
                         {premiumMods.filter((m: any) => m.is_paid).length} Paid, {premiumMods.filter((m: any) => m.is_early_access).length} Early Access
                       </span>
@@ -220,7 +220,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
                       className="px-3 py-1.5 flex items-center gap-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 rounded-xl transition-all"
                     >
                       <span className="material-symbols-outlined !text-[14px]">skip_next</span>
-                      <span className="text-[10px] font-black uppercase tracking-widest">Skip Premium</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_skip_premium")}</span>
                     </button>
                   </div>
                   {renderModList(premiumMods)}
@@ -232,7 +232,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
                   {premiumMods.length > 0 && (
                     <div className="flex items-center gap-4 mt-2 mb-2">
                       <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[var(--text)]/10 to-transparent" />
-                      <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-60">Standard Artifacts</span>
+                      <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-60">{t("standard_artifacts")}</span>
                       <div className="h-[1px] flex-1 bg-gradient-to-r from-[var(--text)]/10 via-transparent to-transparent" />
                     </div>
                   )}

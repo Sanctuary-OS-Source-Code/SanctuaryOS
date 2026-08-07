@@ -358,7 +358,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
               />
             </div>
             <div className="flex flex-col gap-2 w-32 shrink-0">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">VERSION</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_version")}</label>
               <input
                 type="text"
                 value={uploadState.version}

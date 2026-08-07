@@ -625,7 +625,7 @@ export default function Lab({
                   <div className="flex items-center gap-3 relative z-10">
                     <span className={`material-symbols-outlined !text-[20px] ${isError ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>{isError ? 'warning' : 'check_circle'}</span>
                     <span className={`text-xs font-black uppercase tracking-widest ${isError ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>{isError ? t("fatal_collision") : t("successful_injection")}</span>
-                    {report.isConcluding && <span className="text-[10px] font-bold opacity-50 ml-auto text-amber-400 animate-pulse">PENDING REVIEW</span>}
+                    {report.isConcluding && <span className="text-[10px] font-bold opacity-50 ml-auto text-amber-400 animate-pulse">{t("status_pending_review")}</span>}
                   </div>
                   <div className="text-sm font-bold text-[var(--text)] opacity-90 pl-8 line-clamp-1 relative z-10">
                     {getModName(report.mod)}

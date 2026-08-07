@@ -1,3 +1,4 @@
+import { useLexicon } from '../LexiconContext';
 import React, { useState } from 'react';
 import { getModIcon, SidePanel, EmptyState, CustomDropdown } from '../shared';
 export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, marketAssets, handlePin, activeGameSchema, t }: any) {
@@ -19,12 +20,15 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
     if (searchQuery && !a.name?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   }) || [];
+  
+  if (!mason) return null;
 
   return (
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title="Pin to Showcase"
+      keepMounted={true}
+      title={t("panel_pin_details") || "PIN DETAILS"}
       subtitle="Select an item to feature on your profile"
       icon="push_pin"
       widthClass="w-[900px] max-w-[95vw]"
@@ -37,14 +41,14 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
               className={`flex-1 relative shrink-0 flex flex-col items-center justify-center gap-1.5 px-6 py-3 transition-all duration-500 ${activeTab === 'mod' ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-b-2 border-b-[var(--accent)]' : 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)]'}`}
             >
               <span className="material-symbols-outlined !text-xl">account_balance</span>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em]">Artifacts</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t("type_artifacts")}</span>
             </button>
             <button 
               onClick={() => { setActiveTab('asset'); setActiveCategory('ALL'); }} 
               className={`flex-1 relative shrink-0 flex flex-col items-center justify-center gap-1.5 px-6 py-3 transition-all duration-500 ${activeTab === 'asset' ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-b-2 border-b-[var(--accent)]' : 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)]'}`}
             >
               <span className="material-symbols-outlined !text-xl">inventory_2</span>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em]">Assets</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t("type_assets")}</span>
             </button>
           </div>
           
@@ -85,7 +89,7 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
             filteredMods.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredMods.map((mod: any) => (
-                  <div key={mod.id} onClick={() => { handlePin('mod', mod.id); }} className={`relative flex items-center gap-4 p-4 theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${(mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-white/5'}`}>
+                  <div key={mod.id} onClick={() => { handlePin('mod', mod.id); }} className={`relative flex items-center gap-4 p-4 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${(mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-white/5'}`}>
                     
                     <div className="w-16 h-16 rounded-xl shrink-0 overflow-hidden bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                       {mod.image_url ? (
@@ -124,7 +128,7 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
                   const isBp = asset.asset_type === 'blueprint';
                   const smIcon = isBp ? t("icon_map") : asset.asset_type === 'lexicon' ? t("icon_translate") : asset.asset_type === 'chameleon' ? t("icon_palette") : t("icon_draw");
                   return (
-                    <div key={asset.id} onClick={() => { handlePin(isBp ? 'blueprint' : 'asset', asset.id); }} className={`relative flex items-center gap-4 p-4 theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${(mason?.pinned_asset_id === asset.id || mason?.pinned_blueprint_id === asset.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-white/5'}`}>
+                    <div key={asset.id} onClick={() => { handlePin(isBp ? 'blueprint' : 'asset', asset.id); }} className={`relative flex items-center gap-4 p-4 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${(mason?.pinned_asset_id === asset.id || mason?.pinned_blueprint_id === asset.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-white/5'} transform-gpu backface-hidden`}>
 
                       <div className="w-16 h-16 rounded-xl shrink-0 overflow-hidden bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                         {asset.image_url ? (

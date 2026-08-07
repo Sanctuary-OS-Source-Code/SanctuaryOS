@@ -67,7 +67,7 @@ export function GlobalTooltip() {
   }
 
   return (
-    <div className="fixed inset-0 z-[99999] pointer-events-none">
+    <div className="fixed inset-0 z-[999999] pointer-events-none">
       <div 
         className="absolute pointer-events-none transition-all duration-200"
         style={{ 

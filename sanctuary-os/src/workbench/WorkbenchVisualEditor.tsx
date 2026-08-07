@@ -245,7 +245,7 @@ export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
             if (!localPath) {
                return (
                   <div key={idx} className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-4">
-                     <span className="text-red-400 text-xs font-black tracking-widest uppercase">Invalid Setting Object</span>
+                     <span className="text-red-400 text-xs font-black tracking-widest uppercase">{t("err_invalid_setting")}</span>
                      <p className="text-red-400/70 text-[10px] mt-1">A setting must contain at least a "key" or "path" property.</p>
                   </div>
                );

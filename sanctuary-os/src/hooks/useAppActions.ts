@@ -21,11 +21,22 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     const folderName = localFolderName.trim();
     if (!folderName || selectedMods.length === 0) return;
     const localSts = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
-    const newId = "local_" + Date.now();
-    const hashes = selectedMods.map(name => modList.find(m => m.name === name)?.hash).filter(Boolean);
-    localSts.push({ id: newId, name: folderName, items: hashes, isCollection: localFolderType === "CC_SET" });
+    const hashes = selectedMods.map((name: string) => modList.find((m: any) => m.name === name)?.hash).filter(Boolean);
+    
+    const existingIndex = localSts.findIndex((s: any) => s.name.toLowerCase() === folderName.toLowerCase());
+    
+    if (existingIndex >= 0) {
+      const existing = localSts[existingIndex];
+      const newHashes = Array.from(new Set([...existing.items, ...hashes]));
+      localSts[existingIndex] = { ...existing, items: newHashes };
+      setStatus(`Added ${hashes.length} items to ${folderName}`);
+    } else {
+      const newId = "local_" + Date.now();
+      localSts.push({ id: newId, name: folderName, items: hashes, isCollection: localFolderType === "CC_SET" });
+      setStatus(`${t("status_virtual_folder_created")}${folderName}`);
+    }
+    
     localStorage.setItem("sanctuary_local_sets", JSON.stringify(localSts));
-    setStatus(`${t("status_virtual_folder_created")}${folderName}`);
     setLocalFolderModal(false); setLocalFolderName(""); setIsBulkMode(false); setSelectedMods([]);
     runRadarSweep(true);
   }

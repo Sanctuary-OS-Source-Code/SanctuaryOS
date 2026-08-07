@@ -417,13 +417,13 @@ export default function SidePanelBrowser() {
   };
 
   const lastProcessedTriggerRef = useRef(sideBrowserTrigger);
-  
+
   useEffect(() => {
     if (isSideBrowserOpen && hasInitialized && sideBrowserUrl && activeBrowserTabId) {
       if (sideBrowserTrigger !== lastProcessedTriggerRef.current) {
         lastProcessedTriggerRef.current = sideBrowserTrigger;
         const activeTab = browserTabs.find(t => t.id === activeBrowserTabId);
-        
+
         let finalUrl = sideBrowserUrl.trim();
         if (!/^https?:\/\//i.test(finalUrl) && finalUrl !== 'about:blank') {
           if (finalUrl.includes('.') && !finalUrl.includes(' ')) {
@@ -436,7 +436,7 @@ export default function SidePanelBrowser() {
         if (activeTab && activeTab.url === finalUrl) {
           // Already on this URL but webview might have navigated away. Force a navigation.
           const label = `side-browser-tab-${activeBrowserTabId}`;
-          invoke('webview_eval', { label, script: `window.location.href = "${finalUrl}";` }).catch(() => {});
+          invoke('webview_eval', { label, script: `window.location.href = "${finalUrl}";` }).catch(() => { });
         } else {
           // New URL, create a new tab.
           const newId = crypto.randomUUID();
@@ -563,7 +563,7 @@ export default function SidePanelBrowser() {
                     import('@tauri-apps/plugin-opener').then(m => m.openUrl(localUrlInput));
                   });
               }} className="shrink-0 flex items-center gap-1 transition-all hover:scale-105 active:scale-95 text-[var(--subtext)] hover:text-[var(--accent)] focus:outline-none ml-1 mr-2 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-inner">
-                <span className="text-[9px] font-black tracking-widest uppercase mt-0.5">Open External</span>
+                <span className="text-[9px] font-black tracking-widest uppercase mt-0.5">{t("browser_open_external")}</span>
                 <span className="material-symbols-outlined !text-[16px]">open_in_new</span>
               </button>
               <button onClick={toggleBookmark} className="shrink-0 transition-all hover:scale-110 active:scale-95 text-[var(--subtext)] hover:text-yellow-400 focus:outline-none">
@@ -632,11 +632,11 @@ export default function SidePanelBrowser() {
                 {browserTabs.length === 0 && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-50 animate-in fade-in duration-500">
                     <span className="material-symbols-outlined !text-[64px] text-[var(--subtext)] opacity-30 mb-4 drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]">public</span>
-                    <h2 className="text-[18px] font-black tracking-widest text-[var(--text)] opacity-50 uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">Ready to Browse</h2>
-                    <p className="text-[12px] text-[var(--subtext)] opacity-50 mt-2 max-w-xs text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">Open a new tab or search the web to get started.</p>
+                    <h2 className="text-[18px] font-black tracking-widest text-[var(--text)] opacity-50 uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{t("browser_ready_to_browse")}</h2>
+                    <p className="text-[12px] text-[var(--subtext)] opacity-50 mt-2 max-w-xs text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">{t("browser_ready_to_browse_desc")}</p>
                     <button onClick={createNewTab} className="mt-8 pointer-events-auto px-8 py-3 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-md border border-[var(--accent)]/30 text-[var(--accent)] shadow-[0_4px_12px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:shadow-[0_4px_20px_rgba(var(--accent-rgb),0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-95 transition-all font-black text-[11px] tracking-widest uppercase flex items-center gap-2">
                       <span className="material-symbols-outlined !text-[16px]">add</span>
-                      New Tab
+                      {t("browser_new_tab")}
                     </button>
                   </div>
                 )}
@@ -649,11 +649,11 @@ export default function SidePanelBrowser() {
                     <div className="flex-1 flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/5 shadow-inner relative z-10 shrink-0">
                       <button onClick={() => setDrawerTab('bookmarks')} className={`h-full py-2 flex-1 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${drawerTab === 'bookmarks' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)] opacity-60 hover:opacity-100'}`}>
                         <span className="material-symbols-outlined !text-[16px]">bookmarks</span>
-                        Bookmarks
+                        {t("browser_bookmarks")}
                       </button>
                       <button onClick={() => setDrawerTab('history')} className={`h-full py-2 flex-1 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${drawerTab === 'history' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)] opacity-60 hover:opacity-100'}`}>
                         <span className="material-symbols-outlined !text-[16px]">history</span>
-                        History
+                        {t("browser_history")}
                       </button>
                     </div>
                     <button onClick={drawerTab === 'bookmarks' ? toggleBookmark : () => setBrowserHistory([])} className="hover:text-[var(--accent)] transition-colors flex items-center w-8 h-8 rounded-full hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] justify-center relative z-10">
@@ -663,12 +663,12 @@ export default function SidePanelBrowser() {
 
                   <div className="p-5 pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <div className="relative">
-                      <input 
-                        type="text" 
-                        value={searchQuery} 
-                        onChange={(e) => setSearchQuery(e.target.value)} 
-                        className="w-full bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl py-2 pl-9 pr-3 text-[12px] text-[var(--text)] placeholder-[var(--subtext)] outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors shadow-inner" 
-                        placeholder={drawerTab === 'bookmarks' ? t("browser_search_bookmarks") : t("browser_search_history")} 
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl py-2 pl-9 pr-3 text-[12px] text-[var(--text)] placeholder-[var(--subtext)] outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors shadow-inner"
+                        placeholder={drawerTab === 'bookmarks' ? t("browser_search_bookmarks") : t("browser_search_history")}
                       />
                       <span className="material-symbols-outlined absolute left-3 top-[8px] !text-[16px] text-[var(--subtext)] pointer-events-none">search</span>
                     </div>

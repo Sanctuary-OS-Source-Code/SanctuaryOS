@@ -15,7 +15,7 @@ import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import { logArchitectAction } from "../lib/audit";
 
-export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayfinderProfile, isOversight, isSidePanel, isOpen, onClose }: { authorId: string, authorProfileId: string, handleOpenWayfinderProfile?: (authorId: string, postId?: string) => void, isOversight?: boolean, isSidePanel?: boolean, isOpen?: boolean, onClose?: () => void }) {
+export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayfinderProfile, isOversight, isKeepers, isSidePanel, isOpen, onClose }: { authorId: string, authorProfileId: string, handleOpenWayfinderProfile?: (authorId: string, postId?: string) => void, isOversight?: boolean, isKeepers?: boolean, isSidePanel?: boolean, isOpen?: boolean, onClose?: () => void }) {
   if (isSidePanel && !isOpen) return null;
   const isPostPinned = (p: any) => p?.is_pinned === true || p?.is_pinned === "true";
   const { t } = useLexicon();
@@ -141,7 +141,8 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   });
 
   const fetchPostsAndAssets = async () => {
-    const { data } = await supabase.from('system_broadcasts').select('*').order('created_at', { ascending: false });
+    const targetTable = isKeepers ? 'keeper_system_broadcasts' : 'system_broadcasts';
+    const { data } = await supabase.from(targetTable).select('*').order('created_at', { ascending: false });
     if (data) setPosts(data);
 
     if (authorId) {
@@ -310,13 +311,13 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     let finalContent = content;
     if (editor) {
       finalContent = (editor.storage as any).markdown.getMarkdown();
       setContent(finalContent);
     }
-    
+
     if (!title.trim() || !finalContent.trim()) return;
 
     setIsSubmitting(true);
@@ -328,16 +329,17 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
 
     let error = null;
     let newPostId: string | null = null;
+    const targetTable = isKeepers ? 'keeper_system_broadcasts' : 'system_broadcasts';
     const performSave = async (data: any) => {
       if (editingPostId) {
-        const res = await supabase.from('system_broadcasts').update(data).eq('id', editingPostId).select();
-        if (!res.error) await logArchitectAction("Updated Dispatch", "system_broadcasts", data.title, undefined, "Wayfinder Operations");
+        const res = await supabase.from(targetTable).update(data).eq('id', editingPostId).select();
+        if (!res.error) await logArchitectAction("Updated Dispatch", targetTable, data.title, undefined, "Wayfinder Operations");
         return { error: res.error, data: res.data };
       } else {
-        const res = await supabase.from('system_broadcasts').insert([data]).select();
+        const res = await supabase.from(targetTable).insert([data]).select();
         if (!res.error && res.data && res.data.length > 0) {
           newPostId = res.data[0].id;
-          await logArchitectAction("Created Dispatch", "system_broadcasts", data.title, undefined, "Wayfinder Operations");
+          await logArchitectAction("Created Dispatch", targetTable, data.title, undefined, "Wayfinder Operations");
         }
         return { error: res.error, data: res.data };
       }
@@ -380,9 +382,10 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   };
 
   const handleDelete = async (id: string) => {
+    const targetTable = isKeepers ? 'keeper_system_broadcasts' : 'system_broadcasts';
     const postToDelete = posts.find(p => p.id === id);
-    const { error } = await supabase.from('system_broadcasts').delete().eq('id', id);
-    if (!error && postToDelete) await logArchitectAction("Deleted Dispatch", "system_broadcasts", postToDelete.title || id, undefined, "Wayfinder Operations");
+    const { error } = await supabase.from(targetTable).delete().eq('id', id);
+    if (!error && postToDelete) await logArchitectAction("Deleted Dispatch", targetTable, postToDelete.title || id, undefined, "Wayfinder Operations");
     fetchPostsAndAssets();
   };
 
@@ -466,7 +469,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_satellite_alt")}</span>
           </div>
-          <span className="truncate">{isOversight ? t("oversight_posts_editor") : t("wf_tab_dispatch")}</span>
+          <span className="truncate">{t("wf_tab_dispatch")}</span>
         </h2>
         <div className="relative flex-1 max-w-4xl ml-auto flex gap-4 items-center justify-end">
           <div className="relative flex-1">
@@ -547,7 +550,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   );
 
   const wrappedContent = isSidePanel ? (
-    <SidePanel isOpen={isOpen!} onClose={onClose!} title={t("wf_tab_dispatch")} subtitle={isOversight ? t("oversight_posts_editor") : t("system_broadcasts")} icon="satellite_alt" iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" widthClass="w-[90vw] max-w-[1200px]">
+    <SidePanel isOpen={isOpen!} onClose={onClose!} title={t("wf_tab_dispatch")} subtitle={t("system_broadcasts")} icon="satellite_alt" iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" widthClass="w-[90vw] max-w-[1200px]">
       {contentBlock}
     </SidePanel>
   ) : contentBlock;
@@ -569,17 +572,17 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
               <div className="flex justify-center items-center gap-4 w-full">
                 {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? (
                   <ActionButton onClick={handleDiscardChanges} disabled={isSubmitting} label={confirmDiscard ? (t("ui_confirm_discard") || "Confirm Discard") : (t("ui_btn_discard_edits") || "DISCARD EDITS")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
-                    
+
                   </ActionButton>
                 ) : (
                   <ActionButton onClick={closeEditor} disabled={isSubmitting} label={t("nav_cancel")}></ActionButton>
                 )}
                 <div className="relative group/btn flex">
                   <ActionButton
-                     onClick={handleSubmit}
-                     disabled={isSubmitting || !title || !content}
-                     className={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? "!border-[var(--warning)]/50 !text-[var(--warning)] hover:!bg-[var(--warning)]/20 hover:!text-[var(--warning)] hover:!shadow-[0_0_30px_rgba(var(--warning-rgb),0.4)]" : ""}
-                     label={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || !title || !content}
+                    className={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? "!border-[var(--warning)]/50 !text-[var(--warning)] hover:!bg-[var(--warning)]/20 hover:!text-[var(--warning)] hover:!shadow-[0_0_30px_rgba(var(--warning-rgb),0.4)]" : ""}
+                    label={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
                   />
                   {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
                     <HoverTooltip title={t("ph_unsaved_changes") || "UNSAVED EDITS"} variant="warning" className="group-hover/btn:flex z-[100]" />
@@ -592,18 +595,17 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
 
               <div className="flex justify-between items-center border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-4 pb-4">
                 <div className="w-56 shrink-0">
-                  <HubTabs 
-                    tabs={[{id: 'edit', label: t("editor")}, {id: 'preview', label: t("preview")}]} 
-                    activeTab={viewMode} 
-                    setTab={setViewMode} 
+                  <HubTabs
+                    tabs={[{ id: 'edit', label: t("editor") }, { id: 'preview', label: t("preview") }]}
+                    activeTab={viewMode}
+                    setTab={setViewMode}
                   />
                 </div>
                 <div className="flex items-center gap-4">
-                  <button 
+                  <button
                     onClick={() => setIsActive(!isActive)}
                     className={`flex items-center gap-2 px-5 h-[38px] rounded-full border transition-all font-black text-[10px] uppercase tracking-widest ${isActive ? 'bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)] shadow-[inset_0_0_20px_rgba(34,197,94,0.1)]' : 'theme-glass-panel bg-black/40 border-white/5 text-[var(--subtext)] hover:text-white hover:bg-white/5'}`}
                   >
-                    <div className={`w-2 h-2 rounded-full transition-all duration-300 ${isActive ? 'bg-[var(--success)] shadow-[0_0_10px_var(--success)]' : 'bg-white/20'}`}></div>
                     {isActive ? "Live / Active" : "Draft Mode"}
                   </button>
                 </div>
@@ -612,27 +614,30 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
               {viewMode === 'edit' ? (
                 <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="flex flex-col items-center justify-center gap-3 w-full mb-2">
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-70">Transmission Type</span>
-                    <div className="flex p-1 rounded-full theme-glass-panel bg-black/40 border border-white/5 shadow-inner">
-                      <button 
-                        onClick={() => { setDeliveryMethod("Dispatch"); setIsUrgent(false); if (["Alert", "Game Version Alert", "Malware Alert", "Artifact Alert"].includes(category)) setCategory(isOversight ? "Game Issue" : "Update"); }}
-                        className={`h-[38px] px-6 rounded-full flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${deliveryMethod === "Dispatch" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'text-[var(--subtext)] hover:text-white hover:bg-white/5'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[16px]">feed</span> Dispatch
-                      </button>
-                      <button 
-                        onClick={() => { setDeliveryMethod("Alert"); setIsUrgent(false); if (["Update", "Info", "Event", "Game Issue", "Mod Issue"].includes(category)) setCategory(isOversight ? "Game Version Alert" : "Alert"); }}
-                        className={`h-[38px] px-6 rounded-full flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${deliveryMethod === "Alert" && !isUrgent ? 'bg-[var(--warning)]/20 text-[var(--warning)] shadow-[0_0_15px_rgba(250,204,21,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--warning)] hover:bg-white/5'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[16px]">notifications</span> Standard Alert
-                      </button>
-                      <button 
-                        onClick={() => { setDeliveryMethod("Alert"); setIsUrgent(true); if (["Update", "Info", "Event", "Game Issue", "Mod Issue"].includes(category)) setCategory(isOversight ? "Game Version Alert" : "Alert"); }}
-                        className={`h-[38px] px-6 rounded-full flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${deliveryMethod === "Alert" && isUrgent ? 'bg-[var(--danger)]/20 text-[var(--danger)] shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-white/5'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[16px]">notification_important</span> Urgent Alert
-                      </button>
-                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-70">{t("trans_type")}</span>
+                    <FilterTabs className="w-full">
+                      <FilterTabButton
+                        id="Dispatch"
+                        activeTab={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
+                        setTab={() => { setDeliveryMethod("Dispatch"); setIsUrgent(false); if (["Alert", "Game Version Alert", "Malware Alert", "Artifact Alert"].includes(category)) setCategory(isOversight ? "Game Issue" : "Update"); }}
+                        icon="feed"
+                        label="Dispatch"
+                      />
+                      <FilterTabButton
+                        id="Alert"
+                        activeTab={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
+                        setTab={() => { setDeliveryMethod("Alert"); setIsUrgent(false); if (["Update", "Info", "Event", "Game Issue", "Mod Issue"].includes(category)) setCategory(isOversight ? "Game Version Alert" : "Alert"); }}
+                        icon="notifications"
+                        label="Standard Alert"
+                      />
+                      <FilterTabButton
+                        id="UrgentAlert"
+                        activeTab={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
+                        setTab={() => { setDeliveryMethod("Alert"); setIsUrgent(true); if (["Update", "Info", "Event", "Game Issue", "Mod Issue"].includes(category)) setCategory(isOversight ? "Game Version Alert" : "Alert"); }}
+                        icon="notification_important"
+                        label="Urgent Alert"
+                      />
+                    </FilterTabs>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("post_title")}</label>

@@ -95,7 +95,7 @@ export function MarketUploadPanel({
                 />
               </div>
               <div className="flex flex-col gap-2 w-32 shrink-0">
-                <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">VERSION</label>
+                <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("label_version")}</label>
                 <input
                   type="text"
                   value={uploadState.version}
@@ -300,84 +300,115 @@ export function MarketBlueprintPanel({
       return;
     }
 
-    let parsedJson = selectedBlueprint.json_data;
-    if (typeof parsedJson === 'string') {
-      try { parsedJson = JSON.parse(parsedJson); } catch (e) { parsedJson = {}; }
-    }
-    parsedJson = parsedJson || {};
-
-    // Ensure artifacts are picked up even if stored at the root of the blueprint
-    parsedJson.artifacts = parsedJson.artifacts || selectedBlueprint.artifacts || [];
-
-    setEnrichedBlueprint({
-      ...selectedBlueprint,
-      json_data: parsedJson
-    });
-    setVisibleCount(100);
-
-    const fetchPremiumStatus = async () => {
-      const artifacts = parsedJson.artifacts || [];
-      const hashes = artifacts.map((a: any) => a.hash).filter(Boolean);
-      if (hashes.length === 0) return;
-
-      let premiumMap: Record<string, any> = {};
-      const chunkSize = 40;
-      const promises = [];
-
-      for (let i = 0; i < hashes.length; i += chunkSize) {
-        const chunk = hashes.slice(i, i + chunkSize);
-        promises.push(
-          supabase.from('mod_versions')
-            .select('dna_hash, mods(is_paid, is_early_access)')
-            .in('dna_hash', chunk)
-        );
+    const processBlueprint = (bp: any) => {
+      let parsedJson = bp.json_data;
+      if (typeof parsedJson === 'string') {
+        try { parsedJson = JSON.parse(parsedJson); } catch (e) { parsedJson = {}; }
       }
+      parsedJson = parsedJson || {};
 
-      const results = await Promise.all(promises);
-      results.forEach(({ data, error }) => {
-        if (!error && data) {
-          data.forEach((d: any) => {
-            if (d.mods && (d.mods.is_paid || d.mods.is_early_access)) {
-              premiumMap[d.dna_hash] = {
-                hash: d.dna_hash,
-                is_paid: d.mods.is_paid,
-                is_early_access: d.mods.is_early_access
-              };
-            }
-          });
-        }
-      });
-
-      let finalArtifacts = artifacts;
-      let hasChanges = false;
-
-      if (Object.keys(premiumMap).length > 0) {
-        finalArtifacts = artifacts.map((a: any) => {
-          if (a.hash && premiumMap[a.hash]) {
-            const p = premiumMap[a.hash];
-            if (!a.is_paid && p.is_paid) { a.is_paid = true; hasChanges = true; }
-            if (!a.is_early_access && p.is_early_access) { a.is_early_access = true; hasChanges = true; }
-          }
-          return a;
-        });
-      }
-
-      // Always sort to bring Premium/EA to the top so it doesn't look "Random" to the user
-      finalArtifacts = [...finalArtifacts].sort((a: any, b: any) => {
-        const aPremium = a.is_paid || a.is_early_access ? 1 : 0;
-        const bPremium = b.is_paid || b.is_early_access ? 1 : 0;
-        if (aPremium !== bPremium) return bPremium - aPremium;
-        return (a.name || '').localeCompare(b.name || '');
-      });
+      // Ensure artifacts are picked up even if stored at the root of the blueprint
+      parsedJson.artifacts = parsedJson.artifacts || bp.artifacts || [];
 
       setEnrichedBlueprint({
-        ...selectedBlueprint,
-        is_paid: selectedBlueprint.is_paid || finalArtifacts.some((a: any) => a.is_paid),
-        is_early_access: selectedBlueprint.is_early_access || finalArtifacts.some((a: any) => a.is_early_access),
-        json_data: { ...parsedJson, artifacts: finalArtifacts }
+        ...bp,
+        json_data: parsedJson
       });
+      setVisibleCount(100);
+
+      const fetchPremiumStatus = async () => {
+        const artifacts = parsedJson.artifacts || [];
+        const hashes = artifacts.map((a: any) => a.hash).filter(Boolean);
+        if (hashes.length === 0) {
+          let finalArtifacts = artifacts;
+          finalArtifacts = [...finalArtifacts].sort((a: any, b: any) => {
+            const aPremium = a.is_paid || a.is_early_access ? 1 : 0;
+            const bPremium = b.is_paid || b.is_early_access ? 1 : 0;
+            if (aPremium !== bPremium) return bPremium - aPremium;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+          setEnrichedBlueprint({
+            ...bp,
+            is_paid: bp.is_paid || finalArtifacts.some((a: any) => a.is_paid),
+            is_early_access: bp.is_early_access || finalArtifacts.some((a: any) => a.is_early_access),
+            json_data: { ...parsedJson, artifacts: finalArtifacts }
+          });
+          return;
+        }
+
+        let premiumMap: Record<string, any> = {};
+        const chunkSize = 40;
+        const promises = [];
+
+        for (let i = 0; i < hashes.length; i += chunkSize) {
+          const chunk = hashes.slice(i, i + chunkSize);
+          promises.push(
+            supabase.from('mod_versions')
+              .select('dna_hash, mods(is_paid, is_early_access)')
+              .in('dna_hash', chunk)
+          );
+        }
+
+        const results = await Promise.all(promises);
+        results.forEach(({ data, error }) => {
+          if (!error && data) {
+            data.forEach((d: any) => {
+              if (d.mods && (d.mods.is_paid || d.mods.is_early_access)) {
+                premiumMap[d.dna_hash] = {
+                  hash: d.dna_hash,
+                  is_paid: d.mods.is_paid,
+                  is_early_access: d.mods.is_early_access
+                };
+              }
+            });
+          }
+        });
+
+        let finalArtifacts = artifacts;
+        let hasChanges = false;
+
+        if (Object.keys(premiumMap).length > 0) {
+          finalArtifacts = artifacts.map((a: any) => {
+            if (a.hash && premiumMap[a.hash]) {
+              const p = premiumMap[a.hash];
+              if (!a.is_paid && p.is_paid) { a.is_paid = true; hasChanges = true; }
+              if (!a.is_early_access && p.is_early_access) { a.is_early_access = true; hasChanges = true; }
+            }
+            return a;
+          });
+        }
+
+        // Always sort to bring Premium/EA to the top so it doesn't look "Random" to the user
+        finalArtifacts = [...finalArtifacts].sort((a: any, b: any) => {
+          const aPremium = a.is_paid || a.is_early_access ? 1 : 0;
+          const bPremium = b.is_paid || b.is_early_access ? 1 : 0;
+          if (aPremium !== bPremium) return bPremium - aPremium;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+
+        setEnrichedBlueprint({
+          ...bp,
+          is_paid: bp.is_paid || finalArtifacts.some((a: any) => a.is_paid),
+          is_early_access: bp.is_early_access || finalArtifacts.some((a: any) => a.is_early_access),
+          json_data: { ...parsedJson, artifacts: finalArtifacts }
+        });
+      };
+
+      fetchPremiumStatus();
     };
-    fetchPremiumStatus();
+
+    if (selectedBlueprint.json_data === undefined) {
+      // Missing json_data! Fetch the full record
+      supabase.from('blueprints').select('*').eq('id', selectedBlueprint.id).single().then(({ data }) => {
+        if (data) {
+          processBlueprint(data);
+        } else {
+          processBlueprint(selectedBlueprint);
+        }
+      });
+    } else {
+      processBlueprint(selectedBlueprint);
+    }
   }, [selectedBlueprint]);
 
   if (!enrichedBlueprint) return null;
@@ -501,7 +532,7 @@ export function MarketBlueprintPanel({
                           <span className="material-symbols-outlined !text-[20px]">workspace_premium</span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-xs font-black text-yellow-500 uppercase tracking-widest">Premium Artifacts</span>
+                          <span className="text-xs font-black text-yellow-500 uppercase tracking-widest">{t("premium_artifacts")}</span>
                           <span className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-wider opacity-80">
                             {premiumMods.filter((m: any) => m.is_paid).length} Paid, {premiumMods.filter((m: any) => m.is_early_access).length} Early Access
                           </span>

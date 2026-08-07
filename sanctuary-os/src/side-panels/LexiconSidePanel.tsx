@@ -245,7 +245,7 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
         <div className="flex flex-col gap-4 w-full z-10">
           <div className="flex items-center gap-3 pl-1 mb-1">
             <span className="material-symbols-outlined text-[var(--subtext)] !text-[16px]">{t("icon_grid_view") || "grid_view"}</span>
-                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)] opacity-80 drop-shadow-md">Library</h3>
+                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)] opacity-80 drop-shadow-md">{t("library_label")}</h3>
                 <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
               </div>
 

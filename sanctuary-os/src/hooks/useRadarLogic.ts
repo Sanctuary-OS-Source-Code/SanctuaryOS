@@ -860,10 +860,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             folderStatus = "broken";
           } else if (isAllVerified) {
             folderStatus = t("verified");
-          } else if (isNoneVerified) {
-            folderStatus = t("unverified");
           } else {
-            folderStatus = t("status_mixed");
+            folderStatus = t("local_node") || "LOCAL FOLDER";
           }
 
           localVirtualCards.push({

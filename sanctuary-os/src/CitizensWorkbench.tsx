@@ -142,7 +142,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                                        <span className="material-symbols-outlined !text-5xl opacity-50">history</span>
                                        <div>
                                           <p className="font-bold text-sm tracking-widest uppercase">{t("no_recent_activity")}</p>
-                                          <p className="text-[10px] opacity-70">Files with unsaved changes will appear here.</p>
+                                          <p className="text-[10px] opacity-70">{t("unsaved_desc")}</p>
                                        </div>
                                     </div>
                                  );

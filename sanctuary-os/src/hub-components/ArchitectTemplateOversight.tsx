@@ -248,7 +248,7 @@ export default function ArchitectTemplateOversight() {
       >
          <div className="p-6 flex flex-col gap-6">
              <div className="flex flex-col gap-2">
-                 <label className="text-xs font-black uppercase tracking-widest text-[var(--subtext)]">File Name</label>
+                 <label className="text-xs font-black uppercase tracking-widest text-[var(--subtext)]">{t("label_file_name")}</label>
                  <input 
                     type="text" 
                     placeholder="e.g. mc_settings.cfg" 
@@ -258,7 +258,7 @@ export default function ArchitectTemplateOversight() {
                     className="h-12 w-full px-4 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]/50 transition-colors bg-black/40 text-sm font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
                     autoFocus
                  />
-                 <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60">This exact file name will be used to query community templates.</span>
+                 <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60">{t("desc_file_name")}</span>
              </div>
          </div>
       </SidePanel>

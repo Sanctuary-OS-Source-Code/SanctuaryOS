@@ -51,6 +51,7 @@ export function usePlaySetLogic() {
       };
       let rawNewMods = new Set<any>(currentSet.mods);
       const healedMods = new Set<any>();
+      const localSets = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
       rawNewMods.forEach((mObj: any) => {
          const m = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
          if (m.toLowerCase().startsWith("sanctuary/") || m.toLowerCase().startsWith("sanctuary\\")) {
@@ -67,6 +68,24 @@ export function usePlaySetLogic() {
       });
       let newMods = healedMods;
 
+
+      const areArchetypes = (hash1: string, hash2: string) => {
+         if (!hash1 || !hash2) return false;
+         return localSets.some((s: any) => (
+            (s.archetypes?.core === hash1 && (s.archetypes?.twins?.includes(hash2) || s.archetypes?.addons?.includes(hash2))) ||
+            (s.archetypes?.core === hash2 && (s.archetypes?.twins?.includes(hash1) || s.archetypes?.addons?.includes(hash1))) ||
+            ((s.archetypes?.twins?.includes(hash1) || s.archetypes?.addons?.includes(hash1)) && (s.archetypes?.twins?.includes(hash2) || s.archetypes?.addons?.includes(hash2)))
+         ));
+      };
+
+      const isTwinRival = (hash1: string, hash2: string) => {
+         if (!hash1 || !hash2) return false;
+         return localSets.some((s: any) => (
+            (s.archetypes?.core === hash1 && s.archetypes?.twins?.includes(hash2)) ||
+            (s.archetypes?.core === hash2 && s.archetypes?.twins?.includes(hash1)) ||
+            (s.archetypes?.twins?.includes(hash1) && s.archetypes?.twins?.includes(hash2))
+         ));
+      };
 
       const checkGhosted = (mObj: any) => {
         if (mObj.isGhosted) return true;
@@ -99,13 +118,19 @@ export function usePlaySetLogic() {
               if (c.severity_rank == 4 && currentRules.intercept !== false) {
                  const matchStr = Array.from(newMods as Set<string>).find((n: string) => {
                     const mData = modMap.get(n);
-                    if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
-                    if (c.enemy_name) {
+                    let isMatch = false;
+                    if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) isMatch = true;
+                    if (!isMatch && c.enemy_name) {
                        const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
                        const cleanN = n.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase();
-                       if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
+                       if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) isMatch = true;
                     }
-                    return false;
+                    
+                    if (isMatch && mData && mObj.hash && mData.hash) {
+                       if (areArchetypes(mObj.hash, mData.hash)) return false;
+                    }
+                    
+                    return isMatch;
                  });
                  return !!matchStr;
               }
@@ -172,6 +197,27 @@ export function usePlaySetLogic() {
            });
         }
 
+        const mDataDelete = modMap.get(nameToDelete);
+        if (mDataDelete) {
+            const matchingSet = localSets.find((s: any) => s.archetypes?.core === mDataDelete.hash);
+            if (matchingSet) {
+                const isAnyTwinEquipped = matchingSet.archetypes?.twins?.some((tHash: string) => {
+                   const tMod = hashToMod.get(tHash);
+                   return tMod && newMods.has(tMod.name);
+                });
+                
+                if (!isAnyTwinEquipped) {
+                   const children = [...(matchingSet.archetypes?.twins || []), ...(matchingSet.archetypes?.addons || [])];
+                   children.forEach((childHash: string) => {
+                       const childMod = hashToMod.get(childHash);
+                       if (childMod && childMod.name && newMods.has(childMod.name)) {
+                           deepDelete(childMod.name, true);
+                       }
+                   });
+                }
+            }
+        }
+
         if (!shallow && currentRules.dependencies !== false) {
           const mData = modMap.get(nameToDelete);
           if (mData) {
@@ -209,6 +255,9 @@ export function usePlaySetLogic() {
           }
         }
       };
+      
+
+
       const applyConflicts = (modObj: any) => {
         if (currentRules.highlander !== false) {
           Array.from(newMods as Set<string>).forEach((mName: string) => {
@@ -254,6 +303,8 @@ export function usePlaySetLogic() {
         newMods.add(modObj.name);
         applyConflicts(modObj);
         
+
+        
         const anchor = modObj.familyId || modObj.dbId;
         const modBaseName = modObj.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
         
@@ -276,8 +327,13 @@ export function usePlaySetLogic() {
                 String(m.flavorGroupId) === String(modObj.flavorGroupId) &&
                 m.name !== modObj.name;
                 
+              const isAddonOfTarget = m.hash && modObj.hash ? localSets.some((s: any) => 
+                (s.archetypes?.core === modObj.hash || s.archetypes?.twins?.includes(modObj.hash)) && 
+                s.archetypes?.addons?.includes(m.hash)
+              ) : false;
+                
               if (
-                !isRival &&
+                !isRival && !isAddonOfTarget &&
                 (m.relationshipType === "twin" ||
                   m.relationshipType === "beta" ||
                   m.relationshipType === "core" ||
@@ -386,11 +442,15 @@ export function usePlaySetLogic() {
         const familyAnchor = targetMod.familyId || targetMod.dbId;
         const isMaster =
           targetMod.dbId && String(targetMod.dbId) === String(familyAnchor);
+        const isArchetypeMember = localSets.some((s: any) => 
+           s.archetypes?.core === targetMod.hash || s.archetypes?.twins?.includes(targetMod.hash)
+        );
+
         if (
           targetMod.isVirtual ||
           (currentRules.family !== false &&
             (isMaster ||
-              targetMod.relationshipType === "core"))
+              targetMod.relationshipType === "core" || isArchetypeMember))
         ) {
           modList
             .filter(

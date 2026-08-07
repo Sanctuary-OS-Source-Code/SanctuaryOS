@@ -3,7 +3,16 @@ import { formatDisplayName, getHighestVersion, mapDlcCode, getExtensionRegex, ge
 import { ModCard } from '../../ModCard';
 
 export function VaultGrid(props: any) {
- const { paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, toggleModSelection, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, drawerCasualties, selectedVersion, hasMissingDeps, missingPacks, isSwappedState, isBetaSwap, isFlavorGhosted, isFlavorEquipped, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, flavorGhostReason, setIsDropzoneOpen, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, setSelectedMods } = props;
+ const { paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, toggleModSelection, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, drawerCasualties, selectedVersion, hasMissingDeps, missingPacks, isSwappedState, isBetaSwap, isFlavorGhosted, isFlavorEquipped, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, flavorGhostReason, setIsDropzoneOpen, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, setSelectedMods, setActiveLocalFolder, setIsLocalFolderEditorOpen } = props;
+ const localSets = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
+ const areArchetypes = (hash1: string, hash2: string) => {
+    if (!hash1 || !hash2) return false;
+    return localSets.some((s: any) => (
+       (s.archetypes?.core === hash1 && (s.archetypes?.twins?.includes(hash2) || s.archetypes?.addons?.includes(hash2))) ||
+       (s.archetypes?.core === hash2 && (s.archetypes?.twins?.includes(hash1) || s.archetypes?.addons?.includes(hash1))) ||
+       ((s.archetypes?.twins?.includes(hash1) || s.archetypes?.addons?.includes(hash1)) && (s.archetypes?.twins?.includes(hash2) || s.archetypes?.addons?.includes(hash2)))
+    ));
+ };
  return (
  <>
         <div className={`grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-24 pl-2 pr-6`}>
@@ -96,7 +105,34 @@ export function VaultGrid(props: any) {
                     }
                   }
                 } else {
-                  casualties = getDeepCasualties([mod]);
+                  let wouldBeRemoved = [mod];
+                  const parentSet = localSets.find((s: any) => s.archetypes?.core === mod.hash || s.archetypes?.twins?.includes(mod.hash));
+                  
+                  if (parentSet) {
+                      const siblings = equippedDisplayMods.filter((m: any) => 
+                          !m.isVirtual && m.name && m.name !== mod.name && 
+                          parentSet.items.includes(m.hash)
+                      );
+                      wouldBeRemoved.push(...siblings);
+                  } else if (mod.relationshipType === "core") {
+                      const familyAnchor = mod.familyId || mod.dbId;
+                      const siblings = equippedDisplayMods.filter(
+                        (m: any) =>
+                          !m.isVirtual &&
+                          m.name &&
+                          m.name !== mod.name &&
+                          (String(m.familyId) === String(familyAnchor) ||
+                            String(m.dbId) === String(familyAnchor) ||
+                            String(m.setId) === String(mod.dbId))
+                      );
+                      wouldBeRemoved.push(...siblings);
+                  }
+                  
+                  casualties = getDeepCasualties(wouldBeRemoved);
+                  if (wouldBeRemoved.length > 1) {
+                      const siblingNames = wouldBeRemoved.filter(m => m.name !== mod.name).map(m => m.displayName || m.name);
+                      casualties = [...new Set([...casualties, ...siblingNames])];
+                  }
                 }
               } else {
                 if (mod.isVirtual) {
@@ -143,6 +179,7 @@ export function VaultGrid(props: any) {
                         });
                         if (matchItem) {
                           const matchObj = matchItem.mData;
+                          if (areArchetypes(mObj.hash, matchObj.hash)) return null;
                           return { name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: c.conflict_note || c.resolution_note || "" };
                         }
                         return null;
@@ -169,6 +206,7 @@ export function VaultGrid(props: any) {
                       });
 
                       found.forEach((c: any) => {
+                        if (areArchetypes(mObj.hash, mData.hash)) return;
                         const targetRank = Number(c.severity_rank);
                         if (targetRank == 4) casualties.push({ name: mData.displayName || mData.name, rawName: mData.name, note: c.conflict_note || c.resolution_note || "" });
                         if (targetRank == 3) tier3List.push({ name: mData.displayName || mData.name, rawName: mData.name, note: c.conflict_note || c.resolution_note || "" });
@@ -196,6 +234,7 @@ export function VaultGrid(props: any) {
                         const isWinnerMObj = mObj._originalSetName?.toLowerCase().startsWith("sanctuary") || mObj.name?.toLowerCase().startsWith("sanctuary");
                         const isWinnerEnemy = matchObj._originalSetName?.toLowerCase().startsWith("sanctuary") || matchObj.name?.toLowerCase().startsWith("sanctuary");
                         if (isWinnerMObj || isWinnerEnemy) return;
+                        if (areArchetypes(mObj.hash, matchObj.hash)) return;
 
                         if (targetRank == 4) casualties.push({ name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: lc.resolution_note || "Local Scan Detects Tuning Overlap" });
                         if (targetRank == 3) tier3List.push({ name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: lc.resolution_note || "Local Scan Detects Tuning Overlap" });
@@ -408,6 +447,7 @@ export function VaultGrid(props: any) {
                           : [...prev, mod.name],
                       )
                     }
+                    onContextMenu={props.onContextMenu ? (e: any) => props.onContextMenu(e, mod) : undefined}
                   />
                   {mod.isParent && expandedFolder === mainKey && (
                     <div className="col-span-full theme-glass-panel rounded-[var(--radius)] p-8 my-4">
@@ -503,27 +543,50 @@ export function VaultGrid(props: any) {
                               };
                               let drawerCasualties: any[] = [];
                               if (!isFlavorEquipped) {
-                                const localRivals = mod.isVirtual
-                                  ? (renderedMod.flavors || []).filter(
-                                    (f: any) =>
-                                      f.name !== flavor.name &&
-                                      activeSetMods.includes(f.name),
-                                  )
-                                  : [];
-                                const globalRivals = equippedDisplayMods.filter((m: any) => {
-                                  if (m.name === flavor.name) return false;
-                                  const isSameFlavorGroup = flavor.flavorGroupId && String(m.flavorGroupId) === String(flavor.flavorGroupId);
-                                  const isBetaRival = (flavor.relationshipType === 'beta' && m.relationshipType !== 'beta' || flavor.relationshipType !== 'beta' && m.relationshipType === 'beta') && (String(m.familyId) === String(flavor.familyId) || String(m.dbId) === String(flavor.familyId || flavor.dbId));
-                                  return isSameFlavorGroup || isBetaRival;
-                                });
+                                  const localRivals = mod.isVirtual
+                                    ? (renderedMod.flavors || []).filter(
+                                      (f: any) =>
+                                        f.name !== flavor.name &&
+                                        activeSetMods.includes(f.name) &&
+                                        !areArchetypes(flavor.hash, f.hash),
+                                    )
+                                    : [];
+                                  const globalRivals = equippedDisplayMods.filter((m: any) => {
+                                    if (m.name === flavor.name) return false;
+                                    if (areArchetypes(flavor.hash, m.hash)) return false;
+                                    const isSameFlavorGroup = flavor.flavorGroupId && String(m.flavorGroupId) === String(flavor.flavorGroupId);
+                                    const isBetaRival = (flavor.relationshipType === 'beta' && m.relationshipType !== 'beta' || flavor.relationshipType !== 'beta' && m.relationshipType === 'beta') && (String(m.familyId) === String(flavor.familyId) || String(m.dbId) === String(flavor.familyId || flavor.dbId));
+                                    return isSameFlavorGroup || isBetaRival;
+                                  });
                                 const allRivals = [...localRivals, ...globalRivals].filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
                                 drawerCasualties = getDrawerDeepCasualties(allRivals);
                               } else {
-                                drawerCasualties = getDrawerDeepCasualties([
-                                  flavor,
-                                ]).filter(
+                                let wouldBeRemoved = [flavor];
+                                const parentSet = localSets.find((s: any) => s.archetypes?.core === flavor.hash || s.archetypes?.twins?.includes(flavor.hash));
+                                
+                                if (parentSet) {
+                                    const siblings = equippedDisplayMods.filter((m: any) => 
+                                        !m.isVirtual && m.name && m.name !== flavor.name && 
+                                        parentSet.items.includes(m.hash)
+                                    );
+                                    wouldBeRemoved.push(...siblings);
+                                } else if (flavor.relationshipType === "core") {
+                                    const anchor = flavor.familyId || flavor.dbId;
+                                    const siblings = equippedDisplayMods.filter((m: any) => 
+                                        !m.isVirtual && m.name && m.name !== flavor.name && 
+                                        (String(m.familyId) === String(anchor) || String(m.dbId) === String(anchor) || String(m.setId) === String(flavor.dbId))
+                                    );
+                                    wouldBeRemoved.push(...siblings);
+                                }
+                                
+                                drawerCasualties = getDrawerDeepCasualties(wouldBeRemoved).filter(
                                   (c: any) => c.name !== flavor.name,
                                 );
+                                
+                                if (wouldBeRemoved.length > 1) {
+                                  const siblingObjs = wouldBeRemoved.filter(m => m.name !== flavor.name);
+                                  drawerCasualties = [...drawerCasualties, ...siblingObjs].filter((v, i, a) => a.findIndex(t => (t.name || t) === (v.name || v)) === i);
+                                }
                               }
                               if (anarchyRules?.intercept === false) {
                                 drawerCasualties = [];

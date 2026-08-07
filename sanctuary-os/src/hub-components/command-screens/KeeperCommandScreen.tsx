@@ -97,11 +97,11 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_dns")}</span>} number={stats.networkLatency ? `${stats.networkLatency}` : "---"} label={stats.networkStatus === "ONLINE" ? "CORE OS NOMINAL" : "CORE OS DEGRADED"} colorClass={stats.networkStatus === "ONLINE" ? "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" : "border-yellow-500/30 text-yellow-500 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20"} onClick={() => setHealthOpen(true)} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">view_quilt</span>} number={stats.activeGames} label="Active Workspaces" colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => setTab("active_games")} />
 
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">local_activity</span>} number={stats.tickets} label="Support Queue" colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("tickets")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">local_activity</span>} number={stats.tickets} label="Support Queue" colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("support")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">campaign</span>} number={stats.activeBroadcasts} label="Active Broadcasts" colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => setIsAlertsOpen(true)} />
 
 
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">group</span>} number={stats.citizens} label="Citizen Oversight" colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => setTab("identities_citizen")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">group</span>} number={stats.citizens} label="Citizen Oversight" colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => setTab("identities")} />
       </CommandScreenStats>
 
       {stats.urgentBroadcast && localStorage.getItem("sanctuary_notify_alert_banner") !== "false" && (
@@ -156,7 +156,7 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
 
           <CommandScreenQuickLink icon="dns" title="Active Workspaces" subtitle="Manage Game Servers" onClick={() => setTab("active_games")} textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400" />
           <CommandScreenQuickLink icon="group" title="Citizen Oversight" subtitle="Manage Identities" onClick={() => setTab("identities")} textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400" />
-          <CommandScreenQuickLink icon="local_activity" title="Support Tickets" subtitle="View Support Queue" onClick={() => setTab("tickets")} textColorClass="text-purple-400" hoverTextColorClass="group-hover:text-purple-300" dotColorClass="bg-purple-400" />
+          <CommandScreenQuickLink icon="local_activity" title="Support Tickets" subtitle="View Support Queue" onClick={() => setTab("support")} textColorClass="text-purple-400" hoverTextColorClass="group-hover:text-purple-300" dotColorClass="bg-purple-400" />
           <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history") || "history"} title={t("audit_title") || "Audit Logs"} subtitle={t("ql_system_history") || "System History"} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
 
           {!stats.urgentBroadcast && (
