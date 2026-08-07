@@ -133,7 +133,8 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
       };
       if (mod.isVirtual) {
         const matchingFlavors = (mod.flavors || []).filter((f: any) => checkMatch(f));
-        if (matchingFlavors.length > 0) {
+        const selfMatches = checkMatch(mod);
+        if (matchingFlavors.length > 0 || selfMatches) {
           acc.push({ ...mod, flavors: matchingFlavors });
         }
       } else {

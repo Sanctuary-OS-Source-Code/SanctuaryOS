@@ -4,6 +4,7 @@ import { supabase, getActiveGameClient } from "./supabase";
 import { useStore } from './store';
 import { useLexicon } from "./LexiconContext";
 import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState, ActionButton } from "./shared";
+import { logArchitectAction } from "./lib/audit";
 
 const fetchAllPaginated = async (queryFn: () => any) => { 
   let allData: any[] = []; 
@@ -128,7 +129,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
       if(deleteReason.trim()) {
          const { data: { user } } = await supabase.auth.getUser();
          if(user) {
-           await getActiveGameClient().from('audit_logs').insert({ action: `Deleted Conflict Rule - Reason: ${deleteReason}`, target_table: 'logical_conflicts', target_name: id, actor_id: user.id, reason: "Automated from Mason Hub" });
+           await logArchitectAction(`Deleted Conflict Rule - Reason: ${deleteReason}`, 'logical_conflicts', id, "Automated from Mason Hub", "Mason Conflicts");
          }
       }
       useStore.getState().pushStatus(t("auto_conflict_rule_deleted"), "success");

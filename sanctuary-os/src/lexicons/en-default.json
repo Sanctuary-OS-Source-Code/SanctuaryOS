@@ -2652,6 +2652,20 @@
   "btn_search": "Search",
   "no_core_selected": "No Core Selected",
   "addon_artifacts": "Addon Mods",
+  "cancel": "Cancel",
   "addon_artifacts_desc": "Add-ons are not required for a successful deployment, but they require the Core Mod for a successful deployment",
-  "local_node": "Local Folder"
+  "local_node": "Local Folder",
+  "auth_email_update_desc": "Update the email address associated with your Sanctuary account. A confirmation link will be sent to both your old and new email addresses.",
+  "auth_password_update_desc": "Update your Sanctuary account password. For security, you may be required to re-authenticate.",
+  "support_adult_mods_title": "ADULT / NSFW MODS DETECTED",
+  "support_adult_mods_desc": "Your active playset contains explicit or NSFW mods. If your support ticket involves these components, please bypass the OS and ping the original creator. Otherwise, remove the Mods and retest. You may submit a ticket once your logs are clean.",
+  "support_err_adult_mods_blocked": "Ticket submission is disabled while adult/NSFW mods are active.",
+  "support_err_dirty_logs": "Dirty game logs detected. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before submitting.",
+  "quick_create_node": "Create Local Folder",
+  "quick_create_node_desc": "Create a new local folder to organize your mods.",
+  "ph_folder_name": "Folder Name",
+  "empty_folder": "This folder is empty",
+  "add_more_items": "Add more items to assign",
+  "btn_confirm_delete": "Confirm Delete",
+  "btn_remove": "Remove"
 }

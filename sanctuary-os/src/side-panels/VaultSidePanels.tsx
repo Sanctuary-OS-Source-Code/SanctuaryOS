@@ -162,6 +162,7 @@ export function VaultLocalFolderEditorSidePanel({
   const [searchToAdd, setSearchToAdd] = React.useState("");
   const [activeTab, setActiveTab] = React.useState("linked");
   const [updateTrigger, setUpdateTrigger] = React.useState(0);
+  const [deleteConfirm, setDeleteConfirm] = React.useState(false);
 
   const localSets = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
   const target = activeLocalFolder || localSets[0]?.id;
@@ -196,12 +197,25 @@ export function VaultLocalFolderEditorSidePanel({
         }
         footer={
           <SidePanelActionFooter
-            actionLabel={t("local_folders_delete")}
-            actionIcon="delete"
-            onAction={() => setConfirmDeleteId(target)}
+            actionLabel={deleteConfirm ? (t("btn_confirm_delete") || "CONFIRM DELETION") : t("local_folders_delete")}
+            actionIcon={deleteConfirm ? "warning" : "delete"}
+            onAction={() => {
+              if (deleteConfirm) {
+                const updatedSets = localSets.filter((s: any) => s.id !== target);
+                localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                setDeleteConfirm(false);
+                setIsLocalFolderEditorOpen(false);
+              } else {
+                setDeleteConfirm(true);
+                setTimeout(() => setDeleteConfirm(false), 3000);
+              }
+            }}
             actionVariant="danger"
             cancelLabel={t("btn_done") || "DONE"}
-            onCancel={() => setIsLocalFolderEditorOpen(false)}
+            onCancel={() => {
+              if (deleteConfirm) setDeleteConfirm(false);
+              else setIsLocalFolderEditorOpen(false);
+            }}
           />
         }
       >
@@ -278,7 +292,7 @@ export function VaultLocalFolderEditorSidePanel({
                     const art = displayModList.find((m: any) => m.hash === hash);
                     if (!art) return null;
                     return (
-                      <div key={hash} className="w-[calc(50%-0.375rem)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] p-4 rounded-xl flex items-center justify-between gap-4 group/item transition-all hover:bg-white/5 border border-white/5 hover:border-white/20 shadow-lg relative overflow-hidden">
+                      <div key={hash} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); window.dispatchEvent(new CustomEvent('openVaultContextMenu', { detail: { mod: art, x: e.clientX, y: e.clientY } })); }} className="w-[calc(50%-0.375rem)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] p-4 rounded-xl flex items-center justify-between gap-4 group/item transition-all hover:bg-white/5 border border-white/5 hover:border-white/20 shadow-lg relative overflow-hidden cursor-context-menu">
                         <div className="flex flex-1 items-center gap-4 min-w-0">
                           <div className="w-10 h-10 rounded-lg bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden shrink-0">
                             {art.image_url || art.imageUrl ? (
@@ -349,7 +363,7 @@ export function VaultLocalFolderEditorSidePanel({
                       </div>
                     ) : (
                       Array.from(new Map(searchResults.map((m: any) => [m.hash, m])).values()).slice(0, 100).map((m: any, index: number) => (
-                        <div key={m.hash} className="w-[calc(50%-0.375rem)] bg-white/5 hover:bg-white/10 transition-colors min-h-[64px] min-w-0 p-3 rounded-xl flex items-center justify-between gap-4 group/item border border-white/5 shadow-lg relative overflow-hidden">
+                        <div key={m.hash} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); window.dispatchEvent(new CustomEvent('openVaultContextMenu', { detail: { mod: m, x: e.clientX, y: e.clientY } })); }} className="w-[calc(50%-0.375rem)] bg-white/5 hover:bg-white/10 transition-colors min-h-[64px] min-w-0 p-3 rounded-xl flex items-center justify-between gap-4 group/item border border-white/5 shadow-lg relative overflow-hidden cursor-context-menu">
                           <div className="flex flex-1 items-center gap-4 min-w-0">
                             <div className="w-10 h-10 rounded-lg bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden shrink-0">
                               {m.image_url || m.imageUrl ? (
@@ -523,45 +537,6 @@ export function VaultLocalFolderEditorSidePanel({
           </div>
         </div>
       </SidePanel>
-
-      {confirmDeleteId && (
-        <div className="fixed inset-0 z-[120000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in">
-          <div className="theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-[2rem] p-8 max-w-md w-full shadow-[0_20px_60px_rgba(var(--danger-rgb),0.2)] flex flex-col gap-6 relative overflow-hidden">
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-[var(--danger)] opacity-10 blur-[50px] rounded-full pointer-events-none" />
-
-            <div className="flex items-center gap-4 relative z-10">
-              <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] text-[var(--danger)]">warning</span>
-              </div>
-              <div className="flex flex-col">
-                <h3 className="text-[14px] font-black uppercase text-[var(--text)] tracking-widest">{t("local_folders_delete")}</h3>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] opacity-80 mt-1">{t("btn_confirm_delete")}</p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-2 relative z-10">
-              <button
-                onClick={() => setConfirmDeleteId(null)}
-                className="flex-1 h-12 rounded-xl theme-glass-inner border border-white/10 hover:border-white/30 text-[10px] font-black uppercase tracking-widest text-[var(--text)] transition-all"
-              >
-                {t("btn_cancel")}
-              </button>
-              <button
-                onClick={() => {
-                  const updatedSets = localSets.filter((s: any) => s.id !== target);
-                  localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
-                  setConfirmDeleteId(null);
-                  setIsLocalFolderEditorOpen(false);
-                  runRadarSweep(true);
-                }}
-                className="flex-1 h-12 rounded-xl bg-[var(--danger)] text-white text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-[0_0_20px_rgba(var(--danger-rgb),0.3)]"
-              >
-                {t("btn_delete")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

@@ -545,10 +545,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       const templates = allAssets?.filter((a: any) => a.asset_type === 'workbench_template') || [];
 
       const newMap: Record<string, any[]> = {
-        'BLUEPRINT': processedBlueprints || [],
-        'LEXICON': lexicons,
-        'CHAMELEON': chameleons,
-        'TEMPLATE': templates,
+        'BLUEPRINTS': processedBlueprints || [],
+        'LEXICONS': lexicons,
+        'CHAMELEONS': chameleons,
+        'TEMPLATES': templates,
         'MASON_DATA': masonData || []
       };
 

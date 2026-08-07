@@ -72,7 +72,6 @@ export function useGlobalListeners(
   useEffect(() => {
     let unlisten: any = null;
     tauriBridge.listenToBackupProgress((payload: any) => {
-      console.log("RECEIVED BACKUP PROGRESS PAYLOAD:", payload);
       setBackupProgress(payload);
     }).then(u => { unlisten = u; });
 

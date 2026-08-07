@@ -1,7 +1,22 @@
-**Date: August 6, 2026**
+**Date: August 7, 2026**
 **Version: 0.4.93**
 
-## **Local Node & Dossier Architecture**
+## **The Great Folder & Conflict Resolution Update**
+
+### **Vault & Library Enhancements**
+- **Local Folder Evolution**: Revolutionized the Local Folders workflow by completely replacing the tedious grid-based multi-select logic with a massive, Discord-style direct search-and-add interface right inside the LocalFolderModal. 
+- **Profile-Based Hierarchy**: Implemented profile-based folder management to streamline organization and ensure folders strictly adhere to specific sets or rules.
+- **Deep Casualty Resolution**: Upgraded the VaultGrid casualty logic to intelligently detect and warn users about cascading casualties when removing Core archetypes or parent folders.
+- **Drawer Search Integration**: Injected a brand new Search Bar directly into expanded folders within the VaultGrid, allowing instant filtering of massive artifact nodes without losing context.
+
+### **Command Center & UI Overhaul**
+- **Vault Command Screen**: Re-architected the main Vault view into a fully featured Vault Command Screen, unifying the UI with the rest of the application dashboard.
+- **Conflict Radar Precision**: Resolved a core bug in the Command Conflicts Panel where conflicts involving Sanctuary mods were being incorrectly masked. The Radar now accurately detects and reports all Tuning (S3) and Fatal (S4) conflicts without dropping data.
+- **ModCard UI Polish**: Completely overhauled the ModCard action buttons. Re-engineered flex boundaries and font sizes to eliminate awkward text truncation for actions like "Ignore Conflict" and "Confirm Purge" / "Yeet", enabling text wrapping on smaller viewports. Introduced `mask-image` and custom box shadows for a flawless premium glass hover aesthetic.
+
+### **Nexus & Infrastructure Refinements**
+- **Asset Loading Stabilized**: Fixed a critical bug on the Nexus where assets were failing to populate ("None found" empty state). The Nexus Asset Loading routine has been completely overhauled to ensure reliable population.
+- **Lexicon Migrations**: Continued massive strings migrations across the Wayfinder and Support panels, ensuring zero hardcoded strings and fully supporting dynamic theme-based lexicon routing.
 
 ### **Vault & Library Enhancements**
 - **Local Folder Revamp**: Completely replaced the tedious grid-based multi-select logic with a direct, Discord-style search-and-add interface for creating and managing Local Folders.

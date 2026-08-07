@@ -79,7 +79,7 @@ const Vault = React.memo(function Vault(props: any) {
     setBulkModal
   } = props;
   const { t } = useLexicon();
-  const localFolderCount = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]").length;
+  const localFolderCount = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]").filter((s: any) => !s.isCollection).length;
   const unverifiedCount = React.useMemo(() => displayModList.filter((m: any) => !m.isVirtual && !m.verified).length, [displayModList]);
   const selectedVersion = useStore((state) => state.selectedVersion);
   const showImages = useStore((state: any) => state.showImages);
@@ -100,13 +100,19 @@ const Vault = React.memo(function Vault(props: any) {
       setActiveLocalFolder(e.detail);
       setIsLocalFolderEditorOpen(true);
     };
+    const handleOpenContextMenu = (e: any) => {
+      setVaultContextMenu({ mod: e.detail.mod, x: e.detail.x, y: e.detail.y });
+    };
+    
     window.addEventListener('openLocalFolderEditor', handleOpenEditor);
+    window.addEventListener('openVaultContextMenu', handleOpenContextMenu);
 
     const closeContextMenu = () => setVaultContextMenu(null);
     window.addEventListener('click', closeContextMenu);
 
     return () => {
       window.removeEventListener('openLocalFolderEditor', handleOpenEditor);
+      window.removeEventListener('openVaultContextMenu', handleOpenContextMenu);
       window.removeEventListener('click', closeContextMenu);
     };
   }, []);
@@ -222,6 +228,10 @@ const Vault = React.memo(function Vault(props: any) {
     });
 
     return visibleMods.filter((mod: any) => {
+      const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
+      const baseModName = modNameUpper.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/, "") || modNameUpper;
+      if (baseModName === "FILTERS") return false;
+
       let modGameVersions: string[] = [];
       if (mod.isVirtual) {
         modGameVersions = Array.from(new Set((mod.flavors || []).flatMap((f: any) => {
@@ -241,7 +251,11 @@ const Vault = React.memo(function Vault(props: any) {
 
       let isCompatibleWithOS = true;
       if (selectedVersion && selectedVersion !== "") {
-        isCompatibleWithOS = isVersionMatch(modGameVersions, selectedVersion);
+        if (mod.isVirtual && mod.isLocalOverride && (!mod.flavors || mod.flavors.length === 0)) {
+          isCompatibleWithOS = true;
+        } else {
+          isCompatibleWithOS = isVersionMatch(modGameVersions, selectedVersion);
+        }
       }
 
       if (hideGhostCards) {
@@ -515,10 +529,13 @@ const Vault = React.memo(function Vault(props: any) {
 
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-6 w-full">
                     {displayModList.filter((mod: any) => {
+                      const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
+                      const baseModName = modNameUpper.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/, "") || modNameUpper;
+                      if (baseModName === "FILTERS") return false;
+
                       if (mod.isVirtual) {
-                        const n = String(mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
-                        if (["DATA", "SCRIPTS", "CFG", "CONFIG", "MOD", "MODS"].includes(n)) return false;
-                        if (n.startsWith("FOLDER LOCAL DIR")) return false;
+                        if (["DATA", "SCRIPTS", "CFG", "CONFIG", "MOD", "MODS"].includes(modNameUpper)) return false;
+                        if (modNameUpper.startsWith("FOLDER LOCAL DIR")) return false;
 
                         if (mod.isCollection) return true;
                         if (mod.isParent && mod.flavors && mod.flavors.some((f: any) => ["twin", "beta", "addon"].includes(f.relationshipType))) return true;
@@ -527,7 +544,14 @@ const Vault = React.memo(function Vault(props: any) {
                       const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
                       return !folderExists;
                     }).slice(0, 20).map((item: any, idx: number) => (
-                      <div key={`recent-${idx}`} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group" onClick={() => { if (setActiveDossier) setActiveDossier(item); }}>
+                      <div key={`recent-${idx}`} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group" onClick={() => { 
+                        if (item.isVirtual && item.isLocalOverride && !item.isCollection) {
+                          const targetId = item.dbId || item.familyId || item.setId;
+                          if (targetId) window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: targetId }));
+                        } else if (setActiveDossier) {
+                          setActiveDossier(item); 
+                        }
+                      }}>
                         <div className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
                           {(showImages !== false && (item.meta_image || item.image_url)) ? (
                             <img
@@ -573,14 +597,27 @@ const Vault = React.memo(function Vault(props: any) {
               <CommandScreenSidebar title={t("quick_actions") || "QUICK ACTIONS"} icon="bolt">
                 <div className="flex flex-col gap-4">
                   <CommandScreenQuickLink
-                    icon={t("icon_checklist") || "checklist"}
-                    title={t("bulk_override") || "BULK OVERRIDE"}
-                    subtitle={t("bulk_desc") || "MASS SELECTION AND ACTION TARGETING"}
-                    onClick={() => { setEquipFilter("ALL"); setFilterStatus("ALL"); setIsBulkMode(true); }}
-                    textColorClass="text-emerald-500"
-                    hoverTextColorClass="group-hover:text-emerald-400"
-                    iconShadowClass="drop-shadow-[0_0_8px_rgba(16,185,129,0.5)] text-emerald-500"
-                    iconBorderHoverClass="group-hover:border-emerald-500/30"
+                    icon={t("icon_create_new_folder") || "create_new_folder"}
+                    title={t("quick_create_node") || "CREATE LOCAL NODE"}
+                    subtitle={t("quick_create_node_desc") || "SPAWN A NEW LOCAL DIRECTORY TO ORGANIZE ARTIFACTS"}
+                    onClick={() => {
+                      const localSets = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
+                      const newId = `f_${Date.now()}`;
+                      localSets.push({
+                        id: newId,
+                        name: "",
+                        items: [],
+                        isCollection: false
+                      });
+                      localStorage.setItem("sanctuary_local_sets", JSON.stringify(localSets));
+                      setActiveLocalFolder(newId);
+                      setIsLocalFolderEditorOpen(true);
+                      runRadarSweep(true);
+                    }}
+                    textColorClass="text-purple-500"
+                    hoverTextColorClass="group-hover:text-purple-400"
+                    iconShadowClass="drop-shadow-[0_0_8px_rgba(168,85,247,0.5)] text-purple-500"
+                    iconBorderHoverClass="group-hover:border-purple-500/30"
                   />
 
                   <CommandScreenQuickLink
@@ -791,7 +828,7 @@ const Vault = React.memo(function Vault(props: any) {
 
       {vaultContextMenu && createPortal(
         <div
-          className="fixed z-[99999] py-2 flex flex-col min-w-[240px] max-w-[320px] animate-in fade-in zoom-in-95 duration-100"
+          className="fixed z-[120000] py-2 flex flex-col min-w-[240px] max-w-[320px] animate-in fade-in zoom-in-95 duration-100"
           style={{
             left: Math.min(vaultContextMenu.x, window.innerWidth - 320),
             top: Math.min(vaultContextMenu.y, window.innerHeight - 300)
@@ -899,27 +936,30 @@ const Vault = React.memo(function Vault(props: any) {
                   )}
                 </div>
 
-                <div className="w-full h-px bg-white/5 my-2" />
-
-                <button
-                  onClick={() => {
-                    setVaultContextMenu(null);
-                    const allFilesToPurge = new Map<string, string>();
-                    targetMods.forEach((modName: string) => {
-                      const modObj = displayModList.find((m: any) => m.name === modName);
-                      if (modObj && modObj.isVirtual && modObj.flavors) {
-                        modObj.flavors.forEach((f: any) => { if (f.name) allFilesToPurge.set(f.name, modObj.displayName || modObj.name); });
-                      } else {
-                        allFilesToPurge.set(modName, modObj?.displayName || modName);
-                      }
-                    });
-                    setPurgeTargetFiles(Array.from(allFilesToPurge.entries()).map(([file, name]) => ({ file, name })));
-                  }}
-                  className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[11px] font-bold uppercase tracking-widest text-[var(--danger)] flex items-center gap-3 transition-colors"
-                >
-                  <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_forever")}</span>
-                  {t("context_purge")} {count > 1 ? t("context_artifacts") : t("context_artifact")}
-                </button>
+                {!(vaultContextMenu.mod.isVirtual && vaultContextMenu.mod.isLocalOverride && !vaultContextMenu.mod.isCollection) && (
+                  <>
+                    <div className="w-full h-px bg-white/5 my-2" />
+                    <button
+                      onClick={() => {
+                        setVaultContextMenu(null);
+                        const allFilesToPurge = new Map<string, string>();
+                        targetMods.forEach((modName: string) => {
+                          const modObj = displayModList.find((m: any) => m.name === modName);
+                          if (modObj && modObj.isVirtual && modObj.flavors) {
+                            modObj.flavors.forEach((f: any) => { if (f.name) allFilesToPurge.set(f.name, modObj.displayName || modObj.name); });
+                          } else {
+                            allFilesToPurge.set(modName, modObj?.displayName || modName);
+                          }
+                        });
+                        setPurgeTargetFiles(Array.from(allFilesToPurge.entries()).map(([file, name]) => ({ file, name })));
+                      }}
+                      className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[11px] font-bold uppercase tracking-widest text-[var(--danger)] flex items-center gap-3 transition-colors"
+                    >
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_forever")}</span>
+                      {t("context_purge")} {count > 1 ? t("context_artifacts") : t("context_artifact")}
+                    </button>
+                  </>
+                )}
               </>
             );
           })()}

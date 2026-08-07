@@ -3,6 +3,7 @@ import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton } from './shared';
 import { useStore } from './store';
+import { logArchitectAction } from './lib/audit';
 
 export const ROLES = ['citizen', 'mason', 'architect', 'oversight', 'wayfinder'];
 
@@ -113,13 +114,14 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
         auditReason = `Upload: ${editReason} | Comms: ${editCommReason}`;
       }
 
-      await client.from('audit_logs').insert({
-        action: auditAction,
-        target_table: 'profiles',
-        target_name: profile.username || profile.id,
-        actor_id: myId,
-        reason: auditReason
-      });
+      await logArchitectAction(
+        auditAction,
+        'profiles',
+        profile.username || profile.id,
+        auditReason,
+        "Identity Matrix",
+        isKeepers
+      );
 
       setStatus(t("identities_updated"));
       onUpdated();

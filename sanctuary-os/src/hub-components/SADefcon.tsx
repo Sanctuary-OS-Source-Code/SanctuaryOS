@@ -3,13 +3,15 @@ import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
-import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+import {
+  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown } from "../shared";
+  fetchAllPaginated, CustomTierDropdown
+} from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -70,8 +72,8 @@ export function DefconPanel() {
       <button
         onClick={() => setShowDefconConfirmModal(true)}
         className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all relative z-10 theme-glass-inner ${defconLevel === 1
-            ? 'border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5'
-            : 'border border-amber-900/50 text-amber-400 hover:border-amber-500 hover:text-amber-400 hover:bg-amber-500/10'
+          ? 'border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5'
+          : 'border border-amber-900/50 text-amber-400 hover:border-amber-500 hover:text-amber-400 hover:bg-amber-500/10'
           }`}
       >
         {defconLevel === 1 ? t("defcon_stand_down") : t("defcon_initiate")}
@@ -108,8 +110,8 @@ export function DefconPanel() {
               <button
                 onClick={() => { triggerDefcon(); setShowDefconConfirmModal(false); }}
                 className={`flex-1 py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all theme-glass-inner shadow-lg ${defconLevel === 5
-                    ? 'border border-amber-900/50 text-amber-400 hover:border-amber-500 hover:bg-amber-500/10'
-                    : 'border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5'
+                  ? 'border border-amber-900/50 text-amber-400 hover:border-amber-500 hover:bg-amber-500/10'
+                  : 'border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5'
                   }`}
               >
                 {defconLevel === 1 ? t("btn_confirm_stand_down") : t("btn_execute_defcon")}
@@ -152,26 +154,37 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout>;
-    if (confirmMode) {
-      timeout = setTimeout(() => {
-        setConfirmMode(null);
-      }, 3000);
-    }
-    return () => clearTimeout(timeout);
-  }, [confirmMode]);
+
 
   const executeDefcon = async () => {
     setSubmitting(true);
     setActionStatus("Executing Lock Down...");
     const userRes = await supabase.auth.getUser();
 
-    await supabase.from('global_network_status').update({ defcon_level: 1, message: "EMERGENCY: SYSTEM LOCKDOWN", status_message: "Global DEFCON 1 override active. Patch imminent.", updated_at: new Date().toISOString() }).eq('id', 1);
-    useStore.getState().setDefconLevel(1);
-    await getActiveGameClient().from('audit_logs').insert({
-      action: "Triggered Global DEFCON 1 Override", target_table: "global_network_status", target_name: "GLOBAL NETWORK", actor_id: userRes.data.user?.id, reason: "Game Patch Imminent Override"
+    const targetId = status?.id || 1;
+    const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+      p_token: useStore.getState().session?.access_token || '',
+      p_target: 'global_network_status',
+      p_payload: {
+        id: targetId,
+        defcon_level: 1,
+        message: "EMERGENCY: SYSTEM LOCKDOWN",
+        status_message: "Global DEFCON 1 override active. Patch imminent.",
+        updated_at: new Date().toISOString()
+      }
     });
+    
+    if (error) {
+      console.error("Defcon update error:", error);
+      setActionStatus("ERROR: " + (error.message || "Failed to update"));
+      setSubmitting(false);
+      return;
+    }
+
+    useStore.getState().setDefconLevel(1);
+    await logArchitectAction(
+      "Triggered Global DEFCON 1 Override", "global_network_status", "GLOBAL NETWORK", "Game Patch Imminent Override", "Command Center Oversight"
+    );
 
     await fetchStatus();
     setActionStatus("LOCK DOWN EXECUTED.");
@@ -185,11 +198,30 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
     setActionStatus("Lifting Lock Down...");
     const userRes = await supabase.auth.getUser();
 
-    await supabase.from('global_network_status').update({ defcon_level: 5, message: "System Normal", status_message: "Network Secure. All systems nominal.", updated_at: new Date().toISOString() }).eq('id', 1);
-    useStore.getState().setDefconLevel(5);
-    await getActiveGameClient().from('audit_logs').insert({
-      action: "Stood Down Global DEFCON Alert", target_table: "global_network_status", target_name: "GLOBAL NETWORK", actor_id: userRes.data.user?.id, reason: "Game Patch Concluded"
+    const targetId = status?.id || 1;
+    const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+      p_token: useStore.getState().session?.access_token || '',
+      p_target: 'global_network_status',
+      p_payload: {
+        id: targetId,
+        defcon_level: 5,
+        message: "System Normal",
+        status_message: "Network Secure. All systems nominal.",
+        updated_at: new Date().toISOString()
+      }
     });
+    
+    if (error) {
+      console.error("Defcon update error:", error);
+      setActionStatus("ERROR: " + (error.message || "Failed to update"));
+      setSubmitting(false);
+      return;
+    }
+
+    useStore.getState().setDefconLevel(5);
+    await logArchitectAction(
+      "Stood Down Global DEFCON Alert", "global_network_status", "GLOBAL NETWORK", "Game Patch Concluded", "Command Center Oversight"
+    );
 
     await fetchStatus();
     setActionStatus("STAND DOWN EXECUTED.");
@@ -292,12 +324,20 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                   {confirmMode === 'standDown' ? (
                     <div className="flex flex-col gap-2 animate-in slide-in-from-bottom-2 fade-in duration-300 relative">
                       <p className="text-[10px] text-center font-black uppercase tracking-widest text-amber-500 mb-1 animate-pulse">{t("confirm_sure")}</p>
-                      <button
-                        onClick={standDown} disabled={submitting}
-                        className={`w-full py-6 text-xs ${standardSuccessButtonClass} !bg-amber-500/20 !border-amber-500/50 !text-amber-400 hover:!bg-amber-500/40 hover:!text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.2)]`}
-                      >
-                        {t("btn_proceed")}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={standDown} disabled={submitting}
+                          className={`flex-1 py-6 text-xs ${standardSuccessButtonClass} !bg-amber-500/20 !border-amber-500/50 !text-amber-400 hover:!bg-amber-500/40 hover:!text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.2)]`}
+                        >
+                          {t("btn_proceed")}
+                        </button>
+                        <button
+                          onClick={() => setConfirmMode(null)} disabled={submitting}
+                          className="flex-1 py-6 theme-glass-inner border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-sm"
+                        >
+                          {t("btn_abort")}
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <button
@@ -314,12 +354,20 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                   {confirmMode === 'execute' ? (
                     <div className="flex flex-col gap-2 animate-in slide-in-from-bottom-2 fade-in duration-300 relative">
                       <p className="text-[10px] text-center font-black uppercase tracking-widest text-red-500 mb-1 animate-pulse">{t("defcon_confirm_execute")}</p>
-                      <button
-                        onClick={executeDefcon} disabled={submitting}
-                        className={`w-full py-6 text-xs ${standardDangerButtonClass} shadow-[0_0_30px_rgba(220,38,38,0.4)] animate-[pulse_2s_ease-in-out_infinite] bg-red-600/40`}
-                      >
-                        {t("btn_proceed")}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={executeDefcon} disabled={submitting}
+                          className={`flex-1 py-6 text-xs ${standardDangerButtonClass} shadow-[0_0_30px_rgba(220,38,38,0.4)] animate-[pulse_2s_ease-in-out_infinite] bg-red-600/40`}
+                        >
+                          {t("btn_proceed")}
+                        </button>
+                        <button
+                          onClick={() => setConfirmMode(null)} disabled={submitting}
+                          className="flex-1 py-6 theme-glass-inner border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-sm"
+                        >
+                          {t("btn_abort")}
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <button

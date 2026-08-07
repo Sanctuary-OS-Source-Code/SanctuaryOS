@@ -848,40 +848,38 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const setMembers = overriddenMods.filter((m: any) =>
           set.items.includes(m.hash),
         );
-        if (setMembers.length > 0) {
-          const isSet = !!set.isCollection;
-          const verifiedCount = setMembers.filter((m: any) => m.status === (t("verified"))).length;
-          const isAllVerified = verifiedCount === setMembers.length;
-          const isNoneVerified = verifiedCount === 0;
-          const isAnyBroken = setMembers.some((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
-          
-          let folderStatus = "";
-          if (isAnyBroken) {
-            folderStatus = "broken";
-          } else if (isAllVerified) {
-            folderStatus = t("verified");
-          } else {
-            folderStatus = t("local_node") || "LOCAL FOLDER";
-          }
-
-          localVirtualCards.push({
-            hash: "local_set_" + set.id,
-            name: "LOCAL_SET_" + set.id,
-            dbId: String(set.id),
-            displayName: set.name.toUpperCase(),
-            author: "Local Override",
-            status: folderStatus,
-            color: isSet ? "var(--accent)" : "var(--success)",
-            isSynced: false,
-            isVirtual: true,
-            isParent: true,
-            isCollection: isSet,
-            url: set.url || null,
-            isLocalOverride: true,
-            image_url: "",
-            flavors: setMembers,
-          });
+        const isSet = !!set.isCollection;
+        const verifiedCount = setMembers.filter((m: any) => m.status === (t("verified"))).length;
+        const isAllVerified = setMembers.length > 0 && verifiedCount === setMembers.length;
+        const isNoneVerified = setMembers.length === 0 || verifiedCount === 0;
+        const isAnyBroken = setMembers.some((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
+        
+        let folderStatus = "";
+        if (isAnyBroken) {
+          folderStatus = "broken";
+        } else if (isAllVerified) {
+          folderStatus = t("verified");
+        } else {
+          folderStatus = t("local_node") || "LOCAL FOLDER";
         }
+
+        localVirtualCards.push({
+          hash: "local_set_" + set.id,
+          name: "LOCAL_SET_" + set.id,
+          dbId: String(set.id),
+          displayName: (set.name || "").toUpperCase(),
+          author: "Local Override",
+          status: folderStatus,
+          color: isSet ? "var(--accent)" : "var(--success)",
+          isSynced: false,
+          isVirtual: true,
+          isParent: true,
+          isCollection: isSet,
+          url: set.url || null,
+          isLocalOverride: true,
+          image_url: "",
+          flavors: setMembers,
+        });
       });
       localSts.forEach((set: any) => {
         overriddenMods = overriddenMods.map((m: any) =>

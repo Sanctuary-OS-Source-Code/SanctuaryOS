@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, ModSearchDropdown, SidePanel, standardButtonClass, standardAccentGlassButtonClass , getExtensionRegex, ActionButton } from "../shared";
+import { CustomDropdown, ModSearchDropdown, SidePanel, standardButtonClass, standardAccentGlassButtonClass , getExtensionRegex, ActionButton, HoverTooltip } from "../shared";
 import { useStore } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -12,6 +12,7 @@ export default function WayfinderSupportSidePanel({
   const activeGameSchema = useStore(state => state.activeGameSchema);
   const { t } = useLexicon();
   const modList = useStore((state) => state.modList);
+  const activeSet = useStore(state => state.playSets[state.activePlaySetIndex]);
   const [type, setType] = useState(preselectedType || "BUG_MOD");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -29,6 +30,38 @@ export default function WayfinderSupportSidePanel({
   const session = useStore((state) => state.session);
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState("");
+
+  const activeAdultMods = React.useMemo(() => {
+    if (!activeSet?.mods || !isOpen) return [];
+    
+    const adultModsInDB = modList.filter((ml: any) => ml.compliance_tier === 1 || ml.compliance_tier === 2);
+    if (adultModsInDB.length === 0) return [];
+    
+    const activeModsSet = new Set<string>(activeSet.mods);
+    const extRegex = getExtensionRegex(activeGameSchema);
+    
+    const activeBaseNames = new Set<string>();
+    for (const modName of activeSet.mods) {
+       const base = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
+       if (base) activeBaseNames.add(base);
+    }
+    
+    const matchedAdultMods: string[] = [];
+    
+    for (const am of adultModsInDB) {
+        if (activeModsSet.has(am.name) || (am.displayName && activeModsSet.has(am.displayName))) {
+             matchedAdultMods.push(am.displayName || am.name);
+             continue;
+        }
+        
+        const mBase = am.name?.split(/[\\/]/).pop()?.replace(extRegex, '');
+        if (mBase && activeBaseNames.has(mBase)) {
+             matchedAdultMods.push(am.displayName || am.name);
+        }
+    }
+    
+    return [...new Set(matchedAdultMods)];
+  }, [activeSet?.mods, modList, activeGameSchema, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -156,6 +189,25 @@ export default function WayfinderSupportSidePanel({
 
                 const text = await readTextFile(fullPath);
                 if (text) {
+                   if (activeCategory?.requires_target_mod) {
+                       const store = useStore.getState();
+                       const adultModsInDB = store.modList.filter((ml: any) => ml.compliance_tier === 1 || ml.compliance_tier === 2);
+                       const extRegex = getExtensionRegex(store.activeGameSchema);
+                       const dirtyTraces: string[] = [];
+                       const lowerText = text.toLowerCase();
+                       for (const am of adultModsInDB) {
+                           const baseName = am.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
+                           if (baseName && baseName.length >= 4 && lowerText.includes(baseName)) {
+                               dirtyTraces.push(am.displayName || am.name);
+                           }
+                       }
+                       if (dirtyTraces.length > 0) {
+                           const uniqueTraces = [...new Set(dirtyTraces)];
+                           const traceStr = `${uniqueTraces.slice(0, 3).join(', ')}${uniqueTraces.length > 3 ? '...' : ''}`;
+                           const errStr = (t("support_err_dirty_logs") || `Dirty log detected in ${source.label}. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before submitting.`).replace("{0}", traceStr);
+                           throw new Error(errStr);
+                       }
+                   }
                    finalLogs += `\n--- TELEMETRY: ${source.label} ---\n` + text.substring(0, 10000) + "\n";
                 }
             }
@@ -212,6 +264,27 @@ export default function WayfinderSupportSidePanel({
       const path = await open({ multiple: false, filters: [{ name: 'Log', extensions: ['txt', 'log'] }] });
       if (path && typeof path === 'string') {
         const text = await readTextFile(path);
+        
+        if (activeCategory?.requires_target_mod) {
+            const store = useStore.getState();
+            const adultModsInDB = store.modList.filter((ml: any) => ml.compliance_tier === 1 || ml.compliance_tier === 2);
+            const extRegex = getExtensionRegex(store.activeGameSchema);
+            const dirtyTraces: string[] = [];
+            const lowerText = text.toLowerCase();
+            for (const am of adultModsInDB) {
+                const baseName = am.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
+                if (baseName && baseName.length >= 4 && lowerText.includes(baseName)) {
+                    dirtyTraces.push(am.displayName || am.name);
+                }
+            }
+            if (dirtyTraces.length > 0) {
+                const uniqueTraces = [...new Set(dirtyTraces)];
+                const traceStr = `${uniqueTraces.slice(0, 3).join(', ')}${uniqueTraces.length > 3 ? '...' : ''}`;
+                const errStr = (t("support_err_dirty_logs") || `Dirty log detected. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before attaching.`).replace("{0}", traceStr);
+                throw new Error(errStr);
+            }
+        }
+
         setLogs(prev => prev + "\n--- Log Attachment ---\n" + text.substring(0, 10000));
       }
     } catch (err: any) {
@@ -260,9 +333,14 @@ export default function WayfinderSupportSidePanel({
            <ActionButton onClick={onClose} label={t("nav_cancel")}>
              
            </ActionButton>
-           <ActionButton onClick={submitTicket} disabled={isSubmitting} label={isSubmitting ? (t("scanning")) : (t("support_submit"))}>
-             
-           </ActionButton>
+           <div 
+             className={activeCategory?.requires_target_mod && activeAdultMods.length > 0 ? "cursor-not-allowed" : ""}
+           >
+             {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && <HoverTooltip title={t("support_err_adult_mods_blocked") || "Ticket submission is disabled while adult mods are active."} variant="warning" />}
+             <ActionButton onClick={submitTicket} disabled={isSubmitting || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)} label={isSubmitting ? (t("scanning")) : (t("support_submit"))}>
+               
+             </ActionButton>
+           </div>
         </div>
       }
     >
@@ -298,6 +376,33 @@ export default function WayfinderSupportSidePanel({
                         </div>
                     </div>
                 )}
+            </div>
+        )}
+
+        {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
+            <div className="bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--warning-rgb),0.15)] group mt-2">
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--warning)]/5 to-transparent pointer-events-none" />
+                <div className="flex items-start gap-4 p-5 relative z-10">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--warning)]/20 flex items-center justify-center shrink-0 border border-[var(--warning)]/30 text-[var(--warning)]">
+                        <span className="material-symbols-outlined !text-[20px]">{t("icon_warning") || "warning"}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
+                        <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title") || "ADULT / NSFW MODS DETECTED"}</span>
+                        <span className="text-xs font-bold text-[var(--warning)]/80 leading-relaxed pr-4">
+                            {t("support_adult_mods_desc") || `Your active blueprint contains ${activeAdultMods.length} adult/NSFW mod(s). If your ticket is related to one of these, please ensure you tag it appropriately or contact the author directly.`}
+                        </span>
+                    </div>
+                </div>
+                <div className="bg-black/30 p-4 border-t border-[var(--warning)]/20 flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
+                    <div className="flex flex-col gap-2">
+                        {activeAdultMods.map((mod, i) => (
+                            <div key={i} className="flex items-center gap-2 text-[var(--warning)]/90 text-[10px] font-mono bg-[var(--warning)]/10 py-1.5 px-3 rounded-md border border-[var(--warning)]/20">
+                                <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_extension") || "extension"}</span>
+                                <span className="truncate">{mod}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         )}
 

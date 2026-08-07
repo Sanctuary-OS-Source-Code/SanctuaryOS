@@ -106,13 +106,13 @@ export function MasonLinker() {
       }
       masonId = data.id;
 
-      await getActiveGameClient().from('audit_logs').insert({
-        action: `Created new Mason: ${editName.trim()}`,
-        target_table: 'masons',
-        target_name: editName.trim(),
-        actor_id: myId,
-        reason: "Mason Creation"
-      });
+      await logArchitectAction(
+        `Created new Mason: ${editName.trim()}`,
+        'masons',
+        masonId,
+        "Mason Creation",
+        "Mason Linker"
+      );
     } else {
       const { data, error } = await supabase.from('masons').update({
         name: editName.trim(),
@@ -126,13 +126,13 @@ export function MasonLinker() {
         return;
       }
 
-      await getActiveGameClient().from('audit_logs').insert({
-        action: `Updated Mason: ${editName.trim()} (Verified: ${isVerified}, Linked: ${linkedProfileId || 'None'})`,
-        target_table: 'masons',
-        target_name: editName.trim(),
-        actor_id: myId,
-        reason: "Mason Update/Link"
-      });
+      await logArchitectAction(
+        `Updated Mason: ${editName.trim()} (Verified: ${isVerified}, Linked: ${linkedProfileId || 'None'})`,
+        'masons',
+        editName.trim(),
+        "Mason Update/Link",
+        "Mason Linker"
+      );
     }
 
     if (linkedProfileId) {

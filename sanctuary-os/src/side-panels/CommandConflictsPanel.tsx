@@ -93,10 +93,6 @@ export default function CommandConflictsPanel({
           const modBMatch = modBMatchItem?.em;
 
           if (modAMatch && modBMatch) {
-            const isWinnerA = modAMatch._originalSetName?.toLowerCase().startsWith("sanctuary") || modAMatch.name?.toLowerCase().startsWith("sanctuary");
-            const isWinnerB = modBMatch._originalSetName?.toLowerCase().startsWith("sanctuary") || modBMatch.name?.toLowerCase().startsWith("sanctuary");
-            if (isWinnerA || isWinnerB) return;
-
             conflicts.push({
               pairId: lc.mod_pair,
               modA: modAMatch,

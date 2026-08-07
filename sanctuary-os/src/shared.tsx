@@ -1705,6 +1705,7 @@ export function SidePanelActionFooter({
   actionIcon,
   actionDisabled = false,
   actionVariant = "accent",
+  actionTooltip,
   
   isProcessing = false,
   processingLabel,
@@ -1725,6 +1726,7 @@ export function SidePanelActionFooter({
   actionIcon?: string;
   actionDisabled?: boolean;
   actionVariant?: "accent" | "success" | "danger" | "primary" | "glass";
+  actionTooltip?: string;
   isProcessing?: boolean;
   processingLabel?: string;
   onDanger?: () => void;
@@ -1769,15 +1771,18 @@ export function SidePanelActionFooter({
       )}
       
       {onAction && (
-         <ActionButton 
-           onClick={onAction} 
-           disabled={actionDisabled || isProcessing} 
-           className={getActionClass()}
-           icon={isProcessing ? "sync" : actionIcon}
-           label={isProcessing ? (processingLabel || t("ui_btn_processing")) : actionLabel}
-         >
-           {isProcessing && <style>{`.material-symbols-outlined.animate-spin { animation: spin 1s linear infinite; } @keyframes spin { 100% { transform: rotate(360deg); } }`}</style>}
-         </ActionButton>
+         <div className={actionTooltip ? (actionDisabled || isProcessing ? "cursor-not-allowed" : "") : ""}>
+           {actionTooltip && <HoverTooltip title={actionTooltip} variant="warning" />}
+           <ActionButton 
+             onClick={onAction} 
+             disabled={actionDisabled || isProcessing} 
+             className={getActionClass()}
+             icon={isProcessing ? "sync" : actionIcon}
+             label={isProcessing ? (processingLabel || t("ui_btn_processing")) : actionLabel}
+           >
+             {isProcessing && <style>{`.material-symbols-outlined.animate-spin { animation: spin 1s linear infinite; } @keyframes spin { 100% { transform: rotate(360deg); } }`}</style>}
+           </ActionButton>
+         </div>
       )}
     </div>
   );
