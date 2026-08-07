@@ -160,7 +160,6 @@ export function VaultLocalFolderEditorSidePanel({
     }
   };
   const [searchToAdd, setSearchToAdd] = React.useState("");
-  const [activeTab, setActiveTab] = React.useState("linked");
   const [updateTrigger, setUpdateTrigger] = React.useState(0);
   const [deleteConfirm, setDeleteConfirm] = React.useState(false);
 
@@ -187,14 +186,10 @@ export function VaultLocalFolderEditorSidePanel({
         subtitle={t("local_folder_desc")}
         icon={typeIcon}
         iconColorClass={targetSet.isCollection ? "text-[var(--accent)]" : "text-[var(--success)]"}
-        widthClass="w-[900px]"
+        widthClass="w-[600px]"
         backdropZ="z-[115000]"
         panelZ="z-[115001]"
-        ambientGlows={
-          <>
-            <div className={`absolute -top-20 -right-20 w-96 h-96 ${targetSet.isCollection ? 'bg-[var(--accent)]' : 'bg-[var(--success)]'} opacity-10 blur-[100px] rounded-full pointer-events-none`} />
-          </>
-        }
+
         footer={
           <SidePanelActionFooter
             actionLabel={deleteConfirm ? (t("btn_confirm_delete") || "CONFIRM DELETION") : t("local_folders_delete")}
@@ -258,282 +253,257 @@ export function VaultLocalFolderEditorSidePanel({
               </button>
             </div></div>
 
-          {/* Tabs */}
-          <div className="w-full h-12 shrink-0 relative z-50">
-            <HubTabs
-              className="h-full w-full !rounded-2xl"
-              tabs={[
-                { id: 'linked', icon: 'inventory_2', label: t("tab_overview") || "OVERVIEW" },
-                { id: 'add', icon: 'add_circle', label: t("tab_add_artifacts") || "ADD ARTIFACTS" },
-                { id: 'archetypes', icon: 'hub', label: t("tab_archetypes") || "ARCHETYPES" }
-              ]}
-              activeTab={activeTab}
-              setTab={(id: string) => setActiveTab(id)}
-            />
-          </div>
+          {/* DUAL MODE WORKSPACE */}
+          <div className="flex-1 flex flex-col min-h-0 mt-2 relative gap-4">
+            
+            {/* UNIFIED SEARCH BAR */}
+            <div className="relative shrink-0 z-50">
+              <input
+                value={searchToAdd}
+                onChange={(e) => setSearchToAdd(e.target.value)}
+                placeholder={t("btn_search") || "SEARCH TO INJECT..."}
+                className="w-full h-14 theme-glass-inner border border-white/10 hover:border-white/20 rounded-2xl px-6 pl-14 text-[12px] uppercase tracking-widest font-black text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none bg-black/40 shadow-inner"
+              />
+              <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-[20px]">search</span>
+              
+              {/* SEARCH RESULTS POPOVER */}
+              {searchToAdd.trim() !== "" && (
+                <div className="absolute top-full left-0 right-0 mt-3 max-h-80 bg-[#16161a]/85 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_30px_80px_rgba(0,0,0,0.9)] overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2 z-50 ring-1 ring-white/10">
+                  {searchResults.length === 0 ? (
+                    <div className="p-4 text-center text-[var(--subtext)] text-[10px] uppercase font-black tracking-widest opacity-50">No Results Found</div>
+                  ) : (
+                    Array.from(new Map(searchResults.map((m: any) => [m.hash, m])).values()).slice(0, 50).map((m: any) => {
+                      const isAdded = targetSet.items.includes(m.hash);
+                      if (isAdded) return null;
 
-          {/* ACTIVE TAB CONTENT */}
-          <div className="flex-1 flex flex-col min-h-0 relative mt-4">
-
-            {activeTab === 'linked' && (
-              <div className="absolute inset-0 flex flex-col animate-in fade-in">
-                <div className="flex items-center gap-3 mb-6 shrink-0 border-b border-white/5 pb-4">
-                  <span className="material-symbols-outlined !text-[18px] text-[var(--text)] opacity-50">{t("icon_inventory_2") || "inventory_2"}</span>
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("artifacts_linked") || "ARTIFACTS LINKED"} ({targetSet.items.length})</h3>
-                </div>
-                <div className="flex-1 flex flex-wrap gap-3 overflow-y-auto custom-scrollbar pr-2 items-start content-start">
-                  {targetSet.items.length === 0 && (
-                    <div className="w-full p-12 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50">
-                      <span className="material-symbols-outlined !text-[48px] mb-4">inventory_2</span>
-                      <span className="text-[12px] font-black uppercase tracking-widest">{t("empty_folder") || "THIS NODE IS EMPTY"}</span>
-                    </div>
-                  )}
-                  {targetSet.items.map((hash: string) => {
-                    const art = displayModList.find((m: any) => m.hash === hash);
-                    if (!art) return null;
-                    return (
-                      <div key={hash} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); window.dispatchEvent(new CustomEvent('openVaultContextMenu', { detail: { mod: art, x: e.clientX, y: e.clientY } })); }} className="w-[calc(50%-0.375rem)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] p-4 rounded-xl flex items-center justify-between gap-4 group/item transition-all hover:bg-white/5 border border-white/5 hover:border-white/20 shadow-lg relative overflow-hidden cursor-context-menu">
-                        <div className="flex flex-1 items-center gap-4 min-w-0">
-                          <div className="w-10 h-10 rounded-lg bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden shrink-0">
-                            {art.image_url || art.imageUrl ? (
-                              <img src={art.image_url || art.imageUrl} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <span className={`material-symbols-outlined !text-[20px] ${targetSet.isCollection ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'} opacity-50`}>{getModIcon(art, activeGameSchema, t)}</span>
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-[11px] font-black text-[var(--text)] uppercase truncate">
-                            {(art.displayName || art.name).replace(/_/g, " ").replace(/\.[^/.]+$/, "")}
-                          </span>
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            const updatedItems = targetSet.items.filter((h: string) => h !== hash);
-                            const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems } : s);
-                            localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
-                            setUpdateTrigger(prev => prev + 1);
-                          }}
-                          className="w-6 h-6 rounded-md bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white flex items-center justify-center transition-all opacity-0 group-hover/item:opacity-100 shrink-0"
-                        >
-                          <span className="material-symbols-outlined !text-[14px]">close</span>
-                        </button>
-                        <HoverTooltip title={(art.displayName || art.name).replace(/_/g, " ").replace(/\.[^/.]+$/, "")} subtitle={art.author || t("unknown_mason") || "Unknown Mason"} />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'add' && (
-              <div className="absolute inset-0 flex flex-col animate-in fade-in">
-                <div className="flex items-center gap-4 mb-6 shrink-0">
-                  <div className="relative flex-1">
-                    <input
-                      value={searchToAdd}
-                      onChange={(e) => setSearchToAdd(e.target.value)}
-                      placeholder={t("btn_search") || "SEARCH TO ADD..."}
-                      className="w-full h-12 theme-glass-inner border border-white/10 hover:border-white/20 rounded-xl px-4 pl-12 text-[10px] uppercase tracking-widest font-black text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none"
-                    />
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-[18px]">search</span>
-                  </div>
-                  {searchToAdd.trim() !== "" && searchResults.length > 0 && (
-                    <ActionButton
-                      onClick={() => {
-                        const hashesToAdd = searchResults.map((m: any) => m.hash);
-                        const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: Array.from(new Set([...s.items, ...hashesToAdd])) } : s);
-                        localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
-                        setUpdateTrigger(prev => prev + 1);
-                        setSearchToAdd("");
-                      }}
-                      icon="done_all"
-                      label={`${t("add_all") || "ADD ALL"} (${searchResults.length})`}
-                      className="shrink-0 h-12 px-6"
-                    />
-                  )}
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-                  <div className="flex flex-wrap gap-3 w-full">
-                    {searchToAdd.trim() === "" ? (
-                      <div className="w-full p-12 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50">
-                        <span className="material-symbols-outlined !text-[48px] mb-4">search</span>
-                        <span className="text-[12px] font-black uppercase tracking-widest">{t("search_to_add") || "SEARCH TO ADD ARTIFACTS"}</span>
-                      </div>
-                    ) : (
-                      Array.from(new Map(searchResults.map((m: any) => [m.hash, m])).values()).slice(0, 100).map((m: any, index: number) => (
-                        <div key={m.hash} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); window.dispatchEvent(new CustomEvent('openVaultContextMenu', { detail: { mod: m, x: e.clientX, y: e.clientY } })); }} className="w-[calc(50%-0.375rem)] bg-white/5 hover:bg-white/10 transition-colors min-h-[64px] min-w-0 p-3 rounded-xl flex items-center justify-between gap-4 group/item border border-white/5 shadow-lg relative overflow-hidden cursor-context-menu">
-                          <div className="flex flex-1 items-center gap-4 min-w-0">
-                            <div className="w-10 h-10 rounded-lg bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden shrink-0">
+                      return (
+                        <div key={m.hash} className="w-full theme-glass-inner p-2 rounded-lg flex items-center justify-between gap-3 hover:bg-white/5 transition-all">
+                          <div className="flex flex-1 items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded border border-white/10 bg-black/40 shrink-0 overflow-hidden flex items-center justify-center">
                               {m.image_url || m.imageUrl ? (
                                 <img src={m.image_url || m.imageUrl} className="w-full h-full object-cover" />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <span className={`material-symbols-outlined !text-[20px] ${targetSet.isCollection ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'} opacity-50`}>{getModIcon(m, activeGameSchema, t)}</span>
-                                </div>
+                                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-50">{getModIcon(m, activeGameSchema, t)}</span>
                               )}
                             </div>
-                            <span className="text-[11px] font-black text-[var(--text)] uppercase truncate">
-                              {(m.displayName || m.name).replace(/_/g, " ").replace(/\.[^/.]+$/, "")}
-                            </span>
+                            <span className="text-[10px] font-black text-[var(--text)] uppercase truncate tracking-[0.1em]">{formatDisplayName(m.displayName || m.name)}</span>
                           </div>
-                          {(() => {
-                            const isAdded = targetSet.items.includes(m.hash);
-                            return (
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {targetSet.isCollection ? (
                               <button
-                                disabled={isAdded}
                                 onClick={() => {
-                                  if (isAdded) return;
                                   const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: [...s.items, m.hash] } : s);
                                   localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                                  setSearchToAdd("");
                                   setUpdateTrigger(prev => prev + 1);
                                 }}
-                                className={`h-8 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center transition-all shrink-0 border ${isAdded
-                                  ? 'bg-white/5 border-white/5 text-[var(--subtext)] opacity-50 cursor-not-allowed'
-                                  : 'bg-white/5 border-white/10 text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:text-[var(--accent)] hover:border-[var(--accent)]'
-                                  }`}
+                                className="h-7 px-3 rounded border border-[var(--accent)]/30 text-[var(--accent)] bg-[var(--accent)]/10 hover:bg-[var(--accent)] hover:text-black text-[9px] font-black uppercase tracking-widest transition-all"
                               >
-                                {isAdded ? (t("btn_added") || "ADDED") : (t("btn_add_node_artifact") || "ADD")}
+                                {t("btn_add_node_artifact") || "INJECT"}
                               </button>
-                            );
-                          })()}
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    const updatedArch = { ...targetSet.archetypes, core: m.hash };
+                                    const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: [...s.items, m.hash], archetypes: updatedArch } : s);
+                                    localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                                    setSearchToAdd("");
+                                    setUpdateTrigger(prev => prev + 1);
+                                  }}
+                                  className="h-8 px-3 rounded-lg border border-white/10 text-[var(--subtext)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                >
+                                  {t("editor_core") || "CORE"}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const updatedArch = { ...targetSet.archetypes, twins: [...(targetSet.archetypes?.twins || []), m.hash] };
+                                    const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: [...s.items, m.hash], archetypes: updatedArch } : s);
+                                    localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                                    setSearchToAdd("");
+                                    setUpdateTrigger(prev => prev + 1);
+                                  }}
+                                  className="h-8 px-3 rounded-lg border border-white/10 text-[var(--subtext)] hover:border-[var(--success)] hover:text-[var(--success)] hover:bg-[var(--success)]/10 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                >
+                                  {t("editor_twin") || "TWIN"}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const updatedArch = { ...targetSet.archetypes, addons: [...(targetSet.archetypes?.addons || []), m.hash] };
+                                    const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: [...s.items, m.hash], archetypes: updatedArch } : s);
+                                    localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                                    setSearchToAdd("");
+                                    setUpdateTrigger(prev => prev + 1);
+                                  }}
+                                  className="h-8 px-3 rounded-lg border border-white/10 text-[var(--subtext)] hover:border-[var(--warning)] hover:text-[var(--warning)] hover:bg-[var(--warning)]/10 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                >
+                                  {t("editor_addon") || "ADDON"}
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
-                      ))
-                    )}
-                  </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* MAIN CONTENT AREA */}
+            <div className="flex-1 flex flex-col min-h-0 theme-glass-panel rounded-2xl overflow-hidden border border-white/10 bg-black/20 shadow-lg relative">
+              <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-white/5 bg-black/20">
+                <div className="flex items-center gap-3">
+                  <span className={`material-symbols-outlined !text-[18px] opacity-50 ${targetSet.isCollection ? 'text-[var(--accent)]' : 'text-[var(--success)]'}`}>{targetSet.isCollection ? 'category' : 'inventory_2'}</span>
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{targetSet.isCollection ? (t("collection_contents") || "COLLECTION CONTENTS") : (t("folder_logic") || "FOLDER LOGIC")} ({targetSet.items.length})</h3>
                 </div>
               </div>
-            )}
 
-            {activeTab === 'archetypes' && (
-              <div className="absolute inset-0 flex flex-col animate-in fade-in overflow-y-auto custom-scrollbar pr-2">
-                <div className="flex flex-col gap-6">
-                  <div className="p-6 theme-glass-panel rounded-2xl border border-[var(--accent)]/30 shadow-[0_0_30px_rgba(var(--accent-rgb),0.1)] relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)] opacity-10 blur-[50px] rounded-full pointer-events-none" />
-                    <div className="flex items-center gap-3 mb-4 relative z-10">
-                      <span className="material-symbols-outlined text-[var(--accent)]">stars</span>
-                      <h3 className="text-[12px] font-black uppercase tracking-widest text-[var(--text)]">{t("core_artifact") || "CORE ARTIFACT"}</h3>
-                    </div>
-                    <p className="text-[10px] uppercase font-bold text-[var(--subtext)] opacity-70 mb-4 leading-relaxed relative z-10">
-                      {t("core_artifact_desc") || "SELECT THE PRIMARY ARTIFACT THAT DEFINES THIS NODE. TWINS AND ADDONS WILL INHERIT STATE FROM THIS CORE."}
-                    </p>
-                    <div className="relative z-10">
-                      <CustomDropdown
-                        disableTint={true}
-                        value={targetSet.archetypes?.core || ""}
-                        options={[
-                          { id: "", label: t("no_core_selected") || "NO CORE SELECTED" },
-                          ...targetSet.items.map((hash: string) => {
-                            const art = displayModList.find((m: any) => m.hash === hash);
-                            return { id: hash, label: art ? (art.displayName || art.name) : hash };
-                          })
-                        ]}
-                        onChange={(val: any) => {
-                          const coreVal = Array.isArray(val) ? val[0] : val;
-                          const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, archetypes: { ...s.archetypes, core: coreVal } } : s);
-                          localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
-                          setUpdateTrigger(prev => prev + 1);
-                        }}
-                      />
-                    </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 relative z-10">
+                {targetSet.items.length === 0 ? (
+                  <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-white/10 rounded-2xl bg-white/5">
+                    <span className="material-symbols-outlined !text-[32px] mb-2 opacity-50">inventory_2</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{t("empty_folder") || "THIS NODE IS EMPTY"}</span>
                   </div>
-
-                  <div className="p-6 theme-glass-inner rounded-2xl border border-white/5 relative overflow-hidden">
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="material-symbols-outlined text-[var(--success)]">fork_right</span>
-                      <h3 className="text-[12px] font-black uppercase tracking-widest text-[var(--text)]">{t("twin_artifacts") || "TWIN ARTIFACTS"}</h3>
-                    </div>
-                    <p className="text-[10px] uppercase font-bold text-[var(--subtext)] opacity-70 mb-4 leading-relaxed">
-                      {t("twin_artifacts_desc") || "TWINS ARE INSEPARABLE COMPONENTS OF THE CORE. THEY ARE ALWAYS ACTIVE WHEN THE CORE IS ACTIVE."}
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-2 mt-4">
-                      {targetSet.items.filter((h: string) => h !== targetSet.archetypes?.core).map((hash: string) => {
-                        const art = displayModList.find((m: any) => m.hash === hash);
-                        const isTwin = targetSet.archetypes?.twins?.includes(hash);
-
-                        return (
+                ) : targetSet.isCollection ? (
+                  // ==============================
+                  // MODE 1: COLLECTION LIST
+                  // ==============================
+                  <div className="flex flex-col gap-2">
+                    {targetSet.items.map((hash: string) => {
+                      const art = displayModList.find((m: any) => m.hash === hash);
+                      if (!art) return null;
+                      return (
+                        <div key={hash} className="w-full theme-glass-panel bg-white/5 p-3 rounded-xl flex items-center justify-between gap-4 group/item border border-white/10 hover:border-white/30 transition-all shadow-lg">
+                          <div className="flex flex-1 items-center gap-4 min-w-0">
+                            <div className="w-8 h-8 rounded border border-white/20 bg-black/20 shrink-0 overflow-hidden flex items-center justify-center">
+                              {art.image_url || art.imageUrl ? (
+                                <img src={art.image_url || art.imageUrl} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className={`material-symbols-outlined !text-[16px] text-[var(--accent)] opacity-50`}>{getModIcon(art, activeGameSchema, t)}</span>
+                              )}
+                            </div>
+                            <span className="text-[10px] font-black text-[var(--text)] uppercase truncate tracking-[0.1em]">{formatDisplayName(art.displayName || art.name)}</span>
+                          </div>
                           <button
-                            key={hash}
                             onClick={() => {
-                              const currentTwins = targetSet.archetypes?.twins || [];
-                              const newTwins = isTwin ? currentTwins.filter((h: string) => h !== hash) : [...currentTwins, hash];
-                              const newAddons = (targetSet.archetypes?.addons || []).filter((h: string) => h !== hash);
-
-                              const newArch = { ...targetSet.archetypes, twins: newTwins, addons: newAddons };
-                              const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, archetypes: newArch } : s);
+                              const updatedItems = targetSet.items.filter((h: string) => h !== hash);
+                              const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems } : s);
                               localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
                               setUpdateTrigger(prev => prev + 1);
                             }}
-                            className={`p-3 rounded-xl border text-left flex items-center gap-3 transition-all ${isTwin ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[var(--success)]' : 'bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-white/5 hover:border-white/20'}`}
+                            className="w-7 h-7 rounded text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white transition-all flex items-center justify-center border border-transparent hover:border-[var(--danger)]/50"
                           >
-                            <span className={`material-symbols-outlined !text-[16px] ${isTwin ? 'text-[var(--success)]' : 'opacity-30'}`}>
-                              {isTwin ? 'check_circle' : 'radio_button_unchecked'}
-                            </span>
-                            <span className="text-[10px] font-black uppercase tracking-widest truncate flex-1">
-                              {art ? (art.displayName || art.name).replace(/_/g, " ").replace(/\.[^/.]+$/, "") : hash}
-                            </span>
+                            <span className="material-symbols-outlined !text-[14px]">close</span>
                           </button>
-                        )
-                      })}
-                      {targetSet.items.length <= 1 && (
-                        <div className="col-span-2 text-[10px] font-bold text-[var(--subtext)] opacity-50 uppercase tracking-widest p-4 text-center">
-                          {t("add_more_items") || "ADD MORE ARTIFACTS TO ASSIGN TWINS"}
                         </div>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-
-                  <div className="p-6 theme-glass-inner rounded-2xl border border-white/5 relative overflow-hidden mt-4">
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="material-symbols-outlined text-[var(--warning)]">extension</span>
-                      <h3 className="text-[12px] font-black uppercase tracking-widest text-[var(--text)]">{t("addon_artifacts") || "ADDON ARTIFACTS"}</h3>
-                    </div>
-                    <p className="text-[10px] uppercase font-bold text-[var(--subtext)] opacity-70 mb-4 leading-relaxed">
-                      {t("addon_artifacts_desc") || "ADDONS ARE OPTIONAL EXTENSIONS. THEY REQUIRE THE CORE TO BE ACTIVE, BUT THE CORE DOES NOT REQUIRE THEM."}
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-2 mt-4">
-                      {targetSet.items.filter((h: string) => h !== targetSet.archetypes?.core).map((hash: string) => {
+                ) : (
+                  // ==============================
+                  // MODE 2: FOLDER BUCKETS
+                  // ==============================
+                  <div className="flex flex-col gap-8">
+                    
+                    {/* BUCKET: CORE */}
+                    <div className="flex flex-col gap-4 bg-black/20 border border-white/5 rounded-2xl p-5 relative">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--accent)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">stars</span> {t("editor_core_artifact") || "CORE ARTIFACT"}</h4>
+                      {targetSet.archetypes?.core ? (() => {
+                        const hash = targetSet.archetypes.core;
                         const art = displayModList.find((m: any) => m.hash === hash);
-                        const isAddon = targetSet.archetypes?.addons?.includes(hash);
-
+                        if (!art) return null;
                         return (
-                          <button
-                            key={hash}
-                            onClick={() => {
-                              const currentAddons = targetSet.archetypes?.addons || [];
-                              const newAddons = isAddon ? currentAddons.filter((h: string) => h !== hash) : [...currentAddons, hash];
-                              const newTwins = (targetSet.archetypes?.twins || []).filter((h: string) => h !== hash);
-
-                              const newArch = { ...targetSet.archetypes, twins: newTwins, addons: newAddons };
-                              const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, archetypes: newArch } : s);
+                          <div className="w-full theme-glass-inner bg-white/5 border border-[var(--accent)]/30 p-3 rounded-xl flex items-center justify-between gap-4 hover:border-[var(--accent)]/60 transition-all group">
+                            <div className="flex flex-1 items-center gap-4 min-w-0">
+                              <div className="w-10 h-10 rounded border border-white/10 bg-black/40 shrink-0 overflow-hidden flex items-center justify-center">
+                                {art.image_url || art.imageUrl ? <img src={art.image_url || art.imageUrl} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] opacity-50">{getModIcon(art, activeGameSchema, t)}</span>}
+                              </div>
+                              <span className="text-[11px] font-black text-[var(--accent)] uppercase truncate tracking-[0.1em]">{formatDisplayName(art.displayName || art.name)}</span>
+                            </div>
+                            <button onClick={() => {
+                              const updatedArch = { ...targetSet.archetypes, core: undefined };
+                              const updatedItems = targetSet.items.filter((h: string) => h !== hash);
+                              const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
                               localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
                               setUpdateTrigger(prev => prev + 1);
-                            }}
-                            className={`p-3 rounded-xl border text-left flex items-center gap-3 transition-all ${isAddon ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[var(--warning)]' : 'bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-white/5 hover:border-white/20'}`}
-                          >
-                            <span className={`material-symbols-outlined !text-[16px] ${isAddon ? 'text-[var(--warning)]' : 'opacity-30'}`}>
-                              {isAddon ? 'check_circle' : 'radio_button_unchecked'}
-                            </span>
-                            <span className="text-[10px] font-black uppercase tracking-widest truncate flex-1">
-                              {art ? (art.displayName || art.name).replace(/_/g, " ").replace(/\.[^/.]+$/, "") : hash}
-                            </span>
-                          </button>
-                        )
-                      })}
-                      {targetSet.items.length <= 1 && (
-                        <div className="col-span-2 text-[10px] font-bold text-[var(--subtext)] opacity-50 uppercase tracking-widest p-4 text-center">
-                          {t("add_more_items") || "ADD MORE ARTIFACTS TO ASSIGN ADDONS"}
+                            }} className="w-8 h-8 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                              <span className="material-symbols-outlined !text-[16px]">close</span>
+                            </button>
+                          </div>
+                        );
+                      })() : (
+                        <div className="w-full p-4 rounded-xl border border-dashed border-[var(--accent)]/30 bg-[var(--accent)]/5 text-[var(--accent)]/50 text-[10px] font-black uppercase tracking-widest text-center">
+                          {t("editor_no_core_selected") || "NO CORE ASSIGNED"}
                         </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
+                    {/* BUCKET: TWINS */}
+                    <div className="flex flex-col gap-4 bg-black/20 border border-white/5 rounded-2xl p-5 relative">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--success)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">join_inner</span> {t("twin_artifacts") || "TWIN ARTIFACTS"}</h4>
+                      <div className="flex flex-col gap-2">
+                        {(!targetSet.archetypes?.twins || targetSet.archetypes.twins.length === 0) && (
+                           <div className="w-full p-3 rounded-xl border border-dashed border-white/10 text-[var(--subtext)]/50 text-[9px] font-black uppercase tracking-widest text-center">EMPTY</div>
+                        )}
+                        {(targetSet.archetypes?.twins || []).map((hash: string) => {
+                          const art = displayModList.find((m: any) => m.hash === hash);
+                          if (!art) return null;
+                          return (
+                            <div key={hash} className="w-full theme-glass-inner bg-white/5 border border-[var(--success)]/30 p-2 rounded-xl flex items-center justify-between gap-3 hover:border-[var(--success)]/60 transition-all group">
+                              <div className="flex flex-1 items-center gap-3 min-w-0">
+                                <span className="text-[10px] font-black text-[var(--text)] uppercase truncate tracking-[0.1em]">{formatDisplayName(art.displayName || art.name)}</span>
+                              </div>
+                              <button onClick={() => {
+                                const updatedArch = { ...targetSet.archetypes, twins: targetSet.archetypes.twins.filter((h: string) => h !== hash) };
+                                const updatedItems = targetSet.items.filter((h: string) => h !== hash);
+                                const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
+                                localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                                setUpdateTrigger(prev => prev + 1);
+                              }} className="w-7 h-7 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                <span className="material-symbols-outlined !text-[14px]">close</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* BUCKET: ADDONS */}
+                    <div className="flex flex-col gap-4 bg-black/20 border border-white/5 rounded-2xl p-5 relative">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--warning)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">extension</span> {t("addon_artifacts") || "ADDON ARTIFACTS"}</h4>
+                      <div className="flex flex-col gap-2">
+                        {(!targetSet.archetypes?.addons || targetSet.archetypes.addons.length === 0) && (
+                           <div className="w-full p-3 rounded-xl border border-dashed border-white/10 text-[var(--subtext)]/50 text-[9px] font-black uppercase tracking-widest text-center">EMPTY</div>
+                        )}
+                        {(targetSet.archetypes?.addons || []).map((hash: string) => {
+                          const art = displayModList.find((m: any) => m.hash === hash);
+                          if (!art) return null;
+                          return (
+                            <div key={hash} className="w-full theme-glass-inner bg-white/5 border border-[var(--warning)]/30 p-2 rounded-xl flex items-center justify-between gap-3 hover:border-[var(--warning)]/60 transition-all group">
+                              <div className="flex flex-1 items-center gap-3 min-w-0">
+                                <span className="text-[10px] font-black text-[var(--text)] uppercase truncate tracking-[0.1em]">{formatDisplayName(art.displayName || art.name)}</span>
+                              </div>
+                              <button onClick={() => {
+                                const updatedArch = { ...targetSet.archetypes, addons: targetSet.archetypes.addons.filter((h: string) => h !== hash) };
+                                const updatedItems = targetSet.items.filter((h: string) => h !== hash);
+                                const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
+                                localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                                setUpdateTrigger(prev => prev + 1);
+                              }} className="w-7 h-7 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                <span className="material-symbols-outlined !text-[14px]">close</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </SidePanel>

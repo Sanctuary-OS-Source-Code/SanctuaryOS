@@ -24,7 +24,7 @@ import { SystemLogModal } from "./app-modals/SystemLogModal";
 import { SystemStatusBar } from "./app-modals/SystemStatusBar";
 import BlueprintSwapSidePanel from "./side-panels/BlueprintSwapSidePanel";
 
-export function AppModals(props: any) {
+export const AppModals = React.memo(function AppModals(props: any) {
   const [isLogExpanded, setIsLogExpanded] = React.useState(false);
   const [isSystemStatusOpen, setIsSystemStatusOpen] = React.useState(false);
   const {
@@ -99,6 +99,7 @@ export function AppModals(props: any) {
   const statusAccentClass = isErrorStatus ? 'bg-red-500 shadow-[0_0_10px_rgba(220,38,38,1)]' : isSuccessStatus ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,1)]' : 'theme-bg-accent shadow-[0_0_10px_var(--accent)]';
   const statusIconClass = isErrorStatus ? 'text-red-500' : isSuccessStatus ? 'text-emerald-500' : 'text-[var(--accent)]';
 
+
   return (
     <>
       <MalwareAlertModal malwareAlert={malwareAlert} setMalwareAlert={setMalwareAlert} droppedFiles={droppedFiles} runRadarSweep={runRadarSweep} setStatus={setStatus} />
@@ -147,4 +148,4 @@ export function AppModals(props: any) {
       )}
     </>
   );
-}
+});

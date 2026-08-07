@@ -27,6 +27,16 @@
 ### **Nexus Core Refinements**
 - **Download Engine Stability**: Overhauled the Sanctuary Nexus download process to utilize intelligent chunking and debounced state updates. This significantly improves visual stability for the progress bars, completely eliminating the jarring UI jumps during asset retrieval.
 
+### **Visual Overhauls: Protocol & Structure Matrices**
+- **Sleek Card Grids**: The Timeline Nodes, Twins & Addons, and Structure Graph panels have been upgraded from vertical lists to responsive, multi-column card grids. 
+- **Deep Glass Aesthetics**: Introduced rich, layered glassmorphism to artifact cards, featuring inset shadows, dark ambient backgrounds (`bg-black/40`), and reactive hover glows that perfectly match the OS's core theme.
+- **Action Button Standardization**: Unified all inline actions (Reassign, Delete, Add Link, etc.) to use the pill-shaped `ActionButton` system, complete with dynamic tinting, outline glows on hover, and custom `HoverTooltip` integration instead of native browser tooltips.
+- **Thematic Badges**: Refined the badging system across all cards (Flavor, Twin, Addon, Beta) to perfectly align with their respective data types with dynamic colors and micro-borders.
+
+### **Vault & Blueprint Enhancements**
+- **Vault Drawer Revamp**: The Vault Grid and its folder drawer have been visually revamped to feel significantly more premium, properly utilizing established design tokens for a seamless and beautiful browsing experience when diving into local files.
+- **Blueprint Speed Fix**: Deployed a critical speed fix to the "Add to Blueprint" logic. Adding artifacts to blueprints is now highly optimized, eliminating the sluggish lag when organizing large play sets for instant, seamless assignments.
+
 ---
 
 **Date: August 5, 2026**

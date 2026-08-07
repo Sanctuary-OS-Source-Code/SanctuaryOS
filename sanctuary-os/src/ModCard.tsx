@@ -5,10 +5,43 @@ import { useStore } from "./store";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import defaultCover from "./assets/default-cover.jpg";
 
+interface ModCardProps {
+  mod: any;
+  gameVersion?: string;
+  isInActiveSet?: boolean;
+  onSelect: (e: React.MouseEvent) => void;
+  onToggleSet: (e: React.MouseEvent, force?: boolean) => void;
+  ownedDLC?: string[];
+  maskedDLC?: string[];
+  casualtyList?: any[];
+  tier3List?: any[];
+  missingDeps?: any[];
+  isParent?: boolean;
+  isExpanded?: boolean;
+  onExpand?: (e?: any) => void;
+  isBulkMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+  onResolveConflict?: any;
+  anarchyRules?: any;
+  hideIneligible?: boolean;
+  isFlavorSwap?: boolean;
+  onInspectItem?: any;
+  onContextMenu?: (e: React.MouseEvent) => void;
+  id?: string;
+  compact?: boolean;
+  isGhostPlaceholder?: boolean;
+  hideHitBox?: boolean;
+  flavorGhostReason?: any;
+  isSelfGhosted?: boolean;
+  isSelfSwapped?: boolean;
+  isSelfBetaSwap?: boolean;
+}
+
 function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, ownedDLC = [],
-  maskedDLC = [], casualtyList = [], tier3List = [], missingDeps = "", isParent = false, isExpanded = false, onExpand = () => { },
+  maskedDLC = [], casualtyList = [], tier3List = [], missingDeps = [], isParent = false, isExpanded = false, onExpand = () => { },
   isBulkMode = false, isSelected = false, onToggleSelect = () => { }, onResolveConflict, anarchyRules = null, hideIneligible = false, isFlavorSwap = false,
-  onInspectItem, onContextMenu, id, compact = false }: any) {
+  onInspectItem, onContextMenu, id, compact = false, isGhostPlaceholder = false, hideHitBox = false }: ModCardProps) {
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
@@ -114,11 +147,11 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
   };
 
   return (
-    <div id={id} className={`relative group/shadow ${compact ? 'h-[250px]' : 'h-[320px]'} shadow-xl [perspective:1000px] transition-all duration-500 ${delayedConfirmMode ? '' : 'hover:-translate-y-1'} ${isExpanded ? 'z-50' : ''}`} style={{ borderRadius: 'var(--radius)' }}>
-      {isExpanded && (
-        <div className="absolute inset-0 border-[2px] border-[var(--accent)] shadow-[0_0_40px_rgba(var(--accent-rgb),0.5)] pointer-events-none transition-all duration-500 scale-[1.02]" style={{ borderRadius: 'var(--radius)' }} />
+    <div id={id} className={`relative group/shadow ${compact ? 'h-[250px]' : 'h-[320px]'} shadow-xl [perspective:1000px] transition-all duration-500 ${isGhostPlaceholder ? 'opacity-40 grayscale-[50%] scale-95 pointer-events-none' : delayedConfirmMode ? '' : isExpanded ? '-translate-y-2' : 'hover:-translate-y-1'} z-10 ${isGhostPlaceholder ? '' : 'hover:z-[100]'}`} style={{ borderRadius: 'var(--radius)' }}>
+      {isGhostPlaceholder && (
+        <div className="absolute inset-0 z-50 rounded-[var(--radius)] border-2 border-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] animate-pulse pointer-events-none" />
       )}
-      <div className={`relative w-full h-full transition-transform duration-500 [transform-style:preserve-3d] ${confirmMode ? '[transform:rotateY(180deg)]' : ''} ${isExpanded ? 'scale-[1.02]' : ''}`}>
+      <div className={`relative w-full h-full transition-transform duration-500 [transform-style:preserve-3d] ${confirmMode ? '[transform:rotateY(180deg)]' : ''}`}>
 
         <div
           onClick={(e) => { if (isShadowed) { e.preventDefault(); return; } onSelect(e); }}
@@ -167,7 +200,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
               onContextMenu(e);
             }
           }}
-          className={`relative flex flex-col w-full h-full theme-glass-panel transition-all duration-500 overflow-hidden group/maincard [backface-visibility:hidden] [transform:translateZ(0)] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.1)_!important] ${delayedConfirmMode ? 'pointer-events-none !border-transparent' : ''} ${isShadowed ? `opacity-30 grayscale border ${isSwappedState ? 'border-[var(--accent)]/50' : 'border-[var(--danger)]'}` : `cursor-pointer border border-transparent ${delayedConfirmMode ? '' : 'group-hover/shadow:shadow-[0_20px_50px_rgba(var(--accent-rgb),0.15)] group-hover/shadow:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}`}
+          className={`relative flex flex-col w-full h-full theme-glass-panel transition-all duration-500 overflow-hidden group/maincard [backface-visibility:hidden] [transform:translateZ(0)] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.1)_!important] ${delayedConfirmMode ? 'pointer-events-none !border-transparent' : ''} ${isShadowed ? `opacity-30 grayscale border ${isSwappedState ? 'border-[var(--accent)]/50' : 'border-[var(--danger)]'}` : `cursor-pointer border border-transparent ${delayedConfirmMode ? '' : isExpanded ? '' : 'group-hover/shadow:shadow-[0_20px_50px_rgba(var(--accent-rgb),0.15)] group-hover/shadow:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}`}
           style={{ borderRadius: 'var(--radius)' }}
         >
           {!isShadowed && (
@@ -179,7 +212,8 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
           <div className="absolute top-4 left-4 z-30 flex flex-col items-start gap-2 pointer-events-none">
             {(() => {
               const isTier1Or2 = mod.compliance_tier === 1 || mod.compliance_tier === 2;
-              const statusType = (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2) ? 'local' : (mod.status || "").toLowerCase();
+              const hasExplicitStatus = mod.status && mod.status.trim() !== "" && mod.status.toLowerCase() !== 'local folder' && mod.status.toLowerCase() !== 'local node';
+              const statusType = hasExplicitStatus ? mod.status.toLowerCase() : (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2) ? 'local' : 'local';
               const isStatusBroken = isSelfBroken;
 
               let badgeBg = "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ";
@@ -205,7 +239,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                   <div className={`backdrop-blur-md border px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-2 transition-all ${badgeBg}`}>
                     <span className={`text-[8px] font-black uppercase tracking-widest ${badgeText}`}>
                       {(() => {
-                        if (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2) return t("unlinked_badge") || "LOCAL";
+                        if (!hasExplicitStatus && (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2)) return t("unlinked_badge") || "LOCAL";
                         const raw = (mod.status || "");
                         let cleaned = raw.replace(/[[\]"]/g, "");
                         if (cleaned === 'bunker') cleaned = 'vault';
@@ -309,7 +343,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                 ) : (
                   <span className={`material-symbols-outlined !text-[18px] ${isInActiveSet ? 'rotate-45' : ''}`}>{t("icon_add") || 'add'}</span>
                 )}
-                
+
                 {(isShadowed || hasTier3 || isSwappedState) && !confirmMode && !delayedConfirmMode && (
                   <HoverTooltip
                     className="z-[100] !right-0 !translate-x-0 !left-auto"
@@ -340,8 +374,8 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
           </div>
 
           {/* Center Content */}
-          <div className={`flex flex-col items-center justify-center ${compact ? 'gap-2 pt-6 pb-2' : 'gap-4 pt-10 pb-6'} w-full flex-1 p-4 pointer-events-none ${isParent && !compact ? 'pb-4' : ''}`}>
-            <div className={`${compact ? 'w-20 h-20 rounded-[16px]' : 'w-36 h-36 rounded-[24px]'} bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden shrink-0 shadow-inner flex items-center justify-center transition-colors duration-700 ${delayedConfirmMode ? '' : 'group-hover/maincard:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+          <div className={`flex flex-col items-center justify-center ${compact ? 'gap-2 pt-6 pb-2' : `gap-4 pt-8 ${isParent ? 'pb-14' : 'pb-6'}`} w-full flex-1 p-4 pointer-events-none`}>
+            <div className={`${compact ? 'w-20 h-20 rounded-[16px]' : 'w-32 h-32 rounded-[24px]'} bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden shrink-0 shadow-inner flex items-center justify-center transition-colors duration-700 ${delayedConfirmMode ? '' : 'group-hover/maincard:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
               {(showImages && (mod.image_url || mod.imageUrl) && String(mod.image_url || mod.imageUrl) !== "null" && String(mod.image_url || mod.imageUrl).trim() !== "") ? (
                 <img src={mod.image_url || mod.imageUrl} className={`w-full h-full object-cover opacity-90 transition-opacity duration-700 ${delayedConfirmMode ? '' : 'group-hover/maincard:opacity-100'}`} alt={t("auto_cover")} onError={(e) => e.currentTarget.style.display = 'none'} />
               ) : (
@@ -358,7 +392,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
               <p className="text-[10px] font-black text-[var(--text)]/40 uppercase tracking-widest truncate w-full pointer-events-auto mb-1 leading-normal pb-0.5">
                 {mod.author || t("unknown_mason") || "Unknown Mason"}
               </p>
-              
+
               <div className="flex flex-wrap items-center justify-center gap-1.5 pointer-events-auto pb-1">
                 <span className="text-[10px] font-mono font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-none">{mod.latest_version || mod.version || t("vlocal") || "V.LOCAL"}</span>
                 {reqCount > 0 && (
@@ -373,10 +407,9 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
             </div>
           </div>
 
-          {/* Bottom Expander (if parent) */}
-          {isParent && (
-            <div 
-              className={`absolute bottom-0 left-0 right-0 w-full pointer-events-auto shrink-0 cursor-pointer flex items-center justify-center gap-2 px-4 py-2.5 backdrop-blur-md transition-all font-black text-[9px] uppercase tracking-widest border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-b-[var(--radius)] ${isExpanded ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] shadow-[0_-5px_20px_rgba(var(--accent-rgb),0.2)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]'}`}
+          {isParent && !hideHitBox && (
+            <div
+              className={`absolute bottom-0 left-0 right-0 w-full pointer-events-auto shrink-0 cursor-pointer flex items-center justify-center gap-2 px-4 py-2.5 backdrop-blur-md transition-all font-black text-[9px] uppercase tracking-widest border-t rounded-b-[var(--radius)] ${isExpanded ? 'bg-white/10 border-t-white/20 text-white shadow-[0_-5px_15px_rgba(255,255,255,0.05)]' : 'border-t-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]'}`}
               onClick={(e) => { e.stopPropagation(); onExpand(e); }}
             >
               <div className="w-4 h-4 flex items-center justify-center shrink-0">
@@ -525,7 +558,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                   </>
                 ) : delayedConfirmMode === 'broken' || delayedConfirmMode === 'dlc' ? (
                   <>
-                    <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 min-w-0 py-2 rounded-[16px] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] font-black text-[10px] uppercase tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words">
+                    <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 min-w-0 py-2 rounded-[16px] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] font-black text-[10px] uppercase tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words">
                       {t("btn_equip_anyway")}
                     </button>
                     {mod.isParent && delayedConfirmMode === 'broken' && (
@@ -557,6 +590,9 @@ const arePropsEqual = (prev: any, next: any) => {
     prev.mod.hash === next.mod.hash &&
     prev.isInActiveSet === next.isInActiveSet &&
     prev.isExpanded === next.isExpanded &&
+    prev.compact === next.compact &&
+    prev.isGhostPlaceholder === next.isGhostPlaceholder &&
+    prev.hideHitBox === next.hideHitBox &&
     prev.isSelected === next.isSelected &&
     (prev.missingDeps || []).length === (next.missingDeps || []).length &&
     prev.hideIneligible === next.hideIneligible &&
@@ -564,7 +600,11 @@ const arePropsEqual = (prev: any, next: any) => {
     prev.gameVersion === next.gameVersion &&
     prev.isFlavorSwap === next.isFlavorSwap &&
     (prev.casualtyList || []).length === (next.casualtyList || []).length &&
-    (prev.tier3List || []).length === (next.tier3List || []).length
+    (prev.tier3List || []).length === (next.tier3List || []).length &&
+    prev.isSelfSwapped === next.isSelfSwapped &&
+    prev.isSelfBetaSwap === next.isSelfBetaSwap &&
+    prev.isSelfGhosted === next.isSelfGhosted &&
+    prev.flavorGhostReason === next.flavorGhostReason
   );
 };
 

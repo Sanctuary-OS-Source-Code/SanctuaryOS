@@ -1,6 +1,6 @@
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -11,13 +11,14 @@ export function usePlaySetLogic() {
   const { t } = useLexicon();
   const { setPendingImportSet, setMissingImportMods } = useModalStore();
 
-  const { modMap, hashToMod, baseToMod, byDbId, namesAndDisplayNames } = useMemo(() => {
+  const { modMap, hashToMod, baseToMod, byDbId, namesAndDisplayNames, precomputedBaseNames } = useMemo(() => {
     const extRegex = getExtensionRegex(activeGameSchema);
     const m1 = new Map<string, any>();
     const m2 = new Map<string, any>();
     const m3 = new Map<string, any>();
     const byDbId = new Map<string, any>();
     const namesAndDisplayNames: any[] = [];
+    const precomputedBaseNames = new Map<string, string>();
     
     modList.forEach((m: any) => {
         m1.set(m.name, m);
@@ -34,12 +35,15 @@ export function usePlaySetLogic() {
                orig: m
             });
         }
+        const parsedBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '').toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
+        precomputedBaseNames.set(m.name, parsedBase);
     });
     
-    return { modMap: m1, hashToMod: m2, baseToMod: m3, byDbId, namesAndDisplayNames };
+    return { modMap: m1, hashToMod: m2, baseToMod: m3, byDbId, namesAndDisplayNames, precomputedBaseNames };
   }, [modList, activeGameSchema]);
 
-  const toggleInActiveSet = (targetName: string, excludeBroken: boolean = true, forceRemove: boolean = false, forceActive: boolean = false) => {
+  const toggleInActiveSet = useCallback((targetName: string, excludeBroken: boolean = true, forceRemove: boolean = false, forceActive: boolean = false) => {
+    console.time("PlaySetLogic: toggleInActiveSet");
     setPlaySets((prevSets) => {
       const currentSet = prevSets[activePlaySetIndex];
       if (!currentSet) return prevSets;
@@ -52,16 +56,22 @@ export function usePlaySetLogic() {
       let rawNewMods = new Set<any>(currentSet.mods);
       const healedMods = new Set<any>();
       const localSets = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
+      const sanctuaryMods = new Map<string, any>();
+      rawNewMods.forEach((mObj: any) => {
+         const m = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
+         if (m.toLowerCase().startsWith("sanctuary/") || m.toLowerCase().startsWith("sanctuary\\")) {
+             const cleanM = m.split(/[\\/]/).pop()?.toLowerCase();
+             if (cleanM) sanctuaryMods.set(cleanM, mObj);
+         }
+      });
+
       rawNewMods.forEach((mObj: any) => {
          const m = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
          if (m.toLowerCase().startsWith("sanctuary/") || m.toLowerCase().startsWith("sanctuary\\")) {
              healedMods.add(mObj);
          } else {
              const cleanM = m.split(/[\\/]/).pop()?.toLowerCase();
-             const foundSanc = Array.from(rawNewMods).find((nmObj: any) => {
-                 const nm = typeof nmObj === 'string' ? nmObj : (nmObj.name || nmObj.path || '');
-                 return (nm.toLowerCase().startsWith("sanctuary/") || nm.toLowerCase().startsWith("sanctuary\\")) && nm.split(/[\\/]/).pop()?.toLowerCase() === cleanM;
-             });
+             const foundSanc = cleanM ? sanctuaryMods.get(cleanM) : null;
              if (foundSanc) healedMods.add(foundSanc);
              else healedMods.add(mObj);
          }
@@ -99,7 +109,7 @@ export function usePlaySetLogic() {
            const hasMissing = mObj.requirements.some((req: any) => {
                const reqId = typeof req === 'string' ? req : req.id || req.dbId;
                const reqName = typeof req === 'string' ? req : req.name;
-               const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase();
+               const reqBaseName = precomputedBaseNames.get(reqName) || reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
                const isReqNumeric = !isNaN(Number(reqName));
                let match = null;
                    if (reqId) {
@@ -120,10 +130,10 @@ export function usePlaySetLogic() {
                     const mData = modMap.get(n);
                     let isMatch = false;
                     if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) isMatch = true;
-                    if (!isMatch && c.enemy_name) {
-                       const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
-                       const cleanN = n.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase();
-                       if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) isMatch = true;
+                     if (!isMatch && c.enemy_name) {
+                        const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase().replace(/_SCRIPT(S)?$/i, "");
+                        const cleanN = precomputedBaseNames.get(n) || "";
+                        if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) isMatch = true;
                     }
                     
                     if (isMatch && mData && mObj.hash && mData.hash) {
@@ -153,8 +163,10 @@ export function usePlaySetLogic() {
             updatedSets[activePlaySetIndex] = { ...currentSet, mods: Array.from(newMods) };
 
             window.dispatchEvent(new Event("storage"));
+            console.timeEnd("PlaySetLogic: toggleInActiveSet");
             return updatedSets;
          }
+         console.timeEnd("PlaySetLogic: toggleInActiveSet");
          return prevSets;
       }
       const kids = targetMod.isVirtual
@@ -167,15 +179,14 @@ export function usePlaySetLogic() {
         : [];
       const isActuallyFlavorFolder =
         targetMod.isVirtual && kids.some((k) => k.flavorGroupId != null);
+      const cleanSanctuaryPrefix = (n: string) => n.replace(/^(sanctuary[/\\])+/i, '');
+      const newModsCleaned = new Set(Array.from(newMods).map((mObj: any) => 
+          cleanSanctuaryPrefix(typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || ''))
+      ));
+
       let isEquipping = targetMod.isVirtual
-        ? !kids.some((k) => Array.from(newMods).some((mObj: any) => {
-            const strM = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
-            return strM === k.name || strM.replace(/^(sanctuary[/\\])+/i, '') === k.name.replace(/^(sanctuary[/\\])+/i, '');
-        }))
-        : !Array.from(newMods).some((mObj: any) => {
-            const strM = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
-            return strM === targetName || strM.replace(/^(sanctuary[/\\])+/i, '') === targetName.replace(/^(sanctuary[/\\])+/i, '');
-        });
+        ? !kids.some((k) => newModsCleaned.has(cleanSanctuaryPrefix(k.name)))
+        : !newModsCleaned.has(cleanSanctuaryPrefix(targetName));
       if (forceRemove) isEquipping = false;
       if (forceActive) isEquipping = true;
       const deepDelete = (nameToDelete: string, shallow: boolean = false) => {
@@ -186,11 +197,11 @@ export function usePlaySetLogic() {
         if (!toDelete) return;
         newMods.delete(toDelete);
 
-        const targetClean = nameToDelete.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
+        const targetClean = precomputedBaseNames.get(nameToDelete) || "";
         if (targetClean) {
            Array.from(newMods).forEach((depObj: any) => {
               const depName = typeof depObj === 'string' ? depObj : (depObj.name || depObj.path || '');
-              const depClean = depName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
+              const depClean = precomputedBaseNames.get(depName) || "";
               if (depClean === targetClean && depName !== nameToDelete) {
                   newMods.delete(depObj);
               }
@@ -221,13 +232,14 @@ export function usePlaySetLogic() {
         if (!shallow && currentRules.dependencies !== false) {
           const mData = modMap.get(nameToDelete);
           if (mData) {
+            const currentEquipped = Array.from(newMods as Set<string>).map(n => modMap.get(n)).filter(Boolean);
             Array.from(newMods as Set<string>).forEach((depName: string) => {
                const dep = modMap.get(depName);
                if (!dep || !dep.requirements) return;
                const dependsOnDeleted = dep.requirements.some((r: any) => {
                   const reqId = typeof r === 'string' ? r : r.id || r.dbId;
                   const reqName = typeof r === 'string' ? r : r.name;
-                  const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase();
+                  const reqBaseName = precomputedBaseNames.get(reqName) || reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
                   const isReqNumeric = !isNaN(Number(reqName));
                   return (reqId && String(mData.dbId) === String(reqId)) ||
                          (reqId && mData.hash === reqId) ||
@@ -237,11 +249,10 @@ export function usePlaySetLogic() {
                   const isStillSatisfied = dep.requirements.every((r: any) => {
                       const reqId = typeof r === 'string' ? r : r.id || r.dbId;
                       const reqName = typeof r === 'string' ? r : r.name;
-                      const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase();
+                      const reqBaseName = precomputedBaseNames.get(reqName) || reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
                       const isReqNumeric = !isNaN(Number(reqName));
                       
-                      return Array.from(newMods as Set<string>).some((n: string) => {
-                         const equipped = modMap.get(n);
+                      return currentEquipped.some((equipped: any) => {
                          return equipped && (
                            String(equipped.dbId) === String(reqId) ||
                            (reqId && equipped.interchangeableIds && equipped.interchangeableIds.includes(String(reqId))) ||
@@ -264,9 +275,10 @@ export function usePlaySetLogic() {
              const m = modMap.get(mName);
              if (m && m.name !== modObj.name) {
                  const isFlavorRival = m.flavorGroupId && String(m.flavorGroupId) === String(modObj.flavorGroupId) && m.relationshipType !== "twin" && modObj.relationshipType !== "twin";
+                 const isCommunityRival = m.communityGroupId && String(m.communityGroupId) === String(modObj.communityGroupId);
                  const isBetaRival = ((modObj.relationshipType !== 'beta' && m.relationshipType === 'beta') || (modObj.relationshipType === 'beta' && m.relationshipType !== 'beta')) && (String(m.familyId) === String(modObj.familyId) || String(m.dbId) === String(modObj.familyId || modObj.dbId));
                  
-                 if (isFlavorRival || isBetaRival) {
+                 if (isFlavorRival || isCommunityRival || isBetaRival) {
                      deepDelete(m.name, true);
                  }
              }
@@ -278,10 +290,10 @@ export function usePlaySetLogic() {
                  const matchStr = Array.from(newMods as Set<string>).find((n: string) => {
                     const mData = modMap.get(n);
                     if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
-                    if (c.enemy_name) {
-                       const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
-                       const cleanN = n.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase();
-                       if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
+                     if (c.enemy_name) {
+                        const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase().replace(/_SCRIPT(S)?$/i, "");
+                        const cleanN = precomputedBaseNames.get(n) || "";
+                        if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
                     }
                     return false;
                  });
@@ -306,11 +318,11 @@ export function usePlaySetLogic() {
 
         
         const anchor = modObj.familyId || modObj.dbId;
-        const modBaseName = modObj.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
+        const modBaseName = precomputedBaseNames.get(modObj.name) || "";
         
         modList.forEach((m) => {
           let isTwinMatch = false;
-          const mBaseName = m.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
+          const mBaseName = precomputedBaseNames.get(m.name) || "";
           if (mBaseName && modBaseName && mBaseName === modBaseName && m.name !== modObj.name) {
               isTwinMatch = true;
           }
@@ -323,9 +335,12 @@ export function usePlaySetLogic() {
               if (!sharesVersion && !isTwinMatch) return;
 
               const isRival =
-                m.flavorGroupId &&
+                (m.flavorGroupId &&
                 String(m.flavorGroupId) === String(modObj.flavorGroupId) &&
-                m.name !== modObj.name;
+                m.name !== modObj.name) ||
+                (m.communityGroupId &&
+                String(m.communityGroupId) === String(modObj.communityGroupId) &&
+                m.name !== modObj.name);
                 
               const isAddonOfTarget = m.hash && modObj.hash ? localSets.some((s: any) => 
                 (s.archetypes?.core === modObj.hash || s.archetypes?.twins?.includes(modObj.hash)) && 
@@ -398,6 +413,7 @@ export function usePlaySetLogic() {
           while (checkAgain) {
             checkAgain = false;
             const snapshot = Array.from(newMods);
+            const currentEquipped = snapshot.map(n => modMap.get(n)).filter(Boolean);
             for (const name of snapshot) {
               if (!newMods.has(name)) continue;
               const mData = modMap.get(name as string);
@@ -405,11 +421,10 @@ export function usePlaySetLogic() {
                 for (const req of mData.requirements) {
                   const reqId = typeof req === 'string' ? req : req.id || req.dbId;
                   const reqName = typeof req === 'string' ? req : req.name;
-                  const reqBaseName = reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase();
+                  const reqBaseName = precomputedBaseNames.get(reqName) || reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
                   const isReqNumeric = !isNaN(Number(reqName));
                   
-                  const alreadySatisfied = Array.from(newMods as Set<string>).some((n: string) => {
-                    const equipped = modMap.get(n);
+                  const alreadySatisfied = currentEquipped.some((equipped: any) => {
                     return equipped && (
                       String(equipped.dbId) === String(reqId) ||
                       (reqId && equipped.interchangeableIds && equipped.interchangeableIds.includes(String(reqId))) ||
@@ -484,10 +499,12 @@ export function usePlaySetLogic() {
         modHashes: nextModHashes
       };
 
-      window.dispatchEvent(new Event("storage"));
+
+      console.timeEnd("PlaySetLogic: toggleInActiveSet");
       return updatedSets;
     });
-  };
+  }, [setPlaySets, activePlaySetIndex, anarchyRules, activeGameSchema, modMap, hashToMod, baseToMod, byDbId, namesAndDisplayNames, precomputedBaseNames, modList]);
+
   function deletePlaySet(setName: string) {
     const updatedSets = playSets.filter((s) => s.name !== setName);
     setPlaySets(updatedSets);

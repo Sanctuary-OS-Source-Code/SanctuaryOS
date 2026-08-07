@@ -2,13 +2,15 @@ import React, { useState, useEffect } from "react";
 import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+import {
+  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown } from "../shared";
+  fetchAllPaginated, CustomTierDropdown
+} from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -43,6 +45,7 @@ export function MassUpdateOversight() {
 
   const [editReason, setEditReason] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isActionPanelOpen, setIsActionPanelOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -100,16 +103,19 @@ export function MassUpdateOversight() {
       if (massConflictId) changes.push(`Added Conflict`);
       actionStr += changes.join(", ");
 
-      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-        action: actionStr,
-        target_table: 'mods',
-        target_name: 'BATCH OPERATION',
-        actor_id: myId,
-        reason: editReason.trim()
-      }});
+      await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
+          action: actionStr,
+          target_table: 'mods',
+          target_name: 'BATCH OPERATION',
+          actor_id: myId,
+          reason: editReason.trim()
+        }
+      });
 
       setMassStatus(""); setMassCategory(""); setMassSubCategory(""); setMassCompliance(""); setMassGameVersions([]); setMassConflictId(null); setEditReason("");
       setSelectedIds(new Set());
+      setIsActionPanelOpen(false);
       await loadData();
       useStore.getState().pushStatus(t("auto_mass_update_completed_39"));
     } catch (e) {
@@ -154,98 +160,135 @@ export function MassUpdateOversight() {
   return (
     <div className="flex flex-col w-full relative h-full">
 
-      <div className="flex flex-col md:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full z-30">
+        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3 shrink-0">
           <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_dynamic_feed")}</span>
           </div>
           <span className="truncate">{t("ql_mass_update")}</span>
         </h2>
-
-        <div className="flex items-center gap-4 ml-auto">
-          <div className="flex flex-col items-end">
-            <span className="text-2xl font-black theme-text-accent drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)] leading-none">{selectedIds.size}</span>
-            <span className="text-[9px] font-black uppercase tracking-widest opacity-60">{t("artifacts_selected")}</span>
-          </div>
-        </div>
       </div>
 
-      <div className="flex flex-col xl:flex-row gap-6 animate-in fade-in h-full w-full mx-auto p-6 pt-6">
+      <div className="flex flex-wrap items-center gap-4 px-6 py-2 shrink-0 z-20 relative">
+        <div className="relative flex-1 min-w-[200px]">
+          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
+          <input
+            type="text"
+            placeholder={t("search_ph")}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full theme-glass-panel rounded-xl pl-10 pr-6 h-12 text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] placeholder:opacity-40"
+          />
+        </div>
 
-        <div className="flex-1 min-w-0 theme-glass-panel rounded-[var(--radius)] flex flex-col h-[850px] border border-white/5 overflow-hidden shadow-inner">
-          <div className="p-6 border-b border-white/5 z-20 flex flex-col gap-4">
+        <div className="w-max min-w-[192px] z-40 shrink-0">
+          <CustomDropdown disableTint={true}
+            value={filterCategory}
+            onChange={(v: string[]) => setFilterCategory(v[0])}
+            options={[
+              { id: "", label: "ALL CATEGORIES" },
+              ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                id: cat.id,
+                label: (t(cat.lexicon_key) || cat.id).toUpperCase()
+              })) || [])
+            ]}
+            placeholder={t("filter_category")}
+          />
+        </div>
 
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="relative flex-1 min-w-[200px]">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-                <input
-                  type="text"
-                  placeholder={t("search_ph")}
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
-                />
-              </div>
-              <div className="w-max min-w-[192px] max-w-xs z-40 shrink-0">
-                <CustomDropdown disableTint={true}
-                  value={filterCategory}
-                  onChange={(v: string[]) => setFilterCategory(v[0])}
-                  options={[
-                    { id: "", label: "ALL CATEGORIES" },
-                    ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
-                      id: cat.id,
-                      label: (t(cat.lexicon_key) || cat.id).toUpperCase()
-                    })) || [])
-                  ]}
-                  placeholder={t("filter_category")}
-                />
-              </div>
-              <button
-                onClick={() => setShowOnlySelected(!showOnlySelected)}
-                className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm shrink-0 ${showOnlySelected ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]" : "theme-glass-inner border-white/10 text-[var(--text)] hover:bg-white/5 hover:theme-border-accent"}`}
-              >
-                {showOnlySelected ? "SHOWING SELECTED" : "SHOW SELECTED ONLY"}
-              </button>
-              <button onClick={handleSelectAllFiltered} className="px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all theme-glass-inner border-white/10 text-[var(--text)] hover:bg-white/5 hover:theme-border-accent shrink-0">
-                {t("auto_toggle_all_visible")}
-              </button>
-            </div>
+        <div className="w-max min-w-[200px] z-30 shrink-0">
+          <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} />
+        </div>
 
-            <div className="w-full z-30 relative mt-1">
-              <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} />
-            </div>
-          </div>
+        <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] h-12 shrink-0 z-40">
+          <button
+            onClick={() => setShowOnlySelected(!showOnlySelected)}
+            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${showOnlySelected ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+          >
+            <span className="material-symbols-outlined !text-[16px] mr-2">checklist</span>
+            {showOnlySelected ? "SHOWING SELECTED" : "SELECTED ONLY"}
+          </button>
+          <button
+            onClick={handleSelectAllFiltered}
+            className="h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+          >
+            <span className="material-symbols-outlined !text-[16px] mr-2">done_all</span>
+            {t("auto_toggle_all_visible") || "TOGGLE ALL"}
+          </button>
+        </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 p-6">
+        {selectedIds.size > 0 && (
+          <button
+            onClick={() => setIsActionPanelOpen(true)}
+            className="h-12 px-6 ml-auto rounded-xl bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[var(--accent)] text-[var(--accent)] font-black uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.6)] transition-all flex items-center gap-3 shrink-0 animate-in fade-in zoom-in duration-300"
+          >
+            <span className="material-symbols-outlined !text-[18px]">tune</span>
+            {t("mass_update_apply") || "CONFIGURE UPDATE"} ({selectedIds.size})
+          </button>
+        )}
+      </div>
+
+      <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
+        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-6 pb-24">
             {loading ? (
               <div className="py-20 text-center font-black opacity-50 uppercase tracking-widest animate-pulse">{t("loading_registry")}</div>
             ) : (
               <>
-                {filteredMods.slice(0, visibleCount).map(m => (
-                  <div
-                    key={m.id}
-                    onClick={() => handleToggle(m.id)}
-                    className={`p-4 rounded-2xl cursor-pointer transition-all flex items-center gap-5 border shadow-sm group ${selectedIds.has(m.id) ? "theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] scale-[1.01]" : "border-white/5 theme-glass-inner hover:theme-border-accent hover:bg-white/5"}`}
-                  >
-                    <div className={`w-6 h-6 rounded border flex items-center justify-center shrink-0 transition-colors ${selectedIds.has(m.id) ? "theme-bg-accent theme-border-accent text-[var(--bg)] shadow-[0_0_10px_var(--accent)]" : "border-white/20 bg-black/20 group-hover:border-white/40"}`}>
-                      {selectedIds.has(m.id) && <span className="text-sm font-black">{t("_")}</span>}
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 pb-4">
+                  {filteredMods.slice(0, visibleCount).map(m => (
+                    <div
+                      key={m.id}
+                      onClick={() => handleToggle(m.id)}
+                      className={`relative group/item flex flex-col p-4 rounded-3xl theme-glass-panel border transition-all duration-300 isolate cursor-pointer ${selectedIds.has(m.id)
+                          ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-[0_10px_30px_rgba(var(--accent-rgb),0.2)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] scale-[1.02]'
+                          : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]'
+                        }`}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div className={`w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl border shadow-inner transition-colors ${selectedIds.has(m.id)
+                            ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]'
+                            : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover/item:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'
+                          }`}>
+                          {selectedIds.has(m.id) ? (
+                            <span className="material-symbols-outlined !text-[24px] drop-shadow-[0_0_5px_var(--accent)]">check</span>
+                          ) : (
+                            <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">extension</span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest leading-none border ${selectedIds.has(m.id)
+                              ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'
+                              : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'
+                            }`}>
+                            {m.master_author || 'UNKNOWN'}
+                          </span>
+                          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase mt-1">
+                            {t("auto_status")} {(m.status || "UNVERIFIED").replace(/_/g, ' ')} | {t("auto_tier")} {m.compliance_tier}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col min-w-0 flex-1 justify-center relative z-10 mb-2">
+                        <span className={`text-[13px] font-black uppercase tracking-widest leading-tight transition-colors duration-300 break-words line-clamp-2 ${selectedIds.has(m.id) ? 'text-[var(--text)]' : 'text-[var(--text)] group-hover/item:text-[var(--accent)]'
+                          }`}>
+                          {m.name}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className={`text-sm font-black uppercase truncate leading-tight transition-colors ${selectedIds.has(m.id) ? "theme-text-accent drop-shadow-md" : "text-[var(--text)] group-hover:text-white"}`}>{m.name}</span>
-                      <span className="text-[9px] font-bold uppercase text-[var(--subtext)] opacity-60 mt-1 truncate">
-                        {m.master_author ? `${m.master_author} | ` : ""}{t("auto_status")} {(m.status || "UNVERIFIED").replace(/_/g, ' ')} {t("auto_tier")} {m.compliance_tier}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
 
                 {filteredMods.length > visibleCount && (
-                  <button
-                    onClick={() => setVisibleCount(v => v + 100)}
-                    className="w-full py-4 mt-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] font-black uppercase tracking-widest transition-all"
-                  >
-                    {t("ui_btn_load_more")} ({visibleCount} / {filteredMods.length})
-                  </button>
+                  <div className="col-span-full flex justify-center w-full pt-4 pb-8">
+                    <button
+                      onClick={() => setVisibleCount(v => v + 100)}
+                      className="group px-12 py-4 rounded-full theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black uppercase tracking-widest hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all shadow-xl flex items-center gap-3"
+                    >
+                      <span className="material-symbols-outlined !text-[20px] group-hover:animate-bounce">expand_more</span>
+                      {t("ui_btn_load_more")} ({visibleCount} / {filteredMods.length})
+                    </button>
+                  </div>
                 )}
 
                 {!loading && filteredMods.length === 0 && (
@@ -255,22 +298,22 @@ export function MassUpdateOversight() {
             )}
           </div>
         </div>
-
-        <div className="w-full xl:w-[400px] flex flex-col gap-6 shrink-0 h-[850px]">
-          <div className="theme-glass-panel rounded-[var(--radius)] p-8 border border-white/5 flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.5)] flex-1 overflow-hidden relative">
-
-            <div className="absolute top-0 right-0 w-64 h-64 bg-red-500 opacity-5 blur-[100px] pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 theme-bg-accent opacity-5 blur-[100px] pointer-events-none" />
-
-            <div className="flex items-center gap-3 border-b border-white/10 pb-6 mb-6 z-10 shrink-0">
-              <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_var(--danger)]" />
-              <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-widest italic">{t("mass_update_apply")}</h3>
-            </div>
-
-            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6 pr-2 z-10">
-
-              <div className="flex flex-col gap-2 relative z-50">
-                <label className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-2 transition-all ${massStatus ? 'theme-text-accent drop-shadow-[0_0_5px_rgba(var(--accent-rgb),0.5)]' : 'text-[var(--subtext)] opacity-60'}`}>
+        
+        <SidePanel
+          isOpen={isActionPanelOpen}
+          onClose={() => setIsActionPanelOpen(false)}
+          title={t("mass_update_apply") || "APPLY MASS UPDATE"}
+          subtitle={`${selectedIds.size} ${t("artifacts_selected") || "ARTIFACTS SELECTED"}`}
+          icon="batch_prediction"
+          iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+          keepMounted={true}
+        >
+          <div className="flex flex-col gap-6 w-full relative h-[calc(100vh-180px)] overflow-y-auto custom-scrollbar pr-2">
+            
+            <div className="flex flex-col gap-4 flex-1">
+              <div className="theme-glass-panel p-5 rounded-2xl border border-white/5 flex flex-col gap-3 relative z-50 hover:border-white/10 transition-colors">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                  <span className={`material-symbols-outlined !text-[16px] ${massStatus ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>policy</span>
                   {t("mass_status_protocol")}
                 </label>
                 <CustomDropdown disableTint={true}
@@ -286,9 +329,10 @@ export function MassUpdateOversight() {
                 />
               </div>
 
-              <div className="flex flex-col gap-2 relative z-40">
-                <label className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-2 transition-all ${massCompliance ? 'text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.5)]' : 'text-[var(--subtext)] opacity-60'}`}>
-                  {t("Vault_stat_tier")}
+              <div className="theme-glass-panel p-5 rounded-2xl border border-white/5 flex flex-col gap-3 relative z-40 hover:border-white/10 transition-colors">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                  <span className={`material-symbols-outlined !text-[16px] ${massCompliance ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>verified_user</span>
+                  {t("vault_stat_tier")}
                 </label>
                 <CustomDropdown disableTint={true}
                   value={massCompliance}
@@ -303,8 +347,9 @@ export function MassUpdateOversight() {
                 />
               </div>
 
-              <div className="flex flex-col gap-2 relative z-30">
-                <label className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-2 transition-all ${massCategory ? 'theme-text-warning drop-shadow-[0_0_5px_rgba(var(--warning-rgb),0.5)]' : 'text-[var(--subtext)] opacity-60'}`}>
+              <div className="theme-glass-panel p-5 rounded-2xl border border-white/5 flex flex-col gap-3 relative z-30 hover:border-white/10 transition-colors">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                  <span className={`material-symbols-outlined !text-[16px] ${massCategory ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>category</span>
                   {t("mass_category_override")}
                 </label>
                 <CustomDropdown disableTint={true}
@@ -320,15 +365,17 @@ export function MassUpdateOversight() {
                 />
               </div>
 
-              <div className="flex flex-col gap-2 relative z-20">
-                <label className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-2 transition-all ${massGameVersions.length > 0 ? 'theme-text-accent drop-shadow-[0_0_5px_rgba(var(--accent-rgb),0.5)]' : 'text-[var(--subtext)] opacity-60'}`}>
+              <div className="theme-glass-panel p-5 rounded-2xl border border-white/5 flex flex-col gap-3 relative z-20 hover:border-white/10 transition-colors">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                  <span className={`material-symbols-outlined !text-[16px] ${massGameVersions.length > 0 ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>videogame_asset</span>
                   {t("auto_replace_game_versions")}
                 </label>
                 <GameVersionMultiSelect selectedVersions={massGameVersions} onChange={setMassGameVersions} />
               </div>
 
-              <div className="flex flex-col gap-2 relative z-10">
-                <label className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-2 transition-all ${massConflictId ? 'text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.5)]' : 'text-[var(--subtext)] opacity-60'}`}>
+              <div className="theme-glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex flex-col gap-3 relative z-10 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-colors">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                  <span className={`material-symbols-outlined !text-[16px] ${massConflictId ? 'text-[var(--danger)] drop-shadow-[0_0_5px_var(--danger)]' : 'text-[var(--danger)] opacity-80'}`}>gavel</span>
                   {t("mass_assign_conflict")}
                 </label>
                 <ModSearchDropdown
@@ -339,20 +386,19 @@ export function MassUpdateOversight() {
                   modList={mods}
                 />
               </div>
-
             </div>
 
-            <div className="mt-6 pt-6 border-t border-white/10 shrink-0 flex flex-col gap-4 z-10">
+            <div className="mt-6 pt-6 border-t border-white/10 shrink-0 flex flex-col gap-4 pb-6">
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_5px_var(--danger)]"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)] animate-pulse shadow-[0_0_5px_var(--danger)]"></span>
                   {t("batch_reason_req")}
                 </label>
                 <textarea
                   value={editReason}
                   onChange={e => setEditReason(e.target.value)}
                   placeholder={t("reason_update")}
-                  className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-danger transition-all border border-white/5"
+                  className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 py-4 text-[var(--text)] text-[11px] font-black uppercase tracking-widest h-24 resize-none focus:outline-none focus:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
                 />
               </div>
 
@@ -365,8 +411,7 @@ export function MassUpdateOversight() {
               </button>
             </div>
           </div>
-        </div>
-      </div>
+        </SidePanel>
     </div>
   );
 }

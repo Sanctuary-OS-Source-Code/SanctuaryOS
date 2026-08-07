@@ -145,6 +145,7 @@ function App() {
   const [forceSweepCounter, setForceSweepCounter] = useState(0);
 
   const { runRadarSweep, fetchVault, malwareAlert, setMalwareAlert } = useRadarLogic(checkNetworkUpdates);
+
   const { handleDroppedFiles } = useVaultIntake(runRadarSweep);
 
 
@@ -2110,9 +2111,10 @@ function App() {
           <div className="relative z-10 w-full h-full pb-[40px]">
             {isGlobalConfigLoaded && (
               <>
-                <div style={{ display: (view === "dashboard" || view === "BlueprintArchitect") ? 'block' : 'none', width: '100%', height: '100%' }}>
-                  <ErrorBoundary moduleName="Command Center">
-                    <CommandCenter
+                {(view === "dashboard" || view === "BlueprintArchitect") && (
+                  <div style={{ width: '100%', height: '100%' }}>
+                    <ErrorBoundary moduleName="Command Center">
+                      <CommandCenter
                       isScanning={isScanning}
                       runRadarSweep={runRadarSweep}
 
@@ -2138,6 +2140,7 @@ function App() {
                     />
                   </ErrorBoundary>
                 </div>
+                )}
 
                 {view === "nexus" && (
                   <Nexus

@@ -325,7 +325,7 @@ export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(
   );
 }
 
-export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem, onClear, dropUp }: any) {
+export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem, onClear, dropUp, className }: any) {
   const { t } = useLexicon();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -349,7 +349,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
           onFocus={() => { if (!selectedItem) setIsOpen(true); }}
           placeholder={placeholder}
           readOnly={!!selectedItem}
-          className="w-full h-12 theme-glass-inner rounded-[calc(var(--radius)-4px)] px-5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all relative"
+          className={className || "w-full h-12 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 text-[var(--text)] text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all relative"}
         />
         {selectedItem ? (
           <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold flex items-center justify-center" onClick={onClear}>
@@ -732,7 +732,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
         onBlur={(e) => {
           setTimeout(() => setIsOpen(false), 200);
         }}
-        className="w-full theme-glass-inner rounded-[calc(var(--radius)-4px)] px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all placeholder:opacity-30"
+        className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:opacity-30"
       />
       {isOpen && createPortal(
         <div className="fixed mt-2 theme-glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
@@ -1216,14 +1216,16 @@ export const getLowestVersion = (versions: string[]): string => {
   });
 };
 
-export function EmptyState({ icon, title, subtitle, action, minHeightClass = "min-h-[200px]", className = "" }: { icon: string, title: string, subtitle?: string, action?: React.ReactNode, minHeightClass?: string, className?: string }) {
+export function EmptyState({ icon, title, subtitle, action, minHeightClass = "min-h-[200px]", className = "" }: { icon: string, title?: string, subtitle?: string, action?: React.ReactNode, minHeightClass?: string, className?: string }) {
   return (
     <div className={`text-center py-10 px-4 flex flex-col items-center justify-center gap-4 ${minHeightClass} w-full ${className}`}>
       <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-30 drop-shadow-md mb-2">{icon}</span>
-      <div className="flex flex-col gap-1.5 items-center text-center">
-        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)]">{title}</span>
-        {subtitle && <span className="text-[9px] font-bold text-[var(--subtext)] uppercase tracking-widest max-w-sm leading-relaxed opacity-60">{subtitle}</span>}
-      </div>
+      {(title || subtitle) && (
+        <div className="flex flex-col gap-1.5 items-center text-center">
+          {title && <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)]">{title}</span>}
+          {subtitle && <span className="text-[9px] font-bold text-[var(--subtext)] uppercase tracking-widest max-w-sm leading-relaxed opacity-60">{subtitle}</span>}
+        </div>
+      )}
       {action && <div className="mt-3 flex justify-center">{action}</div>}
     </div>
   );

@@ -103,7 +103,7 @@ const Vault = React.memo(function Vault(props: any) {
     const handleOpenContextMenu = (e: any) => {
       setVaultContextMenu({ mod: e.detail.mod, x: e.detail.x, y: e.detail.y });
     };
-    
+
     window.addEventListener('openLocalFolderEditor', handleOpenEditor);
     window.addEventListener('openVaultContextMenu', handleOpenContextMenu);
 
@@ -129,12 +129,11 @@ const Vault = React.memo(function Vault(props: any) {
   }, [playSets, activePlaySetIndex]);
 
   const equippedDisplayMods = React.useMemo(() => {
+    const normalSet = new Set(activeSetModsMemo);
+    const cleanedSet = new Set(activeSetModsMemo.map((sm: string) => sm.replace(/^(sanctuary[/\\])+/i, '')));
+
     return displayModList.filter((m: any) => {
-      const isNormal = activeSetModsMemo.includes(m.name);
-      if (isNormal) return true;
-      return activeSetModsMemo.some((sm: string) =>
-        sm.replace(/^(sanctuary[/\\])+/i, '') === m.name
-      );
+      return normalSet.has(m.name) || cleanedSet.has(m.name);
     });
   }, [displayModList, activeSetModsMemo]);
 
@@ -220,11 +219,34 @@ const Vault = React.memo(function Vault(props: any) {
     const activeSetMods = playSets[activePlaySetIndex]?.mods || [];
     const extRegex = getExtensionRegex(activeGameSchema);
 
+    const parsedActiveSetModIds = new Set();
+    const parsedActiveSetModNames = new Set();
+    const parsedActiveSetModNamespaces = new Set();
+
     const parsedActiveSetMods = activeSetMods.map((n: string) => {
       const cleanNLookup = n.replace(/^(sanctuary[/\\])+/i, '');
       const mData = modListIndex.byName.get(cleanNLookup) || modListIndex.namesAndDisplayNames.find((ne: any) => ne.name === cleanNLookup)?.orig;
       const cleanN = n.split(/[\\/]/).pop()?.replace(extRegex, "").toUpperCase();
+
+      if (mData?.dbId) parsedActiveSetModIds.add(String(mData.dbId));
+      if (cleanN) parsedActiveSetModNames.add(cleanN);
+      if (mData?.displayName) parsedActiveSetModNames.add(mData.displayName.toUpperCase());
+
+      parsedActiveSetModNamespaces.add(n);
+      parsedActiveSetModNamespaces.add(cleanNLookup);
+
       return { n, cleanNLookup, cleanN, mData };
+    });
+
+    const equippedDisplayModFamilies = new Set();
+    const equippedDisplayModDbIds = new Set();
+    const equippedDisplayModSetIds = new Set();
+    equippedDisplayMods.forEach((m: any) => {
+      if (!m.isVirtual && m.name) {
+        if (m.familyId) equippedDisplayModFamilies.add(String(m.familyId));
+        if (m.dbId) equippedDisplayModDbIds.add(String(m.dbId));
+        if (m.setId) equippedDisplayModSetIds.add(String(m.setId));
+      }
     });
 
     return visibleMods.filter((mod: any) => {
@@ -288,14 +310,12 @@ const Vault = React.memo(function Vault(props: any) {
           if (mObj.conflicts && mObj.conflicts.length > 0) {
             const hasConflict = mObj.conflicts.some((c: any) => {
               if (c.severity_rank != 4) return false;
-              return parsedActiveSetMods.some(({ cleanNLookup, cleanN, mData }: any) => {
-                if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
-                if (c.enemy_name) {
-                  const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
-                  if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
-                }
-                return false;
-              });
+              if (c.enemy_id && parsedActiveSetModIds.has(String(c.enemy_id))) return true;
+              if (c.enemy_name) {
+                const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
+                if (parsedActiveSetModNames.has(targetClean)) return true;
+              }
+              return false;
             });
             if (hasConflict) hasTier4Conflict = true;
           }
@@ -310,13 +330,20 @@ const Vault = React.memo(function Vault(props: any) {
 
         let rawDLC: string[] = [];
         if (mod.requiredDLC) {
-          if (typeof mod.requiredDLC === 'string') rawDLC.push(...mod.requiredDLC.split(',').map((s: string) => s.trim()));
+          if (typeof mod.requiredDLC === 'string') {
+            try { rawDLC.push(...JSON.parse(mod.requiredDLC)); }
+            catch { rawDLC.push(...mod.requiredDLC.replace(/[\{\}\[\]]/g, '').split(',').map((s: string) => s.replace(/^"/, '').replace(/"$/, '').trim())); }
+          }
           else if (Array.isArray(mod.requiredDLC)) rawDLC.push(...mod.requiredDLC);
         }
         if (mod.flavors) {
           mod.flavors.forEach((f: any) => {
             if (f.requiredDLC) {
-              const fDLC = typeof f.requiredDLC === 'string' ? f.requiredDLC.split(',').map((s: string) => s.trim()) : f.requiredDLC;
+              let fDLC = f.requiredDLC;
+              if (typeof f.requiredDLC === 'string') {
+                try { fDLC = JSON.parse(f.requiredDLC); }
+                catch { fDLC = f.requiredDLC.replace(/[\{\}\[\]]/g, '').split(',').map((s: string) => s.replace(/^"/, '').replace(/"$/, '').trim()); }
+              }
               if (Array.isArray(fDLC)) fDLC.forEach((d: string) => { if (!rawDLC.includes(d)) rawDLC.push(d); });
             }
           });
@@ -362,30 +389,20 @@ const Vault = React.memo(function Vault(props: any) {
           ? (() => {
             const anchor = mod.dbId || mod.familyId;
             if (mod.isFlavorFolder) {
-              return (mod.flavors || []).some((f: any) =>
-                parsedActiveSetMods.some(({ n, cleanNLookup }: any) => n === f.name || cleanNLookup === f.name),
-              );
+              return (mod.flavors || []).some((f: any) => parsedActiveSetModNamespaces.has(f.name));
             }
             if (anchor) {
-              return equippedDisplayMods.some(
-                (m: any) =>
-                  !m.isVirtual &&
-                  m.name &&
-                  (String(m.familyId) === String(anchor) ||
-                    String(m.dbId) === String(anchor) ||
-                    String(m.setId) === String(anchor))
-              );
+              const sAnchor = String(anchor);
+              return equippedDisplayModFamilies.has(sAnchor) || equippedDisplayModDbIds.has(sAnchor) || equippedDisplayModSetIds.has(sAnchor);
             }
-            return (mod.flavors || []).some((f: any) =>
-              parsedActiveSetMods.some(({ n, cleanNLookup }: any) => n === f.name || cleanNLookup === f.name),
-            );
+            return (mod.flavors || []).some((f: any) => parsedActiveSetModNamespaces.has(f.name));
           })()
-          : parsedActiveSetMods.some(({ n, cleanNLookup }: any) => n === mod.name || cleanNLookup === mod.name);
+          : parsedActiveSetModNamespaces.has(mod.name);
 
         if (equipFilter === "EQUIPPED" && !isEquipped) return false;
         if (equipFilter === "UNEQUIPPED") {
           if (mod.isParent) {
-            const allEquipped = mod.flavors?.every((f: any) => parsedActiveSetMods.some(({ n, cleanNLookup }: any) => n === f.name || cleanNLookup === f.name));
+            const allEquipped = mod.flavors?.every((f: any) => parsedActiveSetModNamespaces.has(f.name));
             if (allEquipped) return false;
           } else {
             if (isEquipped) return false;
@@ -544,12 +561,12 @@ const Vault = React.memo(function Vault(props: any) {
                       const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
                       return !folderExists;
                     }).slice(0, 20).map((item: any, idx: number) => (
-                      <div key={`recent-${idx}`} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group" onClick={() => { 
+                      <div key={`recent-${idx}`} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group" onClick={() => {
                         if (item.isVirtual && item.isLocalOverride && !item.isCollection) {
                           const targetId = item.dbId || item.familyId || item.setId;
                           if (targetId) window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: targetId }));
                         } else if (setActiveDossier) {
-                          setActiveDossier(item); 
+                          setActiveDossier(item);
                         }
                       }}>
                         <div className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
@@ -905,8 +922,8 @@ const Vault = React.memo(function Vault(props: any) {
                   {activeSubmenu === 'folder' && (
                     <div className={`absolute top-0 w-56 pt-0 z-50 ${openSubmenuLeft ? 'right-full pr-1' : 'left-full pl-1'}`}>
                       <div className="w-full h-full theme-glass-panel bg-black/90 backdrop-blur-3xl border border-white/10 rounded-xl py-2 animate-in fade-in zoom-in-95 duration-100">
-                        <button onClick={(e) => { 
-                          e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); 
+                        <button onClick={(e) => {
+                          e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null);
                           const localSts = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
                           const newId = `f_${Date.now()}`;
                           localSts.push({ id: newId, name: "", items: [], isCollection: false });

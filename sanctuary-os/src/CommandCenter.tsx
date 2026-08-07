@@ -33,6 +33,7 @@ export default function CommandCenter({
   const userRole = useStore((state) => state.userRole);
   const setPlaySets = useStore((state) => state.setPlaySets);
   const ignoredGlobal = useStore((state) => state.ignoredGlobal);
+
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const status = useStore((state) => state.status);
   const [showUpdatesModal, setShowUpdatesModal] = useState(false);

@@ -204,6 +204,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         parentNameMap: Record<string, any> = {};
       let flavorData: any[] = [],
         flavorGroupNames: Record<string, string> = {};
+      let communityData: any[] = [],
+        communityGroupNames: Record<string, string> = {};
       let setMembership: any[] = [],
         collectionsMetadata: any[] = [],
         globalConflicts: any[] = [];
@@ -225,24 +227,39 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                 .select("group_id, mod_hash")
                 .in("mod_hash", chunk);
             flavorData.push(...((data as any[]) || []));
+
+            const { data: cData } = await supabase
+                .from("community_group_members")
+                .select("group_id, mod_hash")
+                .in("mod_hash", chunk);
+            communityData.push(...((cData as any[]) || []));
           });
           const uniqueGroupIds = [
             ...new Set(flavorData.map((f) => f.group_id)),
           ];
-          if (uniqueGroupIds.length > 0) {
+          const uniqueCommunityGroupIds = [
+            ...new Set(communityData.map((f) => f.group_id)),
+          ];
+          if (uniqueGroupIds.length > 0 || uniqueCommunityGroupIds.length > 0) {
             let gResults: any[] = [];
+            let cgResults: any[] = [];
             let pResults: any[] = [];
-            await runInBatches(uniqueGroupIds, 200, 0, async (chunk) => {
-              const [gRes, pRes] = await Promise.all([
+            await runInBatches([...new Set([...uniqueGroupIds, ...uniqueCommunityGroupIds])], 200, 0, async (chunk) => {
+              const [gRes, cgRes, pRes] = await Promise.all([
                 supabase.from("flavor_groups").select("id, name").in("id", chunk),
+                supabase.from("community_groups").select("id, name").in("id", chunk),
                 supabase.from("mods").select("id, name, master_author, mason_id, image_url, url").in("id", chunk)
               ]);
               gResults.push(...((gRes.data as any[]) || []));
+              cgResults.push(...((cgRes.data as any[]) || []));
               pResults.push(...((pRes.data as any[]) || []));
             });
 
             gResults.forEach((g: any) => {
               flavorGroupNames[String(g.id)] = g.name;
+            });
+            cgResults.forEach((g: any) => {
+              communityGroupNames[String(g.id)] = g.name;
             });
             pResults.flat().forEach((pm: any) => {
               parentNameMap[String(pm.id)] = {
@@ -308,7 +325,9 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const setRelMap = new Map();
       setMembership.forEach(sm => setRelMap.set(String(sm.mod_id), sm));
       const flavorMap = new Map();
+      const communityMap = new Map();
       flavorData.forEach(f => flavorMap.set(String(f.mod_hash), f));
+      communityData.forEach(f => communityMap.set(String(f.mod_hash), f));
       
       const dbVersionMap = new Map<string, string[]>();
       allCloudData.forEach(c => {
@@ -439,6 +458,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         
         const mySetRel = dbId ? setRelMap.get(dbId) : undefined;
         const myFlavor = flavorMap.get(String(mod.hash));
+        const myCommunityGroup = communityMap.get(String(mod.hash));
         
         const myParentRels = dbId ? (parentRelMap.get(dbId) || []) : [];
         const myChildRels = dbId ? (childRelMap.get(dbId) || []) : [];
@@ -602,6 +622,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           flavorGroupId: myFlavor ? String(myFlavor.group_id) : null,
           flavorGroupName: myFlavor
             ? flavorGroupNames[String(myFlavor.group_id)]
+            : null,
+          communityGroupId: myCommunityGroup ? String(myCommunityGroup.group_id) : null,
+          communityGroupName: myCommunityGroup
+            ? communityGroupNames[String(myCommunityGroup.group_id)]
             : null,
           created_at: effectiveCloudMatch?.created_at || effectiveDbMod?.created_at || mod.created_at || null,
           updated_at: effectiveCloudMatch?.updated_at || effectiveDbMod?.updated_at || mod.updated_at || null,

@@ -1,0 +1,17 @@
+{
+  "assigned_artifacts": "Assigned Items",
+  "btn_add_link": "Assign",
+  "community_groups_create": "Create",
+  "community_groups_select": "Select Global Class...",
+  "modal_community_group_name_label": "Group Name",
+  "modal_community_group_name_placeholder": "Name...",
+  "nav_cancel": "Cancel",
+  "nav_exploring": "Exploring",
+  "nav_save": "Save",
+  "nav_unlink": "Unlink",
+  "no_variant_group": "NO VARIANT GROUP ESTABLISHED YET. ASSIGN A VARIANT FROM THE RIGHT TO AUTO-LINK.",
+  "tab_expansion": "Expansion Pack",
+  "tab_game_pack": "Game Pack",
+  "tab_kit": "Kit",
+  "tab_stuff_pack": "Stuff Pack"
+}

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { GameVersionMultiSelect, SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, ModSearchDropdown, ActionButton } from "./shared";
+import { GameVersionMultiSelect, SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, ModSearchDropdown, ActionButton, HoverTooltip } from "./shared";
 import { useStore } from './store';
 
 interface ModLineageTreeProps {
@@ -41,14 +41,16 @@ function EditableVersionRow({
       const { error } = await supabase
         .from('mod_versions')
         .update({ version_label: editingLabel })
-        .eq('dna_hash', version.dna_hash);
+        .eq('dna_hash', version.dna_hash)
+        .select()
+        .single();
       
       if (error) {
         console.error('Supabase update error:', error);
         useStore.getState().pushStatus(`Failed to update: ${error.message}`);
-      } else {
-        onUpdate(); 
+        return;
       }
+      onUpdate();
     } catch (err) {
       console.error('Failed to update version label:', err);
     }
@@ -86,51 +88,45 @@ function EditableVersionRow({
   const handleReassign = async (mod: any) => {
     if (!mod) return;
     try {
-      const { error } = await supabase.from('mod_versions').update({ mod_id: mod.id }).eq('dna_hash', version.dna_hash);
-      if (error) {
-         useStore.getState().pushStatus(`Failed to reassign: ${error.message}`);
-      } else {
-         setIsReassigning(false);
-         onUpdate();
-      }
+      const { data, error } = await supabase.from('mod_versions').update({ mod_id: mod.id }).eq('dna_hash', version.dna_hash).select().single();
+      if (error) throw error;
+      setIsReassigning(false);
+      onUpdate();
     } catch (err) {
       console.error('Reassign error', err);
     }
   };
 
   return (
-    <div className="group flex items-start gap-4 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-white/5 rounded-2xl p-5 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 hover:shadow-lg transition-all relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+    <div className="relative group/item flex flex-col p-5 rounded-3xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate">
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none rounded-3xl" />
       
-      {index < totalCount - 1 && (
-        <div className="absolute left-[35px] top-[60px] w-[2px] h-[calc(100%+20px)] bg-gradient-to-b from-[var(--accent)] via-[var(--accent)]/40 to-[var(--text)]/10 shadow-[0_0_10px_rgba(var(--accent-rgb),0.5)] z-0" />
-      )}
-      
-      <div className="w-10 h-10 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/50 flex items-center justify-center shrink-0 z-10 shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.6)] group-hover:scale-110 transition-all">
-        <span className="text-xs font-black text-[var(--accent)] drop-shadow-md">
-          {index === 0 ? '★' : totalCount - index}
-        </span>
+      {/* Top Row: Icon + Badge */}
+      <div className="flex items-start justify-between gap-3 mb-4 relative z-10">
+        <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
+          <span className="text-[16px] font-black text-[var(--accent)] drop-shadow-md">
+            {index === 0 ? '★' : totalCount - index}
+          </span>
+        </div>
+        {index === 0 && (
+          <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--accent)] shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.1)] mt-1">
+            {t("lineage_latest")}
+          </span>
+        )}
       </div>
 
-      <div className="flex flex-col min-w-0 flex-1 gap-2 relative z-10">
-        <div className="flex items-center gap-3">
-          <input
-            type="text"
-            value={editingLabel}
-            onChange={(e) => setEditingLabel(e.target.value)}
-            onBlur={handleSaveLabel}
-            onKeyDown={(e) => e.key === 'Enter' && handleSaveLabel()}
-            placeholder={`Version ${totalCount - index}`}
-            className="text-sm font-black text-[var(--text)] uppercase bg-transparent border-b-2 border-transparent outline-none focus:border-[var(--accent)] hover:border-white/20 transition-colors px-1 py-1 w-full"
-          />
-          {index === 0 && (
-            <span className="px-3 py-1 bg-[var(--accent)]/20 border border-[var(--accent)]/40 rounded-full text-[9px] font-black uppercase text-[var(--accent)] shrink-0 tracking-widest shadow-sm">
-              {t("lineage_latest")}
-            </span>
-          )}
-        </div>
-
-        <div className="relative z-[9999] pointer-events-auto mt-1">
+      {/* Middle Row: Name & Game Versions */}
+      <div className="flex flex-col min-w-0 flex-1 justify-center relative z-10 mb-6 gap-3">
+        <input
+          type="text"
+          value={editingLabel}
+          onChange={(e) => setEditingLabel(e.target.value)}
+          onBlur={handleSaveLabel}
+          onKeyDown={(e) => e.key === 'Enter' && handleSaveLabel()}
+          placeholder={`Version ${totalCount - index}`}
+          className="text-[14px] font-black text-[var(--text)] uppercase bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-b-2 border-transparent outline-none focus:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all px-3 py-2 w-full truncate rounded-t-xl shadow-inner placeholder:text-[var(--text)]/30 placeholder:tracking-widest"
+        />
+        <div className="relative z-[9999] pointer-events-auto">
           <GameVersionMultiSelect
             selectedVersions={
               typeof version.game_version === 'string'
@@ -138,22 +134,21 @@ function EditableVersionRow({
                 : (Array.isArray(version.game_version) ? version.game_version : [])
             }
             onChange={async (newVals: string[]) => {
-              console.log('ModLineageTree onChange called with:', newVals);
               const newVersion = newVals.join(', ');
+              if (newVersion === version.game_version) return;
               try {
-                const { data, error } = await supabase
+                const { error } = await supabase
                   .from('mod_versions')
                   .update({ game_version: newVersion })
                   .eq('dna_hash', version.dna_hash)
-                  .select();
+                  .select()
+                  .single();
                 
                 if (error) {
-                  console.error('Supabase update error:', error);
                   useStore.getState().pushStatus(`Failed to update: ${error.message}`);
-                } else {
-                  console.log('Supabase update success:', data);
-                  onUpdate(); 
+                  return;
                 }
+                onUpdate(); 
               } catch (err) {
                 console.error('Failed to update game version:', err);
                 useStore.getState().pushStatus(`Error: ${err}`);
@@ -161,45 +156,38 @@ function EditableVersionRow({
             }}
           />
         </div>
+      </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-4 justify-between">
-          <div className="flex items-center gap-2">
-             <span className="material-symbols-outlined !text-[12px] opacity-40 text-[var(--subtext)]">{t("icon_fingerprint")}</span>
-             <span className="text-[9px] font-bold text-[var(--subtext)] opacity-50 truncate tracking-widest font-mono">
-               {version.dna_hash}
-             </span>
+      {/* Bottom Row: Actions */}
+      <div className="flex flex-wrap items-center gap-2 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10 opacity-60 group-hover/item:opacity-100 transition-opacity duration-300 min-h-[57px]">
+        {isReassigning ? (
+          <div className="flex items-center gap-2 w-full bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] p-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <div className="flex-1 min-w-0">
+              <ModSearchDropdown
+                modList={cloudMods || []}
+                onSelect={handleReassign}
+                selectedItem={null}
+                onClear={() => {}}
+                placeholder={t("lineage_reassign_ph")}
+              />
+            </div>
+            <button onClick={() => setIsReassigning(false)} className="group relative w-8 h-8 flex items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all shrink-0">
+              <HoverTooltip title={t("icon_close") || "Cancel"} />
+              <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
+            </button>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {isReassigning ? (
-              <div className="flex items-center gap-2 bg-black/20 p-2 rounded-xl z-[9999] relative">
-                 <div className="w-48">
-                    <ModSearchDropdown
-                      modList={cloudMods || []}
-                      onSelect={handleReassign}
-                      selectedItem={null}
-                      onClear={() => {}}
-                      placeholder={t("lineage_reassign_ph")}
-                    />
-                 </div>
-                 <button onClick={() => setIsReassigning(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-[var(--subtext)] shrink-0">
-                   <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
-                 </button>
-              </div>
-            ) : (
-              <>
-                <button onClick={() => setIsReassigning(true)} className="px-3 py-1.5 rounded-lg border border-[var(--accent)]/30 text-[var(--accent)] text-[9px] font-black uppercase hover:bg-[var(--accent)]/10 transition-colors flex items-center gap-1">
-                  <span className="material-symbols-outlined !text-[12px]">{t("icon_move_up")}</span>
-                  {t("lineage_btn_reassign")}
-                </button>
-                <button onClick={handleDelete} className="px-3 py-1.5 rounded-lg border border-[var(--danger)]/30 text-[var(--danger)] text-[9px] font-black uppercase hover:bg-[var(--danger)]/10 transition-colors flex items-center gap-1">
-                  <span className="material-symbols-outlined !text-[12px]">{t("icon_delete")}</span>
-                  {t("lineage_btn_delete")}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+        ) : (
+          <>
+            <button onClick={() => setIsReassigning(true)} className="group relative flex-1 px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[9px] font-black uppercase hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all flex items-center justify-center gap-1.5">
+              <HoverTooltip title={t("lineage_btn_reassign") || "Reassign Artifact"} />
+              <span className="material-symbols-outlined !text-[14px]">{t("icon_move_up")}</span> {t("lineage_btn_reassign") || "REASSIGN"}
+            </button>
+            <button onClick={handleDelete} className="group relative px-3 py-2 shrink-0 rounded-xl flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)]/70 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-[var(--danger)] hover:shadow-[0_0_15px_rgba(var(--danger-rgb),0.2)] transition-all">
+              <HoverTooltip title={t("lineage_btn_delete") || "Delete Artifact"} variant="danger" />
+              <span className="material-symbols-outlined !text-[16px]">delete</span>
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -212,6 +200,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
   const [newVersionLabel, setNewVersionLabel] = useState('');
   const [newGameVersion, setNewGameVersion] = useState('');
   const [newDnaHash, setNewDnaHash] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
 
   const fetchVersionHistory = async () => {
     if (!targetMod) {
@@ -262,13 +251,12 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
         return;
       }
 
-      console.log('Version added successfully:', data);
-      
+      setVersionHistory([data, ...versionHistory]);
       setShowAddModal(false);
       setNewVersionLabel('');
       setNewGameVersion('');
       setNewDnaHash('');
-      fetchVersionHistory();
+      setIsAdding(false);
       if (onRefresh) onRefresh();
     } catch (err) {
       console.error('Failed to add new version:', err);
@@ -280,46 +268,52 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
 
   return (
     <>
-    <div className="theme-glass-panel rounded-[var(--radius)] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/5 backdrop-blur-3xl flex flex-col gap-6 relative overflow-hidden group">
-      <div className="absolute top-0 left-0 w-64 h-64 bg-[var(--accent)] opacity-[0.03] blur-[80px] pointer-events-none rounded-full group-hover:opacity-[0.05] transition-opacity duration-1000" />
+    <div className="w-full h-full theme-glass-panel rounded-[32px] p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col relative overflow-hidden bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
       
-      <div className="flex justify-between items-start border-b border-white/10 pb-6 relative z-10">
-        <div>
-          <h3 className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">{t("icon_timeline")}</span>
+      {/* Hero Background Effects */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)]/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-[var(--text)]/5 rounded-full blur-[60px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
+
+      <div className="flex justify-between items-end pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-[13px] font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
+            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] drop-shadow-md">{t("icon_timeline")}</span>
             {t("lineage_version_history")}
           </h3>
-          <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-2">
+          <p className="text-[9px] font-bold text-[var(--subtext)] opacity-70 uppercase tracking-widest">
             {t("lineage_timeline_desc")}
           </p>
         </div>
-        <button
+        <ActionButton
           onClick={() => setShowAddModal(true)}
-          className="px-6 py-3 rounded-2xl theme-glass-inner text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:theme-border-accent hover:scale-[1.02] active:scale-95 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-        >
-          <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_add")}</span>
-          {t("lineage_add_version")}
-        </button>
+          icon="add"
+          label={t("lineage_add_version")}
+          className="!px-5 !py-2 !h-9 !text-[9px] !rounded-lg"
+        />
       </div>
 
-      {versionHistory.length === 0 ? (
-        <div className="py-12 text-center text-[10px] font-black uppercase tracking-[0.3em] opacity-30 border border-dashed border-white/10 rounded-2xl">
-          {t("lineage_no_history")}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4 relative z-10">
-          {versionHistory.map((version, index) => (
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 relative z-10 flex-1 overflow-y-auto accent-scrollbar p-2 content-start">
+        {versionHistory.length === 0 ? (
+          <div className="py-12 flex flex-col items-center justify-center gap-3 opacity-40 border border-dashed border-white/10 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_40%,transparent)]">
+             <span className="material-symbols-outlined !text-[32px]">{t("icon_timeline")}</span>
+             <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t("no_links") || "NO HISTORY"}</span>
+          </div>
+        ) : (
+          versionHistory.map((version, index) => (
             <EditableVersionRow
-              key={version.dna_hash}
+              key={version.id || version.dna_hash || index}
               version={version}
               index={index}
               totalCount={versionHistory.length}
-              onUpdate={fetchVersionHistory}
+              onUpdate={() => {
+                fetchVersionHistory();
+                if (onRefresh) onRefresh();
+              }}
               cloudMods={cloudMods}
             />
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
 
     <SidePanel

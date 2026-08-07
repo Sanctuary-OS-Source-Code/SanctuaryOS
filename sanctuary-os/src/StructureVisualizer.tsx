@@ -28,7 +28,7 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
 
   useEffect(() => {
     const fetchMods = async () => {
-      const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author, image_url, status, mason_id, folder_structure').order('name'));
+      const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author, image_url, status, mason_id, folder_structure, latest_version').order('name'));
       if (data) setCloudMods(data);
     };
     fetchMods();
@@ -58,67 +58,74 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
 
   return (
     <div className="flex flex-col w-full relative animate-in fade-in h-full">
-       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full z-10 relative">
-          <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_architecture")}</span>
-            </div>
-            <span className="truncate">{t("structure_title")}</span>
-          </h2>
-          
-          <div className="relative flex-1 max-w-md ml-auto flex gap-4 items-center justify-end">
+      {/* 1. The Seamless Header */}
+      <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-white/5 w-full z-20">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[var(--text)]/5 border border-white/5 shadow-inner shrink-0">
+            <span className="material-symbols-outlined !text-[24px] text-[var(--accent)] drop-shadow-md opacity-80">{t("icon_architecture") || "architecture"}</span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest">
+              {t("structure_title")}
+            </h2>
+            <span className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-[0.2em] opacity-70">{t("structure_subtitle")}</span>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4 z-50">
+          <div className="w-[400px]">
             <ModSearchDropdown 
               placeholder={t("structure_select_artifact")}
               selectedItem={targetMod}
               onSelect={(mod: any) => setTargetMod(mod)}
               onClear={() => setTargetMod(null)}
               modList={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)} 
+              className="w-full h-12 rounded-full theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-6 text-[var(--text)] text-[11px] font-black uppercase tracking-[0.2em] focus:outline-none focus:theme-border-accent transition-all relative"
             />
           </div>
-       </div>
-
-       <div className="flex-1 p-6">
-       {targetMod ? (
-         <div className="flex flex-col flex-1 min-h-0 gap-6">
-           <div className="flex justify-between items-center theme-glass-panel p-6 rounded-[var(--radius)] shadow-xl border border-[var(--accent)]/10 shrink-0 relative overflow-hidden group">
-             <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent)]/10 to-transparent opacity-30 pointer-events-none" />
-             <div className="absolute -left-32 -top-32 w-96 h-96 bg-[var(--accent)] opacity-20 blur-[100px] pointer-events-none rounded-full group-hover:scale-110 transition-transform duration-1000" />
-             
-             <div className="flex items-center gap-6 relative z-10">
-                <div className="w-16 h-16 rounded-2xl theme-glass-inner overflow-hidden shrink-0 border border-white/10 shadow-lg">
-                  {targetMod.image_url ? <img src={targetMod.image_url} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[var(--text)]/10 flex items-center justify-center"><span className="material-symbols-outlined opacity-50">{t("icon_inventory_2")}</span></div>}
-                </div>
-                <div className="flex flex-col min-w-0 gap-1">
-                  <span className="text-xl font-black text-[var(--text)] uppercase truncate tracking-tight">{targetMod.name}</span>
-                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest flex items-center gap-2">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_person")}</span>
-                    {targetMod.master_author}
-                  </span>
-                </div>
-             </div>
-             
+          {targetMod && (
+            <>
+              <ActionButton
+                onClick={() => {
+                  const newFolder = { id: Math.random().toString(36).substr(2, 9), name: t("structure_new_folder") || "New Folder", type: "folder" as const, children: [] };
+                  handleStructureChange([...(targetMod.folder_structure || []), newFolder]);
+                }}
+                className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px] rounded-full"
+                icon={t("icon_create_new_folder") || "create_new_folder"}
+                label={t("structure_add_root") || "ADD ROOT"}
+              />
               <ActionButton
                 onClick={saveStructure}
                 disabled={isSaving}
-                className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]"
+                className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px] rounded-full"
                 icon={isSaving ? 'sync' : 'save'}
                 label={isSaving ? t("btn_saving") : t("btn_save_structure")}
               />
-           </div>
-           
-           <div className="flex-1 mt-4 relative z-10">
-             <ModStructureBuilder 
-               structure={targetMod.folder_structure || []} 
-               onChange={handleStructureChange} 
-               targetMod={targetMod}
-               availableMods={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === targetMod.mason_id)} 
-             />
-           </div>
-         </div>
-       ) : (
-         <EmptyState icon={t("icon_account_tree") || "account_tree"} title={t("sv_empty_title")} className="col-span-full py-16" />
-       )}
-       </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 2. The Main Body */}
+      <div className="flex-1 w-full relative z-0 h-full overflow-hidden flex flex-col pt-4">
+        {!targetMod ? (
+          <div className="w-full h-full flex items-center justify-center opacity-80 pb-32">
+            <EmptyState icon={t("icon_architecture") || "architecture"} className="py-24" />
+          </div>
+        ) : (
+          <div className="w-full flex flex-col gap-10 animate-in fade-in zoom-in-95 duration-500 pb-32 h-full">
+            
+            <div className="flex-1 relative z-10 flex flex-col h-full">
+              <ModStructureBuilder 
+                structure={targetMod.folder_structure || []} 
+                onChange={handleStructureChange} 
+                targetMod={targetMod}
+                availableMods={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === targetMod.mason_id)} 
+              />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

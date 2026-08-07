@@ -11,6 +11,8 @@ export function BrokenModsSidePanel({
 }: any) {
   const { t } = useLexicon();
 
+  const activeModsSet = new Set(playSets[activePlaySetIndex]?.mods || []);
+
   return (
     <SidePanel
       isOpen={showBrokenModal}
@@ -22,7 +24,7 @@ export function BrokenModsSidePanel({
     >
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-4">
         {modList.filter((m: any) => {
-          const isInActive = playSets[activePlaySetIndex]?.mods.includes(m.name);
+          const isInActive = activeModsSet.has(m.name);
           if (!isInActive) return false;
           const isBroken = typeof m.status === 'string' && m.status.toLowerCase() === 'broken' && m.compliance_tier !== 1 && m.compliance_tier !== 2;
           const isMismatch = m.isGhosted === true && m.ghostReason === "VERSION_MISMATCH";
@@ -49,7 +51,7 @@ export function BrokenModsSidePanel({
           );
         })}
         {modList.filter((m: any) => {
-          const isInActive = playSets[activePlaySetIndex]?.mods.includes(m.name);
+          const isInActive = activeModsSet.has(m.name);
           if (!isInActive) return false;
           const isBroken = typeof m.status === 'string' && m.status.toLowerCase() === 'broken' && m.compliance_tier !== 1 && m.compliance_tier !== 2;
           const isMismatch = m.isGhosted === true && m.ghostReason === "VERSION_MISMATCH";

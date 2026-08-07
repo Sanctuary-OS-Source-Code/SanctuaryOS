@@ -16,30 +16,38 @@ export function useVaultFiltering({
   maskedDLC
 }: any) {
   const activeSetModsMemo = React.useMemo(() => {
-    return playSets[activePlaySetIndex]?.mods || [];
+    console.time("VaultFiltering: activeSetModsMemo");
+    const res = playSets[activePlaySetIndex]?.mods || [];
+    console.timeEnd("VaultFiltering: activeSetModsMemo");
+    return res;
   }, [playSets, activePlaySetIndex]);
 
   const equippedDisplayMods = React.useMemo(() => {
-    return displayModList.filter((m: any) => {
-      const isNormal = activeSetModsMemo.includes(m.name);
-      if (isNormal) return true;
-      return activeSetModsMemo.some((sm: string) =>
-        sm.replace(/^(sanctuary[/\\])+/i, '') === m.name
-      );
+    console.time("VaultFiltering: equippedDisplayMods");
+    const normalSet = new Set(activeSetModsMemo);
+    const cleanedSet = new Set(activeSetModsMemo.map((sm: string) => sm.replace(/^(sanctuary[/\\])+/i, '')));
+
+    const res = displayModList.filter((m: any) => {
+      return normalSet.has(m.name) || cleanedSet.has(m.name);
     });
+    console.timeEnd("VaultFiltering: equippedDisplayMods");
+    return res;
   }, [displayModList, activeSetModsMemo]);
 
   const virtualFolderIds = React.useMemo(() => {
+    console.time("VaultFiltering: virtualFolderIds");
     const ids = new Set<string>();
     displayModList.forEach((v: any) => {
       if (v.isVirtual && v.dbId) {
         ids.add(String(v.dbId));
       }
     });
+    console.timeEnd("VaultFiltering: virtualFolderIds");
     return ids;
   }, [displayModList]);
 
   const localConflictsMemo = React.useMemo(() => {
+    console.time("VaultFiltering: localConflictsMemo");
     try {
       const stored = localStorage.getItem("sanctuary_local_conflicts");
       if (stored) {
@@ -55,7 +63,8 @@ export function useVaultFiltering({
   }, []);
 
   const uppercaseEquippedMods = React.useMemo(() => {
-    return equippedDisplayMods.map((mData: any) => {
+    console.time("VaultFiltering: uppercaseEquippedMods");
+    const res = equippedDisplayMods.map((mData: any) => {
       const nameRaw = String(mData.name || "").toUpperCase();
       return {
         mData,
@@ -64,6 +73,8 @@ export function useVaultFiltering({
         emDisp: String(mData.displayName || "").toUpperCase()
       };
     });
+    console.timeEnd("VaultFiltering: uppercaseEquippedMods");
+    return res;
   }, [equippedDisplayMods]);
 
   const modListIndex = React.useMemo(() => {
@@ -100,6 +111,7 @@ export function useVaultFiltering({
 
 
   const finalVisibleMods = React.useMemo(() => {
+    console.time("VaultFiltering: finalVisibleMods");
     const activeSetMods = playSets[activePlaySetIndex]?.mods || [];
     const extRegex = getExtensionRegex(activeGameSchema);
 
@@ -110,7 +122,7 @@ export function useVaultFiltering({
       return { n, cleanNLookup, cleanN, mData };
     });
 
-    return visibleMods.filter((mod: any) => {
+    const res = visibleMods.filter((mod: any) => {
       let modGameVersions: string[] = [];
       if (mod.isVirtual) {
         modGameVersions = Array.from(new Set((mod.flavors || []).flatMap((f: any) => {
@@ -163,10 +175,13 @@ export function useVaultFiltering({
           if (mObj.conflicts && mObj.conflicts.length > 0) {
             const hasConflict = mObj.conflicts.some((c: any) => {
               if (c.severity_rank != 4) return false;
+              let targetClean = "";
+              if (c.enemy_name) {
+                targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
+              }
               return parsedActiveSetMods.some(({ cleanNLookup, cleanN, mData }: any) => {
                 if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
-                if (c.enemy_name) {
-                  const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
+                if (targetClean) {
                   if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
                 }
                 return false;
@@ -267,14 +282,16 @@ export function useVaultFiltering({
           }
         }
       }
-
       if (mod.isVirtual) return true;
       const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
       return !folderExists;
     });
+
+    console.timeEnd("VaultFiltering: finalVisibleMods");
+    return res;
   }, [visibleMods, selectedVersion, hideGhostCards, playSets, activePlaySetIndex, activeGameSchema, equipFilter, archiveVersionFilter, ownedDLC, maskedDLC, virtualFolderIds, equippedDisplayMods, modListIndex]);
   const dependencyGraph = React.useMemo(() => {
-    const tStart = performance.now();
+    console.time("VaultFiltering: dependencyGraph");
     const graph = new Map<string, any[]>();
 
     // Create fast lookup maps for equipped mods
@@ -343,6 +360,7 @@ export function useVaultFiltering({
         arr.push(m);
       });
     });
+    console.timeEnd("VaultFiltering: dependencyGraph");
     return graph;
   }, [equippedDisplayMods]);
 

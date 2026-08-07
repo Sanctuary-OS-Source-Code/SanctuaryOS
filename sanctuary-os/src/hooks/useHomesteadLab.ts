@@ -56,12 +56,17 @@ export function useHomesteadLab(modList: any[], playSets: any[], setPlaySets: an
               modList.filter(m => String(m.flavorGroupId) === String(modObj.flavorGroupId) && m.name !== modObj.name)
                      .forEach(rival => deepDelete(rival.name));
           }
+          if (modObj.communityGroupId && currentRules.highlander !== false) {
+              modList.filter(m => String(m.communityGroupId) === String(modObj.communityGroupId) && m.name !== modObj.name)
+                     .forEach(rival => deepDelete(rival.name));
+          }
           newMods.add(modObj.name);
           const anchor = modObj.familyId || modObj.dbId;
           if (anchor && currentRules.family !== false) {
               modList.forEach(m => {
                   if ((String(m.familyId) === String(anchor) || String(m.dbId) === String(anchor)) && m.name && !m.isVirtual) {
-                      const isRival = m.flavorGroupId && String(m.flavorGroupId) === String(modObj.flavorGroupId) && m.name !== modObj.name;
+                      const isRival = (m.flavorGroupId && String(m.flavorGroupId) === String(modObj.flavorGroupId) && m.name !== modObj.name) ||
+                                      (m.communityGroupId && String(m.communityGroupId) === String(modObj.communityGroupId) && m.name !== modObj.name);
                       if (!isRival && (m.relationshipType === 'twin' || m.relationshipType === 'beta' || !m.relationshipType)) {
                           newMods.add(m.name);
                       }
