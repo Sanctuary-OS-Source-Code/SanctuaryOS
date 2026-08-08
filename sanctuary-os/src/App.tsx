@@ -174,11 +174,40 @@ function App() {
     }
     checkForUpdates();
 
-    let isProcessingDrop = false;
     let localIsDragging = false;
-    const unlistenPromise = getCurrentWebview().onDragDropEvent((event) => {
-      if (isProcessingDrop) return;
+    let dropQueue: string[] = [];
+    let dropTimeout: any = null;
 
+    const processDropQueue = async () => {
+      const paths = [...dropQueue];
+      dropQueue = [];
+
+      useModalStore.getState().setDroppedFiles(paths);
+      setIsDropzoneOpen(true);
+      setDropzoneState("ingesting");
+      setIngestProgress({ active: true, current: 0, total: paths.length });
+
+      const startTime = Date.now();
+      const hasMalware = await handleDroppedFiles(paths);
+
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 1500) {
+        await new Promise(r => setTimeout(r, 1500 - elapsed));
+      }
+
+      setIsDropzoneOpen(false);
+      setDropzoneState("awaiting");
+
+      if (!hasMalware) {
+        setTimeout(() => {
+          useModalStore.getState().setDroppedFiles([]);
+        }, 0);
+      }
+
+      setIngestProgress({ active: false, current: 0, total: 0 });
+    };
+
+    const unlistenPromise = getCurrentWebview().onDragDropEvent((event) => {
       if (event.payload.type === "enter" || event.payload.type === "over") {
         if (!localIsDragging) {
           localIsDragging = true;
@@ -194,36 +223,9 @@ function App() {
         useModalStore.getState().setIsDragging(false);
         const paths = event.payload.paths;
         if (paths && paths.length > 0) {
-          isProcessingDrop = true;
-          useModalStore.getState().setDroppedFiles(paths);
-          setIsDropzoneOpen(true);
-          setDropzoneState("ingesting");
-          setIngestProgress({ active: true, current: 0, total: paths.length });
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              setTimeout(async () => {
-                const startTime = Date.now();
-                const hasMalware = await handleDroppedFiles(paths);
-
-                const elapsed = Date.now() - startTime;
-                if (elapsed < 1500) {
-                  await new Promise(r => setTimeout(r, 1500 - elapsed));
-                }
-
-                isProcessingDrop = false;
-                setIsDropzoneOpen(false);
-                setDropzoneState("awaiting");
-
-                if (!hasMalware) {
-                  setTimeout(() => {
-                    useModalStore.getState().setDroppedFiles([]);
-                  }, 0);
-                }
-
-                setIngestProgress({ active: false, current: 0, total: 0 });
-              }, 50);
-            });
-          });
+          dropQueue.push(...paths);
+          if (dropTimeout) clearTimeout(dropTimeout);
+          dropTimeout = setTimeout(processDropQueue, 150);
         }
       }
     });

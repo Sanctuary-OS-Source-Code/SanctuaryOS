@@ -1,8 +1,6 @@
-import { SidePanel } from "../shared";
+import { SidePanel, ActionButton } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { standardSuccessButtonClass, standardDangerButtonClass } from "../shared";
-
 export function DropzoneSidePanel({
   isDropzoneOpen,
   isDragging,
@@ -44,14 +42,18 @@ export function DropzoneSidePanel({
               </div>
             ) : (
               <div className="flex justify-center items-center gap-4 w-full">
-                <button onClick={() => { handleDroppedFiles(droppedFiles); }} className={standardSuccessButtonClass}>
-                  <span className="material-symbols-outlined !text-[18px]">{t("icon_flight_takeoff")}</span>
-                  {t("btn_yeet")}
-                </button>
-                <button onClick={() => { useStore.getState().pushStatus(t("alert_quarantine")); setIsDropzoneOpen(false); setDropzoneState("awaiting"); setDroppedFiles([]); runRadarSweep(true); }} className={standardDangerButtonClass}>
-                  <span className="material-symbols-outlined !text-[18px]">{t("icon_warning_amber")}</span>
-                  {t("btn_quarantine")}
-                </button>
+                <ActionButton 
+                  onClick={() => { handleDroppedFiles(droppedFiles); }} 
+                  variant="accent" 
+                  icon={t("icon_flight_takeoff")} 
+                  label={t("btn_import")} 
+                />
+                <ActionButton 
+                  onClick={() => { useStore.getState().pushStatus(t("alert_quarantine")); setIsDropzoneOpen(false); setDropzoneState("awaiting"); setDroppedFiles([]); runRadarSweep(true); }} 
+                  variant="danger" 
+                  icon={t("icon_warning_amber")} 
+                  label={t("cancel")} 
+                />
               </div>
             )}
           </div>

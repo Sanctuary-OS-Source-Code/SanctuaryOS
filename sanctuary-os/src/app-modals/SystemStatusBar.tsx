@@ -23,10 +23,10 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
     if (!networkUpdates?.updated || typeof activePlaySetIndex !== 'number' || !playSets || !playSets[activePlaySetIndex]) return 0;
     const currentMods = playSets[activePlaySetIndex].mods || [];
     const safeMods = currentMods.map((m: any) => typeof m === 'string' ? m.toLowerCase().replace(/\\/g, '/') : '');
-    
+
     const filtered = networkUpdates.updated.filter((u: any) => {
-       const uName = String(u.name).split(/[\\/]/).pop()?.toLowerCase() || String(u.name).toLowerCase();
-       return safeMods.some((m: string) => m === uName || m.endsWith(`/${uName}`) || m.endsWith(`\\${uName}`));
+      const uName = String(u.name).split(/[\\/]/).pop()?.toLowerCase() || String(u.name).toLowerCase();
+      return safeMods.some((m: string) => m === uName || m.endsWith(`/${uName}`) || m.endsWith(`\\${uName}`));
     });
     return Object.keys(filtered.reduce((acc: any, u: any) => { acc[u.dbId || u.name] = true; return acc; }, {}) || {}).length || 0;
   }, [networkUpdates, activePlaySetIndex, playSets]);
@@ -165,19 +165,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           </button>
         )}
 
-        {/* 4. Blueprint Hot Swap */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsBlueprintSwapOpen(!isBlueprintSwapOpen);
-          }}
-          className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[var(--accent)]/[10%] group ${isBlueprintSwapOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
-        >
-          <span className={`material-symbols-outlined !text-[16px]`}>{t("icon_map")}</span>
-          <HoverTooltip title={t("playsets_title")} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !right-0 !left-auto !translate-x-0" />
-        </button>
-
-        {/* 5. Radar Sweep Panel */}
+        {/* 4. Radar Sweep Panel */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -187,6 +175,18 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
         >
           <span className={`material-symbols-outlined !text-[16px] ${radarIconColor}`}>{t("icon_radar")}</span>
           <HoverTooltip title={t("btn_radar")} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !right-0 !left-auto !translate-x-0" />
+        </button>
+
+        {/* 5. Blueprint Hot Swap */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsBlueprintSwapOpen(!isBlueprintSwapOpen);
+          }}
+          className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[var(--accent)]/[10%] group ${isBlueprintSwapOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
+        >
+          <span className={`material-symbols-outlined !text-[16px]`}>{t("icon_map")}</span>
+          <HoverTooltip title={t("playsets_title")} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !right-0 !left-auto !translate-x-0" />
         </button>
 
         {/* 6. System Status */}

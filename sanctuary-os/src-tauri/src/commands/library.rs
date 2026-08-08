@@ -365,6 +365,7 @@ pub fn ingest_dropped_file(
     app_state: tauri::State<'_, AppState>,
     path: String,
     force_replace: bool,
+    target_folder: Option<String>,
 ) -> Result<String, String> {
     let game_schema = app_state.active_schema.lock().unwrap().clone();
     let config = get_saved_coordinates();
@@ -399,12 +400,14 @@ pub fn ingest_dropped_file(
         let mut needs_hash = true;
 
         for (k, _) in cache.iter() {
-            if Path::new(k).file_name() == Some(source_file_name) && Path::new(k).exists() {
-                exists = true;
-                existing_name = k.clone();
-                match_reason = "NAME_MATCH".to_string();
-                needs_hash = false;
-                break;
+            if let Some(cached_name) = Path::new(k).file_name() {
+                if cached_name.to_string_lossy().to_lowercase() == source_file_name.to_string_lossy().to_lowercase() && Path::new(k).exists() {
+                    exists = true;
+                    existing_name = k.clone();
+                    match_reason = "NAME_MATCH".to_string();
+                    needs_hash = false;
+                    break;
+                }
             }
         }
 
@@ -436,7 +439,14 @@ pub fn ingest_dropped_file(
     let file_name = source.file_name().ok_or("INVALID_FILENAME")?;
 
     let mut target_dir = crate::utils::get_vault_mods_lane(&config.vault_path);
-    if source.is_file() {
+    if let Some(tf) = target_folder {
+        if !tf.is_empty() {
+            target_dir = target_dir.join(&tf);
+        } else if source.is_file() {
+            let file_stem = source.file_stem().unwrap_or_default().to_string_lossy().to_string();
+            target_dir = target_dir.join(&file_stem);
+        }
+    } else if source.is_file() {
         let file_stem = source.file_stem().unwrap_or_default().to_string_lossy().to_string();
         target_dir = target_dir.join(&file_stem);
     }

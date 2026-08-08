@@ -2305,6 +2305,8 @@
   "alert_error_mason_profile_missing": "Error: Creator Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
   "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
+  "status_conflicts_resolved": "Conflicts Resolved",
+  "btn_keep_new": "Keep",
   "btn_copy": "Copy",
   "edit": "Edit",
   "defcon_warnings_title": "OPERATIONAL IMPACT",

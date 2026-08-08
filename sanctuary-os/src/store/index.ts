@@ -248,17 +248,21 @@ export const useStore = create<GlobalState>((set) => ({
   setView: (view) => set({ view }),
   status: 'STANDING BY',
   setStatus: (status) => set((state) => {
-    let type: 'info' | 'error' | 'success' | 'warning' = 'info';
-    if (status.toLowerCase().includes('error') || status.toLowerCase().includes('fail') || status.includes('❌')) type = 'error';
-    if (status.toLowerCase().includes('success') || status.toLowerCase().includes('done') || status.includes('✅') || status.includes('icon_check_circle')) type = 'success';
-    if (state.statusLog.length > 0 && state.statusLog[0].message === status && (Date.now() - state.statusLog[0].timestamp) < 500) return state;
-    
-    const newEntry = { id: Math.random().toString(36).substr(2, 9), message: status, type, timestamp: Date.now() };
-    
     if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
     (window as any)._statusTimeout = setTimeout(() => {
       useStore.setState({ status: 'STANDING BY...' });
     }, 5000);
+
+    if (!status || status.trim() === '') {
+      return { status: status || 'STANDING BY...' };
+    }
+
+    let type: 'info' | 'error' | 'success' | 'warning' = 'info';
+    if (status.toLowerCase().includes('error') || status.toLowerCase().includes('fail') || status.includes('❌')) type = 'error';
+    if (status.toLowerCase().includes('success') || status.toLowerCase().includes('done') || status.includes('✅') || status.includes('icon_check_circle')) type = 'success';
+    if (state.statusLog.length > 0 && state.statusLog[0].message === status && (Date.now() - state.statusLog[0].timestamp) < 500) return { status };
+    
+    const newEntry = { id: Math.random().toString(36).substr(2, 9), message: status, type, timestamp: Date.now() };
 
     return { status, statusLog: [newEntry, ...state.statusLog].slice(0, 50) };
   }),
@@ -268,20 +272,24 @@ export const useStore = create<GlobalState>((set) => ({
   setCwMainTab: (tab) => set({ cwMainTab: tab }),
   statusLog: [],
   pushStatus: (message, type = 'info') => set((state) => {
+    if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
+    (window as any)._statusTimeout = setTimeout(() => {
+      useStore.setState({ status: 'STANDING BY...' });
+    }, 5000);
+
+    if (!message || message.trim() === '') {
+      return { status: message || 'STANDING BY...' };
+    }
+
     let finalType = type;
     if (finalType === 'info') {
       const lower = message.toLowerCase();
       if (lower.includes('error') || lower.includes('fail') || lower.includes('blocked') || lower.includes('revoked') || lower.includes('missing')) finalType = 'error';
       else if (lower.includes('success') || lower.includes('cleared') || lower.includes('done')) finalType = 'success';
     }
-    if (state.statusLog.length > 0 && state.statusLog[0].message === message && (Date.now() - state.statusLog[0].timestamp) < 500) return state;
+    if (state.statusLog.length > 0 && state.statusLog[0].message === message && (Date.now() - state.statusLog[0].timestamp) < 500) return { status: message };
 
     const newEntry = { id: Math.random().toString(36).substr(2, 9), message, type: finalType, timestamp: Date.now() };
-    
-    if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
-    (window as any)._statusTimeout = setTimeout(() => {
-      useStore.setState({ status: 'STANDING BY...' });
-    }, 5000);
 
     return { status: message, statusLog: [newEntry, ...state.statusLog].slice(0, 50) };
   }),
