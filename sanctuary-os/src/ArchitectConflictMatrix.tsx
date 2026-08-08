@@ -289,23 +289,23 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
 
                     {/* A vs B Section */}
                     <div className="flex flex-col gap-2 relative z-10 w-full mt-2">
-                      <div className="p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                        <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-                          <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
+                      <div className="flex flex-col gap-1">
+                        <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tierColor}`}>
+                          {t("enemy_a")}
                         </span>
                         <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{g.nameA}</span>
                       </div>
 
-                      <div className="relative h-px w-full flex items-center justify-center z-20 my-1">
-                        <div className="w-6 h-6 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex items-center justify-center bg-[var(--bg)] absolute">
-                          <span className="text-[7px] font-black text-[var(--subtext)] italic uppercase opacity-70">{t("vs")}</span>
+                      <div className="relative h-px w-full flex items-center justify-center z-20 my-2">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
+                          <span className="text-[7px] font-black italic uppercase">{t("vs")}</span>
                         </div>
-                        <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
+                        <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
                       </div>
 
-                      <div className="p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                        <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-                          <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
+                      <div className="flex flex-col gap-1">
+                        <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tierColor}`}>
+                          {t("enemy_b")}
                         </span>
                         <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{g.nameB}</span>
                       </div>
@@ -349,13 +349,9 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                     <EmptyState icon={searchTerm ? "search_off" : t("icon_check_circle") || "check_circle"} title={searchTerm ? t("no_matches") : t("no_active_conflicts") || "No active directives"} className="col-span-full py-16" />
                   ) : filteredActiveGhosts.slice(0, visibleCount).map((g) => {
                     const tierColor = g.severity_rank == 4 ? 'text-[var(--danger)]' : g.severity_rank == 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]';
-                    const glowC = g.severity_rank == 4 ? 'bg-[var(--danger)]/10 group-hover:bg-[var(--danger)]/20' : g.severity_rank == 3 ? 'bg-[var(--warning)]/10 group-hover:bg-[var(--warning)]/20' : 'bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20';
                     const borderHover = g.severity_rank == 4 ? 'hover:border-[var(--danger)]/30' : g.severity_rank == 3 ? 'hover:border-[var(--warning)]/30' : 'hover:border-[var(--accent)]/30';
                     return (
                       <div key={g.id} onClick={() => handleEditConflict(g)} className={`glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-1 ${borderHover} transition-all duration-500 overflow-hidden relative`}>
-
-                        <div className={`absolute top-0 right-0 w-48 h-48 blur-[50px] pointer-events-none mix-blend-screen transition-all duration-700 ${glowC}`} />
-                        <div className={`absolute bottom-0 left-0 w-48 h-48 blur-[50px] pointer-events-none mix-blend-screen transition-all duration-700 ${glowC}`} />
 
                         <div className="flex justify-between items-center z-10">
                           <div className="flex items-center gap-2">
@@ -365,24 +361,24 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                           <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank == 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>{t("ui_icon_logo")}{g.severity_rank}</span>
                         </div>
 
-                        <div className="flex flex-col gap-2 relative z-10 mt-2">
-                          <div className="p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                            <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-                              <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
+                        <div className="flex flex-col gap-2 relative z-10 w-full mt-2">
+                          <div className="flex flex-col gap-1">
+                            <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tierColor}`}>
+                              {t("enemy_a")}
                             </span>
                             <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{g.nameA}</span>
                           </div>
 
-                          <div className="relative h-px w-full flex items-center justify-center z-20 my-1">
-                            <div className="w-6 h-6 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex items-center justify-center bg-[var(--bg)] absolute">
-                              <span className="text-[7px] font-black text-[var(--subtext)] italic uppercase opacity-70">{t("vs")}</span>
+                          <div className="relative h-px w-full flex items-center justify-center z-20 my-2">
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
+                              <span className="text-[7px] font-black italic uppercase">{t("vs")}</span>
                             </div>
-                            <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
+                            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
                           </div>
 
-                          <div className="p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                            <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-                              <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
+                          <div className="flex flex-col gap-1">
+                            <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tierColor}`}>
+                              {t("enemy_b")}
                             </span>
                             <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{g.nameB}</span>
                           </div>
@@ -468,12 +464,6 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
             }
             noPadding={true}
             noScroll={true}
-            ambientGlows={
-              <>
-                <div className={`absolute -top-20 -right-20 w-96 h-96 rounded-full blur-[100px] pointer-events-none dark:mix-blend-screen transition-all duration-700 ${severity === 4 ? 'bg-[var(--danger)]/20' : severity === 3 ? 'bg-[var(--warning)]/20' : 'bg-[var(--accent)]/20'}`} />
-                <div className={`absolute -bottom-20 -left-20 w-96 h-96 rounded-full blur-[100px] pointer-events-none dark:mix-blend-screen transition-all duration-700 ${severity === 4 ? 'bg-[var(--danger)]/20' : severity === 3 ? 'bg-[var(--warning)]/20' : 'bg-[var(--accent)]/20'}`} />
-              </>
-            }
           >
             <div className="flex flex-col h-full overflow-hidden relative">
 
@@ -482,45 +472,54 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                 <form onSubmit={handleAddGhost} className="flex flex-col gap-8 relative z-10">
                   <div className="flex flex-col gap-6">
                     {editingGhost && (
-                      <div className="flex flex-col gap-2 p-5 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                      <div className="flex flex-col gap-2 relative z-10 w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-4">
                         <div className="flex justify-between items-center">
-                          <span className="opacity-60">{t("date_created")}</span>
-                          <span className="text-[var(--text)]">{new Date(editingGhost.created_at).toLocaleDateString()}</span>
+                          <span className="opacity-60 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">calendar_today</span>{t("date_created")}</span>
+                          <span className="text-[var(--text)] drop-shadow-md">{new Date(editingGhost.created_at).toLocaleDateString()}</span>
                         </div>
-                        <div className="flex justify-between items-center mt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3">
-                          <span className="opacity-60">{t("source")}</span>
-                          <span className="text-[var(--accent)]">{editingGhost.author_id ? (t("tab_architect")) : (t("source_system"))}</span>
+                        <div className="flex justify-between items-center mt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3 relative z-10">
+                          <span className="opacity-60 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">fingerprint</span>{t("source")}</span>
+                          <span className="text-[var(--accent)] drop-shadow-md">{editingGhost.author_id ? (t("tab_architect")) : (t("source_system"))}</span>
                         </div>
                       </div>
                     )}
 
-                    <div className="w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500 gap-3">
-                      <label className={`text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-2 ${severity === 4 ? 'text-[var(--danger)]' : severity === 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}><span className="material-symbols-outlined !text-[14px]">{t("icon_inventory_2")}</span> {t("enemy_a")}</label>
+                    <div className="flex flex-col gap-2 w-full">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-2">
+                        {t("enemy_a")}
+                      </label>
                       <ModSearchDropdown placeholder={t("enemy_a")} modList={allMods} selectedItem={modA} onSelect={setModA} onClear={() => setModA(null)} />
                     </div>
 
-                    <div className="relative h-px w-full flex items-center justify-center z-20 -my-4">
-                      <div className="w-8 h-8 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center bg-[var(--bg)] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                        <span className="text-[9px] font-black text-[var(--subtext)] italic uppercase">{t("vs")}</span>
+                    <div className="relative h-6 w-full flex items-center justify-center z-20 my-2">
+                      <div className="absolute left-6 right-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] z-10 pointer-events-none" />
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm relative z-20 text-[var(--subtext)]">
+                        <span className="text-[8px] font-black italic uppercase drop-shadow-md">{t("vs")}</span>
                       </div>
                     </div>
 
-                    <div className="w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500 gap-3">
-                      <label className={`text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-2 ${severity === 4 ? 'text-[var(--danger)]' : severity === 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}><span className="material-symbols-outlined !text-[14px]">{t("icon_error")}</span> {t("enemy_b")}</label>
+                    <div className="flex flex-col gap-2 w-full">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-2">
+                        {t("enemy_b")}
+                      </label>
                       <ModSearchDropdown placeholder={t("enemy_b")} modList={allMods} selectedItem={modB} onSelect={setModB} onClear={() => setModB(null)} />
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner relative z-50 transition-all hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
-                    <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest ml-1">{t("label_severity")}</label>
-                    <div className="flex flex-col gap-2 relative z-50">
+                  <div className="flex flex-col gap-2 w-full mt-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-2">
+                      {t("label_severity")}
+                    </label>
+                    <div className="relative z-50">
                       <CustomTierDropdown value={severity} onChange={setSeverity} />
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner relative z-10 transition-all hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] mb-8">
-                    <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest ml-1 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit_note")}</span> {t("resolution")}</label>
-                    <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("resolution")} className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent resize-none custom-scrollbar shadow-inner" />
+                  <div className="flex flex-col gap-2 w-full mt-2 mb-8">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-2">
+                      {t("resolution")}
+                    </label>
+                    <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("resolution")} className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-border-accent resize-none custom-scrollbar shadow-inner relative z-10 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]" />
                   </div>
 
                 </form>

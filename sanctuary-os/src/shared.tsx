@@ -68,12 +68,21 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
   type?: "button" | "submit" | "reset";
   form?: string;
   children?: React.ReactNode;
-  variant?: "default" | "primary" | "success" | "danger" | "accent" | "glass" | "warning";
+  variant?: "default" | "primary" | "success" | "danger" | "accent" | "glass" | "warning" | "world" | "engine";
 }) {
   let variantClasses = "";
   let borderColorVar = "--accent";
+  let customHoverColor = "";
 
   switch (variant) {
+    case "world":
+      variantClasses = "!border-indigo-500/[30%] !text-indigo-500 hover:!border-indigo-500/[50%] hover:!bg-indigo-500/[10%]";
+      customHoverColor = "rgba(99, 102, 241, 0.5)";
+      break;
+    case "engine":
+      variantClasses = "!border-rose-500/[30%] !text-rose-500 hover:!border-rose-500/[50%] hover:!bg-rose-500/[10%]";
+      customHoverColor = "rgba(244, 63, 94, 0.5)";
+      break;
     case "danger":
       variantClasses = "!border-red-500/[30%] !text-[var(--danger)] hover:!border-red-500/[50%] hover:!bg-red-500/[10%]";
       borderColorVar = "--danger";
@@ -106,7 +115,7 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
       onDoubleClick={onDoubleClick}
       disabled={disabled}
       className={`px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${variantClasses} ${className}`}
-      style={!disabled ? { '--tw-hover-border-color': `color-mix(in srgb, var(${borderColorVar}) 50%, transparent)` } as React.CSSProperties : undefined}
+      style={!disabled ? { '--tw-hover-border-color': customHoverColor || `color-mix(in srgb, var(${borderColorVar}) 50%, transparent)` } as React.CSSProperties : undefined}
     >
       {icon && <span className="material-symbols-outlined !text-[16px] transition-transform group-hover:-translate-y-0.5">{icon}</span>}
       {label}

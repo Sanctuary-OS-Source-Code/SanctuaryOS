@@ -98,8 +98,8 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
          <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0 relative z-30">
             <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
                <HubTabButton id="COMMAND" icon="dashboard" label={t("overview") || "OVERVIEW"} activeTab={mainTab} setTab={setMainTab as any} />
-               <HubTabButton id="CONFIGS" icon="settings" label={t("configs")} activeTab={mainTab} setTab={setMainTab as any} activeColorClass="bg-blue-500/10 text-blue-500 shadow-[inset_0_0_20px_rgba(59,130,246,0.15)]" />
-               <HubTabButton id="TEMPLATES" icon="data_object" label={t("ql_templates")} activeTab={mainTab} setTab={setMainTab as any} activeColorClass="bg-emerald-500/10 text-emerald-500 shadow-[inset_0_0_20px_rgba(16,185,129,0.15)]" />
+               <HubTabButton id="CONFIGS" icon="settings" label={t("configs")} activeTab={mainTab} setTab={setMainTab as any} />
+               <HubTabButton id="TEMPLATES" icon="data_object" label={t("ql_templates")} activeTab={mainTab} setTab={setMainTab as any} />
             </div>
          </div>
 

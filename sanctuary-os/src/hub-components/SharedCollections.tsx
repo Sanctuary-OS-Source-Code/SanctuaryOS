@@ -195,20 +195,13 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
       >
         {activeSet && (
           <div className="flex flex-col h-full gap-6">
-            <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                {t("metadata")}
-              </h4>
-              <div className="flex flex-col gap-2 relative z-10">
-                <input 
-                  value={activeSet.name || ""} 
-                  onChange={e => setActiveSet({...activeSet, name: e.target.value})} 
-                  placeholder={t("forge_set_name")}
-                  className="bg-transparent text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full"
-                />
-              </div>
+            <div className="flex flex-col gap-3 shrink-0 mb-4 mt-2">
+              <input 
+                value={activeSet.name || ""} 
+                onChange={e => setActiveSet({...activeSet, name: e.target.value})} 
+                placeholder={t("forge_set_name")}
+                className="bg-transparent text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full"
+              />
             </div>
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
@@ -528,20 +521,13 @@ export function CollectionForge({ setStatus }: any) {
       >
         {activeSet && (
           <div className="flex flex-col h-full gap-6">
-            <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                {t("metadata")}
-              </h4>
-              <div className="flex flex-col gap-2 relative z-10">
-                <input 
-                  value={activeSet.name || ""} 
-                  onChange={e => setActiveSet({...activeSet, name: e.target.value})} 
-                  placeholder={t("forge_set_name")}
-                  className="bg-transparent text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full"
-                />
-              </div>
+            <div className="flex flex-col gap-3 shrink-0 mb-4 mt-2">
+              <input 
+                value={activeSet.name || ""} 
+                onChange={e => setActiveSet({...activeSet, name: e.target.value})} 
+                placeholder={t("forge_set_name")}
+                className="bg-transparent text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full"
+              />
             </div>
             <div className="flex flex-col gap-4">
 

@@ -129,6 +129,8 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
       icon={assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[500px]"
+      backdropZ="z-[70000]"
+      panelZ="z-[70001]"
       coverImage={data?.image_url || data?.thumbnail_url}
       headerActions={
         data && (data.is_paid || data.is_early_access) ? (

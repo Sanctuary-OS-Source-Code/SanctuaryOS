@@ -1,7 +1,7 @@
 import { useState, Fragment } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { formatDisplayName, SidePanel , getFileLabel, isSupportedExtension} from "../shared";
+import { formatDisplayName, SidePanel, getFileLabel, isSupportedExtension, SidePanelActionFooter } from "../shared";
 
 const extractType = (name: string) => {
   const upper = String(name).toUpperCase();
@@ -52,9 +52,9 @@ interface ConflictResolutionSidebarProps {
 export default function ConflictResolutionSidebar({ conflict, onClose, onVault, onOverride, onUndo }: ConflictResolutionSidebarProps) {
   const { t } = useLexicon();
   const [selectedMod, setSelectedMod] = useState<string | null>(null);
-  
+
   if (!conflict) return null;
-  
+
   const isTier4 = conflict.severity_rank == 4;
   const isTier3 = conflict.severity_rank == 3;
   const isTier2 = conflict.severity_rank == 2;
@@ -70,24 +70,22 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
       widthClass="w-[500px]"
       footer={
         selectedMod ? (
-          <div className="flex flex-col gap-3 w-full animate-in slide-in-from-bottom-4">
-            <div className="flex gap-3 w-full">
-              <button 
-                onClick={() => { 
-                  if (isTier3) {
-                     onOverride(selectedMod, conflict.mod_pair);
-                  } else {
-                     const loser = conflict.modA === selectedMod ? conflict.modB : conflict.modA;
-                     onVault(loser);
-                  }
-                  onClose(); 
-                }} 
-                className="w-full py-5 bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] backdrop-blur-xl shadow-md hover:bg-emerald-500/[25%] hover:border-[var(--success)] hover:scale-105 active:scale-95 text-[11px] font-black tracking-[0.2em] uppercase rounded-[var(--radius)] transition-all flex flex-col items-center justify-center gap-1 group"
-              >
-                <span className="material-symbols-outlined !text-[24px] group-hover:scale-110 transition-transform">{t("icon_check_circle")}</span>
-                <span>{t("btn_set_winner")}</span>
-              </button>
-            </div>
+          <div className="w-full animate-in slide-in-from-bottom-4">
+            <SidePanelActionFooter
+              onAction={() => {
+                if (isTier3) {
+                  onOverride(selectedMod, conflict.mod_pair);
+                } else {
+                  const loser = conflict.modA === selectedMod ? conflict.modB : conflict.modA;
+                  onVault(loser);
+                }
+                onClose();
+              }}
+              actionLabel={t("btn_set_winner")}
+              actionIcon={t("icon_check_circle") || "check_circle"}
+              actionVariant="success"
+              onCancel={onClose}
+            />
           </div>
         ) : undefined
       }
@@ -98,14 +96,20 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
             {t("conflict_details")}
           </h3>
           {conflict.is_ghost && (
-             <div className={`px-4 py-3 border rounded-xl text-xs font-black tracking-wide ${isTier4 ? "bg-red-500/[10%] border-[var(--danger)] text-[var(--danger)]" : "bg-orange-500/[10%] border-[var(--warning)] text-[var(--warning)]"}`}>
-               <span className="material-symbols-outlined !text-[12px] opacity-70 mr-1">{t("icon_policy")}</span> {t("logical_clash")} {conflict.resolution_note}
+             <div className={`p-4 rounded-2xl border flex flex-col gap-2 relative overflow-hidden glass-panel backdrop-blur-md ${isTier4 ? "border-[var(--danger)]/20 shadow-[inset_0_0_20px_rgba(239,68,68,0.05)] bg-[var(--danger)]/5" : "border-[var(--warning)]/20 shadow-[inset_0_0_20px_rgba(245,158,11,0.05)] bg-[var(--warning)]/5"}`}>
+               <div className="flex items-center gap-2">
+                 <span className={`material-symbols-outlined !text-[16px] drop-shadow-md ${isTier4 ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>{t("icon_policy")}</span>
+                 <span className={`uppercase tracking-widest text-[10px] font-black ${isTier4 ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>{t("logical_clash")}</span>
+               </div>
+               <div className="opacity-80 font-bold pl-6 text-xs leading-relaxed text-[var(--text)]">
+                 {conflict.resolution_note}
+               </div>
              </div>
           )}
           <p className="text-sm text-[var(--text)] opacity-80 leading-relaxed font-bold">
-            {isTier4 
+            {isTier4
               ? (t("tier4_desc_winner"))
-              : isTier3 
+              : isTier3
                 ? (t("tier3_desc_winner"))
                 : (t("identical_assets_winner"))
             }
@@ -120,50 +124,52 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                 {idx === 1 && (
                   <div className="relative h-12 flex items-center justify-center z-20 shrink-0">
                     <div className="absolute left-8 right-8 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] z-10 pointer-events-none" />
-                    <div className={`relative z-20 w-8 h-8 rounded-full border flex items-center justify-center text-[9px] font-black shadow-xl transition-all pointer-events-none backdrop-blur-md ${
-                      isTier4 ? 'bg-[color-mix(in_srgb,var(--bg)_80%,var(--danger))] border-[var(--danger)] text-[var(--danger)]' : 
-                      isTier3 ? 'bg-[color-mix(in_srgb,var(--bg)_80%,var(--warning))] border-[var(--warning)] text-[var(--warning)]' : 
-                      'bg-[color-mix(in_srgb,var(--bg)_80%,var(--text))] border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--text)]'
-                    }`}>
+                    <div className={`relative z-20 w-8 h-8 rounded-full border flex items-center justify-center text-[9px] font-black shadow-xl transition-all pointer-events-none backdrop-blur-md ${isTier4 ? 'bg-[var(--bg)] border-[var(--danger)] text-[var(--danger)] shadow-[0_0_15px_rgba(239,68,68,0.3)]' :
+                        isTier3 ? 'bg-[var(--bg)] border-[var(--warning)] text-[var(--warning)] shadow-[0_0_15px_rgba(245,158,11,0.3)]' :
+                          'bg-[var(--bg)] border-[var(--accent)] text-[var(--accent)] shadow-[0_0_15px_rgba(99,102,241,0.3)]'
+                      }`}>
                       {t("vs")}
                     </div>
                   </div>
                 )}
                 <div className="flex flex-col relative z-10">
-                  <div 
+                  <div
                     onClick={() => setSelectedMod(modName)}
-                    className={`relative group cursor-pointer w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border glass-panel backdrop-blur-2xl ${
-                    isActive 
-                      ? `border-[var(--accent)] bg-[var(--accent)]/[10%] shadow-md scale-[1.02] z-10` 
-                      : `border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl`
-                  }`}
-                >
-                  {isActive && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)] to-transparent opacity-20 pointer-events-none mix-blend-overlay" />}
-                  
-                  <div className="relative p-6 flex items-center gap-6 z-10">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-500 ${
-                      isActive 
-                        ? 'border-[var(--accent)] bg-[var(--accent)]/[20%] shadow-md backdrop-blur-md' 
-                        : 'glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] shadow-inner'
-                    }`}>
-                      <span className={`material-symbols-outlined !text-[28px] transition-colors duration-500 ${isActive ? 'text-[var(--accent)] drop-shadow-[0_0_10px_var(--accent)]' : 'text-[var(--subtext)] opacity-70 group-hover:text-[var(--text)] group-hover:opacity-100'}`}>
-                        {t("icon_extension")}
-                      </span>
-                    </div>
+                    className={`relative group cursor-pointer w-full rounded-2xl overflow-hidden transition-all duration-500 border glass-panel backdrop-blur-2xl ${isActive
+                        ? `border-[var(--accent)] bg-[var(--accent)]/[15%] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] scale-[1.02] z-10`
+                        : `border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl`
+                      }`}
+                  >
+                    {isActive && (
+                      <>
+                        <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)] to-transparent opacity-10 pointer-events-none mix-blend-screen" />
+                        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-50" />
+                        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-20" />
+                      </>
+                    )}
 
-                    <div className="flex-1 flex flex-col min-w-0 w-full gap-2">
-                      <ModNameWithBadge name={modName} />
-                    </div>
+                    <div className="relative p-6 flex items-center gap-6 z-10">
+                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 ${isActive
+                          ? 'border-[var(--accent)] bg-[var(--accent)]/[20%] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent),0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-md'
+                          : 'glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] shadow-inner'
+                        }`}>
+                        <span className={`material-symbols-outlined !text-[28px] transition-colors duration-500 ${isActive ? 'text-[var(--accent)] drop-shadow-[0_0_10px_var(--accent)]' : 'text-[var(--subtext)] opacity-70 group-hover:text-[var(--text)] group-hover:opacity-100'}`}>
+                          {t("icon_extension")}
+                        </span>
+                      </div>
 
-                    <div className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all duration-500 ${
-                      isActive ? 'border-[var(--accent)]/60 bg-[var(--accent)]/20 text-[var(--accent)] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent group-hover:border-[color-mix(in_srgb,var(--text)_50%,transparent)] bg-black/20 shadow-inner'
-                    }`}>
-                      <span className={`material-symbols-outlined font-black transition-all duration-500 ${isActive ? '!text-[16px] drop-shadow-[0_0_8px_var(--accent)] scale-110' : '!text-[14px] scale-90'}`}>{t("icon_check")}</span>
+                      <div className="flex-1 flex flex-col min-w-0 w-full gap-2">
+                        <ModNameWithBadge name={modName} />
+                      </div>
+
+                      <div className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 transition-all duration-500 ${isActive ? 'border-[var(--accent)] bg-[var(--accent)]/20 text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_40%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent group-hover:border-[color-mix(in_srgb,var(--text)_50%,transparent)] bg-black/20 shadow-inner'
+                        }`}>
+                        <span className={`material-symbols-outlined font-black transition-all duration-500 ${isActive ? '!text-[18px] drop-shadow-[0_0_8px_var(--accent)] scale-110' : '!text-[16px] scale-90'}`}>{t("icon_check")}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </Fragment>
+              </Fragment>
             );
           })}
         </div>

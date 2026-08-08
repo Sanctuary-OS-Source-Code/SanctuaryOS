@@ -265,7 +265,7 @@ export default function Lab({
         title={t("lab_title")}
         subtitle={t("lab_subtitle")}
         icon={t("icon_science")}
-        iconColorClass="text-lime-400 border-lime-500/30"
+        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
       />
 
         <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">

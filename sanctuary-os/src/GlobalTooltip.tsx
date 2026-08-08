@@ -93,10 +93,10 @@ export function GlobalTooltip() {
             <div className="relative z-10 flex flex-col items-start gap-1 w-full">
               <div className={`${normalFont ? 'text-[11px] font-bold' : 'text-[10px] font-black uppercase tracking-[0.2em]'} flex items-start text-left gap-2 whitespace-pre-line drop-shadow-sm ${textColorClass}`}>
                 {!noIcon && <span className="material-symbols-outlined !text-[14px] shrink-0 mt-[1px]">{iconName}</span>}
-                <span>{title}</span>
+                <span className="break-all">{title}</span>
               </div>
               {subtitle && (
-                <span className="text-[10px] font-bold text-[var(--subtext)] text-left whitespace-pre-line mt-0.5 w-full leading-relaxed drop-shadow-sm">{subtitle}</span>
+                <span className="text-[10px] font-bold text-[var(--subtext)] text-left whitespace-pre-line mt-0.5 w-full leading-relaxed drop-shadow-sm break-all">{subtitle}</span>
               )}
             </div>
           </div>

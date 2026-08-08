@@ -303,6 +303,7 @@ export default function TimeCapsule({
               <div className="shrink-0 h-12">
                 {!confirmSealWorld ? (
                   <ActionButton
+                    variant="world"
                     icon="public"
                     className="h-12 px-6 py-0"
                     label={t("btn_seal_state")}
@@ -330,6 +331,7 @@ export default function TimeCapsule({
               <div className="shrink-0 h-12">
                 {!confirmSealEngine ? (
                   <ActionButton
+                    variant="engine"
                     icon="settings"
                     className="h-12 px-6 py-0"
                     label={t("btn_seal_engine")}
@@ -372,6 +374,7 @@ export default function TimeCapsule({
                       </h3>
                       {!confirmSealWorld ? (
                         <ActionButton
+                          variant="world"
                           icon="public"
                           className="h-10 px-6 py-0 shrink-0"
                           label={t("btn_seal_state")}
@@ -410,6 +413,7 @@ export default function TimeCapsule({
                       </h3>
                       {!confirmSealEngine ? (
                         <ActionButton
+                          variant="engine"
                           icon="settings"
                           className="h-10 px-6 py-0 shrink-0"
                           label={t("btn_seal_engine")}

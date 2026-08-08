@@ -986,58 +986,49 @@ export const DbpfScout = () => {
                         const displayLoserName = override.isManual ? cleanLoserPath : formatDisplayName(cleanLoserPath, activeGameSchema);
 
                         return (
-                          <UniversalCard
-                            key={`active_${idx}`}
-                            layout="vertical"
-                            icon="verified"
-                            title={t("active_override") || "ACTIVE OVERRIDE"}
-                            statusColor="border-[var(--accent)]"
-                            actions={
+                          <div key={`active_${idx}`} className="p-5 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-xl relative group/card hover:-translate-y-1 hover:shadow-2xl hover:border-[var(--accent)]/[50%] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]">
+                            <div className="absolute inset-0 bg-gradient-to-tr from-[var(--bg)]/5 to-transparent pointer-events-none z-0" />
+                            <div className="flex items-center justify-between relative z-10">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/20 flex items-center justify-center text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]">
+                                  <span className="material-symbols-outlined !text-[18px]">verified</span>
+                                </div>
+                                <h3 className="text-xs font-black uppercase tracking-widest text-[var(--accent)] drop-shadow-md">
+                                  {t("active_override") || "ACTIVE OVERRIDE"}
+                                </h3>
+                              </div>
                               <button
                                 onClick={() => override.isManual ? undoOverride(cleanWinnerPath).then(() => runRadar()) : unignoreConflict(override.pair).then(() => undoOverride(cleanWinnerPath).then(() => runRadar()))}
-                                className="w-8 h-8 rounded-full bg-red-500/[10%] border border-[var(--danger)]/20 text-[var(--danger)] hover:bg-red-500/[20%] transition-all flex items-center justify-center shadow-sm"
-                                title={t("revert_override") || "REVERT OVERRIDE"}
+                                className="w-8 h-8 rounded-full bg-red-500/[10%] border border-[var(--danger)]/20 text-[var(--danger)] hover:bg-red-500/[20%] transition-all flex items-center justify-center shadow-sm relative group/btn"
                               >
                                 <span className="material-symbols-outlined !text-[14px]">undo</span>
+                                <HoverTooltip title={t("revert_override") || "REVERT OVERRIDE"} variant="danger" className="z-[200] group-hover/btn:flex" />
                               </button>
-                            }
-                          >
-                            <div className="flex flex-col gap-3 relative z-10 w-full mt-4">
-                              <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[var(--accent)]/30">
-                                <div className="flex justify-between items-start mb-1">
-                                  <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-100 text-[var(--accent)]">
-                                    <span className="material-symbols-outlined !text-[12px]">check_circle</span> {t("winner") || "WINNING ARTIFACT"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                  <span className="text-sm font-black text-[var(--text)] truncate tracking-tight drop-shadow-md">
-                                    {displayWinnerName}
-                                  </span>
-                                </div>
-                                <p className="text-[9px] font-mono opacity-50 mt-1 truncate w-full" title={override.winnerPath}>{override.winnerPath}</p>
+                            </div>
+
+                            <div className="flex flex-col gap-2 relative z-10 w-full mt-2">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--accent)]">
+                                  {t("winner") || "WINNING ARTIFACT"}
+                                </span>
+                                <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{displayWinnerName}</span>
                               </div>
 
-                              <div className="flex items-center justify-center -my-3 relative z-20 pointer-events-none">
-                                <div className="w-6 h-6 rounded-full border shadow-lg flex items-center justify-center bg-[var(--bg)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]">
-                                  <span className="material-symbols-outlined !text-[14px]">arrow_downward</span>
+                              <div className="relative h-px w-full flex items-center justify-center z-20 my-2">
+                                <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
+                                  <span className="text-[7px] font-black italic uppercase">{t("vs")}</span>
                                 </div>
+                                <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
                               </div>
 
-                              <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-black/40 border-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-50">
-                                <div className="flex justify-between items-start mb-1">
-                                  <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
-                                    <span className="material-symbols-outlined !text-[12px]">visibility_off</span> {t("overridden_file") || "OVERRIDDEN ARTIFACT"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                  <span className="text-sm font-black text-[var(--text)] truncate tracking-tight drop-shadow-md">
-                                    {displayLoserName}
-                                  </span>
-                                </div>
-                                <p className="text-[9px] font-mono opacity-50 mt-1 truncate w-full" title={override.loserPath}>{override.loserPath}</p>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
+                                  {t("overridden_file") || "OVERRIDDEN ARTIFACT"}
+                                </span>
+                                <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{displayLoserName}</span>
                               </div>
                             </div>
-                          </UniversalCard>
+                          </div>
                         );
                       })}
 
@@ -1049,59 +1040,49 @@ export const DbpfScout = () => {
                         const rightName = right.split(/[/\\]/).pop();
 
                         return (
-                          <UniversalCard
-                            key={`ignored_${i}`}
-                            layout="vertical"
-                            icon="visibility_off"
-                            title={t("ignored_conflict") || "IGNORED CONFLICT"}
-                            statusColor="border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
-                            isGhosted={true}
-                            actions={
+                          <div key={`ignored_${i}`} className="p-5 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl relative group/card hover:-translate-y-1 hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
+                            <div className="absolute inset-0 bg-gradient-to-tr from-[var(--bg)]/5 to-transparent pointer-events-none z-0" />
+                            <div className="flex items-center justify-between relative z-10">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] shadow-sm">
+                                  <span className="material-symbols-outlined !text-[18px]">visibility_off</span>
+                                </div>
+                                <h3 className="text-xs font-black uppercase tracking-widest text-[var(--text)] drop-shadow-md opacity-80">
+                                  {t("ignored_conflict") || "IGNORED CONFLICT"}
+                                </h3>
+                              </div>
                               <button
                                 onClick={() => unignoreConflict(pair).then(() => runRadar())}
-                                className="w-8 h-8 rounded-full bg-[var(--accent)]/[10%] border border-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/[20%] transition-all flex items-center justify-center shadow-sm"
-                                title={t("unignore_conflict") || "UNIGNORE"}
+                                className="w-8 h-8 rounded-full bg-[var(--accent)]/[10%] border border-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/[20%] transition-all flex items-center justify-center shadow-sm relative group/btn"
                               >
                                 <span className="material-symbols-outlined !text-[14px]">undo</span>
+                                <HoverTooltip title={t("unignore_conflict") || "UNIGNORE"} variant="accent" className="z-[200] group-hover/btn:flex" />
                               </button>
-                            }
-                          >
-                            <div className="flex flex-col gap-3 relative z-10 w-full mt-4">
-                              <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                                <div className="flex justify-between items-start mb-1">
-                                  <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
-                                    <span className="material-symbols-outlined !text-[12px]">inventory_2</span> {t("ignored_file_a") || "ARTIFACT A"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                  <span className="text-sm font-black text-[var(--text)] truncate tracking-tight drop-shadow-md">
-                                    {formatDisplayName(leftName || "", activeGameSchema)}
-                                  </span>
-                                </div>
-                                <p className="text-[9px] font-mono opacity-50 mt-1 truncate w-full" title={left}>{left}</p>
-                              </div>
-
-                              <div className="flex items-center justify-center -my-3 relative z-20 pointer-events-none">
-                                <div className="w-6 h-6 rounded-full border shadow-lg flex items-center justify-center bg-[var(--bg)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]">
-                                  <span className="material-symbols-outlined !text-[14px]">visibility_off</span>
-                                </div>
-                              </div>
-
-                              <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                                <div className="flex justify-between items-start mb-1">
-                                  <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
-                                    <span className="material-symbols-outlined !text-[12px]">inventory_2</span> {t("ignored_file_b") || "ARTIFACT B"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                  <span className="text-sm font-black text-[var(--text)] truncate tracking-tight drop-shadow-md">
-                                    {formatDisplayName(rightName || "", activeGameSchema)}
-                                  </span>
-                                </div>
-                                <p className="text-[9px] font-mono opacity-50 mt-1 truncate w-full" title={right}>{right}</p>
-                              </div>
                             </div>
-                          </UniversalCard>
+
+                              <div className="flex flex-col gap-2 relative z-10 w-full mt-2">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
+                                    {t("ignored_file_a") || "ARTIFACT A"}
+                                  </span>
+                                  <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{formatDisplayName(leftName || "", activeGameSchema)}</span>
+                                </div>
+
+                                <div className="relative h-px w-full flex items-center justify-center z-20 my-2">
+                                  <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
+                                    <span className="text-[7px] font-black italic uppercase">{t("vs")}</span>
+                                  </div>
+                                  <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
+                                    {t("ignored_file_b") || "ARTIFACT B"}
+                                  </span>
+                                  <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{formatDisplayName(rightName || "", activeGameSchema)}</span>
+                                </div>
+                              </div>
+                          </div>
                         );
                       })}
                     </div>

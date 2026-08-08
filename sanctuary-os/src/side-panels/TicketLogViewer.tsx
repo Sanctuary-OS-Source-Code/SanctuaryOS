@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { SidePanel , getExtensionRegex, HubTabButton, ActionButton } from "../shared";
+import { SidePanel , getExtensionRegex, HubTabButton, ActionButton, SidePanelActionFooter } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { UniversalSearch } from "../components/universal/UniversalLayout";
@@ -267,6 +267,17 @@ export default function TicketLogViewer({
             icon={t("icon_map")}
             iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
             widthClass="w-full md:w-[550px]"
+            footer={
+                <SidePanelActionFooter 
+                    onCancel={() => setBlueprintJson(null)}
+                    cancelLabel={t("nav_cancel")}
+                    cancelIcon="close"
+                    onAction={handleImportBlueprint}
+                    actionLabel={t("playsets_btn_import")}
+                    actionIcon={t("icon_download") || "download"}
+                    actionVariant="success"
+                />
+            }
           >
              <div className="flex flex-col min-h-full gap-4 relative pb-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-2 flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-3">
@@ -290,16 +301,6 @@ export default function TicketLogViewer({
                             </div>
                           );
                       })}
-                    </div>
-                    
-                    <div className="pt-8 mt-auto shrink-0 w-full flex justify-center">
-                        <button 
-                            onClick={handleImportBlueprint}
-                            className="w-full max-w-[300px] h-12 bg-[var(--success)]/[15%] border border-[var(--success)]/[40%] text-[var(--success)] hover:bg-[var(--success)]/[25%] hover:shadow-[0_0_20px_rgba(var(--success-rgb),0.3)] rounded-[var(--radius)] font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 active:scale-95 transition-all"
-                        >
-                            <span className="material-symbols-outlined !text-[18px]">{t("icon_download") || "download"}</span>
-                            {t("playsets_btn_import")}
-                        </button>
                     </div>
              </div>
           </SidePanel>
