@@ -48,8 +48,8 @@ function NavButton({
         onMouseLeave={handleMouseLeave}
         className={`w-full flex items-center gap-4 px-6 py-4 rounded-[var(--radius)] transition-all duration-500 group relative
           ${isActive
-            ? (isAccent ? "theme-bg-accent/10 theme-text-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] border border-[var(--accent)]/[30%] backdrop-blur-md" : "bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--sidebartext)] shadow-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)]")
-            : (isAccent ? "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:theme-bg-accent/5 hover:theme-text-accent border border-transparent" : "text-[var(--sidebartext)] opacity-60 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-gray-300 border border-transparent")
+            ? (isAccent ? "theme-bg-accent/10 theme-text-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] border border-[var(--accent)]/[30%] backdrop-blur-md" : "bg-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)] text-[var(--sidebartext)] shadow-lg border border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)]")
+            : (isAccent ? "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:theme-bg-accent/5 hover:theme-text-accent border border-transparent" : "text-[var(--sidebartext)] opacity-60 hover:bg-[color-mix(in_srgb,var(--sidebartext)_5%,transparent)] hover:opacity-100 border border-transparent")
           } ${isCollapsed ? 'justify-center px-0' : ''}`}
       >
         <div className="absolute inset-0 overflow-hidden rounded-[var(--radius)] pointer-events-none">
@@ -118,11 +118,11 @@ export function Sidebar({
       }}
     >
       <div
-        className="absolute inset-x-0 bottom-0 z-[-1] backdrop-blur-3xl border-r border-black/5 dark:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-500 shadow-[4px_0_30px_rgba(0,0,0,0.05)]"
-        style={{ top: 0, backgroundColor: "color-mix(in srgb, var(--sidebar) 40%, transparent)" }}
+        className="absolute inset-x-0 bottom-0 z-[-1] backdrop-blur-3xl border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-500 shadow-[4px_0_30px_rgba(0,0,0,0.05)]"
+        style={{ top: '50px', backgroundColor: "color-mix(in srgb, var(--sidebar) 40%, transparent)" }}
       />
 
-      <div className="h-[80px] shrink-0" />
+      <div className="h-[50px] shrink-0" />
 
       {!isSidebarCollapsed && useStore.getState().workspaces?.length > 0 && (
         <div className="px-6 pt-5 pb-3 flex items-center justify-between group/header cursor-pointer" onClick={() => setIsWorkspacePanelOpen(true)}>

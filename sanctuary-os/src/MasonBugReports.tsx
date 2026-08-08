@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import TicketDossierSidePanel from './side-panels/TicketDossierSidePanel';
 import { useStore } from "./store";
+import { UniversalCard } from "./components/universal/UniversalCard";
 
 export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?: string, onEditMetadata?: (hash: string) => void }) {
     const { t } = useLexicon();
@@ -267,67 +268,72 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
 
                     return (
                         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                            {filteredTickets.map(ticket => (
-                                <div
+                            {filteredTickets.map(ticket => {
+                                const statusClass = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'border-rose-500/50' :
+                                                    ticket.status?.toLowerCase() === 'resolved' ? 'border-emerald-500/50' :
+                                                    ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'border-amber-500/50' :
+                                                    ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500/50' :
+                                                    'border-[var(--accent)]/50';
+
+                                const iconName = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'support_agent' : 
+                                                 ticket.status?.toLowerCase() === 'resolved' ? 'done_all' : 
+                                                 ticket.status?.toLowerCase() === 'investigating' ? 'warning' : 
+                                                 ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' : 
+                                                 'bug_report';
+
+                                const badgeClass = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 group-hover:bg-rose-500/20' :
+                                                   ticket.status?.toLowerCase() === 'resolved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:bg-emerald-500/20' :
+                                                   ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' :
+                                                   ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' :
+                                                   'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20';
+
+                                return (
+                                <UniversalCard
                                     key={ticket.id}
-                                    className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
                                     onClick={() => setSelectedTicket(ticket)}
-                                >
-                                    <div className={`absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-gradient-to-br from-fuchsia-500/10 to-transparent' : 'bg-gradient-to-br from-[var(--accent)]/5 to-transparent'}`} />
-
-                                    <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
-                                        ${ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-rose-500/50 group-hover:bg-rose-500 group-hover:shadow-md' : ''}
-                                        ${ticket.status?.toLowerCase() === 'resolved' ? 'bg-emerald-500/50 group-hover:bg-emerald-500 group-hover:shadow-md' : ''}
-                                        ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/50 group-hover:bg-amber-500 group-hover:shadow-md' : ''}
-                                        ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/50 group-hover:bg-fuchsia-500 group-hover:shadow-md' : ''}
-                                        ${!['open', 'new', 'resolved', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)]' : ''}
-                                    `} />
-
-                                    <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
-                                        <div className="flex justify-between items-start gap-4">
-                                            <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500/30 group-hover:border-fuchsia-500/50' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[var(--accent)]/30'}`}>
-                                                <span className={`material-symbols-outlined !text-[24px] transition-colors duration-500 opacity-50 group-hover:opacity-100 ${ticket.status?.toLowerCase() === 'escalated' ? 'text-fuchsia-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
-                                                    {ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'support_agent' : ticket.status?.toLowerCase() === 'resolved' ? 'done_all' : ticket.status?.toLowerCase() === 'investigating' ? 'warning' : ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' : 'bug_report'}
-                                                </span>
-                                            </div>
-                                            <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors
-                                                ${ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 group-hover:bg-rose-500/20' : ''}
-                                                ${ticket.status?.toLowerCase() === 'resolved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:bg-emerald-500/20' : ''}
-                                                ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' : ''}
-                                                ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' : ''}
-                                            `}>
-                                                {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
+                                    layout="vertical"
+                                    icon={iconName}
+                                    title={ticket.title}
+                                    statusColor={statusClass}
+                                    badges={[
+                                        <span key="status" className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors ${badgeClass}`}>
+                                            {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
+                                        </span>
+                                    ]}
+                                    footer={
+                                        <div className="flex justify-between items-center w-full">
+                                            <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60">
+                                                <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
+                                                {new Date(ticket.created_at).toLocaleDateString()}
                                             </span>
-                                        </div>
-
-                                        <h3 className="font-black text-xl leading-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors uppercase tracking-widest line-clamp-2 mt-2">
-                                            {ticket.title}
-                                        </h3>
-
-                                        <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity flex-1">
-                                            {ticket.description}
-                                        </p>
-
-                                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-4">
-                                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
-                                                    <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
-                                                    {new Date(ticket.created_at).toLocaleDateString()}
-                                                </span>
-                                                {ticket.metadata?.target_mod_id && (
-                                                    <span className="text-[10px] font-mono text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity min-w-0 flex-1">
-                                                        <span className="material-symbols-outlined !text-[14px] normal-case shrink-0">{t("icon_extension")}</span>
-                                                        <span className="truncate">{ticket.target_mod_name || ticket.metadata.target_mod_id}</span>
-                                                    </span>
-                                                )}
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex -space-x-2">
+                                                    {ticket.author_id && (
+                                                        <div className="w-6 h-6 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden">
+                                                            <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${ticket.author_id}`} alt="avatar" className="w-full h-full opacity-80 mix-blend-screen" />
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                                                {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
-                                            </button>
                                         </div>
+                                    }
+                                >
+                                    <div className="mt-2 text-xs font-medium text-[var(--subtext)] leading-relaxed line-clamp-3 mb-4">
+                                        {ticket.description}
                                     </div>
-                                </div>
-                            ))}
+                                    {ticket.target_mod_name && (
+                                        <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-5 h-5 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0">
+                                                    <span className="material-symbols-outlined !text-[10px] text-[var(--subtext)]">{t("icon_extension")}</span>
+                                                </div>
+                                                <span className="text-[10px] font-bold text-[var(--text)] truncate">{ticket.target_mod_name}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </UniversalCard>
+                            );
+                        })}
                         </div>
                     );
                 })()}

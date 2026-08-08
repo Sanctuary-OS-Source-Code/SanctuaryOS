@@ -1,3 +1,4 @@
+import { SearchBar } from "./shared";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import IconPicker from "./IconPicker";
 import MarkdownRenderer from "./MarkdownRenderer";
@@ -5,13 +6,16 @@ import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
-import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+import {
+  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, HubTabs, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, HoverTooltip, ActionButton,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion } from "./shared";
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
+} from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
+import { UniversalCard } from "./components/universal/UniversalCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
 import { MasonStatusDropdown } from "./MasonHub";
 import { logArchitectAction } from "./lib/audit";
@@ -280,13 +284,13 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     let finalContent = content;
     if (editor) {
       finalContent = (editor.storage as any).markdown.getMarkdown();
       setContent(finalContent);
     }
-    
+
     if (!title.trim() || !finalContent.trim()) return;
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -385,61 +389,109 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       p.content?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [posts, searchTerm]);
-
   const draftKeysStr = useMemo(() => Object.keys(masonHubDrafts).sort().join(','), [masonHubDrafts]);
 
   const postCards = useMemo(() => {
     const draftSet = new Set(draftKeysStr.split(','));
-    return filteredPosts.map(post => (
-      <div key={post.id} className={`glass-panel p-5 rounded-[var(--radius)] relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden ${draftSet.has(post.id) ? '!border-amber-500/30 text-amber-500 !bg-amber-500/10 hover:!bg-amber-500/20 hover:!border-amber-500/50 shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : post.is_pinned ? '!border-[var(--accent)]/30 !bg-[var(--accent)]/5 shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)]' : 'border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
-        {extractPostImage(post) && (
-        <div className="-mx-5 -mt-5 rounded-t-3xl overflow-hidden h-36 bg-black/40 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 z-10">
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none" />
-          <img src={extractPostImage(post)} alt={t("auto_cover")} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
-        </div>
-      )}
-      <div className="flex flex-col gap-1 pr-4 z-10">
-        <div className="flex items-center gap-2 mb-1">
-          {post.is_pinned && (
-            <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 backdrop-blur-md">
-              <span className="material-symbols-outlined !text-[10px]">{t("icon_push_pin")}</span>
-              {t("pinned") || "PINNED"}
-            </span>
+    return filteredPosts.map(post => {
+      const isDraft = draftSet.has(post.id);
+      const imageUrl = extractPostImage(post);
+      const showImage = !!imageUrl;
+
+      return (
+        <div
+          key={post.id}
+          className={`glass-panel p-4 rounded-[var(--radius)] flex flex-col gap-4 group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden border ${isDraft ? 'border-amber-500/50' : post.is_pinned ? 'border-[var(--accent)]/50' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
+        >
+          {/* Background Hover Effect */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+          {/* Floating Status Badges (Absolute to Card) */}
+          <div className="absolute top-4 right-4 z-20 flex gap-2">
+            {post.is_pinned && (
+              <div className="w-6 h-6 rounded-full bg-[var(--accent)] text-[var(--bg)] shadow-md flex items-center justify-center">
+                <span className="material-symbols-outlined !text-[12px]">{t("icon_push_pin")}</span>
+              </div>
+            )}
+            {isDraft && (
+              <div className="w-6 h-6 rounded-full bg-[var(--warning)] text-[var(--bg)] shadow-md flex items-center justify-center group/draft">
+                <span className="material-symbols-outlined !text-[12px]">{t("icon_edit_note")}</span>
+                <div className="absolute right-full mr-2 px-2 py-1 bg-[var(--warning)]/90 backdrop-blur-md text-[var(--bg)] text-[8px] font-black uppercase tracking-widest rounded shadow-lg opacity-0 group-hover/draft:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  {t("ph_unsaved_changes") || "UNSAVED EDITS"}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Header: Author & Category */}
+          <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] flex items-center justify-center shadow-md cursor-pointer hover:scale-105 hover:border-[var(--accent)] transition-all"
+              >
+                <span className="text-sm font-black">{post.masons?.name?.charAt(0) || '?'}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)]">
+                  {post.masons?.name || t("unknown_architect") || "Unknown Architect"}
+                </span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest">{new Date(post.created_at).toLocaleDateString()}</span>
+                  <span className="text-[8px] px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] font-black uppercase tracking-widest">
+                    {post.category === 'dispatch' ? (t("dispatch") || "DISPATCH") : (t("comm_link") || "COMM-LINK")}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Image (if any) */}
+          {showImage && (
+            <div className="w-full h-40 rounded-[calc(var(--radius)-8px)] overflow-hidden shrink-0 relative shadow-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] z-10">
+              <img src={imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+            </div>
           )}
-          <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{new Date(post.created_at).toLocaleDateString()}</span>
+
+          {/* Content Area */}
+          <div className="flex flex-col flex-1 z-10">
+            <h3 className="text-base font-black uppercase tracking-widest text-[var(--text)] leading-tight mb-2 group-hover:theme-text-accent transition-colors duration-300">
+              {post.title}
+            </h3>
+
+            <p className="text-[11px] font-mono text-[var(--subtext)] opacity-70 leading-relaxed whitespace-pre-wrap break-words line-clamp-3 transition-opacity group-hover:opacity-100">
+              {post.description ? post.description : (stripMarkdown(post.content).length > 300 ? stripMarkdown(post.content).substring(0, 300) + '...' : stripMarkdown(post.content))}
+            </p>
+          </div>
+
+          {/* Footer Actions */}
+          <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center z-10">
+            <div className="flex gap-2">
+              {confirmDelete === post.id ? (
+                <>
+                  <span className="text-[9px] font-black text-[var(--danger)] uppercase tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
+                  </span>
+                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span></button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="w-8 h-8 rounded-lg bg-[var(--danger)] text-[var(--bg)] flex items-center justify-center hover:scale-105 transition-all shadow-md"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span></button>
+                </>
+              ) : (
+                <>
+                  <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[var(--accent)] hover:text-[var(--bg)] transition-all flex items-center justify-center shadow-sm group/btn relative">
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span>
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-orange-500 hover:text-white transition-all flex items-center justify-center shadow-sm">
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span>
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm">
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
-        <h4 className="text-lg font-black text-[var(--text)] uppercase tracking-tighter line-clamp-1">{post.title}</h4>
-      </div>
-      {draftSet.has(post.id) && (
-        <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-[var(--warning)] bg-[var(--warning)]/20 border border-[var(--warning)]/40 px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none backdrop-blur-xl">
-          <span className="material-symbols-outlined !text-[12px]">{t("icon_edit_note")}</span>
-          {t("ph_unsaved_changes") || "UNSAVED EDITS"}
-        </div>
-      )}
-      <div className="flex-1 relative z-10 -mx-1">
-        <p className="text-[11px] font-mono text-[var(--subtext)] opacity-70 leading-relaxed whitespace-pre-wrap break-words line-clamp-5">
-          {post.description ? post.description : (stripMarkdown(post.content).length > 300 ? stripMarkdown(post.content).substring(0, 300) + '...' : stripMarkdown(post.content))}
-        </p>
-      </div>
-      <div className={`mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 relative z-20 ${confirmDelete === post.id ? 'justify-center w-full' : 'justify-end'}`}>
-        {confirmDelete === post.id ? (
-          <>
-            <span className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
-            </span>
-            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("nav_cancel")}</button>
-            <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] bg-red-500/[10%] border border-red-500/[30%] hover:bg-red-500/[20%] hover:border-red-500/[50%] hover:shadow-md transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span> {t("purge")}</button>
-          </>
-        ) : (
-          <>
-            <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:bg-[var(--accent)]/[15%] hover:shadow-md border border-transparent hover:border-[var(--accent)]/[30%] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("btn_view")}</button>
-            <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--warning)] hover:bg-orange-500/[15%] hover:shadow-md border border-transparent hover:border-orange-500/[30%] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span> {t("emote_edit")}</button>
-            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] hover:bg-red-500/[15%] hover:shadow-md border border-transparent hover:border-red-500/[30%] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span> {t("purge")}</button>
-          </>
-        )}
-      </div>
-    </div>
-  ));
+      );
+    });
   }, [filteredPosts, draftKeysStr, confirmDelete, t, setPreviewPost]);
 
   return (
@@ -453,18 +505,12 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
         </h2>
         <div className="relative flex-1 max-w-xl ml-auto flex gap-4 items-center justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-            <input
+            <SearchBar
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={setSearchTerm}
               placeholder={t("mason_search_placeholder")}
-              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="h-12 w-full rounded-2xl"
             />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-              </button>
-            )}
           </div>
           <ActionButton
             onClick={() => openEditor()}
@@ -496,18 +542,38 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
                 {((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? (
-                  <ActionButton onClick={handleDiscardChanges} disabled={isSubmitting} label={confirmDiscard ? (t("ui_confirm_discard") || "Confirm Discard") : (t("ui_btn_discard_edits") || "DISCARD EDITS")} className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]">
-                    
-                  </ActionButton>
+                  <ActionButton 
+                    onClick={handleDiscardChanges} 
+                    disabled={isSubmitting} 
+                    label={confirmDiscard ? (t("ui_confirm_discard") || "Confirm Discard") : (t("ui_btn_discard_edits") || "DISCARD EDITS")} 
+                    variant="danger"
+                    icon="delete"
+                  />
                 ) : (
-                  <ActionButton onClick={closeEditor} disabled={isSubmitting} label={t("nav_cancel")}></ActionButton>
+                  <ActionButton 
+                    onClick={closeEditor} 
+                    disabled={isSubmitting} 
+                    label={t("nav_cancel")}
+                    variant="danger"
+                    icon="close"
+                  />
                 )}
+                
+                <ActionButton
+                   onClick={closeEditor}
+                   disabled={isSubmitting}
+                   variant="accent"
+                   label={t("local_save") || "LOCAL SAVE"}
+                   icon="save"
+                />
+
                 <div className="relative group/btn flex">
                   <ActionButton
                      onClick={handleSubmit}
                      disabled={isSubmitting || !title || !content}
-                     className={((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? "!border-[var(--warning)]/50 !text-[var(--warning)] hover:!bg-[var(--warning)]/20 hover:!text-[var(--warning)] hover:!shadow-[0_0_30px_rgba(var(--warning-rgb),0.4)]" : ""}
+                     variant={((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? "warning" : "success"}
                      label={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
+                     icon="cloud_upload"
                   />
                   {((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) && (
                     <HoverTooltip title={t("ph_unsaved_changes") || "UNSAVED EDITS"} variant="warning" className="group-hover/btn:flex z-[100]" />
@@ -520,10 +586,10 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
               <div className="flex border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-4 pb-4">
                 <div className="w-96 shrink-0">
-                  <HubTabs 
-                    tabs={[{id: 'edit', label: t("editor")}, {id: 'preview', label: t("preview")}]} 
-                    activeTab={viewMode} 
-                    setTab={setViewMode} 
+                  <HubTabs
+                    tabs={[{ id: 'edit', label: t("editor") }, { id: 'preview', label: t("preview") }]}
+                    activeTab={viewMode}
+                    setTab={setViewMode}
                   />
                 </div>
 
@@ -684,13 +750,11 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
         <div className="flex flex-col gap-6">
           <div className="animate-in slide-in-from-top-2">
             <div className="relative w-full">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-              <input
+              <SearchBar
                 value={assetSearchQuery}
-                onChange={(e) => setAssetSearchQuery(e.target.value)}
+                onChange={setAssetSearchQuery}
                 placeholder={t("search_assets")}
-                className="w-full glass-panel rounded-2xl pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 shadow-inner"
-                autoFocus
+                className="h-12 w-full rounded-2xl"
               />
             </div>
           </div>

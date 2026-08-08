@@ -4,7 +4,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { LogicalPosition, LogicalSize } from '@tauri-apps/api/dpi';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { createPortal } from 'react-dom';
+import { SidePanel } from '../shared';
 import { useModalStore } from '../store/modalStore';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
@@ -44,9 +44,6 @@ export default function SidePanelBrowser() {
     }
   }, [isBlockingModalOpen, isSideBrowserOpen, setIsSideBrowserOpen]);
 
-  const [panelWidth, setPanelWidth] = useState(window.innerWidth / 2);
-  const [isResizing, setIsResizing] = useState(false);
-  const isResizingRef = useRef(false);
   const [localUrlInput, setLocalUrlInput] = useState('');
 
   const webviewsRef = useRef<Map<string, Webview>>(new Map());
@@ -163,26 +160,7 @@ export default function SidePanelBrowser() {
     setIsBookmarksDropdownOpen(false);
   }, [isSideBrowserOpen, sideBrowserUrl]);
 
-  useEffect(() => {
-    if (!isResizing) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = window.innerWidth - e.clientX;
-      setPanelWidth(Math.max(400, Math.min(newWidth, window.innerWidth - 100)));
-    };
 
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      isResizingRef.current = false;
-      window.dispatchEvent(new Event('resize'));
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
 
   useEffect(() => {
     if (isSideBrowserOpen && !hasInitialized) {
@@ -490,15 +468,21 @@ export default function SidePanelBrowser() {
 
   if (!hasInitialized) return null;
 
-  return createPortal(
+  return (
     <div style={{ display: isSideBrowserOpen ? 'block' : 'none' }} className={isBlockingModalOpen ? "opacity-0 pointer-events-none transition-opacity duration-300" : "opacity-100 transition-opacity duration-300"}>
-      <div className="fixed top-[52px] right-0 bottom-10 z-[100004] bg-black/10 backdrop-blur-[2px] transition-opacity" style={{ left: "var(--sidebar-width, 288px)" }} onClick={() => setIsSideBrowserOpen(false)} />
-      {isResizing && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
-
-      <div
-        className={`fixed z-[1000000] glass-panel shadow-[[-20px_0_50px_rgba(0,0,0,0.5)]] flex flex-col overflow-hidden ${isBrowserFullscreen ? "top-[50px] inset-x-0 bottom-10 !border-0 rounded-none bg-[var(--bg)]" : "top-[52px] right-0 bottom-10 !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-tl-[3rem] rounded-bl-[3rem] !rounded-r-none"
-          }`}
-        style={isBrowserFullscreen ? {} : { right: 0, width: panelWidth }}
+      <SidePanel
+        isOpen={isSideBrowserOpen}
+        keepMounted={true}
+        onClose={() => setIsSideBrowserOpen(false)}
+        backdropZ="z-[100004]"
+        panelZ="z-[1000000]"
+        hideHeader={true}
+        noPadding={true}
+        noScroll={true}
+        isResizable={!isBrowserFullscreen}
+        defaultWidth={window.innerWidth / 2}
+        panelClass={isBrowserFullscreen ? "!top-[50px] !inset-x-0 !bottom-10 !border-0 !rounded-none !bg-[var(--bg)]" : "!top-[52px] !bottom-10 !border-y-0 !border-r-0"}
+        panelStyle={isBrowserFullscreen ? { width: '100vw', right: 0 } : { right: 0 }}
       >
         <div className="pt-6 px-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex flex-col gap-3 rounded-tl-[3rem] !rounded-tr-none">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
@@ -617,14 +601,7 @@ export default function SidePanelBrowser() {
 
         <div className="flex-1 w-full flex flex-row relative min-h-0">
 
-          <div
-            className="w-4 shrink-0 cursor-col-resize hover:bg-[var(--accent)]/30 transition-colors z-[10000] flex flex-col items-center justify-center relative group/resize"
-            onMouseDown={() => { setIsResizing(true); isResizingRef.current = true; window.dispatchEvent(new Event('resize')); }}
-          >
-            <div className="w-1 h-12 rounded-full bg-[var(--accent)] opacity-0 group-hover/resize:opacity-100 transition-opacity" />
-          </div>
-
-          <div className="flex-1 h-full pb-6 flex overflow-hidden relative min-h-0 pr-2">
+          <div className="flex-1 h-full pb-6 flex overflow-hidden relative min-h-0 pl-4 pr-2">
             <div className={`flex-1 h-full bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-xl flex pointer-events-none rounded-[var(--radius)] overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-[10px] relative ${isBookmarksDropdownOpen ? 'gap-[10px]' : ''}`}>
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--text)]/5 to-transparent pointer-events-none" />
 
@@ -822,8 +799,7 @@ export default function SidePanelBrowser() {
         </div>
 
         <SidePanelBrowserDownloads downloadsQueue={downloadsQueue} setDownloadsQueue={setDownloadsQueue} />
-      </div>
-    </div>,
-    document.body
+      </SidePanel>
+    </div>
   );
 }

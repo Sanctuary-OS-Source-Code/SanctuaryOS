@@ -13,6 +13,7 @@ import { invoke } from '@tauri-apps/api/core';
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import BlueprintMatrix from "./BlueprintMatrix";
 import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
+import { UniversalSearch } from "./components/universal/UniversalLayout";
 
 declare global {
   interface Window {
@@ -1542,24 +1543,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               </h2>
 
               <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-                  <input
-                    type="text"
-                    placeholder={t("search_placeholder")}
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
-                  />
-                  {searchQuery && (
-                    <button onClick={() => { setSearchQuery(""); setCurrentPage(1); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
-                      <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-                    </button>
-                  )}
-                </div>
+                <UniversalSearch
+                  value={searchQuery}
+                  onChange={(val) => {
+                    setSearchQuery(val);
+                    setCurrentPage(1);
+                  }}
+                  placeholder={t("search_placeholder") as string}
+                  wrapperClassName="flex-1 min-w-[200px] w-full xl:max-w-[300px]"
+                  inputClassName="!h-12 text-sm !rounded-2xl"
+                />
 
                 <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
                   <CustomDropdown disableTint={true}
@@ -1763,24 +1756,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               </h2>
 
               <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-                  <input
-                    type="text"
-                    placeholder={marketTab === 'LEXICONS' ? (t("search_lexicons")) : marketTab === 'TEMPLATES' ? (t("search_tmpl")) : marketTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_chameleons"))}
-                    value={assetSearchQuery}
-                    onChange={(e) => {
-                      setAssetSearchQuery(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
-                  />
-                  {assetSearchQuery && (
-                    <button onClick={() => { setAssetSearchQuery(""); setCurrentPage(1); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
-                      <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-                    </button>
-                  )}
-                </div>
+                <UniversalSearch
+                  value={assetSearchQuery}
+                  onChange={(val) => {
+                    setAssetSearchQuery(val);
+                    setCurrentPage(1);
+                  }}
+                  placeholder={(marketTab === 'LEXICONS' ? (t("search_lexicons")) : marketTab === 'TEMPLATES' ? (t("search_tmpl")) : marketTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_chameleons"))) as string}
+                  wrapperClassName="flex-1 min-w-[200px] w-full xl:max-w-[300px]"
+                  inputClassName="!h-12 text-sm !rounded-2xl"
+                />
 
                 {marketTab === 'BLUEPRINTS' && gameVersions.length > 0 && (
                   <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">

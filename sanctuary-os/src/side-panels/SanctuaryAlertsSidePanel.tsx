@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { SidePanel, CustomDropdown, extractPostImage, stripMarkdown, EmptyState } from '../shared';
+import { UniversalCard } from '../components/universal/UniversalCard';
 import MasonPostViewer from "./MasonPostViewer";
 import { useStore } from '../store';
 
@@ -124,61 +125,69 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                     const isPinned = isPostPinned(post);
                     const isInactive = !post.is_active;
                     return (
-                      <div key={post.id} onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className={`glass-panel p-6 rounded-[var(--radius)] cursor-pointer relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden ${isPinned ? '!border-[var(--danger)]/50 shadow-[0_10px_30px_rgba(239,68,68,0.15)]' : 'border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'} ${isInactive ? 'opacity-60 hover:opacity-100 grayscale-[50%]' : ''}`}>
-                        <div className={`absolute -top-32 -right-32 w-64 h-64 blur-[80px] rounded-full pointer-events-none transition-opacity duration-700 z-0 ${isPinned ? 'bg-[var(--danger)] opacity-20' : 'bg-[var(--text)] opacity-0 group-hover:opacity-[0.03]'}`} />
-
-                        <div className="flex justify-between items-start z-10 relative">
-                          <div className="flex flex-col gap-1.5 flex-1 min-w-0 pr-4">
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              {isPinned && (
-                                <span className="px-3 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/30 shadow-inner flex items-center gap-1">
-                                  {t("urgent_alert") || "Urgent Alert"}
-                                </span>
-                              )}
-                              <span className={`px-3 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner ${isPinned ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20'}`}>
-                                {post.category || t("comms_btn_update") || "UPDATE"}
-                              </span>
-                              {isInactive && (
-                                <span className="px-3 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner bg-black/40 text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                                  {t("status_inactive") || "Inactive"}
-                                </span>
-                              )}
-                            </div>
-                            <h3 className={`font-black text-xl leading-tight uppercase tracking-widest line-clamp-4 transition-colors ${isPinned ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
-                              {post.title}
-                            </h3>
-                          </div>
-                          <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity`}>
+                      <UniversalCard
+                        key={post.id}
+                        onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })}
+                        layout="vertical"
+                        statusColor={isPinned ? "var(--danger)" : undefined}
+                        className={`${isPinned ? 'shadow-[0_10px_30px_rgba(239,68,68,0.15)] bg-[var(--danger)]/5' : 'shadow-[0_10px_30px_rgba(0,0,0,0.1)]'} ${isInactive ? 'opacity-60 hover:opacity-100 grayscale-[50%]' : ''}`}
+                        title={
+                          <span className={`transition-colors ${isPinned ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
+                            {post.title}
+                          </span>
+                        }
+                        subtitle={
+                          <span className="flex items-center gap-1.5">
                             <span className="material-symbols-outlined !text-[14px]">calendar_today</span>
                             {new Date(post.created_at).toLocaleDateString()}
                           </span>
-                        </div>
-
-                        {extractPostImage(post) && (
-                          <div className="w-full h-32 rounded-xl overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner mt-2 z-10 bg-[var(--bg)]">
-                            <div className="absolute inset-0 bg-[var(--danger)]/20 z-0" />
-                            <div className="absolute inset-0 bg-gradient-to-br from-[var(--danger)]/20 to-transparent z-10 pointer-events-none" />
-                            <img src={extractPostImage(post)} className="w-full h-full object-cover relative z-0 opacity-60 mix-blend-luminosity group-hover:scale-105 group-hover:mix-blend-normal group-hover:opacity-100 transition-all duration-700" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-transparent to-transparent opacity-80 z-10 pointer-events-none" />
-                          </div>
-                        )}
-
-                        <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold z-10 relative opacity-80 group-hover:opacity-100 transition-opacity">
-                          {post.description ? post.description : stripMarkdown(post.message)}
-                        </p>
-
-                        <div className="flex justify-between items-center mt-2 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-4 relative z-10">
-                          <div className="flex items-center gap-4 flex-1 min-w-0">
-                            <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
-                              <span className="material-symbols-outlined !text-[14px]">groups</span>
-                              {(post.target_audience || "All Elevated").split(',').map((a: string) => a.trim() === 'Senior Architects' ? 'Oversight' : a.trim()).join(', ')}
+                        }
+                        badges={
+                          <>
+                            {isPinned && (
+                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/30 shadow-inner flex items-center gap-1">
+                                {t("urgent_alert") || "Urgent Alert"}
+                              </span>
+                            )}
+                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase border shadow-inner ${isPinned ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20'}`}>
+                              {post.category || t("comms_btn_update") || "UPDATE"}
+                            </span>
+                            {isInactive && (
+                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase border shadow-inner bg-black/40 text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                                {t("status_inactive") || "Inactive"}
+                              </span>
+                            )}
+                          </>
+                        }
+                        footer={
+                          <div className="flex justify-between items-center gap-4">
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                              <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
+                                <span className="material-symbols-outlined !text-[14px]">groups</span>
+                                {(post.target_audience || "All Elevated").split(',').map((a: string) => a.trim() === 'Senior Architects' ? 'Oversight' : a.trim()).join(', ')}
+                              </span>
+                            </div>
+                            <span className={`text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1 shrink-0 ${isPinned ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
+                              {t("wayfinder_read_more")} <span className="text-sm leading-none">&rarr;</span>
                             </span>
                           </div>
-                          <button className={`text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1 shrink-0 ${isPinned ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'} opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0`}>
-                            {t("wayfinder_read_more")} <span className="text-lg leading-none">&rarr;</span>
-                          </button>
+                        }
+                      >
+                        <div className="flex flex-col gap-3">
+                          {extractPostImage(post) && (
+                            <div className="w-full h-32 rounded-xl overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner bg-[var(--bg)]">
+                              <div className="absolute inset-0 bg-[var(--danger)]/20 z-0" />
+                              <div className="absolute inset-0 bg-gradient-to-br from-[var(--danger)]/20 to-transparent z-10 pointer-events-none" />
+                              <img src={extractPostImage(post)} className="w-full h-full object-cover relative z-0 opacity-60 mix-blend-luminosity group-hover:scale-105 group-hover:mix-blend-normal group-hover:opacity-100 transition-all duration-700" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-transparent to-transparent opacity-80 z-10 pointer-events-none" />
+                            </div>
+                          )}
+
+                          <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-80 group-hover:opacity-100 transition-opacity">
+                            {post.description ? post.description : stripMarkdown(post.message)}
+                          </p>
                         </div>
-                      </div>
+                      </UniversalCard>
                     )
                   })}
                 </div>

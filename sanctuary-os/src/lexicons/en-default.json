@@ -2701,5 +2701,7 @@
   "editor_search_to_inject": "Query Database to Inject",
   "editor_core": "Core",
   "editor_twin": "Twin",
-  "editor_addon": "Addon"
+  "editor_addon": "Addon",
+  "comm_link": "Community Post",
+  "dispatch": "Announcement"
 }

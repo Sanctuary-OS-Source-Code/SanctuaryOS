@@ -1,3 +1,4 @@
+import { SearchBar } from "./shared";
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SidePanel } from './shared';
@@ -17,10 +18,18 @@ import { ChameleonSandboxPreview } from './chameleon-components/ChameleonSandbox
 function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes }: any) {
   const { t } = useLexicon();
   if (!isOpen) return null;
-  return createPortal(
+  return (
     <>
-      <div className="fixed inset-0 z-[15000] bg-black/0 backdrop-blur-[3px] animate-in fade-in" onClick={onClose} />
-      <div className="fixed top-10 right-0 bottom-10 w-[450px] max-w-[100vw] glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] rounded-tl-[3rem] rounded-bl-[3rem]" onClick={e => e.stopPropagation()}>
+      <SidePanel
+        isOpen={true}
+        onClose={onClose}
+        widthClass="w-[450px] max-w-[100vw]"
+        backdropZ="z-[15000]"
+        panelZ="z-[15001]"
+        hideHeader={true}
+        noPadding={true}
+        noScroll={true}
+      >
         <button type="button" onClick={onClose} className="absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <span className="material-symbols-outlined !text-[24px]">{t("icon_close")}</span>
         </button>
@@ -61,14 +70,13 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
             </button>
           ))}
         </div>
-      </div>
-    </>, document.body
+      </SidePanel>
+    </>
   );
 }
-
 export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
-  const { t } = useLexicon();
   const { currentTheme: osTheme, activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, devThemes, updateTheme, renameTheme, createNewDevTheme, exportDevThemeToCustom, importTheme, deleteTheme } = useTheme();
+  const { t } = useLexicon();
 
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
   const [livePreview, setLivePreview] = useState(false);
@@ -133,7 +141,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
   };
 
   return (
-    <div className="flex flex-col w-full h-[calc(100vh-180px)] xl:h-[calc(100vh-140px)] relative transition-all duration-500">
+    <div className="flex flex-col w-full h-full relative transition-all duration-500">
       <CommandScreenSectionHeading
         shape="circle"
         title={t("forge_title") || "MATRIX FORGE"}
@@ -142,12 +150,11 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         rightContent={
           <div className="flex items-center gap-3 flex-1 justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search") || "search"}</span>
-            <input
+            <SearchBar
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={setSearchQuery}
               placeholder={t("ui_search_chameleons") || "Search Themes..."}
-              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="h-12 w-full rounded-2xl"
             />
           </div>
           <ActionButton onClick={() => setIsCreatePanelOpen(true)} className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]" icon="add" label={t("auto_create") || "CREATE"} />

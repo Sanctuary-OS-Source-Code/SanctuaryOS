@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ViewHeader, CustomDropdown, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, mapDlcCode, HubTabButton, standardButtonClass, standardDangerButtonClass, standardSuccessButtonClass, SidePanel, SidebarActionButton, getFileLabel, isSupportedExtension, getExtensionRegex, HoverTooltip, EmptyState, cleanSearchName, ActionButton, getModIcon } from "./shared";
+import { ViewHeader, CustomDropdown, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, mapDlcCode, HubTabButton, standardButtonClass, standardDangerButtonClass, standardSuccessButtonClass, SidePanel, SidebarActionButton, getFileLabel, isSupportedExtension, getExtensionRegex, HoverTooltip, EmptyState, cleanSearchName, ActionButton, getModIcon, SearchBar } from "./shared";
 import { useLexicon } from './LexiconContext';
 import { CommandScreenLayout, CommandScreenStats, DashboardStatTile, CommandScreenBody, CommandScreenMain, CommandScreenSectionHeading, CommandScreenSidebar, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 
@@ -36,19 +36,12 @@ function DebouncedSearchInput({ value, onChange, placeholder }: { value: string,
 
   return (
     <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
-      <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-      <input
-        type="text"
-        placeholder={placeholder}
+      <SearchBar
         value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+        onChange={(v) => { setLocalValue(v); if (v === "") onChange(""); }}
+        placeholder={placeholder}
+        className="h-12 w-full rounded-2xl"
       />
-      {localValue && (
-        <button onClick={() => { setLocalValue(""); onChange(""); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
-          <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-        </button>
-      )}
     </div>
   );
 }

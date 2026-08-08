@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLexicon } from '../LexiconContext';
 import { extractPostImage, stripMarkdown } from '../shared';
+import { UniversalCard } from '../components/universal/UniversalCard';
 
 export function DashboardStatTile({ icon, number, label, colorClass, onClick, setStatus }: any) {
     return (
@@ -142,30 +143,35 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
             {broadcasts.length > 0 ? broadcasts.map((post: any, index: number) => {
                 return (
-                    <div key={post.id} onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="group cursor-pointer w-full glass-panel rounded-[var(--radius)] overflow-hidden hover:scale-[1.02] transition-all shadow-xl hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.3)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 flex flex-col min-h-[16rem]">
-                        <div className="w-full h-40 relative overflow-hidden bg-[var(--bg)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0">
-                            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent z-10 pointer-events-none" />
-                            {extractPostImage(post) ? (
-                                <img src={extractPostImage(post)} className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-luminosity group-hover:scale-110 transition-transform duration-1000" />
-                            ) : (
-                                <span className="material-symbols-outlined !text-6xl grayscale opacity-30 drop-shadow-lg group-hover:scale-125 group-hover:opacity-100 transition-all duration-500 group-hover:grayscale-0 relative z-10">{t("icon_satellite_alt")}</span>
-                            )}
-                        </div>
-                        <div className="flex-1 p-6 flex flex-col min-w-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--bg)_40%,transparent)] to-transparent relative z-10">
-                            <div className="flex items-center gap-2 mb-3 shrink-0 flex-wrap">
-                                <span className="px-2 py-0.5 bg-[var(--accent)]/20 text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg">{post.category || t("comms_btn_update") || "UPDATE"}</span>
-                                <span className="px-2 py-0.5 glass-surface text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg">{t("category_system")}</span>
+                    <UniversalCard
+                        key={post.id}
+                        layout="vertical"
+                        image={extractPostImage(post) ? extractPostImage(post) : undefined}
+                        icon={!extractPostImage(post) ? t("icon_satellite_alt") : undefined}
+                        title={post.title}
+                        onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })}
+                        className="w-full"
+                        imageOverlay={
+                            <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                                <span className="px-2 py-0.5 bg-[var(--accent)]/20 text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg backdrop-blur-md">{post.category || t("comms_btn_update") || "UPDATE"}</span>
+                                <span className="px-2 py-0.5 glass-surface text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg backdrop-blur-md">{t("category_system")}</span>
                             </div>
-                            <h3 className="text-lg font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors mb-3 leading-tight line-clamp-2">{post.title}</h3>
-                            <div className="flex-1 min-h-0 mb-4">
-                                <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3">{post.description ? post.description : stripMarkdown(post.message)}</p>
+                        }
+                        footer={
+                            <div className="flex items-center justify-between w-full mt-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                    <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(post.created_at).toLocaleDateString()}
+                                </span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+                                    {t("wayfinder_read_more")} <span className="material-symbols-outlined !text-sm">{t("icon_arrow_forward")}</span>
+                                </span>
                             </div>
-                            <div className="mt-auto flex items-center justify-between pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
-                                <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(post.created_at).toLocaleDateString()}</span>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">{t("wayfinder_read_more")} <span className="material-symbols-outlined !text-sm">{t("icon_arrow_forward")}</span></span>
-                            </div>
-                        </div>
-                    </div>
+                        }
+                    >
+                        <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
+                            {post.description ? post.description : stripMarkdown(post.message)}
+                        </p>
+                    </UniversalCard>
                 );
             }) : (
                 <div className="w-full lg:col-span-3 glass-panel rounded-[var(--radius)] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
@@ -192,7 +198,7 @@ export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColo
         <button onClick={onClick} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
             <div className="flex items-center gap-5 h-full relative z-10">
-                <div className={`w-12 h-12 rounded-lg glass-surface border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${iconBorderHoverClass} ${isAlert ? 'text-[var(--danger)] border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 shadow-md' : ''}`}>
+                <div className={`w-12 h-12 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${iconBorderHoverClass} ${isAlert ? 'text-[var(--danger)] border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 shadow-sm' : ''}`}>
                     <span className={`material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 ${iconShadowClass} ${isAlert ? 'animate-pulse' : ''}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0">

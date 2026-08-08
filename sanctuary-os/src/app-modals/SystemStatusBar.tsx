@@ -9,6 +9,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   const nexusUpdatesCount = useStore(state => state.nexusUpdatesCount);
   const nexusUpdateTabs = useStore(state => state.nexusUpdateTabs);
   const setView = useStore(state => state.setView);
+  const view = useStore(state => state.view);
   const setMarketTab = useStore(state => state.setMarketTab);
   const activeConflictCount = useStore(state => state.activeConflictCount) || { tier4: 0, tier3: 0 };
   const activeBrokenCounts = useStore(state => state.activeBrokenCounts) || { broken: 0, unstable: 0 };
@@ -16,7 +17,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   const activePlaySetIndex = useStore(state => state.activePlaySetIndex);
   const playSets = useStore(state => state.playSets);
   const scanProgress = useStore((state: any) => state.scanProgress);
-  const { isSideBrowserOpen, scoutQueue, setIsScoutPanelOpen, isScoutPanelOpen, dnaMatchQueue, isDnaModalOpen, setIsDnaModalOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen } = useModalStore();
+  const { isSideBrowserOpen, scoutQueue, setIsScoutPanelOpen, isScoutPanelOpen, dnaMatchQueue, isDnaModalOpen, setIsDnaModalOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen, isConflictRadarOpen, setIsConflictRadarOpen } = useModalStore();
 
   const updatesCount = React.useMemo(() => {
     if (!networkUpdates?.updated || typeof activePlaySetIndex !== 'number' || !playSets || !playSets[activePlaySetIndex]) return 0;
@@ -180,9 +181,12 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
         <button
           onClick={(e) => {
             e.stopPropagation();
-            useModalStore.getState().setIsConflictRadarOpen(!useModalStore.getState().isConflictRadarOpen);
+            if (view !== 'dashboard' && view !== 'BlueprintArchitect') {
+              setView('dashboard');
+            }
+            setIsConflictRadarOpen(!isConflictRadarOpen);
           }}
-          className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[var(--accent)]/[10%] group ${useModalStore.getState().isConflictRadarOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
+          className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[var(--accent)]/[10%] group ${isConflictRadarOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
         >
           <span className={`material-symbols-outlined !text-[16px] ${radarIconColor}`}>{t("icon_radar")}</span>
           <HoverTooltip title={t("btn_radar")} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] !right-0 !left-auto !translate-x-0" />

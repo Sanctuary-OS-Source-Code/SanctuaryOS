@@ -10,8 +10,9 @@ import {
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen, ActionButton } from "./shared";
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen, ActionButton, SearchBar } from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
+import { UniversalCard } from "./components/universal/UniversalCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
 import { MasonStatusDropdown } from "./MasonHub";
 import { logArchitectAction } from "./lib/audit";
@@ -151,19 +152,13 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
           <span className="truncate">{t("mason_market_title")}</span>
         </h2>
         <div className="flex items-center gap-3 relative flex-1 max-w-2xl ml-auto justify-end">
-          <div className="relative flex-1 h-12 min-w-[250px] max-w-[450px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-            <input
+          <div className="relative flex-1 min-w-[250px] max-w-[450px]">
+            <SearchBar
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder={t("market_search")}
-              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              onChange={setSearchQuery}
+              placeholder={t("market_search") || "SEARCH ASSETS..."}
+              className="h-12 w-full"
             />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-              </button>
-            )}
           </div>
           <div className="flex items-center gap-3">
             <div className="w-[180px] shrink-0">
@@ -201,49 +196,36 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
               const isHidden = asset.is_public === false;
               const displayAssetType = asset.asset_type;
               return (
-                <div key={asset.id} onClick={() => handleEditAsset(asset)} className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden relative">
-
-                  <div className="absolute top-4 left-4 z-20 pointer-events-none">
-                    {isHidden ? (
-                      <div className="bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/30 backdrop-blur-md flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">
-                        {t("status_inactive") || "INACTIVE"}
-                      </div>
-                    ) : (
-                      <div className="bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/30 backdrop-blur-md flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">
-                        {t("status_active") || "NEXUS ACTIVE"}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-5 flex flex-col items-center justify-center relative bg-gradient-to-br from-[var(--accent)]/10 to-transparent group-hover:from-[var(--accent)]/15 transition-colors duration-500 h-36 shrink-0">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)]/10 rounded-full blur-[30px] pointer-events-none mix-blend-screen" />
-                    <span className="material-symbols-outlined !text-[72px] opacity-60 group-hover:opacity-100 theme-text-accent transition-all duration-500 drop-shadow-lg group-hover:scale-110 relative z-10">
-                      {displayAssetType === 'chameleon' ? 'palette' : displayAssetType === 'workbench_template' ? 'draw' : 'translate'}
-                    </span>
-                    <div className="absolute top-4 right-4 text-[9px] font-black px-3 py-1 bg-[var(--bg)]/50 backdrop-blur-md text-[var(--accent)] rounded-lg uppercase tracking-widest border border-[var(--accent)]/20 shadow-lg z-20">
+                <UniversalCard
+                  key={asset.id}
+                  onClick={() => handleEditAsset(asset)}
+                  layout="vertical"
+                  title={asset.name || "Untitled"}
+                  statusColor={isHidden ? "border-[var(--danger)]/50" : "border-[var(--success)]/50"}
+                  badges={[
+                    <span key="badge" className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest shadow-inner shrink-0 ${isHidden ? 'bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/30' : 'bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/30'}`}>
+                      {isHidden ? (t("status_inactive") || "INACTIVE") : (t("status_active") || "NEXUS ACTIVE")}
+                    </span>,
+                    <span key="type-badge" className="px-2 py-0.5 bg-[var(--bg)]/50 backdrop-blur-md text-[var(--accent)] rounded-md text-[8px] uppercase tracking-widest border border-[var(--accent)]/20 shadow-inner shrink-0 font-black">
                       {displayAssetType === 'chameleon' ? 'THEME' : displayAssetType === 'workbench_template' ? 'TEMPLATE' : 'LEXICON'}
-                    </div>
-                  </div>
-
-                  <div className="relative h-px bg-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full flex items-center justify-center z-20" />
-
-                  <div className="flex flex-col p-5 w-full flex-1 relative bg-gradient-to-tr from-[var(--bg)]/5 to-transparent group-hover:from-[var(--accent)]/5 transition-colors duration-500">
-                    <span className="text-xl font-black text-[var(--text)] uppercase tracking-tighter truncate leading-tight group-hover:theme-text-accent transition-colors block w-full mb-2 relative z-10">
-                      {asset.name || "Untitled"}
                     </span>
-
-                    <p className="text-xs font-bold text-[var(--subtext)] leading-relaxed line-clamp-2 opacity-80 group-hover:opacity-100 transition-opacity flex-1 relative z-10">
+                  ]}
+                  icon={displayAssetType === 'chameleon' ? 'palette' : displayAssetType === 'workbench_template' ? 'draw' : 'translate'}
+                  footer={
+                    <div className="flex justify-between items-center w-full">
+                      <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_download")}</span> {asset.downloads || 0}</span>
+                      <button className="text-[9px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                        {t("mason_edit_listing") || "EDIT LISTING"} <span className="material-symbols-outlined !text-[14px]">arrow_forward</span>
+                      </button>
+                    </div>
+                  }
+                >
+                  <div className="flex-1 mt-4">
+                    <p className="text-[11px] font-mono text-[var(--subtext)] opacity-70 leading-relaxed whitespace-pre-wrap break-words line-clamp-2">
                       {asset.description || "No description provided."}
                     </p>
                   </div>
-
-                  <div className="p-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex gap-2 relative z-10 items-center justify-between">
-                    <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_download")}</span> {asset.downloads || 0}</span>
-                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                      {t("mason_edit_listing") || "EDIT LISTING"} <span className="material-symbols-outlined !text-[14px]">arrow_forward</span>
-                    </button>
-                  </div>
-                </div>
+                </UniversalCard>
               )
             })}
           </div>

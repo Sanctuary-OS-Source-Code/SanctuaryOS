@@ -24,7 +24,7 @@ export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending, }:
             
           </ActionButton>
           <ActionButton
-            onClick={() => { yeetConfirmPending.onConfirm(); setYeetConfirmPending(null); }} label={t("yeet_btn_confirm")} icon={t("icon_delete")} className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]"
+            onClick={() => { yeetConfirmPending.onConfirm(); setYeetConfirmPending(null); }} label={t("yeet_btn_confirm")} icon={t("icon_delete")} className="!border-[var(--accent)]/[50%] !text-[var(--accent)] hover:!bg-[var(--accent)]/[20%]"
           >
             
             

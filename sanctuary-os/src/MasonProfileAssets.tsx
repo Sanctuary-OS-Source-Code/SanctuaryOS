@@ -1,4 +1,5 @@
 import { stripMarkdown, EmptyState } from './shared';
+import { UniversalCard } from './components/universal/UniversalCard';
 
 export default function MasonProfileAssets({ 
   activeView, 
@@ -38,53 +39,54 @@ export default function MasonProfileAssets({
         {filteredBlueprints.length === 0 && <EmptyState icon={t("icon_map") || "map"} title={t("no_blueprints") || "NO BLUEPRINTS"} minHeightClass="min-h-[400px]" />}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredBlueprints.map((asset: any) => (
-            <div key={asset.id} onClick={() => setSelectedBlueprint(asset)} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group">
-              <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
-                {asset.image_url ? (
-                  <img src={asset.image_url} alt={asset.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700" />
-                ) : (
-                  <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("icon_map")}</span>
-                )}
-                
-                <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-30">
-                  {(asset.is_early_access || asset.is_paid) && (
-                    <div className="flex flex-col gap-1.5 items-start">
-                      {asset.is_early_access && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-sm shadow-md">
-                          <span className="material-symbols-outlined !text-[10px] text-[#d8b4fe]">science</span>
-                          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access") || "Early Access"}</span>
-                        </div>
-                      )}
-                      {asset.is_paid && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-sm shadow-md">
-                          <span className="material-symbols-outlined !text-[10px] text-[#fef08a]">monetization_on</span>
-                          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#fef08a]">{t("badge_paid") || "Paid"}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+            <UniversalCard
+              key={asset.id}
+              layout="vertical"
+              image={asset.image_url ? asset.image_url : undefined}
+              icon={!asset.image_url ? t("icon_map") : undefined}
+              title={asset.name}
+              subtitle={`${mason.name || "UNKNOWN MASON"} • ${(asset.json_data?.artifacts?.length || 0)} ${t("items")}`}
+              onClick={() => setSelectedBlueprint(asset)}
+              imageOverlay={
+                <>
+                  <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-30">
+                    {(asset.is_early_access || asset.is_paid) && (
+                      <div className="flex flex-col gap-1.5 items-start">
+                        {asset.is_early_access && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-sm shadow-md">
+                            <span className="material-symbols-outlined !text-[10px] text-[#d8b4fe]">science</span>
+                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access") || "Early Access"}</span>
+                          </div>
+                        )}
+                        {asset.is_paid && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-sm shadow-md">
+                            <span className="material-symbols-outlined !text-[10px] text-[#fef08a]">monetization_on</span>
+                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#fef08a]">{t("badge_paid") || "Paid"}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                <div className="absolute top-4 right-4 flex flex-col items-end gap-2 z-30">
-                  <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest shadow-lg">
-                    {t("type_blueprint")}
-                  </span>
-                </div>
-              </div>
-              <div className="p-5 flex flex-col flex-1">
-                <h3 className="text-xs font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">{asset.name}</h3>
-                <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
-                  {mason.name || "UNKNOWN MASON"} • {(asset.json_data?.artifacts?.length || 0)} {t("items")}
-                </p>
-                {asset.description && <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">{asset.description}</p>}
-                <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                  <div className="absolute top-4 right-4 flex flex-col items-end gap-2 z-30">
+                    <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest shadow-lg">
+                      {t("type_blueprint")}
+                    </span>
+                  </div>
+                </>
+              }
+              className="w-full h-full"
+              footer={
+                <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <button onClick={(e) => { e.stopPropagation(); setSelectedBlueprint(asset); }} className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] hover:scale-105">{t("update_panel_install")}</button>
                   </div>
                 </div>
-              </div>
-            </div>
+              }
+            >
+              {asset.description && <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-1">{asset.description}</p>}
+            </UniversalCard>
           ))}
         </div>
       </>
@@ -115,22 +117,22 @@ export default function MasonProfileAssets({
         {filteredLexicons.length === 0 && <EmptyState icon={t("icon_translate") || "translate"} title={t("no_lexicons") || "NO LEXICONS"} minHeightClass="min-h-[400px]" />}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredLexicons.map((asset: any) => (
-            <div key={asset.id} onClick={() => setActiveAsset({ type: 'lexicon', id: asset.id })} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group">
-              <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
-                {asset.image_url ? (
-                  <img src={asset.image_url} alt={asset.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700" />
-                ) : (
-                  <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("icon_translate")}</span>
-                )}
+            <UniversalCard
+              key={asset.id}
+              layout="vertical"
+              image={asset.image_url ? asset.image_url : undefined}
+              icon={!asset.image_url ? t("icon_translate") : undefined}
+              title={asset.name}
+              subtitle={mason.name || "UNKNOWN MASON"}
+              onClick={() => setActiveAsset({ type: 'lexicon', id: asset.id })}
+              imageOverlay={
                 <div className="absolute top-4 right-4 flex gap-2 z-30">
                   <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">{t("auto_lexicon")} {asset.language || "Custom"}</span>
                 </div>
-              </div>
-              <div className="p-5 flex flex-col flex-1">
-                <h3 className="text-xs font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">{asset.name}</h3>
-                <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">{mason.name || "UNKNOWN MASON"}</p>
-                {asset.description && <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">{stripMarkdown(asset.description)}</p>}
-                <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+              }
+              className="w-full h-full"
+              footer={
+                <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <button
@@ -147,8 +149,10 @@ export default function MasonProfileAssets({
                     </button>
                   </div>
                 </div>
-              </div>
-            </div>
+              }
+            >
+              {asset.description && <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-1">{stripMarkdown(asset.description)}</p>}
+            </UniversalCard>
           ))}
         </div>
       </>
@@ -171,22 +175,22 @@ export default function MasonProfileAssets({
         {filteredChameleons.length === 0 && <EmptyState icon={t("icon_palette") || "palette"} title={t("no_chameleons") || "NO CHAMELEONS"} minHeightClass="min-h-[400px]" />}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredChameleons.map((asset: any) => (
-            <div key={asset.id} onClick={() => setActiveAsset({ type: 'chameleon', id: asset.id })} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group">
-              <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
-                {asset.image_url ? (
-                  <img src={asset.image_url} alt={asset.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700" />
-                ) : (
-                  <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("icon_palette")}</span>
-                )}
+            <UniversalCard
+              key={asset.id}
+              layout="vertical"
+              image={asset.image_url ? asset.image_url : undefined}
+              icon={!asset.image_url ? t("icon_palette") : undefined}
+              title={asset.name}
+              subtitle={mason.name || "UNKNOWN MASON"}
+              onClick={() => setActiveAsset({ type: 'chameleon', id: asset.id })}
+              imageOverlay={
                 <div className="absolute top-4 right-4 flex gap-2 z-30">
                   <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">{t("type_theme")}</span>
                 </div>
-              </div>
-              <div className="p-5 flex flex-col flex-1">
-                <h3 className="text-xs font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">{asset.name}</h3>
-                <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">{mason.name || "UNKNOWN MASON"}</p>
-                {asset.description && <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">{stripMarkdown(asset.description)}</p>}
-                <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+              }
+              className="w-full h-full"
+              footer={
+                <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <button
@@ -202,8 +206,10 @@ export default function MasonProfileAssets({
                     </button>
                   </div>
                 </div>
-              </div>
-            </div>
+              }
+            >
+              {asset.description && <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-1">{stripMarkdown(asset.description)}</p>}
+            </UniversalCard>
           ))}
         </div>
       </>
@@ -225,18 +231,22 @@ export default function MasonProfileAssets({
         {filteredTemplates.length === 0 && <EmptyState icon={t("icon_draw") || "draw"} title={t("empty_title_templates") || "NO TEMPLATES"} minHeightClass="min-h-[400px]" />}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredTemplates.map((asset: any) => (
-            <div key={asset.id} onClick={() => setActiveAsset({ type: 'workbench_template', id: asset.id })} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group">
-              <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
-                <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>{t("icon_draw")}</span>
+            <UniversalCard
+              key={asset.id}
+              layout="vertical"
+              image={asset.image_url ? asset.image_url : undefined}
+              icon={!asset.image_url ? t("icon_draw") : undefined}
+              title={asset.name}
+              subtitle={mason.name || "UNKNOWN MASON"}
+              onClick={() => setActiveAsset({ type: 'workbench_template', id: asset.id })}
+              imageOverlay={
                 <div className="absolute top-4 right-4 flex gap-2 z-30">
                   <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">{t("type_template")}</span>
                 </div>
-              </div>
-              <div className="p-5 flex flex-col flex-1">
-                <h3 className="text-xs font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">{asset.name}</h3>
-                <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">{mason.name || "UNKNOWN MASON"}</p>
-                {asset.description && <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">{stripMarkdown(asset.description)}</p>}
-                <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+              }
+              className="w-full h-full"
+              footer={
+                <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <button
@@ -248,17 +258,29 @@ export default function MasonProfileAssets({
                           if (!(await exists(templatesDir))) await importFs.mkdir(templatesDir, { recursive: true });
                           await importFs.writeTextFile(`${templatesDir}\\${asset.name}_template.json`, JSON.stringify(parsed, null, 2));
                           useStore.getState().pushStatus(`Successfully Installed Template: ${asset.name}`);
-                          setInstalledTemplates((prev: any) => ({ ...prev, [asset.name]: getAssetDisplayVersion(asset) }));
+                          
+                          if (setInstalledTemplates) {
+                            const entries = await importFs.readDir(templatesDir);
+                            const tpls = await Promise.all(
+                              entries.filter((en: any) => en.name?.endsWith('.json')).map(async (en: any) => {
+                                const content = await importFs.readTextFile(`${templatesDir}\\${en.name}`);
+                                return JSON.parse(content);
+                              })
+                            );
+                            setInstalledTemplates(tpls);
+                          }
                         }
                       }}
-                      className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? isOutdated(asset) ? 'bg-[color-mix(in_srgb,#3b82f6_15%,transparent)] border border-[color-mix(in_srgb,#3b82f6_30%,transparent)] text-[#3b82f6] hover:bg-[color-mix(in_srgb,#3b82f6_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--subtext)_10%,transparent)] border border-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--subtext)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--subtext)_15%,transparent)] backdrop-blur-md' : 'bg-emerald-500/[15%] border border-emerald-500/[30%] text-[#10b981] hover:bg-emerald-500/[20%]'}`}
+                      className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 bg-emerald-500/[15%] border border-emerald-500/[30%] text-[#10b981] hover:bg-emerald-500/[20%]`}
                     >
-                      {isInstalled(asset) ? isOutdated(asset) ? "UPDATE" : (t("btn_reinstall")) : (t("update_panel_install"))}
+                      {t("update_panel_install")}
                     </button>
                   </div>
                 </div>
-              </div>
-            </div>
+              }
+            >
+              {asset.description && <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-1">{stripMarkdown(asset.description)}</p>}
+            </UniversalCard>
           ))}
         </div>
       </>

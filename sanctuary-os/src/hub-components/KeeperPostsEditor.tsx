@@ -1,3 +1,4 @@
+import { SearchBar } from "../shared";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
@@ -474,18 +475,12 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
         </h2>
         <div className="relative flex-1 max-w-4xl ml-auto flex gap-4 items-center justify-end">
           <div className="relative flex-1">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-            <input
+            <SearchBar
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={setSearchTerm}
               placeholder={t("mason_search_placeholder")}
-              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="h-12 w-full rounded-2xl"
             />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-              </button>
-            )}
           </div>
           <div className="w-max min-w-[180px] max-w-xs">
             <CustomDropdown
@@ -810,15 +805,13 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
         <div className="flex flex-col gap-6">
           <div className="animate-in slide-in-from-top-2">
             <div className="relative w-full">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-              <input
-                value={assetSearchQuery}
-                onChange={(e) => setAssetSearchQuery(e.target.value)}
-                placeholder={t("search_assets")}
-                className="w-full glass-panel rounded-2xl pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 shadow-inner"
-                autoFocus
-              />
-            </div>
+            <SearchBar
+              value={assetSearchQuery}
+              onChange={setAssetSearchQuery}
+              placeholder={t("search_assets")}
+              className="h-12 w-full rounded-2xl"
+            />
+          </div>
           </div>
           <div className="flex flex-col gap-2">
             {isAssetPanelOpen && (

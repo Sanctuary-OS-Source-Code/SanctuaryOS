@@ -4,6 +4,7 @@ import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import defaultCover from "./assets/default-cover.jpg";
+import { UniversalCard } from "./components/universal/UniversalCard";
 
 interface ModCardProps {
   mod: any;
@@ -153,8 +154,33 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
       )}
       <div className={`relative w-full h-full transition-transform duration-500 [transform-style:preserve-3d] ${confirmMode ? '[transform:rotateY(180deg)]' : ''}`}>
 
-        <div
+        <UniversalCard
+          layout={compact ? "vertical-compact" : "vertical"}
+          isActive={isSelected}
+          isDisabled={delayedConfirmMode !== null}
+          isGhosted={isShadowed}
+          image={(showImages && (mod.image_url || mod.imageUrl) && String(mod.image_url || mod.imageUrl) !== "null" && String(mod.image_url || mod.imageUrl).trim() !== "") ? (mod.image_url || mod.imageUrl) : undefined}
+          icon={!((showImages && (mod.image_url || mod.imageUrl) && String(mod.image_url || mod.imageUrl) !== "null" && String(mod.image_url || mod.imageUrl).trim() !== "")) ? getModIcon(mod, activeGameSchema, t) : undefined}
+          title={formatDisplayName(mod.displayName || mod.name)}
+          subtitle={
+            <div className="flex items-center gap-1.5 opacity-80 mt-0.5">
+              <span>{mod.author || t("unknown_mason") || "Unknown Mason"}</span>
+              {reqCount > 0 && (
+                <>
+                  <span className="opacity-50">|</span>
+                  <span className="theme-text-accent">{reqCount} {t("req_short")}</span>
+                </>
+              )}
+            </div>
+          }
           onClick={(e) => { if (isShadowed) { e.preventDefault(); return; } onSelect(e); }}
+          onContextMenu={(e) => {
+            if (onContextMenu) {
+              e.preventDefault();
+              e.stopPropagation();
+              onContextMenu(e);
+            }
+          }}
           draggable={!mod.name?.startsWith('LOCAL_SET_')}
           onDragStart={(e) => {
             if (mod.name?.startsWith('LOCAL_SET_')) return;
@@ -193,239 +219,182 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
               }
             }
           }}
-          onContextMenu={(e) => {
-            if (onContextMenu) {
-              e.preventDefault();
-              e.stopPropagation();
-              onContextMenu(e);
-            }
-          }}
-          className={`relative flex flex-col w-full h-full glass-panel transition-all duration-500 overflow-hidden group/maincard [backface-visibility:hidden] [transform:translateZ(0)] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.1)_!important] ${delayedConfirmMode ? 'pointer-events-none !border-transparent' : ''} ${isShadowed ? `opacity-30 grayscale border ${isSwappedState ? 'border-[var(--accent)]/50' : 'border-[var(--danger)]'}` : `cursor-pointer border border-transparent ${delayedConfirmMode ? '' : isExpanded ? '' : 'group-hover/shadow:shadow-[0_20px_50px_rgba(var(--accent-rgb),0.15)] group-hover/shadow:border-[var(--accent)]/[30%]'}`}`}
-          style={{ borderRadius: 'var(--radius)' }}
-        >
-          {!isShadowed && (
-            <div className={`absolute inset-0 z-0 pointer-events-none transition-all duration-500 rounded-[var(--radius)] ${delayedConfirmMode ? '' : 'group-hover/maincard:bg-[var(--accent)]/[5%]'}`} />
-          )}
+          className={`w-full h-full [backface-visibility:hidden] [transform:translateZ(0)] ${isExpanded ? 'ring-2 ring-[var(--accent)]/50 shadow-lg' : ''}`}
+          badges={
+            <div className="flex flex-wrap items-center gap-2">
+              {(() => {
+                const isTier1Or2 = mod.compliance_tier === 1 || mod.compliance_tier === 2;
+                const hasExplicitStatus = mod.status && mod.status.trim() !== "" && mod.status.toLowerCase() !== 'local folder' && mod.status.toLowerCase() !== 'local node';
+                const statusType = hasExplicitStatus ? mod.status.toLowerCase() : (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2) ? 'local' : 'local';
+                const isStatusBroken = isSelfBroken;
 
+                let badgeBg = "bg-[var(--accent)]/[10%] border-[var(--accent)]/[30%] ";
+                let badgeText = "text-[var(--accent)]";
+                let hoverBorder = "border-[var(--accent)]/30";
 
-          {/* Top Left Badges - Absolute */}
-          <div className="absolute top-4 left-4 z-30 flex flex-col items-start gap-2 pointer-events-none">
-            {(() => {
-              const isTier1Or2 = mod.compliance_tier === 1 || mod.compliance_tier === 2;
-              const hasExplicitStatus = mod.status && mod.status.trim() !== "" && mod.status.toLowerCase() !== 'local folder' && mod.status.toLowerCase() !== 'local node';
-              const statusType = hasExplicitStatus ? mod.status.toLowerCase() : (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2) ? 'local' : 'local';
-              const isStatusBroken = isSelfBroken;
+                if (isStatusBroken || statusType === 'unverified') {
+                  badgeBg = "bg-red-500/[10%] border-red-500/[30%] ";
+                  badgeText = "text-[var(--danger)]";
+                  hoverBorder = "border-[var(--danger)]/30";
+                } else if (statusType === 'unstable') {
+                  badgeBg = "bg-orange-500/[10%] border-orange-500/[30%] ";
+                  badgeText = "text-[var(--warning)]";
+                  hoverBorder = "border-[var(--warning)]/30";
+                } else if (statusType === 'verified' || statusType === 'stable' || (statusType === 'broken' && !isSelfBroken)) {
+                  badgeBg = "bg-emerald-500/[10%] border-emerald-500/[30%] ";
+                  badgeText = "text-[var(--success)]";
+                  hoverBorder = "border-[var(--success)]/30";
+                }
 
-              let badgeBg = "bg-[var(--accent)]/[10%] border-[var(--accent)]/[30%] ";
-              let badgeText = "text-[var(--accent)]";
-              let hoverBorder = "border-[var(--accent)]/30";
-
-              if (isStatusBroken || statusType === 'unverified') {
-                badgeBg = "bg-red-500/[10%] border-red-500/[30%] ";
-                badgeText = "text-[var(--danger)]";
-                hoverBorder = "border-[var(--danger)]/30";
-              } else if (statusType === 'unstable') {
-                badgeBg = "bg-orange-500/[10%] border-orange-500/[30%] ";
-                badgeText = "text-[var(--warning)]";
-                hoverBorder = "border-[var(--warning)]/30";
-              } else if (statusType === 'verified' || statusType === 'stable' || (statusType === 'broken' && !isSelfBroken)) {
-                badgeBg = "bg-emerald-500/[10%] border-emerald-500/[30%] ";
-                badgeText = "text-[var(--success)]";
-                hoverBorder = "border-[var(--success)]/30";
-              }
-
-              return (
-                <div className="group/badge pointer-events-auto cursor-help">
-                  <div className={`backdrop-blur-md border px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-2 transition-all ${badgeBg}`}>
-                    <span className={`text-[8px] font-black uppercase tracking-widest ${badgeText}`}>
-                      {(() => {
-                        if (!hasExplicitStatus && (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2)) return t("unlinked_badge") || "LOCAL";
-                        const raw = (mod.status || "");
-                        let cleaned = raw.replace(/[[\]"]/g, "");
-                        if (cleaned === 'bunker') cleaned = 'vault';
-                        if (mod.hash?.startsWith('dev_vault_')) return 'DEV';
-                        if (cleaned.toUpperCase().includes('SANDBOX')) cleaned = 'SANDBOX';
-                        if (isSelfBroken) return t("status_broken");
-                        if (cleaned.toLowerCase() === 'broken' && !isSelfBroken) return t("badge_stable");
-                        if (cleaned.toLowerCase() === 'unverified') return t("unverified");
-                        if (cleaned.toLowerCase() === 'local folder' || cleaned.toLowerCase() === 'local node') return t("local_node") || "LOCAL FOLDER";
-                        if (cleaned.toLowerCase() === 'unstable') return t("label_unstable");
-                        return cleaned.toUpperCase();
-                      })()}
-                    </span>
-                  </div>
-                  <HoverTooltip
-                    align="left"
-                    vAlign="bottom"
-                    content={
-                      <div
-                        className={`flex flex-col gap-2 glass-panel border ${hoverBorder} p-4 rounded-xl shadow-[0_30px_80px_rgba(0,0,0,0.8)] min-w-[220px] pointer-events-none`}
-                        style={{
-                          '--glassBlur': '30px',
-                          '--panelTint': 'var(--text)',
-                          '--glassOpacity': '15%'
-                        } as React.CSSProperties}
-                      >
-                        <div className="relative z-10 flex flex-col gap-2 w-full">
-                          <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-xl overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                            <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_history")}</span>{t("revision")}</span>
-                            <span className="text-[10px] font-mono font-black text-[var(--text)] uppercase truncate">{(() => {
-                              let v = mod.latest_version || mod.version;
-                              if (!v && mod.isVirtual && mod.flavors) {
-                                const flavorV = mod.flavors.find((f: any) => f.latest_version || f.version);
-                                if (flavorV) v = flavorV.latest_version || flavorV.version;
-                              }
-                              return v || t("vlocal") || "UNKNOWN";
-                            })()}</span>
-                          </div>
-                          <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-xl overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                            <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_sports_esports")}</span>{t("label_game_version")}</span>
-                            <span className="text-[9px] font-black text-[var(--text)] uppercase truncate">{mod.compatible_versions && mod.compatible_versions.length > 0 ? getHighestVersion(mod.compatible_versions) : t("ql_all")}</span>
-                          </div>
-                          <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-xl overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                            <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_calendar_today")}</span>{t("updated_date")}</span>
-                            <span className="text-[9px] font-black text-[var(--text)] uppercase truncate">{(() => {
-                              let dt = mod.updated_at;
-                              if (!dt && mod.isVirtual && mod.flavors) {
-                                const dates = mod.flavors.map((f: any) => f.updated_at).filter(Boolean).sort().reverse();
-                                if (dates.length > 0) dt = dates[0];
-                              }
-                              return dt ? new Date(dt).toLocaleDateString() : t("vlocal");
-                            })()}</span>
-                          </div>
-                          {mod.status_reason && (
-                            <div className="glass-surface bg-red-500/[10%] border-red-500/[20%] px-3 py-2 rounded-xl overflow-hidden flex flex-col gap-0.5 border shadow-sm mt-1">
-                              <span className="text-[7px] font-black uppercase theme-text-danger opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_error")}</span>{t("directive_note")}</span>
-                              <span className="text-[9px] font-black theme-text-danger uppercase whitespace-normal leading-tight">{mod.status_reason}</span>
+                return (
+                  <div className="group/badge relative cursor-help inline-flex">
+                    <div className={`backdrop-blur-md border px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1.5 transition-all ${badgeBg}`}>
+                      <span className={`text-[8px] font-black uppercase tracking-widest ${badgeText}`}>
+                        {(() => {
+                          if (!hasExplicitStatus && (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2)) return t("unlinked_badge") || "LOCAL";
+                          const raw = (mod.status || "");
+                          let cleaned = raw.replace(/[[\]"]/g, "");
+                          if (cleaned === 'bunker') cleaned = 'vault';
+                          if (mod.hash?.startsWith('dev_vault_')) return 'DEV';
+                          if (cleaned.toUpperCase().includes('SANDBOX')) cleaned = 'SANDBOX';
+                          if (isSelfBroken) return t("status_broken");
+                          if (cleaned.toLowerCase() === 'broken' && !isSelfBroken) return t("badge_stable");
+                          if (cleaned.toLowerCase() === 'unverified') return t("unverified");
+                          if (cleaned.toLowerCase() === 'local folder' || cleaned.toLowerCase() === 'local node') return t("local_node") || "LOCAL FOLDER";
+                          if (cleaned.toLowerCase() === 'unstable') return t("label_unstable");
+                          return cleaned.toUpperCase();
+                        })()}
+                      </span>
+                    </div>
+                    <HoverTooltip
+                      align="left"
+                      vAlign="bottom"
+                      content={
+                        <div
+                          className={`flex flex-col gap-2 glass-panel border ${hoverBorder} p-4 rounded-[var(--radius)] shadow-[0_30px_80px_rgba(0,0,0,0.8)] min-w-[220px] pointer-events-none`}
+                          style={{
+                            '--glassBlur': '30px',
+                            '--panelTint': 'var(--text)',
+                            '--glassOpacity': '15%'
+                          } as React.CSSProperties}
+                        >
+                          <div className="relative z-10 flex flex-col gap-2 w-full">
+                            <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-[max(0px,calc(var(--radius)-4px))] overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
+                              <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_history")}</span>{t("revision")}</span>
+                              <span className="text-[10px] font-mono font-black text-[var(--text)] uppercase truncate">{(() => {
+                                let v = mod.latest_version || mod.version;
+                                if (!v && mod.isVirtual && mod.flavors) {
+                                  const flavorV = mod.flavors.find((f: any) => f.latest_version || f.version);
+                                  if (flavorV) v = flavorV.latest_version || flavorV.version;
+                                }
+                                return v || t("vlocal") || "UNKNOWN";
+                              })()}</span>
                             </div>
-                          )}
+                            <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-[max(0px,calc(var(--radius)-4px))] overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
+                              <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_sports_esports")}</span>{t("label_game_version")}</span>
+                              <span className="text-[9px] font-black text-[var(--text)] uppercase truncate">{mod.compatible_versions && mod.compatible_versions.length > 0 ? getHighestVersion(mod.compatible_versions) : t("ql_all")}</span>
+                            </div>
+                            <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-[max(0px,calc(var(--radius)-4px))] overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
+                              <span className="text-[7px] font-black uppercase text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_calendar_today")}</span>{t("updated_date")}</span>
+                              <span className="text-[9px] font-black text-[var(--text)] uppercase truncate">{(() => {
+                                let dt = mod.updated_at;
+                                if (!dt && mod.isVirtual && mod.flavors) {
+                                  const dates = mod.flavors.map((f: any) => f.updated_at).filter(Boolean).sort().reverse();
+                                  if (dates.length > 0) dt = dates[0];
+                                }
+                                return dt ? new Date(dt).toLocaleDateString() : t("vlocal");
+                              })()}</span>
+                            </div>
+                            {mod.status_reason && (
+                              <div className="glass-surface bg-red-500/[10%] border-red-500/[20%] px-3 py-2 rounded-[max(0px,calc(var(--radius)-4px))] overflow-hidden flex flex-col gap-0.5 border shadow-sm mt-1">
+                                <span className="text-[7px] font-black uppercase theme-text-danger opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_error")}</span>{t("directive_note")}</span>
+                                <span className="text-[9px] font-black theme-text-danger uppercase whitespace-normal leading-tight">{mod.status_reason}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    }
-                  />
-                </div>
-              );
-            })()}
+                      }
+                    />
+                  </div>
+                );
+              })()}
 
-            <div className="flex items-center gap-1.5 pointer-events-auto">
               {mod.is_early_access && (
-                <div className="backdrop-blur-md bg-purple-500/10 border border-purple-500/30 px-2 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                <div className="backdrop-blur-md bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1">
                   <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
                   <span className="text-[7px] font-black uppercase tracking-widest text-purple-500">{t("badge_early_access") || "Early Access"}</span>
                 </div>
               )}
               {mod.is_paid && (
-                <div className="backdrop-blur-md bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                <div className="backdrop-blur-md bg-yellow-500/10 border border-yellow-500/30 px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1">
                   <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
                   <span className="text-[7px] font-black uppercase tracking-widest text-yellow-500">{t("badge_paid") || "Paid"}</span>
                 </div>
               )}
             </div>
-          </div>
+          }
+          actions={
+            <div className="flex items-center gap-1.5 pointer-events-auto">
+              {!mod.status?.includes('QUARANTINED') && !mod.status?.includes('ARCHIVED') && (
+                <button
+                  onClick={handleToggleClick}
+                  className={`relative group/actionbtn w-8 h-8 rounded-[max(0px,calc(var(--radius)-4px))] backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 pointer-events-auto ${isShadowed ? (isSwappedState ? 'theme-panel-accent border-[var(--accent)] theme-text-accent' : 'theme-panel-danger border-[var(--danger)] text-[var(--text)]') : hasTier3 && !isInActiveSet ? 'bg-[color-mix(in_srgb,orange_5%,transparent)] border-[color-mix(in_srgb,orange_15%,transparent)] text-orange-500  hover:border-[color-mix(in_srgb,orange_25%,transparent)]' : isInActiveSet ? 'bg-red-500/[15%] border-red-500/[30%] text-[var(--danger)]' : 'bg-emerald-500/[15%] border-emerald-500/[30%] text-[var(--success)]'}`}
+                >
+                  {isShadowed ? (
+                    <span className="material-symbols-outlined !text-[16px]">
+                      {isSwappedState ? "swap_horiz" : isNemesisEquipped ? (t("icon_crisis_alert") || 'crisis_alert')
+                        : isGameVersionMismatch ? "sports_esports"
+                          : hasMissingDeps ? "extension"
+                            : isGhosted ? "currency_exchange"
+                              : "broken_image"}
+                    </span>
+                  ) : hasTier3 && !isInActiveSet ? (
+                    <span className="material-symbols-outlined !text-[16px]">{t("icon_tune") || 'tune'}</span>
+                  ) : (
+                    <span className={`material-symbols-outlined !text-[18px] ${isInActiveSet ? 'rotate-45' : ''}`}>{t("icon_add") || 'add'}</span>
+                  )}
 
-          {/* Top Right Actions - Absolute */}
-          <div className="absolute top-4 right-4 z-[60] flex items-center gap-1.5">
-            {!mod.status?.includes('QUARANTINED') && !mod.status?.includes('ARCHIVED') && (
-              <button
-                onClick={handleToggleClick}
-                className={`relative group/actionbtn w-8 h-8 rounded-lg backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 pointer-events-auto ${isShadowed ? (isSwappedState ? 'theme-panel-accent border-[var(--accent)] theme-text-accent' : 'theme-panel-danger border-[var(--danger)] text-[var(--text)]') : hasTier3 && !isInActiveSet ? 'bg-[color-mix(in_srgb,orange_5%,transparent)] border-[color-mix(in_srgb,orange_15%,transparent)] text-orange-500  hover:border-[color-mix(in_srgb,orange_25%,transparent)]' : isInActiveSet ? 'bg-red-500/[15%] border-red-500/[30%] text-[var(--danger)]' : 'bg-emerald-500/[15%] border-emerald-500/[30%] text-[var(--success)]'}`}
-              >
-                {isShadowed ? (
-                  <span className="material-symbols-outlined !text-[16px]">
-                    {isSwappedState ? "swap_horiz" : isNemesisEquipped ? (t("icon_crisis_alert") || 'crisis_alert')
-                      : isGameVersionMismatch ? "sports_esports"
-                        : hasMissingDeps ? "extension"
-                          : isGhosted ? "currency_exchange"
-                            : "broken_image"}
-                  </span>
-                ) : hasTier3 && !isInActiveSet ? (
-                  <span className="material-symbols-outlined !text-[16px]">{t("icon_tune") || 'tune'}</span>
-                ) : (
-                  <span className={`material-symbols-outlined !text-[18px] ${isInActiveSet ? 'rotate-45' : ''}`}>{t("icon_add") || 'add'}</span>
-                )}
-
-                {(isShadowed || hasTier3 || isSwappedState) && !confirmMode && !delayedConfirmMode && (
-                  <HoverTooltip
-                    className="z-[100] !right-0 !translate-x-0 !left-auto"
-                    variant={isShadowed && !isSwappedState ? 'danger' : isSwappedState ? 'accent' : 'warning'}
-                    title={isNemesisEquipped ? t("fatal_conflict") : isGameVersionMismatch ? t("unsupported_version") : hasMissingDeps ? t("missing_artifacts") : isGhosted ? t("missing_dlc") : isSwappedState ? (isBetaSwap ? t("badge_beta") : (t("flavor_swap") || "FLAVOR SWAP")) : t("tier3_conflict")}
-                    subtitle={isNemesisEquipped
-                      ? formatDisplayName(casualtyList[0]?.name || casualtyList[0] || "") + (casualtyList[0]?.note ? ` - ${casualtyList[0].note}` : "") + (casualtyList.length > 1 ? ` (+${casualtyList.length - 1})` : "")
-                      : isGameVersionMismatch
-                        ? (
-                          <>
-                            <div className="w-full truncate">{t("tooltip_required")} {getHighestVersion(requiredVersions || [])}</div>
-                            <div className="w-full truncate">{t("tooltip_current")} {gameVersion || t("unknown") || "Unknown"}</div>
-                          </>
-                        )
-                        : hasMissingDeps
-                          ? formatDisplayName(typeof missingDeps[0] === 'string' ? missingDeps[0] : (missingDeps[0]?.name || missingDeps[0]?.id || '')) + (missingDeps.length > 1 ? ` (+${missingDeps.length - 1})` : "")
-                          : isGhosted
-                            ? missingPacks.map((p: string) => mapDlcCode(p)).join(", ")
-                            : isSwappedState
-                              ? formatDisplayName(casualtyList[0]?.name || casualtyList[0] || "") + (casualtyList.length > 1 ? ` (+${casualtyList.length - 1})` : "")
-                              : hasTier3
-                                ? formatDisplayName(tier3List[0]?.name || tier3List[0] || "") + (tier3List[0]?.note ? ` - ${tier3List[0].note}` : "")
-                                : ""}
-                  />
-                )}
-              </button>
-            )}
-          </div>
-
-          {/* Center Content */}
-          <div className={`flex flex-col items-center justify-center ${compact ? 'gap-2 pt-6 pb-2' : `gap-4 pt-8 ${isParent ? 'pb-14' : 'pb-6'}`} w-full flex-1 p-4 pointer-events-none`}>
-            <div className={`${compact ? 'w-20 h-20 rounded-[16px]' : 'w-32 h-32 rounded-[24px]'} bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden shrink-0 shadow-inner flex items-center justify-center transition-colors duration-700 ${delayedConfirmMode ? '' : 'group-hover/maincard:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-              {(showImages && (mod.image_url || mod.imageUrl) && String(mod.image_url || mod.imageUrl) !== "null" && String(mod.image_url || mod.imageUrl).trim() !== "") ? (
-                <img src={mod.image_url || mod.imageUrl} className={`w-full h-full object-cover opacity-90 transition-opacity duration-700 ${delayedConfirmMode ? '' : 'group-hover/maincard:opacity-100'}`} alt={t("auto_cover")} onError={(e) => e.currentTarget.style.display = 'none'} />
-              ) : (
-                <span className={`material-symbols-outlined text-[var(--subtext)] opacity-40 transition-all duration-700 ${delayedConfirmMode ? '' : 'group-hover/maincard:opacity-60 group-hover/maincard:text-[var(--accent)]'}`} style={{ fontSize: '64px' }}>
-                  {getModIcon(mod, activeGameSchema, t)}
-                </span>
+                  {(isShadowed || hasTier3 || isSwappedState) && !confirmMode && !delayedConfirmMode && (
+                    <HoverTooltip
+                      className="z-[100] !right-0 !translate-x-0 !left-auto"
+                      variant={isShadowed && !isSwappedState ? 'danger' : isSwappedState ? 'accent' : 'warning'}
+                      title={isNemesisEquipped ? t("fatal_conflict") : isGameVersionMismatch ? t("unsupported_version") : hasMissingDeps ? t("missing_artifacts") : isGhosted ? t("missing_dlc") : isSwappedState ? (isBetaSwap ? t("badge_beta") : (t("flavor_swap") || "FLAVOR SWAP")) : t("tier3_conflict")}
+                      subtitle={isNemesisEquipped
+                        ? formatDisplayName(casualtyList[0]?.name || casualtyList[0] || "") + (casualtyList[0]?.note ? ` - ${casualtyList[0].note}` : "") + (casualtyList.length > 1 ? ` (+${casualtyList.length - 1})` : "")
+                        : isGameVersionMismatch
+                          ? (
+                            <>
+                              <div className="w-full truncate">{t("tooltip_required")} {getHighestVersion(requiredVersions || [])}</div>
+                              <div className="w-full truncate">{t("tooltip_current")} {gameVersion || t("unknown") || "Unknown"}</div>
+                            </>
+                          )
+                          : hasMissingDeps
+                            ? formatDisplayName(typeof missingDeps[0] === 'string' ? missingDeps[0] : (missingDeps[0]?.name || missingDeps[0]?.id || '')) + (missingDeps.length > 1 ? ` (+${missingDeps.length - 1})` : "")
+                            : isGhosted
+                              ? missingPacks.map((p: string) => mapDlcCode(p)).join(", ")
+                              : isSwappedState
+                                ? formatDisplayName(casualtyList[0]?.name || casualtyList[0] || "") + (casualtyList.length > 1 ? ` (+${casualtyList.length - 1})` : "")
+                                : hasTier3
+                                  ? formatDisplayName(tier3List[0]?.name || tier3List[0] || "") + (tier3List[0]?.note ? ` - ${tier3List[0].note}` : "")
+                                  : ""}
+                    />
+                  )}
+                </button>
               )}
             </div>
-
-            <div className={`flex flex-col overflow-hidden text-center ${compact ? 'gap-0.5' : 'gap-1.5'} w-full items-center`}>
-              <h3 className={`${compact ? 'text-[12px]' : 'text-[14px]'} font-black truncate uppercase tracking-tight group-hover/maincard:theme-text-accent transition-colors w-full px-2 pointer-events-auto leading-normal pb-0.5`}>
-                {formatDisplayName(mod.displayName || mod.name)}
-              </h3>
-              <p className="text-[10px] font-black text-[var(--text)]/40 uppercase tracking-widest truncate w-full pointer-events-auto mb-1 leading-normal pb-0.5">
-                {mod.author || t("unknown_mason") || "Unknown Mason"}
-              </p>
-
-              <div className="flex flex-wrap items-center justify-center gap-1.5 pointer-events-auto pb-1">
-                <span className="text-[10px] font-mono font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-none">{mod.latest_version || mod.version || t("vlocal") || "V.LOCAL"}</span>
-                {reqCount > 0 && (
-                  <>
-                    <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest leading-none">|</span>
-                    <div className="theme-panel-accent border px-1.5 py-0.5 rounded text-[8px] font-black theme-text-accent uppercase leading-none">
-                      {reqCount} {t("req_short")}
-                    </div>
-                  </>
-                )}
+          }
+          footer={
+            isParent && !hideHitBox ? (
+              <div
+                className={`w-full cursor-pointer flex items-center justify-center gap-2 transition-all font-black text-[9px] uppercase tracking-widest ${isExpanded ? 'text-[var(--text)]' : 'text-[var(--subtext)] hover:text-[var(--text)]'}`}
+                onClick={(e) => { e.stopPropagation(); onExpand(e); }}
+              >
+                <span className="leading-none">{mod.flavors?.length || 0} {t("items")}</span>
+                <span className={`material-symbols-outlined !text-[12px] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
               </div>
-            </div>
-          </div>
-
-          {isParent && !hideHitBox && (
-            <div
-              className={`absolute bottom-0 left-0 right-0 w-full pointer-events-auto shrink-0 cursor-pointer flex items-center justify-center gap-2 px-4 py-2.5 backdrop-blur-md transition-all font-black text-[9px] uppercase tracking-widest border-t rounded-b-[var(--radius)] ${isExpanded ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t-white/20 text-white shadow-md' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]'}`}
-              onClick={(e) => { e.stopPropagation(); onExpand(e); }}
-            >
-              <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                <svg className="w-3.5 h-3.5 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                </svg>
-              </div>
-              <span className="leading-none -translate-y-[1px]">{mod.flavors?.length || 0} {t("items")}</span>
-              <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                <svg className={`w-2.5 h-2.5 opacity-60 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </div>
-            </div>
-          )}
-        </div>
+            ) : undefined
+          }
+        />
 
         {delayedConfirmMode && (
           <div className="absolute inset-0 z-[100] pointer-events-none [transform:rotateY(180deg)] [backface-visibility:hidden]">

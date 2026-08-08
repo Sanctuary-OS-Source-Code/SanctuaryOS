@@ -1,3 +1,4 @@
+import { SearchBar } from "../shared";
 import React, { useState, useEffect } from "react";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
@@ -193,12 +194,11 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
 
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-            <input
+            <SearchBar
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={setSearchTerm}
               placeholder={t("search_queue")}
-              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="h-12 w-full rounded-2xl"
             />
           </div>
 

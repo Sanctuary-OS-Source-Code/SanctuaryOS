@@ -63,36 +63,7 @@ export function SettingsGrid({ children }: any) {
   );
 }
 
-export function SettingCard({ title, description, icon, action, children, onClick, danger, active }: any) {
-  return (
-    <div 
-      onClick={onClick} 
-      className={`flex flex-col p-6 rounded-[var(--radius)] glass-panel transition-all shadow-xl hover:-translate-y-1 hover:shadow-2xl active:scale-95 border ${onClick ? 'cursor-pointer' : ''} ${active ? 'theme-border-accent bg-[var(--accent)]/[10%]' : danger ? 'border-red-500/30 hover:border-red-500 hover:bg-red-500/10' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
-    >
-      <div className="flex items-start justify-between mb-8 gap-4">
-        {icon ? (
-          <span className={`material-symbols-outlined !text-3xl ${danger ? 'text-red-500' : 'theme-text-accent'}`}>{icon}</span>
-        ) : (
-          <div className="w-8 h-8" />
-        )}
-        {action && (
-          <div className="shrink-0 flex items-center justify-end">
-            {action}
-          </div>
-        )}
-      </div>
-      <div className="flex flex-col gap-2 mb-4">
-        <span className={`text-[12px] font-black uppercase tracking-[0.2em] ${danger ? "text-red-400" : "text-[var(--text)]"}`}>{title}</span>
-        {description && <span className={`text-[10px] font-bold opacity-60 uppercase tracking-widest leading-relaxed ${danger ? "text-red-400" : "text-[var(--subtext)]"}`}>{description}</span>}
-      </div>
-      {children && (
-        <div className="mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
+
 
 export function SettingsToggle({ checked, danger }: any) {
   return (

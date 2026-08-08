@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
 import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton } from "../shared";
+import { UniversalCard } from "../components/universal/UniversalCard";
 
 import { logArchitectAction } from "../lib/audit";
 
@@ -176,58 +177,44 @@ export default function SASupportSettings() {
                 <div className="flex flex-col gap-4">
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                         {filteredCategories.map(cat => (
-                            <button key={cat.id || cat.category_code} onClick={() => openEditor(cat)} className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px] text-left">
-                                <div className={`absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 ${cat.is_active ? 'bg-gradient-to-br from-[var(--accent)]/5 to-transparent' : 'bg-gradient-to-br from-red-500/5 to-transparent'}`} />
-
-                                <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
-                      ${cat.is_active ? 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]' : 'bg-red-500/50 group-hover:bg-red-500 group-hover:shadow-md'}
-                  `} />
-
-                                <div className="p-6 flex flex-col gap-4 flex-1 relative z-10 w-full">
-                                    <div className="flex justify-between items-start gap-4">
-                                        <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${cat.is_active ? 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[var(--accent)]/30' : 'border-red-500/30 group-hover:border-red-500/50'}`}>
-                                            <span className={`material-symbols-outlined !text-[24px] transition-colors duration-500 opacity-50 group-hover:opacity-100 ${cat.is_active ? 'text-[var(--text)] group-hover:text-[var(--accent)]' : 'text-red-400'}`}>
-                                                {cat.is_active ? (t("icon_category")) : (t("icon_block"))}
+                            <UniversalCard
+                                key={cat.id || cat.category_code}
+                                onClick={() => openEditor(cat)}
+                                layout="vertical"
+                                icon={cat.is_active ? "category" : "block"}
+                                title={cat.category_name}
+                                subtitle={cat.category_code}
+                                statusColor={cat.is_active ? undefined : "border-red-500"}
+                                badges={[
+                                    <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors
+                                        ${cat.is_active ? 'bg-[var(--accent)]/10 theme-text-accent border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : 'bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20'}
+                                    `}>
+                                        {cat.is_active ? (t("status_active")) : (t("status_inactive"))}
+                                    </span>
+                                ]}
+                                footer={
+                                    <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                                        <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-emerald-500/30 text-emerald-400 rounded-full bg-emerald-500/10 shadow-[inset_0_0_10px_rgba(16,185,129,0.1)]">{cat.ticket_destination?.replace('_', ' ') || 'ARCHITECT'}</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-orange-500/30 text-orange-400 rounded-full bg-orange-500/10 shadow-[inset_0_0_10px_rgba(249,115,22,0.1)]">{cat.escalation_path || 'STANDARD'}</span>
+                                        {(cat.requires_target_mod || cat.requires_target_user) && (
+                                            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-indigo-500/30 text-indigo-400 rounded-full bg-indigo-500/10 shadow-[inset_0_0_10px_rgba(99,102,241,0.1)]">
+                                                {cat.requires_target_mod && cat.requires_target_user ? "MOD+USER" : cat.requires_target_mod ? "MOD" : "USER"}
                                             </span>
-                                        </div>
-                                        <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors
-                              ${cat.is_active ? 'bg-[var(--accent)]/10 theme-text-accent border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : 'bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20'}
-                          `}>
-                                            {cat.is_active ? (t("status_active")) : (t("status_inactive"))}
-                                        </span>
+                                        )}
+                                        {cat.custom_fields && cat.custom_fields.length > 0 && (
+                                            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(255,255,255,0.05)]">
+                                                {cat.custom_fields.length} {t("support_custom_fields_count")}
+                                            </span>
+                                        )}
                                     </div>
-
-                                    <div className="flex flex-col gap-1 mt-2">
-                                        <h3 className="font-black text-xl leading-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors uppercase tracking-widest line-clamp-2">
-                                            {cat.category_name}
-                                        </h3>
-                                        <span className="text-[10px] font-mono opacity-50 uppercase tracking-widest">{cat.category_code}</span>
-                                    </div>
-
-                                    {cat.description && (
-                                        <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity flex-1 mt-1">
-                                            {cat.description}
-                                        </p>
-                                    )}
-
-                                    <div className="flex justify-between items-center mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-4">
-                                        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                                            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-emerald-500/30 text-emerald-400 rounded-full bg-emerald-500/10 shadow-[inset_0_0_10px_rgba(16,185,129,0.1)]">{cat.ticket_destination?.replace('_', ' ') || 'ARCHITECT'}</span>
-                                            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-orange-500/30 text-orange-400 rounded-full bg-orange-500/10 shadow-[inset_0_0_10px_rgba(249,115,22,0.1)]">{cat.escalation_path || 'STANDARD'}</span>
-                                            {(cat.requires_target_mod || cat.requires_target_user) && (
-                                                <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-indigo-500/30 text-indigo-400 rounded-full bg-indigo-500/10 shadow-[inset_0_0_10px_rgba(99,102,241,0.1)]">
-                                                    {cat.requires_target_mod && cat.requires_target_user ? "MOD+USER" : cat.requires_target_mod ? "MOD" : "USER"}
-                                                </span>
-                                            )}
-                                            {cat.custom_fields && cat.custom_fields.length > 0 && (
-                                                <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(255,255,255,0.05)]">
-                                                    {cat.custom_fields.length} {t("support_custom_fields_count")}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </button>
+                                }
+                            >
+                                {cat.description && (
+                                    <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity flex-1 mt-4">
+                                        {cat.description}
+                                    </p>
+                                )}
+                            </UniversalCard>
                         ))}
                     </div>
                     {!loading && filteredCategories.length === 0 && (
@@ -240,64 +227,46 @@ export default function SASupportSettings() {
                 <div className="flex flex-col gap-4">
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 auto-rows-fr">
                         {telemetrySources.map(source => (
-                            <button
+                            <UniversalCard
                                 key={source.id}
                                 onClick={() => openSourceEditor(source)}
-                                className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px] text-left w-full"
-                            >
-                                <div className={`absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 ${source.is_active ? 'bg-gradient-to-br from-[var(--accent)]/5 to-transparent' : 'bg-gradient-to-br from-red-500/5 to-transparent'}`} />
-
-                                <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
-                        ${source.is_active ? 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]' : 'bg-red-500/50 group-hover:bg-red-500 group-hover:shadow-md'}
-                    `} />
-
-                                <div className="p-6 flex flex-col gap-4 flex-1 relative z-10 w-full">
-                                    <div className="flex justify-between items-start gap-4">
-                                        <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${source.is_active ? 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[var(--accent)]/30' : 'border-red-500/30 group-hover:border-red-500/50'}`}>
-                                            <span className={`material-symbols-outlined !text-[24px] transition-colors duration-500 opacity-50 group-hover:opacity-100 ${source.is_active ? 'text-[var(--text)] group-hover:text-[var(--accent)]' : 'text-red-400'}`}>
-                                                {source.type === 'OS' ? (t("icon_memory")) : (t("icon_description"))}
+                                layout="vertical"
+                                icon={source.type === 'OS' ? "memory" : "description"}
+                                title={source.label}
+                                subtitle={source.type}
+                                statusColor={source.is_active ? undefined : "border-red-500"}
+                                badges={[
+                                    <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors
+                                        ${source.is_active ? 'bg-[var(--accent)]/10 theme-text-accent border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : 'bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20'}
+                                    `}>
+                                        {source.is_active ? (t("status_active")) : (t("status_inactive"))}
+                                    </span>
+                                ]}
+                                footer={
+                                    <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                                        {source.type === 'OS' ? (
+                                            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-purple-500/30 text-purple-400 rounded-full bg-purple-500/10 shadow-[inset_0_0_10px_rgba(168,85,247,0.1)] flex items-center gap-1">
+                                                {t("auto_built_in_telemetry")}
                                             </span>
-                                        </div>
-                                        <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors
-                                ${source.is_active ? 'bg-[var(--accent)]/10 theme-text-accent border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : 'bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20'}
-                            `}>
-                                            {source.is_active ? (t("status_active")) : (t("status_inactive"))}
-                                        </span>
-                                    </div>
-
-                                    <div className="flex flex-col gap-1 mt-2">
-                                        <h3 className="font-black text-xl leading-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors uppercase tracking-widest line-clamp-2">
-                                            {source.label}
-                                        </h3>
-                                        <span className="text-[10px] font-mono opacity-50 uppercase tracking-widest">{source.type}</span>
-                                    </div>
-
-                                    {(source.description || source.file_pattern) && (
-                                        <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity flex-1 mt-1">
-                                            {source.description || source.file_pattern}
-                                        </p>
-                                    )}
-
-                                    <div className="flex justify-between items-center mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-4">
-                                        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                                            {source.type === 'OS' ? (
-                                                <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-purple-500/30 text-purple-400 rounded-full bg-purple-500/10 shadow-[inset_0_0_10px_rgba(168,85,247,0.1)] flex items-center gap-1">
-                                                    {t("auto_built_in_telemetry")}
+                                        ) : (
+                                            <>
+                                                <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-sky-500/30 text-sky-400 rounded-full bg-sky-500/10 shadow-[inset_0_0_10px_rgba(14,165,233,0.1)] flex items-center gap-1 truncate max-w-[150px]">
+                                                    {source.search_path === '%MODS_DIR%' ? 'Mods Folder' : source.search_path === '%DOC_DIR%' ? 'Sims 4 Documents' : source.search_path}
                                                 </span>
-                                            ) : (
-                                                <>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-sky-500/30 text-sky-400 rounded-full bg-sky-500/10 shadow-[inset_0_0_10px_rgba(14,165,233,0.1)] flex items-center gap-1 truncate max-w-[150px]">
-                                                        {source.search_path === '%MODS_DIR%' ? 'Mods Folder' : source.search_path === '%DOC_DIR%' ? 'Sims 4 Documents' : source.search_path}
-                                                    </span>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(255,255,255,0.05)] truncate max-w-[150px] font-mono">
-                                                        {source.file_pattern}
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
+                                                <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(255,255,255,0.05)] truncate max-w-[150px] font-mono">
+                                                    {source.file_pattern}
+                                                </span>
+                                            </>
+                                        )}
                                     </div>
-                                </div>
-                            </button>
+                                }
+                            >
+                                {(source.description || source.file_pattern) && (
+                                    <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity flex-1 mt-4">
+                                        {source.description || source.file_pattern}
+                                    </p>
+                                )}
+                            </UniversalCard>
                         ))}
                     </div>
                     {!loading && telemetrySources.length === 0 && (

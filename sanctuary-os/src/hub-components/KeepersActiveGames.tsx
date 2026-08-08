@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { SidePanel, standardButtonClass, standardSuccessButtonClass, standardAccentGlassButtonClass, ActionButton } from '../shared';
 import { useLexicon } from '../LexiconContext';
 import { logArchitectAction } from '../lib/audit';
+import { UniversalCard } from '../components/universal/UniversalCard';
 
 export default function KeepersActiveGames() {
   const { t } = useLexicon();
@@ -167,38 +168,43 @@ export default function KeepersActiveGames() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredGames.map(game => (
-              <div key={game.id} onClick={() => { setFormData({ id: game.id, name: game.name || "", schema_id: game.schema_id || "", supabase_url: game.supabase_url || "", supabase_anon_key: game.supabase_anon_key || "", icon: game.icon || "" }); setSidePanelMode('edit'); }} className={`glass-panel rounded-[var(--radius)] flex flex-col group border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] cursor-pointer hover:border-[var(--accent)]/[50%] hover:shadow-md hover:-translate-y-1.5 p-6 ${game.is_active === false ? 'opacity-50 grayscale border-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                  <button onClick={(e) => { e.stopPropagation(); handleToggleActive(game.id, game.name, game.is_active); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/[10%] hover:border-[var(--accent)]/[30%] hover:scale-110">
-                    <span className="material-symbols-outlined !text-[14px]">{game.is_active === false ? 'toggle_off' : 'toggle_on'}</span>
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleSeverFDW(game.schema_id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-amber-500 hover:bg-orange-500/[10%] hover:border-orange-500/[30%] hover:scale-110">
-                    <span className="material-symbols-outlined !text-[14px]">link_off</span>
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-red-500/[10%] hover:border-red-500/[30%] hover:scale-110">
-                    <span className="material-symbols-outlined !text-[14px]">delete</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-4 mb-4 mt-2">
-                  <div className="w-12 h-12 rounded-full theme-bg-accent/20 flex items-center justify-center border border-[var(--accent)]/30">
-                    {game.icon ? <img src={game.icon} alt="" className="w-8 h-8 object-contain" /> : <span className="material-symbols-outlined text-[var(--accent)]">dns</span>}
+              <UniversalCard
+                key={game.id}
+                onClick={() => { setFormData({ id: game.id, name: game.name || "", schema_id: game.schema_id || "", supabase_url: game.supabase_url || "", supabase_anon_key: game.supabase_anon_key || "", icon: game.icon || "" }); setSidePanelMode('edit'); }}
+                layout="vertical"
+                isGhosted={game.is_active === false}
+                image={game.icon || undefined}
+                icon={game.icon ? undefined : "dns"}
+                title={
+                  <span className="flex items-center gap-2">
+                    {game.name}
+                    {game.is_active === false && <span className="text-[9px] font-black uppercase bg-red-500/20 text-red-500 px-2 py-0.5 rounded-full">{t("filter_inactive")}</span>}
+                  </span>
+                }
+                subtitle={game.schema_id}
+                actions={
+                  <div className="flex gap-2">
+                    <button onClick={(e) => { e.stopPropagation(); handleToggleActive(game.id, game.name, game.is_active); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/[10%] hover:border-[var(--accent)]/[30%] hover:scale-110">
+                      <span className="material-symbols-outlined !text-[14px]">{game.is_active === false ? 'toggle_off' : 'toggle_on'}</span>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleSeverFDW(game.schema_id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-amber-500 hover:bg-orange-500/[10%] hover:border-orange-500/[30%] hover:scale-110">
+                      <span className="material-symbols-outlined !text-[14px]">link_off</span>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-red-500/[10%] hover:border-red-500/[30%] hover:scale-110">
+                      <span className="material-symbols-outlined !text-[14px]">delete</span>
+                    </button>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-[var(--headerText)] flex items-center gap-2">
-                      {game.name}
-                      {game.is_active === false && <span className="text-[9px] font-black uppercase bg-red-500/20 text-red-500 px-2 py-0.5 rounded-full">{t("filter_inactive")}</span>}
-                    </h3>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{game.schema_id}</p>
+                }
+              >
+                <div className="flex flex-col gap-2 mt-4">
+                  <div className="text-[10px] text-[var(--text)] opacity-70 break-all font-mono bg-black/20 p-2 rounded-lg">
+                    {t("ui_url") || "URL"}: {game.supabase_url}
+                  </div>
+                  <div className="text-[10px] text-[var(--text)] opacity-70 break-all font-mono bg-black/20 p-2 rounded-lg">
+                    {t("ui_key") || "KEY"}: {game.supabase_anon_key?.substring(0, 20)}...
                   </div>
                 </div>
-                <div className="text-[10px] text-[var(--text)] opacity-70 break-all font-mono bg-black/20 p-2 rounded-lg mb-2">
-                  {t("ui_url") || "URL"}: {game.supabase_url}
-                </div>
-                <div className="text-[10px] text-[var(--text)] opacity-70 break-all font-mono bg-black/20 p-2 rounded-lg">
-                  {t("ui_key") || "KEY"}: {game.supabase_anon_key?.substring(0, 20)}...
-                </div>
-              </div>
+              </UniversalCard>
             ))}
             {filteredGames.length === 0 && sidePanelMode === null && (
               <div className="col-span-full py-16 text-center text-[var(--subtext)] font-black uppercase tracking-widest opacity-50">

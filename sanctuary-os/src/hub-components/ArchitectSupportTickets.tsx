@@ -4,7 +4,8 @@ import { useStore } from '../store';
 import { supabase } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { SidePanel, CustomDropdown, standardAccentGlassButtonClass, EmptyState } from "../shared";
+import { SidePanel, CustomDropdown, EmptyState } from "../shared";
+import { UniversalCard } from "../components/universal/UniversalCard";
 
 interface Ticket {
   id: string;
@@ -314,71 +315,50 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
           return (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 px-6">
               {filteredTickets.map(ticket => (
-                <div
+                <UniversalCard
                   key={ticket.id}
-                  className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
                   onClick={() => setSelectedTicket(ticket)}
-                >
-                  <div className={`absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-gradient-to-br from-fuchsia-500/10 to-transparent' : 'bg-gradient-to-br from-[var(--accent)]/5 to-transparent'}`} />
-
-                  <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
-                        ${ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'bg-rose-500/50 group-hover:bg-rose-500 group-hover:shadow-md' : ''}
-                        ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-emerald-500/50 group-hover:bg-emerald-500 group-hover:shadow-md' : ''}
-                        ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/50 group-hover:bg-amber-500 group-hover:shadow-md' : ''}
-                        ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/50 group-hover:bg-fuchsia-500 group-hover:shadow-md' : ''}
-                        ${!['new', 'open', 'closed', 'resolved', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)]' : ''}
-                    `} />
-
-                  <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
-                    <div className="flex justify-between items-start gap-4">
-                      <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500/30 group-hover:border-fuchsia-500/50' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[var(--accent)]/30'}`}>
-                        <span className={`material-symbols-outlined !text-[24px] transition-colors duration-500 opacity-50 group-hover:opacity-100 ${ticket.status?.toLowerCase() === 'escalated' ? 'text-fuchsia-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
-                          {ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'support_agent' : ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'done_all' : ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'warning' : ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' : 'bug_report'}
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner transition-colors
-                                    ${ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 group-hover:bg-rose-500/20' : ''}
-                                    ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:bg-emerald-500/20' : ''}
-                                    ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' : ''}
-                                    ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' : ''}
-                                    ${!['new', 'open', 'closed', 'resolved', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : ''}
-                                `}>
-                          {(ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status.toLowerCase()}`) || ticket.status || "NEW")}
-                        </span>
-                        {(ticket.ticket_type || ticket.category) && (
-                          <span className="px-2 py-1 rounded bg-[var(--text)]/5 text-[var(--text)]/60 border border-[var(--text)]/10 text-[8px] font-black uppercase tracking-widest whitespace-nowrap group-hover:bg-[var(--text)]/10 group-hover:border-[var(--text)]/20 transition-all">
-                            {(ticket.ticket_type || ticket.category || "").replace(/_/g, ' ')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <h3 className="font-black text-xl leading-tight text-[var(--text)] group-hover:theme-text-accent transition-colors uppercase tracking-widest line-clamp-2 mt-2">
-                      {ticket.title}
-                    </h3>
-
-                    <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity flex-1">
-                      {ticket.description}
-                    </p>
-
-                    <div className="flex justify-between items-center mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-4">
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
-                          <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
-                          {new Date(ticket.created_at).toLocaleDateString()}
-                        </span>
-                        <span className="text-[10px] font-mono theme-text-accent uppercase tracking-widest flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity min-w-0 flex-1">
-                          <span className="material-symbols-outlined !text-[14px] normal-case shrink-0">{t("icon_person")}</span>
-                          <span className="truncate">{ticket.author_username || ticket.author_id?.substring(0, 8) || 'SYSTEM'}</span>
-                        </span>
-                      </div>
-                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                  layout="vertical"
+                  icon={ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'support_agent' : ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'done_all' : ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'warning' : ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' : 'bug_report'}
+                  title={ticket.title}
+                  statusColor={
+                    ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'border-rose-500' :
+                    ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'border-emerald-500' :
+                    ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'border-amber-500' :
+                    ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500' : undefined
+                  }
+                  badges={[
+                    <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner transition-colors
+                                ${ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 group-hover:bg-rose-500/20' : ''}
+                                ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:bg-emerald-500/20' : ''}
+                                ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' : ''}
+                                ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' : ''}
+                                ${!['new', 'open', 'closed', 'resolved', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : ''}
+                            `}>
+                      {(ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status.toLowerCase()}`) || ticket.status || "NEW")}
+                    </span>,
+                    (ticket.ticket_type || ticket.category) && (
+                      <span key="category" className="px-2 py-1 rounded bg-[var(--text)]/5 text-[var(--text)]/60 border border-[var(--text)]/10 text-[8px] font-black uppercase tracking-widest whitespace-nowrap group-hover:bg-[var(--text)]/10 group-hover:border-[var(--text)]/20 transition-all">
+                        {(ticket.ticket_type || ticket.category || "").replace(/_/g, ' ')}
+                      </span>
+                    )
+                  ].filter(Boolean)}
+                  footer={
+                    <div className="flex justify-between items-center w-full">
+                      <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60">
+                        <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
+                        {new Date(ticket.created_at).toLocaleDateString()}
+                      </span>
+                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
                         {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
                       </button>
                     </div>
-                  </div>
-                </div>
+                  }
+                >
+                  <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity mt-4">
+                    {ticket.description}
+                  </p>
+                </UniversalCard>
               ))}
             </div>
           );

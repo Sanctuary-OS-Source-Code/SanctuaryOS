@@ -3,6 +3,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { SidePanel , getExtensionRegex, HubTabButton } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
+import { UniversalCard } from "../components/universal/UniversalCard";
 
 interface LogSection {
   title: string;
@@ -135,22 +136,21 @@ export default function TicketLogViewer({
         try {
             const parsed = JSON.parse(sec.content);
             return (
-                <div className="flex flex-col items-center justify-center gap-4 py-8 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                    <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                        <span className="material-symbols-outlined !text-[32px]">{t("icon_map")}</span>
-                    </div>
-                    <div className="text-center">
-                        <h3 className="text-xl font-black tracking-tighter text-[var(--text)] drop-shadow-md">{parsed.name || t("support_attached_blueprint") || "Blueprint"}</h3>
-                        <p className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] mt-1">{(parsed.mods?.length || 0)} {t("support_mods_attached")}</p>
-                    </div>
-                    <button 
-                        onClick={() => setBlueprintJson(parsed)}
-                        className="mt-2 px-6 py-3 bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] hover:bg-[var(--accent)]/[25%] rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] hover:scale-105"
-                    >
-                        <span className="material-symbols-outlined !text-[16px]">{t("icon_visibility")}</span>
-                        {t("support_view_blueprint")}
-                    </button>
-                </div>
+                <UniversalCard
+                    layout="horizontal"
+                    icon="map"
+                    title={parsed.name || t("support_attached_blueprint") || "Blueprint"}
+                    subtitle={`${(parsed.mods?.length || 0)} ${t("support_mods_attached")}`}
+                    actions={
+                        <button 
+                            onClick={() => setBlueprintJson(parsed)}
+                            className="h-10 px-6 bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] hover:bg-[var(--accent)]/[25%] rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] hover:scale-105"
+                        >
+                            <span className="material-symbols-outlined !text-[16px]">{t("icon_visibility")}</span>
+                            {t("support_view_blueprint")}
+                        </button>
+                    }
+                />
             );
         } catch (e) {}
     }

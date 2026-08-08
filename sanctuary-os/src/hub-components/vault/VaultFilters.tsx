@@ -1,5 +1,6 @@
 import React from 'react';
 import { CustomDropdown, isVersionMatch, getHighestVersion, getLowestVersion } from "../../shared";
+import { UniversalSearch } from "../../components/universal/UniversalLayout";
 
 export function DebouncedSearchInput({ value, onChange, placeholder, t }: { value: string, onChange: (val: string) => void, placeholder: string, t: any }) {
   const [localValue, setLocalValue] = React.useState(value);
@@ -16,21 +17,13 @@ export function DebouncedSearchInput({ value, onChange, placeholder, t }: { valu
   }, [localValue, onChange, value]);
 
   return (
-    <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
-      <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-      <input
-        type="text"
-        placeholder={placeholder}
-        value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
-      />
-      {localValue && (
-        <button onClick={() => { setLocalValue(""); onChange(""); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
-          <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-        </button>
-      )}
-    </div>
+    <UniversalSearch
+      value={localValue}
+      onChange={(val) => { setLocalValue(val); onChange(val); }}
+      placeholder={placeholder}
+      wrapperClassName="flex-1 min-w-[200px] w-full xl:max-w-[300px]"
+      inputClassName="!h-12 text-sm !rounded-2xl"
+    />
   );
 }
 
@@ -172,7 +165,7 @@ export function VaultFilters({
         {onCreateLocalFolder && (
           <button
             onClick={() => { setSelectedMods && setSelectedMods([]); onCreateLocalFolder(); }}
-            className="h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border shadow-lg hover:scale-[1.02] active:scale-95 shrink-0 glass-panel text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+            className="h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border hover:scale-[1.02] active:scale-95 shrink-0 glass-surface text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
             <span className="material-symbols-outlined !text-[18px]">add_circle</span>
             {t("btn_create_node") || "NEW NODE"}
@@ -182,9 +175,9 @@ export function VaultFilters({
         {(equipFilter === "ALL" || equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") && (
           <button
             onClick={() => setHideGhostCards(!hideGhostCards)}
-            className={`h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border shadow-lg hover:scale-[1.02] active:scale-95 shrink-0 ${hideGhostCards
-              ? 'bg-emerald-500/[15%] text-[var(--success)] border-emerald-500/[30%] hover:bg-emerald-500/[20%] hover:shadow-md'
-              : 'glass-panel text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+            className={`h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border hover:scale-[1.02] active:scale-95 shrink-0 ${hideGhostCards
+              ? 'bg-emerald-500/[15%] text-[var(--success)] border-emerald-500/[30%] hover:bg-emerald-500/[20%] shadow-inner'
+              : 'glass-surface text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
               }`}
           >
             <span className="material-symbols-outlined !text-[18px]">

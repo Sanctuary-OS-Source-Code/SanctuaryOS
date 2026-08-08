@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
 import { SidePanel, FilterTabs, FilterTabButton, SearchBar } from "../shared";
+import { UniversalCard } from "../components/universal/UniversalCard";
 
 export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }: { isOpen: boolean, onClose: () => void, selectedBackup: string | null, config: any }) {
   const { t } = useLexicon();
@@ -164,47 +165,61 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                   </div>
 
                   {!isEngine && (
-                    <div className="p-4 flex flex-col gap-3 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shrink-0">
-                      <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest">
-                        <span className="text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_saves") || "save"}</span> {t("label_saves") || "Saves"}</span>
-                        <span className="text-emerald-500">{saveFiles.length} {t("label_files") || "Files"}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest">
-                        <span className="text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_tray_files") || "group"}</span> {t("label_tray_files") || "Tray Files"}</span>
-                        <span className="text-emerald-500">{trayFiles.length} {t("label_files") || "Files"}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest">
-                        <span className="text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_settings") || "settings"}</span> {t("label_settings_config") || "Settings Config"}</span>
-                        <span className={hasSettings ? "text-emerald-500" : "text-[var(--subtext)]"}>{hasSettings ? (t("label_detected") || "Detected") : (t("label_none") || "None")}</span>
-                      </div>
+                    <div className="grid grid-cols-3 gap-3 shrink-0">
+                      <UniversalCard 
+                        layout="stat" 
+                        icon={t("icon_saves") || "save"} 
+                        subtitle={t("label_saves") || "Saves"} 
+                        title={`${saveFiles.length} ${t("label_files") || "Files"}`} 
+                      />
+                      <UniversalCard 
+                        layout="stat" 
+                        icon={t("icon_tray_files") || "group"} 
+                        subtitle={t("label_tray_files") || "Tray Files"} 
+                        title={`${trayFiles.length} ${t("label_files") || "Files"}`} 
+                      />
+                      <UniversalCard 
+                        layout="stat" 
+                        customIcon={<span className={`material-symbols-outlined !text-[22px] transition-colors ${hasSettings ? 'text-emerald-500' : 'opacity-50 group-hover:opacity-80'}`}>{t("icon_settings") || "settings"}</span>}
+                        statusColor={hasSettings ? "border-emerald-500/30 bg-emerald-500/10" : undefined}
+                        subtitle={t("label_settings_config") || "Settings Config"} 
+                        title={hasSettings ? (t("label_detected") || "Detected") : (t("label_none") || "None")} 
+                      />
                     </div>
                   )}
 
                   {isEngine && (
-                    <div className="p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shrink-0">
-                      <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest">
-                        <span className="text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_folder") || "folder"}</span> {t("total_files") || "Total Files"}</span>
-                        <span className="text-emerald-500">{backupFiles.length}</span>
-                      </div>
+                    <div className="grid grid-cols-1 gap-3 shrink-0">
+                      <UniversalCard 
+                        layout="stat" 
+                        icon={t("icon_folder") || "folder"} 
+                        subtitle={t("total_files") || "Total Files"} 
+                        title={backupFiles.length} 
+                      />
                     </div>
                   )}
 
                   {/* Storage Info Details */}
-                  <div className="p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl flex flex-col gap-3 shrink-0">
-                    <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest">
-                      <span className="text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_hard_drive") || "hard_drive"}</span> {t("logical_size") || "Logical Size"}</span>
-                      <span className="text-[var(--text)]">{(logicalSize / 1024 / 1024 / 1024).toFixed(2)} GB</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest">
-                      <span className="text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_data_usage") || "data_usage"}</span> {t("new_disk_used") || "New Disk Used"}</span>
-                      <span className="text-amber-500">{(diffSize / 1024 / 1024 / 1024).toFixed(4)} GB</span>
-                    </div>
-                    <div className="mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex flex-col gap-2">
-                      <span className="flex items-center gap-1 opacity-70"><span className="material-symbols-outlined !text-[14px]">{t("icon_location") || "location_on"}</span> {t("stored_location") || "Stored Location"}</span>
-                      <span className="bg-black/20 p-3 rounded-xl font-mono text-[11px] font-black uppercase tracking-widest break-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] leading-relaxed">
-                        {location.replace(/c:\\users\\[^\\]+/i, 'C:\\USERS\\***')}
-                      </span>
-                    </div>
+                  <div className="grid grid-cols-2 gap-3 shrink-0">
+                    <UniversalCard 
+                      layout="stat" 
+                      icon={t("icon_hard_drive") || "hard_drive"} 
+                      subtitle={t("logical_size") || "Logical Size"} 
+                      title={`${(logicalSize / 1024 / 1024 / 1024).toFixed(2)} GB`} 
+                    />
+                    <UniversalCard 
+                      layout="stat" 
+                      customIcon={<span className="material-symbols-outlined !text-[22px] text-amber-500">data_usage</span>}
+                      statusColor="border-amber-500/30 bg-amber-500/10"
+                      subtitle={t("new_disk_used") || "New Disk Used"} 
+                      title={`${(diffSize / 1024 / 1024 / 1024).toFixed(4)} GB`} 
+                    />
+                  </div>
+                  <div className="p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl flex flex-col gap-2 shrink-0">
+                    <span className="flex items-center gap-1 opacity-70 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]"><span className="material-symbols-outlined !text-[14px]">{t("icon_location") || "location_on"}</span> {t("stored_location") || "Stored Location"}</span>
+                    <span className="bg-black/20 p-3 rounded-xl font-mono text-[11px] font-black uppercase tracking-widest break-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] leading-relaxed">
+                      {location.replace(/c:\\users\\[^\\]+/i, 'C:\\USERS\\***')}
+                    </span>
                   </div>
                 </div>
               )}

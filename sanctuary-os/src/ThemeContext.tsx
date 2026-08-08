@@ -18,7 +18,7 @@ const DEFAULT_CORE_THEMES: any = {
     name: "Radiant", bg: "#ffffff", sidebar: "#ffffff", sidebartext: "#1d1d1f", accent: "#007aff",
     text: "#1d1d1f", subtext: "#86868b", success: "#34c759", warning: "#ffcc00", danger: "#ff3b30",
     panelTint: "#ffffff", headerText: "#000000", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0%", glassBlur: "32px", radius: "1.5rem", bgGradient: "linear-gradient(135deg, #e0e7ff 0%, #f8fafc 50%, #fce7f3 100%)",
+    glassOpacity: "0%", glassBlur: "32px", radius: "1.5rem", bgGradient: "radial-gradient(ellipse at 0% 0%, #bae6fd 0%, transparent 60%), radial-gradient(ellipse at 100% 100%, #fbcfe8 0%, transparent 60%), radial-gradient(ellipse at 50% 50%, #c7d2fe 0%, transparent 70%), #f8fafc",
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },

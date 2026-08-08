@@ -17,12 +17,12 @@ export const handleOpenUrl = (url: string) => {
 
 export const standardButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
 export const standardGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardPrimaryButtonClass = "px-8 py-4 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:border-[var(--accent)]/50 hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group";
-export const standardSuccessButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-emerald-500/[20%] hover:border-emerald-500/[50%] hover:shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardDangerButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-red-500/[15%] border border-red-500/[30%] text-[var(--danger)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-red-500/[20%] hover:border-red-500/[50%] hover:shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardAccentGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[var(--accent)]/[20%] hover:border-[var(--accent)]/[50%] hover:shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
+export const standardPrimaryButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:theme-border-accent hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group";
+export const standardSuccessButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-success theme-btn-success text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
+export const standardDangerButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-danger theme-btn-danger text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
+export const standardAccentGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-accent theme-btn-accent text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
 
-export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, className = "", type = "button", form, children }: {
+export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, className = "", type = "button", form, children, variant = "default" }: {
   icon?: string;
   label?: React.ReactNode;
   onClick?: (e?: any) => void;
@@ -32,7 +32,36 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
   type?: "button" | "submit" | "reset";
   form?: string;
   children?: React.ReactNode;
+  variant?: "default" | "primary" | "success" | "danger" | "accent" | "glass" | "warning";
 }) {
+  let variantClasses = "";
+  let borderColorVar = "--accent";
+  
+  switch (variant) {
+    case "danger":
+      variantClasses = "!border-red-500/[30%] !text-[var(--danger)] hover:!border-red-500/[50%] hover:!bg-red-500/[10%]";
+      borderColorVar = "--danger";
+      break;
+    case "success":
+      variantClasses = "!border-[var(--success)]/[30%] !text-[var(--success)] hover:!border-[var(--success)]/[50%] hover:!bg-[var(--success)]/[10%]";
+      borderColorVar = "--success";
+      break;
+    case "warning":
+      variantClasses = "!border-[var(--warning)]/[30%] !text-[var(--warning)] hover:!border-[var(--warning)]/[50%] hover:!bg-[var(--warning)]/[10%]";
+      borderColorVar = "--warning";
+      break;
+    case "accent":
+    case "primary":
+    case "default":
+      variantClasses = "!border-[var(--accent)]/[30%] !text-[var(--accent)] hover:!border-[var(--accent)]/[50%] hover:!bg-[var(--accent)]/[10%]";
+      borderColorVar = "--accent";
+      break;
+    case "glass":
+      variantClasses = "!border-[color-mix(in_srgb,var(--text)_10%,transparent)] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:!bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+      borderColorVar = "--text";
+      break;
+  }
+
   return (
     <button
       type={type}
@@ -40,7 +69,8 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       disabled={disabled}
-      className={`px-8 py-4 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:border-[var(--accent)]/50 hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${className}`}
+      className={`px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${variantClasses} ${className}`}
+      style={!disabled ? { '--tw-hover-border-color': `color-mix(in srgb, var(${borderColorVar}) 50%, transparent)` } as React.CSSProperties : undefined}
     >
       {icon && <span className="material-symbols-outlined !text-[16px] transition-transform group-hover:-translate-y-0.5">{icon}</span>}
       {label}
@@ -240,10 +270,10 @@ export const loadDLCMap = async () => {
 };
 
 export const LOCAL_DLC_MAP: Record<string, string> = {
-  "EP01":"Get to Work","EP02":"Get Together","EP03":"City Living","EP04":"Cats & Dogs","EP05":"Seasons","EP06":"Get Famous","EP07":"Island Living","EP08":"Discover University","EP09":"Eco Lifestyle","EP10":"Snowy Escape","EP11":"Cottage Living","EP12":"High School Years","EP13":"Growing Together","EP14":"Horse Ranch","EP15":"For Rent","EP16":"Lovestruck","EP17":"Life & Death",
-  "GP01":"Outdoor Retreat","GP02":"Spa Day","GP03":"Dine Out","GP04":"Vampires","GP05":"Parenthood","GP06":"Jungle Adventure","GP07":"StrangerVille","GP08":"Realm of Magic","GP09":"Star Wars: Journey to Batuu","GP10":"Dream Home Decorator","GP11":"My Wedding Stories","GP12":"Werewolves",
-  "SP01":"Luxury Party","SP02":"Perfect Patio","SP03":"Cool Kitchen","SP04":"Spooky Stuff","SP05":"Movie Hangout","SP06":"Romantic Garden","SP07":"Kids Room","SP08":"Backyard Stuff","SP09":"Vintage Glamour","SP10":"Bowling Night","SP11":"Fitness Stuff","SP12":"Toddler Stuff","SP13":"Laundry Day","SP14":"First Pet","SP15":"Moschino","SP16":"Tiny Living","SP17":"Nifty Knitting","SP18":"Paranormal","SP46":"Home Chef Hustle","SP47":"Crystal Creations",
-  "SP22":"Throwback Fit Kit","SP23":"Country Kitchen Kit","SP24":"Bust the Dust Kit","SP64":"Riviera Retreat Kit","SP65":"Cozy Bistro Kit","SP68":"SpongeBob’s House Kit","SP70":"SpongeBob Kid’s Room Kit","SP75":"Wonderland Playroom Set","SP81":"Prairie Dreams Set","SP82":"Yard Charm Kit"
+  "EP01": "Get to Work", "EP02": "Get Together", "EP03": "City Living", "EP04": "Cats & Dogs", "EP05": "Seasons", "EP06": "Get Famous", "EP07": "Island Living", "EP08": "Discover University", "EP09": "Eco Lifestyle", "EP10": "Snowy Escape", "EP11": "Cottage Living", "EP12": "High School Years", "EP13": "Growing Together", "EP14": "Horse Ranch", "EP15": "For Rent", "EP16": "Lovestruck", "EP17": "Life & Death",
+  "GP01": "Outdoor Retreat", "GP02": "Spa Day", "GP03": "Dine Out", "GP04": "Vampires", "GP05": "Parenthood", "GP06": "Jungle Adventure", "GP07": "StrangerVille", "GP08": "Realm of Magic", "GP09": "Star Wars: Journey to Batuu", "GP10": "Dream Home Decorator", "GP11": "My Wedding Stories", "GP12": "Werewolves",
+  "SP01": "Luxury Party", "SP02": "Perfect Patio", "SP03": "Cool Kitchen", "SP04": "Spooky Stuff", "SP05": "Movie Hangout", "SP06": "Romantic Garden", "SP07": "Kids Room", "SP08": "Backyard Stuff", "SP09": "Vintage Glamour", "SP10": "Bowling Night", "SP11": "Fitness Stuff", "SP12": "Toddler Stuff", "SP13": "Laundry Day", "SP14": "First Pet", "SP15": "Moschino", "SP16": "Tiny Living", "SP17": "Nifty Knitting", "SP18": "Paranormal", "SP46": "Home Chef Hustle", "SP47": "Crystal Creations",
+  "SP22": "Throwback Fit Kit", "SP23": "Country Kitchen Kit", "SP24": "Bust the Dust Kit", "SP64": "Riviera Retreat Kit", "SP65": "Cozy Bistro Kit", "SP68": "SpongeBob’s House Kit", "SP70": "SpongeBob Kid’s Room Kit", "SP75": "Wonderland Playroom Set", "SP81": "Prairie Dreams Set", "SP82": "Yard Charm Kit"
 };
 
 export const mapDlcCode = (code: string) => {
@@ -290,7 +320,7 @@ export const getHighestVersion = (reqs: string[] | string) => {
 };
 
 export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(--accent)] border-[var(--accent)]/30", children, onSubtitleClick, shape = "circle" }: any) {
-  const shapeClass = shape === "square" ? "rounded-xl" : "rounded-full";
+  const shapeClass = shape === "square" ? "rounded-[calc(var(--radius)-4px)]" : "rounded-[var(--radius)]";
   return (
     <header className="flex flex-col xl:flex-row w-full justify-between items-start mb-6 shrink-0 gap-6">
       <div className="flex items-center gap-5 flex-1 min-w-0 w-full">
@@ -742,35 +772,35 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
         }}>
           <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
             {filtered.map(v => (
-            <button
-              key={v.version}
-              type="button"
-              onClick={() => {
-                console.log('Version clicked:', v.version);
-                toggleVersion(v.version);
-                setQuery("");
-                setIsOpen(false);
-              }}
-              className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black uppercase text-[var(--text)] flex justify-between cursor-pointer"
-            >
-              <span>{v.version}</span>
-              {selectedVersions.includes(v.version) && <span className="text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined !text-[14px]">{t("icon_check")}</span></span>}
-            </button>
-          ))}
-          {query && !versions.some(v => v.version === query) && (
-            <button
-              type="button"
-              onClick={() => {
-                console.log('Custom version added:', query);
-                toggleVersion(query);
-                setQuery("");
-                setIsOpen(false);
-              }}
-              className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black uppercase text-emerald-400 cursor-pointer"
-            >
-              + {t("cc_btn_add")} "{query}"
-            </button>
-          )}
+              <button
+                key={v.version}
+                type="button"
+                onClick={() => {
+                  console.log('Version clicked:', v.version);
+                  toggleVersion(v.version);
+                  setQuery("");
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black uppercase text-[var(--text)] flex justify-between cursor-pointer"
+              >
+                <span>{v.version}</span>
+                {selectedVersions.includes(v.version) && <span className="text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined !text-[14px]">{t("icon_check")}</span></span>}
+              </button>
+            ))}
+            {query && !versions.some(v => v.version === query) && (
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('Custom version added:', query);
+                  toggleVersion(query);
+                  setQuery("");
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black uppercase text-emerald-400 cursor-pointer"
+              >
+                + {t("cc_btn_add")} "{query}"
+              </button>
+            )}
           </div>
         </div>,
         document.body
@@ -1001,11 +1031,12 @@ export function SidePanel({
   panelClass,
   panelStyle,
   position,
-  keepMounted = false
+  keepMounted = false,
+  coverImage
 }: {
   isOpen: boolean,
   onClose: () => void,
-  title: React.ReactNode | string,
+  title?: React.ReactNode | string,
   subtitle?: React.ReactNode,
   icon?: string,
   iconColorClass?: string,
@@ -1029,7 +1060,8 @@ export function SidePanel({
   panelClass?: string,
   panelStyle?: React.CSSProperties,
   position?: "left" | "right",
-  keepMounted?: boolean
+  keepMounted?: boolean,
+  coverImage?: string
 }) {
   const { t } = useLexicon();
   const [panelWidth, setPanelWidth] = useState<number>(defaultWidth || 800);
@@ -1066,10 +1098,10 @@ export function SidePanel({
   return createPortal(
     <div style={keepMounted && !isOpen ? { opacity: 0, pointerEvents: 'none', transition: 'opacity 0.2s ease-in-out' } : { opacity: 1, pointerEvents: 'auto', transition: 'opacity 0.2s ease-in-out' }}>
       {isResizing && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
-      <div className={`fixed top-[50px] bottom-[40px] right-0 ${backdropZ} ${noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[2px]'} animate-in fade-in duration-500 transition-all`} style={position === "left" ? { right: 0, left: 0 } : { left: "var(--sidebar-width, 288px)" }} onClick={onClose} />
+      <div className={`fixed inset-0 z-0 ${backdropZ} ${noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[2px]'} animate-in fade-in duration-500 transition-all`} onClick={onClose} />
       <div
         ref={panelRef}
-        className={`fixed top-[50px] bottom-[40px] ${position === 'left' ? 'left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} ${position === 'left' ? '!rounded-r-[var(--radius)] !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-[var(--radius)] !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} duration-500 flex flex-col ${panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''} ${keepMounted ? '' : (position === 'left' ? 'animate-in slide-in-from-left' : 'animate-in slide-in-from-right')}`}
+        className={`fixed top-[50px] bottom-[40px] ${position === 'left' ? 'left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} ${position === 'left' ? '!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} duration-500 flex flex-col ${panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''} ${keepMounted ? '' : (position === 'left' ? 'animate-in slide-in-from-left' : 'animate-in slide-in-from-right')}`}
         style={isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined, ...panelStyle } : panelStyle}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1092,7 +1124,18 @@ export function SidePanel({
         )}
 
         {!hideHeader && (
-          <div className="pt-8 px-10 pb-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
+          <div className={`pt-8 px-10 pb-4 shrink-0 relative z-30 bg-gradient-to-b from-[color-mix(in_srgb,var(--bg)_80%,transparent)] via-[color-mix(in_srgb,var(--bg)_60%,transparent)] to-transparent ${coverImage ? 'pt-48' : ''}`}>
+
+            {coverImage && (
+              <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[var(--radius)] rounded-tr-[var(--radius)]">
+                <div
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-100 opacity-60"
+                  style={{ backgroundImage: `url('${coverImage}')` }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--bg)]/60 to-[color-mix(in_srgb,var(--bg)_65%,transparent)] pointer-events-none" />
+              </div>
+            )}
+
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_0%,transparent)] via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-[color-mix(in_srgb,var(--text)_0%,transparent)] opacity-50" />
             <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_3%,transparent)] to-[color-mix(in_srgb,var(--text)_0%,transparent)] pointer-events-none" />
 
@@ -1138,7 +1181,7 @@ export function SidePanel({
         </div>
 
         {(footer || actions) && (
-          <div className={`px-8 pb-8 pt-4 flex justify-center items-center gap-4 shrink-0 relative z-20 bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[2px] ${footerClass || ''}`}>
+          <div className={`px-8 pb-8 pt-10 flex justify-center items-center gap-4 shrink-0 relative z-30 bg-gradient-to-t from-[color-mix(in_srgb,var(--bg)_60%,transparent)] via-[color-mix(in_srgb,var(--bg)_30%,transparent)] to-transparent backdrop-blur-sm ${footerClass || ''}`}>
             {footer}
             {actions}
           </div>
@@ -1266,7 +1309,7 @@ export function HoverTooltip({ title, subtitle, variant = 'default', className =
   const ref = React.useRef<HTMLDivElement>(null);
   const propsRef = React.useRef({ title, subtitle, variant, className, noIcon, icon, normalFont, explicitAlign, explicitVAlign, content });
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
-  
+
   // Keep ref in sync and update store if currently hovered and already shown
   React.useEffect(() => {
     propsRef.current = { title, subtitle, variant, className, noIcon, icon, normalFont, explicitAlign, explicitVAlign, content };
@@ -1377,7 +1420,7 @@ export function HoverTooltip({ title, subtitle, variant = 'default', className =
     if (parent.matches(':hover')) {
       handleMouseEnter();
     }
-    
+
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
@@ -1703,12 +1746,12 @@ export function SidePanelActionFooter({
   hideCancel = false,
 
   onAction,
-  actionLabel, 
+  actionLabel,
   actionIcon,
   actionDisabled = false,
   actionVariant = "accent",
   actionTooltip,
-  
+
   isProcessing = false,
   processingLabel,
 
@@ -1716,7 +1759,8 @@ export function SidePanelActionFooter({
   dangerLabel,
   dangerIcon,
   dangerDisabled = false,
-  
+  centerDanger = false,
+
   className = "flex flex-row items-center justify-center gap-4 w-full"
 }: {
   onCancel?: () => void;
@@ -1735,56 +1779,44 @@ export function SidePanelActionFooter({
   dangerLabel?: string;
   dangerIcon?: string;
   dangerDisabled?: boolean;
+  centerDanger?: boolean;
   className?: string;
 }) {
   const { t } = useLexicon();
 
-  const getActionClass = () => {
-    switch (actionVariant) {
-      case "success": return "!border-emerald-500/[50%] !text-[var(--success)] hover:!bg-emerald-500/[20%] hover:!shadow-[0_0_30px_rgba(var(--success-rgb),0.4)]";
-      case "danger": return "!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]";
-      case "primary": return "";
-      case "glass": return "!bg-[color-mix(in_srgb,var(--text)_5%,transparent)] !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
-      case "accent":
-      default: return "!border-[var(--accent)]/[50%] !text-[var(--accent)] hover:!bg-[var(--accent)]/[20%] hover:!shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)]";
-    }
-  };
-
   return (
     <div className={className}>
       {onDanger && (
-         <ActionButton 
-           onClick={onDanger} 
-           disabled={dangerDisabled || isProcessing} 
-           className={`mr-auto !border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]`}
-           icon={dangerIcon}
-           label={dangerLabel || t("ui_btn_delete")}
-         />
+        <ActionButton
+          onClick={onDanger}
+          disabled={dangerDisabled || isProcessing}
+          variant="danger"
+          icon={dangerIcon}
+          label={dangerLabel || t("ui_btn_delete")}
+        />
       )}
-      
+
       {!hideCancel && (
-         <ActionButton 
-           onClick={onCancel} 
-           disabled={isProcessing} 
-           icon={cancelIcon}
-           label={cancelLabel || t("nav_cancel")}
-           className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]"
-         />
+        <ActionButton
+          onClick={onCancel}
+          disabled={isProcessing}
+          icon={cancelIcon}
+          variant="glass"
+          label={cancelLabel || t("nav_cancel")}
+        />
       )}
-      
+
       {onAction && (
-         <div className={actionTooltip ? (actionDisabled || isProcessing ? "cursor-not-allowed" : "") : ""}>
-           {actionTooltip && <HoverTooltip title={actionTooltip} variant="warning" />}
-           <ActionButton 
-             onClick={onAction} 
-             disabled={actionDisabled || isProcessing} 
-             className={getActionClass()}
-             icon={isProcessing ? "sync" : actionIcon}
-             label={isProcessing ? (processingLabel || t("ui_btn_processing")) : actionLabel}
-           >
-             {isProcessing && <style>{`.material-symbols-outlined.animate-spin { animation: spin 1s linear infinite; } @keyframes spin { 100% { transform: rotate(360deg); } }`}</style>}
-           </ActionButton>
-         </div>
+        <div className={actionTooltip ? (actionDisabled || isProcessing ? "cursor-not-allowed" : "") : ""}>
+          {actionTooltip && <HoverTooltip title={actionTooltip} variant="warning" />}
+          <ActionButton
+            onClick={onAction}
+            disabled={actionDisabled || isProcessing}
+            variant={actionVariant}
+            icon={isProcessing ? "sync" : actionIcon}
+            label={isProcessing ? (processingLabel || t("ui_btn_processing")) : actionLabel}
+          />
+        </div>
       )}
     </div>
   );

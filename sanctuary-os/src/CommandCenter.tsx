@@ -350,19 +350,19 @@ export default function CommandCenter({
       {urgentBroadcast && localStorage.getItem("sanctuary_notify_alert_banner") !== "false" && (
         <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full border border-[var(--danger)]/30 bg-[var(--danger)]/10 rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center gap-6 shadow-md cursor-pointer hover:bg-[var(--danger)]/20 transition-all group overflow-hidden relative backdrop-blur-md">
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--danger)]/5 to-transparent z-0 pointer-events-none" />
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--danger)]/10 blur-[50px] rounded-full pointer-events-none" />
-          <div className="w-16 h-16 rounded-full bg-[var(--danger)]/10 border border-[var(--danger)]/30 flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform shadow-inner">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--danger)]/10 blur-[50px] rounded-[var(--radius)] pointer-events-none" />
+          <div className="w-16 h-16 rounded-[var(--radius)] bg-[var(--danger)]/10 border border-[var(--danger)]/30 flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform shadow-inner">
             <span className="material-symbols-outlined !text-4xl text-[var(--danger)] animate-pulse">{t("icon_warning_amber")}</span>
           </div>
           <div className="flex flex-col gap-2 flex-1 z-10">
             <div className="flex items-center gap-3">
-              <span className="px-3 py-1 bg-[var(--danger)]/20 border border-[var(--danger)]/40 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest rounded-lg shadow-inner animate-pulse flex items-center gap-1"><span className="material-symbols-outlined !text-[12px]"></span>{t("urgent_alert")}</span>
+              <span className="px-3 py-1 bg-[var(--danger)]/20 border border-[var(--danger)]/40 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest rounded-[calc(var(--radius)-4px)] shadow-inner animate-pulse flex items-center gap-1"><span className="material-symbols-outlined !text-[12px]"></span>{t("urgent_alert")}</span>
               <span className="text-[10px] font-black uppercase tracking-widest opacity-60 text-[var(--danger)]">{new Date(urgentBroadcast.created_at).toLocaleDateString()}</span>
             </div>
             <h3 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--danger)] group-hover:text-red-400 transition-colors drop-shadow-md">{urgentBroadcast.title}</h3>
           </div>
           <div className="flex items-center gap-2 z-10 ml-auto">
-            <button onClick={(e) => { e.stopPropagation(); sessionStorage.setItem('dismissedAlertId', urgentBroadcast.id); setUrgentBroadcast(null); }} className="w-10 h-10 rounded-full border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] flex items-center justify-center transition-colors shadow-inner backdrop-blur-md hover:scale-110 active:scale-95 group/close" >
+            <button onClick={(e) => { e.stopPropagation(); sessionStorage.setItem('dismissedAlertId', urgentBroadcast.id); setUrgentBroadcast(null); }} className="w-10 h-10 rounded-[calc(var(--radius)-4px)] border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] flex items-center justify-center transition-colors shadow-inner backdrop-blur-md hover:scale-110 active:scale-95 group/close" >
               <span className="material-symbols-outlined !text-[20px] group-hover/close:rotate-90 transition-transform duration-300">close</span>
             </button>
           </div>
@@ -378,10 +378,10 @@ export default function CommandCenter({
             boxShadow: `0 0 40px rgba(239, 68, 68, 0.1)`
           }}>
           <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: `linear-gradient(90deg, color-mix(in srgb, var(--danger) 5%, transparent), transparent)` }} />
-          <div className="absolute top-0 right-0 w-32 h-32 blur-[50px] rounded-full pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)` }} />
+          <div className="absolute top-0 right-0 w-32 h-32 blur-[50px] rounded-[var(--radius)] pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)` }} />
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 w-full z-10 pl-2">
             <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)`, borderColor: `color-mix(in srgb, var(--danger) 30%, transparent)`, color: 'var(--danger)', borderWidth: '1px' }}>
+              <div className="w-14 h-14 rounded-[var(--radius)] flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)`, borderColor: `color-mix(in srgb, var(--danger) 30%, transparent)`, color: 'var(--danger)', borderWidth: '1px' }}>
                 <span className="material-symbols-outlined !text-[32px] animate-pulse">{t("icon_warning_amber")}</span>
               </div>
               <div className="flex flex-col gap-1">
@@ -423,7 +423,7 @@ export default function CommandCenter({
             <div className="absolute top-0 right-0 w-32 h-32 blur-[50px] rounded-full pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, ${alertVar} 10%, transparent)` }} />
 
             <div className="flex items-center gap-6 z-10 pl-2">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform" style={{ backgroundColor: `color-mix(in srgb, ${alertVar} 10%, transparent)`, borderColor: `color-mix(in srgb, ${alertVar} 30%, transparent)`, color: alertVar, borderWidth: '1px' }}>
+              <div className="w-14 h-14 rounded-[var(--radius)] flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform" style={{ backgroundColor: `color-mix(in srgb, ${alertVar} 10%, transparent)`, borderColor: `color-mix(in srgb, ${alertVar} 30%, transparent)`, color: alertVar, borderWidth: '1px' }}>
                 <span className="material-symbols-outlined !text-[32px] animate-pulse">{t(`ui_icon_${alertIcon}`) || alertIcon}</span>
               </div>
               <div className="flex flex-col gap-1">
@@ -441,13 +441,13 @@ export default function CommandCenter({
             </div>
 
             <div className="flex items-center gap-4 z-10 flex-wrap">
-              <button onClick={() => { if (activeUpdates.length > 0) setShowUpdatesModal(true); }} disabled={!(activeUpdates.length > 0)} className={`px-6 py-3 rounded-full flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${activeUpdates.length > 0 ? 'bg-[var(--accent)]/[10%] border-[var(--accent)]/[50%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] shadow-md' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
+              <button onClick={() => { if (activeUpdates.length > 0) setShowUpdatesModal(true); }} disabled={!(activeUpdates.length > 0)} className={`px-6 py-3 rounded-[var(--radius)] flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${activeUpdates.length > 0 ? 'bg-[var(--accent)]/[10%] border-[var(--accent)]/[50%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] shadow-md' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
                 <span className="material-symbols-outlined !text-sm">{t("icon_update")}</span> {activeUpdates.length} {t("updates_modal_title")}
               </button>
-              <button onClick={() => { if ((radarBrokenCount + radarUnstableCount) > 0) setShowIncompatiblePanel(true); }} disabled={(radarBrokenCount + radarUnstableCount) === 0} className={`px-6 py-3 rounded-full flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${(radarBrokenCount + radarUnstableCount) > 0 ? (radarBrokenCount > 0 ? 'bg-red-500/[10%] border-red-500/[50%] text-[var(--danger)] hover:bg-red-500/[20%] shadow-md' : 'bg-orange-500/[10%] border-orange-500/[50%] text-[var(--warning)] hover:bg-orange-500/[20%] shadow-md') : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
+              <button onClick={() => { if ((radarBrokenCount + radarUnstableCount) > 0) setShowIncompatiblePanel(true); }} disabled={(radarBrokenCount + radarUnstableCount) === 0} className={`px-6 py-3 rounded-[var(--radius)] flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${(radarBrokenCount + radarUnstableCount) > 0 ? (radarBrokenCount > 0 ? 'bg-red-500/[10%] border-red-500/[50%] text-[var(--danger)] hover:bg-red-500/[20%] shadow-md' : 'bg-orange-500/[10%] border-orange-500/[50%] text-[var(--warning)] hover:bg-orange-500/[20%] shadow-md') : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
                 <span className="material-symbols-outlined !text-sm">{radarBrokenCount > 0 ? "gpp_bad" : (radarUnstableCount > 0 ? "gpp_maybe" : "warning_amber")}</span> {radarBrokenCount > 0 && radarUnstableCount > 0 ? `${radarBrokenCount} ${t("status_broken")} / ${radarUnstableCount} ${t("label_unstable")}` : radarBrokenCount > 0 ? `${radarBrokenCount} ${t("status_broken")}` : radarUnstableCount > 0 ? `${radarUnstableCount} ${t("label_unstable")}` : `0 ${t("citizen_action_incompatible")}`}
               </button>
-              <button onClick={() => { if (activeConflictCount.total > 0) setShowConflictsPanel(true); }} disabled={activeConflictCount.total === 0} className={`px-6 py-3 rounded-full flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${activeConflictCount.total > 0 ? (activeConflictCount.tier4 > 0 ? 'bg-red-500/[10%] border-red-500/[50%] text-[var(--danger)] hover:bg-red-500/[20%] shadow-md' : 'bg-orange-500/[10%] border-orange-500/[50%] text-[var(--warning)] hover:bg-orange-500/[20%] shadow-md') : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
+              <button onClick={() => { if (activeConflictCount.total > 0) setShowConflictsPanel(true); }} disabled={activeConflictCount.total === 0} className={`px-6 py-3 rounded-[var(--radius)] flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${activeConflictCount.total > 0 ? (activeConflictCount.tier4 > 0 ? 'bg-red-500/[10%] border-red-500/[50%] text-[var(--danger)] hover:bg-red-500/[20%] shadow-md' : 'bg-orange-500/[10%] border-orange-500/[50%] text-[var(--warning)] hover:bg-orange-500/[20%] shadow-md') : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
                 <span className="material-symbols-outlined !text-sm">{activeConflictCount.tier4 > 0 ? "crisis_alert" : (activeConflictCount.tier3 > 0 ? "tune" : "radar")}</span>
                 {activeConflictCount.total > 0 ? (
                   activeConflictCount.tier4 > 0 && activeConflictCount.tier3 > 0 ?
@@ -467,7 +467,7 @@ export default function CommandCenter({
       <div className="flex flex-col lg:flex-row gap-8 w-full">
         <div className="flex-1 flex flex-col gap-6 min-w-0">
           <div className="flex items-center gap-3 mb-6 mt-2">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-md shrink-0 relative overflow-hidden group bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-cyan-500/30 text-cyan-400">
+            <div className="w-14 h-14 rounded-[var(--radius)] flex items-center justify-center shadow-md shrink-0 relative overflow-hidden group bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-cyan-500/30 text-cyan-400">
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <span className="material-symbols-outlined !text-[28px] relative z-10 drop-shadow-md">{t("icon_satellite_alt")}</span>
             </div>
@@ -480,7 +480,7 @@ export default function CommandCenter({
         </div>
         <div className="w-full lg:w-[420px] shrink-0 flex flex-col gap-6">
           <div className="flex items-center gap-3 mb-6 mt-2">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-md shrink-0 relative overflow-hidden group bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-amber-500/30 text-amber-500">
+            <div className="w-14 h-14 rounded-[var(--radius)] flex items-center justify-center shadow-md shrink-0 relative overflow-hidden group bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-amber-500/30 text-amber-500">
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <span className="material-symbols-outlined !text-[28px] relative z-10 drop-shadow-md">{t("icon_bolt")}</span>
             </div>
@@ -492,7 +492,7 @@ export default function CommandCenter({
               <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden h-24">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                 <div className="flex items-center gap-5 h-full">
-                  <div className="w-12 h-12 rounded-full glass-surface border flex items-center justify-center shrink-0 transition-colors border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 text-[var(--danger)] shadow-md">
+                  <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border flex items-center justify-center shrink-0 transition-colors border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 text-[var(--danger)] shadow-md">
                     <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 animate-pulse drop-shadow-md">
                       priority_high
                     </span>
@@ -510,7 +510,7 @@ export default function CommandCenter({
               <button onClick={() => runRadarSweep(false)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                 <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 rounded-full glass-surface border border-emerald-500/20 flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border border-emerald-500/20 flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">
                       {t("icon_radar")}
                     </span>
@@ -528,7 +528,7 @@ export default function CommandCenter({
               <button onClick={() => triggerShelter(!shelterActive)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                 <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 rounded-full glass-surface border border-cyan-500/20 flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border border-cyan-500/20 flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">
                       {shelterActive ? (t("icon_lock")) : (t("icon_lock_open"))}
                     </span>
@@ -556,7 +556,7 @@ export default function CommandCenter({
               <button onClick={() => { if (setIsSupportDeskOpen && session) setIsSupportDeskOpen(true); }} className={`w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] transition-all text-left group relative overflow-hidden ${session ? 'hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                 <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 rounded-full glass-surface border border-rose-500/20 flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border border-rose-500/20 flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">
                       {t("icon_local_activity")}
                     </span>
@@ -573,7 +573,7 @@ export default function CommandCenter({
             <button onClick={() => setIsAuditLogsOpen(true)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
               <div className="flex items-center gap-5">
-                <div className="w-12 h-12 rounded-full glass-surface border border-blue-500/20 flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border border-blue-500/20 flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">
                     history
                   </span>
@@ -590,7 +590,7 @@ export default function CommandCenter({
               <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden h-24">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
                 <div className="flex items-center gap-5 h-full">
-                  <div className="w-12 h-12 rounded-full glass-surface border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-amber-500/30">
+                  <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-amber-500/30">
                     <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">
                       warning_off
                     </span>

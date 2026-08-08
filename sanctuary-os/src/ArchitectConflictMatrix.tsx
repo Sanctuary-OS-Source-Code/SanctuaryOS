@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton } from "./shared";
+import { UniversalCard } from "./components/universal/UniversalCard";
 import { logArchitectAction } from "./lib/audit";
 
 const fetchAllPaginated = async (queryFn: () => any) => {
@@ -269,44 +270,55 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                 <EmptyState icon={searchTerm ? "search_off" : t("icon_verified_user") || "verified"} title={searchTerm ? t("no_matches") : t("no_pending_conflicts") || "No pending conflicts"} className="col-span-full py-16" />
               ) : filteredPendingGhosts.slice(0, visibleCount).map((g) => {
                 const tierColor = g.severity_rank == 4 ? 'text-[var(--danger)]' : g.severity_rank == 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]';
-                const glowC = g.severity_rank == 4 ? 'bg-[var(--danger)]/10 group-hover:bg-[var(--danger)]/20' : g.severity_rank == 3 ? 'bg-[var(--warning)]/10 group-hover:bg-[var(--warning)]/20' : 'bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20';
-                const borderHover = g.severity_rank == 4 ? 'hover:border-[var(--danger)]/30' : g.severity_rank == 3 ? 'hover:border-[var(--warning)]/30' : 'hover:border-[var(--accent)]/30';
                 return (
-                  <div key={g.id} onClick={() => handleEditConflict(g)} className={`glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-1 ${borderHover} transition-all duration-500 overflow-hidden relative`}>
+                  <div
+                    key={g.id}
+                    onClick={() => handleEditConflict(g)}
+                    className="glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 overflow-hidden relative cursor-pointer"
+                  >
+                    <div className="absolute inset-0 pointer-events-none transition-all duration-700 opacity-20 group-hover:opacity-40" />
 
-                    <div className={`absolute top-0 right-0 w-48 h-48 blur-[50px] pointer-events-none mix-blend-screen transition-all duration-700 ${glowC}`} />
-                    <div className={`absolute bottom-0 left-0 w-48 h-48 blur-[50px] pointer-events-none mix-blend-screen transition-all duration-700 ${glowC}`} />
-
-                    <div className="flex justify-between items-center z-10">
+                    {/* Header */}
+                    <div className="flex justify-between items-start z-10 relative">
                       <div className="flex items-center gap-2">
-                        <div className={`w-4 h-4 rounded-full bg-orange-500/20 border border-orange-500/50 flex items-center justify-center animate-pulse`}>
-                          <span className="material-symbols-outlined !text-[10px] text-orange-400">{t("icon_hourglass_empty")}</span>
-                        </div>
-                        <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 opacity-90">{t("matrix_pending_queue")}</span>
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">hourglass_empty</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest opacity-80 text-[var(--subtext)]">{t("matrix_pending_queue")}</span>
                       </div>
                       <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank == 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>{t("ui_icon_logo")}{g.severity_rank}</span>
                     </div>
 
-                    <div className="flex flex-col gap-3 relative z-10">
-                      <div className="p-4 rounded-2xl bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500">
+                    {/* A vs B Section */}
+                    <div className="flex flex-col gap-2 relative z-10 w-full mt-2">
+                      <div className="p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                         <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
                           <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
                         </span>
-                        <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameA}</span>
+                        <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{g.nameA}</span>
                       </div>
 
-                      <div className="relative h-px w-full flex items-center justify-center z-20">
-                        <div className="w-7 h-7 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center bg-[var(--bg)] absolute">
-                          <span className="text-[8px] font-black text-[var(--subtext)] italic uppercase">{t("vs")}</span>
+                      <div className="relative h-px w-full flex items-center justify-center z-20 my-1">
+                        <div className="w-6 h-6 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex items-center justify-center bg-[var(--bg)] absolute">
+                          <span className="text-[7px] font-black text-[var(--subtext)] italic uppercase opacity-70">{t("vs")}</span>
                         </div>
+                        <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
                       </div>
 
-                      <div className="p-4 rounded-2xl bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500">
+                      <div className="p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                         <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
                           <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
                         </span>
-                        <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameB}</span>
+                        <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{g.nameB}</span>
                       </div>
+                    </div>
+
+                    <div className="mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center w-full relative z-10">
+                      <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60">
+                        <span className="material-symbols-outlined !text-[12px] normal-case">{t("icon_calendar_today")}</span>
+                        {new Date(g.created_at).toLocaleDateString()}
+                      </span>
+                      <span className="text-[9px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
+                        {t("btn_review")} <span className="text-lg leading-none">&rarr;</span>
+                      </span>
                     </div>
                   </div>
                 );
@@ -353,25 +365,26 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                           <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank == 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>{t("ui_icon_logo")}{g.severity_rank}</span>
                         </div>
 
-                        <div className="flex flex-col gap-3 relative z-10">
-                          <div className="p-4 rounded-2xl bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500">
+                        <div className="flex flex-col gap-2 relative z-10 mt-2">
+                          <div className="p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                             <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
                               <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
                             </span>
-                            <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameA}</span>
+                            <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{g.nameA}</span>
                           </div>
 
-                          <div className="relative h-px w-full flex items-center justify-center z-20">
-                            <div className="w-7 h-7 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center bg-[var(--bg)] absolute">
-                              <span className="text-[8px] font-black text-[var(--subtext)] italic uppercase">{t("vs")}</span>
+                          <div className="relative h-px w-full flex items-center justify-center z-20 my-1">
+                            <div className="w-6 h-6 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex items-center justify-center bg-[var(--bg)] absolute">
+                              <span className="text-[7px] font-black text-[var(--subtext)] italic uppercase opacity-70">{t("vs")}</span>
                             </div>
+                            <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
                           </div>
 
-                          <div className="p-4 rounded-2xl bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500">
+                          <div className="p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                             <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
                               <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
                             </span>
-                            <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameB}</span>
+                            <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{g.nameB}</span>
                           </div>
                         </div>
                       </div>

@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { useLexicon } from "../LexiconContext";
 import { SidePanel, SidePanelActionFooter, SidebarActionButton, CustomDropdown, getFileLabel, isSupportedExtension, formatDisplayName, HoverTooltip, HubTabs, ActionButton, getModIcon } from "../shared";
 import { useStore } from "../store";
+import { UniversalCard } from "../components/universal/UniversalCard";
+import { UniversalSearch, UniversalGroup } from "../components/universal/UniversalLayout";
 
 export function VaultToolsSidePanel({
   isOpen,
@@ -192,9 +194,11 @@ export function VaultLocalFolderEditorSidePanel({
 
         footer={
           <SidePanelActionFooter
-            actionLabel={deleteConfirm ? (t("btn_confirm_delete") || "CONFIRM DELETION") : t("local_folders_delete")}
-            actionIcon={deleteConfirm ? "warning" : "delete"}
-            onAction={() => {
+            hideCancel={true}
+            centerDanger={true}
+            dangerLabel={deleteConfirm ? (t("btn_confirm_delete") || "CONFIRM DELETION") : t("local_folders_delete")}
+            dangerIcon={deleteConfirm ? "warning" : "delete"}
+            onDanger={() => {
               if (deleteConfirm) {
                 const updatedSets = localSets.filter((s: any) => s.id !== target);
                 localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
@@ -205,9 +209,10 @@ export function VaultLocalFolderEditorSidePanel({
                 setTimeout(() => setDeleteConfirm(false), 3000);
               }
             }}
-            actionVariant="danger"
-            cancelLabel={t("btn_done") || "DONE"}
-            onCancel={() => {
+            actionLabel={t("btn_done") || "CONFIRM"}
+            actionIcon="check"
+            actionVariant="accent"
+            onAction={() => {
               if (deleteConfirm) setDeleteConfirm(false);
               else setIsLocalFolderEditorOpen(false);
             }}
@@ -258,13 +263,11 @@ export function VaultLocalFolderEditorSidePanel({
             
             {/* UNIFIED SEARCH BAR */}
             <div className="relative shrink-0 z-50">
-              <input
+              <UniversalSearch
                 value={searchToAdd}
-                onChange={(e) => setSearchToAdd(e.target.value)}
+                onChange={setSearchToAdd}
                 placeholder={t("btn_search") || "SEARCH TO INJECT..."}
-                className="w-full h-14 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-2xl px-6 pl-14 text-[12px] uppercase tracking-widest font-black text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none bg-black/40 shadow-inner"
               />
-              <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-[20px]">search</span>
               
               {/* SEARCH RESULTS POPOVER */}
               {searchToAdd.trim() !== "" && (
@@ -277,20 +280,14 @@ export function VaultLocalFolderEditorSidePanel({
                       if (isAdded) return null;
 
                       return (
-                        <div key={m.hash} className="w-full glass-surface p-2 rounded-lg flex items-center justify-between gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
-                          <div className="flex flex-1 items-center gap-3 min-w-0">
-                            <div className="w-8 h-8 rounded border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/40 shrink-0 overflow-hidden flex items-center justify-center">
-                              {m.image_url || m.imageUrl ? (
-                                <img src={m.image_url || m.imageUrl} className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-50">{getModIcon(m, activeGameSchema, t)}</span>
-                              )}
-                            </div>
-                            <span className="text-[10px] font-black text-[var(--text)] uppercase truncate tracking-[0.1em]">{formatDisplayName(m.displayName || m.name)}</span>
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            {targetSet.isCollection ? (
+                        <UniversalCard
+                          key={m.hash}
+                          layout="compact"
+                          image={m.image_url || m.imageUrl}
+                          icon={getModIcon(m, activeGameSchema, t)}
+                          title={formatDisplayName(m.displayName || m.name)}
+                          actions={
+                            targetSet.isCollection ? (
                               <button
                                 onClick={() => {
                                   const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: [...s.items, m.hash] } : s);
@@ -298,12 +295,12 @@ export function VaultLocalFolderEditorSidePanel({
                                   setSearchToAdd("");
                                   setUpdateTrigger(prev => prev + 1);
                                 }}
-                                className="h-7 px-3 rounded border border-[var(--accent)]/30 text-[var(--accent)] bg-[var(--accent)]/10 hover:bg-[var(--accent)] hover:text-black text-[9px] font-black uppercase tracking-widest transition-all"
+                                className="h-8 px-3 rounded-lg bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black transition-all flex items-center justify-center gap-1 shrink-0 text-[9px] font-black uppercase tracking-widest border border-transparent hover:border-black/20"
                               >
-                                {t("btn_add_node_artifact") || "INJECT"}
+                                <span className="material-symbols-outlined !text-[14px]">add</span> {t("ql_add")}
                               </button>
                             ) : (
-                              <>
+                              <div className="flex items-center gap-1 shrink-0">
                                 <button
                                   onClick={() => {
                                     const updatedArch = { ...targetSet.archetypes, core: m.hash };
@@ -340,11 +337,11 @@ export function VaultLocalFolderEditorSidePanel({
                                 >
                                   {t("editor_addon") || "ADDON"}
                                 </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      );
+                              </div>
+                            )
+                            }
+                          />
+                        );
                     })
                   )}
                 </div>
@@ -375,29 +372,26 @@ export function VaultLocalFolderEditorSidePanel({
                       const art = displayModList.find((m: any) => m.hash === hash);
                       if (!art) return null;
                       return (
-                        <div key={hash} className="w-full glass-panel bg-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 rounded-xl flex items-center justify-between gap-4 group/item border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all shadow-lg">
-                          <div className="flex flex-1 items-center gap-4 min-w-0">
-                            <div className="w-8 h-8 rounded border border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-black/20 shrink-0 overflow-hidden flex items-center justify-center">
-                              {art.image_url || art.imageUrl ? (
-                                <img src={art.image_url || art.imageUrl} className="w-full h-full object-cover" />
-                              ) : (
-                                <span className={`material-symbols-outlined !text-[16px] text-[var(--accent)] opacity-50`}>{getModIcon(art, activeGameSchema, t)}</span>
-                              )}
-                            </div>
-                            <span className="text-[10px] font-black text-[var(--text)] uppercase truncate tracking-[0.1em]">{formatDisplayName(art.displayName || art.name)}</span>
-                          </div>
-                          <button
-                            onClick={() => {
-                              const updatedItems = targetSet.items.filter((h: string) => h !== hash);
-                              const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems } : s);
-                              localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
-                              setUpdateTrigger(prev => prev + 1);
-                            }}
-                            className="w-7 h-7 rounded text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white transition-all flex items-center justify-center border border-transparent hover:border-[var(--danger)]/50"
-                          >
-                            <span className="material-symbols-outlined !text-[14px]">close</span>
-                          </button>
-                        </div>
+                        <UniversalCard
+                          key={hash}
+                          layout="compact"
+                          image={art.image_url || art.imageUrl}
+                          icon={getModIcon(art, activeGameSchema, t)}
+                          title={formatDisplayName(art.displayName || art.name)}
+                          actions={
+                            <button
+                              onClick={() => {
+                                const updatedItems = targetSet.items.filter((h: string) => h !== hash);
+                                const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems } : s);
+                                localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                                setUpdateTrigger(prev => prev + 1);
+                              }}
+                              className="w-7 h-7 rounded text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white transition-all flex items-center justify-center border border-transparent hover:border-[var(--danger)]/50"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">close</span>
+                            </button>
+                          }
+                        />
                       );
                     })}
                   </div>
@@ -408,41 +402,48 @@ export function VaultLocalFolderEditorSidePanel({
                   <div className="flex flex-col gap-8">
                     
                     {/* BUCKET: CORE */}
-                    <div className="flex flex-col gap-4 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-5 relative">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--accent)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">stars</span> {t("editor_core_artifact") || "CORE ARTIFACT"}</h4>
+                    <UniversalGroup
+                      title={t("editor_core_artifact") || "CORE ARTIFACT"}
+                      icon="stars"
+                      headerColorClass="text-[var(--accent)]"
+                    >
                       {targetSet.archetypes?.core ? (() => {
                         const hash = targetSet.archetypes.core;
                         const art = displayModList.find((m: any) => m.hash === hash);
                         if (!art) return null;
                         return (
-                          <div className="w-full glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[var(--accent)]/30 p-3 rounded-xl flex items-center justify-between gap-4 hover:border-[var(--accent)]/60 transition-all group">
-                            <div className="flex flex-1 items-center gap-4 min-w-0">
-                              <div className="w-10 h-10 rounded border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/40 shrink-0 overflow-hidden flex items-center justify-center">
-                                {art.image_url || art.imageUrl ? <img src={art.image_url || art.imageUrl} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] opacity-50">{getModIcon(art, activeGameSchema, t)}</span>}
-                              </div>
-                              <span className="text-[11px] font-black text-[var(--accent)] uppercase truncate tracking-[0.1em]">{formatDisplayName(art.displayName || art.name)}</span>
-                            </div>
-                            <button onClick={() => {
-                              const updatedArch = { ...targetSet.archetypes, core: undefined };
-                              const updatedItems = targetSet.items.filter((h: string) => h !== hash);
-                              const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
-                              localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
-                              setUpdateTrigger(prev => prev + 1);
-                            }} className="w-8 h-8 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                              <span className="material-symbols-outlined !text-[16px]">close</span>
-                            </button>
-                          </div>
+                          <UniversalCard
+                            layout="compact"
+                            isActive={true}
+                            image={art.image_url || art.imageUrl}
+                            icon={getModIcon(art, activeGameSchema, t)}
+                            title={formatDisplayName(art.displayName || art.name)}
+                            actions={
+                              <button onClick={() => {
+                                const updatedArch = { ...targetSet.archetypes, core: undefined };
+                                const updatedItems = targetSet.items.filter((h: string) => h !== hash);
+                                const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
+                                localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                                setUpdateTrigger(prev => prev + 1);
+                              }} className="w-8 h-8 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                <span className="material-symbols-outlined !text-[16px]">close</span>
+                              </button>
+                            }
+                          />
                         );
                       })() : (
                         <div className="w-full p-4 rounded-xl border border-dashed border-[var(--accent)]/30 bg-[var(--accent)]/5 text-[var(--accent)]/50 text-[10px] font-black uppercase tracking-widest text-center">
                           {t("editor_no_core_selected") || "NO CORE ASSIGNED"}
                         </div>
                       )}
-                    </div>
+                    </UniversalGroup>
 
                     {/* BUCKET: TWINS */}
-                    <div className="flex flex-col gap-4 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-5 relative">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--success)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">join_inner</span> {t("twin_artifacts") || "TWIN ARTIFACTS"}</h4>
+                    <UniversalGroup
+                      title={t("twin_artifacts") || "TWIN ARTIFACTS"}
+                      icon="join_inner"
+                      headerColorClass="text-[var(--success)]"
+                    >
                       <div className="flex flex-col gap-2">
                         {(!targetSet.archetypes?.twins || targetSet.archetypes.twins.length === 0) && (
                            <div className="w-full p-3 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]/50 text-[9px] font-black uppercase tracking-widest text-center">EMPTY</div>
@@ -451,28 +452,35 @@ export function VaultLocalFolderEditorSidePanel({
                           const art = displayModList.find((m: any) => m.hash === hash);
                           if (!art) return null;
                           return (
-                            <div key={hash} className="w-full glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[var(--success)]/30 p-2 rounded-xl flex items-center justify-between gap-3 hover:border-[var(--success)]/60 transition-all group">
-                              <div className="flex flex-1 items-center gap-3 min-w-0">
-                                <span className="text-[10px] font-black text-[var(--text)] uppercase truncate tracking-[0.1em]">{formatDisplayName(art.displayName || art.name)}</span>
-                              </div>
-                              <button onClick={() => {
-                                const updatedArch = { ...targetSet.archetypes, twins: targetSet.archetypes.twins.filter((h: string) => h !== hash) };
-                                const updatedItems = targetSet.items.filter((h: string) => h !== hash);
-                                const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
-                                localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
-                                setUpdateTrigger(prev => prev + 1);
-                              }} className="w-7 h-7 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                <span className="material-symbols-outlined !text-[14px]">close</span>
-                              </button>
-                            </div>
+                            <UniversalCard
+                              key={hash}
+                              layout="compact"
+                              image={art.image_url || art.imageUrl}
+                              icon={getModIcon(art, activeGameSchema, t)}
+                              title={formatDisplayName(art.displayName || art.name)}
+                              actions={
+                                <button onClick={() => {
+                                  const updatedArch = { ...targetSet.archetypes, twins: targetSet.archetypes.twins.filter((h: string) => h !== hash) };
+                                  const updatedItems = targetSet.items.filter((h: string) => h !== hash);
+                                  const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
+                                  localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                                  setUpdateTrigger(prev => prev + 1);
+                                }} className="w-8 h-8 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                  <span className="material-symbols-outlined !text-[16px]">close</span>
+                                </button>
+                              }
+                            />
                           );
                         })}
                       </div>
-                    </div>
+                    </UniversalGroup>
 
                     {/* BUCKET: ADDONS */}
-                    <div className="flex flex-col gap-4 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-5 relative">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--warning)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">extension</span> {t("addon_artifacts") || "ADDON ARTIFACTS"}</h4>
+                    <UniversalGroup
+                      title={t("addon_artifacts") || "ADDON ARTIFACTS"}
+                      icon="extension"
+                      headerColorClass="text-[var(--warning)]"
+                    >
                       <div className="flex flex-col gap-2">
                         {(!targetSet.archetypes?.addons || targetSet.archetypes.addons.length === 0) && (
                            <div className="w-full p-3 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]/50 text-[9px] font-black uppercase tracking-widest text-center">EMPTY</div>
@@ -481,24 +489,28 @@ export function VaultLocalFolderEditorSidePanel({
                           const art = displayModList.find((m: any) => m.hash === hash);
                           if (!art) return null;
                           return (
-                            <div key={hash} className="w-full glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[var(--warning)]/30 p-2 rounded-xl flex items-center justify-between gap-3 hover:border-[var(--warning)]/60 transition-all group">
-                              <div className="flex flex-1 items-center gap-3 min-w-0">
-                                <span className="text-[10px] font-black text-[var(--text)] uppercase truncate tracking-[0.1em]">{formatDisplayName(art.displayName || art.name)}</span>
-                              </div>
-                              <button onClick={() => {
-                                const updatedArch = { ...targetSet.archetypes, addons: targetSet.archetypes.addons.filter((h: string) => h !== hash) };
-                                const updatedItems = targetSet.items.filter((h: string) => h !== hash);
-                                const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
-                                localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
-                                setUpdateTrigger(prev => prev + 1);
-                              }} className="w-7 h-7 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                <span className="material-symbols-outlined !text-[14px]">close</span>
-                              </button>
-                            </div>
+                            <UniversalCard
+                              key={hash}
+                              layout="compact"
+                              image={art.image_url || art.imageUrl}
+                              icon={getModIcon(art, activeGameSchema, t)}
+                              title={formatDisplayName(art.displayName || art.name)}
+                              actions={
+                                <button onClick={() => {
+                                  const updatedArch = { ...targetSet.archetypes, addons: targetSet.archetypes.addons.filter((h: string) => h !== hash) };
+                                  const updatedItems = targetSet.items.filter((h: string) => h !== hash);
+                                  const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
+                                  localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                                  setUpdateTrigger(prev => prev + 1);
+                                }} className="w-8 h-8 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                  <span className="material-symbols-outlined !text-[16px]">close</span>
+                                </button>
+                              }
+                            />
                           );
                         })}
                       </div>
-                    </div>
+                    </UniversalGroup>
 
                   </div>
                 )}

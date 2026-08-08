@@ -531,7 +531,7 @@
   "world_space": "WORLD STATE SPACE",
   "world_state": "WORLD STATE",
   "write_reply": "TRANSMIT A REPLY...",
-  "action_fatal": "Critical Failures Detected. Blueprint requires resolution before deployment",
+  "action_fatal": "Blueprint requires resolution before deployment",
   "add_conflict": "UPLOAD CONFLICT",
   "agency_basic": "Basic (Alerts Only)",
   "alert_copied": "Copied to clipboard!",
@@ -2305,6 +2305,7 @@
   "alert_error_mason_profile_missing": "Error: Mason Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
   "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
+  "color_blue": "blue",
   "vault_stat_tier": "Clearance Tier",
   "auto_select_artifact_to_32": "Select Protocol to Assign...",
   "access_telemetry": "Access Telemetry",
@@ -2693,5 +2694,7 @@
   "editor_search_to_inject": "Query Vault to Inject",
   "editor_core": "Core",
   "editor_twin": "Twin",
-  "editor_addon": "Addon"
+  "editor_addon": "Addon",
+  "comm_link": "Comm-Link",
+  "dispatch": "Dispatch"
 }

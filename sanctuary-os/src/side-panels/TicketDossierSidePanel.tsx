@@ -182,8 +182,10 @@ export default function TicketDossierSidePanel({
           </div>
         )}
 
-        <div className="flex flex-col gap-5 pb-8 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-          <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-4 p-6 glass-panel rounded-[var(--radius)] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          
+          <div className="flex justify-between items-center relative z-10">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_person")}</span> {(t("dossier_author")).replace(/^[^\w]*/, '').trim()}
             </span>
@@ -193,22 +195,22 @@ export default function TicketDossierSidePanel({
             </span>
           </div>
 
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center relative z-10">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_info")}</span> {(t("status")).replace(/^[^\w]*/, '').trim()}
             </span>
             <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-lg border shadow-inner shrink-0 inline-block transition-colors
-              ${ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : ''}
-              ${ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : ''}
-              ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : ''}
-              ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20' : ''}
+              ${ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[inset_0_0_10px_rgba(var(--danger-rgb),0.2)]' : ''}
+              ${ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[inset_0_0_10px_rgba(var(--success-rgb),0.2)]' : ''}
+              ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[inset_0_0_10px_rgba(var(--warning-rgb),0.2)]' : ''}
+              ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.2)]' : ''}
               ${!['open', 'new', 'resolved', 'closed', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20' : ''}
             `}>
               {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? 'NEW' : ticket.status}
             </span>
           </div>
 
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center relative z-10">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_label")}</span> {(t("category")).replace(/^[^\w]*/, '').trim()}
             </span>
@@ -216,7 +218,7 @@ export default function TicketDossierSidePanel({
           </div>
 
           {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center relative z-10 mt-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
               <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_extension")}</span> {t("target_artifact")}
               </span>
@@ -224,9 +226,9 @@ export default function TicketDossierSidePanel({
                 {onEditMetadata ? (
                   <button
                     onClick={() => onEditMetadata(ticket.target_mod_id || ticket.metadata?.target_mod_id)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] hover:border-[var(--accent)]/[40%] transition-all active:scale-95 max-w-[250px] shrink-0"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] hover:border-[var(--accent)]/[40%] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] transition-all active:scale-95 max-w-[250px] shrink-0"
                   >
-                    <span className="text-[10px] font-mono font-bold truncate">{ticket.target_mod_name || fetchedTargetModName || ticket.target_mod_id || ticket.metadata?.target_mod_id}</span>
+                    <span className="text-[10px] font-mono font-black tracking-wider truncate">{ticket.target_mod_name || fetchedTargetModName || ticket.target_mod_id || ticket.metadata?.target_mod_id}</span>
                     <span className="material-symbols-outlined !text-[14px] shrink-0">{t("icon_edit")}</span>
                   </button>
                 ) : (
@@ -238,7 +240,7 @@ export default function TicketDossierSidePanel({
             </div>
           )}
 
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center relative z-10 mt-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_calendar_today")}</span> {(t("dossier_created_at")).replace(/^[^\w]*/, '').trim()}
             </span>
@@ -250,9 +252,10 @@ export default function TicketDossierSidePanel({
 
         <div className="flex flex-col gap-3 mt-4">
           <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_description")}</span> {t("upload_desc")}
+            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] drop-shadow-md">{t("icon_description")}</span> {t("upload_desc")}
           </label>
-          <div className="w-full glass-panel rounded-xl px-5 py-4 text-[var(--text)] text-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner min-h-32 whitespace-pre-wrap leading-relaxed">
+          <div className="w-full glass-surface rounded-2xl px-6 py-5 text-[var(--text)] text-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_2px_15px_rgba(0,0,0,0.2)] min-h-32 whitespace-pre-wrap leading-relaxed relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[var(--accent)] to-transparent opacity-50" />
             {ticket.description}
           </div>
         </div>
@@ -308,19 +311,19 @@ export default function TicketDossierSidePanel({
         )}
 
         {canReply && !isReadOnly && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '') && (
-          <div className="flex flex-col gap-3 mt-6 glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl">
+          <div className="flex flex-col gap-3 mt-6">
             <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("dossier_add_reply")}</label>
-            <textarea
-              value={replyText}
-              onChange={e => setReplyText(e.target.value)}
-              placeholder={t("dossier_reply_placeholder")}
-              className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] transition-all h-24 resize-none custom-scrollbar"
-            />
-            <div className="flex justify-end mt-2">
+            <div className="flex flex-col gap-3 relative glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl">
+              <textarea
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                placeholder={t("dossier_reply_placeholder")}
+                className="w-full glass-surface rounded-2xl px-6 py-5 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[inset_0_2px_15px_rgba(0,0,0,0.2),0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all h-32 resize-none custom-scrollbar border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[inset_0_2px_15px_rgba(0,0,0,0.15)]"
+              />
               <button
                 onClick={handleSendReply}
-                disabled={isSubmitting || !replyText.trim()}
-                className={standardAccentGlassButtonClass}
+                disabled={!replyText.trim() || isSubmitting}
+                className="self-end px-6 h-10 font-black uppercase text-[10px] tracking-widest bg-[var(--accent)]/[15%] border border-[var(--accent)]/[40%] text-[var(--accent)] hover:bg-[var(--accent)]/[25%] hover:border-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.4)] transition-all rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
               >
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_send")}</span> {isSubmitting ? (t("btn_submitting")) : (t("dossier_btn_send_transmission"))}
               </button>
@@ -328,37 +331,37 @@ export default function TicketDossierSidePanel({
           </div>
         )}
 
-        {!isReadOnly && onTakeAction && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '') && (
-          <div className="flex flex-col gap-6 mt-6">
-            <div className="flex flex-col gap-3">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_task_alt")}</span> {t("audit_action")} <span className="text-rose-500">*</span>
-              </label>
-              <div className="w-full relative z-50">
-                <CustomDropdown
-                  disableTint={true}
+        {(!isReadOnly && onTakeAction && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '')) && (
+          <div className="flex flex-col gap-4 mt-6 p-6 glass-panel rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden group">
+             <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/5 to-transparent pointer-events-none" />
+             <div className="flex items-center gap-2 relative z-10 mb-2">
+                <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] drop-shadow-md">admin_panel_settings</span>
+                <span className="text-[12px] font-black uppercase tracking-widest text-[var(--text)]">{t("admin_actions") || "ADMIN ACTIONS"}</span>
+             </div>
+             <div className="flex flex-col gap-2 relative z-10">
+               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+                 <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_gavel")}</span> {t("dossier_action_reason")} <span className="text-rose-500">*</span>
+               </label>
+               <input
+                 type="text"
+                 value={reason}
+                 onChange={e => setReason(e.target.value)}
+                 placeholder={t("dossier_reason_placeholder")}
+                 className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner"
+               />
+             </div>
+             <div className="flex flex-col gap-2 relative z-[70] mt-2">
+               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("action") || "ACTION"}</label>
+               <CustomDropdown disableTint={true}  
                   value={selectedAction}
-                  onChange={(v: string[]) => setSelectedAction(v[0])}
                   options={availableActions.map(action => ({
                     id: action,
                     label: t(`ticket_dossier_action_${action.toLowerCase()}`) || action
                   }))}
+                  onChange={(v: string[]) => setSelectedAction(v[0])}
                   placeholder={t("dossier_select_action")}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_gavel")}</span> {t("dossier_action_reason")} <span className="text-rose-500">*</span>
-              </label>
-              <textarea
-                value={reason}
-                onChange={e => setReason(e.target.value)}
-                placeholder={t("dossier_reason_placeholder")}
-                className="w-full glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-4 py-4 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] transition-all h-32 resize-none custom-scrollbar shadow-inner"
-              />
-            </div>
+               />
+             </div>
           </div>
         )}
       </div>

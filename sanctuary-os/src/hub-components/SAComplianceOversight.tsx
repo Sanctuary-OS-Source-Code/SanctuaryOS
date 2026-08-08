@@ -1,8 +1,10 @@
+import { SearchBar } from "../shared";
 import React, { useState, useEffect } from 'react';
 import { supabase, getActiveGameClient } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, ActionButton } from '../shared';
+import { UniversalCard } from '../components/universal/UniversalCard';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
 
 export default function SAComplianceOversight({ initialFilter, setInitialFilter, onOpenManualFlag }: any) {
@@ -171,12 +173,11 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-            <input
+            <SearchBar
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={setSearch}
               placeholder={t("search_ph")}
-              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="h-12 w-full rounded-2xl"
             />
           </div>
 
@@ -226,49 +227,33 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
               {filteredMods.map(mod => {
                 const td = getTierDetails(mod.compliance_tier);
                 return (
-                  <div
+                  <UniversalCard
                     key={mod.id}
                     onClick={() => handleOpenPanel(mod)}
-                    className={`glass-panel rounded-[var(--radius)] flex flex-col group border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] cursor-pointer hover:-translate-y-1.5 border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[50%] hover:shadow-md`}
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
-
-                    <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500 theme-bg-accent/50 group-hover:theme-bg-accent group-hover:shadow-[0_0_20px_var(--accent)]`} />
-
-                    <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[var(--accent)]/[30%]`}>
-                          <span className={`material-symbols-outlined !text-[24px] opacity-50 group-hover:opacity-100 transition-colors duration-500 text-[var(--text)] group-hover:theme-text-accent`}>
-                            {t("icon_policy")}
-                          </span>
-                        </div>
-                        <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${td.color}`}>
-                          {td.label}
+                    layout="vertical"
+                    icon="policy"
+                    title={mod.name}
+                    subtitle={
+                      <span className="flex gap-1.5 items-center">
+                        <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_person")}</span>
+                        {mod.master_author || t("unknown_mason") || "UNKNOWN MASON"}
+                      </span>
+                    }
+                    badges={[
+                      <span key="tier" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${td.color}`}>
+                        {td.label}
+                      </span>
+                    ]}
+                    footer={
+                      <div className="flex justify-between items-center w-full">
+                        <span className="flex items-center gap-1.5 truncate">
+                          <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_fingerprint")}</span>
+                          {mod.id.substring(0, 8)}
                         </span>
+                        <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0">{t("btn_review")} &rarr;</span>
                       </div>
-
-                      <div className="flex flex-col gap-1 mt-auto pt-2">
-                        <span className={`text-lg font-black text-[var(--text)] uppercase tracking-tighter truncate leading-tight transition-colors group-hover:theme-text-accent`}>
-                          {mod.name}
-                        </span>
-                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 flex gap-1.5 items-center">
-                          <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_person")}</span>
-                          {mod.master_author || t("unknown_mason") || "UNKNOWN MASON"}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-1 mt-1 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3">
-                        <span className="text-[10px] font-bold uppercase flex justify-between items-center w-full text-[var(--subtext)] opacity-80">
-                          <span className="flex items-center gap-1.5 truncate">
-                            <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_fingerprint")}</span>
-                            {mod.id.substring(0, 8)}
-                          </span>
-                          <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-opacity">{t("btn_review")} &rarr;</span>
-                        </span>
-                      </div>
-
-                    </div>
-                  </div>
+                    }
+                  />
                 );
               })}
               {filteredMods.length === 0 && (

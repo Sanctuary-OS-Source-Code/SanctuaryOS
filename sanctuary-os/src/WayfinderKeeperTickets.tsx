@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { EmptyState } from "./shared";
+import { UniversalCard } from "./components/universal/UniversalCard";
 import { supabase, supabaseAuth } from "./supabase";
 
 interface Ticket {
@@ -88,50 +89,48 @@ export default function WayfinderKeeperTickets({ userId, onSelectTicket, onOpenN
             <EmptyState icon={t("icon_receipt_long") || "receipt_long"} title={t("ticket_no_tickets")} className="col-span-full py-16" />
           </div>
         ) : (
-          filteredTickets.map(ticket => (
-            <div
-              key={ticket.id}
-              className="relative group w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[40%] shadow-lg hover:shadow-md hover:scale-[1.02] cursor-pointer flex flex-col"
-              onClick={() => onSelectTicket && onSelectTicket(ticket)}
-            >
-              <div className="absolute inset-0 rounded-[inherit] glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
-              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
-
-              <div className="relative p-6 flex flex-col gap-4 z-10 flex-1">
-                <div className="flex justify-between items-start">
-                  <div className="flex flex-col gap-1 min-w-0 pr-2">
-                    <span className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 truncate">
-                      {ticket.ticket_type || "SUPPORT"}
-                    </span>
-                    <h3 className="font-bold text-lg leading-tight text-[var(--text)] group-hover:theme-text-accent transition-colors truncate">
-                      {ticket.title}
-                    </h3>
-                  </div>
+          filteredTickets.map(ticket => {
+            const isResolved = ticket.status?.toLowerCase() === 'resolved';
+            const isRejected = ticket.status?.toLowerCase() === 'rejected';
+            const isEscalated = ticket.status?.toLowerCase() === 'escalated';
+            const statusColorClass = isResolved ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)]" : isRejected ? "border-rose-500/50" : isEscalated ? "border-amber-500/50" : "border-emerald-500/50";
+            
+            return (
+              <UniversalCard
+                key={ticket.id}
+                layout="vertical-compact"
+                statusColor={statusColorClass}
+                className={isResolved ? "opacity-70 grayscale-[0.2]" : ""}
+                title={ticket.title}
+                subtitle={ticket.ticket_type || "SUPPORT"}
+                onClick={() => onSelectTicket && onSelectTicket(ticket)}
+                badges={
                   <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase flex-shrink-0 shadow-sm
-                    ${ticket.status?.toLowerCase() === 'open' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : ''}
-                    ${ticket.status?.toLowerCase() === 'resolved' ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}
-                    ${ticket.status?.toLowerCase() === 'rejected' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : ''}
-                    ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-md' : ''}
+                    ${!isResolved && !isRejected && !isEscalated ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : ''}
+                    ${isResolved ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}
+                    ${isRejected ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : ''}
+                    ${isEscalated ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-md' : ''}
                   `}>
                     {ticket.status}
                   </span>
-                </div>
-
-                <p className="text-sm text-[var(--subtext)] line-clamp-2 bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex-1">
+                }
+                footer={
+                  <div className="flex justify-between items-center w-full">
+                    <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
+                      {new Date(ticket.created_at).toLocaleDateString()}
+                    </span>
+                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-colors flex items-center gap-1">
+                      {t("view_details")} <span className="material-symbols-outlined !text-[11px]">{t("icon_arrow_forward")}</span>
+                    </button>
+                  </div>
+                }
+              >
+                <p className="text-sm text-[var(--subtext)] line-clamp-2 glass-surface p-4 shadow-inner border border-white/5 flex-1 mt-2">
                   {ticket.description}
                 </p>
-
-                <div className="flex justify-between items-center mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0">
-                  <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
-                    {new Date(ticket.created_at).toLocaleDateString()}
-                  </span>
-                  <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-colors flex items-center gap-1">
-                    {t("view_details")} <span className="material-symbols-outlined !text-[11px]">{t("icon_arrow_forward")}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
+              </UniversalCard>
+            );
+          })
         )}
       </div>
     </div>

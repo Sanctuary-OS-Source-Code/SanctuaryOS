@@ -19,6 +19,7 @@ import MasonProfileCommLink from "./MasonProfileCommLink";
 import MasonProfileArtifacts from "./MasonProfileArtifacts";
 import MasonProfileAssets from "./MasonProfileAssets";
 import SidePanelMasonPin from "./side-panels/SidePanelMasonPin";
+import { UniversalSearch } from "./components/universal/UniversalLayout";
 
 
 const cleanModName = (raw: string) => {
@@ -224,7 +225,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         setMods(groupedMods);
       }
 
-      const { data: postsData } = await supabase.from('mason_posts').select('*, masons(name, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)').eq('mason_id', masonId).order('created_at', { ascending: false });
+      const { data: postsData } = await supabase.from('mason_posts').select('*, masons(name, avatar_url, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)').eq('mason_id', masonId).order('created_at', { ascending: false });
       if (postsData) setPosts(postsData);
 
       if (mData) {
@@ -359,7 +360,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
   const handlePostClick = async (post: any) => {
     setSelectedPost(post);
     if (userId) {
-      await supabase.from('mason_post_views').upsert({ post_id: post.id, user_id: userId }, { onConflict: 'post_id,user_id', ignoreDuplicates: true });
+      try { await supabase.from('mason_post_views').upsert({ post_id: post.id, user_id: userId }, { onConflict: 'post_id,user_id', ignoreDuplicates: true }); } catch (e) { console.warn("Failed to record view", e); }
     } else {
       try { await supabase.from('mason_post_views').insert({ post_id: post.id }); } catch (e) { }
     }
@@ -413,7 +414,13 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               })()}
               <div className="flex flex-col items-end gap-2 flex-1 min-w-[300px] w-full">
                 <div className="flex flex-row items-center gap-3 w-full">
-                  <input value={modSearch} onChange={e => setModSearch(e.target.value)} placeholder={activeView === 'COMM-LINK' ? t("mason_search_placeholder") || "Search posts..." : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates") || "Search Templates...") : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full flex-1 transition-all border border-transparent shadow-inner" />
+                  <UniversalSearch 
+                    value={modSearch} 
+                    onChange={val => setModSearch(val)} 
+                    placeholder={(activeView === 'COMM-LINK' ? t("mason_search_placeholder") || "Search posts..." : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates") || "Search Templates...") : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))) as string} 
+                    wrapperClassName="w-full flex-1"
+                    inputClassName="!h-12 text-sm !rounded-2xl" 
+                  />
                   {activeView !== 'COMM-LINK' && (
                     <div className="min-w-[220px] w-fit max-w-[400px] shrink-0">
                       <CustomDropdown disableTint={true}

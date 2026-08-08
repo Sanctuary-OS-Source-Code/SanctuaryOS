@@ -3,7 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { supabase } from '../supabase';
-import { TabContainer, SettingsGrid, SettingCard } from './shared';
+import { TabContainer, SettingsGrid } from './shared';
+import { UniversalCard } from '../components/universal/UniversalCard';
 import { SidePanel } from '../shared';
 
 const standardButtonClass = "px-6 py-3 rounded-2xl glass-surface text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
@@ -47,12 +48,12 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
     }) : t("path_not_set");
 
     return (
-      <SettingCard key={dir.rustKey} title={dir.label} description={obfuscatePath(dir.value)} icon="folder" onClick={() => pickPath(dir.rustKey, dir.label)}>
+      <UniversalCard key={dir.rustKey} title={dir.label} subtitle={obfuscatePath(dir.value)} icon="folder" onClick={() => pickPath(dir.rustKey, dir.label)}>
         <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_20%,transparent)] shadow-lg bg-black/40 text-[var(--text)] transition-all group-hover:theme-border-accent">
           <span className="material-symbols-outlined !text-sm text-[var(--accent)]">{t("icon_sync")}</span>
           {t("btn_calibrate")}
         </div>
-      </SettingCard>
+      </UniversalCard>
     );
   };
 
@@ -63,26 +64,26 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
         <TabContainer title={t("settings_auth_title")} icon="lock">
           <SettingsGrid>
             {session?.user?.id && (
-              <SettingCard title={t("auth_user_id")} description={t("auth_user_id_desc") || "Your unique Sanctuary identifier"} icon="badge">
+              <UniversalCard title={t("auth_user_id")} subtitle={t("auth_user_id_desc") || "Your unique Sanctuary identifier"} icon="badge">
                 <input
                   type="text"
                   readOnly
                   value={session.user.id}
                   className="w-full glass-surface rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 outline-none shadow-inner select-all"
                 />
-              </SettingCard>
+              </UniversalCard>
             )}
 
-            <SettingCard 
+            <UniversalCard 
               title={t("auth_email")} 
-              description={session?.user?.email ? session.user.email.replace(/(.).*(@.*)/, '$1***$2') : "No email bound"} 
+              subtitle={session?.user?.email ? session.user.email.replace(/(.).*(@.*)/, '$1***$2') : "No email bound"} 
               icon="mail" 
               onClick={() => setActivePanel('email')} 
             />
 
-            <SettingCard 
+            <UniversalCard 
               title={t("auth_password")} 
-              description="••••••••••••" 
+              subtitle="••••••••••••" 
               icon="key" 
               onClick={() => setActivePanel('password')} 
             />

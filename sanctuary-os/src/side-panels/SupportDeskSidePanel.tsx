@@ -419,7 +419,7 @@ export default function SupportDeskSidePanel({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
+                className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner"
                 placeholder={t("support_placeholder_title")}
               />
             </div>
@@ -445,7 +445,7 @@ export default function SupportDeskSidePanel({
                 type="text"
                 value={targetUserId}
                 onChange={(e) => setTargetUserId(e.target.value)}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
+                className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner"
                 placeholder={t("support_placeholder_user_uuid")}
               />
             </div>
@@ -459,7 +459,7 @@ export default function SupportDeskSidePanel({
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all h-32 resize-none custom-scrollbar"
+                className="w-full glass-surface rounded-2xl px-6 py-5 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[inset_0_2px_15px_rgba(0,0,0,0.2),0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all h-32 resize-none custom-scrollbar border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[inset_0_2px_15px_rgba(0,0,0,0.15)]"
                 placeholder={t("support_placeholder_desc")}
               />
             </div>
@@ -477,7 +477,7 @@ export default function SupportDeskSidePanel({
                   type="text"
                   value={customFieldsData[field.id] || ""}
                   onChange={(e) => setCustomFieldsData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
+                  className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner"
                 />
               )}
               
@@ -485,7 +485,7 @@ export default function SupportDeskSidePanel({
                 <textarea
                   value={customFieldsData[field.id] || ""}
                   onChange={(e) => setCustomFieldsData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all h-24 resize-none custom-scrollbar"
+                  className="w-full glass-surface rounded-2xl px-6 py-5 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[inset_0_2px_15px_rgba(0,0,0,0.2),0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all h-24 resize-none custom-scrollbar border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[inset_0_2px_15px_rgba(0,0,0,0.15)]"
                 />
               )}
               
@@ -596,7 +596,7 @@ export default function SupportDeskSidePanel({
               <textarea
                 value={logs}
                 onChange={(e) => setLogs(e.target.value)}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-[10px] font-mono focus:outline-none focus:theme-border-accent transition-all h-24 resize-none custom-scrollbar whitespace-pre-wrap"
+                className="w-full glass-surface rounded-2xl px-6 py-5 text-[var(--text)] text-[10px] font-mono focus:outline-none focus:border-[var(--accent)] focus:shadow-[inset_0_2px_15px_rgba(0,0,0,0.2),0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all h-24 resize-none custom-scrollbar whitespace-pre-wrap border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[inset_0_2px_15px_rgba(0,0,0,0.15)]"
                 placeholder={t("support_placeholder_logs")}
               />
             </div>

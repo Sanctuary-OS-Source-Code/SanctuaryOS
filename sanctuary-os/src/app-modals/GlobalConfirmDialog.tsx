@@ -33,12 +33,12 @@ export function GlobalConfirmDialog() {
             </div>
           </div>
 
-          <div className="flex gap-6 w-full mt-4 relative z-10">
-             <button onClick={() => { confirmDialog.action(); setConfirmDialog(null); }} className="flex-1 py-5 bg-red-500/[20%] border border-red-500/[60%] hover:bg-red-500/[40%] text-[var(--danger)] hover:text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-md hover:shadow-md hover:scale-[1.02] active:scale-95 backdrop-blur-md">
-               {confirmDialog.confirmText || t("btn_proceed") || "PROCEED"}
-             </button>
-             <button onClick={() => { if (confirmDialog.cancelAction) confirmDialog.cancelAction(); else setConfirmDialog(null); }} className="flex-1 py-5 bg-white/[0.03] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-white/[0.08] text-[var(--subtext)] hover:text-[var(--text)] rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] shadow-sm active:scale-95">
+          <div className="flex justify-center gap-6 w-full mt-4 relative z-10">
+             <button onClick={() => { if (confirmDialog.cancelAction) confirmDialog.cancelAction(); else setConfirmDialog(null); }} className="px-10 py-4 bg-white/[0.03] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-white/[0.08] text-[var(--subtext)] hover:text-[var(--text)] rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] shadow-sm active:scale-95">
                {confirmDialog.cancelText || t("nav_cancel") || "CANCEL"}
+             </button>
+             <button onClick={() => { confirmDialog.action(); setConfirmDialog(null); }} className="px-10 py-4 bg-[var(--accent)]/[20%] border border-[var(--accent)]/[50%] hover:bg-[var(--accent)]/[40%] text-[var(--accent)] hover:text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-md hover:shadow-md hover:scale-[1.02] active:scale-95 backdrop-blur-md">
+               {confirmDialog.confirmText || t("btn_proceed") || "PROCEED"}
              </button>
           </div>
         </div>
@@ -58,13 +58,13 @@ export function GlobalConfirmDialog() {
             <h3 className="text-[var(--subtext)] text-sm font-medium tracking-wide whitespace-pre-line leading-relaxed m-0">{confirmDialog.message}</h3>
           </div>
 
-          <div className="flex gap-4 w-full mt-4 relative z-10">
+          <div className="flex justify-center gap-4 w-full mt-4 relative z-10">
             {confirmDialog.isAlert ? (
-              <button onClick={() => { confirmDialog.action(); setConfirmDialog(null); }} className={`flex-1 py-4 bg-orange-500/[20%] border border-orange-500/[50%] hover:bg-orange-500/[40%] text-[var(--warning)] hover:text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg hover:scale-[1.02] active:scale-95`}>{confirmDialog.confirmText || t("btn_ok") || "OK"}</button>
+              <button onClick={() => { confirmDialog.action(); setConfirmDialog(null); }} className={`px-10 py-4 bg-orange-500/[20%] border border-orange-500/[50%] hover:bg-orange-500/[40%] text-[var(--warning)] hover:text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg hover:scale-[1.02] active:scale-95`}>{confirmDialog.confirmText || t("btn_ok") || "OK"}</button>
             ) : (
               <>
-                <button onClick={() => { confirmDialog.action(); setConfirmDialog(null); }} className={`flex-1 py-4 bg-[var(--accent)]/[20%] border border-[var(--accent)]/[50%] hover:bg-[var(--accent)]/[40%] text-[var(--accent)] hover:text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg hover:scale-[1.02] active:scale-95`}>{confirmDialog.confirmText || t("btn_proceed") || "PROCEED"}</button>
-                <button onClick={() => { if (confirmDialog.cancelAction) confirmDialog.cancelAction(); else setConfirmDialog(null); }} className="flex-1 py-4 bg-white/[0.03] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-white/[0.08] text-[var(--text)] rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-95">{confirmDialog.cancelText || t("nav_cancel") || "CANCEL"}</button>
+                <button onClick={() => { if (confirmDialog.cancelAction) confirmDialog.cancelAction(); else setConfirmDialog(null); }} className="px-10 py-4 bg-white/[0.03] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-white/[0.08] text-[var(--text)] rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-95">{confirmDialog.cancelText || t("nav_cancel") || "CANCEL"}</button>
+                <button onClick={() => { confirmDialog.action(); setConfirmDialog(null); }} className={`px-10 py-4 bg-[var(--accent)]/[20%] border border-[var(--accent)]/[50%] hover:bg-[var(--accent)]/[40%] text-[var(--accent)] hover:text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg hover:scale-[1.02] active:scale-95`}>{confirmDialog.confirmText || t("btn_proceed") || "PROCEED"}</button>
               </>
             )}
           </div>

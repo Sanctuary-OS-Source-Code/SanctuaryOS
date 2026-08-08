@@ -1,7 +1,9 @@
+import { SearchBar } from "./shared";
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton } from './shared';
+import { UniversalCard } from './components/universal/UniversalCard';
 import { useStore } from './store';
 import { logArchitectAction } from './lib/audit';
 
@@ -326,12 +328,11 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
 
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-            <input
+            <SearchBar
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={setSearch}
               placeholder={t("identities_search")}
-              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="h-12 w-full rounded-2xl"
             />
           </div>
 
@@ -362,35 +363,20 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
               <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                 {filteredProfiles.length === 0 && <EmptyState icon={t("ui_icon_person_off") || "person_off"} title={t("no_profiles")} className="col-span-full py-16" />}
                 {filteredProfiles.map((p: any) => (
-                  <div
+                  <UniversalCard
                     key={p.id}
                     onClick={() => handleOpenPanel(p)}
-                    className={`glass-panel backdrop-blur-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[1.5rem] flex flex-col transition-all duration-500 group relative overflow-hidden min-h-[160px] ${(!isWayfinder && p.role === 'wayfinder') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-1 active:translate-y-0'}`}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-                    <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none ${p.role === 'oversight' || p.role === 'wayfinder' ? 'from-transparent via-amber-500/50 to-transparent' : 'from-transparent via-white/20 to-transparent'}`} />
-
-                    <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[var(--accent)]/[30%]">
-                          <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-50 group-hover:opacity-100 group-hover:theme-text-accent transition-colors duration-500">
-                            {t("icon_person")}
-                          </span>
-                        </div>
-                        <span className={getRoleBadgeStyle(p.role)}>
-                          {t(`role_${(p.role || "citizen").toLowerCase()}`) || p.role || "CITIZEN"}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-1 mt-auto">
-                        <span className="text-lg font-black text-[var(--text)] uppercase tracking-tighter truncate leading-tight transition-colors group-hover:theme-text-accent">
-                          {p.username || t("vlocal") || "UNKNOWN"}
-                        </span>
-                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60">{t("auto_id")} {p.id.substring(0, 8)}</span>
-                      </div>
-                    </div>
-                  </div>
+                    className={(!isWayfinder && p.role === 'wayfinder') ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
+                    layout="horizontal"
+                    icon="person"
+                    title={p.username || t("vlocal") || "UNKNOWN"}
+                    subtitle={`${t("auto_id")} ${p.id.substring(0, 8)}`}
+                    badges={[
+                      <span key="role" className={getRoleBadgeStyle(p.role)}>
+                        {t(`role_${(p.role || "citizen").toLowerCase()}`) || p.role || "CITIZEN"}
+                      </span>
+                    ]}
+                  />
                 ))}
               </div>
             </div>
@@ -403,51 +389,38 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
                 </h4>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                   {blacklistedProfiles.map((p: any) => (
-                    <div
+                    <UniversalCard
                       key={p.id}
                       onClick={() => handleOpenPanel(p)}
-                      className={`glass-panel backdrop-blur-2xl rounded-[1.5rem] flex flex-col group border border-red-500/20 transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer hover:border-red-500/50 hover:shadow-[0_20px_50px_rgba(239,68,68,0.2)] hover:-translate-y-1 active:translate-y-0`}
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-                      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-
-                      <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-red-500/20 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-red-500/50">
-                            <span className="material-symbols-outlined !text-[24px] text-red-500 opacity-50 group-hover:opacity-100 transition-colors duration-500">
-                              {t("icon_block")}
-                            </span>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            {p.is_banned && (
-                              <span className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20">
-                                {t("banned_upload")}
-                              </span>
-                            )}
-                            {p.is_comm_banned && (
-                              <span className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20">
-                                {t("banned_comm")}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {p.is_banned && p.blacklist_reason && (
-                          <span className="text-xs font-bold text-red-400/80 leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_upload")}{p.blacklist_reason}"</span>
-                        )}
-                        {p.is_comm_banned && p.comm_blacklist_reason && (
-                          <span className="text-xs font-bold text-red-400/80 leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_comms")}{p.comm_blacklist_reason}"</span>
-                        )}
-
-                        <div className="flex flex-col gap-1 mt-auto pt-2">
-                          <span className="text-lg font-black text-red-400 uppercase tracking-tighter truncate leading-tight transition-colors group-hover:text-red-300">
-                            {p.username || t("vlocal") || "UNKNOWN"}
-                          </span>
+                      layout="horizontal"
+                      icon="block"
+                      statusColor="border-red-500/20 group-hover:border-red-500/50"
+                      className="!bg-red-500/5 hover:!bg-red-500/10"
+                      title={
+                        <span className="text-red-400 group-hover:text-red-300 transition-colors">
+                          {p.username || t("vlocal") || "UNKNOWN"}
+                        </span>
+                      }
+                      subtitle={
+                        <div className="flex flex-col gap-1">
                           <span className="text-[10px] font-mono text-red-400 opacity-60">{t("auto_id")} {p.id.substring(0, 8)}</span>
+                          {p.is_banned && p.blacklist_reason && <span className="text-xs font-bold text-red-400/80 leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_upload")}{p.blacklist_reason}"</span>}
+                          {p.is_comm_banned && p.comm_blacklist_reason && <span className="text-xs font-bold text-red-400/80 leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_comms")}{p.comm_blacklist_reason}"</span>}
                         </div>
-                      </div>
-                    </div>
+                      }
+                      badges={[
+                        p.is_banned && (
+                          <span key="upload" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20">
+                            {t("banned_upload")}
+                          </span>
+                        ),
+                        p.is_comm_banned && (
+                          <span key="comm" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20">
+                            {t("banned_comm")}
+                          </span>
+                        )
+                      ]}
+                    />
                   ))}
                 </div>
               </div>

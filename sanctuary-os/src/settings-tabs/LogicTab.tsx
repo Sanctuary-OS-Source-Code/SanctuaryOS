@@ -1,5 +1,6 @@
 import { useLexicon } from '../LexiconContext';
-import { TabContainer, SettingsGrid, SettingCard, SettingsToggle } from './shared';
+import { TabContainer, SettingsGrid, SettingsToggle } from './shared';
+import { UniversalCard } from '../components/universal/UniversalCard';
 
 export default function LogicTab({ anarchyRules, setAnarchyRules }: any) {
   const { t } = useLexicon();
@@ -12,37 +13,37 @@ export default function LogicTab({ anarchyRules, setAnarchyRules }: any) {
   return (
     <TabContainer title={t("anarchy_title")} icon="psychology">
       <SettingsGrid>
-        <SettingCard 
+        <UniversalCard 
           title={t("anarchy_highlander")} 
-          description={t("anarchy_highlander_desc")} 
+          subtitle={t("anarchy_highlander_desc")} 
           icon="sports_martial_arts"
-          danger={!rules.highlander} 
+          statusColor={!rules.highlander ? "border-red-500" : undefined}
           onClick={() => toggleRule('highlander')}
-          action={<SettingsToggle checked={rules.highlander} danger={!rules.highlander} />}
+          actions={<SettingsToggle checked={rules.highlander} danger={!rules.highlander} />}
         />
-        <SettingCard 
+        <UniversalCard 
           title={t("anarchy_family")} 
-          description={t("anarchy_family_desc")} 
+          subtitle={t("anarchy_family_desc")} 
           icon="family_restroom"
-          danger={!rules.family} 
+          statusColor={!rules.family ? "border-red-500" : undefined}
           onClick={() => toggleRule('family')}
-          action={<SettingsToggle checked={rules.family} danger={!rules.family} />}
+          actions={<SettingsToggle checked={rules.family} danger={!rules.family} />}
         />
-        <SettingCard 
+        <UniversalCard 
           title={t("anarchy_deps")} 
-          description={t("anarchy_deps_desc")} 
+          subtitle={t("anarchy_deps_desc")} 
           icon="account_tree"
-          danger={!rules.dependencies} 
+          statusColor={!rules.dependencies ? "border-red-500" : undefined}
           onClick={() => toggleRule('dependencies')}
-          action={<SettingsToggle checked={rules.dependencies} danger={!rules.dependencies} />}
+          actions={<SettingsToggle checked={rules.dependencies} danger={!rules.dependencies} />}
         />
-        <SettingCard 
+        <UniversalCard 
           title={t("anarchy_intercept")} 
-          description={t("anarchy_intercept_desc")} 
+          subtitle={t("anarchy_intercept_desc")} 
           icon="gavel"
-          danger={!rules.intercept} 
+          statusColor={!rules.intercept ? "border-red-500" : undefined}
           onClick={() => toggleRule('intercept')}
-          action={<SettingsToggle checked={rules.intercept} danger={!rules.intercept} />}
+          actions={<SettingsToggle checked={rules.intercept} danger={!rules.intercept} />}
         />
       </SettingsGrid>
     </TabContainer>

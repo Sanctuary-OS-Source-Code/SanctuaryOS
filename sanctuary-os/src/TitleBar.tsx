@@ -5,9 +5,20 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
   const { t } = useLexicon();
   return (
     <div className="fixed top-0 left-0 right-0 h-[50px] select-none flex items-center z-[999999] pointer-events-auto group/titlebar transition-colors">
+      
+      {/* TitleBar Glass Background (Spans Entire Width) */}
+      <div
+        className="absolute inset-0 z-[-1] backdrop-blur-md transition-all duration-500 pointer-events-none"
+        style={{ backgroundColor: "color-mix(in srgb, var(--sidebar) 40%, transparent)" }}
+      />
+
+      {/* Title Bar Bottom Borders (Spans Entire Width) */}
+      <div className="absolute bottom-0 inset-x-0 h-[1px] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] pointer-events-none transition-all duration-500" />
+      <div className="absolute bottom-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent opacity-20 group-hover/titlebar:opacity-50 transition-all duration-700 pointer-events-none" />
+
       {/* Revolutionary Watermark Layout */}
       <div
-        className="absolute top-0 left-0 h-[80px] flex flex-col justify-center cursor-pointer hover:bg-white/[0.02] transition-colors duration-500 z-[100] shrink-0 group/logo"
+        className="absolute top-0 left-0 h-[50px] flex flex-col justify-center cursor-pointer hover:bg-white/[0.02] transition-colors duration-500 z-[100] shrink-0 group/logo"
         style={{ width: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)' }}
         onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       >
@@ -17,15 +28,15 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
           alt="Watermark"
           className={`absolute top-1/2 -translate-y-1/2 transition-all duration-700 pointer-events-none ${
             isSidebarCollapsed
-              ? 'w-14 h-14 left-1/2 -translate-x-1/2 opacity-[0.4] group-hover/logo:opacity-100 group-hover/logo:scale-110'
-              : 'w-32 h-32 -left-6 opacity-[0.03] group-hover/logo:opacity-[0.06] group-hover/logo:scale-110 group-hover/logo:rotate-12'
+              ? 'w-10 h-10 left-1/2 -translate-x-1/2 opacity-[0.4] group-hover/logo:opacity-100 group-hover/logo:scale-110'
+              : 'w-24 h-24 -left-4 opacity-[0.03] group-hover/logo:opacity-[0.06] group-hover/logo:scale-110 group-hover/logo:rotate-12'
           }`}
         />
 
         <div className={`flex items-center w-full relative z-10 transition-all duration-500 ${isSidebarCollapsed ? 'justify-center' : 'justify-between px-6'}`}>
           {!isSidebarCollapsed && (
             <div className="flex items-center gap-3">
-              <div className="flex flex-col pt-1">
+              <div className="flex flex-col pt-0">
                 {/* Bold Title */}
                 <h1 className="text-[17px] font-black tracking-[0.1em] uppercase text-[var(--sidebartext)] leading-none drop-shadow-md group-hover/logo:opacity-100 transition-colors">
                   {t("sidebar_app_title")}
@@ -52,16 +63,6 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
 
       {/* Main Title Bar Area (Automatically sits to the right of Logo) */}
       <div className="flex-1 h-[50px] relative flex items-center">
-
-        {/* TitleBar Glass Background */}
-        <div
-          className="absolute inset-0 z-[-1] backdrop-blur-md transition-all duration-500 pointer-events-none"
-          style={{ backgroundColor: "color-mix(in srgb, var(--sidebar) 40%, transparent)" }}
-        />
-
-        {/* Title Bar Bottom Borders */}
-        <div className="absolute bottom-0 inset-x-0 h-[1px] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] pointer-events-none transition-all duration-500" />
-        <div className="absolute bottom-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent opacity-20 group-hover/titlebar:opacity-50 transition-all duration-700 pointer-events-none" />
 
         {/* Drag Region */}
         <div

@@ -1,24 +1,34 @@
-**Date: August 7, 2026**
+**Date: August 8, 2026**
 **Version: 0.4.93**
 
-## **The Great Folder & Conflict Resolution Update**
+## **Everything Sanctuary Dragged Me Into: Architecture, Vault, Protocol & UI Refinements**
 
-### **Vault & Library Enhancements**
-- **Local Folder Evolution**: Revolutionized the Local Folders workflow by completely replacing the tedious grid-based multi-select logic with a massive, Discord-style direct search-and-add interface right inside the LocalFolderModal. 
-- **Profile-Based Hierarchy**: Implemented profile-based folder management to streamline organization and ensure folders strictly adhere to specific sets or rules.
-- **Deep Casualty Resolution**: Upgraded the VaultGrid casualty logic to intelligently detect and warn users about cascading casualties when removing Core archetypes or parent folders.
-- **Drawer Search Integration**: Injected a brand new Search Bar directly into expanded folders within the VaultGrid, allowing instant filtering of massive artifact nodes without losing context.
+### **Universal Side Panel Refactoring**
+- **Architecture Unification**: Completely stripped out the fragile, hardcoded `createPortal` logic across the OS. `SidePanelBrowser`, `AssetPreviewSidebar`, `ModDossier`, `NexusSidePanels`, and `MasonChameleons` have all been migrated to securely utilize the shared `<SidePanel>` component.
+- **Stability Restored**: The UI no longer sporadically breaks into floating windows. The unified architecture automatically handles fluid slide-in animations, intelligent background dimming, and native resizing states without relying on brittle custom implementations.
+- **Immersive Headers**: Introduced a brand new `coverImage` property to the global `<SidePanel>` system. Panels can now render massive, beautiful cover images that seamlessly fade into the core background using complex gradient masking and heavy `backdrop-blur`. The `AssetPreviewSidebar` now fully utilizes this for deep immersion.
+
+### **Navigation & Feed Viewer Polish**
+- **Radar Sweep Navigation Fix**: Resolved a critical UX bug where the "Radar Sweep" button on the global status bar would fail to open the panel if you were outside of the Dashboard view. The button now intelligently forces a view-swap to the Dashboard before triggering the panel to guarantee it always renders correctly.
+- **Mason Viewer Overhaul**: Gave the Mason Post Viewer a heavy aesthetic pass. Hero images now beautifully break out of their bounds with a stunning `rounded-t-3xl` glassmorphic frame, featuring deep negative drop shadows (`shadow-[0_-20px_50px_rgba(0,0,0,0.3)]`) that physically lift the image above the text content.
+- **Dynamic Profile Avatars**: Wired up actual profile picture URLs (`avatar_url`) for Masons across the Post Viewer and Post Cards. OS-level broadcasts now utilize a verified system memory icon, elevating the editorial feel of the feed.
+- **View Tracking Resiliency**: Patched a critical bug where unauthorized tracking calls to `mason_post_views` would trigger an unhandled rejection, entirely crashing the post click handler and freezing the view counter. The UI now optimistically updates and swallows tracking errors gracefully.
 
 ### **Command Center & UI Overhaul**
 - **Vault Command Screen**: Re-architected the main Vault view into a fully featured Vault Command Screen, unifying the UI with the rest of the application dashboard.
 - **Conflict Radar Precision**: Resolved a core bug in the Command Conflicts Panel where conflicts involving Sanctuary mods were being incorrectly masked. The Radar now accurately detects and reports all Tuning (S3) and Fatal (S4) conflicts without dropping data.
 - **ModCard UI Polish**: Completely overhauled the ModCard action buttons. Re-engineered flex boundaries and font sizes to eliminate awkward text truncation for actions like "Ignore Conflict" and "Confirm Purge" / "Yeet", enabling text wrapping on smaller viewports. Introduced `mask-image` and custom box shadows for a flawless premium glass hover aesthetic.
+- **Comm-Link Feed Rendering**: Resolved a visual clipping issue on the Command Center where the global MasonFeed was improperly truncating its own drop shadows (`flex box shadow` artifact) due to restricted overflow boundaries. The feed now smoothly bleeds its ambient shadows into the parent page.
 
 ### **Nexus & Infrastructure Refinements**
 - **Asset Loading Stabilized**: Fixed a critical bug on the Nexus where assets were failing to populate ("None found" empty state). The Nexus Asset Loading routine has been completely overhauled to ensure reliable population.
 - **Lexicon Migrations**: Continued massive strings migrations across the Wayfinder and Support panels, ensuring zero hardcoded strings and fully supporting dynamic theme-based lexicon routing.
 
 ### **Vault & Library Enhancements**
+- **Local Folder Evolution**: Revolutionized the Local Folders workflow by completely replacing the tedious grid-based multi-select logic with a massive, Discord-style direct search-and-add interface right inside the LocalFolderModal. 
+- **Profile-Based Hierarchy**: Implemented profile-based folder management to streamline organization and ensure folders strictly adhere to specific sets or rules.
+- **Deep Casualty Resolution**: Upgraded the VaultGrid casualty logic to intelligently detect and warn users about cascading casualties when removing Core archetypes or parent folders.
+- **Drawer Search Integration**: Injected a brand new Search Bar directly into expanded folders within the VaultGrid, allowing instant filtering of massive artifact nodes without losing context.
 - **Local Folder Revamp**: Completely replaced the tedious grid-based multi-select logic with a direct, Discord-style search-and-add interface for creating and managing Local Folders.
 - **Local Node Filtering**: Re-engineered the Local Folders filter in the Vault to strictly display true local folders by enforcing strict metadata checks, preventing collections and families from bleeding into the folder view.
 - **Local Node Telemetry Visibility**: Re-mapped the "Unverified" system status badge for structural Local Folders to explicitly display "LOCAL NODE" with a dedicated blue accent color. Broken items inside a folder will still properly trigger the red warning, ensuring a clear visual hierarchy without burying the alert.

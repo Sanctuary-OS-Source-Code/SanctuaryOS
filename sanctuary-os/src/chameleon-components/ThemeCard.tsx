@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useLexicon } from '../LexiconContext';
+import { UniversalCard } from '../components/universal/UniversalCard';
 
 interface ThemeCardProps {
   id: string;
@@ -30,44 +31,44 @@ export function ThemeCard({
   const confirmDeleteState = confirmDelete !== undefined ? confirmDelete : localConfirmDelete;
   const setConfirmDeleteState = setConfirmDelete || setLocalConfirmDelete;
 
-  const bgClass = isDev 
-    ? "bg-[var(--accent)]/[5%] group-hover:bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] hover:border-[var(--accent)]/[50%]"
-    : "group-hover:bg-[var(--accent)]/[5%] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%]";
-
   const label = isCloud 
     ? (t("ui_master_theme") || "Master Theme")
     : isDev 
       ? (t("ui_active_workspace") || "Active Workspace")
       : (t("ui_personal_theme") || "Personal Theme");
 
-  return (
-    <div onClick={onClick} className={`w-full text-left p-6 rounded-[var(--radius)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative group cursor-pointer glass-panel ${bgClass}`}>
-      <div className={`absolute inset-0 rounded-[var(--radius)] bg-gradient-to-br ${isDev ? 'from-[var(--accent)]/15' : 'from-[var(--accent)]/10'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none`} />
-      
-      <div className={`w-14 h-14 rounded-2xl shrink-0 overflow-hidden relative border ${isDev ? 'border-[var(--accent)]/[30%] shadow-md group-hover:border-[var(--accent)]/60' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md group-hover:border-[var(--accent)]/50'} transition-colors z-10`}>
-        <div className="absolute inset-0" style={{ backgroundColor: theme.bg || '#000' }} />
-        <div className="absolute top-0 left-0 bottom-0 w-4" style={{ backgroundColor: theme.sidebar || '#000' }} />
-        <div className="absolute top-2 right-2 w-3 h-3 rounded-full" style={{ backgroundColor: theme.accent || '#fff' }} />
-      </div>
-      
-      <div className="flex flex-col gap-1 z-10 pr-10 text-left">
-        <span className="text-sm font-black text-[var(--text)] tracking-wider truncate block">{theme.name}</span>
-        <span className={`text-[10px] font-bold uppercase tracking-widest ${isDev || isCloud ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'} opacity-${isDev || isCloud ? '80' : '60'} block`}>{label}</span>
-      </div>
-      
-      {onDelete && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (confirmDeleteState === id) { onDelete(id); setConfirmDeleteState(false); }
-            else { setConfirmDeleteState(id); }
-          }}
-          onMouseLeave={() => setConfirmDeleteState(false)}
-          className={`absolute top-6 right-6 w-8 h-8 rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 backdrop-blur-xl z-20 ${confirmDeleteState === id ? 'bg-red-500/[15%] border border-[var(--danger)] text-[var(--danger)] shadow-md hover:bg-red-500/[25%] hover:scale-110' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-red-500/[10%] hover:border-red-500/[30%] hover:scale-110'}`}
-        >
-          <span className="material-symbols-outlined !text-[14px]">{confirmDeleteState === id ? 'warning' : 'delete'}</span>
-        </button>
-      )}
+  const customIcon = (
+    <div className={`w-12 h-12 rounded-[var(--radius)] shrink-0 overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md transition-colors z-10 mx-auto`}>
+      <div className="absolute inset-0" style={{ backgroundColor: theme.bg || '#000' }} />
+      <div className="absolute top-0 left-0 bottom-0 w-3" style={{ backgroundColor: theme.sidebar || '#000' }} />
+      <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.accent || '#fff' }} />
     </div>
+  );
+
+  const removeAction = onDelete ? (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        if (confirmDeleteState === id) { onDelete(id); setConfirmDeleteState(false); }
+        else { setConfirmDeleteState(id); }
+      }}
+      onMouseLeave={() => setConfirmDeleteState(false)}
+      className={`w-8 h-8 rounded-[var(--radius)] flex items-center justify-center transition-all backdrop-blur-xl z-20 ${confirmDeleteState === id ? 'bg-red-500/[15%] border border-[var(--danger)] text-[var(--danger)] shadow-md hover:bg-red-500/[25%] hover:scale-110' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-red-500/[10%] hover:border-red-500/[30%] hover:scale-110'}`}
+    >
+      <span className="material-symbols-outlined !text-[14px]">{confirmDeleteState === id ? 'warning' : 'delete'}</span>
+    </button>
+  ) : undefined;
+
+  return (
+    <UniversalCard
+      layout="horizontal"
+      isActive={isActive || isDev}
+      onClick={onClick}
+      title={theme.name}
+      subtitle={label}
+      customIcon={customIcon}
+      actions={removeAction}
+      statusColor={isDev || isCloud ? 'var(--accent)' : undefined}
+    />
   );
 }

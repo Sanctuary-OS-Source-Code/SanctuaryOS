@@ -4,7 +4,8 @@ import { useStore } from '../store';
 import { useModalStore } from '../store/modalStore';
 import { supabase } from '../supabase';
 import { HoverTooltip } from '../shared';
-import { TabContainer, SettingsGrid, SettingCard, SettingsToggle } from './shared';
+import { TabContainer, SettingsGrid, SettingsToggle } from './shared';
+import { UniversalCard } from '../components/universal/UniversalCard';
 
 export default function ClientTab() {
   const { t } = useLexicon();
@@ -41,34 +42,34 @@ export default function ClientTab() {
   return (
     <TabContainer title={t("tab_preferences") || "Preferences"} icon="tune">
       <SettingsGrid>
-        <SettingCard 
+        <UniversalCard 
           title={t("local_only")} 
-          description={t("local_only_desc")} 
+          subtitle={t("local_only_desc")} 
           icon="wifi_off"
           onClick={toggleLocalOnly}
-          action={<SettingsToggle checked={localOnly} />}
+          actions={<SettingsToggle checked={localOnly} />}
         />
         
-        <SettingCard 
+        <UniversalCard 
           title={t("show_images")} 
-          description={t("show_images_desc")} 
+          subtitle={t("show_images_desc")} 
           icon="image"
           onClick={() => setShowImages(!showImages)}
-          action={<SettingsToggle checked={showImages} />}
+          actions={<SettingsToggle checked={showImages} />}
         />
         
-        <SettingCard 
+        <UniversalCard 
           title={t("settings_use_internal_browser") || "Internal Mod Browser"} 
-          description={`${t("use_internal_browser_desc") || "Use Sanctuary’s built-in browser for supported artifact/download pages."} ${t("use_internal_browser_desc2") || "Disable this to use your normal browser, extensions, adblockers, and download workflow."}`} 
+          subtitle={`${t("use_internal_browser_desc") || "Use Sanctuary’s built-in browser for supported artifact/download pages."} ${t("use_internal_browser_desc2") || "Disable this to use your normal browser, extensions, adblockers, and download workflow."}`} 
           icon="language"
           onClick={() => setUseInternalBrowser(!useInternalBrowser)}
-          action={<SettingsToggle checked={useInternalBrowser} />}
+          actions={<SettingsToggle checked={useInternalBrowser} />}
         />
 
         <div className="relative group/malware">
-          <SettingCard 
+          <UniversalCard 
             title={t("malware_share_title")} 
-            description={`${t("malware_share_desc")} ${t("malware_share_desc2")}`} 
+            subtitle={`${t("malware_share_desc")} ${t("malware_share_desc2")}`} 
             icon="security"
             onClick={() => {
               if (!session || isBanned) return;
@@ -76,7 +77,7 @@ export default function ClientTab() {
               setShareMalwareReports(val);
               localStorage.setItem("sanctuary_share_malware_reports", val.toString());
             }}
-            action={
+            actions={
               <div className={`${!session || isBanned ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}>
                 <SettingsToggle checked={shareMalwareReports} />
               </div>
@@ -92,16 +93,16 @@ export default function ClientTab() {
           )}
         </div>
 
-        <SettingCard 
+        <UniversalCard 
           title={t("btn_reset_all_local")} 
-          description={t("reset_all_local_desc")} 
+          subtitle={t("reset_all_local_desc")} 
           icon="delete_forever"
-          danger
+          statusColor="border-red-500"
           onClick={() => {
             localStorage.removeItem('sanctuary_local_overrides');
             useStore.getState().pushStatus(t("local_overrides_cleared") || "All local overrides have been cleared.");
           }}
-          action={
+          actions={
             <div className="w-10 h-10 rounded-xl bg-[var(--danger)]/10 text-[var(--danger)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">
               <span className="material-symbols-outlined !text-[20px]">warning</span>
             </div>

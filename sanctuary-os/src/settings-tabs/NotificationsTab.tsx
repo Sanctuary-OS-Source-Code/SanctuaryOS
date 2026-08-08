@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLexicon } from '../LexiconContext';
-import { TabContainer, SettingsGrid, SettingCard, SettingsToggle } from './shared';
+import { TabContainer, SettingsGrid, SettingsToggle } from './shared';
+import { UniversalCard } from '../components/universal/UniversalCard';
 import { SidePanel } from '../shared';
 import { supabase } from '../supabase';
 
@@ -91,47 +92,47 @@ export default function NotificationsTab() {
         }
       >
         <SettingsGrid>
-          <SettingCard 
+          <UniversalCard 
             title={t("ui.replies") || "Replies"} 
-            description={t("notify_replies_desc")} 
+            subtitle={t("notify_replies_desc")} 
             icon="chat_bubble"
             onClick={toggleNotifyReplies}
-            action={<SettingsToggle checked={notifyReplies} />}
+            actions={<SettingsToggle checked={notifyReplies} />}
           />
-          <SettingCard 
+          <UniversalCard 
             title={t("btn_new_posts") || "New Posts"} 
-            description={t("notify_new_posts_desc")} 
+            subtitle={t("notify_new_posts_desc")} 
             icon="post_add"
             onClick={toggleNotifyNewPosts}
-            action={<SettingsToggle checked={notifyNewPosts} />}
+            actions={<SettingsToggle checked={notifyNewPosts} />}
           />
-          <SettingCard 
+          <UniversalCard 
             title={t("notify_system_dispatch") || "System Dispatch"} 
-            description={t("notify_system_dispatch_desc")} 
+            subtitle={t("notify_system_dispatch_desc")} 
             icon="admin_panel_settings"
             onClick={toggleNotifySystemDispatch}
-            action={<SettingsToggle checked={notifySystemDispatch} />}
+            actions={<SettingsToggle checked={notifySystemDispatch} />}
           />
-          <SettingCard 
+          <UniversalCard 
             title={t("notify_alert_banner") || "Alert Banners"} 
-            description={t("notify_alert_banner_desc")} 
+            subtitle={t("notify_alert_banner_desc")} 
             icon="warning"
             onClick={toggleNotifyAlertBanner}
-            action={<SettingsToggle checked={notifyAlertBanner} />}
+            actions={<SettingsToggle checked={notifyAlertBanner} />}
           />
-          <SettingCard 
+          <UniversalCard 
             title={t("notify_support") || "Support Replies"} 
-            description={t("notify_support_desc")} 
+            subtitle={t("notify_support_desc")} 
             icon="contact_support"
             onClick={toggleNotifySupport}
-            action={<SettingsToggle checked={notifySupport} />}
+            actions={<SettingsToggle checked={notifySupport} />}
           />
-          <SettingCard 
+          <UniversalCard 
             title={t("notify_author_only") || "Author Only"} 
-            description={t("notify_author_only_desc")} 
+            subtitle={t("notify_author_only_desc")} 
             icon="person"
             onClick={toggleNotifyAuthorOnly}
-            action={<SettingsToggle checked={notifyAuthorOnly} />}
+            actions={<SettingsToggle checked={notifyAuthorOnly} />}
           />
         </SettingsGrid>
       </TabContainer>
@@ -148,13 +149,13 @@ export default function NotificationsTab() {
           {followedMasons.length === 0 && <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 text-center mt-12 p-8 glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)]">{t("settings_no_masons")}</div>}
           <SettingsGrid>
             {followedMasons.map(m => (
-              <SettingCard 
+              <UniversalCard 
                 key={m.id} 
                 title={m.name} 
-                description={m.handle} 
+                subtitle={m.handle} 
                 icon="person"
                 onClick={() => toggleMasonAlert(m.id)}
-                action={<SettingsToggle checked={masonAlerts[m.id]} />}
+                actions={<SettingsToggle checked={masonAlerts[m.id]} />}
               />
             ))}
           </SettingsGrid>

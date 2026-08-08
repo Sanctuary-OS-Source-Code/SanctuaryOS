@@ -2,6 +2,7 @@ import React from "react";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { formatDisplayName , getFileLabel, isSupportedExtension} from "./shared";
+import { UniversalCard } from "./components/universal/UniversalCard";
 
 interface ConflictCardProps {
   conflict: any;
@@ -70,94 +71,84 @@ function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelected
 
   const tColor = tier === 4 ? 'text-[var(--danger)]' : tier === 3 ? 'text-[var(--warning)]' : tier === 2 ? 'text-[var(--accent)]' : 'text-white/50';
   const borderHover = tier === 4 ? 'hover:border-[var(--danger)]/30' : tier === 3 ? 'hover:border-[var(--warning)]/30' : tier === 2 ? 'hover:border-[var(--accent)]/30' : 'hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]';
+  const statusColor = tier === 4 ? 'var(--danger)' : tier === 3 ? 'var(--warning)' : tier === 2 ? 'var(--accent)' : 'color-mix(in srgb, var(--text) 50%, transparent)';
 
-  const getGlowStyles = () => {
-    const aColor = isSelectedA ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 
-                   tier === 4 ? 'color-mix(in srgb, var(--danger) 15%, transparent)' : 
-                   tier === 3 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 
-                   tier === 2 ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 
-                   'color-mix(in srgb, white 5%, transparent)';
-                   
-    const bColor = isSelectedB ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 
-                   tier === 4 ? 'color-mix(in srgb, var(--danger) 15%, transparent)' : 
-                   tier === 3 ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 
-                   tier === 2 ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 
-                   'color-mix(in srgb, white 5%, transparent)';
-                   
-    return `radial-gradient(circle at 100% 0%, ${aColor} 0%, transparent 50%), radial-gradient(circle at 0% 100%, ${bColor} 0%, transparent 50%)`;
-  };
+
+
+  const titleNode = (
+    <div className="flex items-center gap-2 w-full">
+      <span className={`material-symbols-outlined !text-[14px] ${tColor}`}>
+        {tier === 4 ? (t("icon_crisis_alert") || 'crisis_alert') : tier === 3 ? (t("icon_tune") || 'tune') : tier === 2 ? 'file_copy' : 'info'}
+      </span>
+      <span className={`text-[10px] font-black uppercase tracking-widest opacity-80 ${tColor}`}>
+        {label}
+      </span>
+    </div>
+  );
+
+  const actionsNode = onIgnore && tier === 1 ? (
+    <button
+      onClick={(e) => { e.stopPropagation(); onIgnore?.(); }}
+      className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-white transition-colors opacity-0 group-hover:opacity-100 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[var(--danger)] px-2 py-1 rounded-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm"
+    >
+      {t("btn_ignore")}
+    </button>
+  ) : undefined;
 
   return (
     <div 
       onClick={(!onKeepA && !onKeepB) ? onClick : undefined}
-      className={`glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group border transition-all duration-500 relative overflow-hidden
-        ${(!onKeepA && !onKeepB) ? `cursor-pointer hover:shadow-2xl hover:-translate-y-1 ${borderHover}` : `hover:shadow-2xl hover:-translate-y-1 ${borderHover}`}
-        ${isSelected ? "border-[var(--accent)] shadow-md" : "border-[color-mix(in_srgb,var(--text)_5%,transparent)]"}
-      `}
+      className={`glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-xl ${borderHover} transition-all duration-500 overflow-hidden relative ${isSelected ? 'ring-2 ring-[var(--accent)]/50 bg-[var(--accent)]/5' : ''} ${(!onKeepA && !onKeepB) ? 'cursor-pointer' : ''}`}
     >
-      <div className="absolute inset-0 pointer-events-none transition-all duration-700 opacity-60 group-hover:opacity-100" style={{ background: getGlowStyles() }} />
-      
-      {isSelected && (
-        <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent blur-xl pointer-events-none" />
-      )}
 
-      <div className="flex justify-between items-center z-10 relative">
-        <div className="flex items-center gap-2">
-          <span className={`material-symbols-outlined !text-[14px] ${tier === 4 ? 'text-[var(--danger)]' : tier === 3 ? 'text-[var(--warning)]' : tier === 2 ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>
-            {tier === 4 ? (t("icon_crisis_alert") || 'crisis_alert') : tier === 3 ? (t("icon_tune") || 'tune') : tier === 2 ? 'file_copy' : 'info'}
-          </span>
-          <span className={`text-[10px] font-black uppercase tracking-widest opacity-80 ${tier === 4 ? 'text-[var(--danger)]' : tier === 3 ? 'text-[var(--warning)]' : tier === 2 ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>
-            {label}
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {onIgnore && tier === 1 && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onIgnore?.(); }}
-              className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-white transition-colors opacity-0 group-hover:opacity-100 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[var(--danger)] px-2 py-1 rounded-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm"
-            >
-              {t("btn_ignore")}
-            </button>
-          )}
-        </div>
+
+      {/* Header */}
+      <div className="flex justify-between items-start z-10 relative">
+        {titleNode}
+        {actionsNode && (
+          <div className="shrink-0 ml-4">
+            {actionsNode}
+          </div>
+        )}
       </div>
 
-      <div className="flex flex-col gap-3 relative z-10">
+      {/* A vs B Section */}
+      <div className="flex flex-col gap-2 relative z-10 w-full mt-2">
         <div 
           onClick={onKeepA ? (e) => { e.stopPropagation(); onKeepA(); } : undefined}
-          className={`p-4 rounded-2xl border shadow-inner flex flex-col relative transition-colors duration-500 group/moda ${onKeepA ? 'cursor-pointer hover:bg-emerald-500/[10%] hover:border-[var(--success)]/50' : ''} bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]`}
+          className={`p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 group/moda ${onKeepA ? 'cursor-pointer hover:bg-emerald-500/[10%] hover:border-[var(--success)]/50' : ''} bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${isSelectedA ? 'border-[var(--accent)]/50 bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]/30' : ''}`}
         >
-          <div className="flex justify-between items-start mb-1">
+          <div className="flex justify-between items-center mb-2">
             <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tColor}`}>
               <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
             </span>
             {onKeepA && (
-              <div className="w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all duration-500 border-emerald-500/[20%] text-transparent bg-black/20 shadow-inner group-hover/moda:border-[var(--success)]/60 group-hover/moda:bg-[var(--success)]/20 group-hover/moda:text-[var(--success)] group-hover/moda:shadow-md">
-                <span className="material-symbols-outlined font-black transition-all duration-500 !text-[12px] scale-90 group-hover/moda:scale-110 group-hover/moda:drop-shadow-[0_0_8px_var(--success)]">check</span>
+              <div className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all duration-500 shadow-inner group-hover/moda:border-[var(--success)]/60 group-hover/moda:bg-[var(--success)]/20 group-hover/moda:text-[var(--success)] group-hover/moda:shadow-md ${isSelectedA ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/20' : 'border-emerald-500/[20%] text-transparent bg-black/20'}`}>
+                <span className={`material-symbols-outlined font-black transition-all duration-500 !text-[12px] ${isSelectedA ? 'scale-100' : 'scale-90 group-hover/moda:scale-110 group-hover/moda:drop-shadow-[0_0_8px_var(--success)]'}`}>check</span>
               </div>
             )}
           </div>
           <ModNameWithBadge name={conflict.modA} />
         </div>
 
-        <div className="relative h-px w-full flex items-center justify-center z-20">
-          <div className="w-7 h-7 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center bg-[var(--bg)] absolute">
-            <span className="text-[8px] font-black text-[var(--subtext)] italic uppercase">{t("vs")}</span>
+        <div className="relative h-px w-full flex items-center justify-center z-20 my-1">
+          <div className="w-6 h-6 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex items-center justify-center bg-[var(--bg)] absolute">
+            <span className="text-[7px] font-black text-[var(--subtext)] italic uppercase opacity-70">{t("vs")}</span>
           </div>
+          <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
         </div>
 
         <div 
           onClick={onKeepB ? (e) => { e.stopPropagation(); onKeepB(); } : undefined}
-          className={`p-4 rounded-2xl border shadow-inner flex flex-col relative transition-colors duration-500 group/modb ${onKeepB ? 'cursor-pointer hover:bg-emerald-500/[10%] hover:border-[var(--success)]/50' : ''} bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]`}
+          className={`p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 group/modb ${onKeepB ? 'cursor-pointer hover:bg-emerald-500/[10%] hover:border-[var(--success)]/50' : ''} bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${isSelectedB ? 'border-[var(--accent)]/50 bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]/30' : ''}`}
         >
-          <div className="flex justify-between items-start mb-1">
+          <div className="flex justify-between items-center mb-2">
             <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tColor}`}>
               <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
             </span>
             {onKeepB && (
-              <div className="w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all duration-500 border-emerald-500/[20%] text-transparent bg-black/20 shadow-inner group-hover/modb:border-[var(--success)]/60 group-hover/modb:bg-[var(--success)]/20 group-hover/modb:text-[var(--success)] group-hover/modb:shadow-md">
-                <span className="material-symbols-outlined font-black transition-all duration-500 !text-[12px] scale-90 group-hover/modb:scale-110 group-hover/modb:drop-shadow-[0_0_8px_var(--success)]">check</span>
+              <div className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all duration-500 shadow-inner group-hover/modb:border-[var(--success)]/60 group-hover/modb:bg-[var(--success)]/20 group-hover/modb:text-[var(--success)] group-hover/modb:shadow-md ${isSelectedB ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/20' : 'border-emerald-500/[20%] text-transparent bg-black/20'}`}>
+                <span className={`material-symbols-outlined font-black transition-all duration-500 !text-[12px] ${isSelectedB ? 'scale-100' : 'scale-90 group-hover/modb:scale-110 group-hover/modb:drop-shadow-[0_0_8px_var(--success)]'}`}>check</span>
               </div>
             )}
           </div>
@@ -166,7 +157,7 @@ function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelected
       </div>
 
       {conflict.is_ghost && (
-        <div className="flex items-center gap-2 relative z-10 pt-1">
+        <div className="flex items-center gap-2 relative z-10 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-1">
           <span className="material-symbols-outlined !text-[14px] text-[var(--warning)] opacity-80">{t("icon_policy")}</span>
           <span className="text-[9px] font-black uppercase tracking-widest text-[var(--warning)] opacity-90">{t("logical_clash")}</span>
         </div>

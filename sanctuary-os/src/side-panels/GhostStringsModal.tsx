@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { HoverTooltip, cleanSearchName, SidePanel, handleOpenUrl } from "../shared";
+import { UniversalCard } from "../components/universal/UniversalCard";
 import { useStore } from "../store";
 import { supabase } from "../supabase";
 
@@ -68,57 +69,65 @@ export function GhostStringsModal({
           const premiumGhosts = ghosts.filter((mod: string) => ghostsMeta[mod]?.is_paid || ghostsMeta[mod]?.is_early_access);
           const standardGhosts = ghosts.filter((mod: string) => !ghostsMeta[mod]?.is_paid && !ghostsMeta[mod]?.is_early_access);
 
-          const renderGhostList = (modList: string[]) => modList.map((mod: string, idx: number) => {
-            const meta = ghostsMeta[mod] || {};
-            const targetUrl = `https://www.google.com/search?q=${encodeURIComponent(`${useStore.getState().activeGameSchema?.display_name || "Mod"} ${cleanSearchName(mod, useStore.getState().activeGameSchema)}`)}`;
-            return (
-              <div key={idx} className="flex justify-between items-center glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-4 rounded-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all group shadow-md">
-                <div className="flex flex-col min-w-0 pr-4">
-                  <span className="text-xs font-black text-[var(--text)] uppercase truncate group-hover:text-[var(--danger)] transition-colors">{cleanSearchName(mod, useStore.getState().activeGameSchema)}</span>
-                  <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1 truncate">{mod}</span>
-                  {(meta.is_paid || meta.is_early_access) && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {meta.is_early_access && (
-                        <div className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center gap-1 shadow-md">
-                          <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
-                          <span className="text-[8px] font-black uppercase tracking-[0.1em] text-purple-500">{t("badge_early_access") || "Early Access"}</span>
-                        </div>
-                      )}
-                      {meta.is_paid && (
-                        <div className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-1 shadow-md">
-                          <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
-                          <span className="text-[8px] font-black uppercase tracking-[0.1em] text-yellow-500">{t("badge_paid") || "Paid"}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleOpenUrl(targetUrl)}
-                    className="w-10 h-10 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] rounded-xl transition-all text-[var(--text)] group/btn relative"
-                  >
-                    <span className="material-symbols-outlined !text-[18px]">search</span>
-                    <HoverTooltip title={t("btn_search_network") || "Search Network"} variant="default" className="group-hover/btn:flex z-[200]" />
-                  </button>
-                  <button
-                    onClick={() => onIgnore(mod)}
-                    className="w-10 h-10 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] rounded-xl transition-all text-[var(--text)] group/btn relative"
-                  >
-                    <span className="material-symbols-outlined !text-[18px]">visibility_off</span>
-                    <HoverTooltip title={t("btn_ignore_alert") || "Ignore Alert"} variant="accent" className="group-hover/btn:flex z-[200]" />
-                  </button>
-                  <button
-                    onClick={() => onPurge(mod)}
-                    className="w-10 h-10 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-bg-danger hover:text-[var(--bg)] rounded-xl transition-all text-[var(--text)] group/btn relative"
-                  >
-                    <span className="material-symbols-outlined !text-[18px]">delete</span>
-                    <HoverTooltip title={t("btn_purge_string") || "Purge String"} variant="danger" className="group-hover/btn:flex z-[200] !left-auto !right-0 !translate-x-0" />
-                  </button>
-                </div>
-              </div>
-            );
-          });
+          const renderGhostList = (modList: string[]) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {modList.map((mod: string, idx: number) => {
+                const meta = ghostsMeta[mod] || {};
+                const targetUrl = `https://www.google.com/search?q=${encodeURIComponent(`${useStore.getState().activeGameSchema?.display_name || "Mod"} ${cleanSearchName(mod, useStore.getState().activeGameSchema)}`)}`;
+                return (
+                  <UniversalCard
+                    key={idx}
+                    layout="vertical-compact"
+                    title={cleanSearchName(mod, useStore.getState().activeGameSchema)}
+                    subtitle={mod}
+                    badges={
+                      (meta.is_paid || meta.is_early_access) && (
+                        <>
+                          {meta.is_early_access && (
+                            <div className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center gap-1 shadow-md">
+                              <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
+                              <span className="text-[8px] font-black uppercase tracking-[0.1em] text-purple-500">{t("badge_early_access") || "Early Access"}</span>
+                            </div>
+                          )}
+                          {meta.is_paid && (
+                            <div className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-1 shadow-md">
+                              <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
+                              <span className="text-[8px] font-black uppercase tracking-[0.1em] text-yellow-500">{t("badge_paid") || "Paid"}</span>
+                            </div>
+                          )}
+                        </>
+                      )
+                    }
+                    actions={
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenUrl(targetUrl)}
+                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] rounded-lg transition-all text-[var(--text)] group/btn relative"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">search</span>
+                          <HoverTooltip title={t("btn_search_network") || "Search Network"} variant="default" className="group-hover/btn:flex z-[200]" />
+                        </button>
+                        <button
+                          onClick={() => onIgnore(mod)}
+                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-amber-500/20 hover:text-amber-500 border hover:border-amber-500/50 rounded-lg transition-all text-[var(--text)] group/btn relative"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">visibility_off</span>
+                          <HoverTooltip title={t("btn_ignore_alert") || "Ignore Alert"} variant="default" className="group-hover/btn:flex z-[200]" />
+                        </button>
+                        <button
+                          onClick={() => onPurge(mod)}
+                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-red-500/20 hover:text-red-500 border hover:border-red-500/50 rounded-lg transition-all text-[var(--text)] group/btn relative"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">delete</span>
+                          <HoverTooltip title={t("btn_purge_string") || "Purge String"} variant="danger" className="group-hover/btn:flex z-[200]" />
+                        </button>
+                      </div>
+                    }
+                  />
+                );
+              })}
+            </div>
+          );
 
           return (
             <>

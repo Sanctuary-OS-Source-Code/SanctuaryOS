@@ -22,7 +22,7 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
     const fetchPosts = async () => {
       if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
       setLoading(true);
-      const { data } = await supabase.from('mason_posts').select('*, masons(name, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)').order('created_at', { ascending: false }).limit(9);
+      const { data } = await supabase.from('mason_posts').select('*, masons(name, avatar_url, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)').order('created_at', { ascending: false }).limit(9);
       if (data) setPosts(data);
       setLoading(false);
     };
@@ -45,7 +45,7 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
   const handlePostClick = async (post: any) => {
     setSelectedPost(post);
     if (userId) {
-      await supabase.from('mason_post_views').upsert({ post_id: post.id, user_id: userId }, { onConflict: 'post_id,user_id', ignoreDuplicates: true });
+      try { await supabase.from('mason_post_views').upsert({ post_id: post.id, user_id: userId }, { onConflict: 'post_id,user_id', ignoreDuplicates: true }); } catch(e) { console.warn("Failed to record view", e); }
     } else {
       try { await supabase.from('mason_post_views').insert({ post_id: post.id }); } catch(e) {}
     }
@@ -53,7 +53,7 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
   };
 
   const feedContent = (
-    <div className={`grid ${gridCols || 'grid-cols-1 md:grid-cols-2'} gap-6 flex-1 overflow-y-auto custom-scrollbar p-6 -m-6`}>
+    <div className={`grid ${gridCols || 'grid-cols-1 md:grid-cols-2'} gap-6 flex-1 ${noCardWrapper ? 'pb-12' : 'overflow-y-auto custom-scrollbar p-6 -m-6'}`}>
       {loading ? (
         <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
       ) : posts.length === 0 ? (

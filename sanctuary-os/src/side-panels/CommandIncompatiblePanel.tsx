@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { SidePanel, formatDisplayName, isVersionMatch, mapDlcCode, getHighestVersion, HoverTooltip } from "../shared";
+import { UniversalCard } from "../components/universal/UniversalCard";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 
@@ -145,34 +146,26 @@ export default function CommandIncompatiblePanel({
               const isIgnored = ignoredBroken.has(mod.name);
               const isAmber = mod._alert_type === 'amber';
               return (
-                <div
+                <UniversalCard
                   key={mod.name}
-                  className={`w-full rounded-[var(--radius)] border transition-all duration-500 relative group/alert shrink-0 flex items-center ${isIgnored ? 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/20 opacity-50' : isAmber ? 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 hover:shadow-md shadow-lg' : 'border-[var(--danger)]/30 bg-[var(--danger)]/5 hover:bg-[var(--danger)]/10 hover:border-[var(--danger)]/50 hover:shadow-[0_0_30px_rgba(var(--danger-rgb),0.15)] shadow-lg'
-                    }`}
-                >
-
-                  <div className="relative p-4 z-10 flex items-center gap-3 w-full">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored ? 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/50' : isAmber ? 'border-amber-500/50 bg-amber-500/10 shadow-md' : 'border-[var(--danger)]/50 bg-[var(--danger)]/10 shadow-[0_0_15px_rgba(var(--danger-rgb),0.2)]'
-                      }`}>
-                      <span className={`material-symbols-outlined !text-[20px] ${isIgnored ? 'text-[var(--text)] opacity-30' : isAmber ? 'text-amber-400' : 'theme-text-danger'}`}>{isAmber ? "gpp_maybe" : "gpp_bad"}</span>
-                    </div>
-
-                    <div className="flex flex-col gap-0.5 flex-1 min-w-0 pr-4 group/title relative">
-                      <span className="text-[12px] font-semibold text-[var(--text)] truncate">
-                        {formatDisplayName(mod.name)}
+                  layout="compact"
+                  icon={isIgnored ? "gpp_bad" : isAmber ? "gpp_maybe" : "gpp_bad"}
+                  isGhosted={isIgnored}
+                  statusColor={isIgnored ? "border-[color-mix(in_srgb,var(--text)_5%,transparent)]" : isAmber ? "border-amber-500/30" : "theme-border-danger"}
+                  className={isIgnored ? "bg-black/20 opacity-50" : isAmber ? "bg-amber-500/5 hover:bg-amber-500/10 shadow-lg" : "bg-[var(--danger)]/5 hover:bg-[var(--danger)]/10 shadow-lg"}
+                  title={formatDisplayName(mod.name)}
+                  subtitle={
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate">
+                        {mod._alert_reason}
                       </span>
-                      <HoverTooltip title={formatDisplayName(mod.name)} variant="default" className="!hidden group-hover/title:!flex z-[100]" />
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate">
-                          {mod._alert_reason}
-                        </span>
-                        <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-1.5 py-0.5 rounded border border-cyan-400/20 shrink-0">
-                          {mod.version || "v.Local"}
-                        </span>
-                      </div>
+                      <span className="text-[9px] font-mono text-cyan-400 tracking-widest opacity-80 bg-cyan-400/10 px-1.5 py-0.5 rounded border border-cyan-400/20 shrink-0">
+                        {mod.version || "v.Local"}
+                      </span>
                     </div>
-
-                    <div className="relative z-10 flex items-center shrink-0 gap-2">
+                  }
+                  actions={
+                    <>
                       <button
                         onClick={() => {
                           const newSet = new Set(ignoredBroken);
@@ -189,15 +182,15 @@ export default function CommandIncompatiblePanel({
                       {allow_write && !isIgnored && toggleInActiveSet && (
                         <button
                           onClick={() => toggleInActiveSet(mod._originalSetName || mod.name, true, true)}
-                          className={`w-8 h-8 rounded-lg border transition-all active:scale-95 flex items-center justify-center group relative ${isAmber ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/30 hover:border-amber-500/60 hover:text-amber-200' : 'bg-red-500/[10%] border-red-500/[30%] text-[var(--danger)] hover:bg-red-500/[30%] hover:border-red-500/[60%] hover:text-[var(--danger)]'}`}
+                          className={`w-8 h-8 rounded-lg border transition-all active:scale-95 flex items-center justify-center group relative ${isAmber ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/30 hover:border-amber-500/60 hover:text-amber-200' : 'bg-[var(--danger)]/[10%] border-[var(--danger)]/[30%] theme-text-danger hover:bg-[var(--danger)]/[30%] hover:border-[var(--danger)]/[60%]'}`}
                         >
                           <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
                           <HoverTooltip title={t("icon_delete")} variant="danger" />
                         </button>
                       )}
-                    </div>
-                  </div>
-                </div>
+                    </>
+                  }
+                />
               );
             })
           )}

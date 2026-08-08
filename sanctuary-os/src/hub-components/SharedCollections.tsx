@@ -1,3 +1,4 @@
+import { SearchBar } from "../shared";
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
@@ -122,18 +123,12 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         </h2>
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-            <input 
-              value={searchTerm} 
-              onChange={e => setSearchTerm(e.target.value)} 
-              placeholder={t("search_ph")} 
-              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+            <SearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder={t("search_ph")}
+              className="h-12 w-full rounded-2xl"
             />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-              </button>
-            )}
           </div>
           <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-12">
              <CustomDropdown disableTint={true}  value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{id: "ALL", label: "ALL TIERS"}, {id: "0", label: "TIER 0"}, {id: "1", label: "TIER 1"}, {id: "2", label: "TIER 2"}]} />
@@ -146,13 +141,14 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 content-start pr-2">
           {filteredSets.length === 0 && <EmptyState icon={t("icon_extension_off") || "extension_off"} title={t("cc_no_sets")} className="col-span-full py-16" />}
           {filteredSets.map(setItem => (
+            <div key={setItem.id} className="w-full max-w-[450px]">
               <VaultCard 
-                key={setItem.id} 
                 setItem={setItem} 
                 activeSetId={activeSet?.id} 
                 onClick={() => { setActiveSet(setItem); fetchMembers(setItem.id); }} 
                 masonNameFallback={masonName} 
               />
+            </div>
           ))}
         </div>
       </div>
@@ -452,12 +448,11 @@ export function CollectionForge({ setStatus }: any) {
         </h2>
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-            <input 
-              value={searchTerm} 
-              onChange={e => setSearchTerm(e.target.value)} 
-              placeholder={t("search_queue")} 
-              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+            <SearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder={t("search_queue")}
+              className="h-12 w-full rounded-2xl"
             />
           </div>
           <div className="w-max min-w-[160px] max-w-xs relative z-50 h-12">

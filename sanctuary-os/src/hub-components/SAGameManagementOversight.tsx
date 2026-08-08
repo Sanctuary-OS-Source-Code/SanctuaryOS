@@ -9,7 +9,7 @@ import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMu
   standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
   fetchAllPaginated, CustomTierDropdown, loadDLCMap } from "../shared";
-import { ArtifactCard, VaultCard } from "../Cards";
+import { UniversalCard } from "../components/universal/UniversalCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
 import { logArchitectAction } from "../lib/audit";
@@ -210,35 +210,25 @@ export function GameManagementOversight() {
 
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">
               {filteredVersions.map(v => (
-                <div key={v.version} onClick={() => openPanel('edit_version', v.version)} className="flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[var(--accent)]/[50%] hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[140px] cursor-pointer hover:-translate-y-1.5">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent)]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                  <div className="flex justify-between items-start w-full relative z-10 mb-4">
-                    <div className="flex items-start gap-4">
-                      <div className="w-14 h-14 rounded-2xl glass-surface border border-[var(--accent)]/[40%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
-                        <span className="material-symbols-outlined !text-[28px] theme-text-accent drop-shadow-md">{t("icon_gamepad")}</span>
-                      </div>
-                      <div className="flex flex-col pt-1">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1">{t("patch_release")}</span>
-                        <span className="text-xl font-mono font-black text-[var(--text)] group-hover:theme-text-accent transition-colors truncate drop-shadow-sm">{v.version}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                    <div className="flex flex-col">
-                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("released")}</span>
-                      <span className="text-xs font-bold text-[var(--text)] opacity-90 mt-1">
+                <UniversalCard
+                  key={v.version}
+                  onClick={() => openPanel('edit_version', v.version)}
+                  layout="vertical"
+                  icon="gamepad"
+                  title={v.version}
+                  subtitle={t("patch_release")}
+                  footer={
+                    <div className="flex justify-between items-center w-full">
+                      <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
+                        <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
                         {v.release_date ? new Date(v.release_date).toLocaleDateString() : (v.created_at ? new Date(v.created_at).toLocaleDateString() : "UNKNOWN")}
                       </span>
+                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                        {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
+                      </button>
                     </div>
-
-                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                      {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
-                    </button>
-                  </div>
-                </div>
+                  }
+                />
               ))}
               {filteredVersions.length === 0 && <EmptyState icon={t("icon_gamepad") || "gamepad"} title={t("no_versions")} className="col-span-full py-16" />}
             </div>
@@ -249,37 +239,30 @@ export function GameManagementOversight() {
           <>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">
               {filteredDlcs.map(d => (
-                <div key={d.id} onClick={() => openPanel('edit_dlc', d)} className="flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[var(--accent)]/[50%] hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[140px] cursor-pointer hover:-translate-y-1.5">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent)]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                  <div className="flex justify-between items-start w-full relative z-10 mb-2">
-                    <div className="flex items-start gap-4 w-full truncate">
-                      <div className="w-14 h-14 rounded-2xl glass-surface border border-[var(--accent)]/[40%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/20 to-transparent pointer-events-none" />
-                        <span className="relative z-10 text-sm font-black theme-text-accent drop-shadow-md tracking-wider">{d.id}</span>
-                      </div>
-                      <div className="flex flex-col truncate pt-1 flex-1">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1">
-                          {d.type ? (t(`sa_dlc_type_${d.type.toLowerCase().replace(/ /g, '_')}`) || `${d.type}PACK`) : "UNKNOWN"}
-                        </span>
-                        <span className="text-lg font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm pr-4">{d.name}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                    <div className="flex flex-col items-start gap-0.5">
-                      <span className="text-[8px] font-black tracking-widest text-[var(--subtext)] opacity-50 uppercase">{t("released")}</span>
-                      <span className="px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 group-hover:opacity-100 transition-opacity">
+                <UniversalCard
+                  key={d.id}
+                  onClick={() => openPanel('edit_dlc', d)}
+                  layout="vertical"
+                  icon="extension"
+                  title={d.name}
+                  subtitle={d.type ? (t(`sa_dlc_type_${d.type.toLowerCase().replace(/ /g, '_')}`) || `${d.type}PACK`) : "UNKNOWN"}
+                  badges={[
+                    <span key="dlc-id" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20">
+                      {d.id}
+                    </span>
+                  ]}
+                  footer={
+                    <div className="flex justify-between items-center w-full">
+                      <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
+                        <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
                         {d.release_date ? new Date(d.release_date).toLocaleDateString() : d.id}
                       </span>
+                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                        {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
+                      </button>
                     </div>
-                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                      {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
-                    </button>
-                  </div>
-                </div>
+                  }
+                />
               ))}
               {filteredDlcs.length === 0 && <EmptyState icon={t("icon_extension_off") || "extension_off"} title={t("no_dlc")} className="col-span-full py-16" />}
             </div>

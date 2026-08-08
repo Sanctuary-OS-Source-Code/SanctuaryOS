@@ -4,7 +4,7 @@ import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import MarkdownRenderer from "../MarkdownRenderer";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
-import { SidePanel, standardButtonClass, standardDangerButtonClass, extractPostImage, renderTextWithIcons, EmptyState, HoverTooltip } from "../shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, extractPostImage, renderTextWithIcons, EmptyState, HoverTooltip, ActionButton } from "../shared";
 import FlagContentSidePanel from './FlagContentSidePanel';
 import { handleOpenUrl } from "../shared";
 import { useStore } from '../store';
@@ -16,7 +16,7 @@ import { IconPlugin } from '../IconPlugin';
 function RichReplyEditor({ value, onChange, placeholder, className, id }: { value: string, onChange: (val: string) => void, placeholder?: string, className?: string, id?: string }) {
   const updateTimeoutRef = React.useRef<any>(null);
   const [isEmpty, setIsEmpty] = useState(!value);
-  
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: false, horizontalRule: false, codeBlock: false, blockquote: false, bold: false, italic: false, strike: false, bulletList: false, orderedList: false, listItem: false }),
@@ -231,7 +231,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
           message: `${senderName} replied to your comment.`
         });
       }
-      
+
       useStore.getState().setMasonCommentDrafts(prev => {
         const next = { ...prev };
         delete next[post.id];
@@ -515,7 +515,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
         backdropZ="z-[50000]"
         noPadding={true}
         noScroll={true}
-        panelClass={post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'danger-accent-override' : undefined}
+        panelClass={`!border-l-[color-mix(in_srgb,var(--text)_15%,transparent)] ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'danger-accent-override' : ''}`}
         subtitle={
           post.mason_id === 'system' && post.category?.toLowerCase().includes('alert')
             ? (t("alert_subtitle") || "Critical system override, warnings, and urgent advisories")
@@ -527,73 +527,103 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
             const isSystem = post.mason_id === 'system';
             const isAlert = isSystem && post.category?.toLowerCase().includes('alert');
             return (
-              <div className={`w-full h-64 sm:h-80 relative shrink-0 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[var(--bg)]`}>
+              <div className={`w-full h-64 sm:h-72 relative shrink-0 border-b border-[color-mix(in_srgb,var(--text)_15%,transparent)]`}>
                 {isSystem && (
                   <>
                     {isAlert && <div className="absolute inset-0 bg-[var(--danger)]/20 z-0" />}
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--background)] z-10 opacity-90" />
                     <div className={`absolute inset-0 bg-gradient-to-br ${isAlert ? 'from-[var(--danger)]/20' : 'from-[var(--accent)]/10'} to-transparent z-10 pointer-events-none`} />
                   </>
-                )}
-                {!isSystem && (
-                   <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--background)] z-10 opacity-90 pointer-events-none" />
                 )}
                 <img src={imageUrl} className={`w-full h-full object-cover object-center relative z-0 ${isSystem ? 'opacity-60 mix-blend-luminosity' : ''}`} alt={t("auto_post_cover")} />
               </div>
             );
           })()}
-          <div className={`p-10 gap-0 flex flex-col flex-1 relative z-20 ${imageUrl ? '-mt-22 sm:-mt-22' : ''}`}>
-
-            <div className={`flex flex-col gap-4 mb-2 ${imageUrl ? 'p-8 -mx-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[var(--background)]/40 backdrop-blur-2xl shadow-2xl mt-4' : ''}`}>
+          <div className="px-12 pb-12 pt-8 gap-0 flex flex-col flex-1 relative z-20">
+            <div className="flex flex-col gap-4 mb-2">
               <h1 className={`text-4xl font-black uppercase tracking-tighter drop-shadow-sm leading-tight ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)] drop-shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]' : 'text-[var(--text)]'}`}>
                 {renderTextWithIcons(post.title)}
               </h1>
 
-              <div className="flex items-center gap-3">
-                <span className="text-[9px] font-mono theme-text-accent px-3 py-1 bg-[var(--accent)]/[10%] rounded-full border border-[var(--accent)]/[20%] backdrop-blur-md shadow-sm">
-                  {new Date(post.created_at).toLocaleString()}
-                </span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 opacity-80 px-3 py-1 bg-[var(--accent)]/[10%] rounded-full border border-[var(--accent)]/[20%] backdrop-blur-md shadow-sm">
-                  {t("post_by")}
-                  <span className="theme-text-accent cursor-pointer hover:underline hover:opacity-100 transition-opacity" onClick={() => { if (post.mason_id !== 'system') { onClose(); onOpenMasonProfile?.(post.mason_id); } }}>
-                    {post.mason_id === 'system' ? 'Sanctuary OS' : (post.masons?.name || t("unknown_architect") || "Unknown Architect")}
-                  </span>
-                </span>
-              </div>
-            </div>
-
-            <div className="flex-1 flex flex-col">
-              <div className="markdown-body text-[var(--text)] opacity-90 leading-relaxed text-lg flex-1">
-                <MarkdownRenderer
-                  content={content}
-                  isAlert={post.mason_id === 'system' && post.category?.toLowerCase().includes('alert')}
-                  onAssetClick={(type: string, id: string) => {
-                    onAssetClick?.(type, id);
-                  }}
-                />
-              </div>
-
-              {post.code_snippet && (
-                <div className="mt-12 p-6 rounded-[var(--radius)] glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative overflow-hidden group shadow-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center">
-                        <span className="material-symbols-outlined text-[24px] theme-text-accent">{t("icon_data_object")}</span>
-                      </div>
-                      <div>
-                        <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("code_snippet")}</h4>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] mt-1">{t("code_desc")}</p>
-                      </div>
-                    </div>
-                    <button onClick={() => setActiveCodeSnippet(post.code_snippet)} className="px-6 py-3 rounded-[calc(var(--radius)-4px)] bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest hover:bg-[var(--accent)]/[20%] hover:border-[var(--accent)]/[50%] hover:scale-105 transition-all shadow-md flex items-center gap-2 backdrop-blur-md active:scale-95">
-                      <span className="material-symbols-outlined text-[16px]">{t("icon_visibility")}</span>
-                      {t("show_code")}
-                    </button>
+              <div className="flex items-center gap-4 mt-2 mb-8 relative z-20">
+                <div 
+                  className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg cursor-pointer z-20 hover:scale-110 transition-transform shrink-0 overflow-hidden ${
+                    post.mason_id === 'system' || !post.masons?.avatar_url 
+                      ? 'glass-surface border border-[color-mix(in_srgb,var(--text)_20%,transparent)] backdrop-blur-md' 
+                      : 'border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-transparent'
+                  }`}
+                  onClick={() => { if (post.mason_id !== 'system') { onClose(); onOpenMasonProfile?.(post.mason_id); } }}
+                >
+                  {post.mason_id === 'system' ? (
+                    <span className={`material-symbols-outlined !text-[24px] ${post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)]' : 'text-[var(--text)]'} drop-shadow-md`}>memory</span>
+                  ) : post.masons?.avatar_url ? (
+                    <img src={post.masons.avatar_url} alt={post.masons.name || "Avatar"} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-lg font-black text-[var(--text)]">
+                      {post.masons?.name?.charAt(0) || '?'}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex flex-col z-20">
+                  <div className="flex items-center gap-2">
+                    <span 
+                      className="text-[13px] font-black uppercase tracking-widest text-[var(--text)] hover:theme-text-accent cursor-pointer transition-colors"
+                      onClick={() => { if (post.mason_id !== 'system') { onClose(); onOpenMasonProfile?.(post.mason_id); } }}
+                    >
+                      {post.mason_id === 'system' ? 'SANCTUARY OS SYSTEM' : (post.masons?.name || t("unknown_architect") || "Unknown Architect")}
+                    </span>
+                    {post.mason_id === 'system' && (
+                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]" title="Verified System Transmission">verified</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                    <span className="text-[11px] font-bold text-[var(--subtext)] font-mono tracking-widest opacity-80 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[12px] opacity-60">schedule</span>
+                      {new Date(post.created_at).toLocaleString()}
+                    </span>
+                    {post.category && (
+                      <>
+                        <span className="w-1 h-1 rounded-full bg-[var(--text)] opacity-30"></span>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)]' : 'theme-text-accent'}`}>
+                          {post.category}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
 
+              <div className="flex-1 flex flex-col mt-2">
+                <div className="markdown-body text-[var(--text)] opacity-90 leading-relaxed text-lg flex-1">
+                  <MarkdownRenderer
+                    content={content}
+                    isAlert={post.mason_id === 'system' && post.category?.toLowerCase().includes('alert')}
+                    onAssetClick={(type: string, id: string) => {
+                      onAssetClick?.(type, id);
+                    }}
+                  />
+                </div>
 
+                {post.code_snippet && (
+                  <div className="mt-8 p-6 rounded-[var(--radius)] glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative overflow-hidden group shadow-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-5">
+                        <div className="w-12 h-12 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center">
+                          <span className="material-symbols-outlined text-[24px] theme-text-accent">{t("icon_data_object")}</span>
+                        </div>
+                        <div>
+                          <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("code_snippet")}</h4>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] mt-1">{t("code_desc")}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setActiveCodeSnippet(post.code_snippet)} className="px-6 py-3 rounded-[calc(var(--radius)-4px)] bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest hover:bg-[var(--accent)]/[20%] hover:border-[var(--accent)]/[50%] hover:scale-105 transition-all shadow-md flex items-center gap-2 backdrop-blur-md active:scale-95">
+                        <span className="material-symbols-outlined text-[16px]">{t("icon_visibility")}</span>
+                        {t("show_code")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mt-8 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-10 flex flex-col gap-8">
@@ -682,10 +712,12 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               </div>
               <div className="flex items-center gap-4">
                 {userId && !isPostAuthor && !isBanned && (
-                  <button onClick={() => setFlagTarget({ id: post.id, type: 'post' })} className={standardDangerButtonClass}>
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_flag")}</span>
-                    {t("feed_btn_flag")}
-                  </button>
+                  <ActionButton 
+                    onClick={() => setFlagTarget({ id: post.id, type: 'post' })} 
+                    variant="danger"
+                    icon="flag"
+                    label={t("feed_btn_flag")}
+                  />
                 )}
                 {(!userId || isBanned) && (
                   <div className="relative group/flagbtn">
@@ -695,17 +727,22 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       subtitle={isBanned ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
                       className="group-hover/flagbtn:flex z-[1000]"
                     />
-                    <button disabled className={`${standardDangerButtonClass} opacity-30 grayscale cursor-not-allowed`}>
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_flag")}</span>
-                      {t("feed_btn_flag")}
-                    </button>
+                    <ActionButton 
+                      disabled={true} 
+                      className="opacity-30 grayscale cursor-not-allowed"
+                      variant="danger"
+                      icon="flag"
+                      label={t("feed_btn_flag")}
+                    />
                   </div>
                 )}
                 {post.mason_id === 'system' && (
-                  <button onClick={onClose} className={standardButtonClass}>
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
-                    {t("btn_close") || "CLOSE"}
-                  </button>
+                  <ActionButton 
+                    onClick={onClose} 
+                    variant="glass"
+                    icon="close"
+                    label={t("btn_close") || "CLOSE"}
+                  />
                 )}
               </div>
             </div>

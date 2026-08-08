@@ -1,3 +1,4 @@
+import { SearchBar } from "./shared";
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -13,7 +14,7 @@ import {
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
 } from "./shared";
-import { ArtifactCard, VaultCard } from "./Cards";
+import { UniversalCard } from "./components/universal/UniversalCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
 import { MasonStatusDropdown } from "./MasonHub";
 import { logArchitectAction } from "./lib/audit";
@@ -245,18 +246,12 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
         </h2>
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-            <input
+            <SearchBar
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={setSearchTerm}
               placeholder={t("search_ph")}
-              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="h-12 w-full rounded-2xl"
             />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-              </button>
-            )}
           </div>
           <div className="w-max min-w-[180px] max-w-xs shrink-0">
             <CustomDropdown
@@ -299,29 +294,23 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                 ) : (
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                     {unlinkedMods.map(mod => (
-                      <button
+                      <UniversalCard
                         key={mod.hash}
                         onClick={() => { setActiveMod(mod); setIsEditorOpen(true); setConfirmPurge(false); }}
-                        className="glass-panel rounded-[var(--radius)] relative group flex flex-col text-left overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-orange-500/50 hover:shadow-md transition-all duration-500 hover:-translate-y-1.5 bg-gradient-to-br from-white/5 to-transparent min-h-[160px]"
+                        layout="vertical"
+                        icon="folder_zip"
+                        title={mod.name.split(/[\\/]/).pop()}
+                        statusColor="border-orange-500/50"
+                        badges={[
+                          <span key="badge" className="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest shadow-inner shrink-0 transition-colors group-hover:bg-orange-500/20">
+                            {t("unlinked_badge")}
+                          </span>
+                        ]}
                       >
-                        <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-
-                        <div className="p-6 flex flex-col gap-4 relative z-10 w-full h-full">
-                          <div className="flex justify-between items-start w-full">
-                            <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-orange-500/30">
-                              <span className="material-symbols-outlined !text-[24px] opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500">folder_zip</span>
-                            </div>
-                            <span className="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest shadow-inner shrink-0 transition-colors group-hover:bg-orange-500/20">
-                              {t("unlinked_badge")}
-                            </span>
-                          </div>
-                          <div className="flex flex-col gap-1 mt-auto">
-                            <h4 className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate group-hover:text-orange-400 transition-colors">{mod.name.split(/[\\/]/).pop()}</h4>
-                            <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate group-hover:opacity-100 transition-opacity">{mod.hash}</span>
-                          </div>
+                        <div className="flex flex-col gap-1 mt-auto pb-4">
+                          <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate group-hover:opacity-100 transition-opacity">{mod.hash}</span>
                         </div>
-                      </button>
+                      </UniversalCard>
                     ))}
                   </div>
                 )}
@@ -335,29 +324,24 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                     {syncedMods.map(mod => (
-                      <button
+                      <UniversalCard
                         key={mod.hash}
                         onClick={() => { setActiveMod(mod); setIsEditorOpen(true); setConfirmPurge(false); }}
-                        className="glass-panel rounded-[var(--radius)] relative group flex flex-col text-left overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-emerald-500/50 hover:shadow-md transition-all duration-500 hover:-translate-y-1.5 bg-gradient-to-br from-white/5 to-transparent min-h-[160px] opacity-80 hover:opacity-100"
+                        layout="vertical"
+                        icon="cloud_done"
+                        title={mod.name.split(/[\\/]/).pop()}
+                        statusColor="border-emerald-500/50"
+                        isGhosted={true}
+                        badges={[
+                          <span key="badge" className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest shadow-inner shrink-0 transition-colors group-hover:bg-emerald-500/20">
+                            {t("synced_badge")}
+                          </span>
+                        ]}
                       >
-                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-
-                        <div className="p-6 flex flex-col gap-4 relative z-10 w-full h-full">
-                          <div className="flex justify-between items-start w-full">
-                            <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-emerald-500/30">
-                              <span className="material-symbols-outlined !text-[24px] opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500">cloud_done</span>
-                            </div>
-                            <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest shadow-inner shrink-0 transition-colors group-hover:bg-emerald-500/20">
-                              {t("synced_badge")}
-                            </span>
-                          </div>
-                          <div className="flex flex-col gap-1 mt-auto">
-                            <h4 className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate group-hover:text-emerald-400 transition-colors">{mod.name.split(/[\\/]/).pop()}</h4>
-                            <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate group-hover:opacity-100 transition-opacity">{mod.hash}</span>
-                          </div>
+                        <div className="flex flex-col gap-1 mt-auto pb-4">
+                          <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate group-hover:opacity-100 transition-opacity">{mod.hash}</span>
                         </div>
-                      </button>
+                      </UniversalCard>
                     ))}
                   </div>
                 )}

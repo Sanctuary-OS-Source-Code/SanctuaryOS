@@ -3,6 +3,7 @@ import { SidePanel } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useTheme } from "../ThemeContext";
+import { UniversalCard } from "../components/universal/UniversalCard";
 
 export default function CommandRadarSweepPanel({
   isOpen, onClose, status, runRadarSweep, isScanning, networkUpdates, tier3Count = 0, tier4Count = 0, brokenCount = 0, unstableCount = 0,
@@ -138,84 +139,98 @@ export default function CommandRadarSweepPanel({
           <div className="flex flex-col gap-3">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("citizen_action_required")}</h4>
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={onOpenUpdates} className={`glass-surface p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all ${updatesCount > 0 ? '!border-[var(--accent)]/[30%] !bg-[var(--accent)]/[10%] hover:!bg-[var(--accent)]/[20%]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                 <span className={`material-symbols-outlined !text-lg opacity-50 ${updatesCount > 0 ? 'theme-text-accent' : ''}`}>{t("icon_update")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("updates_modal_title")}</span>
-                 <span className="text-sm font-black uppercase text-[var(--text)]">{updatesCount}</span>
-              </button>
-              <button onClick={onOpenIncompatible} className={`glass-surface p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all ${(brokenCount + unstableCount) > 0 ? (brokenCount > 0 ? '!border-red-500/[30%] !bg-red-500/[10%] hover:!bg-red-500/[20%] shadow-md' : '!border-orange-500/[30%] !bg-orange-500/[10%] hover:!bg-orange-500/[20%] shadow-md') : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                 <span className={`material-symbols-outlined !text-lg opacity-50 ${(brokenCount + unstableCount) > 0 ? (brokenCount > 0 ? 'theme-text-danger' : 'theme-text-warning') : ''}`}>{brokenCount > 0 ? "gpp_bad" : (unstableCount > 0 ? "gpp_maybe" : "warning_amber")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">
-                   {brokenCount > 0 && unstableCount > 0 ? `${t("status_broken")} / ${t("label_unstable")}` : brokenCount > 0 ? (t("status_broken")) : (unstableCount > 0 ? (t("label_unstable")) : (t("citizen_action_incompatible")))}
-                 </span>
-                 <span className="text-sm font-black uppercase text-[var(--text)]">
-                   {brokenCount > 0 && unstableCount > 0 ? `${brokenCount} / ${unstableCount}` : brokenCount + unstableCount}
-                 </span>
-              </button>
-              <button onClick={onOpenConflicts} className={`glass-surface p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-1 col-span-2 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all ${(tier4Count + tier3Count) > 0 ? (tier4Count > 0 ? '!border-red-500/[30%] !bg-red-500/[10%] hover:!bg-red-500/[20%] shadow-md' : '!border-orange-500/[30%] !bg-orange-500/[10%] hover:!bg-orange-500/[20%] shadow-md') : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                 <span className={`material-symbols-outlined !text-lg opacity-50 ${(tier4Count + tier3Count) > 0 ? (tier4Count > 0 ? 'theme-text-danger' : 'theme-text-warning') : ''}`}>{tier4Count > 0 ? "crisis_alert" : (tier3Count > 0 ? "tune" : "radar")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">
-                   {tier4Count > 0 && tier3Count > 0 ? `${t("stat_tier4")} / ${t("stat_tier3")}` : tier4Count > 0 ? (t("stat_tier4")) : (tier3Count > 0 ? (t("stat_tier3")) : (t("tab_matrix")))}
-                 </span>
-                 <span className="text-sm font-black uppercase text-[var(--text)]">
-                   {tier4Count > 0 && tier3Count > 0 ? `${tier4Count} / ${tier3Count}` : tier4Count + tier3Count}
-                 </span>
-              </button>
+              <UniversalCard
+                layout="stat"
+                onClick={onOpenUpdates}
+                isActive={updatesCount > 0}
+                icon={t("icon_update")}
+                subtitle={t("updates_modal_title")}
+                title={updatesCount}
+              />
+              <UniversalCard
+                layout="stat"
+                onClick={onOpenIncompatible}
+                customIcon={<span className={`material-symbols-outlined !text-[22px] transition-colors ${(brokenCount + unstableCount) > 0 ? (brokenCount > 0 ? 'text-red-500' : 'text-orange-500') : 'opacity-50 group-hover:opacity-80'}`}>{brokenCount > 0 ? "gpp_bad" : (unstableCount > 0 ? "gpp_maybe" : "warning_amber")}</span>}
+                statusColor={(brokenCount + unstableCount) > 0 ? (brokenCount > 0 ? 'border-red-500/[30%] bg-red-500/10' : 'border-orange-500/[30%] bg-orange-500/10') : undefined}
+                subtitle={brokenCount > 0 && unstableCount > 0 ? `${t("status_broken")} / ${t("label_unstable")}` : brokenCount > 0 ? (t("status_broken")) : (unstableCount > 0 ? (t("label_unstable")) : (t("citizen_action_incompatible")))}
+                title={brokenCount > 0 && unstableCount > 0 ? `${brokenCount} / ${unstableCount}` : brokenCount + unstableCount}
+              />
+              <UniversalCard
+                layout="stat"
+                className="col-span-2"
+                onClick={onOpenConflicts}
+                customIcon={<span className={`material-symbols-outlined !text-[22px] transition-colors ${(tier4Count + tier3Count) > 0 ? (tier4Count > 0 ? 'text-red-500' : 'text-orange-500') : 'opacity-50 group-hover:opacity-80'}`}>{tier4Count > 0 ? "crisis_alert" : (tier3Count > 0 ? "tune" : "radar")}</span>}
+                statusColor={(tier4Count + tier3Count) > 0 ? (tier4Count > 0 ? 'border-red-500/[30%] bg-red-500/10' : 'border-orange-500/[30%] bg-orange-500/10') : undefined}
+                subtitle={tier4Count > 0 && tier3Count > 0 ? `${t("stat_tier4")} / ${t("stat_tier3")}` : tier4Count > 0 ? (t("stat_tier4")) : (tier3Count > 0 ? (t("stat_tier3")) : (t("tab_matrix")))}
+                title={tier4Count > 0 && tier3Count > 0 ? `${tier4Count} / ${tier3Count}` : tier4Count + tier3Count}
+              />
             </div>
           </div>
 
           <div className="flex flex-col gap-3">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("domain_core")}</h4>
             <div className="grid grid-cols-2 gap-3">
-              <div className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1">
-                 <span className="material-symbols-outlined !text-lg opacity-50">{t("icon_schedule")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("stat_last_scan")}</span>
-                 <span className="text-sm font-black uppercase text-[var(--text)]">
-                    {localLastScan ? new Date(localLastScan).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (status?.last_scan ? new Date(status.last_scan * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A")}
-                 </span>
-              </div>
-              <button onClick={onOpenHotSwap} className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50">{t("icon_map")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("stat_blueprints")}</span>
-                 <span className="text-sm font-black uppercase text-[var(--text)]">{playSets?.length || 0}</span>
-              </button>
+              <UniversalCard
+                layout="stat"
+                icon={t("icon_schedule")}
+                subtitle={t("stat_last_scan")}
+                title={localLastScan ? new Date(localLastScan).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (status?.last_scan ? new Date(status.last_scan * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A")}
+              />
+              <UniversalCard
+                layout="stat"
+                onClick={onOpenHotSwap}
+                icon={t("icon_map")}
+                subtitle={t("stat_blueprints")}
+                title={playSets?.length || 0}
+              />
             </div>
           </div>
 
           <div className="flex flex-col gap-3">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("domain_vault")}</h4>
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'ALL' } })); }} className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 col-span-2 cursor-pointer hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50">{t("icon_inventory_2")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("vault_title")}</span>
-                 <span className="text-sm font-black uppercase text-[var(--text)]">{relevantMods.length}</span>
-              </button>
-              <button onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'VERIFIED' } })); }} className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50 theme-text-success">{t("icon_verified_user")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("verified")}</span>
-                 <span className="text-sm font-black uppercase text-[var(--text)]">{verifiedCount}</span>
-              </button>
-              <button onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'UNVERIFIED' } })); }} className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50 theme-text-warning">{t("icon_help")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("unverified")}</span>
-                 <span className="text-sm font-black uppercase text-[var(--text)]">{unverifiedCount}</span>
-              </button>
+              <UniversalCard
+                layout="stat"
+                className="col-span-2"
+                onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'ALL' } })); }}
+                icon={t("icon_inventory_2")}
+                subtitle={t("vault_title")}
+                title={relevantMods.length}
+              />
+              <UniversalCard
+                layout="stat"
+                onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'VERIFIED' } })); }}
+                customIcon={<span className="material-symbols-outlined !text-[22px] transition-colors theme-text-success">{t("icon_verified_user")}</span>}
+                subtitle={t("verified")}
+                title={verifiedCount}
+              />
+              <UniversalCard
+                layout="stat"
+                onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'UNVERIFIED' } })); }}
+                customIcon={<span className="material-symbols-outlined !text-[22px] transition-colors theme-text-warning">{t("icon_help")}</span>}
+                subtitle={t("unverified")}
+                title={unverifiedCount}
+              />
             </div>
           </div>
 
           <div className="flex flex-col gap-3">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("domain_ext")}</h4>
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => { onClose(); localStorage.setItem("sanctuary_settings_tab", "LEXICON"); useStore.getState().setView("settings"); window.dispatchEvent(new CustomEvent('navigateSettings', { detail: { tab: 'LEXICON' } })); }} className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50">{t("icon_language")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("tab_lexicons")}</span>
-                 <span className="text-sm font-black uppercase text-[var(--text)]">{lexiconCount}</span>
-              </button>
-              <button onClick={() => { onClose(); localStorage.setItem("sanctuary_settings_tab", "CHAMELEON"); useStore.getState().setView("settings"); window.dispatchEvent(new CustomEvent('navigateSettings', { detail: { tab: 'CHAMELEON' } })); }} className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center text-center gap-1 cursor-pointer hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95 transition-all">
-                 <span className="material-symbols-outlined !text-lg opacity-50">{t("icon_palette")}</span>
-                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("type_theme")}</span>
-                 <span className="text-sm font-black uppercase text-[var(--text)]">{chameleonCount}</span>
-              </button>
+              <UniversalCard
+                layout="stat"
+                onClick={() => { onClose(); localStorage.setItem("sanctuary_settings_tab", "LEXICON"); useStore.getState().setView("settings"); window.dispatchEvent(new CustomEvent('navigateSettings', { detail: { tab: 'LEXICON' } })); }}
+                icon={t("icon_language")}
+                subtitle={t("tab_lexicons")}
+                title={lexiconCount}
+              />
+              <UniversalCard
+                layout="stat"
+                onClick={() => { onClose(); localStorage.setItem("sanctuary_settings_tab", "CHAMELEON"); useStore.getState().setView("settings"); window.dispatchEvent(new CustomEvent('navigateSettings', { detail: { tab: 'CHAMELEON' } })); }}
+                icon={t("icon_palette")}
+                subtitle={t("type_theme")}
+                title={chameleonCount}
+              />
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { supabaseServices } from "../lib/supabase-services";
 import { useLexicon } from "../LexiconContext";
 import { standardPrimaryButtonClass, standardButtonClass, standardSuccessButtonClass, SidePanel, CustomDropdown, EmptyState, ActionButton } from "../shared";
+import { UniversalCard } from "../components/universal/UniversalCard";
 import TemplatePreviewer from "../TemplatePreviewer";
 import { supabase } from "../supabase";
 import { exists, mkdir, writeTextFile } from "@tauri-apps/plugin-fs";
@@ -198,30 +199,18 @@ export default function ArchitectTemplateOversight() {
                 const defaultTmpl = groupTemplates.find(t => t.is_community_default);
                 
                 return (
-                  <div 
+                  <UniversalCard
                     key={tf.id}
                     onClick={() => { setSelectedFileGroup(tf.file_name); setSelectedTemplateForPreview(null); }}
-                    className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] p-6"
-                  >
-                      <div className="absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 bg-gradient-to-br from-[var(--accent)]/5 to-transparent" />
-                      <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500 ${defaultTmpl ? 'bg-emerald-500/50' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`} />
-                      
-                      <div className="flex items-start justify-between relative z-10 mb-4">
-                          <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[var(--accent)]/30 transition-all duration-500 shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]">
-                             <span className="material-symbols-outlined !text-[24px] text-[var(--text)] group-hover:text-[var(--accent)] transition-colors duration-500 opacity-50 group-hover:opacity-100">{t("icon_description") || "description"}</span>
-                          </div>
-                          {defaultTmpl && (
-                              <span className="material-symbols-outlined text-emerald-400 opacity-80" title="Has Community Default">{t("template_icon_verified") || "verified"}</span>
-                          )}
-                      </div>
-                      
-                      <div className="flex flex-col mt-auto relative z-10">
-                          <span className="text-lg font-black text-[var(--text)] truncate">{tf.file_name}</span>
-                          <span className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest mt-1 opacity-70">
-                              {groupTemplates.length} {groupTemplates.length === 1 ? 'Template' : 'Templates'} Available
-                          </span>
-                      </div>
-                  </div>
+                    layout="vertical"
+                    icon="description"
+                    title={tf.file_name}
+                    subtitle={`${groupTemplates.length} ${groupTemplates.length === 1 ? 'Template' : 'Templates'} Available`}
+                    statusColor={defaultTmpl ? "border-emerald-500" : undefined}
+                    badges={defaultTmpl ? [
+                      <span key="verified" className="material-symbols-outlined text-emerald-400 opacity-80 !text-[16px]" title="Has Community Default">{t("template_icon_verified") || "verified"}</span>
+                    ] : undefined}
+                  />
                 );
             })}
           </div>

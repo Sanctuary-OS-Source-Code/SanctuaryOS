@@ -2,10 +2,11 @@ import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton } from "../shared";
+import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter } from "../shared";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";
+import { UniversalCard } from "../components/universal/UniversalCard";
 
 export function MarketUploadPanel({
   uploadState,
@@ -18,10 +19,18 @@ export function MarketUploadPanel({
 }: any) {
   const { t } = useLexicon();
   if (!uploadState.isOpen) return null;
-  return createPortal(
+  return (
     <>
-      <div className={`fixed top-0 right-0 bottom-10 ${backdropZ} bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300`} style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setUploadState((s: any) => ({ ...s, isOpen: false }))}></div>
-      <div className={`fixed top-10 right-0 bottom-10 w-[550px] max-w-[100vw] glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex flex-col ${panelZ} animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none`} onClick={(e) => e.stopPropagation()}>
+      <SidePanel
+        isOpen={true}
+        onClose={() => setUploadState((s: any) => ({ ...s, isOpen: false }))}
+        widthClass="w-[550px] max-w-[100vw]"
+        backdropZ={backdropZ}
+        panelZ={panelZ}
+        hideHeader={true}
+        noPadding={true}
+        noScroll={true}
+      >
         <button type="button" onClick={() => setUploadState((s: any) => ({ ...s, isOpen: false }))} className="group absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
           <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
         </button>
@@ -196,9 +205,8 @@ export function MarketUploadPanel({
             {uploadState.isEdit ? (t("upload_btn_update")) : (t("upload_submit"))}
           </button>
         </div>
-      </div>
-    </>,
-    document.body
+      </SidePanel>
+    </>
   );
 }
 
@@ -209,10 +217,18 @@ export function MarketReportPanel({
 }: any) {
   const { t } = useLexicon();
   if (!reportState.isOpen) return null;
-  return createPortal(
+  return (
     <>
-      <div className="fixed top-0 right-0 bottom-10 z-[65000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setReportState({ isOpen: false, assetId: null, assetType: null, reason: '' })} />
-      <div className="fixed top-10 right-0 bottom-10 w-[500px] max-w-[100vw] glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex flex-col z-[65001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none" onClick={(e: any) => e.stopPropagation()}>
+      <SidePanel
+        isOpen={true}
+        onClose={() => setReportState({ isOpen: false, assetId: null, assetType: null, reason: '' })}
+        widthClass="w-[500px] max-w-[100vw]"
+        backdropZ="z-[65000]"
+        panelZ="z-[65001]"
+        hideHeader={true}
+        noPadding={true}
+        noScroll={true}
+      >
         <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-red-500/10 to-transparent pt-6 pb-4 px-6">
           <div className="absolute inset-0 bg-red-500/5 blur-[50px] pointer-events-none rounded-full transform scale-150 -translate-y-1/2"></div>
           <div className="flex items-center gap-6 relative z-10 w-full pr-12">
@@ -255,9 +271,8 @@ export function MarketReportPanel({
             </button>
           </div>
         </form>
-      </div>
-    </>,
-    document.body
+      </SidePanel>
+    </>
   );
 }
 
@@ -413,10 +428,43 @@ export function MarketBlueprintPanel({
 
   if (!enrichedBlueprint) return null;
 
-  return createPortal(
+  return (
     <>
-      <div className="fixed top-0 right-0 bottom-10 z-[15000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setSelectedBlueprint(null)}></div>
-      <div className="fixed top-10 right-0 bottom-10 w-full max-w-4xl glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none" onClick={(e) => e.stopPropagation()}>
+      <SidePanel
+        isOpen={true}
+        onClose={() => setSelectedBlueprint(null)}
+        widthClass="w-full max-w-4xl"
+        backdropZ="z-[15000]"
+        panelZ="z-[15001]"
+        hideHeader={true}
+        noPadding={true}
+        noScroll={true}
+        footer={
+          <SidePanelActionFooter
+            onCancel={() => setSelectedBlueprint(null)}
+            cancelLabel={t("nav_cancel")}
+            cancelIcon="close"
+            onAction={async () => {
+              if (syncBlueprintByCode) {
+                setIsSyncing(true);
+                const isCopy = playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code);
+                await syncBlueprintByCode(selectedBlueprint.json_data.code, isCopy ? " (Cloned)" : " (Downloaded)");
+                try {
+                  supabase.rpc('increment_blueprint_downloads', { blueprint_id: selectedBlueprint.id }).then();
+                  if (onDownloadSuccess) onDownloadSuccess(selectedBlueprint.id);
+                } catch (e) { console.error("Could not increment downloads", e); }
+                setIsSyncing(false);
+              }
+              setSelectedBlueprint(null);
+            }}
+            actionDisabled={isSyncing}
+            isProcessing={isSyncing}
+            processingLabel={t("btn_importing")}
+            actionLabel={playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code) ? (t("btn_install_copy") || "INSTALL COPY") : t("update_panel_install")}
+            actionIcon="download"
+          />
+        }
+      >
         <button onClick={() => setSelectedBlueprint(null)} className="group absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
           <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
         </button>
@@ -493,34 +541,34 @@ export function MarketBlueprintPanel({
 
             {(() => {
               const renderMod = (mod: any, i: number) => (
-                <div key={`${mod.hash || mod.name}_${i}`} className="flex justify-between items-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-4 rounded-2xl hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all group">
-                  <button
-                    onClick={() => onOpenDossier?.({ ...mod, isNexusView: true })}
-                    className="flex flex-col items-start hover:theme-text-accent transition-colors text-left min-w-0 pr-4"
-                  >
-                    <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate w-full">{cleanModName(mod.name || mod.id).name}</span>
-                    <span className="text-[9px] font-mono theme-text-accent tracking-[0.2em] uppercase opacity-70 mt-1">{cleanModName(mod.name || mod.id).ext}</span>
-                    {(mod.is_paid || mod.is_early_access) && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {mod.is_early_access && (
-                          <div className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center gap-1 shadow-md">
-                            <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
-                            <span className="text-[8px] font-black uppercase tracking-[0.1em] text-purple-500">{t("badge_early_access") || "Early Access"}</span>
-                          </div>
-                        )}
-                        {mod.is_paid && (
-                          <div className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-1 shadow-md">
-                            <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
-                            <span className="text-[8px] font-black uppercase tracking-[0.1em] text-yellow-500">{t("badge_paid") || "Paid"}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </button>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {mod.author && <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-4">{mod.author}</span>}
-                  </div>
-                </div>
+                <UniversalCard
+                  key={`${mod.hash || mod.name}_${i}`}
+                  layout="compact"
+                  title={cleanModName(mod.name || mod.id).name}
+                  subtitle={cleanModName(mod.name || mod.id).ext}
+                  onClick={() => onOpenDossier?.({ ...mod, isNexusView: true })}
+                  actions={
+                    <div className="flex items-center gap-2 shrink-0">
+                      {(mod.is_paid || mod.is_early_access) && (
+                        <div className="flex flex-wrap gap-2 mr-2">
+                          {mod.is_early_access && (
+                            <div className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center gap-1 shadow-md">
+                              <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
+                              <span className="text-[8px] font-black uppercase tracking-[0.1em] text-purple-500">{t("badge_early_access") || "Early Access"}</span>
+                            </div>
+                          )}
+                          {mod.is_paid && (
+                            <div className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-1 shadow-md">
+                              <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
+                              <span className="text-[8px] font-black uppercase tracking-[0.1em] text-yellow-500">{t("badge_paid") || "Paid"}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {mod.author && <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-4">{mod.author}</span>}
+                    </div>
+                  }
+                />
               );
 
               return (
@@ -538,14 +586,14 @@ export function MarketBlueprintPanel({
                           </span>
                         </div>
                       </div>
-                      <div className="flex flex-col gap-2">
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                         {premiumMods.map(renderMod)}
                       </div>
                     </div>
                   )}
 
                   {standardMods.length > 0 && (
-                    <div className="flex flex-col gap-2">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                       {standardMods.map(renderMod)}
                     </div>
                   )}
@@ -563,39 +611,7 @@ export function MarketBlueprintPanel({
             )}
           </div>
         </div>
-        <div className="p-8 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-xl flex flex-row items-center justify-center gap-4 w-full relative z-50 shrink-0">
-          <button
-            onClick={() => setSelectedBlueprint(null)}
-            className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-          >
-            <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-            {t("nav_cancel")}
-          </button>
-          <button
-            onClick={async () => {
-              if (syncBlueprintByCode) {
-                setIsSyncing(true);
-                const isCopy = playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code);
-                await syncBlueprintByCode(selectedBlueprint.json_data.code, isCopy ? " (Cloned)" : " (Downloaded)");
-                try {
-                  supabase.rpc('increment_blueprint_downloads', { blueprint_id: selectedBlueprint.id }).then();
-                  if (onDownloadSuccess) onDownloadSuccess(selectedBlueprint.id);
-                } catch (e) { console.error("Could not increment downloads", e); }
-                setIsSyncing(false);
-              }
-              setSelectedBlueprint(null);
-            }}
-            disabled={isSyncing}
-            className={`flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs bg-[var(--accent)]/[10%] text-[var(--accent)] border-[var(--accent)]/[30%] shadow-[0_5px_20px_rgba(var(--accent-rgb),0.2)] ${isSyncing ? 'opacity-80 scale-100 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95 hover:bg-[var(--accent)]/[20%]'}`}
-          >
-            <span className={`material-symbols-outlined !text-[18px] ${isSyncing ? 'animate-spin' : ''}`}>
-              {isSyncing ? t("icon_refresh") : t("icon_download")}
-            </span>
-            {isSyncing ? t("btn_importing") : (playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code) ? (t("btn_install_copy") || "INSTALL COPY") : t("update_panel_install"))}
-          </button>
-        </div>
-      </div>
-    </>,
-    document.body
+      </SidePanel>
+    </>
   );
 }

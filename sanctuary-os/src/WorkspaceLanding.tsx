@@ -6,6 +6,7 @@ import { useTheme } from "./ThemeContext";
 import { CartographerSetup } from './CartographerSetup';
 import { supabase } from './supabase';
 import { EmptyState, FilterTabs, FilterTabButton } from './shared';
+import { UniversalCard } from './components/universal/UniversalCard';
 
 export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, isModal?: boolean }) {
   const { t } = useLexicon();
@@ -201,82 +202,80 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
                 const isActive = ws.id === activeWorkspaceId;
                 const isPinned = pinnedIds.includes(ws.id);
 
-                return (
-                  <button
-                    key={`ws-${ws.id}-${idx}`}
-                    onClick={() => selectWorkspace(ws)}
-                    className={`flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border group transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 ${isActive ? 'border-[var(--accent)]/[50%] bg-[var(--accent)]/[15%] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[50%] hover:bg-[var(--accent)]/[5%] hover:shadow-md'}`}
+                const customIcon = game.icon ? (
+                  <img src={game.icon} alt="" className="w-24 h-24 object-contain drop-shadow-lg opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500" />
+                ) : (
+                  <span className="material-symbols-outlined !text-[48px] theme-text-accent drop-shadow-md opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500">sports_esports</span>
+                );
+
+                const actions = (
+                  <div
+                    onClick={(e) => togglePin(ws.id, e)}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[var(--accent)]/[15%] border-[var(--accent)]/[30%]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                   >
-                    <div className={`absolute inset-0 bg-gradient-to-br from-[var(--accent)]/20 to-transparent transition-opacity duration-700 pointer-events-none ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                    <span className="material-symbols-outlined !text-[16px]" style={{ fontVariationSettings: isPinned ? '"FILL" 1' : '"FILL" 0' }}>keep</span>
+                  </div>
+                );
 
-                    <div className="flex justify-between items-start w-full relative z-10 mb-4">
-                      <div className="flex items-start gap-4 w-full pr-8">
-                        <div className={`w-12 h-12 rounded-2xl glass-surface border shadow-md flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 ${isActive ? 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-                          {game.icon ? <img src={game.icon} alt="" className="w-8 h-8 object-contain drop-shadow-md" /> : <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">sports_esports</span>}
-                        </div>
-                        <div className="flex flex-col pt-1 min-w-0 flex-1">
-                          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1 truncate">{isActive ? t("workspace_manage") || 'Active Workspace' : t("workspace_available") || "Configured Workspace"}</span>
-                          <span className="text-[14px] font-black uppercase tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors line-clamp-2 drop-shadow-sm leading-tight">{game.name || ws.name || ws.id}</span>
-                        </div>
-                      </div>
+                const footer = (
+                  <div className="flex flex-col min-w-0 flex-1 pr-2">
+                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
+                    {isSelecting === ws.id ? (
+                      <span className="text-[10px] font-bold text-[var(--accent)] opacity-90 mt-1 flex items-center gap-1 truncate animate-pulse">
+                        <span className="material-symbols-outlined !text-[12px] shrink-0 animate-spin">sync</span>
+                        <span className="truncate">{t("status_establishing_connection") || "Establishing Connection..."}</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-[var(--success)] opacity-90 mt-1 flex items-center gap-1 truncate">
+                        <span className="material-symbols-outlined !text-[12px] shrink-0">check_circle</span>
+                        <span className="truncate">{t("workspace_configured")}</span>
+                      </span>
+                    )}
+                  </div>
+                );
 
-                      <div
-                        onClick={(e) => togglePin(ws.id, e)}
-                        className={`absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[var(--accent)]/[15%] border-[var(--accent)]/[30%]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[16px]" style={{ fontVariationSettings: isPinned ? '"FILL" 1' : '"FILL" 0' }}>keep</span>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                      <div className="flex flex-col min-w-0 flex-1 pr-2">
-                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
-                        {isSelecting === ws.id ? (
-                          <span className="text-[10px] font-bold text-[var(--accent)] opacity-90 mt-1 flex items-center gap-1 truncate animate-pulse">
-                            <span className="material-symbols-outlined !text-[12px] shrink-0 animate-spin">sync</span>
-                            <span className="truncate">{t("status_establishing_connection") || "Establishing Connection..."}</span>
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold text-[var(--success)] opacity-90 mt-1 flex items-center gap-1 truncate">
-                            <span className="material-symbols-outlined !text-[12px] shrink-0">check_circle</span>
-                            <span className="truncate">{t("workspace_configured")}</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
+                return (
+                  <UniversalCard
+                    key={`ws-${ws.id}-${idx}`}
+                    layout="vertical"
+                    isActive={isActive}
+                    onClick={() => selectWorkspace(ws)}
+                    title={game.name || ws.name || ws.id}
+                    subtitle={isActive ? t("workspace_manage") || 'Active Workspace' : t("workspace_available") || "Configured Workspace"}
+                    customIcon={customIcon}
+                    actions={actions}
+                    footer={footer}
+                  />
                 );
               } else {
                 const game = card.game;
+
+                const customIcon = game.icon ? (
+                  <img src={game.icon} alt="" className="w-24 h-24 object-contain drop-shadow-lg opacity-40 group-hover:opacity-80 grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-500" />
+                ) : (
+                  <span className="material-symbols-outlined !text-[48px] text-[var(--subtext)] drop-shadow-md opacity-40 group-hover:opacity-80 group-hover:text-white group-hover:scale-110 transition-all duration-500">sports_esports</span>
+                );
+
+                const footer = (
+                  <div className="flex flex-col min-w-0 flex-1 pr-2">
+                    <span className="text-[10px] font-bold text-[var(--text)] opacity-0 group-hover:opacity-80 transition-opacity duration-500 flex items-center gap-1 uppercase tracking-widest">
+                      <span className="material-symbols-outlined !text-[12px]">add</span>
+                      <span>{t("ui_add_network_node") || "Provision Node"}</span>
+                    </span>
+                  </div>
+                );
+
                 return (
-                  <button
+                  <UniversalCard
                     key={`game-${game.id}-${idx}`}
+                    layout="vertical"
+                    isGhosted={true}
                     onClick={() => setSelectedGameConfig(game)}
-                    className="flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-solid hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 opacity-70 hover:opacity-100"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-
-                    <div className="flex justify-between items-start w-full relative z-10 mb-4">
-                      <div className="flex items-start gap-4 w-full">
-                        <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
-                          {game.icon ? <img src={game.icon} alt="" className="w-8 h-8 object-contain grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-80 transition-all duration-500" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--subtext)] opacity-50 group-hover:opacity-100 group-hover:text-white transition-colors">sports_esports</span>}
-                        </div>
-                        <div className="flex flex-col pt-1 min-w-0 flex-1">
-                          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-40 mb-1 truncate">{t("workspace_unconfigured")}</span>
-                          <span className="text-[14px] font-black uppercase tracking-widest text-[var(--subtext)] group-hover:text-[var(--text)] transition-colors line-clamp-2 drop-shadow-sm leading-tight">{game.name}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                      <div className="flex flex-col min-w-0 flex-1 pr-2">
-                        <span className="text-[10px] font-bold text-[var(--text)] opacity-0 group-hover:opacity-80 transition-opacity duration-500 flex items-center gap-1 uppercase tracking-widest">
-                          <span className="material-symbols-outlined !text-[12px]">add</span>
-                          <span>{t("ui_add_network_node") || "Provision Node"}</span>
-                        </span>
-                      </div>
-                    </div>
-                  </button>
+                    title={game.name}
+                    subtitle={t("workspace_unconfigured")}
+                    customIcon={customIcon}
+                    footer={footer}
+                  />
                 );
               }
             })}

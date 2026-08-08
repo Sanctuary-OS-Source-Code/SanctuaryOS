@@ -1,3 +1,4 @@
+import { SearchBar } from "../shared";
 import React, { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
@@ -97,14 +98,13 @@ export default function SAOversightReports() {
 
           <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-              <input 
-                value={search} 
-                onChange={e => setSearch(e.target.value)} 
-                placeholder={t("oversight_search")} 
-                className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
-              />
-            </div>
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder={t("oversight_search")}
+              className="h-12 w-full rounded-2xl"
+            />
+          </div>
             
             <FilterTabs className="h-12 z-40">
               <FilterTabButton
@@ -215,14 +215,13 @@ export default function SAOversightReports() {
           <div className="flex flex-col gap-4 h-full">
              <div className="flex items-center gap-3 w-full border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 shrink-0 flex-wrap">
                <div className="relative flex-1 min-w-[200px]">
-                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-                 <input 
-                   value={groupSearch} 
-                   onChange={e => setGroupSearch(e.target.value)} 
-                   placeholder={t("oversight_search")} 
-                   className="w-full glass-panel rounded-xl pl-9 pr-4 h-10 text-xs font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
-                 />
-               </div>
+            <SearchBar
+              value={groupSearch}
+              onChange={setGroupSearch}
+              placeholder={t("oversight_search")}
+              className="h-12 w-full rounded-2xl"
+            />
+          </div>
                
                <FilterTabs className="h-10">
                  <FilterTabButton

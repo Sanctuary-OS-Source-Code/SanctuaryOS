@@ -164,7 +164,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
   const handlePostClick = async (post: any) => {
     setSelectedPost(post);
     if (userId) {
-      await supabase.from('mason_post_views').upsert({ post_id: post.id, user_id: userId }, { onConflict: 'post_id,user_id', ignoreDuplicates: true });
+      try { await supabase.from('mason_post_views').upsert({ post_id: post.id, user_id: userId }, { onConflict: 'post_id,user_id', ignoreDuplicates: true }); } catch (e) { console.warn("Failed to record view", e); }
     } else {
       try { await supabase.from('mason_post_views').insert({ post_id: post.id }); } catch (e) { }
     }
