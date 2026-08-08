@@ -11,6 +11,7 @@ import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
 import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, FilterTabs, FilterTabButton, ActionButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import MasonPostCard from "../MasonPostCard";
 import MarkdownRenderer from "../MarkdownRenderer";
 import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
@@ -145,7 +146,26 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   const fetchPostsAndAssets = async () => {
     const targetTable = isKeepers ? 'keeper_system_broadcasts' : 'system_broadcasts';
     const { data } = await supabase.from(targetTable).select('*').order('created_at', { ascending: false });
-    if (data) setPosts(data);
+    if (data) {
+      const activeSchema = useStore.getState().activeGameSchema;
+      const gameName = activeSchema ? (activeSchema.name || "Sanctuary") : "Sanctuary";
+      
+      const hydratedData = data.map((post: any) => {
+        let teamName = "Sanctuary OS Team";
+        if (!isKeepers) {
+          teamName = isOversight ? `${gameName} Oversight Team` : `${gameName} Wayfinders`;
+        }
+        return {
+          ...post,
+          mason_id: post.mason_id || 'system',
+          masons: {
+            ...post.masons,
+            name: teamName
+          }
+        };
+      });
+      setPosts(hydratedData);
+    }
 
     if (authorId) {
       if (authorId === 'system') {
@@ -411,33 +431,14 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     return filteredPosts.map(post => {
       const hasUnsavedEdits = draftSet.has(post.id);
       return (
-        <UniversalCard
+        <MasonPostCard
           key={post.id}
-          layout="vertical"
-          image={extractPostImage(post)}
-          title={post.title}
-          onClick={() => openEditor(post)}
-          className={`w-full ${hasUnsavedEdits ? '!border-amber-500/30 text-amber-500 !bg-amber-500/10 hover:!bg-amber-500/20 hover:!border-amber-500/50 shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : isPostPinned(post) ? '!border-[var(--danger)]/30 !bg-[var(--danger)]/5 shadow-[0_10px_30px_rgba(var(--danger-rgb),0.1)]' : ''}`}
-          imageOverlay={
-            <>
-              <div className="absolute top-3 left-3 flex flex-col gap-1 z-30">
-                {isPostPinned(post) && (
-                  <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/30 backdrop-blur-md">
-                    <span className="material-symbols-outlined !text-[10px]">{t("icon_warning_amber")}</span>
-                    {t("urgent_alert") || "URGENT"}
-                  </span>
-                )}
-                <span className="text-[9px] font-black text-white/80 uppercase tracking-widest drop-shadow-md bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-md">{new Date(post.created_at).toLocaleDateString()}</span>
-              </div>
-              {hasUnsavedEdits && (
-                <div className="absolute top-3 right-3 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-[var(--warning)] bg-[var(--warning)]/20 border border-[var(--warning)]/40 px-2 py-0.5 rounded-md shadow-lg z-30 pointer-events-none backdrop-blur-md">
-                  <span className="material-symbols-outlined !text-[10px]">{t("icon_edit_note")}</span>
-                  {t("ph_unsaved_changes") || "UNSAVED EDITS"}
-                </div>
-              )}
-            </>
-          }
-          footer={
+          post={post}
+          index={0}
+          onPostClick={() => openEditor(post)}
+          onToggleLike={() => {}}
+          hasUnsavedEdits={hasUnsavedEdits}
+          actions={
             <div className={`flex items-center gap-2 w-full transition-opacity duration-300 relative z-20 ${confirmDelete === post.id ? 'justify-center' : 'justify-end opacity-0 group-hover:opacity-100'}`}>
               {confirmDelete === post.id ? (
                 <>
@@ -456,11 +457,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
               )}
             </div>
           }
-        >
-          <p className="text-[10px] text-[var(--subtext)] opacity-70 leading-relaxed whitespace-pre-wrap break-words line-clamp-4 mt-1">
-            {post.description ? post.description : (stripMarkdown(post.message || post.content || '').length > 300 ? stripMarkdown(post.message || post.content || '').substring(0, 300) + '...' : stripMarkdown(post.message || post.content || ''))}
-          </p>
-        </UniversalCard>
+        />
       );
     });
   }, [filteredPosts, draftKeysStr, confirmDelete, t]);
@@ -526,11 +523,9 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
             onClick={() => openEditor()}
             className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px] relative"
             icon={t("icon_cell_tower")}
-            label={t("post_broadcast")}
+            label={wayfinderDrafts['new'] ? t("action_unsaved_draft") || "UNSAVED DRAFT" : t("post_broadcast")}
+            variant={wayfinderDrafts['new'] ? "warning" : "default"}
           >
-            {wayfinderDrafts['new'] && (
-              <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-[var(--warning)] border-2 border-[var(--bg)] shadow-md animate-pulse"></span>
-            )}
           </ActionButton>
         </div>
       </div>
@@ -673,6 +668,8 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
                       <div className="h-14">
                         <CustomDropdown disableTint={true}
+                          searchable={true}
+                          allowCustom={true}
                           value={category}
                           onChange={(v: string[]) => setCategory(v[0])}
                           options={

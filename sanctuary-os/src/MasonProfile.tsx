@@ -300,8 +300,24 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         updateData.pinned_blueprint_id = null;
       }
       
-      const { error } = await getActiveGameClient().from('masons').update(updateData).eq('id', masonId);
-      if (error) throw error;
+      const state = useStore.getState();
+      const token = state.session?.access_token;
+      const activeWs = state.workspaces?.find((w: any) => w.id === state.activeWorkspaceId);
+      const url = activeWs?.supabase_url || "https://chphhvpcgcpnyvshsudh.supabase.co";
+      const key = activeWs?.supabase_anon_key || "sb_publishable_EdCfD4meHLUUgoTRkfwsTA_PFXnZx8D";
+
+      if (token) {
+        const { error } = await supabase.rpc('secure_update_mason_profile', {
+          p_token: token,
+          p_mason_id: masonId,
+          p_payload: updateData
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await getActiveGameClient().from('masons').update(updateData).eq('id', masonId);
+        if (error) throw error;
+      }
+      
       setMason((prev: any) => ({ ...prev, ...updateData }));
       useStore.getState().pushStatus(t("pinned_success") || `Pinned to showcase!`);
     } catch (e: any) {

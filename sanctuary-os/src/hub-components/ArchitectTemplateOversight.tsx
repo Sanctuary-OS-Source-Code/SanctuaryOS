@@ -255,14 +255,19 @@ export default function ArchitectTemplateOversight() {
       <SidePanel
         isOpen={!!selectedFileGroup}
         onClose={() => setSelectedFileGroup(null)}
-        title={selectedFileGroup || "Template Configuration"}
+        title={t("ui_template_config") || "TEMPLATE CONFIGURATION"}
         subtitle="Manage community defaults"
         icon="description"
         iconColorClass="text-[var(--accent)]"
         isResizable={false}
         widthClass="w-[900px]"
       >
-        <div className="flex flex-col gap-6 p-6 overflow-y-auto custom-scrollbar h-full">
+        <div className="flex flex-col gap-8 p-6 overflow-y-auto custom-scrollbar h-full">
+            <div className="flex flex-col gap-3 shrink-0">
+                <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest truncate">
+                    {selectedFileGroup}
+                </h2>
+            </div>
             
             {processedTemplates.find(t => t.is_community_default) && (
                 <div className="flex flex-col gap-3">

@@ -23,6 +23,12 @@ import { IngestProgressModal } from "./app-modals/IngestProgressModal";
 import { SystemLogModal } from "./app-modals/SystemLogModal";
 import { SystemStatusBar } from "./app-modals/SystemStatusBar";
 import BlueprintSwapSidePanel from "./side-panels/BlueprintSwapSidePanel";
+import CommandRadarSweepPanel from "./side-panels/CommandRadarSweepPanel";
+import { UpdatesSidePanel } from "./side-panels/CommandCenterSidePanels";
+import CommandConflictsPanel from "./side-panels/CommandConflictsPanel";
+import CommandIncompatiblePanel from "./side-panels/CommandIncompatiblePanel";
+import { getExtensionRegex, handleOpenUrl } from "./shared";
+import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 
 export const AppModals = React.memo(function AppModals(props: any) {
   const [isLogExpanded, setIsLogExpanded] = React.useState(false);
@@ -51,7 +57,67 @@ export const AppModals = React.memo(function AppModals(props: any) {
   } = props;
 
   const status = useStore((state) => state.status);
-  const { backupType, restoreType, updatePayload, setIsSideBrowserOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen } = useModalStore();
+  const activeConflictCount = useStore((state) => state.activeConflictCount) || { total: 0, tier3: 0, tier4: 0 };
+  const activeBrokenCounts = useStore((state) => state.activeBrokenCounts) || { broken: 0, unstable: 0 };
+  const networkUpdates = useStore((state) => state.networkUpdates);
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const modsPath = useStore((state) => state.modsPath);
+  const { applyConflictOverride } = usePlaySetLogic();
+
+  const { backupType, restoreType, updatePayload, setIsSideBrowserOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen, isConflictRadarOpen, setIsConflictRadarOpen, showUpdatesModal, setShowUpdatesModal, showConflictsPanel, setShowConflictsPanel, showIncompatiblePanel, setShowIncompatiblePanel } = useModalStore();
+
+  const activePlaySet = playSets ? playSets[activePlaySetIndex] : null;
+
+  const activeBlueprintMods = React.useMemo(() => {
+    if (!activePlaySet) return [];
+    const safeMods = Array.isArray(activePlaySet.mods) ? activePlaySet.mods : [];
+    const safeList = Array.isArray(modList) ? modList : [];
+
+    const exactMatchMap = new Map();
+    const baseMatchMap = new Map();
+    
+    for (const m of safeList) {
+        if (!m.name) continue;
+        const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
+        exactMatchMap.set(exactKey, m);
+        
+        const baseKey = m.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
+        if (baseKey) {
+            if (!baseMatchMap.has(baseKey)) {
+                baseMatchMap.set(baseKey, m);
+            }
+        }
+    }
+
+    return safeMods.map((rawMod: any) => {
+      const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
+      const cleanModName = modName.replace(/^(sanctuary[/\\])+/i, '');
+      const modNameLow = cleanModName.toLowerCase().replace(/\\/g, '/');
+      
+      const exactMatch = exactMatchMap.get(modNameLow);
+      if (exactMatch) return { ...exactMatch, _originalSetName: modName };
+
+      const mBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
+      
+      const baseMatch = mBase ? baseMatchMap.get(mBase) : undefined;
+      if (baseMatch) return { ...baseMatch, _originalSetName: modName };
+
+      return { id: `missing-${modName}`, name: modName, isFallback: true, color: 'theme-border-danger', physical_path: null, hash: 'vlocal' };
+    });
+  }, [activePlaySet, modList, activeGameSchema]);
+
+  const activeUpdates = React.useMemo(() => {
+    const rawUpdates = activeBlueprintMods.filter((m: any) => m.hasUpdate).map((m: any) => ({
+      ...m,
+      dbId: m.dbId,
+    }));
+    return Object.values(rawUpdates.reduce((acc: any, update: any) => {
+      const key = update.dbId || update.displayName || update.name;
+      if (!acc[key]) acc[key] = update;
+      return acc;
+    }, {}));
+  }, [activeBlueprintMods]);
+
   const logModalRef = React.useRef<HTMLDivElement>(null);
   const logDragRef = React.useRef({ isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, initOffsetX: 0, initOffsetY: 0 });
 
@@ -144,6 +210,65 @@ export const AppModals = React.memo(function AppModals(props: any) {
           isOpen={isBlueprintSwapOpen}
           onClose={() => setIsBlueprintSwapOpen(false)}
           equipPlaySet={equipPlaySet}
+        />
+      )}
+
+      {isConflictRadarOpen && (
+        <CommandRadarSweepPanel
+          isOpen={isConflictRadarOpen}
+          onClose={() => setIsConflictRadarOpen(false)}
+          status={status}
+          runRadarSweep={runRadarSweep}
+          isScanning={isScanning}
+          networkUpdates={networkUpdates}
+          tier3Count={activeConflictCount.tier3}
+          tier4Count={activeConflictCount.tier4}
+          brokenCount={activeBrokenCounts.broken}
+          unstableCount={activeBrokenCounts.unstable}
+          onOpenUpdates={() => {
+            setShowUpdatesModal(true);
+            setIsConflictRadarOpen(false);
+          }}
+          onOpenConflicts={() => {
+            setShowConflictsPanel(true);
+            setIsConflictRadarOpen(false);
+          }}
+          onOpenIncompatible={() => {
+            setShowIncompatiblePanel(true);
+            setIsConflictRadarOpen(false);
+          }}
+          onOpenHotSwap={() => setIsBlueprintSwapOpen(true)}
+        />
+      )}
+
+      <UpdatesSidePanel
+        isOpen={showUpdatesModal}
+        onClose={() => setShowUpdatesModal(false)}
+        activeUpdates={activeUpdates}
+        handleOpenUrl={handleOpenUrl}
+      />
+
+      {showIncompatiblePanel && (
+        <CommandIncompatiblePanel
+          isOpen={showIncompatiblePanel}
+          onClose={() => setShowIncompatiblePanel(false)}
+          activeMods={activeBlueprintMods}
+          allow_write={!activePlaySet?.read_only}
+          toggleInActiveSet={toggleInActiveSet}
+        />
+      )}
+
+      {showConflictsPanel && (
+        <CommandConflictsPanel
+          isOpen={showConflictsPanel}
+          onClose={() => setShowConflictsPanel(false)}
+          activeMods={activeBlueprintMods}
+          allow_write={!activePlaySet?.read_only}
+          toggleInActiveSet={toggleInActiveSet}
+          applyConflictOverride={applyConflictOverride}
+          activeSetName={activePlaySet?.name}
+          vaultPath={modsPath}
+          onRefreshMods={runRadarSweep}
         />
       )}
     </>

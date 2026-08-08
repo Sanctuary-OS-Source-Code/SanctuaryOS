@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, standardButtonClass, standardDangerButtonClass, CustomDropdown, CustomComplianceDropdown, ActionButton } from "../shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, CustomDropdown, CustomComplianceDropdown, ActionButton, FilterTabs, FilterTabButton } from "../shared";
+import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from '../components/universal/UniversalLayout';
 import { useStore } from '../store';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
@@ -285,25 +286,38 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       }
     >
       <div className="p-6 flex flex-col h-full gap-8">
-        <div className="flex gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-           <button onClick={() => setActiveTab('registry')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${activeTab === 'registry' ? (isMalwareOnly ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : 'bg-[var(--accent)]/20 theme-text-accent') : 'text-[var(--subtext)] hover:text-[var(--text)]'}`}>
-             {t("auto_global_registry")}
-           </button>
-           {isMalwareOnly && (
-             <button onClick={() => setActiveTab('heuristic')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${activeTab === 'heuristic' ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : 'text-[var(--subtext)] hover:text-[var(--text)]'}`}>
-               {t("heuristics_tab")}
-             </button>
-           )}
-        </div>
+        {isMalwareOnly && (
+          <FilterTabs className="mb-4">
+            <FilterTabButton 
+              id="registry" 
+              icon="assignment" 
+              label={t("auto_global_registry")} 
+              activeTab={activeTab} 
+              setTab={setActiveTab} 
+              className={activeTab === 'registry' ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : ''}
+            />
+            <FilterTabButton 
+              id="heuristic" 
+              icon="science" 
+              label={t("heuristics_tab")} 
+              activeTab={activeTab} 
+              setTab={setActiveTab} 
+              className={activeTab === 'heuristic' ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : ''}
+            />
+          </FilterTabs>
+        )}
+        {!isMalwareOnly && (
+          <FilterTabs className="mb-4">
+            <FilterTabButton id="registry" icon="assignment" label={t("auto_global_registry")} activeTab={activeTab} setTab={setActiveTab} />
+          </FilterTabs>
+        )}
 
         {activeTab === 'registry' ? (
-          <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-            <div className={`absolute inset-0 bg-gradient-to-br ${isMalwareOnly ? 'from-[var(--danger)]/5' : 'from-[var(--accent)]/5'} to-transparent pointer-events-none rounded-2xl`} />
-            <h4 className={`text-[10px] font-black ${isMalwareOnly ? 'text-[var(--danger)] border-[var(--danger)]/20' : 'theme-text-accent border-[var(--accent)]/20'} uppercase tracking-widest flex items-center gap-2 border-b pb-4 mb-2`}>
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_flag")}</span>
-              {t("comp_manual_title")}
-            </h4>
-            
+          <UniversalGroup 
+            title={t("comp_manual_title")} 
+            icon={t("icon_flag")} 
+            headerColorClass={isMalwareOnly ? "text-[var(--danger)]" : "theme-text-accent"} 
+          >
             <div className="flex flex-col gap-2 relative z-[60]">
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("comp_manual_search_label")}</label>
               <div className="relative">
@@ -348,34 +362,29 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               </div>
             )}
 
-            <div className="flex flex-col gap-2 relative z-30 mt-4">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("reason")}</label>
-              <textarea 
+            <div className="relative z-30 mt-4">
+              <UniversalTextArea 
+                  label={t("reason")}
                   value={registryReason}
-                  onChange={e => setRegistryReason(e.target.value)}
-                  className="w-full glass-panel rounded-2xl p-5 min-h-[80px] text-sm font-medium focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 custom-scrollbar" 
+                  onChange={setRegistryReason}
+                  className="min-h-[80px]" 
                   placeholder={t("comp_reason_ph")}
               />
             </div>
-          </div>
+          </UniversalGroup>
         ) : (
-          <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--danger)]/5 to-transparent pointer-events-none rounded-2xl" />
-            <h4 className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest flex items-center gap-2 border-b border-[var(--danger)]/20 pb-4 mb-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_flag")}</span>
-              {t("heuristics_tab")}
-            </h4>
-            
+          <UniversalGroup 
+            title={t("heuristics_tab")} 
+            icon={t("icon_flag")} 
+            headerColorClass="text-[var(--danger)]" 
+          >
             <div className="flex flex-col gap-4 relative z-[60]">
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("auto_file_signature")}</label>
-                <input 
-                  value={newSig}
-                  onChange={e => setNewSig(e.target.value)}
-                  className="w-full glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40" 
-                  placeholder={t("heuristics_placeholder")}
-                />
-              </div>
+              <UniversalInput 
+                label={t("auto_file_signature")}
+                value={newSig}
+                onChange={setNewSig}
+                placeholder={t("heuristics_placeholder")}
+              />
 
               <div className="flex flex-col gap-4 z-[90] relative">
                 <div className="flex flex-col gap-2 relative">
@@ -393,30 +402,23 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                     disableTint={true}
                   />
                 </div>
-                
-
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("reason")}</label>
-                <textarea 
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  className="w-full glass-panel rounded-2xl p-5 min-h-[80px] text-sm font-medium focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 custom-scrollbar" 
-                  placeholder={t("comp_reason_ph")}
-                />
-              </div>
+              <UniversalTextArea 
+                label={t("reason")}
+                value={notes}
+                onChange={setNotes}
+                className="min-h-[80px]" 
+                placeholder={t("comp_reason_ph")}
+              />
 
               <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setEnabled(!enabled)}
-                  className={`w-14 h-7 rounded-full transition-colors flex items-center px-1 border ${enabled ? 'bg-[var(--accent)]/20 border-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-[var(--text)] transition-transform ${enabled ? 'translate-x-7 bg-[var(--accent)]' : 'translate-x-0 opacity-50'}`} />
-                </button>
-                <span className="text-xs font-bold uppercase tracking-widest text-[var(--subtext)]">
-                  {enabled ? (t("comp_enabled")) : (t("comp_disabled"))}
-                </span>
+                <UniversalToggle
+                  label={enabled ? t("comp_enabled") : t("comp_disabled")}
+                  checked={enabled}
+                  onChange={setEnabled}
+                  layout="horizontal-reverse"
+                />
                 
                 {editingId && (
                   <button onClick={resetHeuristicForm} className="ml-auto text-[10px] font-black uppercase text-[var(--subtext)] hover:text-white px-3 py-1 rounded-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
@@ -425,9 +427,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                 )}
               </div>
             </div>
-
-
-          </div>
+          </UniversalGroup>
         )}
       </div>
     </SidePanel>

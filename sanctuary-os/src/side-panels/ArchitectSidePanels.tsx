@@ -274,7 +274,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
 
           {filePath && (
             <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
-              <div className="glass-surface rounded-2xl p-6 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-4">
+              <div className="flex flex-col gap-4 relative">
                 <div className="flex flex-col">
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("verify_panel_file_path")}</span>
                   <span className="text-xs font-mono text-[var(--text)] break-all">{filePath.replace(/^(?:[A-Z]:)?[\/\\]Users[\/\\][^\/\\]+[\/\\]/i, '...\\')}</span>

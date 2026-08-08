@@ -2,12 +2,14 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect, 
-  CustomComplianceDropdown, CustomDatePicker, StatTile, 
+import {
+  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+  CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, ModSearchDropdown, EmptyState,
-  standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, 
-  standardDangerButtonClass, standardAccentGlassButtonClass, 
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, SidePanelActionFooter } from "../shared";
+  standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
+  standardDangerButtonClass, standardAccentGlassButtonClass,
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, SidePanelActionFooter
+} from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -43,13 +45,37 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
 
   const handleSave = async () => {
     setIsSaving(true);
-    const { data, error } = await supabase.from('masons').update(formData).eq('id', profile.id).select().single();
-    if (!error && data) {
-       onUpdate(data);
-       useStore.getState().pushStatus(t("auto_profile_settings_saved_40"), 'success');
-       onClose();
+    try {
+      const state = useStore.getState();
+      const token = state.session?.access_token;
+      const activeWs = state.workspaces?.find((w: any) => w.id === state.activeWorkspaceId);
+      const url = activeWs?.supabase_url || "https://chphhvpcgcpnyvshsudh.supabase.co";
+      const key = activeWs?.supabase_anon_key || "sb_publishable_EdCfD4meHLUUgoTRkfwsTA_PFXnZx8D";
+
+      if (token) {
+        const { data, error } = await supabase.rpc('secure_update_mason_profile', {
+          p_token: token,
+          p_mason_id: profile.id,
+          p_payload: formData
+        });
+
+        if (error) throw error;
+
+        onUpdate(data);
+        useStore.getState().pushStatus(t("alert_saved") || "Settings Saved", 'success');
+        onClose();
+      } else {
+        const { data, error } = await supabase.from('masons').update(formData).eq('id', profile.id).select().single();
+        if (error) throw error;
+        onUpdate(data);
+        useStore.getState().pushStatus(t("alert_saved") || "Settings Saved", 'success');
+        onClose();
+      }
+    } catch (err: any) {
+      useStore.getState().pushStatus(t("alert_error") || `Failed to save: ${err.message}`, 'error');
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   return (
@@ -60,44 +86,44 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
       icon={t("icon_settings")}
       widthClass="w-[500px]"
       footer={
-        <SidePanelActionFooter onCancel={onClose} cancelLabel={t("nav_cancel")} onAction={handleSave} actionDisabled={isSaving} actionLabel={t("save_configuration")} isProcessing={isSaving } processingLabel={t("saving_settings")} />
+        <SidePanelActionFooter onCancel={onClose} cancelLabel={t("nav_cancel")} onAction={handleSave} actionDisabled={isSaving} actionLabel={t("save_configuration")} isProcessing={isSaving} processingLabel={t("saving_settings")} />
       }
     >
-    <div className="w-full flex flex-col gap-6">
-       <h2 className="text-sm font-black theme-text-accent uppercase tracking-widest mb-2">{t("creator_identity")}</h2>
-       
-       <div className="flex flex-col gap-2">
-         <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("public_name")}</label>
-         <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-       </div>
-       
-       <div className="flex flex-col gap-2">
-         <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("avatar_url")}</label>
-         <input value={formData.avatar_url} onChange={e => setFormData({...formData, avatar_url: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-       </div>
-       
-       <div className="flex flex-col gap-2">
-         <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("biography")}</label>
-         <textarea value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar overflow-y-auto" />
-       </div>
-       
-       <div className="flex flex-col gap-4">
-         <div className="flex flex-col gap-2">
-           <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("patreon_url")}</label>
-           <input value={formData.patreon_url} onChange={e => setFormData({...formData, patreon_url: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-         </div>
-         <div className="flex flex-col gap-2">
-           <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("personal_website")}</label>
-           <input value={formData.website_url} onChange={e => setFormData({...formData, website_url: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-         </div>
+      <div className="w-full flex flex-col gap-6">
+        <h2 className="text-sm font-black theme-text-accent uppercase tracking-widest mb-2">{t("creator_identity")}</h2>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("public_name")}</label>
+          <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
 
-       <div className="flex flex-col gap-2">
-         <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("discord_url")}</label>
-         <input value={formData.discord_url} onChange={e => setFormData({...formData, discord_url: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-       </div>
-       
-    </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("avatar_url")}</label>
+          <input value={formData.avatar_url} onChange={e => setFormData({ ...formData, avatar_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("biography")}</label>
+          <textarea value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar overflow-y-auto" />
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("patreon_url")}</label>
+            <input value={formData.patreon_url} onChange={e => setFormData({ ...formData, patreon_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("personal_website")}</label>
+            <input value={formData.website_url} onChange={e => setFormData({ ...formData, website_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("discord_url")}</label>
+          <input value={formData.discord_url} onChange={e => setFormData({ ...formData, discord_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+        </div>
+
+      </div>
     </SidePanel>
   );
 }

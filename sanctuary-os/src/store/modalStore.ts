@@ -81,6 +81,12 @@ interface ModalState {
   setIsConflictRadarOpen: (val: boolean) => void;
   isBlueprintSwapOpen: boolean;
   setIsBlueprintSwapOpen: (val: boolean) => void;
+  showConflictsPanel: boolean;
+  setShowConflictsPanel: (val: boolean) => void;
+  showIncompatiblePanel: boolean;
+  setShowIncompatiblePanel: (val: boolean) => void;
+  showUpdatesModal: boolean;
+  setShowUpdatesModal: (val: boolean) => void;
   
   // Browser Features
   sideBrowserUrl: string; // Legacy/Active Tab URL
@@ -192,6 +198,12 @@ export const useModalStore = create<ModalState>((set) => ({
   setIsConflictRadarOpen: (isConflictRadarOpen) => set({ isConflictRadarOpen }),
   isBlueprintSwapOpen: false,
   setIsBlueprintSwapOpen: (isBlueprintSwapOpen) => set({ isBlueprintSwapOpen }),
+  showConflictsPanel: false,
+  setShowConflictsPanel: (showConflictsPanel) => set({ showConflictsPanel }),
+  showIncompatiblePanel: false,
+  setShowIncompatiblePanel: (showIncompatiblePanel) => set({ showIncompatiblePanel }),
+  showUpdatesModal: false,
+  setShowUpdatesModal: (showUpdatesModal) => set({ showUpdatesModal }),
   
   sideBrowserUrl: '',
   sideBrowserTrigger: 0,

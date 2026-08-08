@@ -21,6 +21,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { CustomClassificationDropdown } from "../hub-components/SharedRegistry";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import MarkdownRenderer from "../MarkdownRenderer";
+import { UniversalGroup } from "../components/universal/UniversalLayout";
 
 
 
@@ -242,7 +243,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
       iconColorClass={status?.defcon_level === 1 ? "text-red-500 animate-pulse drop-shadow-md" : "text-amber-400 drop-shadow-md"}
       widthClass="w-[600px]"
     >
-      <div className="flex flex-col gap-6 h-full p-8 animate-in fade-in duration-500 relative">
+      <div className="flex flex-col gap-6 h-full p-8 animate-in fade-in duration-500 relative overflow-y-auto">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-50 z-0"></div>
 
         {loading ? (
@@ -252,66 +253,67 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
           </div>
         ) : (
           <>
-            <div className={`rounded-[var(--radius)] flex flex-col items-center justify-center p-10 text-center border-2 relative overflow-hidden transition-all duration-700 z-10 shadow-2xl min-h-[280px] ${status?.defcon_level === 1 ? 'bg-red-950/40 border-red-500/50 shadow-md' : 'glass-panel border-[var(--accent)]/20'}`}>
+            <UniversalGroup title={t("defcon_override_title") || "OVERRIDE CONTROLS"} icon="admin_panel_settings">
+              <div className={`glass-panel rounded-2xl flex flex-col items-center justify-center p-10 text-center relative overflow-hidden transition-all duration-700 z-10 shadow-lg ${status?.defcon_level === 1 ? 'border-red-500/50 shadow-[inset_0_0_40px_rgba(239,68,68,0.1)]' : 'border-[var(--accent)]/20'}`}>
 
-              {status?.defcon_level === 1 && (
-                <>
-                  <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] pointer-events-none z-20"></div>
-                  <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-[var(--text)]/10 to-transparent -translate-y-full animate-[scan_3s_ease-in-out_infinite] pointer-events-none z-20"></div>
-                  <div className="absolute inset-0 bg-red-500/10 animate-pulse pointer-events-none" />
-                  <div className="absolute top-0 left-0 w-full h-2 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(239,68,68,0.5)_10px,rgba(239,68,68,0.5)_20px)] opacity-80" />
-                  <div className="absolute bottom-0 left-0 w-full h-2 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(239,68,68,0.5)_10px,rgba(239,68,68,0.5)_20px)] opacity-80" />
-                </>
-              )}
+                {status?.defcon_level === 1 && (
+                  <>
+                    <div className="absolute inset-0 bg-red-500/5 animate-pulse pointer-events-none" />
+                    <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent opacity-80" />
+                    <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent opacity-80" />
+                  </>
+                )}
 
-              <div className="flex justify-center mb-6 relative z-30">
-                <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 ${status?.defcon_level === 1 ? 'border-red-500/30 bg-red-500/10' : 'border-[var(--success)]/20 bg-[var(--success)]/5'} shadow-inner relative`}>
-                  {status?.defcon_level === 1 && <div className="absolute inset-0 rounded-full border-4 border-red-500/50 animate-ping opacity-50"></div>}
-                  {status?.defcon_level === 5 && <div className="absolute inset-0 rounded-full border border-[var(--success)]/30 animate-[spin_10s_linear_infinite] border-t-transparent border-l-transparent"></div>}
-                  <span className={`material-symbols-outlined text-5xl drop-shadow-lg ${status?.defcon_level === 1 ? 'text-red-500 animate-pulse' : 'theme-text-success opacity-80'}`}>
-                    {status?.defcon_level === 1 ? 'warning' : 'verified_user'}
-                  </span>
+                <div className="flex justify-center mb-6 relative z-30">
+                  <div className={`w-20 h-20 rounded-full flex items-center justify-center border-4 ${status?.defcon_level === 1 ? 'border-red-500/30 bg-red-500/10' : 'border-[var(--success)]/20 bg-[var(--success)]/5'} shadow-inner relative`}>
+                    {status?.defcon_level === 1 && <div className="absolute inset-0 rounded-full border-2 border-red-500/50 animate-ping opacity-50"></div>}
+                    {status?.defcon_level === 5 && <div className="absolute inset-0 rounded-full border border-[var(--success)]/30 animate-[spin_10s_linear_infinite] border-t-transparent border-l-transparent"></div>}
+                    <span className={`material-symbols-outlined text-4xl drop-shadow-lg ${status?.defcon_level === 1 ? 'text-red-500 animate-pulse' : 'theme-text-success opacity-80'}`}>
+                      {status?.defcon_level === 1 ? 'warning' : 'verified_user'}
+                    </span>
+                  </div>
+                </div>
+
+                <span className={`text-3xl font-black tracking-tighter relative z-30 mb-2 ${status?.defcon_level === 1 ? 'text-red-500 drop-shadow-md' : 'text-[var(--text)]'}`}>
+                  {status?.defcon_level === 1 ? t("defcon_active") : t("defcon_normal")}
+                </span>
+                <span className={`text-[10px] font-black uppercase tracking-[0.4em] relative z-30 ${status?.defcon_level === 1 ? 'text-red-300/80' : 'theme-text-success opacity-80'}`}>
+                  {status?.defcon_level === 1 ? t("defcon_active_sub") : t("defcon_normal_sub")}
+                </span>
+
+                <div className="flex gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full justify-center relative z-30">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[8px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("tab_network")}</span>
+                    <span className={`text-[10px] font-mono font-bold ${status?.defcon_level === 1 ? 'text-red-400' : 'theme-text-success'}`}>{status?.defcon_level === 1 ? 'LOCKED' : 'SECURE'}</span>
+                  </div>
+                  <div className="w-px h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"></div>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[8px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("tab_vaults")}</span>
+                    <span className={`text-[10px] font-mono font-bold ${status?.defcon_level === 1 ? 'text-red-400' : 'theme-text-success'}`}>{status?.defcon_level === 1 ? 'SEALED' : 'ONLINE'}</span>
+                  </div>
                 </div>
               </div>
+            </UniversalGroup>
 
-              <span className={`text-4xl font-black tracking-tighter relative z-30 mb-2 ${status?.defcon_level === 1 ? 'text-red-500 drop-shadow-md' : 'text-[var(--text)]'}`}>
-                {status?.defcon_level === 1 ? t("defcon_active") : t("defcon_normal")}
-              </span>
-              <span className={`text-[11px] font-black uppercase tracking-[0.4em] relative z-30 ${status?.defcon_level === 1 ? 'text-red-300/80' : 'theme-text-success opacity-80'}`}>
-                {status?.defcon_level === 1 ? t("defcon_active_sub") : t("defcon_normal_sub")}
-              </span>
-
-              <div className="flex gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] w-full justify-center relative z-30">
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-[8px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("tab_network")}</span>
-                  <span className={`text-[10px] font-mono font-bold ${status?.defcon_level === 1 ? 'text-red-400' : 'theme-text-success'}`}>{status?.defcon_level === 1 ? 'LOCKED' : 'SECURE'}</span>
+            <UniversalGroup title={t("defcon_warnings_title") || "OPERATIONAL IMPACT"} icon="gavel">
+              <div className="glass-panel border-l-2 border-l-amber-500 p-5 rounded-xl flex items-start gap-4">
+                <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 border border-amber-500/20">
+                  <span className="material-symbols-outlined text-amber-500 !text-sm">{t("icon_info")}</span>
                 </div>
-                <div className="w-px h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"></div>
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-[8px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("tab_vaults")}</span>
-                  <span className={`text-[10px] font-mono font-bold ${status?.defcon_level === 1 ? 'text-red-400' : 'theme-text-success'}`}>{status?.defcon_level === 1 ? 'SEALED' : 'ONLINE'}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-4 relative z-10">
-              <div className="glass-panel border-l-4 border-l-amber-500 p-5 rounded-2xl flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 border border-amber-500/20">
-                  <span className="material-symbols-outlined text-amber-500 !text-xl">{t("icon_info")}</span>
-                </div>
-                <p className="text-xs font-bold text-[var(--subtext)] leading-relaxed pt-0.5">
+                <p className="text-[11px] font-bold text-[var(--subtext)] leading-relaxed pt-1">
                   {t("defcon_warning")}
                 </p>
               </div>
 
-              <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_20px,rgba(239,68,68,0.05)_20px,rgba(239,68,68,0.05)_40px)] pointer-events-none"></div>
-                <span className="material-symbols-outlined text-red-500 !text-2xl animate-pulse">{t("icon_threat_intelligence")}</span>
-                <p className="text-[10px] font-black text-red-400 uppercase tracking-widest text-center max-w-[80%] leading-relaxed">
+              <div className="glass-panel border border-red-500/30 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+                <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center shrink-0 border border-red-500/20">
+                  <span className="material-symbols-outlined text-red-500 !text-sm animate-pulse">{t("icon_threat_intelligence")}</span>
+                </div>
+                <p className="text-[9px] font-black text-red-400 uppercase tracking-widest leading-relaxed">
                   {t("defcon_warning_red")}
                 </p>
               </div>
-            </div>
+            </UniversalGroup>
 
             <div className="mt-auto flex flex-col gap-4 relative z-10 pt-4">
               {actionStatus && (

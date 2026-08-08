@@ -1,3 +1,4 @@
+import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from './components/universal/UniversalLayout';
 import { SearchBar } from "./shared";
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseAuth } from './supabase';
@@ -168,30 +169,19 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
     >
       <div className="p-6 flex flex-col h-full gap-8">
 
-        <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-          <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-            <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-            {t("btn_view")}
-          </h4>
-
-          <div className="flex flex-col gap-2 relative z-10">
-            <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none">{profile?.username || t("vlocal") || "UNKNOWN"}</h3>
-          </div>
+        <div className="flex flex-col gap-3 shrink-0">
+          <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest truncate">
+            {profile?.username || t("vlocal") || "UNKNOWN"}
+          </h2>
         </div>
 
-        <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none rounded-2xl" />
-          <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-            <span className="material-symbols-outlined !text-[14px]">{t("icon_settings")}</span>
-            {t("identities_role_label")}
-          </h4>
+        <UniversalGroup title={t("identities_role_label")} icon={t("icon_settings")}>
           {(!isWayfinder && profile?.role === 'wayfinder') ? (
-            <div className="flex flex-col gap-2 relative z-50 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+            <div className="flex flex-col gap-2 relative z-50 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 w-full">
               <p className="text-xs font-bold text-amber-500">{t("identities_wayfinder_locked")}</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-2 relative z-50">
+            <div className="flex flex-col gap-2 relative z-50 w-full">
               <CustomRoleSelect
                 value={editRole}
                 roles={isWayfinder ? ROLES : ['citizen', 'keeper', 'admin']}
@@ -200,42 +190,36 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
               />
             </div>
           )}
-        </div>
+        </UniversalGroup>
 
         {(!isWayfinder && profile?.role === 'wayfinder') ? null : (
           <div className="flex flex-col gap-6">
-            <div className={`flex flex-col gap-6 p-6 glass-surface rounded-2xl border ${isBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
-              <div className={`absolute inset-0 bg-gradient-to-br ${isBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
-              <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isBanned ? 'border-red-500/20 text-red-400' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
-                <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
-                {isWayfinder ? (t("identities_punitive_upload") || "UPLOAD & NEXUS BAN") : (t("ui_network_blacklist") || "NETWORK BLACKLIST")}
-              </h4>
-              <div className="flex items-center justify-between relative z-10">
-                <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
-                  {t("identities_ban")}
-                </label>
-                <button
-                  onClick={() => setIsBanned(!isBanned)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isBanned ? 'bg-red-500' : 'bg-gray-600'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBanned ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
+            <UniversalGroup 
+              title={isWayfinder ? (t("identities_punitive_upload") || "UPLOAD & NEXUS BAN") : (t("ui_network_blacklist") || "NETWORK BLACKLIST")} 
+              icon={t("icon_gavel")} 
+              headerColorClass={isBanned ? 'text-red-400' : undefined}
+            >
+              <div className="relative z-10 w-full mb-2 mt-2">
+                <UniversalToggle
+                  label={t("identities_ban")}
+                  checked={isBanned}
+                  onChange={setIsBanned}
+                  layout="horizontal-reverse"
+                />
               </div>
 
               {isBanned && (
-                <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-10 mt-2">
-                  <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                    {t("ban_reason_req")}
-                  </label>
-                  <textarea
+                <div className="animate-in fade-in slide-in-from-top-2 relative z-10 w-full mt-2">
+                  <UniversalTextArea
+                    label={t("ban_reason_req")}
                     value={editReason}
-                    onChange={e => setEditReason(e.target.value)}
+                    onChange={setEditReason}
                     placeholder={t("id_reason_ban")}
-                    className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
+                    className="h-32 border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)] w-full text-red-100"
                   />
                 </div>
               )}
-            </div>
+            </UniversalGroup>
 
             {isWayfinder && (
               <div className={`flex flex-col gap-6 p-6 glass-surface rounded-2xl border ${isCommBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>

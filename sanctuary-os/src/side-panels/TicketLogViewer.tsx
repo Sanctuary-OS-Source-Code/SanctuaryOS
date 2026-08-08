@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { SidePanel , getExtensionRegex, HubTabButton } from "../shared";
+import { SidePanel , getExtensionRegex, HubTabButton, ActionButton } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { UniversalSearch } from "../components/universal/UniversalLayout";
 
 interface LogSection {
   title: string;
@@ -18,6 +19,7 @@ export default function TicketLogViewer({
   const [activeTab, setActiveTab] = useState<number>(0);
   const [blueprintJson, setBlueprintJson] = useState<any>(null);
   const [viewingLogContent, setViewingLogContent] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const handleImportBlueprint = () => {
       if (!blueprintJson) return;
@@ -136,21 +138,24 @@ export default function TicketLogViewer({
         try {
             const parsed = JSON.parse(sec.content);
             return (
-                <UniversalCard
-                    layout="horizontal"
-                    icon="map"
-                    title={parsed.name || t("support_attached_blueprint") || "Blueprint"}
-                    subtitle={`${(parsed.mods?.length || 0)} ${t("support_mods_attached")}`}
-                    actions={
-                        <button 
-                            onClick={() => setBlueprintJson(parsed)}
-                            className="h-10 px-6 bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] hover:bg-[var(--accent)]/[25%] rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] hover:scale-105"
-                        >
-                            <span className="material-symbols-outlined !text-[16px]">{t("icon_visibility")}</span>
-                            {t("support_view_blueprint")}
-                        </button>
-                    }
-                />
+                <div className="glass-panel group relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/40 transition-all duration-300 rounded-[var(--radius)] overflow-hidden shadow-lg hover:-translate-y-0.5 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--accent)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                  <div className="flex items-center gap-4 p-5 relative z-10">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--accent)]/10 border border-[var(--accent)]/20 flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
+                      <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">{t("icon_map") || "map"}</span>
+                    </div>
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className="text-sm font-black text-[var(--text)] uppercase tracking-widest truncate">{parsed.name || t("support_attached_blueprint") || "Blueprint"}</span>
+                      <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest mt-0.5">{`${(parsed.mods?.length || 0)} ${t("support_mods_attached") || "MODS ATTACHED"}`}</span>
+                    </div>
+                    <ActionButton
+                        onClick={() => setBlueprintJson(parsed)}
+                        className="shrink-0"
+                        icon="visibility"
+                        label={t("support_view_blueprint") || "VIEW BLUEPRINT"}
+                    />
+                  </div>
+                </div>
             );
         } catch (e) {}
     }
@@ -263,26 +268,39 @@ export default function TicketLogViewer({
             iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
             widthClass="w-full md:w-[550px]"
           >
-             <div className="flex flex-col h-full gap-4 relative">
-                <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("support_mods_list")} ({(blueprintJson.mods?.length || 0)})</div>
-                    {blueprintJson.mods?.map((m: string, i: number) => (
-                        <div key={i} className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 rounded-xl flex items-center gap-3">
-                            <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">{t("icon_extension")}</span>
-                            <span className="text-[11px] font-bold text-[var(--text)] truncate">{m.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || m.replace(/[-_]/g, ' ')}</span>
-                        </div>
-                    ))}
-                </div>
-                
-                <div className="pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-auto shrink-0 pb-6">
-                    <button 
-                        onClick={handleImportBlueprint}
-                        className="w-full h-14 bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] rounded-2xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]"
-                    >
-                        <span className="material-symbols-outlined !text-[18px]">{t("icon_download")}</span>
-                        {t("playsets_btn_import")}
-                    </button>
-                </div>
+             <div className="flex flex-col min-h-full gap-4 relative pb-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-2 flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-3">
+                      <span className="material-symbols-outlined !text-[14px]">format_list_bulleted</span>
+                      {t("support_mods_list")} ({(blueprintJson.mods?.length || 0)})
+                    </div>
+                    <UniversalSearch 
+                      value={searchQuery}
+                      onChange={setSearchQuery}
+                      placeholder={t("playsets_search_ph") || "SEARCH ARTIFACTS..."}
+                    />
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
+                      {blueprintJson.mods?.filter((m: string) => m.toLowerCase().includes(searchQuery.toLowerCase())).map((m: string, i: number) => {
+                          const displayName = m.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || m.replace(/[-_]/g, ' ');
+                          return (
+                            <div key={i} className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 transition-colors p-4 rounded-[var(--radius)] flex flex-col items-center justify-center text-center gap-3 shadow-sm group aspect-square">
+                                <div className="w-12 h-12 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0">
+                                  <span className="material-symbols-outlined !text-[24px] text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors">{t("icon_extension") || "extension"}</span>
+                                </div>
+                                <span className="text-xs font-bold text-[var(--text)] group-hover:theme-text-accent transition-colors line-clamp-2 w-full" title={displayName}>{displayName}</span>
+                            </div>
+                          );
+                      })}
+                    </div>
+                    
+                    <div className="pt-8 mt-auto shrink-0 w-full flex justify-center">
+                        <button 
+                            onClick={handleImportBlueprint}
+                            className="w-full max-w-[300px] h-12 bg-[var(--success)]/[15%] border border-[var(--success)]/[40%] text-[var(--success)] hover:bg-[var(--success)]/[25%] hover:shadow-[0_0_20px_rgba(var(--success-rgb),0.3)] rounded-[var(--radius)] font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 active:scale-95 transition-all"
+                        >
+                            <span className="material-symbols-outlined !text-[18px]">{t("icon_download") || "download"}</span>
+                            {t("playsets_btn_import")}
+                        </button>
+                    </div>
              </div>
           </SidePanel>
        )}

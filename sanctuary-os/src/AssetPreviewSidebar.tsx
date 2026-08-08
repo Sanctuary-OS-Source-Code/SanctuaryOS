@@ -197,7 +197,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
             }}
             actionLabel={assetType === 'blueprint' ? (t("update_panel_install")) : (isInstalled(data) ? (isOutdated(data) ? "UPDATE" : t("btn_reinstall")) : (t("update_panel_install")))}
             actionIcon={assetType === 'blueprint' ? "download" : (isInstalled(data) ? (isOutdated(data) ? "update" : "check_circle") : "download")}
-            actionVariant={assetType !== 'blueprint' && isInstalled(data) && !isOutdated(data) ? "glass" : "accent"}
+            actionVariant={assetType === 'blueprint' ? (isInstalled(data) ? "primary" : "success") : (isInstalled(data) ? (isOutdated(data) ? "primary" : "glass") : "success")}
           />
         )
       }

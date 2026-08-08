@@ -38,7 +38,7 @@ export function ThemeCard({
       : (t("ui_personal_theme") || "Personal Theme");
 
   const customIcon = (
-    <div className={`w-12 h-12 rounded-[var(--radius)] shrink-0 overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md transition-colors z-10 mx-auto`}>
+    <div className={`w-12 h-12 rounded-[var(--radius)] shrink-0 overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md transition-colors z-10`}>
       <div className="absolute inset-0" style={{ backgroundColor: theme.bg || '#000' }} />
       <div className="absolute top-0 left-0 bottom-0 w-3" style={{ backgroundColor: theme.sidebar || '#000' }} />
       <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.accent || '#fff' }} />
@@ -53,7 +53,7 @@ export function ThemeCard({
         else { setConfirmDeleteState(id); }
       }}
       onMouseLeave={() => setConfirmDeleteState(false)}
-      className={`w-8 h-8 rounded-[var(--radius)] flex items-center justify-center transition-all backdrop-blur-xl z-20 ${confirmDeleteState === id ? 'bg-red-500/[15%] border border-[var(--danger)] text-[var(--danger)] shadow-md hover:bg-red-500/[25%] hover:scale-110' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-red-500/[10%] hover:border-red-500/[30%] hover:scale-110'}`}
+      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all backdrop-blur-xl z-20 ${confirmDeleteState === id ? 'bg-red-500/[15%] border border-[var(--danger)] text-[var(--danger)] shadow-md hover:bg-red-500/[25%] hover:scale-110' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-red-500/[10%] hover:border-red-500/[30%] hover:scale-110'}`}
     >
       <span className="material-symbols-outlined !text-[14px]">{confirmDeleteState === id ? 'warning' : 'delete'}</span>
     </button>
@@ -61,14 +61,18 @@ export function ThemeCard({
 
   return (
     <UniversalCard
-      layout="horizontal"
-      isActive={isActive || isDev}
       onClick={onClick}
+      layout="vertical"
+      customIcon={customIcon}
       title={theme.name}
       subtitle={label}
-      customIcon={customIcon}
+      statusColor={isActive || isDev ? "border-[var(--accent)]/50" : undefined}
+      badges={isActive || isDev ? [
+        <span key="active" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[var(--accent)]/10 theme-text-accent border-[var(--accent)]/20">
+          {t("status_active") || "ACTIVE"}
+        </span>
+      ] : []}
       actions={removeAction}
-      statusColor={isDev || isCloud ? 'var(--accent)' : undefined}
     />
   );
 }

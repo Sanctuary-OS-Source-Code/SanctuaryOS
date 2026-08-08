@@ -275,7 +275,7 @@ export function MasonLinker() {
               {t("metadata")}
             </h4>
 
-            <div className="flex flex-col gap-2 relative z-50">
+            <div className="flex flex-col gap-2 relative z-50 w-full">
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_name")}</label>
               <input
                 value={editName}
@@ -293,7 +293,7 @@ export function MasonLinker() {
               {t("linking_verification")}
             </h4>
 
-            <div className="flex flex-col gap-2 relative z-40">
+            <div className="flex flex-col gap-2 relative z-40 w-full">
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("link_profile")}</label>
               <ProfileSearchDropdown
                 value={linkedProfileId}
@@ -302,7 +302,7 @@ export function MasonLinker() {
               />
             </div>
 
-            <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center justify-between mt-4 w-full">
               <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest ml-2 flex items-center gap-2">
                 {t("mark_verified")}
               </label>

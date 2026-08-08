@@ -1,5 +1,6 @@
 import React from "react";
 import { useLexicon } from "../../LexiconContext";
+import { HoverTooltip } from "../../shared";
 
 export interface UniversalCardProps {
   layout?: "vertical" | "horizontal" | "compact" | "vertical-compact" | "stat";
@@ -65,9 +66,9 @@ export function UniversalCard({
   
   switch (layout) {
     case "horizontal":
-      layoutClasses = "flex-row items-center min-h-[96px]";
-      imageContainerClasses = "w-24 self-stretch";
-      contentClasses = "flex-col justify-center p-4 pr-10";
+      layoutClasses = "flex-row items-center min-h-[112px]";
+      imageContainerClasses = "w-32 self-stretch";
+      contentClasses = "flex-col justify-center p-4 pr-6";
       break;
     case "vertical-compact":
       layoutClasses = "flex-col h-full";
@@ -92,15 +93,15 @@ export function UniversalCard({
       break;
   }
 
-  const activeClasses = isActive ? "theme-panel-accent shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]" : `${statusColor ? statusColor : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} bg-[color-mix(in_srgb,var(--text)_2%,transparent)]`;
+  const activeClasses = isActive ? "theme-border-accent bg-[var(--accent)]/[15%] shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]" : `${statusColor ? statusColor : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} bg-[color-mix(in_srgb,var(--text)_2%,transparent)]`;
   
   // For ghosted or disabled states
-  const opacityClasses = isGhosted ? "opacity-50 grayscale-[0.8] hover:grayscale-0 hover:opacity-100" : isDisabled ? "opacity-50 cursor-not-allowed grayscale" : "";
+  const opacityClasses = isGhosted ? "opacity-50 grayscale-[0.8]" : isDisabled ? "opacity-50 cursor-not-allowed grayscale" : "";
 
   // The hover effect
-  const hoverClasses = !isDisabled ? "hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.2)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] group-hover/card:shadow-[0_20px_50px_rgba(0,0,0,0.2)] group-hover:theme-border-accent" : "";
+  const hoverClasses = !isDisabled ? "hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] group-hover/card:shadow-[0_20px_50px_rgba(0,0,0,0.3)] group-hover:theme-border-accent" : "";
 
-  const containerClasses = `glass-panel flex group border transition-all duration-500 relative overflow-hidden shadow-lg ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${onClick ? 'cursor-pointer' : ''} ${className}`;
+  const containerClasses = `glass-panel flex group border transition-all duration-500 relative overflow-hidden ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${onClick ? 'cursor-pointer' : ''} ${className}`;
 
   // Image / Icon rendering
   const renderMedia = () => {
@@ -163,7 +164,7 @@ export function UniversalCard({
 
       {/* Floating or Inline Actions */}
       {actions && layout !== 'horizontal' && layout !== 'compact' && (
-        <div className="absolute z-50 top-3 right-3 flex items-center gap-2">
+        <div className="absolute z-[70] top-3 right-3 flex items-center gap-2">
           {actions}
         </div>
       )}
@@ -185,15 +186,21 @@ export function UniversalCard({
             </div>
           )}
 
-          <div className={`flex items-center gap-2 min-w-0 w-full ${layout === 'stat' ? 'justify-center' : ''}`}>
-            <span className={`flex-1 min-w-0 block ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm truncate' : layout === 'vertical-compact' ? 'text-base line-clamp-2' : layout === 'stat' ? 'text-base' : 'text-xl truncate'} font-black text-[var(--text)] uppercase tracking-tighter leading-tight group-hover:theme-text-accent transition-colors`}>
+          <div className={`flex items-center gap-2 min-w-0 w-full ${layout === 'stat' ? 'justify-center' : ''} relative group/title`}>
+            <span className={`flex-1 min-w-0 block ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm truncate' : layout === 'vertical-compact' ? 'text-base line-clamp-2' : layout === 'stat' ? 'text-base' : 'text-xl line-clamp-2'} font-black text-[var(--text)] uppercase tracking-tighter leading-tight group-hover:theme-text-accent transition-colors`}>
               {title}
             </span>
+            {layout !== 'stat' && typeof title === 'string' && (
+              <HoverTooltip title={title} variant="default" noIcon={true} className="!hidden group-hover/title:!flex !bottom-[calc(100%+4px)] !left-0 !translate-x-0 z-[200]" />
+            )}
           </div>
           
           {subtitle && layout !== 'stat' && (
-            <div className={`text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest font-mono ${(layout === 'vertical' || layout === 'vertical-compact') ? 'truncate' : 'line-clamp-2'}`}>
+            <div className={`text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest font-mono line-clamp-2 relative group/subtitle w-max max-w-full`}>
               {subtitle}
+              {typeof subtitle === 'string' && (
+                <HoverTooltip title={subtitle} variant="default" noIcon={true} className="!hidden group-hover/subtitle:!flex !bottom-[calc(100%+4px)] !left-0 !translate-x-0 z-[200]" />
+              )}
             </div>
           )}
         </div>
@@ -224,7 +231,7 @@ export function UniversalCard({
       {footer && (
         <>
           {(layout === 'vertical' || layout === 'vertical-compact') && <div className="relative h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent w-full flex items-center justify-center z-10 shrink-0" />}
-          <div className={`w-full relative z-10 ${(layout === 'vertical' || layout === 'vertical-compact') ? 'p-4 bg-gradient-to-t from-[color-mix(in_srgb,var(--text)_2%,transparent)] to-transparent' : 'p-3'}`}>
+          <div className={`w-full relative z-10 ${layout === 'vertical-compact' ? 'py-1.5 px-4' : layout === 'vertical' ? 'p-4' : 'p-3'} bg-gradient-to-t from-[color-mix(in_srgb,var(--text)_2%,transparent)] to-transparent`}>
             {footer}
           </div>
         </>

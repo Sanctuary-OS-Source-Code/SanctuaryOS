@@ -2,7 +2,8 @@ import { useStore } from "../store";
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, CustomDropdown, renderTextWithIcons } from "../shared";
+import { SidePanel, ActionButton, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, CustomDropdown, renderTextWithIcons } from "../shared";
+import { UniversalGroup } from "../components/universal/UniversalLayout";
 import MarkdownRenderer from "../MarkdownRenderer";
 import TicketLogViewer from "./TicketLogViewer";
 
@@ -141,20 +142,18 @@ export default function TicketDossierSidePanel({
       footer={
         (!isReadOnly && onTakeAction && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '')) ? (
           <div className="flex justify-center items-center gap-4 w-full">
-            <button
+            <ActionButton
               onClick={onClose}
               disabled={isSubmitting}
-              className={standardButtonClass}
+              label={t("nav_cancel")}
             >
-              {t("nav_cancel")}
-            </button>
-            <button
+            </ActionButton>
+            <ActionButton
               onClick={() => onTakeAction(selectedAction as any, reason)}
               disabled={!selectedAction || !reason.trim() || isSubmitting}
-              className={standardAccentGlassButtonClass}
+              label={t("dossier_btn_save")}
             >
-              {t("dossier_btn_save")}
-            </button>
+            </ActionButton>
           </div>
         ) : undefined
       }
@@ -182,8 +181,7 @@ export default function TicketDossierSidePanel({
           </div>
         )}
 
-        <div className="flex flex-col gap-4 p-6 glass-panel rounded-[var(--radius)] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <UniversalGroup title={t("dossier_ticket_details") || "TICKET DETAILS"} icon={t("icon_receipt_long") || "receipt_long"}>
           
           <div className="flex justify-between items-center relative z-10">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
@@ -248,14 +246,13 @@ export default function TicketDossierSidePanel({
               {new Date(ticket.created_at).toLocaleString()}
             </span>
           </div>
-        </div>
+        </UniversalGroup>
 
         <div className="flex flex-col gap-3 mt-4">
           <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
             <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] drop-shadow-md">{t("icon_description")}</span> {t("upload_desc")}
           </label>
           <div className="w-full glass-surface rounded-2xl px-6 py-5 text-[var(--text)] text-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_2px_15px_rgba(0,0,0,0.2)] min-h-32 whitespace-pre-wrap leading-relaxed relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[var(--accent)] to-transparent opacity-50" />
             {ticket.description}
           </div>
         </div>
@@ -320,13 +317,13 @@ export default function TicketDossierSidePanel({
                 placeholder={t("dossier_reply_placeholder")}
                 className="w-full glass-surface rounded-2xl px-6 py-5 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[inset_0_2px_15px_rgba(0,0,0,0.2),0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all h-32 resize-none custom-scrollbar border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[inset_0_2px_15px_rgba(0,0,0,0.15)]"
               />
-              <button
+              <ActionButton
                 onClick={handleSendReply}
                 disabled={!replyText.trim() || isSubmitting}
-                className="self-end px-6 h-10 font-black uppercase text-[10px] tracking-widest bg-[var(--accent)]/[15%] border border-[var(--accent)]/[40%] text-[var(--accent)] hover:bg-[var(--accent)]/[25%] hover:border-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.4)] transition-all rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
-              >
-                <span className="material-symbols-outlined !text-[14px]">{t("icon_send")}</span> {isSubmitting ? (t("btn_submitting")) : (t("dossier_btn_send_transmission"))}
-              </button>
+                className="self-end"
+                icon="send"
+                label={isSubmitting ? (t("btn_submitting")) : (t("dossier_btn_send_transmission"))}
+              />
             </div>
           </div>
         )}

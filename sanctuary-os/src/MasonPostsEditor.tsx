@@ -409,14 +409,14 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
           {/* Floating Status Badges (Absolute to Card) */}
           <div className="absolute top-4 right-4 z-20 flex gap-2">
             {post.is_pinned && (
-              <div className="w-6 h-6 rounded-full bg-[var(--accent)] text-[var(--bg)] shadow-md flex items-center justify-center">
-                <span className="material-symbols-outlined !text-[12px]">{t("icon_push_pin")}</span>
+              <div className="w-6 h-6 rounded-full backdrop-blur-md border border-[var(--accent)]/30 bg-[var(--accent)]/10 text-[var(--accent)] shadow-md flex items-center justify-center">
+                <span className="material-symbols-outlined !text-[12px] drop-shadow-md">{t("icon_push_pin")}</span>
               </div>
             )}
             {isDraft && (
-              <div className="w-6 h-6 rounded-full bg-[var(--warning)] text-[var(--bg)] shadow-md flex items-center justify-center group/draft">
-                <span className="material-symbols-outlined !text-[12px]">{t("icon_edit_note")}</span>
-                <div className="absolute right-full mr-2 px-2 py-1 bg-[var(--warning)]/90 backdrop-blur-md text-[var(--bg)] text-[8px] font-black uppercase tracking-widest rounded shadow-lg opacity-0 group-hover/draft:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              <div className="w-6 h-6 rounded-full backdrop-blur-md border border-[var(--warning)]/30 bg-[var(--warning)]/10 text-[var(--warning)] shadow-md flex items-center justify-center group/draft">
+                <span className="material-symbols-outlined !text-[12px] drop-shadow-md">{t("icon_edit_note")}</span>
+                <div className="absolute right-full mr-2 px-2 py-1 bg-[var(--warning)]/20 backdrop-blur-md border border-[var(--warning)]/30 text-[var(--warning)] text-[8px] font-black uppercase tracking-widest rounded shadow-lg opacity-0 group-hover/draft:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                   {t("ph_unsaved_changes") || "UNSAVED EDITS"}
                 </div>
               </div>
@@ -471,19 +471,19 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                   <span className="text-[9px] font-black text-[var(--danger)] uppercase tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
                   </span>
-                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span></button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="w-8 h-8 rounded-lg bg-[var(--danger)] text-[var(--bg)] flex items-center justify-center hover:scale-105 transition-all shadow-md"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span></button>
+                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors backdrop-blur-sm border border-transparent"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span></button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="w-8 h-8 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/30 backdrop-blur-md flex items-center justify-center hover:bg-[var(--danger)]/20 hover:scale-105 transition-all shadow-md"><span className="material-symbols-outlined !text-[14px] drop-shadow-md">{t("icon_delete_forever")}</span></button>
                 </>
               ) : (
                 <>
-                  <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[var(--accent)] hover:text-[var(--bg)] transition-all flex items-center justify-center shadow-sm group/btn relative">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span>
+                  <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[var(--accent)]/10 hover:border-[var(--accent)]/30 hover:text-[var(--accent)] border border-transparent backdrop-blur-sm transition-all flex items-center justify-center shadow-sm group/btn relative">
+                    <span className="material-symbols-outlined !text-[14px] drop-shadow-md">{t("icon_visibility")}</span>
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-orange-500 hover:text-white transition-all flex items-center justify-center shadow-sm">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span>
+                  <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-orange-500/10 hover:border-orange-500/30 hover:text-orange-400 border border-transparent backdrop-blur-sm transition-all flex items-center justify-center shadow-sm">
+                    <span className="material-symbols-outlined !text-[14px] drop-shadow-md">{t("icon_edit")}</span>
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span>
+                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[var(--danger)]/10 hover:border-[var(--danger)]/30 hover:text-[var(--danger)] border border-transparent backdrop-blur-sm transition-all flex items-center justify-center shadow-sm">
+                    <span className="material-symbols-outlined !text-[14px] drop-shadow-md">{t("icon_delete")}</span>
                   </button>
                 </>
               )}

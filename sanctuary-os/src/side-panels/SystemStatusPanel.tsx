@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { SidePanel, FilterTabs, FilterTabButton } from '../shared';
+import { UniversalGroup } from '../components/universal/UniversalLayout';
 import { useModalStore } from '../store/modalStore';
 import { useStore } from '../store';
 import { useLexicon } from '../LexiconContext';
@@ -138,8 +139,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
         <div className="p-6 flex flex-col gap-8">
 
-        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10">
-          <SectionHeader icon="terminal" title={t("sys_info_app")} glowColor="rgba(var(--accent-rgb),0.8)" />
+        <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10" title={t("sys_info_app")} icon="terminal" innerClassName="flex flex-col gap-4">
           {updatePayload && (
             <button onClick={() => { setIsUpdatePanelOpen(true); }} className="w-full glass-surface p-4 rounded-xl border border-[var(--accent)]/[40%] bg-[var(--accent)]/[15%] hover:bg-[var(--accent)]/[25%] transition-all duration-300 hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.3)] flex items-center justify-between overflow-hidden relative group hover:-translate-y-1 mt-2">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
@@ -189,10 +189,9 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
               glowColor="rgba(255,255,255,0.2)"
             />
           </div>
-        </div>
+        </UniversalGroup>
 
-        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150 ease-out fill-mode-both relative z-10">
-          <SectionHeader icon="public" title={t("sys_info_os")} glowColor="rgba(168,85,247,0.8)" />
+        <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150 ease-out fill-mode-both relative z-10" title={t("sys_info_os")} icon="public" innerClassName="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
@@ -229,15 +228,13 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
               glowColor="rgba(59,130,246,0.4)"
             />
           </div>
-        </div>
+        </UniversalGroup>
 
-        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-200 ease-out fill-mode-both relative z-10">
-          <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-2">
-            <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-[var(--subtext)] opacity-70 flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[16px]" style={{ color: "rgba(234,88,12,0.8)" }}>{t("icon_monitoring") || "monitoring"}</span>
-              <span className="drop-shadow-sm">{t("sys_info_app_footprint")}</span>
-            </h3>
-
+        <UniversalGroup
+          className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-200 ease-out fill-mode-both relative z-10"
+          title={t("sys_info_app_footprint")}
+          icon={t("icon_monitoring") || "monitoring"}
+          headerAction={
             <FilterTabs className="shrink-0 scale-90 origin-right !h-auto">
               <FilterTabButton
                 id={false}
@@ -254,7 +251,9 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
                 className="py-1.5 px-3 text-[9px] whitespace-nowrap"
               />
             </FilterTabs>
-          </div>
+          }
+          innerClassName="flex flex-col gap-4"
+        >
           <div className="grid grid-cols-2 gap-4">
             <StatBox
               label={usePrivateMemory ? t("sys_stat_mem_private_set") : t("sys_stat_mem_working_set")}
@@ -281,10 +280,9 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
               glowColor="rgba(234,88,12,0.4)"
             />
           </div>
-        </div>
+        </UniversalGroup>
 
-        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-300 ease-out fill-mode-both relative z-10">
-          <SectionHeader icon="hard_drive" title={t("sys_info_local_storage")} glowColor="rgba(244,63,94,0.8)" />
+        <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-300 ease-out fill-mode-both relative z-10" title={t("sys_info_local_storage")} icon="hard_drive" innerClassName="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4">
             <StatBox
               label={t("sys_stat_usage")}
@@ -311,11 +309,10 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
               </div>
             </div>
           )}
-        </div>
+        </UniversalGroup>
 
         {vaultSize !== null && (
-          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-500 ease-out fill-mode-both relative z-10 mt-2">
-            <SectionHeader icon="inventory_2" title={t("sys_info_vault_storage")} glowColor="rgba(234,179,8,0.8)" />
+          <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-500 ease-out fill-mode-both relative z-10 mt-2" title={t("sys_info_vault_storage")} icon="inventory_2" innerClassName="flex flex-col gap-4">
             <StatBox
               label={t("sys_stat_vault")}
               value={(() => { const s = parseBytes(vaultSize); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
@@ -349,7 +346,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
                 glowColor="rgba(168,85,247,0.4)"
               />
             </div>
-          </div>
+          </UniversalGroup>
         )}
         </div>
       </div>
@@ -357,14 +354,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
   );
 }
 
-function SectionHeader({ icon, title, glowColor }: { icon: string, title: string, glowColor: string }) {
-  return (
-    <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-[var(--subtext)] opacity-70 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-2 flex items-center gap-2">
-      <span className="material-symbols-outlined !text-[16px]" style={{ color: glowColor }}>{icon}</span>
-      <span className="drop-shadow-sm">{title}</span>
-    </h3>
-  );
-}
+
 
 function StatBox({ label, value, icon, accent = false, pulseIcon = false, glowColor, onClick }: { label: string, value: React.ReactNode, icon: string, accent?: boolean, pulseIcon?: boolean, glowColor: string, onClick?: (e: React.MouseEvent<HTMLDivElement>) => void }) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });

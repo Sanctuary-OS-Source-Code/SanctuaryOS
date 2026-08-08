@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
+import { useStore } from '../../store';
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 
@@ -97,10 +98,20 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
           .limit(1)
       ]);
 
-      if (bRes.data) setBroadcasts(bRes.data);
+      if (bRes.data) {
+        const gameName = useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || "Sanctuary";
+        setBroadcasts(bRes.data.map((p: any) => ({
+          ...p,
+          masons: { name: `${gameName} Team` }
+        })));
+      }
       if (uRes.data && uRes.data.length > 0) {
-        if (sessionStorage.getItem('dismissedAlertId') !== uRes.data[0].id) {
-          setUrgentBroadcast(uRes.data[0]);
+        if (sessionStorage.getItem('dismissedAlertId') !== String(uRes.data[0].id)) {
+          const gameName = useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || "Sanctuary";
+          setUrgentBroadcast({
+            ...uRes.data[0],
+            masons: { name: `${gameName} Team` }
+          });
         }
       }
     };
@@ -123,17 +134,17 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
       <CommandScreenBody>
         <CommandScreenMain>
           <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
-          
+
           <div className="w-full mb-8">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
           </div>
 
           <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <CommandScreenMetricTile icon={t("icon_deployed_code") || "deployed_code"} value={stats.artifacts} label={t("artifacts")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
-            <CommandScreenMetricTile icon={t("icon_architecture") || "architecture"} value={stats.blueprints || 1} label={t("blueprints")} valueColorClass="text-emerald-400" hoverBorderClass="hover:border-emerald-500/30" />
-            <CommandScreenMetricTile icon={t("icon_library_books") || "library_books"} value={1} label={t("lexicons")} valueColorClass="text-indigo-400" hoverBorderClass="hover:border-indigo-500/30" />
-            <CommandScreenMetricTile icon={t("icon_palette") || "palette"} value={1} label={t("chameleons")} valueColorClass="text-pink-400" hoverBorderClass="hover:border-pink-500/30" />
+            <CommandScreenMetricTile icon={t("icon_deployed_code") || "deployed_code"} value={stats.artifacts} label={t("items")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
+            <CommandScreenMetricTile icon={t("icon_architecture") || "architecture"} value={stats.blueprints || 1} label={t("playsets_title")} valueColorClass="text-emerald-400" hoverBorderClass="hover:border-emerald-500/30" />
+            <CommandScreenMetricTile icon={t("icon_library_books") || "library_books"} value={1} label={t("tab_lexicons")} valueColorClass="text-indigo-400" hoverBorderClass="hover:border-indigo-500/30" />
+            <CommandScreenMetricTile icon={t("icon_palette") || "palette"} value={1} label={t("type_theme")} valueColorClass="text-pink-400" hoverBorderClass="hover:border-pink-500/30" />
             <CommandScreenMetricTile icon={t("icon_group") || "group"} value={stats.followers} label={t("followers")} valueColorClass="text-teal-400" hoverBorderClass="hover:border-teal-500/30" />
           </div>
         </CommandScreenMain>
@@ -151,7 +162,7 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
                 <div className="flex flex-col gap-1 flex-1 min-w-0">
                   <h3 className="text-[11px] font-black uppercase tracking-widest transition-colors truncate text-[var(--danger)] group-hover:text-red-400">{t("title_sanctuary_alerts") || "Sanctuary Alerts"}</h3>
                   <span className="text-[8px] uppercase font-bold tracking-widest transition-colors flex items-center gap-2 mt-1 text-[var(--danger)]/80 group-hover:text-red-300">
-                    <span className="w-1.5 h-1.5 rounded-full shadow-md bg-[var(--danger)] animate-pulse"></span> URGENT ALERT ACTIVE
+                    <span className="w-1.5 h-1.5 rounded-full shadow-md bg-[var(--danger)] animate-pulse"></span> {t("urgent_alert")}
                   </span>
                 </div>
               </div>

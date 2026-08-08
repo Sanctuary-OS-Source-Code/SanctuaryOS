@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLexicon } from './LexiconContext';
 import { EmptyState } from './shared';
+import { UniversalCard } from './components/universal/UniversalCard';
 
 export function HeuristicsReadOnlyList({ onEditClick, search }: { onEditClick: (sig: any) => void, search: string }) {
   const { t } = useLexicon();
@@ -42,56 +43,43 @@ export function HeuristicsReadOnlyList({ onEditClick, search }: { onEditClick: (
           {filteredSignatures.map(sig => {
             const isMalware = sig.severity === 'malware';
             const isExplicit = sig.severity === 'explicit';
-            const sColor = isMalware ? 'text-red-500' : isExplicit ? 'text-[#fbbf24]' : 'text-[#3b82f6]';
-            const sBorder = isMalware ? 'border-red-500' : isExplicit ? 'border-[#fbbf24]' : 'border-[#3b82f6]';
-            const sBg = isMalware ? 'from-red-500/10' : isExplicit ? 'from-[#fbbf24]/10' : 'from-[#3b82f6]/10';
-            const sLine = isMalware ? 'bg-red-500/50 group-hover:bg-red-500' : isExplicit ? 'bg-[#fbbf24]/50 group-hover:bg-[#fbbf24]' : 'bg-[#3b82f6]/50 group-hover:bg-[#3b82f6]';
+            const sColor = isMalware ? 'text-red-500' : isExplicit ? 'text-[#fbbf24]' : 'theme-text-accent';
+            const sBorder = isMalware ? 'border-red-500' : isExplicit ? 'border-[#fbbf24]' : 'border-[var(--accent)]';
+            const bgClass = isMalware ? 'bg-red-500/10' : isExplicit ? 'bg-[#fbbf24]/10' : 'bg-[var(--accent)]/10';
 
             return (
-              <div 
-                key={sig.id} 
+              <UniversalCard
+                key={sig.id}
                 onClick={() => onEditClick(sig)}
-                className={`glass-panel rounded-[var(--radius)] flex flex-col group border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:${sBorder}/50 hover:shadow-md cursor-pointer ${!sig.enabled ? 'opacity-50 grayscale' : ''}`}
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${sBg} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
-                
-                <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500 ${sLine}`} />
-                
-                <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
-                  <div className="flex justify-between items-start gap-4">
-                    <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:${sBorder}/30`}>
-                        <span className={`material-symbols-outlined !text-[24px] opacity-50 group-hover:opacity-100 transition-colors duration-500 ${sColor}`}>
-                            {t("icon_bug_report")}
-                        </span>
-                    </div>
-                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:${sBorder}/30 group-hover:${sColor}`}>
-                        {sig.severity}
+                layout="vertical"
+                icon="bug_report"
+                title={sig.signature}
+                subtitle={
+                  <span className="flex gap-1.5 items-center">
+                    <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_account_tree")}</span>
+                    {sig.match_type}
+                  </span>
+                }
+                statusColor={sBorder}
+                isDisabled={!sig.enabled}
+                badges={[
+                  <span key="rating" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${bgClass} ${sColor} ${sBorder}/20`}>
+                    {sig.severity}
+                  </span>
+                ]}
+                footer={
+                  <div className="flex justify-between items-center w-full">
+                    <span className="flex items-center gap-1.5 truncate text-[var(--subtext)] opacity-80">
+                      <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_shield")}</span>
+                      {sig.enabled ? (t("comp_enabled")) : (t("comp_disabled"))}
                     </span>
+                    <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0">{t("ui_edit_metadata")} &rarr;</span>
                   </div>
-                  
-                  <div className="flex flex-col gap-1 mt-auto pt-2">
-                      <span className={`text-lg font-mono opacity-80 font-bold truncate leading-tight transition-colors ${sColor} group-hover:opacity-100`}>
-                        {sig.signature}
-                      </span>
-                      <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 flex gap-1.5 items-center truncate">
-                          <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_account_tree")}</span>
-                          {sig.match_type}
-                      </span>
-                  </div>
-                  
-                  <div className="flex flex-col gap-1 mt-1 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3">
-                     <span className="text-[10px] font-bold uppercase flex justify-between items-center w-full text-[var(--subtext)] opacity-80">
-                       <span className="flex items-center gap-1.5 truncate">
-                         <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_shield")}</span>
-                         {sig.enabled ? (t("comp_enabled")) : (t("comp_disabled"))}
-                       </span>
-                     </span>
-                  </div>
-                </div>
-              </div>
+                }
+              />
             );
           })}
-          {signatures.length === 0 && (
+          {filteredSignatures.length === 0 && (
             <EmptyState icon={t("ui_icon_find_in_page") || "find_in_page"} title={t("comp_no_heuristics")} className="col-span-full py-16" />
           )}
         </div>

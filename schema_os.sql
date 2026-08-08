@@ -32,6 +32,7 @@ CREATE TABLE sanctuary_games (
     schema_id TEXT UNIQUE NOT NULL,
     supabase_url TEXT,
     supabase_anon_key TEXT,
+    supabase_service_key TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

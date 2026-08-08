@@ -6,11 +6,11 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
 
-  const modCategories = ['ALL', ...Array.from(new Set(mods?.map((m: any) => m.category_override || t("label_artifact") || "MOD") || []))];
+  const modCategories = ['ALL', ...Array.from(new Set(mods?.map((m: any) => m.category_override || t("label_artifact") || "Artifact") || []))];
   const assetCategories = ['ALL', 'blueprint', 'lexicon', 'chameleon', 'workbench_template'];
 
   const filteredMods = mods?.filter((m: any) => {
-    if (activeCategory !== 'ALL' && (m.category_override || t("label_artifact") || "MOD") !== activeCategory) return false;
+    if (activeCategory !== 'ALL' && (m.category_override || t("label_artifact") || "Artifact") !== activeCategory) return false;
     if (searchQuery && !m.name?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   }) || [];
@@ -29,7 +29,7 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
       onClose={onClose}
       keepMounted={true}
       title={t("panel_pin_details") || "PIN DETAILS"}
-      subtitle="Select an item to feature on your profile"
+      subtitle={t("panel_pin_subtitle") || "Select an item to feature on your profile"}
       icon="push_pin"
       widthClass="w-[900px] max-w-[95vw]"
     >
@@ -57,10 +57,10 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
               <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)]">search</span>
               <input 
                 type="text"
-                placeholder={activeTab === 'mod' ? "Search Artifacts..." : "Search Assets..."}
+                placeholder={activeTab === 'mod' ? (t("search_artifacts") || "Search Artifacts...") : (t("search_assets") || "Search Assets...")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-12 pl-12 pr-10 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:border-[var(--accent)] rounded-xl outline-none text-sm transition-all placeholder:text-[var(--subtext)]/50 focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+                className="w-full h-12 pl-12 pr-10 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:border-[var(--accent)] rounded-xl outline-none text-sm transition-all placeholder:text-[var(--subtext)]/50 focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
@@ -89,7 +89,7 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
             filteredMods.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredMods.map((mod: any) => (
-                  <div key={mod.id} onClick={() => { handlePin('mod', mod.id); }} className={`relative flex items-center gap-4 p-4 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group ${(mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  <div key={mod.id} onClick={() => { handlePin('mod', mod.id); }} className={`relative flex items-center gap-4 p-4 glass-panel border rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group ${(mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                     
                     <div className="w-16 h-16 rounded-xl shrink-0 overflow-hidden bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                       {mod.image_url ? (
@@ -102,7 +102,7 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
                     <div className="flex flex-col flex-1 min-w-0 z-10 justify-center">
                       <h3 className={`text-xs font-black truncate uppercase tracking-tight transition-colors mb-1 ${(mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id) ? 'theme-text-accent' : 'group-hover:theme-text-accent'}`}>{mod.name}</h3>
                       <span className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate">
-                        {mod.category_override || t("label_artifact") || "MOD"}
+                        {mod.category_override || t("label_artifact") || "Artifact"}
                       </span>
                     </div>
                     
@@ -118,7 +118,7 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
               </div>
             ) : (
               <div className="mt-8 flex justify-center w-full">
-                <EmptyState icon="search" title="No Matching Artifacts" minHeightClass="min-h-[200px]" />
+                <EmptyState icon="search" title={t("no_match_artifacts") || "No Matching Artifacts"} minHeightClass="min-h-[200px]" />
               </div>
             )
           ) : (
@@ -128,7 +128,7 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
                   const isBp = asset.asset_type === 'blueprint';
                   const smIcon = isBp ? t("icon_map") : asset.asset_type === 'lexicon' ? t("icon_translate") : asset.asset_type === 'chameleon' ? t("icon_palette") : t("icon_draw");
                   return (
-                    <div key={asset.id} onClick={() => { handlePin(isBp ? 'blueprint' : 'asset', asset.id); }} className={`relative flex items-center gap-4 p-4 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group ${(mason?.pinned_asset_id === asset.id || mason?.pinned_blueprint_id === asset.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} transform-gpu backface-hidden`}>
+                    <div key={asset.id} onClick={() => { handlePin(isBp ? 'blueprint' : 'asset', asset.id); }} className={`relative flex items-center gap-4 p-4 glass-panel border rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group ${(mason?.pinned_asset_id === asset.id || mason?.pinned_blueprint_id === asset.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} transform-gpu backface-hidden`}>
 
                       <div className="w-16 h-16 rounded-xl shrink-0 overflow-hidden bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                         {asset.image_url ? (
@@ -158,7 +158,7 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
               </div>
             ) : (
               <div className="mt-8 flex justify-center w-full">
-                <EmptyState icon="search" title="No Matching Assets" minHeightClass="min-h-[200px]" />
+                <EmptyState icon="search" title={t("no_match_assets") || "No Matching Assets"} minHeightClass="min-h-[200px]" />
               </div>
             )
           )}

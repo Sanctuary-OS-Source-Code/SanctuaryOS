@@ -38,6 +38,7 @@ export default function Blueprints({
   const [myCloudBlueprints, setMyCloudBlueprints] = useState<any[]>([]);
   const [cloudFilterTab, setCloudFilterTab] = useState<'all' | 'not_in_vault'>('all');
   const [cloudSearchQuery, setCloudSearchQuery] = useState("");
+  const [uplinkArtifactSearch, setUplinkArtifactSearch] = useState("");
 
   useEffect(() => {
     if (activeTab === "NETWORK") {
@@ -282,7 +283,7 @@ export default function Blueprints({
                           }
                           setEditingSetName(null);
                         }}
-                        className="w-full bg-black/40 border-b-2 border-[var(--accent)] px-3 py-2 rounded-t-xl text-xl font-black text-[var(--text)] tracking-tighter outline-none mb-1 shadow-inner focus:bg-black/60 transition-colors"
+                        className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-3 py-2 rounded-xl text-xl font-black text-[var(--text)] tracking-tighter outline-none mb-1 shadow-inner focus:border-[var(--accent)] transition-colors"
                       />
                     ) : (
                       <div
@@ -817,32 +818,46 @@ export default function Blueprints({
     
       <SidePanel 
         isOpen={!!selectedUplinkBlueprint} 
-        onClose={() => setSelectedUplinkBlueprint(null)} 
+        onClose={() => {
+          setSelectedUplinkBlueprint(null);
+          setUplinkArtifactSearch("");
+        }} 
         title={selectedUplinkBlueprint?.name || "Blueprint Mods"} 
         subtitle={selectedUplinkBlueprint?.code || "Uplink Code"} 
         icon="extension" 
         iconColorClass="theme-text-accent"
       >
-        <div className="overflow-y-auto custom-scrollbar h-full w-full absolute inset-0 pb-10"><div className="flex flex-col gap-2 p-6 min-h-full">
-          <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col min-h-full gap-4 pb-4">
+          <div className="flex items-center justify-between mb-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-3">
             <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-widest">{t("artifacts_linked") || "ARTIFACTS LINKED"} ({selectedUplinkBlueprint?.artifacts?.length})</h3>
           </div>
-          {selectedUplinkBlueprint?.artifacts?.map((m: any, idx: number) => {
-            const rawName = m.name || m;
-            const displayName = typeof rawName === 'string' ? (rawName.split('/').pop()?.replace(/\.[^/.]+$/, "") || rawName) : rawName;
-            return (
-              <div key={idx} className="flex items-center gap-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl p-3 hover:border-[var(--accent)]/30 transition-colors group/mod">
-                <div className="w-8 h-8 rounded-lg glass-surface flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover/mod:border-[var(--accent)]/30 transition-colors">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-hover/mod:text-[var(--accent)] transition-colors">extension</span>
+          <UniversalSearch 
+            value={uplinkArtifactSearch}
+            onChange={setUplinkArtifactSearch}
+            placeholder={t("playsets_search_ph") || "SEARCH ARTIFACTS..."}
+          />
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
+            {selectedUplinkBlueprint?.artifacts?.filter((m: any) => {
+              const rawName = m.name || m;
+              const displayName = typeof rawName === 'string' ? (rawName.split('/').pop()?.replace(/\.[^/.]+$/, "") || rawName) : rawName;
+              return displayName.toLowerCase().includes(uplinkArtifactSearch.toLowerCase());
+            }).map((m: any, idx: number) => {
+              const rawName = m.name || m;
+              const displayName = typeof rawName === 'string' ? (rawName.split('/').pop()?.replace(/\.[^/.]+$/, "") || rawName) : rawName;
+              return (
+                <div key={idx} className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] p-4 hover:border-[var(--accent)]/30 transition-colors group/mod flex flex-col items-center justify-center text-center gap-3 shadow-sm aspect-square">
+                  <div className="w-12 h-12 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined !text-[24px] text-[var(--subtext)] group-hover/mod:text-[var(--accent)] transition-colors">extension</span>
+                  </div>
+                  <div className="flex flex-col min-w-0 w-full items-center justify-center">
+                    <span className="text-xs font-bold text-[var(--text)] group-hover/mod:theme-text-accent transition-colors line-clamp-2" title={displayName}>{displayName}</span>
+                    {m.author && <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1 line-clamp-1 truncate w-full">{t("mason") || "CREATOR"}: {m.author}</span>}
+                  </div>
                 </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-black text-[var(--text)] truncate">{displayName}</span>
-                  {m.author && <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-0.5">{t("mason") || "CREATOR"}: {m.author}</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div></div></SidePanel>
+              );
+            })}
+          </div>
+        </div></SidePanel>
     </div>
   );
 }

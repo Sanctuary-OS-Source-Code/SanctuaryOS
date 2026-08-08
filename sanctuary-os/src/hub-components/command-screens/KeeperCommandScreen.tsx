@@ -68,7 +68,7 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
       }
 
       const dismissedAlertId = sessionStorage.getItem('dismissedAlertId');
-      if (finalUrgent && finalUrgent.id === dismissedAlertId) {
+      if (finalUrgent && String(finalUrgent.id) === dismissedAlertId) {
         finalUrgent = null;
       }
 
@@ -147,7 +147,7 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
                 <div className="flex flex-col gap-1 flex-1 min-w-0">
                   <h3 className="text-[11px] font-black uppercase tracking-widest transition-colors truncate text-[var(--danger)] group-hover:text-red-400">{t("title_sanctuary_alerts") || "Sanctuary Alerts"}</h3>
                   <span className="text-[8px] uppercase font-bold tracking-widest transition-colors flex items-center gap-2 mt-1 text-[var(--danger)]/80 group-hover:text-red-300">
-                    <span className="w-1.5 h-1.5 rounded-full shadow-md bg-[var(--danger)] animate-pulse"></span> URGENT ALERT ACTIVE
+                    <span className="w-1.5 h-1.5 rounded-full shadow-md bg-[var(--danger)] animate-pulse"></span> {t("urgent_alert")}
                   </span>
                 </div>
               </div>

@@ -328,18 +328,18 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       >
         <button
           onClick={onClose}
-          className="absolute top-14 right-6 z-50 w-12 h-12 bg-black/40 hover:theme-bg-danger text-[var(--subtext)] opacity-80 hover:text-[var(--text)] rounded-full flex items-center justify-center transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-border-danger shadow-xl text-xl backdrop-blur-md"
+          className="absolute top-14 right-6 z-50 w-12 h-12 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
         ><span className="material-symbols-outlined !text-[28px]">{t("icon_close")}</span></button>
 
         <div className="flex flex-col relative z-10 w-full">
 
-          <div className={`relative z-0 bg-[var(--accent)]/[5%] shrink-0 flex flex-col justify-end transition-all duration-300 ${editMode ? 'min-h-[380px]' : 'min-h-[300px]'}`}>
-            <div className="absolute inset-0 z-0">
+          <div className={`relative z-0 bg-[var(--accent)]/[5%] shrink-0 flex flex-col justify-end transition-all duration-300 ${((showImages || editMode) && (mod.image_url || mod.imageUrl || metaInputs.image) && String(metaInputs.image || mod.image_url || mod.imageUrl) !== "null" && String(metaInputs.image || mod.image_url || mod.imageUrl).trim() !== "") ? (editMode ? 'min-h-[380px]' : 'min-h-[300px]') : 'min-h-[140px]'}`}>
+            <div className="absolute inset-0 z-0 overflow-hidden">
               {((showImages || editMode) && (mod.image_url || mod.imageUrl || metaInputs.image) && String(metaInputs.image || mod.image_url || mod.imageUrl) !== "null" && String(metaInputs.image || mod.image_url || mod.imageUrl).trim() !== "") ? (
                 <img src={metaInputs.image || mod.image_url || mod.imageUrl} className="w-full h-full object-cover opacity-60 mix-blend-luminosity" alt={t("cc_cover_url")} onError={(e) => e.currentTarget.style.display = 'none'} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[var(--accent)] opacity-10 blur-sm" style={{ fontSize: '240px' }}>
+                  <span className="material-symbols-outlined text-[var(--accent)] opacity-30 drop-shadow-lg" style={{ fontSize: '120px' }}>
                     {getModIcon(mod, activeGameSchema, t)}
                   </span>
                 </div>
@@ -347,26 +347,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
               <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--bg)_60%,transparent)] via-[color-mix(in_srgb,var(--bg)_20%,transparent)] to-transparent z-10 pointer-events-none" />
             </div>
 
-            <div className="relative z-20 px-12 pb-10 w-full flex flex-col items-start gap-4">
-              <div className="w-full pr-12">
-                {editMode ? (
-                  <input value={metaInputs.name} onChange={e => setMetaInputs.name(e.target.value)} className="w-full bg-transparent border-b-2 border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)] focus:border-[var(--accent)] px-0 py-2 text-4xl lg:text-5xl font-black text-[var(--text)] uppercase tracking-tighter focus:outline-none transition-all drop-shadow-md" placeholder="Artifact Name" />
-                ) : (
-                  <div className="flex flex-col items-start gap-2">
-                    <h2 className="text-5xl lg:text-6xl font-black text-[var(--text)] tracking-tighter uppercase leading-[1.1] drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] pr-4">
-                      {(mod.displayName || (mod.name || '').split(/[/\\]/).pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "")}
-                    </h2>
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                      {mod.name?.includes('.') && (
-                        <span className="px-4 py-1.5 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full text-[10px] font-black text-[var(--text)] opacity-90 uppercase tracking-[0.2em] shadow-lg">
-                          .{(mod.name || '').split('.').pop()?.toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+
 
             <div className="absolute -bottom-6 w-full flex justify-center z-50 pointer-events-none">
               <div className="inline-flex glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)] h-12 items-center flex-nowrap max-w-full pointer-events-auto">
@@ -462,6 +443,25 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
           </div>
 
           <div className="p-10 pt-14 flex flex-col gap-10 pb-32">
+
+            <div className="w-full mb-2">
+              {editMode ? (
+                <input value={metaInputs.name} onChange={e => setMetaInputs.name(e.target.value)} className="w-full bg-transparent border-b-2 border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)] focus:border-[var(--accent)] px-0 py-2 text-4xl lg:text-5xl font-black text-[var(--text)] uppercase tracking-tighter focus:outline-none transition-all" placeholder="Artifact Name" />
+              ) : (
+                <div className="flex flex-col items-start gap-2">
+                  <h2 className="text-5xl lg:text-6xl font-black text-[var(--text)] tracking-tighter uppercase leading-[1.1] pr-4">
+                    {(mod.displayName || (mod.name || '').split(/[/\\]/).pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "")}
+                  </h2>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {mod.name?.includes('.') && (
+                      <span className="px-4 py-1.5 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full text-[10px] font-black text-[var(--text)] opacity-90 uppercase tracking-[0.2em]">
+                        .{(mod.name || '').split('.').pop()?.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[120px] gap-4 relative z-20">
@@ -752,7 +752,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 <textarea value={metaInputs.desc} onChange={e => setMetaInputs.desc(e.target.value)} className="text-sm text-[var(--text)] placeholder:text-[var(--text)] placeholder:opacity-30 font-mono bg-[color-mix(in_srgb,var(--text)_5%,transparent)] p-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-40 resize-none focus:outline-none focus:border-[var(--accent)] transition-all" placeholder={t("local_desc_placeholder")} />
               ) : (
                 <div className="text-sm text-[var(--text)] opacity-90 leading-relaxed font-medium glass-panel backdrop-blur-3xl p-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_10px_30px_rgba(0,0,0,0.3)] min-h-[120px] relative overflow-hidden group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all">
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-50 transition-opacity group-hover:opacity-100" />
                   {mod.description || t("no_desc_manifest") || "No local description provided for this manifest. Architects can update this locally to maintain organizational logs without breaking the global DNA signature."}
                 </div>
               )}
@@ -779,7 +778,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       <div
                         key={kid.hash || kid.id || `${kid.name}_${kidIndex}`}
                         onClick={() => setSelectedKid(kid)}
-                        className={`group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl ${isEquipped ? 'bg-[var(--accent)]/[15%] border-[var(--accent)]/[40%] shadow-[0_5px_15px_rgba(var(--accent-rgb),0.2)]' : 'glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
+                        className={`group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl ${isEquipped ? 'glass-panel bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_20%,transparent)] shadow-[0_5px_15px_rgba(0,0,0,0.2)]' : 'glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                           }`}>
                         <div className="flex flex-col min-w-0 flex-1 relative group/title">
                           <span className="text-xs font-extrabold text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm">
@@ -898,17 +897,17 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
         >
           <button
             onClick={() => setSelectedKid(null)}
-            className="absolute top-14 right-6 z-50 w-12 h-12 bg-black/40 hover:theme-bg-danger text-[var(--subtext)] opacity-80 hover:text-[var(--text)] rounded-full flex items-center justify-center transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-border-danger shadow-xl text-xl backdrop-blur-md"
+            className="absolute top-14 right-6 z-50 w-12 h-12 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
           ><span className="material-symbols-outlined !text-[28px]">{t("icon_close")}</span></button>
 
           <div className="flex flex-col relative z-10 w-full">
-              <div className="h-[250px] relative bg-[var(--accent)]/[5%] shrink-0 flex flex-col justify-end">
-                <div className="absolute inset-0 z-0">
+              <div className={`relative bg-[var(--accent)]/[5%] shrink-0 flex flex-col justify-end transition-all duration-300 ${(showImages && (selectedKid.image_url || selectedKid.imageUrl || mod.image_url || mod.imageUrl)) ? 'h-[250px]' : 'h-[140px]'}`}>
+                <div className="absolute inset-0 z-0 overflow-hidden">
                   {(showImages && (selectedKid.image_url || selectedKid.imageUrl || mod.image_url || mod.imageUrl)) ? (
                     <img src={selectedKid.image_url || selectedKid.imageUrl || mod.image_url || mod.imageUrl} className="w-full h-full object-cover opacity-60 mix-blend-luminosity" alt={t("sub_cover_alt")} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[var(--accent)] opacity-20" style={{ fontSize: '200px' }}>
+                      <span className="material-symbols-outlined text-[var(--accent)] opacity-30 drop-shadow-lg" style={{ fontSize: '120px' }}>
                         {getModIcon(selectedKid, activeGameSchema, t)}
                       </span>
                     </div>
@@ -916,20 +915,22 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--bg)_60%,transparent)] via-[color-mix(in_srgb,var(--bg)_20%,transparent)] to-transparent z-10 pointer-events-none" />
                 </div>
 
-                <div className="relative z-20 px-10 pb-10 w-full flex flex-col items-start gap-3">
-                  <h3 className="text-4xl font-black text-[var(--text)] uppercase leading-[1.1] drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]">{(selectedKid.displayName || (selectedKid.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "")}</h3>
+
+              </div>
+
+              <div className="p-10 flex flex-col gap-6 shrink-0 relative z-30">
+
+                <div className="w-full flex flex-col items-start gap-3 mb-2">
+                  <h3 className="text-4xl font-black text-[var(--text)] uppercase leading-[1.1]">{(selectedKid.displayName || (selectedKid.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "")}</h3>
                   <div className="flex gap-2">
-                    <span className="px-4 py-1.5 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full text-[10px] font-black text-[var(--text)] opacity-90 uppercase tracking-[0.2em] shadow-lg">
+                    <span className="px-4 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full text-[10px] font-black text-[var(--text)] opacity-90 uppercase tracking-[0.2em]">
                       {selectedKid.mod_versions?.[0]?.version_label || selectedKid.version || t("vlocal") || "V.LOCAL"}
                     </span>
-                    <span className="px-4 py-1.5 bg-[var(--accent)]/[10%] backdrop-blur-md border border-[var(--accent)]/[20%] rounded-full text-[10px] font-black text-[var(--accent)] opacity-90 uppercase tracking-[0.2em] shadow-lg">
+                    <span className="px-4 py-1.5 bg-[var(--accent)]/[5%] border border-[var(--accent)]/[10%] rounded-full text-[10px] font-black text-[var(--accent)] opacity-90 uppercase tracking-[0.2em]">
                       {selectedKid.author || mod.author || t("vlocal") || "UNKNOWN"}
                     </span>
                   </div>
                 </div>
-              </div>
-
-              <div className="p-10 flex flex-col gap-6 shrink-0 relative z-30">
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1 p-5 glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-md relative overflow-hidden group hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-all hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
@@ -971,7 +972,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 </div>
 
                 <div className="text-sm text-[var(--text)] opacity-90 leading-relaxed font-medium glass-panel backdrop-blur-3xl p-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_10px_30px_rgba(0,0,0,0.3)] relative overflow-hidden group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all">
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-50 transition-opacity group-hover:opacity-100" />
                   {selectedKid.description || t("no_desc_sub") || "No specific local description provided for this sub-artifact."}
                 </div>
               </div>
@@ -1006,7 +1006,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
           noPadding={true}
         >
           <div className="flex flex-col relative z-10 w-full h-full">
-            <button onClick={() => setShowFlagModal(false)} className="absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <button onClick={() => setShowFlagModal(false)} className="absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
               <span className="material-symbols-outlined !text-[24px]">{t("icon_close")}</span>
             </button>
             <div className="h-48 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col items-center justify-center overflow-hidden">

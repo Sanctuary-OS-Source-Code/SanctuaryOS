@@ -181,9 +181,6 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
         <button
           onClick={(e) => {
             e.stopPropagation();
-            if (view !== 'dashboard' && view !== 'BlueprintArchitect') {
-              setView('dashboard');
-            }
             setIsConflictRadarOpen(!isConflictRadarOpen);
           }}
           className={`flex items-center justify-center h-full px-5 shrink-0 cursor-pointer transition-colors hover:bg-[var(--accent)]/[10%] group ${isConflictRadarOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}

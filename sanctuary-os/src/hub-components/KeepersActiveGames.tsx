@@ -12,7 +12,7 @@ export default function KeepersActiveGames() {
 
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [sidePanelMode, setSidePanelMode] = useState<'add' | 'edit' | null>(null);
-  const [formData, setFormData] = useState({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", icon: "" });
+  const [formData, setFormData] = useState({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "" });
 
   useEffect(() => {
     fetchGames();
@@ -40,6 +40,7 @@ export default function KeepersActiveGames() {
         schema_id: formData.schema_id,
         supabase_url: formData.supabase_url,
         supabase_anon_key: formData.supabase_anon_key,
+        supabase_service_key: formData.supabase_service_key,
         icon: formData.icon
       }]);
       if (!result?.error) {
@@ -51,6 +52,7 @@ export default function KeepersActiveGames() {
         schema_id: formData.schema_id,
         supabase_url: formData.supabase_url,
         supabase_anon_key: formData.supabase_anon_key,
+        supabase_service_key: formData.supabase_service_key,
         icon: formData.icon
       }).eq('id', formData.id);
       if (!result?.error) {
@@ -60,7 +62,7 @@ export default function KeepersActiveGames() {
 
     if (!result?.error) {
       setSidePanelMode(null);
-      setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", icon: "" });
+      setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "" });
       fetchGames();
     } else {
       alert(`Error saving game: ${result.error.message}`);
@@ -116,7 +118,7 @@ export default function KeepersActiveGames() {
             <button onClick={() => setFilter('inactive')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'inactive' ? 'text-red-500 bg-red-500/10 shadow-md' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-red-400 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_inactive")}</button>
           </div>
           <ActionButton
-            onClick={() => { setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", icon: "" }); setSidePanelMode('add'); }}
+            onClick={() => { setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "" }); setSidePanelMode('add'); }}
             className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
             icon="add"
             label={t("ui_register_game_db") || "Register New Game DB"}
@@ -159,6 +161,10 @@ export default function KeepersActiveGames() {
             <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-2 block">{t("ui_supabase_key") || "ANON KEY"}</label>
             <input type="text" value={formData.supabase_anon_key} onChange={e => setFormData({ ...formData, supabase_anon_key: e.target.value })} className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent transition-colors" placeholder="ey..." />
           </div>
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-2 block">{t("ui_supabase_service_key") || "SERVICE ROLE KEY"}</label>
+            <input type="password" value={formData.supabase_service_key || ''} onChange={e => setFormData({ ...formData, supabase_service_key: e.target.value })} className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent transition-colors" placeholder="secret..." />
+          </div>
         </div>
       </SidePanel>
 
@@ -170,7 +176,7 @@ export default function KeepersActiveGames() {
             {filteredGames.map(game => (
               <UniversalCard
                 key={game.id}
-                onClick={() => { setFormData({ id: game.id, name: game.name || "", schema_id: game.schema_id || "", supabase_url: game.supabase_url || "", supabase_anon_key: game.supabase_anon_key || "", icon: game.icon || "" }); setSidePanelMode('edit'); }}
+                onClick={() => { setFormData({ id: game.id, name: game.name || "", schema_id: game.schema_id || "", supabase_url: game.supabase_url || "", supabase_anon_key: game.supabase_anon_key || "", supabase_service_key: game.supabase_service_key || "", icon: game.icon || "" }); setSidePanelMode('edit'); }}
                 layout="vertical"
                 isGhosted={game.is_active === false}
                 image={game.icon || undefined}

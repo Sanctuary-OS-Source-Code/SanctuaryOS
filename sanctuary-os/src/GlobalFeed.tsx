@@ -220,9 +220,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     placeholder={t("mason_search_placeholder")}
-                    className="w-full h-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] px-4 pl-10 text-[var(--text)] text-sm focus:outline-none focus:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all font-medium placeholder:text-white/40"
+                    className="w-full h-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] px-4 pl-10 text-[var(--text)] text-sm focus:outline-none focus:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all font-medium placeholder:text-[var(--subtext)] placeholder:opacity-50"
                   />
-                  <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-white/40">search</span>
+                  <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-[var(--subtext)] opacity-50 pointer-events-none">search</span>
                 </div>
                 <div className="w-max min-w-[150px] shrink-0 h-12">
                   <CustomDatePicker

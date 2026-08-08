@@ -1,42 +1,6 @@
 import React from 'react';
-import { formatDisplayName, getHighestVersion, mapDlcCode, getExtensionRegex, getFileLabel, HoverTooltip, EmptyState, cleanSearchName, SearchBar } from '../../shared';
+import { formatDisplayName, getHighestVersion, mapDlcCode, getExtensionRegex, getFileLabel, HoverTooltip, EmptyState, cleanSearchName, SearchBar, AccordionDrawer, DeferredRender } from '../../shared';
 import { ModCard } from '../../ModCard';
-
-const DeferredRender = ({ children }: { children: React.ReactNode }) => {
-  const [ready, setReady] = React.useState(false);
-  React.useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 50);
-    return () => clearTimeout(timer);
-  }, []);
-  return ready ? <>{children}</> : <div className="flex items-center justify-center p-20 w-full"><div className="w-8 h-8 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin" /></div>;
-};
-
-const AccordionDrawer = ({ children, isOpen }: { children: React.ReactNode, isOpen: boolean }) => {
-  const [render, setRender] = React.useState(isOpen);
-  const [visible, setVisible] = React.useState(isOpen);
-
-  React.useEffect(() => {
-    if (isOpen) {
-      setRender(true);
-      const timer = setTimeout(() => setVisible(true), 10);
-      return () => clearTimeout(timer);
-    } else {
-      setVisible(false);
-      const timer = setTimeout(() => setRender(false), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  if (!render) return null;
-
-  return (
-    <div className={`col-span-full overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.2,0.9,0.2,1)] ${visible ? 'max-h-[1000px] opacity-100 scale-100' : 'max-h-0 opacity-0 scale-[0.98]'}`}>
-      <div className="pt-4 pb-12 px-2">
-        {children}
-      </div>
-    </div>
-  );
-};
 
 export function VaultGrid(props: any) {
   const { paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, toggleModSelection, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, drawerCasualties, selectedVersion, hasMissingDeps, missingPacks, isSwappedState, isBetaSwap, isFlavorGhosted, isFlavorEquipped, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, flavorGhostReason, setIsDropzoneOpen, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, setSelectedMods, setActiveLocalFolder, setIsLocalFolderEditorOpen } = props;
@@ -59,6 +23,88 @@ export function VaultGrid(props: any) {
     activeSetMods.forEach((m: string) => s.add(m.replace(/^(sanctuary[/\\])+/i, '')));
     return s;
   }, [activeSetMods]);
+
+  const checkConflicts = React.useCallback((mObj: any, targetCasualties: any[], targetTier3: any[]) => {
+    const mObjCleanN = (mObj.name || "").split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "").toUpperCase();
+    const mObjDispUpper = mObj.displayName?.toUpperCase();
+
+    if (mObj.conflicts && mObj.conflicts.length > 0) {
+      const processSeverity = (targetRank: number, targetList: any[]) => {
+        const found = mObj.conflicts.filter((c: any) => Number(c.severity_rank) == targetRank).map((c: any) => {
+          const matchItem = uppercaseEquippedMods.find((item: any) => {
+            const mData = item.mData;
+            if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
+            if (c.enemy_name) {
+              const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase().replace(/_SCRIPT(S)?$/i, "");
+              const mObjBase = mObjCleanN.replace(/_SCRIPT(S)?$/i, "");
+              if (mObjBase === targetClean || item.emBaseClean.replace(/_SCRIPT(S)?$/i, "") === targetClean || mObjDispUpper === targetClean || item.emDisp.replace(/_SCRIPT(S)?$/i, "") === targetClean) return true;
+            }
+            return false;
+          });
+          if (matchItem) {
+            const matchObj = matchItem.mData;
+            if (areArchetypes(mObj.hash, matchObj.hash)) return null;
+            return { name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: c.conflict_note || c.resolution_note || "" };
+          }
+          return null;
+        }).filter(Boolean);
+        if (found.length > 0) {
+          targetList.push(...found);
+        }
+      };
+      processSeverity(4, targetCasualties);
+      processSeverity(3, targetTier3);
+    }
+
+    uppercaseEquippedMods.forEach((item: any) => {
+      const mData = item.mData;
+      if (mData.conflicts && mData.conflicts.length > 0) {
+        const found = mData.conflicts.filter((c: any) => {
+          if (c.enemy_id && String(mObj.dbId) === String(c.enemy_id)) return true;
+          if (c.enemy_name) {
+            const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase().replace(/_SCRIPT(S)?$/i, "");
+            const mObjBase = mObjCleanN.replace(/_SCRIPT(S)?$/i, "");
+            if (mObjBase === targetClean || mObjDispUpper === targetClean) return true;
+          }
+          return false;
+        });
+
+        found.forEach((c: any) => {
+          if (areArchetypes(mObj.hash, mData.hash)) return;
+          const targetRank = Number(c.severity_rank);
+          if (targetRank == 4) targetCasualties.push({ name: mData.displayName || mData.name, rawName: mData.name, note: c.conflict_note || c.resolution_note || "" });
+          if (targetRank == 3) targetTier3.push({ name: mData.displayName || mData.name, rawName: mData.name, note: c.conflict_note || c.resolution_note || "" });
+        });
+      }
+    });
+
+    localConflictsMemo.forEach((lc: any) => {
+      const mObjClean = String(mObj.name || "").toUpperCase();
+      const mObjDisp = String(mObj.displayName || "").toUpperCase();
+
+      let isMObjA = mObjClean.includes(lc.modAUpper) || mObjDisp.includes(lc.modAUpper) || lc.modAUpper.includes(mObjClean);
+      let isMObjB = mObjClean.includes(lc.modBUpper) || mObjDisp.includes(lc.modBUpper) || lc.modBUpper.includes(mObjClean);
+
+      if (isMObjA || isMObjB) {
+        const targetEnemy = isMObjA ? lc.modBUpper : lc.modAUpper;
+        const matchItem = uppercaseEquippedMods.find((item: any) => {
+          return item.emClean.includes(targetEnemy) || item.emDisp.includes(targetEnemy) || targetEnemy.includes(item.emClean);
+        });
+
+        if (matchItem) {
+          const matchObj = matchItem.mData;
+          const targetRank = Number(lc.severity_rank);
+          const isWinnerMObj = mObj._originalSetName?.toLowerCase().startsWith("sanctuary") || mObj.name?.toLowerCase().startsWith("sanctuary");
+          const isWinnerEnemy = matchObj._originalSetName?.toLowerCase().startsWith("sanctuary") || matchObj.name?.toLowerCase().startsWith("sanctuary");
+          if (isWinnerMObj || isWinnerEnemy) return;
+          if (areArchetypes(mObj.hash, matchObj.hash)) return;
+
+          if (targetRank == 4) targetCasualties.push({ name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: lc.resolution_note || "Local Scan Detects Tuning Overlap" });
+          if (targetRank == 3) targetTier3.push({ name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: lc.resolution_note || "Local Scan Detects Tuning Overlap" });
+        }
+      }
+    });
+  }, [uppercaseEquippedMods, localConflictsMemo, areArchetypes]);
 
   const cardComputations = React.useMemo(() => {
     const map = new Map();
@@ -205,91 +251,9 @@ export function VaultGrid(props: any) {
           casualties = [...casualties, ...getDeepCasualties(rivals, true)];
         }
 
-        const checkConflicts = (mObj: any) => {
-          const mObjCleanN = (mObj.name || "").split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "").toUpperCase();
-          const mObjDispUpper = mObj.displayName?.toUpperCase();
-
-          if (mObj.conflicts && mObj.conflicts.length > 0) {
-            const processSeverity = (targetRank: number, targetList: any[]) => {
-              const found = mObj.conflicts.filter((c: any) => Number(c.severity_rank) == targetRank).map((c: any) => {
-                const matchItem = uppercaseEquippedMods.find((item: any) => {
-                  const mData = item.mData;
-                  if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
-                  if (c.enemy_name) {
-                    const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
-                    if (item.emBaseClean === targetClean || item.emDisp === targetClean) return true;
-                  }
-                  return false;
-                });
-                if (matchItem) {
-                  const matchObj = matchItem.mData;
-                  if (areArchetypes(mObj.hash, matchObj.hash)) return null;
-                  return { name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: c.conflict_note || c.resolution_note || "" };
-                }
-                return null;
-              }).filter(Boolean);
-              if (found.length > 0) {
-                targetList.push(...found);
-              }
-            };
-            processSeverity(4, casualties);
-            processSeverity(3, tier3List);
-          }
-
-          // Reverse conflicts: Do any equipped mods point to this mod?
-          uppercaseEquippedMods.forEach((item: any) => {
-            const mData = item.mData;
-            if (mData.conflicts && mData.conflicts.length > 0) {
-              const found = mData.conflicts.filter((c: any) => {
-                if (c.enemy_id && String(mObj.dbId) === String(c.enemy_id)) return true;
-                if (c.enemy_name) {
-                  const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase();
-                  if (mObjCleanN === targetClean || mObjDispUpper === targetClean) return true;
-                }
-                return false;
-              });
-
-              found.forEach((c: any) => {
-                if (areArchetypes(mObj.hash, mData.hash)) return;
-                const targetRank = Number(c.severity_rank);
-                if (targetRank == 4) casualties.push({ name: mData.displayName || mData.name, rawName: mData.name, note: c.conflict_note || c.resolution_note || "" });
-                if (targetRank == 3) tier3List.push({ name: mData.displayName || mData.name, rawName: mData.name, note: c.conflict_note || c.resolution_note || "" });
-              });
-            }
-          });
-
-          // Local conflicts
-          localConflictsMemo.forEach((lc: any) => {
-            const mObjClean = String(mObj.name || "").toUpperCase();
-            const mObjDisp = String(mObj.displayName || "").toUpperCase();
-
-            let isMObjA = mObjClean.includes(lc.modAUpper) || mObjDisp.includes(lc.modAUpper) || lc.modAUpper.includes(mObjClean);
-            let isMObjB = mObjClean.includes(lc.modBUpper) || mObjDisp.includes(lc.modBUpper) || lc.modBUpper.includes(mObjClean);
-
-            if (isMObjA || isMObjB) {
-              const targetEnemy = isMObjA ? lc.modBUpper : lc.modAUpper;
-              const matchItem = uppercaseEquippedMods.find((item: any) => {
-                return item.emClean.includes(targetEnemy) || item.emDisp.includes(targetEnemy) || targetEnemy.includes(item.emClean);
-              });
-
-              if (matchItem) {
-                const matchObj = matchItem.mData;
-                const targetRank = Number(lc.severity_rank);
-                const isWinnerMObj = mObj._originalSetName?.toLowerCase().startsWith("sanctuary") || mObj.name?.toLowerCase().startsWith("sanctuary");
-                const isWinnerEnemy = matchObj._originalSetName?.toLowerCase().startsWith("sanctuary") || matchObj.name?.toLowerCase().startsWith("sanctuary");
-                if (isWinnerMObj || isWinnerEnemy) return;
-                if (areArchetypes(mObj.hash, matchObj.hash)) return;
-
-                if (targetRank == 4) casualties.push({ name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: lc.resolution_note || "Local Scan Detects Tuning Overlap" });
-                if (targetRank == 3) tier3List.push({ name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: lc.resolution_note || "Local Scan Detects Tuning Overlap" });
-              }
-            }
-          });
-        };
-
-        checkConflicts(mod);
+        checkConflicts(mod, casualties, tier3List);
         if (mod.isVirtual && mod.flavors) {
-          mod.flavors.forEach(checkConflicts);
+          mod.flavors.forEach((f: any) => checkConflicts(f, casualties, tier3List));
         }
 
         casualties = Array.from(new Map(casualties.map((item: any) => [item.name || item, item])).values());
@@ -393,8 +357,9 @@ export function VaultGrid(props: any) {
 
   const drawerComputations = React.useMemo(() => {
     const map = new Map();
-    paginatedMods.forEach((mod: any) => {
-      const isExpanded = expandedFolder === (mod.hash || mod.name);
+    paginatedMods.forEach((mod: any, index: number) => {
+      const mainKey = `${mod.hash || mod.name}-${index}`;
+      const isExpanded = expandedFolder === mainKey;
 
       (mod.flavors || []).forEach((flavor: any) => {
         const isFlavorEquipped = activeSetMods.includes(flavor.name);
@@ -405,6 +370,7 @@ export function VaultGrid(props: any) {
           map.set(flavor.hash || flavor.name, {
             isFlavorEquipped,
             drawerCasualties: [],
+            flavorTier3: [],
             isSwappedState: false,
             isBetaSwap: false,
             missingPacks: [],
@@ -477,6 +443,19 @@ export function VaultGrid(props: any) {
             drawerCasualties = [...drawerCasualties, ...siblingObjs].filter((v, i, a) => a.findIndex(t => (t.name || t) === (v.name || v)) === i);
           }
         }
+        
+        // ADD S4 COLLISIONS TO DRAWER CASUALTIES
+        let flavorTier3: any[] = [];
+        if (!isFlavorEquipped) {
+            console.log("DRAWER_DEBUG_BEFORE", flavor.name, JSON.stringify(drawerCasualties));
+            checkConflicts(flavor, drawerCasualties, flavorTier3);
+            console.log("DRAWER_DEBUG_AFTER_FLAVOR", flavor.name, JSON.stringify(drawerCasualties));
+            checkConflicts(mod, drawerCasualties, flavorTier3);
+            console.log("DRAWER_DEBUG_AFTER_MOD", flavor.name, JSON.stringify(drawerCasualties));
+            
+            drawerCasualties = Array.from(new Map(drawerCasualties.map((item: any) => [item.name || item, item])).values());
+            flavorTier3 = Array.from(new Map(flavorTier3.map((item: any) => [item.name || item, item])).values());
+        }
         if (anarchyRules?.intercept === false) {
           drawerCasualties = [];
         }
@@ -502,15 +481,16 @@ export function VaultGrid(props: any) {
           const baseCode = p.split(' ')[0].toUpperCase();
           return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
         });
-        const hasMissingDeps = flavor.missingReqs && flavor.missingReqs.length > 0;
+        const hasMissingDeps = (flavor.missingReqs && flavor.missingReqs.length > 0) || (mod.missingReqs && mod.missingReqs.length > 0);
 
         const flavorVersionMismatch = (flavor.compatible_versions && flavor.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(flavor.compatible_versions, selectedVersion)) || (mod.compatible_versions && mod.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(mod.compatible_versions, selectedVersion));
         const flavorGhostReason = flavor.ghostReason || (flavorVersionMismatch ? "VERSION_MISMATCH" : null) || (mod.ghostReason === "VERSION_MISMATCH" ? "VERSION_MISMATCH" : null);
-        const isFlavorGhosted = missingPacks.length > 0 || hasMissingDeps || flavor.isGhosted || flavorGhostReason === "VERSION_MISMATCH";
+        const isFlavorGhosted = missingPacks.length > 0 || hasMissingDeps || flavor.isGhosted || mod.isGhosted || flavorGhostReason === "VERSION_MISMATCH";
 
         map.set(flavor.hash || flavor.name, {
           isFlavorEquipped,
           drawerCasualties,
+          flavorTier3,
           isSwappedState,
           isBetaSwap,
           missingPacks,
@@ -522,7 +502,7 @@ export function VaultGrid(props: any) {
       });
     });
     return map;
-  }, [paginatedMods, activeSetMods, equippedDisplayMods, dependencyGraph, activeGameSchema, localSets, anarchyRules, ownedDLC, maskedDLC, selectedVersion]);
+  }, [paginatedMods, activeSetMods, equippedDisplayMods, dependencyGraph, activeGameSchema, localSets, anarchyRules, ownedDLC, maskedDLC, selectedVersion, checkConflicts, expandedFolder]);
 
 
   return (
@@ -733,8 +713,10 @@ export function VaultGrid(props: any) {
                           })
                           .map(
                             (flavor: any, subIdx: number) => {
-                              const comp = drawerComputations.get(flavor.hash || flavor.name) || { isFlavorEquipped: false, drawerCasualties: [], isSwappedState: false, isBetaSwap: false, missingPacks: [], hasMissingDeps: false, flavorVersionMismatch: false, flavorGhostReason: null, isFlavorGhosted: false };
-                              const { isFlavorEquipped, drawerCasualties, isSwappedState, isBetaSwap, missingPacks, hasMissingDeps, flavorVersionMismatch, flavorGhostReason, isFlavorGhosted } = comp;
+                              const comp = drawerComputations.get(flavor.hash || flavor.name) || { isFlavorEquipped: false, drawerCasualties: [], flavorTier3: [], isSwappedState: false, isBetaSwap: false, missingPacks: [], hasMissingDeps: false, flavorVersionMismatch: false, flavorGhostReason: null, isFlavorGhosted: false };
+                              const { isFlavorEquipped, drawerCasualties, flavorTier3, isSwappedState, isBetaSwap, missingPacks, hasMissingDeps, flavorVersionMismatch, flavorGhostReason, isFlavorGhosted } = comp;
+                              
+                              const combinedMissingDeps = [...(flavor.missingReqs || []), ...(mod.missingReqs || [])].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
 
                               return (
                                 <ModCard
@@ -747,8 +729,8 @@ export function VaultGrid(props: any) {
                                   isInActiveSet={isFlavorEquipped}
                                   casualtyList={drawerCasualties}
                                   anarchyRules={anarchyRules}
-                                  tier3List={[]}
-                                  missingDeps={flavor.missingReqs || []}
+                                  tier3List={flavorTier3 || []}
+                                  missingDeps={combinedMissingDeps}
                                   flavorGhostReason={flavorGhostReason}
                                   isSelfGhosted={isFlavorGhosted}
                                   isSelfSwapped={isSwappedState}
@@ -761,7 +743,7 @@ export function VaultGrid(props: any) {
                                         return;
                                       }
                                     }
-                                    if (!isFlavorEquipped && drawerCasualties.length > 0 && drawerConfirmHash !== flavor.hash && anarchyRules?.intercept !== false) {
+                                    if (!overrideBroken && !isFlavorEquipped && drawerCasualties.length > 0 && drawerConfirmHash !== flavor.hash && anarchyRules?.intercept !== false) {
                                       setDrawerConfirmHash(flavor.hash);
                                       return;
                                     }

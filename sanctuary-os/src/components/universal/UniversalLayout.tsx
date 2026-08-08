@@ -23,10 +23,10 @@ export function UniversalGroup({
   innerClassName = "flex flex-col gap-2"
 }: UniversalGroupProps) {
   return (
-    <div className={`flex flex-col gap-4 glass-surface rounded-[1.5rem] p-5 relative ${className}`}>
-      <div className="flex items-center justify-between">
-        <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 ${headerColorClass}`}>
-          {icon && <span className="material-symbols-outlined !text-[16px]">{icon}</span>}
+    <div className={`flex flex-col gap-6 relative mb-2 ${className}`}>
+      <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+        <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${headerColorClass}`}>
+          {icon && <span className="material-symbols-outlined !text-[14px]">{icon}</span>}
           {title}
         </h4>
         {headerAction && <div>{headerAction}</div>}

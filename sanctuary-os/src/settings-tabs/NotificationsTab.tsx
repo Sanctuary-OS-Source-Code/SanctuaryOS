@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLexicon } from '../LexiconContext';
-import { TabContainer, SettingsGrid, SettingsToggle } from './shared';
+import { SettingsToggle, TabContainer, SettingsGrid } from './shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
+import { ActionButton } from '../shared';
 import { SidePanel } from '../shared';
 import { supabase } from '../supabase';
 
@@ -86,9 +87,12 @@ export default function NotificationsTab() {
         title={t("tab_notifs")}
         icon="notifications"
         actions={
-          <button onClick={() => setShowMasonPanel(true)} className={standardButtonClass}>
-            <span className="material-symbols-outlined lowercase theme-text-accent text-lg">{t("icon_notifications")}</span> {t("notif_per_mason")}
-          </button>
+          <ActionButton 
+            variant="glass"
+            icon={t("icon_notifications") || "notifications"}
+            label={t("notif_per_mason")}
+            onClick={() => setShowMasonPanel(true)}
+          />
         }
       >
         <SettingsGrid>

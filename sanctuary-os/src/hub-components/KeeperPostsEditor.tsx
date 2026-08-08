@@ -513,11 +513,9 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
             onClick={() => openEditor()}
             className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px] relative"
             icon={t("icon_cell_tower")}
-            label={t("post_broadcast")}
+            label={wayfinderDrafts['new'] ? t("action_unsaved_draft") || "UNSAVED DRAFT" : t("post_broadcast")}
+            variant={wayfinderDrafts['new'] ? "warning" : "default"}
           >
-            {wayfinderDrafts['new'] && (
-              <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-[var(--warning)] border-2 border-[var(--bg)] shadow-md animate-pulse"></span>
-            )}
           </ActionButton>
         </div>
       </div>
@@ -654,6 +652,8 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
                       <div className="h-14">
                         <CustomDropdown disableTint={true}
+                          searchable={true}
+                          allowCustom={true}
                           value={category}
                           onChange={(v: string[]) => setCategory(v[0])}
                           options={

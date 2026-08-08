@@ -66,9 +66,16 @@ export function SettingsGrid({ children }: any) {
 
 
 export function SettingsToggle({ checked, danger }: any) {
+  const containerBase = "w-12 h-6 rounded-full transition-all duration-300 flex items-center p-1 shrink-0 border backdrop-blur-md box-border";
+  const checkedAccent = "bg-[var(--accent)]/[15%] theme-border-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]";
+  const checkedDanger = "bg-[var(--danger)]/[20%] border-[var(--danger)] shadow-[0_0_15px_rgba(255,0,0,0.2)]";
+  const uncheckedClass = "bg-black/20 border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-inner";
+  
+  const containerClasses = `${containerBase} ${checked ? (danger ? checkedDanger : checkedAccent) : uncheckedClass}`;
+  
   return (
-    <div className={`w-12 h-6 rounded-full transition-colors flex items-center p-1 shrink-0 ${checked ? (danger ? "bg-[var(--danger)] shadow-[0_0_15px_var(--danger)]" : "theme-bg-accent shadow-[0_0_15px_var(--accent)]") : "bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)]"}`}>
-      <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 ${checked ? "translate-x-6" : "translate-x-0"}`} />
+    <div className={containerClasses}>
+      <div className={`w-4 h-4 rounded-full transition-all duration-300 ${checked ? "translate-x-[22px] bg-white shadow-[0_0_10px_white]" : "translate-x-0 bg-[var(--text)] opacity-40"}`} />
     </div>
   );
 }

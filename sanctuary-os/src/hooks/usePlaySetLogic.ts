@@ -4,7 +4,7 @@ import { useMemo, useCallback } from "react";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { getExtensionRegex } from "../shared";
+import { getExtensionRegex, formatDisplayName } from "../shared";
 
 export function usePlaySetLogic() {
   const { playSets, setPlaySets, activePlaySetIndex, setActivePlaySetIndex, activeSetName, setActiveSetName, anarchyRules, modList, activeGameSchema, setStatus, ownedDLC, maskedDLC, ignoredGlobal, setIgnoredGlobal } = useStore();
@@ -158,7 +158,10 @@ export function usePlaySetLogic() {
                 const strM = typeof m === 'string' ? m : (m.name || m.path || '');
                 return strM === targetName || strM.replace(/^(sanctuary[/\\])+/i, '') === targetName.replace(/^(sanctuary[/\\])+/i, '');
             });
-            if (toDelete) newMods.delete(toDelete);
+            if (toDelete) {
+               newMods.delete(toDelete);
+               setStatus(`${t("anarchy_intercept") || "CONFLICT INTERCEPT"}: ${formatDisplayName(targetName)} ${t("artifact_removed") || "removed"}.`);
+            }
             const updatedSets = [...prevSets];
             updatedSets[activePlaySetIndex] = { ...currentSet, mods: Array.from(newMods) };
 
@@ -183,6 +186,7 @@ export function usePlaySetLogic() {
       const newModsCleaned = new Set(Array.from(newMods).map((mObj: any) => 
           cleanSanctuaryPrefix(typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || ''))
       ));
+      const deletedInPass = new Set<string>();
 
       let isEquipping = targetMod.isVirtual
         ? !kids.some((k) => newModsCleaned.has(cleanSanctuaryPrefix(k.name)))
@@ -196,6 +200,7 @@ export function usePlaySetLogic() {
         });
         if (!toDelete) return;
         newMods.delete(toDelete);
+        deletedInPass.add(nameToDelete);
 
         const targetClean = precomputedBaseNames.get(nameToDelete) || "";
         if (targetClean) {
@@ -280,6 +285,7 @@ export function usePlaySetLogic() {
                  
                  if (isFlavorRival || isCommunityRival || isBetaRival) {
                      deepDelete(m.name, true);
+                     setStatus(`${t("radar_intercept") || "RADAR"}: ${formatDisplayName(modObj.displayName || modObj.name)} ${t("flavor_replaced") || "replaced"} ${formatDisplayName(m.displayName || m.name)}.`);
                  }
              }
           });
@@ -298,7 +304,9 @@ export function usePlaySetLogic() {
                     return false;
                  });
                  if (matchStr) {
+                    const deletedMod = modMap.get(matchStr);
                     deepDelete(matchStr);
+                    setStatus(`${t("anarchy_intercept") || "CONFLICT INTERCEPT"}: ${formatDisplayName(deletedMod?.displayName || deletedMod?.name || matchStr)} ${t("artifact_removed") || "removed"} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
                  }
               }
            });
@@ -311,9 +319,33 @@ export function usePlaySetLogic() {
           setStatus(t("critical_action"));
           return;
         }
-        
         newMods.add(modObj.name);
         applyConflicts(modObj);
+        
+        // REVERSE CONFLICT CHECK:
+        // If an already equipped mod conflicts with modObj, we must yeet the equipped mod.
+        // Otherwise, the equipped mod might yeet modObj during family evaluation.
+        Array.from(newMods as Set<string>).forEach((activeName: string) => {
+            if (activeName === modObj.name) return;
+            const activeM = modMap.get(activeName);
+            if (activeM && activeM.conflicts && currentRules.intercept !== false) {
+                activeM.conflicts.forEach((c: any) => {
+                    if (c.severity_rank == 4) {
+                        let isReverseMatch = false;
+                        if (c.enemy_id && String(modObj.dbId) === String(c.enemy_id)) isReverseMatch = true;
+                        if (c.enemy_name) {
+                            const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase().replace(/_SCRIPT(S)?$/i, "");
+                            const cleanN = precomputedBaseNames.get(modObj.name) || "";
+                            if (cleanN === targetClean || modObj.displayName?.toUpperCase() === targetClean) isReverseMatch = true;
+                        }
+                        if (isReverseMatch) {
+                            deepDelete(activeName);
+                            setStatus(`${t("anarchy_intercept") || "CONFLICT INTERCEPT"}: ${formatDisplayName(activeM.displayName || activeM.name)} ${t("artifact_removed") || "removed"} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
+                        }
+                    }
+                });
+            }
+        });
         
 
         
@@ -355,8 +387,10 @@ export function usePlaySetLogic() {
                   !m.relationshipType || isTwinMatch)
               ) {
                 if (!(excludeBroken && (m.status === t("status_broken") || m.status?.includes("BROKEN") || checkGhosted(m)))) {
-                  applyConflicts(m);
-                  newMods.add(m.name);
+                  if (!deletedInPass.has(m.name)) {
+                     applyConflicts(m);
+                     newMods.add(m.name);
+                  }
                 }
               }
             }
@@ -440,7 +474,7 @@ export function usePlaySetLogic() {
                     if (!provider && !isReqNumeric && reqBaseName) {
                         provider = namesAndDisplayNames.find(n => n.displayNameUpper.includes(reqBaseName))?.orig;
                     }
-                    if (provider) {
+                    if (provider && !deletedInPass.has(typeof provider === 'string' ? provider : provider.name)) {
                       const beforeSize = newMods.size;
                       addWithFamily(provider);
                       if (newMods.size > beforeSize) {
@@ -479,6 +513,9 @@ export function usePlaySetLogic() {
             .forEach((m) => deepDelete(m.name));
         } else {
           deepDelete(targetName);
+        }
+        if (forceRemove) {
+           setStatus(`${t("anarchy_intercept") || "CONFLICT INTERCEPT"}: ${formatDisplayName(targetMod.displayName || targetMod.name)} ${t("artifact_removed") || "removed"}.`);
         }
       }
       const updatedSets = [...prevSets];

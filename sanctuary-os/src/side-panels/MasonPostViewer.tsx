@@ -84,6 +84,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
 
   const masonCommentDrafts = useStore(state => state.masonCommentDrafts);
   const setMasonCommentDrafts = useStore(state => state.setMasonCommentDrafts);
+  const gameName = useStore(state => state.activeGameSchema?.display_name || state.activeGameSchema?.name || "Sanctuary");
 
   const [userCollapsed, setUserCollapsed] = useState<Set<string>>(new Set());
   const [userExpanded, setUserExpanded] = useState<Set<string>>(new Set());
@@ -470,10 +471,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               </div>
               {c.code_snippet && !c.is_hidden && (
                 <div className="mt-4 flex">
-                  <button onClick={() => setActiveCodeSnippet(c.code_snippet)} className="px-5 py-2.5 rounded-lg bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] text-[var(--accent)] hover:bg-[var(--accent)]/[15%] hover:border-[var(--accent)]/[30%] backdrop-blur-md text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-md hover:scale-105 active:scale-95">
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_data_object")}</span>
-                    {t("show_code")}
-                  </button>
+                  <ActionButton onClick={() => setActiveCodeSnippet(c.code_snippet)} variant="accent" icon="data_object" label={t("show_code")} />
                 </div>
               )}
             </>
@@ -570,7 +568,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       className="text-[13px] font-black uppercase tracking-widest text-[var(--text)] hover:theme-text-accent cursor-pointer transition-colors"
                       onClick={() => { if (post.mason_id !== 'system') { onClose(); onOpenMasonProfile?.(post.mason_id); } }}
                     >
-                      {post.mason_id === 'system' ? 'SANCTUARY OS SYSTEM' : (post.masons?.name || t("unknown_architect") || "Unknown Architect")}
+                      {post.mason_id === 'system' ? (post.masons?.name || t("author_sanctuary_team") || "Sanctuary OS Team") : (post.masons?.name || t("unknown_architect") || "Unknown Architect")}
                     </span>
                     {post.mason_id === 'system' && (
                       <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]" title="Verified System Transmission">verified</span>
@@ -605,7 +603,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 </div>
 
                 {post.code_snippet && (
-                  <div className="mt-8 p-6 rounded-[var(--radius)] glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative overflow-hidden group shadow-lg">
+                  <div className="mt-8 p-6 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden group">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-5">
                         <div className="w-12 h-12 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center">
@@ -616,10 +614,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] mt-1">{t("code_desc")}</p>
                         </div>
                       </div>
-                      <button onClick={() => setActiveCodeSnippet(post.code_snippet)} className="px-6 py-3 rounded-[calc(var(--radius)-4px)] bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest hover:bg-[var(--accent)]/[20%] hover:border-[var(--accent)]/[50%] hover:scale-105 transition-all shadow-md flex items-center gap-2 backdrop-blur-md active:scale-95">
-                        <span className="material-symbols-outlined text-[16px]">{t("icon_visibility")}</span>
-                        {t("show_code")}
-                      </button>
+                      <ActionButton onClick={() => setActiveCodeSnippet(post.code_snippet)} variant="accent" icon="visibility" label={t("show_code")} />
                     </div>
                   </div>
                 )}
@@ -679,9 +674,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                         <span className="material-symbols-outlined !text-[16px]">link</span> {t("link_asset")}
                       </button>
                     </div>
-                    <button type="submit" disabled={!newComment.trim() && !codeSnippet.trim()} className="px-8 py-3 rounded-[calc(var(--radius)-4px)] border border-[var(--accent)]/[30%] bg-[var(--accent)]/[10%] theme-text-accent font-black uppercase tracking-[0.2em] text-[10px] hover:bg-[var(--accent)]/[20%] hover:scale-105 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2">
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_send")}</span> {t("btn_send")}
-                    </button>
+                    <ActionButton type="submit" disabled={!newComment.trim() && !codeSnippet.trim()} variant="accent" icon={t("icon_send") || "send"} label={t("btn_send")} />
                   </div>
                 </form>
               ) : (
@@ -705,10 +698,14 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               <div className="flex items-center gap-4">
                 {post.mason_id !== 'system' && <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50">{t("creator_links")}</span>}
                 {post.mason_id !== 'system' && (
-                  <button onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }} className={standardButtonClass}>{t("btn_view_profile")}</button>
+                  <ActionButton onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }} variant="glass" icon="person" label={t("btn_view_profile")} />
                 )}
-                {post.masons?.patreon_url && <button onClick={() => handleOpenUrl(post.masons.patreon_url)} className="px-8 py-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-black uppercase tracking-[0.2em] rounded-[var(--radius)] hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300 hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2">{t("btn_patreon")}</button>}
-                {post.masons?.discord_url && <button onClick={() => handleOpenUrl(post.masons.discord_url)} className="px-8 py-4 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-black uppercase tracking-[0.2em] rounded-[var(--radius)] hover:bg-indigo-500/20 hover:border-indigo-500/60 hover:text-indigo-300 hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2">{t("btn_discord")}</button>}
+                {post.masons?.patreon_url && (
+                  <ActionButton onClick={() => handleOpenUrl(post.masons.patreon_url)} variant="danger" icon="favorite" label={t("btn_patreon")} />
+                )}
+                {post.masons?.discord_url && (
+                  <ActionButton onClick={() => handleOpenUrl(post.masons.discord_url)} variant="glass" icon="forum" label={t("btn_discord")} />
+                )}
               </div>
               <div className="flex items-center gap-4">
                 {userId && !isPostAuthor && !isBanned && (
@@ -765,8 +762,8 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
         onClose={() => setIsAssetPanelOpen(false)}
         title={t("link_asset")}
         icon="link"
-        backdropZ="z-[50000]"
-        panelZ="z-[50001]"
+        backdropZ="z-[60000]"
+        panelZ="z-[60001]"
       >
         <div className="flex flex-col gap-6">
           <div className="animate-in slide-in-from-top-2">

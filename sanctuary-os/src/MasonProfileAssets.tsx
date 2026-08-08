@@ -1,4 +1,4 @@
-import { stripMarkdown, EmptyState } from './shared';
+import { stripMarkdown, EmptyState, ActionButton } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
 
 export default function MasonProfileAssets({ 
@@ -80,7 +80,13 @@ export default function MasonProfileAssets({
                 <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
-                    <button onClick={(e) => { e.stopPropagation(); setSelectedBlueprint(asset); }} className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] hover:scale-105">{t("update_panel_install")}</button>
+                    <ActionButton
+                      onClick={(e) => { e.stopPropagation(); setSelectedBlueprint(asset); }}
+                      variant="primary"
+                      icon="download"
+                      label={t("update_panel_install")}
+                      className="!py-1.5 !px-3 !text-[9px]"
+                    />
                   </div>
                 </div>
               }
@@ -135,18 +141,19 @@ export default function MasonProfileAssets({
                 <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
-                    <button
-                      onClick={async (e) => {
+                    <ActionButton
+                      onClick={(e) => {
                         e.stopPropagation();
                         const parsed = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
                         importLexicon(asset.name, parsed);
                         if (parsed._meta_language) localStorage.setItem("sanctuary_ui_language", parsed._meta_language);
                         if (parsed._meta_version) localStorage.setItem(`sanctuary_lexicon_version_${asset.name}`, parsed._meta_version);
                       }}
-                      className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? isOutdated(asset) ? 'bg-[color-mix(in_srgb,#3b82f6_15%,transparent)] border border-[color-mix(in_srgb,#3b82f6_30%,transparent)] text-[#3b82f6] hover:bg-[color-mix(in_srgb,#3b82f6_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--subtext)_10%,transparent)] border border-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--subtext)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--subtext)_15%,transparent)] backdrop-blur-md' : 'bg-emerald-500/[15%] border border-emerald-500/[30%] text-[#10b981] hover:bg-emerald-500/[20%]'}`}
-                    >
-                      {isInstalled(asset) ? isOutdated(asset) ? "UPDATE" : (t("btn_reinstall")) : (t("update_panel_install"))}
-                    </button>
+                      variant={isInstalled(asset) ? (isOutdated(asset) ? 'primary' : 'glass') : 'success'}
+                      icon={isInstalled(asset) ? (isOutdated(asset) ? 'update' : 'refresh') : 'download'}
+                      label={isInstalled(asset) ? (isOutdated(asset) ? "UPDATE" : (t("btn_reinstall"))) : (t("update_panel_install"))}
+                      className="!py-1.5 !px-3 !text-[9px]"
+                    />
                   </div>
                 </div>
               }
@@ -193,17 +200,18 @@ export default function MasonProfileAssets({
                 <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
-                    <button
+                    <ActionButton
                       onClick={async (e) => {
                         e.stopPropagation();
                         const parsed = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
                         importTheme(parsed.name || asset.name, parsed);
                         useStore.getState().pushStatus(`Imported ${parsed.name || asset.name} from Cloud`);
                       }}
-                      className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? isOutdated(asset) ? 'bg-[color-mix(in_srgb,#3b82f6_15%,transparent)] border border-[color-mix(in_srgb,#3b82f6_30%,transparent)] text-[#3b82f6] hover:bg-[color-mix(in_srgb,#3b82f6_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--subtext)_10%,transparent)] border border-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--subtext)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--subtext)_15%,transparent)] backdrop-blur-md' : 'bg-emerald-500/[15%] border border-emerald-500/[30%] text-[#10b981] hover:bg-emerald-500/[20%]'}`}
-                    >
-                      {isInstalled(asset) ? isOutdated(asset) ? "UPDATE" : (t("btn_reinstall")) : (t("update_panel_install"))}
-                    </button>
+                      variant={isInstalled(asset) ? (isOutdated(asset) ? 'primary' : 'glass') : 'success'}
+                      icon={isInstalled(asset) ? (isOutdated(asset) ? 'update' : 'refresh') : 'download'}
+                      label={isInstalled(asset) ? (isOutdated(asset) ? "UPDATE" : (t("btn_reinstall"))) : (t("update_panel_install"))}
+                      className="!py-1.5 !px-3 !text-[9px]"
+                    />
                   </div>
                 </div>
               }
@@ -249,7 +257,7 @@ export default function MasonProfileAssets({
                 <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
-                    <button
+                    <ActionButton
                       onClick={async (e) => {
                         e.stopPropagation();
                         const parsed = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
@@ -271,10 +279,11 @@ export default function MasonProfileAssets({
                           }
                         }
                       }}
-                      className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 bg-emerald-500/[15%] border border-emerald-500/[30%] text-[#10b981] hover:bg-emerald-500/[20%]`}
-                    >
-                      {t("update_panel_install")}
-                    </button>
+                      variant="success"
+                      icon="download"
+                      label={t("update_panel_install")}
+                      className="!py-1.5 !px-3 !text-[9px]"
+                    />
                   </div>
                 </div>
               }

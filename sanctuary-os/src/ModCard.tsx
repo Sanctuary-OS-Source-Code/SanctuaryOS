@@ -42,7 +42,7 @@ interface ModCardProps {
 function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, ownedDLC = [],
   maskedDLC = [], casualtyList = [], tier3List = [], missingDeps = [], isParent = false, isExpanded = false, onExpand = () => { },
   isBulkMode = false, isSelected = false, onToggleSelect = () => { }, onResolveConflict, anarchyRules = null, hideIneligible = false, isFlavorSwap = false,
-  onInspectItem, onContextMenu, id, compact = false, isGhostPlaceholder = false, hideHitBox = false }: ModCardProps) {
+  onInspectItem, onContextMenu, id, compact = false, isGhostPlaceholder = false, hideHitBox = false, flavorGhostReason, isSelfGhosted, isSelfSwapped, isSelfBetaSwap }: ModCardProps) {
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
@@ -61,7 +61,16 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
   let rawDLC: string[] = [];
   if (mod.requiredDLC) {
     if (typeof mod.requiredDLC === 'string') {
-      rawDLC = mod.requiredDLC.split(',').map((s: string) => s.trim());
+      try {
+        const parsed = JSON.parse(mod.requiredDLC);
+        if (Array.isArray(parsed)) {
+          rawDLC = parsed.map((s: any) => String(s).trim());
+        } else {
+          rawDLC = mod.requiredDLC.split(',').map((s: string) => s.trim());
+        }
+      } catch (e) {
+        rawDLC = mod.requiredDLC.split(',').map((s: string) => s.trim());
+      }
     } else if (Array.isArray(mod.requiredDLC)) {
       rawDLC = [...mod.requiredDLC];
     }
@@ -70,7 +79,18 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
     mod.flavors.forEach((f: any) => {
       if (f.requiredDLC) {
         let fDLC = f.requiredDLC;
-        if (typeof fDLC === 'string') fDLC = fDLC.split(',').map((s: string) => s.trim());
+        if (typeof fDLC === 'string') {
+          try {
+            const parsed = JSON.parse(fDLC);
+            if (Array.isArray(parsed)) {
+              fDLC = parsed.map((s: any) => String(s).trim());
+            } else {
+              fDLC = fDLC.split(',').map((s: string) => s.trim());
+            }
+          } catch (e) {
+            fDLC = fDLC.split(',').map((s: string) => s.trim());
+          }
+        }
         if (Array.isArray(fDLC)) {
           fDLC.forEach((d: string) => { if (!rawDLC.includes(d)) rawDLC.push(d); });
         }
@@ -100,15 +120,15 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
 
   const isGameVersionMismatch = gameVersion && familyVersion !== "Unknown" && familyVersion !== "ALL" && familyVersion !== "" && !isVersionMatch([familyVersion], gameVersion);
 
-  const isGhosted = missingPacks.length > 0 || hasMissingDeps || (isGameVersionMismatch && mod.ghostReason !== "VERSION_MISMATCH" ? true : mod.ghostReason === "VERSION_MISMATCH") || mod.isGhosted;
+  const isGhosted = isSelfGhosted !== undefined ? isSelfGhosted : (missingPacks.length > 0 || hasMissingDeps || (isGameVersionMismatch && mod.ghostReason !== "VERSION_MISMATCH" ? true : mod.ghostReason === "VERSION_MISMATCH") || mod.isGhosted);
 
   if (hideIneligible && isGhosted) {
     return null;
   }
 
   const requiredVersions = [familyVersion];
-  const isBetaSwap = !isInActiveSet && (mod.relationshipType === 'beta' || (mod.relationshipType !== 'core' && mod.sub_type?.toLowerCase() === 'beta') || (mod.isVirtual && mod.flavors?.some((f: any) => f.relationshipType === 'beta' || (f.relationshipType !== 'core' && f.sub_type?.toLowerCase() === 'beta'))));
-  const isSwappedState = (isFlavorSwap || isBetaSwap) && !isInActiveSet;
+  const isBetaSwap = isSelfBetaSwap !== undefined ? isSelfBetaSwap : (!isInActiveSet && (mod.relationshipType === 'beta' || (mod.relationshipType !== 'core' && mod.sub_type?.toLowerCase() === 'beta') || (mod.isVirtual && mod.flavors?.some((f: any) => f.relationshipType === 'beta' || (f.relationshipType !== 'core' && f.sub_type?.toLowerCase() === 'beta')))));
+  const isSwappedState = isSelfSwapped !== undefined ? isSelfSwapped : ((isFlavorSwap || isBetaSwap) && !isInActiveSet);
   const isNemesisEquipped = !isInActiveSet && casualtyList.length > 0 && !casualtyList.every((c: any) => mod.flavors?.some((f: any) => f.name === (c.name || c) || f.displayName === (c.name || c) || (c.name || c) === (f.displayName || f.name))) && !isSwappedState;
   const getIsBroken = (m: any) => {
     let broken = typeof m.status === 'string' && m.status.toLowerCase() === 'broken';
@@ -136,9 +156,9 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
   const handleToggleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!isInActiveSet) {
-      if (isGhosted) { setConfirmMode('dlc'); return; }
       if (isSwappedState && casualtyList.length > 0) { setConfirmMode('flavor_swap'); return; }
-      if (casualtyList.length > 0) { setConfirmMode('casualty'); return; }
+      if (isNemesisEquipped) { setConfirmMode('casualty'); return; }
+      if (isGhosted) { setConfirmMode('dlc'); return; }
       if (hasTier3) { setConfirmMode('tier3'); return; }
       if (brokenMods.length > 0) { setConfirmMode('broken'); return; }
     }
@@ -385,12 +405,17 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
           }
           footer={
             isParent && !hideHitBox ? (
-              <div
-                className={`w-full cursor-pointer flex items-center justify-center gap-2 transition-all font-black text-[9px] uppercase tracking-widest ${isExpanded ? 'text-[var(--text)]' : 'text-[var(--subtext)] hover:text-[var(--text)]'}`}
+              <div 
+                className="group/hitbox static cursor-pointer pointer-events-auto" 
                 onClick={(e) => { e.stopPropagation(); onExpand(e); }}
               >
-                <span className="leading-none">{mod.flavors?.length || 0} {t("items")}</span>
-                <span className={`material-symbols-outlined !text-[12px] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
+                <div className="absolute inset-0 z-0" />
+                <div
+                  className={`relative z-10 w-full flex items-center justify-center gap-2 -translate-y-1.5 transition-all font-black text-[9px] uppercase tracking-widest ${isExpanded ? 'text-[var(--text)]' : 'text-[var(--subtext)] group-hover/hitbox:text-[var(--text)]'}`}
+                >
+                  <span className="leading-none flex items-center mt-[1px]">{mod.flavors?.length || 0} {t("items")}</span>
+                  <span className={`material-symbols-outlined !text-[14px] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
+                </div>
               </div>
             ) : undefined
           }
@@ -537,7 +562,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                     )}
                   </>
                 ) : (
-                  <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className={`flex-1 min-w-0 py-2 rounded-[16px] border font-black text-[10px] uppercase tracking-widest px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all ${delayedConfirmMode === 'flavor_swap' ? 'bg-[var(--accent)]/[10%] border-[var(--accent)]/[30%] theme-text-accent' : 'bg-red-500/[10%] border-red-500/[30%] text-[var(--danger)]'}`}>
+                  <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className={`flex-1 min-w-0 py-2 rounded-[16px] border font-black text-[10px] uppercase tracking-widest px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all ${delayedConfirmMode === 'flavor_swap' ? 'bg-[var(--accent)]/[10%] border-[var(--accent)]/[30%] theme-text-accent' : 'bg-red-500/[10%] border-red-500/[30%] text-[var(--danger)]'}`}>
                     {delayedConfirmMode === 'flavor_swap' ? t("btn_swap_confirm") : t("btn_purge_confirm")}
                   </button>
                 )}

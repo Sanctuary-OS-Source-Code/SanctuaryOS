@@ -13,45 +13,47 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
         </div>
       </div>
 
-      <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] p-8 shadow-2xl relative overflow-hidden backdrop-blur-3xl group flex flex-col xl:flex-row gap-8 items-start xl:items-center">
+      <div className="relative py-8 group flex flex-col xl:flex-row gap-8 items-start xl:items-center border-y border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-gradient-to-r from-transparent via-[var(--bg)]/10 to-transparent backdrop-blur-sm">
 
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] opacity-20 pointer-events-none" />
-        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-30" />
-        <div className="absolute bottom-0 right-0 w-[40rem] h-[40rem] theme-bg-accent opacity-[0.04] blur-[120px] rounded-full pointer-events-none translate-y-1/2 translate-x-1/4" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] opacity-10 pointer-events-none" />
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-20" />
+        <div className="absolute bottom-0 right-0 w-[40rem] h-[40rem] theme-bg-accent opacity-[0.02] blur-[100px] rounded-full pointer-events-none translate-y-1/2 translate-x-1/4" />
 
-        <div className="relative shrink-0 flex items-center justify-center">
-          <div className="absolute inset-0 border border-[var(--accent)] rotate-45 scale-[1.1] rounded-[var(--radius)] opacity-20 group-hover:rotate-90 transition-transform duration-1000 blur-[2px]" />
-          <div className="w-[120px] h-[120px] rounded-[var(--radius)] bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center overflow-hidden relative shadow-md z-10 backdrop-blur-xl">
-            <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/20 to-transparent z-20 pointer-events-none mix-blend-overlay" />
-            {mason.avatar_url ? (
-              <img src={mason.avatar_url} alt={t("auto_avatar")} className="w-full h-full object-cover filter contrast-[1.1] group-hover:scale-105 transition-transform duration-700" />
-            ) : (
-              <span className="text-5xl opacity-40 grayscale material-symbols-outlined">{t("icon_construction")}</span>
-            )}
-          </div>
-          {mason.is_verified && (
-            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full shadow-[0_4px_20px_rgba(16,185,129,0.3)] z-30 flex items-center gap-1 backdrop-blur-2xl">
-              <span className="material-symbols-outlined !text-[12px] text-emerald-400">{t("icon_verified_user")}</span>
-              <span className="text-[9px] text-emerald-400 font-black tracking-[0.2em]">{t("verified")}</span>
+        <div className="shrink-0 flex items-center justify-center pl-4">
+          <div className="relative w-[120px] h-[120px]">
+            <div className="absolute inset-0 border border-[var(--accent)] rotate-45 scale-[1.15] rounded-[var(--radius)] opacity-20 group-hover:rotate-90 group-hover:scale-100 transition-all duration-1000 blur-[2px] group-hover:blur-[1px]" />
+            <div className="absolute inset-0 rounded-[var(--radius)] bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center overflow-hidden shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] z-10 backdrop-blur-xl">
+              <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent z-20 pointer-events-none mix-blend-overlay" />
+              {mason.avatar_url ? (
+                <img src={mason.avatar_url} alt={t("auto_avatar")} className="w-full h-full object-cover filter contrast-[1.1] group-hover:scale-105 transition-transform duration-700" />
+              ) : (
+                <span className="text-5xl opacity-40 grayscale material-symbols-outlined">{t("icon_construction")}</span>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         <div className="flex-1 flex flex-col gap-4 relative z-10 w-full">
           <div className="flex flex-col gap-1">
             <div className="flex flex-wrap items-center gap-4">
-              <h1 className="text-4xl font-black uppercase tracking-tighter text-[var(--text)] drop-shadow-md">{mason.name}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-4xl font-black uppercase tracking-tighter text-[var(--text)] drop-shadow-md">{mason.name}</h1>
+                {mason.is_verified && (
+                  <span className="material-symbols-outlined !text-[28px] text-emerald-400 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)] mt-1" title={t("verified") || "Verified"}>{t("icon_verified_user")}</span>
+                )}
+              </div>
               <span className="hidden sm:block h-6 w-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
-              <div className="flex gap-4 text-[10px] font-mono uppercase tracking-[0.2em]">
+              <div className="flex gap-6 text-[10px] font-mono uppercase tracking-[0.2em] items-center">
                 <div className="flex items-center gap-2">
                   <span className="text-[var(--subtext)] opacity-60">{t("followers")}</span>
                   <span className="theme-text-accent font-black text-sm">{followerCount}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[var(--subtext)] opacity-60">{t("status")}</span>
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md text-emerald-400 font-black flex items-center gap-1 shadow-md">
-                    {t("status_active")}
-                  </span>
+                  <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
+                    <span className="text-emerald-400 font-black tracking-widest">{t("status_active")}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -60,9 +62,8 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
             )}
           </div>
 
-          <div className="bg-black/20 rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative">
-            <div className="absolute top-0 left-4 w-8 h-px theme-bg-accent opacity-50" />
-            <p className="text-[13px] font-medium text-[var(--text)] opacity-80 leading-relaxed font-mono whitespace-pre-wrap max-w-4xl">
+          <div className="relative pl-4 border-l-2 border-[var(--accent)]/30 py-1">
+            <p className="text-[13px] font-medium text-[var(--text)] opacity-70 leading-relaxed font-mono whitespace-pre-wrap max-w-4xl">
               {mason.bio || t("no_bio") || "No dossier data on file."}
             </p>
           </div>

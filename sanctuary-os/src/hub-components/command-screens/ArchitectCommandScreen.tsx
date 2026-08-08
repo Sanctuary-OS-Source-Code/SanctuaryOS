@@ -3,6 +3,7 @@ import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
 import { WayfinderPostsEditor } from "../WayfinderPostsEditor";
+import { useStore } from '../../store';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 
 export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }: any) {
@@ -35,10 +36,20 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
           .limit(1)
       ]);
 
-      if (bRes.data) setBroadcasts(bRes.data);
+      if (bRes.data) {
+        const gameName = useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || "Sanctuary";
+        setBroadcasts(bRes.data.map((p: any) => ({
+          ...p,
+          masons: { name: `${gameName} Team` }
+        })));
+      }
       if (uRes.data && uRes.data.length > 0) {
-        if (sessionStorage.getItem('dismissedAlertId') !== uRes.data[0].id) {
-          setUrgentBroadcast(uRes.data[0]);
+        if (sessionStorage.getItem('dismissedAlertId') !== String(uRes.data[0].id)) {
+          const gameName = useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || "Sanctuary";
+          setUrgentBroadcast({
+            ...uRes.data[0],
+            masons: { name: `${gameName} Team` }
+          });
         }
       }
     };
@@ -202,7 +213,7 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
                 <div className="flex flex-col gap-1 flex-1 min-w-0">
                   <h3 className="text-[11px] font-black uppercase tracking-widest transition-colors truncate text-[var(--danger)] group-hover:text-red-400">{t("title_sanctuary_alerts") || "Sanctuary Alerts"}</h3>
                   <span className="text-[8px] uppercase font-bold tracking-widest transition-colors flex items-center gap-2 mt-1 text-[var(--danger)]/80 group-hover:text-red-300">
-                    <span className="w-1.5 h-1.5 rounded-full shadow-md bg-[var(--danger)] animate-pulse"></span> URGENT ALERT ACTIVE
+                    <span className="w-1.5 h-1.5 rounded-full shadow-md bg-[var(--danger)] animate-pulse"></span> {t("urgent_alert")}
                   </span>
                 </div>
               </div>

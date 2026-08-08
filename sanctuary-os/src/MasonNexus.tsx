@@ -206,7 +206,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                     <span key="badge" className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest shadow-inner shrink-0 ${isHidden ? 'bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/30' : 'bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/30'}`}>
                       {isHidden ? (t("status_inactive") || "INACTIVE") : (t("status_active") || "NEXUS ACTIVE")}
                     </span>,
-                    <span key="type-badge" className="px-2 py-0.5 bg-[var(--bg)]/50 backdrop-blur-md text-[var(--accent)] rounded-md text-[8px] uppercase tracking-widest border border-[var(--accent)]/20 shadow-inner shrink-0 font-black">
+                    <span key="type-badge" className="px-2 py-0.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded-md text-[8px] uppercase tracking-widest border border-[var(--accent)]/30 shadow-inner shrink-0 font-black">
                       {displayAssetType === 'chameleon' ? 'THEME' : displayAssetType === 'workbench_template' ? 'TEMPLATE' : 'LEXICON'}
                     </span>
                   ]}
@@ -301,24 +301,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                 <div className="flex-1 glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] truncate opacity-70">
                   {uploadState.fileName || "No file selected"}
                 </div>
-                {!uploadState.isHidden && (
-                  <button onClick={async () => {
-                    const filters = [{ name: 'JSON', extensions: ['json'] }];
-                    const vaultPath = useStore.getState().vaultPath;
-                    const defaultPath = vaultPath ? `${vaultPath}/Data` : undefined;
-                    const selected = await open({ filters, defaultPath });
-                    if (!selected) return;
-                    const content = await readTextFile(selected as string);
-                    let parsed;
-                    try { parsed = JSON.parse(content); } catch { parsed = content; }
-                    let newVersion = '1.0.0';
-                    if (parsed.version) newVersion = parsed.version;
-                    else if (parsed._meta_version) newVersion = parsed._meta_version;
-                    setUploadState(s => ({ ...s, fileContent: parsed, fileName: selected as string, version: newVersion }));
-                  }} className={standardAccentGlassButtonClass}>
-                    {t("ui_btn_replace")}
-                  </button>
-                )}
+                {/* Replace button removed per OS flow restrictions */}
               </div>
             </div>
           )}

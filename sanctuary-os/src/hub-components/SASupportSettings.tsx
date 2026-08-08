@@ -1,3 +1,4 @@
+import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from '../components/universal/UniversalLayout';
 import { useStore } from "../store";
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
@@ -419,7 +420,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                     </label>
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 w-full">
                     <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("support_system_code")}</label>
                     <input
                         type="text"
@@ -430,7 +431,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                     />
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 w-full">
                     <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("registry_label_name")}</label>
                     <input
                         type="text"
@@ -469,7 +470,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 w-full">
                     <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("upload_desc")}</label>
                     <textarea
                         value={draft.description}
@@ -749,61 +750,74 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                 </div>
             }
         >
-            <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("telemetry_label")}</label>
-                    <input type="text" value={draft.label} onChange={e => setDraft({ ...draft, label: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]" placeholder={t("telemetry_label_ph")} />
-                </div>
+            <div className="flex flex-col gap-8 p-8">
+                <UniversalGroup title="SOURCE DETAILS" icon="info" headerColorClass="theme-text-accent">
+                    <UniversalInput 
+                        label={t("telemetry_label")} 
+                        value={draft.label} 
+                        onChange={val => setDraft({ ...draft, label: val })} 
+                        placeholder={t("telemetry_label_ph")} 
+                    />
 
-                <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("telemetry_type")}</label>
-                    <CustomDropdown disableTint={true} value={draft.type} onChange={(v: string[]) => setDraft({ ...draft, type: v[0] })} options={[{ id: 'MOD', label: 'MOD' }, { id: 'OS', label: 'OS' }]} />
-                </div>
+                    <div className="flex flex-col gap-2 relative z-50">
+                        <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("telemetry_type")}</label>
+                        <CustomDropdown disableTint={true} value={draft.type} onChange={(v: string[]) => setDraft({ ...draft, type: v[0] as any })} options={[{ id: 'MOD', label: 'MOD' }, { id: 'OS', label: 'OS' }]} />
+                    </div>
 
-                {draft.type !== 'OS' && (
-                    <>
-                        <div className="flex flex-col gap-3">
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center justify-between">
-                                    <span>{t("telemetry_prefix")}</span>
-                                </label>
-                                <CustomDropdown disableTint={true}
-                                    value={['%MODS_DIR%', '%DOC_DIR%'].includes(draft.search_path) ? draft.search_path : 'CUSTOM'}
-                                    onChange={(v: string[]) => setDraft({ ...draft, search_path: v[0] === 'CUSTOM' ? '' : v[0] })}
-                                    options={[
-                                        { id: '%MODS_DIR%', label: 'Mods Folder' },
-                                        { id: '%DOC_DIR%', label: 'Sims 4 Documents Folder' },
-                                        { id: 'CUSTOM', label: 'Custom Path...' }
-                                    ]}
-                                />
-                            </div>
-                            {!['%MODS_DIR%', '%DOC_DIR%'].includes(draft.search_path) && (
-                                <div className="flex flex-col gap-2 pl-4 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-1">
-                                    <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("auto_custom_path")}</label>
-                                    <input type="text" value={draft.search_path} onChange={e => setDraft({ ...draft, search_path: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-mono" placeholder={t("auto_e_g_c_17")} />
+                    {draft.type !== 'OS' && (
+                        <>
+                            <div className="flex flex-col gap-3">
+                                <div className="flex flex-col gap-2 relative z-40">
+                                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center justify-between">
+                                        <span>{t("telemetry_prefix")}</span>
+                                    </label>
+                                    <CustomDropdown disableTint={true}
+                                        value={['%MODS_DIR%', '%DOC_DIR%'].includes(draft.search_path) ? draft.search_path : 'CUSTOM'}
+                                        onChange={(v: string[]) => setDraft({ ...draft, search_path: v[0] === 'CUSTOM' ? '' : v[0] })}
+                                        options={[
+                                            { id: '%MODS_DIR%', label: 'Mods Folder' },
+                                            { id: '%DOC_DIR%', label: 'Sims 4 Documents Folder' },
+                                            { id: 'CUSTOM', label: 'Custom Path...' }
+                                        ]}
+                                    />
                                 </div>
-                            )}
-                        </div>
+                                {!['%MODS_DIR%', '%DOC_DIR%'].includes(draft.search_path) && (
+                                    <UniversalInput 
+                                        label={t("auto_custom_path")} 
+                                        value={draft.search_path} 
+                                        onChange={val => setDraft({ ...draft, search_path: val })} 
+                                        placeholder={t("auto_e_g_c_17")} 
+                                        className="font-mono"
+                                        wrapperClassName="pl-4 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-1"
+                                    />
+                                )}
+                            </div>
 
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("telemetry_pattern")}</label>
-                            <input type="text" value={draft.file_pattern} onChange={e => setDraft({ ...draft, file_pattern: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-mono" placeholder={t("telemetry_pattern_ph")} />
-                        </div>
-                    </>
-                )}
+                            <UniversalInput 
+                                label={t("telemetry_pattern")} 
+                                value={draft.file_pattern} 
+                                onChange={val => setDraft({ ...draft, file_pattern: val })} 
+                                placeholder={t("telemetry_pattern_ph")} 
+                                className="font-mono"
+                            />
+                        </>
+                    )}
 
-                <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("upload_desc")}</label>
-                    <textarea value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] min-h-[80px]" placeholder={t("telemetry_desc_ph")} />
-                </div>
+                    <UniversalTextArea 
+                        label={t("upload_desc")} 
+                        value={draft.description} 
+                        onChange={val => setDraft({ ...draft, description: val })} 
+                        placeholder={t("telemetry_desc_ph")} 
+                        className="min-h-[80px]"
+                    />
 
-                <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("telemetry_is_active")}</span>
-                    <label className="relative inline-flex items-center cursor-pointer scale-[0.8] origin-right">
-                        <input type="checkbox" className="sr-only peer" checked={draft.is_active} onChange={e => setDraft({ ...draft, is_active: e.target.checked })} />
-                        <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-                    </label>
-                </div>
+                    <UniversalToggle 
+                        label={t("telemetry_is_active")} 
+                        checked={draft.is_active} 
+                        onChange={val => setDraft({ ...draft, is_active: val })} 
+                        layout="horizontal-reverse" 
+                    />
+                </UniversalGroup>
             </div>
         </SidePanel>
     );

@@ -76,7 +76,64 @@ export const supabase = new Proxy({} as SupabaseClient, {
             };
         }
 
-        // All other requests (e.g., .rpc) get routed to the Active Game Database
+        // Intercept secure RPC calls and route them to the OS Edge Function (API Gateway)
+        if (prop === 'rpc') {
+            return async (fnName: string, args: any) => {
+                const state = useStore.getState();
+                const activeWsId = state.activeWorkspaceId;
+                const workspaces = state.workspaces || [];
+                const activeWs = workspaces.find((w: any) => w.id === activeWsId);
+                
+                const isInterceptedRpc = ['secure_upsert_cloud_file', 'secure_delete_cloud_file', 'secure_update_mason_profile', 'secure_toggle_mason_follow'].includes(fnName);
+                
+                if (isInterceptedRpc) {
+                    let targetGameId = activeWsId;
+                    
+                    // If on the dummy default workspace, map it to the Legacy Database's actual Game ID
+                    if (targetGameId === 'default_workspace' || !activeWs) {
+                        const fallbackWs = workspaces.find((w: any) => w.supabase_url === "https://chphhvpcgcpnyvshsudh.supabase.co");
+                        targetGameId = fallbackWs ? fallbackWs.id : "0f5fc08a-2e87-4295-9164-ecd46f3961dd";
+                    }
+
+                    const actionMap: Record<string, string> = {
+                        'secure_upsert_cloud_file': 'upsert_cloud_file',
+                        'secure_delete_cloud_file': 'delete_cloud_file',
+                        'secure_update_mason_profile': 'update_mason_profile',
+                        'secure_toggle_mason_follow': args.p_action === 'follow' ? 'follow_mason' : 'unfollow_mason'
+                    };
+
+                    let payload: any = {};
+                    if (fnName === 'secure_upsert_cloud_file') {
+                        payload = { target_table: args.p_target, payload_data: args.p_payload };
+                    } else if (fnName === 'secure_delete_cloud_file') {
+                        payload = { target_table: args.p_target, id_value: args.p_id };
+                    } else if (fnName === 'secure_update_mason_profile') {
+                        payload = { mason_id: args.p_mason_id, profile_data: args.p_payload };
+                    } else if (fnName === 'secure_toggle_mason_follow') {
+                        payload = { mason_id: args.p_mason_id };
+                    }
+
+                    const res = await supabaseAuth.functions.invoke('game-gateway', {
+                        headers: {
+                            Authorization: `Bearer ${args.p_token}`
+                        },
+                        body: {
+                            game_id: targetGameId,
+                            action: actionMap[fnName],
+                            payload: payload
+                        }
+                    });
+                    if (res.data?.error) {
+                        console.error('Magic Proxy Edge Function Error:', res.data.error, 'Game ID sent:', targetGameId);
+                    }
+                    return res;
+                }
+                const client = getActiveGameClient();
+                return (client as any)[prop](fnName, args);
+            };
+        }
+
+        // All other requests get routed to the Active Game Database
         const client = getActiveGameClient();
         return (client as any)[prop];
     }

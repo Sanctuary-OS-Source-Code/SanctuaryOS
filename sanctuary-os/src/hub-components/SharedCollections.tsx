@@ -114,8 +114,8 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
   return (
     <div className="flex flex-col h-full overflow-hidden animate-in fade-in pb-20">
       
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-        <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
+        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_collections_bookmark")}</span>
           </div>
@@ -161,12 +161,8 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         icon="add_circle"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton type="button" onClick={() => setIsForgePanelOpen(false)} label={t("nav_cancel")}>
-              
-            </ActionButton>
-            <ActionButton type="button" onClick={handleCreateSet} disabled={!newSetName.trim()} label={t("forge_init_set")}>
-              
-            </ActionButton>
+            <ActionButton type="button" onClick={() => setIsForgePanelOpen(false)} label={t("nav_cancel")} variant="glass" />
+            <ActionButton type="button" onClick={handleCreateSet} disabled={!newSetName.trim()} label={t("forge_init_set")} />
           </div>
         }
       >
@@ -191,17 +187,14 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         icon="library_books"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton type="button" onDoubleClick={handleDeleteSet} disabled={isSaving}>
-              
-            </ActionButton>
-            <ActionButton type="button" onClick={handleSaveSetMeta} disabled={isSaving} label={isSaving ? (t("btn_saving")) : (t("cc_save_set"))}>
-              
-            </ActionButton>
+            <ActionButton type="button" onClick={() => setActiveSet(null)} label={t("nav_cancel")} variant="glass" />
+            <ActionButton type="button" onDoubleClick={handleDeleteSet} disabled={isSaving} label={t("btn_delete")} icon="delete" variant="danger" />
+            <ActionButton type="button" onClick={handleSaveSetMeta} disabled={isSaving} label={isSaving ? (t("btn_saving")) : (t("cc_save_set"))} />
           </div>
         }
       >
         {activeSet && (
-          <div className="flex flex-col h-full gap-8">
+          <div className="flex flex-col h-full gap-6">
             <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
               <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
@@ -220,15 +213,13 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
-                  <input value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} placeholder={t("cc_cover_url")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
+                  <input value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} placeholder={t("cc_cover_url")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-                  <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("external_url_placeholder")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
+                  <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("external_url_placeholder")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
               </div>
-
-              <div className="h-[1px] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] my-2 w-full" />
 
               <div className="flex flex-col gap-4 pb-12">
                 <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title")}</h4>
@@ -465,7 +456,7 @@ export function CollectionForge({ setStatus }: any) {
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 content-start pr-2">
           {filteredSets.length === 0 ? (
-                <EmptyState icon={searchTerm ? "search_off" : t("icon_folder") || "folder"} title={searchTerm ? t("no_matches") : t("no_vaults") || "No Vaults Found"} className="col-span-full py-16" />
+                <EmptyState icon={searchTerm ? "search_off" : (t("icon_folder") || "folder")} title={searchTerm ? t("no_matches") : (t("no_vaults") || "No Vaults Found")} className="col-span-full py-16" />
             ) : filteredSets.map(setItem => (
               <VaultCard 
                 key={setItem.id} 
@@ -486,12 +477,8 @@ export function CollectionForge({ setStatus }: any) {
         icon="add_circle"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton type="button" onClick={() => setIsForgePanelOpen(false)} label={t("nav_cancel")}>
-              
-            </ActionButton>
-            <ActionButton type="button" onClick={createSet} disabled={!setName.trim()} label={t("forge_init_set")}>
-              
-            </ActionButton>
+            <ActionButton type="button" onClick={() => setIsForgePanelOpen(false)} label={t("nav_cancel")} variant="glass" />
+            <ActionButton type="button" onClick={createSet} disabled={!setName.trim()} label={t("forge_init_set")} />
           </div>
         }
       >
@@ -533,17 +520,14 @@ export function CollectionForge({ setStatus }: any) {
         icon="library_books"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton type="button" onDoubleClick={handleDeleteSet} disabled={isSaving}>
-              
-            </ActionButton>
-            <ActionButton type="button" onClick={saveSetMeta} disabled={isSaving} label={isSaving ? (t("ui_loading")) : (t("cc_save_set"))}>
-              
-            </ActionButton>
+            <ActionButton type="button" onClick={() => setActiveSet(null)} label={t("nav_cancel")} variant="glass" />
+            <ActionButton type="button" onDoubleClick={handleDeleteSet} disabled={isSaving} label={t("btn_delete")} icon="delete" variant="danger" />
+            <ActionButton type="button" onClick={saveSetMeta} disabled={isSaving} label={isSaving ? (t("ui_loading")) : (t("cc_save_set"))} />
           </div>
         }
       >
         {activeSet && (
-          <div className="flex flex-col h-full gap-8">
+          <div className="flex flex-col h-full gap-6">
             <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
               <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
@@ -581,16 +565,14 @@ export function CollectionForge({ setStatus }: any) {
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
-                  <input value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} placeholder={t("cc_cover_url")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
+                  <input value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} placeholder={t("cc_cover_url")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
                 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-                  <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("external_url_placeholder")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
+                  <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("external_url_placeholder")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
               </div>
-
-              <div className="h-[1px] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] my-2 w-full" />
 
               <div className="flex flex-col gap-4 pb-12">
                 <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title")}</h4>
@@ -655,12 +637,8 @@ export function CollectionForge({ setStatus }: any) {
         widthClass="w-[450px]"
         footer={
           <div className="flex justify-end gap-4 w-full">
-            <ActionButton onClick={() => setIsMasonPanelOpen(false)} label={t("nav_cancel")}>
-              
-            </ActionButton>
-            <ActionButton onClick={handleCreateMason} label={t("create_btn_create")}>
-              
-            </ActionButton>
+            <ActionButton onClick={() => setIsMasonPanelOpen(false)} label={t("nav_cancel")} variant="glass" />
+            <ActionButton onClick={handleCreateMason} label={t("create_btn_create")} />
           </div>
         }
       >
@@ -673,4 +651,3 @@ export function CollectionForge({ setStatus }: any) {
     </div>
   );
 }
-

@@ -307,13 +307,14 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       >
         <div className="p-6 flex flex-col h-full gap-8">
 
-          <div className="flex flex-col gap-6 relative">
-
-            <div className="flex flex-col gap-2 relative z-10">
-              <h3 className="text-xl font-black text-[var(--text)] uppercase tracking-tighter leading-none">{selectedMod?.name}</h3>
+          <div className="flex flex-col gap-3 shrink-0">
+            <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest truncate">
+              {selectedMod?.name}
+            </h2>
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setMetadataMod(selectedMod)}
-                className="mt-2 text-[10px] font-black uppercase tracking-widest theme-text-accent hover:text-[var(--text)] transition-colors flex items-center gap-1 w-max"
+                className="text-[10px] font-black uppercase tracking-widest theme-text-accent hover:text-[var(--text)] transition-colors flex items-center gap-1 w-max bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2 py-1 rounded"
               >
                 <span className="material-symbols-outlined !text-[12px]">{t("icon_edit")}</span>
                 {t("ui_edit_metadata")}

@@ -461,6 +461,7 @@ export function MarketBlueprintPanel({
             isProcessing={isSyncing}
             processingLabel={t("btn_importing")}
             actionLabel={playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code) ? (t("btn_install_copy") || "INSTALL COPY") : t("update_panel_install")}
+            actionVariant={playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code) ? "primary" : "success"}
             actionIcon="download"
           />
         }

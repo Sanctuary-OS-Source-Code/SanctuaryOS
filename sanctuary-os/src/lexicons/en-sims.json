@@ -15,5 +15,11 @@
   "tab_kit": "Kit",
   "tab_stuff_pack": "Stuff Pack",
   "comm_link": "Simstagram Post",
-  "dispatch": "Town Hall"
+  "dispatch": "Town Hall",
+  "panel_pin_details": "PIN DETAILS",
+  "panel_pin_subtitle": "Select a mod to feature on your profile",
+  "search_artifacts": "Search Mods...",
+  "search_assets": "Search Mods...",
+  "no_match_artifacts": "No Matching Mods",
+  "no_match_assets": "No Matching Mods"
 }

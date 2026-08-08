@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HubTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, enrichBlueprintsWithPremiumStatus, FilterTabs } from "./shared";
+import { ViewHeader, CustomDropdown, HubTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, enrichBlueprintsWithPremiumStatus, FilterTabs, AccordionDrawer, DeferredRender, SearchBar } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel } from './side-panels/NexusSidePanels';
@@ -150,6 +150,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
   const [matrixBlueprintAsset, setMatrixBlueprintAsset] = useState<any>(null);
 
+  const [expandedFolder, setExpandedFolder] = useState<string | null>(null);
+  const [drawerSearchQuery, setDrawerSearchQuery] = useState("");
+
   const [isOffline, setIsOffline] = useState(!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true");
 
   const [stats, setStats] = useState({ artifacts: 0, blueprints: 0, lexicons: 0, chameleons: 0, templates: 0 });
@@ -214,7 +217,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           setStats(newStats);
           window.__nexusCache!.homeStats = newStats;
 
-          const selectFields = "id, name, created_at, category_override, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, is_paid, is_early_access";
+          const selectFields = "*";
           const { data: recentModsRawData } = await supabase
             .from('mods')
             .select(selectFields)
@@ -1395,76 +1398,180 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     title={t("recent_activity") || "RECENT ACTIVITY"}
                     icon="history"
                   />
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-6 w-full">
+                  <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-6 w-full">
                     {loadingHome ? (
                       <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest animate-pulse flex flex-col items-center gap-4">
                         <span className="material-symbols-outlined !text-4xl animate-spin theme-text-accent">autorenew</span>
                         {t("loading") || "LOADING RECENT ACTIVITY..."}
                       </div>
-                    ) : recentFeed.length > 0 ? recentFeed.map(item => (
-                      <div key={`${item.feed_type}-${item.id}`} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group" onClick={() => {
-                        if (item.feed_type === 'artifact') {
-                          if (onOpenDossier) onOpenDossier({ ...item, isNexusView: true });
-                        } else if (item.feed_type === 'blueprint') {
-                          setSelectedBlueprint(item);
-                        } else if (item.feed_type === 'lexicon') {
-                          setPreviewAsset({ id: item.id, type: 'lexicon' });
-                        } else if (item.feed_type === 'chameleon') {
-                          setPreviewAsset({ id: item.id, type: 'chameleon' });
-                        } else if (item.feed_type === 'template') {
-                          setPreviewAsset({ id: item.id, type: 'workbench_template' });
-                        }
-                      }}>
-                        <div className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
-                          {(showImages !== false && item.image_url) ? (
-                            <img
-                              src={item.image_url}
-                              alt={item.name || item.title}
-                              loading="lazy"
-                              className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
-                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                            />
-                          ) : (
-                            <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
-                              {item.feed_type === 'artifact' ? (item.isCollection ? 'folder_special' : item.isParent ? 'account_tree' : 'extension') : item.feed_type === 'blueprint' ? 'map' : item.feed_type === 'lexicon' ? 'translate' : item.feed_type === 'template' ? 'draw' : 'palette'}
-                            </span>
-                          )}
+                    ) : recentFeed.length > 0 ? recentFeed.map((item, index) => {
+                      const mainKey = item.id || `${item.feed_type}_${index}`;
+                      const isFolder = item.feed_type === 'artifact' && (item.isVirtual || item.isParent || item.familyCount > 1);
 
-                          <div className="absolute top-3 right-3 flex gap-2 z-30">
-                            <span className="text-[8px] font-black px-2 py-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                              {item.category_override || item.feed_type}
-                            </span>
+                      const renderedCard = (
+                        <div key={mainKey} className={`relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`} onClick={() => {
+                          if (item.feed_type === 'artifact') {
+                            if (onOpenDossier) onOpenDossier({ ...item, isNexusView: true });
+                          } else if (item.feed_type === 'blueprint') {
+                            setSelectedBlueprint(item);
+                          } else if (item.feed_type === 'lexicon') {
+                            setPreviewAsset({ id: item.id, type: 'lexicon' });
+                          } else if (item.feed_type === 'chameleon') {
+                            setPreviewAsset({ id: item.id, type: 'chameleon' });
+                          } else if (item.feed_type === 'template') {
+                            setPreviewAsset({ id: item.id, type: 'workbench_template' });
+                          }
+                        }}>
+                          <div className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
+                            {(showImages !== false && item.image_url) ? (
+                              <img
+                                src={item.image_url}
+                                alt={item.name || item.title}
+                                loading="lazy"
+                                className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            ) : (
+                              <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
+                                {item.feed_type === 'artifact' ? (item.isCollection ? 'folder_special' : item.isParent ? 'account_tree' : 'extension') : item.feed_type === 'blueprint' ? 'map' : item.feed_type === 'lexicon' ? 'translate' : item.feed_type === 'template' ? 'draw' : 'palette'}
+                              </span>
+                            )}
+
+                            <div className="absolute top-3 right-3 flex gap-2 z-30">
+                              <span className="text-[8px] font-black px-2 py-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
+                                {item.category_override || item.feed_type}
+                              </span>
+                            </div>
                           </div>
 
-                          {(item.isVirtual || item.isParent || item.familyCount > 1) && (
-                            <div className="absolute bottom-2 left-2 z-30 pointer-events-auto group/badge">
-                              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-lg transition-all group-hover/badge:bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]">
-                                <span className="material-symbols-outlined !text-[10px] text-[var(--accent)] drop-shadow-sm">{t("icon_layers") || 'layers'}</span>
-                                <span className="text-[8px] font-black text-[var(--text)] uppercase tracking-widest drop-shadow-sm">
-                                  {item.familyCount} {t("items")}
-                                </span>
+                          <div className="p-4 flex flex-col flex-1">
+                            <h3 className="text-[11px] font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                              {cleanModName(item.name || item.title || item.id).name}
+                            </h3>
+                            <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate mb-2">
+                              BY {item.master_author || item.author || "Citizen"}
+                            </p>
+
+                            <div className="mt-auto pt-3 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative">
+                              <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest pointer-events-auto z-10 w-16">
+                                {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
+                              </span>
+                              
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none pt-3">
+                                {isFolder && (
+                                  <div className="group/hitbox static flex items-center justify-center gap-2 font-black text-[9px] uppercase tracking-widest text-[var(--subtext)] group-hover/hitbox:text-[var(--text)] transition-colors pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}>
+                                    <div className="absolute inset-0 z-0 pointer-events-auto" />
+                                    <span className="relative z-10 leading-none flex items-center mt-[2px]">{item.familyCount || (item.flavors?.length || 0)} {t("items")}</span>
+                                    <span className={`relative z-10 material-symbols-outlined !text-[14px] transition-transform duration-300 ${expandedFolder === mainKey ? 'rotate-180' : ''}`}>expand_more</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <span className="text-[9px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300 pointer-events-auto z-10 w-16 text-right"></span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+
+                      return (
+                        <React.Fragment key={mainKey}>
+                          <div className="contents">
+                            {renderedCard}
+                          </div>
+
+                          <AccordionDrawer isOpen={expandedFolder === mainKey}>
+                            <div className="w-full glass-panel rounded-[32px] p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
+                              {/* Header */}
+                              <div className="flex flex-wrap gap-4 items-center justify-between pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
+                                <div className="flex items-center gap-5">
+                                  <div className="w-12 h-12 rounded-xl bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
+                                    <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">folder_open</span>
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-3">
+                                      <h3 className="text-2xl md:text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-none">
+                                        {formatDisplayName(item.displayName || item.name || item.title)}
+                                      </h3>
+                                    </div>
+                                    <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--accent)] opacity-80 flex items-center gap-2 mt-1">
+                                      <span className="material-symbols-outlined !text-[14px]">account_tree</span>
+                                      {t("nav_exploring") || "EXPLORING"} {(item.flavors || []).length} {t("items") || "ARTIFACTS"}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4 w-full md:w-auto">
+                                  <div className="relative flex-1 md:w-72">
+                                    <SearchBar
+                                      value={drawerSearchQuery}
+                                      onChange={(v: string) => setDrawerSearchQuery(v)}
+                                      placeholder={t("search_ph") || "Search Artifacts..."}
+                                    />
+                                  </div>
+                                  <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl glass-surface hover:bg-red-500/[10%] hover:text-[var(--danger)] hover:border-[var(--danger)]/30 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
+                                    <span className="material-symbols-outlined !text-[24px]">close</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Content Area */}
+                              <div className="flex flex-col xl:flex-row gap-10 relative z-10">
+                                <div className="w-full xl:w-[350px] shrink-0 flex flex-col relative pointer-events-none">
+                                  <div className="w-full relative">
+                                    {renderedCard}
+                                    <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-[var(--accent)]/10 blur-[50px] rounded-full pointer-events-none z-[-1]" />
+                                  </div>
+                                </div>
+                                <div className="hidden xl:block w-px bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_10%,transparent)] via-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent" />
+                                
+                                <div className="flex-1 min-w-0">
+                                  <DeferredRender>
+                                    <div className="grid grid-cols-1 xl:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 max-h-[500px] xl:max-h-[600px] overflow-y-auto custom-scrollbar p-6">
+                                    {(item.flavors || [])
+                                      .filter((flavor: any) => {
+                                        if (!drawerSearchQuery) return true;
+                                        const query = drawerSearchQuery.toLowerCase();
+                                        return (flavor.displayName || flavor.name || "").toLowerCase().includes(query) || (flavor.author || "").toLowerCase().includes(query);
+                                      })
+                                      .map((flavor: any, subIdx: number) => (
+                                        <div
+                                          key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
+                                          onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
+                                          className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group"
+                                        >
+                                          <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
+                                            {(showImages !== false && flavor.image_url) ? (
+                                              <img
+                                                src={flavor.image_url}
+                                                alt={flavor.name}
+                                                loading="lazy"
+                                                className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                              />
+                                            ) : (
+                                              <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
+                                                {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="p-4 flex flex-col flex-1">
+                                            <h3 className="text-[10px] font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                                              {cleanModName(flavor.name || flavor.id).name}
+                                            </h3>
+                                            <p className="text-[8px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
+                                              {flavor.master_author || item.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` • ${flavor.latest_version || flavor.version}` : ""}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </DeferredRender>
+                                </div>
                               </div>
                             </div>
-                          )}
-                        </div>
-
-                        <div className="p-4 flex flex-col flex-1">
-                          <h3 className="text-[11px] font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
-                            {cleanModName(item.name || item.title || item.id).name}
-                          </h3>
-                          <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate mb-2">
-                            BY {item.master_author || item.author || "Citizen"}
-                          </p>
-
-                          <div className="mt-auto pt-3 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                            <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                              {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
-                            </span>
-                            <span className="text-[9px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("btn_view") || "VIEW"} &rarr;</span>
-                          </div>
-                        </div>
-                      </div>
-                    )) : (
+                          </AccordionDrawer>
+                        </React.Fragment>
+                      );
+                    }) : (
                       <div className="col-span-full glass-panel p-8 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed flex flex-col items-center justify-center gap-3 text-center opacity-70">
                         <span className="material-symbols-outlined !text-6xl theme-text-accent mb-4 opacity-50">history</span>
                         <span className="text-xl">{t("no_recent_activity") || "NO RECENT ACTIVITY FOUND"}</span>
@@ -1612,101 +1719,202 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               </div>
             </div>
 
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
+            <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingMods ? (
                 <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest animate-pulse">
                   {t("searching")}
                 </div>
               ) : paginatedResults.length > 0 ? (
                 <>
-                  {paginatedResults.map((mod: any, index: number) => (
-                    <div
-                      key={mod.id || `${mod.name}_${index}`}
-                      onClick={() => onOpenDossier && onOpenDossier({ ...mod, isNexusView: true })}
-                      className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group"
-                    >
-                      <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
-                        {(showImages !== false && mod.image_url) ? (
-                          <img
-                            src={mod.image_url}
-                            alt={mod.name}
-                            loading="lazy"
-                            className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                          />
-                        ) : (
-                          <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>
-                            {getModIcon(mod, useStore.getState().activeGameSchema, t)}
-                          </span>
-                        )}
-
-                        <div className="absolute top-4 left-4 z-30 pointer-events-auto">
-                          <div className={`backdrop-blur-[3px] border px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2 transition-all ${mod.status === 'verified' ? 'bg-emerald-500/[10%] border-emerald-500/[30%] hover:bg-emerald-500/[15%]' : 'bg-red-500/[10%] border-red-500/[30%] hover:bg-red-500/[15%]'}`}>
-
-                            <span className={`text-[8px] font-black uppercase tracking-widest ${mod.status === 'verified' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                              {(mod.status || 'UNVERIFIED').replace(/_/g, ' ')}
+                  {paginatedResults.map((mod: any, index: number) => {
+                    const mainKey = mod.id || `${mod.name}_${index}`;
+                    const isFolder = mod.isVirtual || mod.isParent || mod.familyCount > 1;
+                    
+                    const renderedCard = (
+                      <div
+                        key={mainKey}
+                        onClick={() => onOpenDossier && onOpenDossier({ ...mod, isNexusView: true })}
+                        className={`relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`}
+                      >
+                        <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
+                          {(showImages !== false && mod.image_url) ? (
+                            <img
+                              src={mod.image_url}
+                              alt={mod.name}
+                              loading="lazy"
+                              className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>
+                              {getModIcon(mod, useStore.getState().activeGameSchema, t)}
                             </span>
-                          </div>
-                        </div>
+                          )}
 
-                        <div className="absolute top-4 right-4 flex gap-2 z-30">
-                          <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                            {mod.category_override || t("label_artifact") || "MOD"}
-                          </span>
-                        </div>
+                          <div className="absolute top-4 left-4 z-30 pointer-events-auto">
+                            <div className={`backdrop-blur-[3px] border px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2 transition-all ${mod.status === 'verified' ? 'bg-emerald-500/[10%] border-emerald-500/[30%] hover:bg-emerald-500/[15%]' : 'bg-red-500/[10%] border-red-500/[30%] hover:bg-red-500/[15%]'}`}>
 
-                        {(mod.isVirtual || mod.isParent || mod.familyCount > 1) && (
-                          <div className="absolute bottom-3 left-3 z-30 pointer-events-auto group/badge">
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-lg transition-all group-hover/badge:bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]">
-                              {mod.is_verified && (
-                                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] ml-1" title={t("status_verified") || "Verified Creator"}>verified</span>
-                              )}
-                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] drop-shadow-sm">{t("icon_layers")}</span>
-                              <span className="text-[9px] font-black text-[var(--text)] uppercase tracking-widest drop-shadow-sm">
-                                {mod.familyCount || (mod.flavors?.length || 0)} {t("items")}
+                              <span className={`text-[8px] font-black uppercase tracking-widest ${mod.status === 'verified' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                {(mod.status || 'UNVERIFIED').replace(/_/g, ' ')}
                               </span>
                             </div>
                           </div>
-                        )}
 
-                        <div className="absolute bottom-3 right-3 flex items-center gap-2 z-30 pointer-events-auto">
-                          {mod.is_early_access && (
-                            <div className="backdrop-blur-md bg-purple-500/10 border border-purple-500/30 px-2 py-1 rounded-lg shadow-2xl flex items-center gap-1">
-                              <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
-                              <span className="text-[7px] font-black uppercase tracking-widest text-purple-500">{t("badge_early_access") || "Early Access"}</span>
-                            </div>
-                          )}
-                          {mod.is_paid && (
-                            <div className="backdrop-blur-md bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded-lg shadow-2xl flex items-center gap-1">
-                              <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
-                              <span className="text-[7px] font-black uppercase tracking-widest text-yellow-500">{t("badge_paid") || "Paid"}</span>
-                            </div>
-                          )}
+                          <div className="absolute top-4 right-4 flex gap-2 z-30">
+                            <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
+                              {mod.category_override || t("label_artifact") || "MOD"}
+                            </span>
+                          </div>
+
+                          <div className="absolute bottom-3 right-3 flex items-center gap-2 z-30 pointer-events-auto">
+                            {mod.is_early_access && (
+                              <div className="backdrop-blur-md bg-purple-500/10 border border-purple-500/30 px-2 py-1 rounded-lg shadow-2xl flex items-center gap-1">
+                                <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
+                                <span className="text-[7px] font-black uppercase tracking-widest text-purple-500">{t("badge_early_access") || "Early Access"}</span>
+                              </div>
+                            )}
+                            {mod.is_paid && (
+                              <div className="backdrop-blur-md bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded-lg shadow-2xl flex items-center gap-1">
+                                <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
+                                <span className="text-[7px] font-black uppercase tracking-widest text-yellow-500">{t("badge_paid") || "Paid"}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="p-5 flex flex-col flex-1">
-                        <h3 className="text-xs font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
-                          {cleanModName(mod.name || mod.id).name}
-                        </h3>
-                        <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
-                          {mod.master_author || t("unknown_mason") || "Unknown Creator"}{(mod.latest_version) ? ` • ${mod.latest_version}` : ""}
-                        </p>
-                        {mod.description && (
-                          <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">
-                            {mod.description}
+                        <div className="p-5 flex flex-col flex-1">
+                          <h3 className="text-xs font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                            {cleanModName(mod.name || mod.id).name}
+                          </h3>
+                          <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
+                            {mod.master_author || t("unknown_mason") || "Unknown Creator"}{(mod.latest_version) ? ` • ${mod.latest_version}` : ""}
                           </p>
-                        )}
+                          {mod.description && (
+                            <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">
+                              {mod.description}
+                            </p>
+                          )}
 
-                        <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                          <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                            {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("date_unknown")}
-                          </span>
-                          <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("btn_view")} &rarr;</span>
+                          <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative">
+                            <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest pointer-events-auto z-10 w-20">
+                              {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("date_unknown")}
+                            </span>
+                            
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none pt-4">
+                              {isFolder && (
+                                <div className="group/hitbox static flex items-center justify-center gap-2 font-black text-[9px] uppercase tracking-widest text-[var(--subtext)] group-hover/hitbox:text-[var(--text)] transition-colors pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}>
+                                  <div className="absolute inset-0 z-0 pointer-events-auto" />
+                                  <span className="relative z-10 leading-none flex items-center mt-[2px]">{mod.familyCount || (mod.flavors?.length || 0)} {t("items")}</span>
+                                  <span className={`relative z-10 material-symbols-outlined !text-[14px] transition-transform duration-300 ${expandedFolder === mainKey ? 'rotate-180' : ''}`}>expand_more</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300 pointer-events-auto z-10 w-20 text-right"></span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+
+                    return (
+                      <React.Fragment key={mainKey}>
+                        <div className="contents">
+                          {renderedCard}
+                        </div>
+
+                        <AccordionDrawer isOpen={expandedFolder === mainKey}>
+                          <div className="w-full glass-panel rounded-[32px] p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
+                            {/* Header */}
+                            <div className="flex flex-wrap gap-4 items-center justify-between pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
+                              <div className="flex items-center gap-5">
+                                <div className="w-12 h-12 rounded-xl bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
+                                  <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">folder_open</span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-3">
+                                    <h3 className="text-2xl md:text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-none">
+                                      {formatDisplayName(mod.displayName || mod.name)}
+                                    </h3>
+                                  </div>
+                                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--accent)] opacity-80 flex items-center gap-2 mt-1">
+                                    <span className="material-symbols-outlined !text-[14px]">account_tree</span>
+                                    {t("nav_exploring") || "EXPLORING"} {(mod.flavors || []).length} {t("items") || "ARTIFACTS"}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4 w-full md:w-auto">
+                                <div className="relative flex-1 md:w-72">
+                                  <SearchBar
+                                    value={drawerSearchQuery}
+                                    onChange={(v: string) => setDrawerSearchQuery(v)}
+                                    placeholder={t("search_ph") || "Search Artifacts..."}
+                                  />
+                                </div>
+                                <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl glass-surface hover:bg-red-500/[10%] hover:text-[var(--danger)] hover:border-[var(--danger)]/30 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
+                                  <span className="material-symbols-outlined !text-[24px]">close</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Content Area */}
+                            <div className="flex flex-col xl:flex-row gap-10 relative z-10">
+                              <div className="w-full xl:w-[350px] shrink-0 flex flex-col relative pointer-events-none">
+                                <div className="w-full relative">
+                                  {renderedCard}
+                                  <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-[var(--accent)]/10 blur-[50px] rounded-full pointer-events-none z-[-1]" />
+                                </div>
+                              </div>
+                              <div className="hidden xl:block w-px bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_10%,transparent)] via-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent" />
+                              
+                              <div className="flex-1 min-w-0">
+                                <DeferredRender>
+                                  <div className="grid grid-cols-1 xl:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 max-h-[500px] xl:max-h-[600px] overflow-y-auto custom-scrollbar p-6">
+                                  {(mod.flavors || [])
+                                    .filter((flavor: any) => {
+                                      if (!drawerSearchQuery) return true;
+                                      const query = drawerSearchQuery.toLowerCase();
+                                      return (flavor.displayName || flavor.name || "").toLowerCase().includes(query) || (flavor.author || "").toLowerCase().includes(query);
+                                    })
+                                    .map((flavor: any, subIdx: number) => (
+                                      <div
+                                        key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
+                                        onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
+                                        className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group"
+                                      >
+                                        <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
+                                          {(showImages !== false && flavor.image_url) ? (
+                                            <img
+                                              src={flavor.image_url}
+                                              alt={flavor.name}
+                                              loading="lazy"
+                                              className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                            />
+                                          ) : (
+                                            <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
+                                              {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="p-4 flex flex-col flex-1">
+                                          <h3 className="text-[10px] font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                                            {cleanModName(flavor.name || flavor.id).name}
+                                          </h3>
+                                          <p className="text-[8px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
+                                            {flavor.master_author || mod.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` • ${flavor.latest_version || flavor.version}` : ""}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </DeferredRender>
+                              </div>
+                            </div>
+                          </div>
+                        </AccordionDrawer>
+                      </React.Fragment>
+                    );
+                  })}
                 </>
               ) : (
                 <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center justify-center">
@@ -1852,7 +2060,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               </div>
             </div>
 
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
+            <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingAssets ? (
                 <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest animate-pulse">
                   {t("searching")}
@@ -1922,8 +2130,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         </p>
                       )}
 
-                      <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                        <div className="flex flex-col justify-center gap-1.5">
+                      <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative">
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none pt-4">
+                          {(asset.isVirtual || asset.isParent || asset.familyCount > 1) && (
+                            <div className="flex items-center justify-center gap-2 font-black text-[9px] uppercase tracking-widest text-[var(--subtext)] group-hover:text-[var(--text)] transition-colors">
+                              <span className="leading-none flex items-center mt-[2px]">{asset.familyCount || (asset.flavors?.length || 0)} {t("items")}</span>
+                              <span className="material-symbols-outlined !text-[14px]">expand_more</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col justify-center gap-1.5 relative z-10 pointer-events-auto">
                           <div className="flex flex-col gap-1.5 items-start">
                             {asset.created_at && (
                               <span className="flex items-center gap-1 text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">
@@ -1940,28 +2156,29 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         </div>
                         <div className="flex gap-2">
                           {session?.user?.user_metadata?.username === asset.author && (
-                            <button
+                            <ActionButton
                               onClick={(e) => handleEditAsset(e, asset)}
-                              className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            >
-                              {t("emote_edit")}
-                            </button>
+                              variant="glass"
+                              label={t("emote_edit")}
+                              className="!py-1.5 !px-3 !text-[9px]"
+                            />
                           )}
                           {marketTab === 'BLUEPRINTS' ? (() => {
                             const isInstalled = playSets.some((p: any) => p.code && asset.json_data?.code && p.code === asset.json_data.code);
                             return (
-                              <button
+                              <ActionButton
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSelectedBlueprint(asset);
                                 }}
-                                className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] hover:scale-105"
-                              >
-                                {isInstalled ? (t("btn_install_copy") || "INSTALL COPY") : (t("update_panel_install"))}
-                              </button>
+                                variant={isInstalled ? "primary" : "success"}
+                                icon="download"
+                                label={isInstalled ? (t("btn_install_copy") || "INSTALL COPY") : (t("update_panel_install"))}
+                                className="!py-1.5 !px-3 !text-[9px]"
+                              />
                             );
                           })() : (
-                            <button
+                            <ActionButton
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 if (marketTab === 'CHAMELEONS') {
@@ -1992,10 +2209,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   return newMap;
                                 });
                               }}
-                              className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? isOutdated(asset) ? 'bg-[color-mix(in_srgb,#3b82f6_15%,transparent)] border border-[color-mix(in_srgb,#3b82f6_30%,transparent)] text-[#3b82f6] hover:bg-[color-mix(in_srgb,#3b82f6_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--subtext)_10%,transparent)] border border-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--subtext)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--subtext)_15%,transparent)] backdrop-blur-md' : 'bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] hover:bg-emerald-500/[20%]'}`}
-                            >
-                              {isInstalled(asset) ? isOutdated(asset) ? "UPDATE" : (t("btn_reinstall")) : (t("update_panel_install"))}
-                            </button>
+                              variant={isInstalled(asset) ? (isOutdated(asset) ? 'primary' : 'glass') : 'success'}
+                              icon={isInstalled(asset) ? (isOutdated(asset) ? 'update' : 'refresh') : 'download'}
+                              label={isInstalled(asset) ? (isOutdated(asset) ? "UPDATE" : (t("btn_reinstall"))) : (t("update_panel_install"))}
+                              className="!py-1.5 !px-3 !text-[9px]"
+                            />
                           )}
                         </div>
                       </div>

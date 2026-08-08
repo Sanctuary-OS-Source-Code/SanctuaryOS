@@ -319,19 +319,18 @@ export function GameManagementOversight() {
         <div className="p-8">
           <div className="flex flex-col gap-6">
             {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && panelTarget && (
-              <div className="p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-1">{t("ql_targeting")}</p>
-                <p className="text-sm font-bold theme-text-accent">{panelTarget?.name || panelTarget}</p>
+              <div className="flex flex-col gap-3 shrink-0 mb-6">
+                <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest truncate">
+                  {panelTarget?.name || panelTarget}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{t("ql_targeting")}</span>
+                </div>
               </div>
             )}
 
             {(sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && (
-              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2 relative z-10">
-                  <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                  {t("metadata")}
-                </h4>
+              <div className="flex flex-col gap-6 relative">
                 <div className="flex flex-col gap-2 relative z-10">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("game_version")}</label>
                   <div className="relative">
@@ -348,13 +347,7 @@ export function GameManagementOversight() {
             )}
 
             {(sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (
-              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2 relative z-10">
-                  <span className="material-symbols-outlined !text-[14px]">{t("icon_extension")}</span>
-                  {t("dlc_metadata")}
-                </h4>
-
+              <div className="flex flex-col gap-6 relative">
                 <div className="flex flex-col gap-2 relative z-50">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("dlc_id_code")}</label>
                   <div className="relative">

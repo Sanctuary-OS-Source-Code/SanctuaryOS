@@ -36,15 +36,9 @@ export default function CommandCenter({
 
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const status = useStore((state) => state.status);
-  const [showUpdatesModal, setShowUpdatesModal] = useState(false);
+  const { showUpdatesModal, setShowUpdatesModal, showIncompatiblePanel, setShowIncompatiblePanel, showConflictsPanel, setShowConflictsPanel, isConflictRadarOpen, setIsConflictRadarOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen } = useModalStore();
   const [hasSymlinkPerms, setHasSymlinkPerms] = useState<boolean | null>(null);
 
-  const [showIncompatiblePanel, setShowIncompatiblePanel] = useState(false);
-  const [showConflictsPanel, setShowConflictsPanel] = useState(false);
-  const isConflictRadarOpen = useModalStore((state: any) => state.isConflictRadarOpen);
-  const setIsConflictRadarOpen = useModalStore((state: any) => state.setIsConflictRadarOpen);
-  const isBlueprintSwapOpen = useModalStore((state: any) => state.isBlueprintSwapOpen);
-  const setIsBlueprintSwapOpen = useModalStore((state: any) => state.setIsBlueprintSwapOpen);
   const [isAuditLogsOpen, setIsAuditLogsOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [viewingPost, setViewingPost] = useState<any>(null);
@@ -68,7 +62,7 @@ export default function CommandCenter({
         const { data } = await supabase.from('system_broadcasts').select('*').eq('is_active', true).eq('is_pinned', true).or('target_audience.ilike.%All%,target_audience.eq.Citizens,target_audience.ilike."Citizens,%",target_audience.ilike."%,Citizens,%",target_audience.ilike."%,Citizens"').order('created_at', { ascending: false }).limit(1);
         if (data && data.length > 0) {
           const dismissedId = sessionStorage.getItem('dismissedAlertId');
-          if (dismissedId !== data[0].id) {
+          if (dismissedId !== String(data[0].id)) {
             setUrgentBroadcast(data[0]);
           }
         }
@@ -606,57 +600,7 @@ export default function CommandCenter({
             )}
           </div>
         </div>
-      </div>
-
-      <UpdatesSidePanel
-        isOpen={showUpdatesModal}
-        onClose={() => setShowUpdatesModal(false)}
-        activeUpdates={activeUpdates}
-        handleOpenUrl={handleOpenUrl}
-      />
-
-      {showIncompatiblePanel && (
-        <CommandIncompatiblePanel
-          isOpen={showIncompatiblePanel}
-          onClose={() => setShowIncompatiblePanel(false)}
-          activeMods={activeBlueprintMods}
-          allow_write={!activePlaySet?.read_only}
-          toggleInActiveSet={toggleInActiveSet}
-        />
-      )}
-
-      {showConflictsPanel && (
-        <CommandConflictsPanel
-          isOpen={showConflictsPanel}
-          onClose={() => setShowConflictsPanel(false)}
-          activeMods={activeBlueprintMods}
-          allow_write={!activePlaySet?.read_only}
-          toggleInActiveSet={toggleInActiveSet}
-          applyConflictOverride={applyConflictOverride}
-          activeSetName={activePlaySet?.name}
-          vaultPath={modsPath}
-          onRefreshMods={runRadarSweep}
-        />
-      )}
-
-      {isConflictRadarOpen && (
-        <CommandRadarSweepPanel
-          isOpen={isConflictRadarOpen}
-          onClose={() => setIsConflictRadarOpen(false)}
-          status={status}
-          runRadarSweep={runRadarSweep}
-          isScanning={isScanning}
-          networkUpdates={{ updated: activeUpdates }}
-          tier3Count={activeConflictCount.tier3}
-          tier4Count={activeConflictCount.tier4}
-          brokenCount={radarBrokenCount}
-          unstableCount={radarUnstableCount}
-          onOpenUpdates={() => setShowUpdatesModal(true)}
-          onOpenConflicts={() => setShowConflictsPanel(true)}
-          onOpenIncompatible={() => setShowIncompatiblePanel(true)}
-          onOpenHotSwap={() => setIsBlueprintSwapOpen(true)}
-        />
-      )}
+    </div>
 
       <AuditLogViewer
         isSidePanel={true}

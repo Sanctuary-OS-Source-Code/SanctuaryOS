@@ -9,7 +9,7 @@ import {
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown
+  fetchAllPaginated, CustomTierDropdown, ActionButton
 } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
@@ -218,13 +218,14 @@ export function MassUpdateOversight() {
         </div>
 
         {selectedIds.size > 0 && (
-          <button
-            onClick={() => setIsActionPanelOpen(true)}
-            className="h-12 px-6 ml-auto rounded-xl bg-[var(--accent)]/[20%] border border-[var(--accent)] text-[var(--accent)] font-black uppercase tracking-widest hover:bg-[var(--accent)]/[40%] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.6)] transition-all flex items-center gap-3 shrink-0 animate-in fade-in zoom-in duration-300"
-          >
-            <span className="material-symbols-outlined !text-[18px]">tune</span>
-            {t("mass_update_apply") || "CONFIGURE UPDATE"} ({selectedIds.size})
-          </button>
+          <div className="ml-auto shrink-0 animate-in fade-in zoom-in duration-300">
+            <ActionButton
+              onClick={() => setIsActionPanelOpen(true)}
+              variant="accent"
+              icon="tune"
+              label={`${t("mass_update_apply") || "CONFIGURE UPDATE"} (${selectedIds.size})`}
+            />
+          </div>
         )}
       </div>
 
@@ -307,11 +308,12 @@ export function MassUpdateOversight() {
           icon="batch_prediction"
           iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
           keepMounted={true}
+          noPadding={true}
         >
-          <div className="flex flex-col gap-6 w-full relative h-[calc(100vh-180px)] overflow-y-auto custom-scrollbar pr-2">
+          <div className="flex flex-col gap-6 w-full relative flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6">
             
-            <div className="flex flex-col gap-4 flex-1">
-              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-3 relative z-50 hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors">
+            <div className="flex flex-col gap-8 flex-1">
+              <div className="flex flex-col gap-2 relative z-50">
                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                   <span className={`material-symbols-outlined !text-[16px] ${massStatus ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>policy</span>
                   {t("mass_status_protocol")}
@@ -329,7 +331,7 @@ export function MassUpdateOversight() {
                 />
               </div>
 
-              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-3 relative z-40 hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors">
+              <div className="flex flex-col gap-2 relative z-40">
                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                   <span className={`material-symbols-outlined !text-[16px] ${massCompliance ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>verified_user</span>
                   {t("vault_stat_tier")}
@@ -347,7 +349,7 @@ export function MassUpdateOversight() {
                 />
               </div>
 
-              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-3 relative z-30 hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors">
+              <div className="flex flex-col gap-2 relative z-30">
                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                   <span className={`material-symbols-outlined !text-[16px] ${massCategory ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>category</span>
                   {t("mass_category_override")}
@@ -365,7 +367,7 @@ export function MassUpdateOversight() {
                 />
               </div>
 
-              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-3 relative z-20 hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors">
+              <div className="flex flex-col gap-2 relative z-20">
                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                   <span className={`material-symbols-outlined !text-[16px] ${massGameVersions.length > 0 ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>videogame_asset</span>
                   {t("auto_replace_game_versions")}
@@ -373,7 +375,7 @@ export function MassUpdateOversight() {
                 <GameVersionMultiSelect selectedVersions={massGameVersions} onChange={setMassGameVersions} />
               </div>
 
-              <div className="glass-panel p-5 rounded-2xl border border-red-500/[30%] flex flex-col gap-3 relative z-10 bg-red-500/[5%] hover:border-red-500/[50%] transition-colors">
+              <div className="flex flex-col gap-2 relative z-10">
                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                   <span className={`material-symbols-outlined !text-[16px] ${massConflictId ? 'text-[var(--danger)] drop-shadow-[0_0_5px_var(--danger)]' : 'text-[var(--danger)] opacity-80'}`}>gavel</span>
                   {t("mass_assign_conflict")}
@@ -402,13 +404,21 @@ export function MassUpdateOversight() {
                 />
               </div>
 
-              <button
-                disabled={isUpdating || selectedIds.size === 0 || !hasAnyAction || !editReason.trim()}
-                onClick={executeMassUpdate}
-                className={`!w-full !rounded-[var(--radius)] !py-5 ${standardSuccessButtonClass}`}
-              >
-                {isUpdating ? "EXECUTING..." : "INITIATE MASS UPDATE"}
-              </button>
+              <div className="flex items-center justify-center gap-4 mt-2">
+                <ActionButton
+                  onClick={() => setIsActionPanelOpen(false)}
+                  variant="glass"
+                  icon="close"
+                  label={t("nav_cancel") || "CANCEL"}
+                />
+                <ActionButton
+                  disabled={isUpdating || selectedIds.size === 0 || !hasAnyAction || !editReason.trim()}
+                  onClick={executeMassUpdate}
+                  variant="success"
+                  icon="done_all"
+                  label={isUpdating ? "EXECUTING..." : "INITIATE MASS UPDATE"}
+                />
+              </div>
             </div>
           </div>
         </SidePanel>

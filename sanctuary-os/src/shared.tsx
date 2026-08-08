@@ -5,6 +5,42 @@ import { createPortal } from "react-dom";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useModalStore } from "./store/modalStore";
 
+export const DeferredRender = ({ children }: { children: React.ReactNode }) => {
+  const [ready, setReady] = React.useState(false);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setReady(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+  return ready ? <>{children}</> : <div className="flex items-center justify-center p-20 w-full"><div className="w-8 h-8 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin" /></div>;
+};
+
+export const AccordionDrawer = ({ children, isOpen }: { children: React.ReactNode, isOpen: boolean }) => {
+  const [render, setRender] = React.useState(isOpen);
+  const [visible, setVisible] = React.useState(isOpen);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setRender(true);
+      const timer = setTimeout(() => setVisible(true), 10);
+      return () => clearTimeout(timer);
+    } else {
+      setVisible(false);
+      const timer = setTimeout(() => setRender(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  if (!render) return null;
+
+  return (
+    <div className={`col-span-full overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.2,0.9,0.2,1)] ${visible ? 'max-h-[1000px] opacity-100 scale-100' : 'max-h-0 opacity-0 scale-[0.98]'}`}>
+      <div className="pt-4 pb-12 px-2">
+        {children}
+      </div>
+    </div>
+  );
+};
+
 export const handleOpenUrl = (url: string) => {
   const { useInternalBrowser, setSideBrowserUrl, setIsSideBrowserOpen } = useModalStore.getState();
   if (useInternalBrowser) {
@@ -36,7 +72,7 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
 }) {
   let variantClasses = "";
   let borderColorVar = "--accent";
-  
+
   switch (variant) {
     case "danger":
       variantClasses = "!border-red-500/[30%] !text-[var(--danger)] hover:!border-red-500/[50%] hover:!bg-red-500/[10%]";
@@ -624,7 +660,7 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
   );
 }
 
-export function CustomDropdown({ value, selectedValues = [], options, onChange, placeholder, multiSelect, searchable, disableTint, className, buttonClassName, flat }: any) {
+export function CustomDropdown({ value, selectedValues = [], options, onChange, placeholder, multiSelect, searchable, disableTint, className, buttonClassName, flat, allowCustom }: any) {
   const { t } = useLexicon();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -637,6 +673,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
       return `${selectedValues.length} Selected`;
     }
     const selected = options.find((o: any) => String(o.id) === String(value)) || options.find((o: any) => selectedValues.includes(o.id));
+    if (allowCustom && !selected && value) return value;
     return selected?.label || placeholder || "Select...";
   };
 
@@ -655,7 +692,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
     : value !== undefined && value !== null && String(value).trim() !== "" && String(value).toLowerCase() !== "all" && String(value).toLowerCase() !== "any" && String(value).toLowerCase() !== "vlocal");
 
   return (
-    <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className}`}>
+    <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className || ''}`}>
       <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-between items-center focus:outline-none group relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-90' : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} shadow-inner text-sm font-bold backdrop-blur-[3px] ${isActive ? 'bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] shadow-md' : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`} ${buttonClassName || ''}`}>
         <span className="truncate pr-4 flex-1 text-left flex items-center h-full uppercase">{getSelectedLabel()}</span>
         <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)]'}`}><span className={`material-symbols-outlined ${flat ? '!text-[16px]' : '!text-[20px]'}`}>{isOpen ? 'expand_less' : 'expand_more'}</span></span>
@@ -699,9 +736,15 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
               {searchable && query && options.filter((opt: any) => {
                 const searchTarget = opt.searchText !== undefined ? opt.searchText : (typeof opt.label === 'string' ? opt.label : '');
                 return searchTarget.toLowerCase().includes(query.toLowerCase());
-              }).length === 0 && (
+              }).length === 0 && !allowCustom && (
                   <div className="p-4 text-center text-xs font-bold text-[var(--subtext)] opacity-60">{t("shared_no_options")}</div>
                 )}
+              {searchable && query && allowCustom && !options.some((o: any) => String(o.id).toLowerCase() === query.toLowerCase() || (typeof o.label === 'string' && o.label.toLowerCase() === query.toLowerCase())) && (
+                <button type="button" onClick={() => handleSelect(query)} className="w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[16px] opacity-60">add</span>
+                  <span className="text-[11px] font-black uppercase w-full">Create "{query}"</span>
+                </button>
+              )}
             </div>
           </div>
         </>,
@@ -712,6 +755,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
 }
 
 import { supabase } from "./supabase";
+
 
 export function GameVersionMultiSelect({ selectedVersions, onChange }: { selectedVersions: string[], onChange: (v: string[]) => void }) {
   selectedVersions = Array.isArray(selectedVersions) ? selectedVersions : (typeof selectedVersions === 'string' ? [selectedVersions] : []);
@@ -973,7 +1017,7 @@ export const renderTextWithIcons = (text: string) => {
         if (match) {
           const iconName = match[1].toLowerCase();
           return (
-            <span key={i} className="material-symbols-outlined !text-[inherit] align-middle px-1 leading-none -mt-1 inline-block">
+            <span key={i} className="material-symbols-outlined !text-[1.1em] align-middle px-1 inline-block">
               {iconName}
             </span>
           );

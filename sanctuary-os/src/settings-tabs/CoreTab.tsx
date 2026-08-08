@@ -5,9 +5,7 @@ import { useStore } from '../store';
 import { supabase } from '../supabase';
 import { TabContainer, SettingsGrid } from './shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
-import { SidePanel } from '../shared';
-
-const standardButtonClass = "px-6 py-3 rounded-2xl glass-surface text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
+import { SidePanel, ActionButton } from '../shared';
 
 export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any) {
   const { t } = useLexicon();
@@ -15,7 +13,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
-  const [activePanel, setActivePanel] = useState<'email' | 'password' | null>(null);
+  const [activePanel, setActivePanel] = useState<'email' | 'password' | 'system_id' | null>(null);
 
   const updateAuth = async (type: 'email' | 'password') => {
     setAuthLoading(true);
@@ -49,10 +47,12 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
 
     return (
       <UniversalCard key={dir.rustKey} title={dir.label} subtitle={obfuscatePath(dir.value)} icon="folder" onClick={() => pickPath(dir.rustKey, dir.label)}>
-        <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_20%,transparent)] shadow-lg bg-black/40 text-[var(--text)] transition-all group-hover:theme-border-accent">
-          <span className="material-symbols-outlined !text-sm text-[var(--accent)]">{t("icon_sync")}</span>
-          {t("btn_calibrate")}
-        </div>
+        <ActionButton 
+          variant="accent" 
+          icon={t("icon_sync") || "sync"} 
+          label={t("btn_calibrate")} 
+          className="w-full pointer-events-none mt-2" 
+        />
       </UniversalCard>
     );
   };
@@ -64,14 +64,12 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
         <TabContainer title={t("settings_auth_title")} icon="lock">
           <SettingsGrid>
             {session?.user?.id && (
-              <UniversalCard title={t("auth_user_id")} subtitle={t("auth_user_id_desc") || "Your unique Sanctuary identifier"} icon="badge">
-                <input
-                  type="text"
-                  readOnly
-                  value={session.user.id}
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 outline-none shadow-inner select-all"
-                />
-              </UniversalCard>
+              <UniversalCard 
+                title={t("auth_user_id")} 
+                subtitle={t("auth_user_id_desc") || "Your unique Sanctuary identifier"} 
+                icon="badge" 
+                onClick={() => setActivePanel('system_id')} 
+              />
             )}
 
             <UniversalCard 
@@ -103,20 +101,22 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
           title={t("sys_coords")}
           icon="push_pin"
           actions={
-            <button onClick={async () => {
-              try {
-                const detected: any = await invoke("auto_detect_paths");
-                updateConfig("live_path", detected.live_path);
-                updateConfig("mods_path", detected.mods_path);
-                updateConfig("vault_path", detected.vault_path);
-                useStore.getState().pushStatus(t("settings_auto_detect_success"));
-              } catch (err) {
-                useStore.getState().pushStatus(t("settings_auto_detect_fail"), 'error');
-              }
-            }} className="px-6 py-3 rounded-2xl glass-surface text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-xl flex items-center gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-              <span className="material-symbols-outlined !text-lg text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("icon_troubleshoot")}</span>
-              {t("auto_detect")}
-            </button>
+            <ActionButton 
+              variant="accent" 
+              icon={t("icon_troubleshoot") || "troubleshoot"} 
+              label={t("auto_detect")} 
+              onClick={async () => {
+                try {
+                  const detected: any = await invoke("auto_detect_paths");
+                  updateConfig("live_path", detected.live_path);
+                  updateConfig("mods_path", detected.mods_path);
+                  updateConfig("vault_path", detected.vault_path);
+                  useStore.getState().pushStatus(t("settings_auto_detect_success"));
+                } catch (err) {
+                  useStore.getState().pushStatus(t("settings_auto_detect_fail"), 'error');
+                }
+              }}
+            />
           }
         >
           <SettingsGrid>
@@ -145,13 +145,13 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
               autoFocus
               className="w-full glass-surface rounded-xl px-5 py-4 text-[12px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-black/40 transition-all shadow-inner"
             />
-            <button
+            <ActionButton
               type="submit"
               disabled={authLoading || !emailInput}
-              className={standardButtonClass}
-            >
-              {t("btn_update")}
-            </button>
+              variant="accent"
+              icon="save"
+              label={t("btn_update")}
+            />
           </form>
         </div>
       </SidePanel>
@@ -175,14 +175,43 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
               autoFocus
               className="w-full glass-surface rounded-xl px-5 py-4 text-[12px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-black/40 transition-all shadow-inner"
             />
-            <button
+            <ActionButton
               type="submit"
               disabled={authLoading || !passwordInput}
-              className={standardButtonClass}
-            >
-              {t("btn_update")}
-            </button>
+              variant="accent"
+              icon="save"
+              label={t("btn_update")}
+            />
           </form>
+        </div>
+      </SidePanel>
+      <SidePanel
+        isOpen={activePanel === 'system_id'}
+        onClose={() => setActivePanel(null)}
+        title={t("auth_user_id")}
+        icon="badge"
+      >
+        <div className="flex flex-col gap-6 p-6 h-full relative z-10">
+          <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest leading-relaxed">
+            {t("auth_user_id_desc") || "Your unique Sanctuary identifier"}
+          </p>
+          <div className="flex flex-col gap-4 mt-auto">
+            <input
+              type="text"
+              readOnly
+              value={session?.user?.id || ""}
+              className="w-full glass-surface rounded-xl px-5 py-4 text-[12px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-black/40 transition-all shadow-inner select-all"
+            />
+            <ActionButton
+              onClick={() => {
+                navigator.clipboard.writeText(session?.user?.id || "");
+                useStore.getState().pushStatus(t("auto_copied_to_clipboard_45") || "Copied to clipboard", 'success');
+              }}
+              variant="accent"
+              icon="content_copy"
+              label={t("btn_copy") || "Copy ID"}
+            />
+          </div>
         </div>
       </SidePanel>
     </>

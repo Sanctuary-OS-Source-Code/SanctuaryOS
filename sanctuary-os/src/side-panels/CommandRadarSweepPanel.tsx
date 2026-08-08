@@ -48,7 +48,17 @@ export default function CommandRadarSweepPanel({
 
   if (!isOpen) return null;
 
-  const updatesCount = Object.keys(networkUpdates?.updated?.reduce((acc: any, u: any) => { acc[u.dbId || u.name] = true; return acc; }, {}) || {}).length || 0;
+  const updatesCount = React.useMemo(() => {
+    const rawUpdates = relevantMods.filter((m: any) => m.hasUpdate).map((m: any) => ({
+      ...m,
+      dbId: m.dbId,
+    }));
+    return Object.keys(rawUpdates.reduce((acc: any, update: any) => {
+      const key = update.dbId || update.displayName || update.name;
+      if (!acc[key]) acc[key] = true;
+      return acc;
+    }, {})).length;
+  }, [relevantMods]);
   let radarState = "optimal";
   if (tier4Count > 0 || brokenCount > 0) {
     radarState = "critical";
@@ -99,6 +109,8 @@ export default function CommandRadarSweepPanel({
         iconColorClass={c_iconColor}
         widthClass="w-[625px]"
         noPadding={true}
+        backdropZ="z-[140001]"
+        panelZ="z-[140002]"
       >
         <div className="flex flex-col gap-6 w-full p-8 pb-12">
           

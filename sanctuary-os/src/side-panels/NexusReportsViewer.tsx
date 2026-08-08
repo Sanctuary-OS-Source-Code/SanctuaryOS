@@ -12,6 +12,7 @@ import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMu
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion } from "../shared";
+import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -307,7 +308,8 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
           setSelectedReport(null);
           setResolutionReason("");
         }}
-        title={selectedReport?.title || "Report Details"}
+        title={t("report_details") || "REPORT DETAILS"}
+        subtitle={t("dossier_subtitle") || "NEXUS OVERSIGHT DOSSIER"}
         icon="shield"
         footer={selectedReport?.status === 'pending' ? (
           <div className="flex justify-center items-center gap-4 w-full">
@@ -324,15 +326,16 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
           </div>
         ) : undefined}
       >
-        <div className="p-6 flex flex-col gap-6">
+        <div className="p-6 flex flex-col gap-8">
           {selectedReport && (
             <>
-              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                  <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                  {t("report_details")}
-                </h4>
+              <div className="flex flex-col gap-3 shrink-0">
+                <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest truncate">
+                  {selectedReport.title}
+                </h2>
+              </div>
+              
+              <UniversalGroup title={t("report_details")} icon={t("icon_info")}>
 
                 <div className="flex flex-col gap-6 relative z-10">
                   <div className="flex flex-col gap-2">
@@ -345,16 +348,10 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                     <p className="text-sm font-bold text-[var(--text)] leading-relaxed glass-surface px-5 py-4 min-h-[4rem] rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{selectedReport.description}</p>
                   </div>
                 </div>
-              </div>
+              </UniversalGroup>
 
               {(selectedReport.source === 'nexus' && selectedReport.metadata?.asset_full || selectedReport.metadata?.json_data) && (
-                <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mt-2">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none rounded-2xl" />
-                  <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span>
-                    {t("label_resources")}
-                  </h4>
-
+                <UniversalGroup title={t("resources") || "RESOURCES"} icon={t("icon_link") || "link"}>
                   <div className="flex gap-4 relative z-10">
                     {selectedReport.source === 'nexus' && selectedReport.metadata?.asset_full && (
                       <button
@@ -375,17 +372,16 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                       </button>
                     )}
                   </div>
-                </div>
+                </UniversalGroup>
               )}
 
               {selectedReport.status === 'pending' && (
-                <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mt-2">
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none rounded-2xl" />
-                  <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
-                    {t("architect_action")}
-                  </h4>
-
+                <UniversalGroup 
+                  title={t("dossier_action")} 
+                  icon={t("icon_gavel")} 
+                  headerColorClass="theme-text-warning"
+                  className="bg-amber-500/5 border-amber-500/30"
+                >
                   <div className="flex flex-col gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
                       <textarea
@@ -424,7 +420,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                       )}
                     </div>
                   </div>
-                </div>
+                </UniversalGroup>
               )}
             </>
           )}
