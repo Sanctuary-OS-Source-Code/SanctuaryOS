@@ -24,7 +24,7 @@ export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending, }:
             
           </ActionButton>
           <ActionButton
-            onClick={() => { yeetConfirmPending.onConfirm(); setYeetConfirmPending(null); }} label={t("yeet_btn_confirm")} icon={t("icon_delete")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
+            onClick={() => { yeetConfirmPending.onConfirm(); setYeetConfirmPending(null); }} label={t("yeet_btn_confirm")} icon={t("icon_delete")} className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]"
           >
             
             
@@ -34,8 +34,8 @@ export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending, }:
     >
       <div className="flex flex-col gap-3">
         {yeetConfirmPending.casualties.map((c: any, i: number) => (
-          <div key={i} className="flex items-center gap-4 text-left bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] p-4 rounded-2xl border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-sm hover:scale-[1.02] transition-transform">
-            <div className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center shrink-0">
+          <div key={i} className="flex items-center gap-4 text-left bg-red-500/[10%] p-4 rounded-2xl border border-red-500/[20%] shadow-sm hover:scale-[1.02] transition-transform">
+            <div className="w-8 h-8 rounded-full bg-red-500/[20%] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined theme-text-danger !text-[18px]">{t("icon_delete")}</span>
             </div>
             <div className="flex flex-col min-w-0">

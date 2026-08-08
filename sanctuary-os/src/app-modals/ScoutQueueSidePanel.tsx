@@ -35,7 +35,7 @@ export function ScoutQueueSidePanel({
       ) : (
         <div className="flex flex-col gap-4">
           {scoutQueue && scoutQueue.map((mod: any, index: number) => (
-          <div key={index} className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-5 flex flex-col gap-4 shadow-inner text-left hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all">
+          <div key={index} className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-5 flex flex-col gap-4 shadow-inner text-left hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all">
              <div className="flex flex-col gap-1">
                <span className="text-[9px] font-black theme-text-accent uppercase tracking-widest">{t("queue_target")}</span>
                <span className="text-xs font-black text-[var(--text)] truncate">{mod.displayName || mod.name}</span>

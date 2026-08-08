@@ -408,7 +408,7 @@ export function ContextMenu() {
       className="flex"
     >
       <div
-        className="w-48 h-max theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl overflow-hidden flex flex-col py-1 animate-in fade-in zoom-in-95 duration-100"
+        className="w-48 h-max glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl overflow-hidden flex flex-col py-1 animate-in fade-in zoom-in-95 duration-100"
         onContextMenu={(e) => e.preventDefault()}
       >
       {misspelledInfo && (
@@ -418,7 +418,7 @@ export function ContextMenu() {
                 <button
                     key={suggestion}
                     onMouseDown={(e) => { e.preventDefault(); handleAction(`spell_correct:${suggestion}`); }}
-                    className="px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group"
+                    className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group"
                 >
                     {suggestion}
                 </button>
@@ -429,7 +429,7 @@ export function ContextMenu() {
       {!isReadOnly && (
         <button
           onMouseDown={(e) => { e.preventDefault(); handleAction("cut"); }}
-          className="px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
+          className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
         >
           <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">content_cut</span>
           {t("ctx_cut")}
@@ -437,7 +437,7 @@ export function ContextMenu() {
       )}
       <button
         onMouseDown={(e) => { e.preventDefault(); handleAction("copy"); }}
-        className="px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
+        className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
       >
         <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">content_copy</span>
         {t("ctx_copy")}
@@ -446,7 +446,7 @@ export function ContextMenu() {
         <>
           <button
             onMouseDown={(e) => { e.preventDefault(); handleAction("paste"); }}
-            className="px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
+            className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
           >
             <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">content_paste</span>
             {t("ctx_paste")}
@@ -456,7 +456,7 @@ export function ContextMenu() {
               <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] my-1 w-full" />
               <button
                 onMouseDown={(e) => { e.preventDefault(); setShowIconPicker(!showIconPicker); }}
-                className={`px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center justify-between text-sm font-medium text-[var(--text)] group ${showIconPicker ? 'bg-white/5' : ''}`}
+                className={`px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center justify-between text-sm font-medium text-[var(--text)] group ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}`}
               >
                 <div className="flex items-center gap-3">
                    <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">add_reaction</span>
@@ -469,7 +469,7 @@ export function ContextMenu() {
           <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] my-1 w-full" />
           <button
             onMouseDown={(e) => { e.preventDefault(); handleAction("selectAll"); }}
-            className="px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
+            className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
           >
             <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">select_all</span>
             {t("btn_select_all")}

@@ -65,7 +65,7 @@ export function DnaMatchQueueSidePanel({
   const renderGroup = (title: string, icon: string, group: any[]) => {
     if (group.length === 0) return null;
     return (
-      <details className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shadow-inner group/details" open>
+      <details className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shadow-inner group/details" open>
         <summary className="cursor-pointer select-none p-4 flex items-center justify-between font-black text-xs uppercase tracking-widest text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-t-2xl transition-all">
           <div className="flex items-center gap-3 min-w-0">
             <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">{icon}</span>
@@ -77,13 +77,13 @@ export function DnaMatchQueueSidePanel({
           <div className="flex items-center gap-2 shrink-0 ml-4">
             <button
               onClick={(e) => { e.preventDefault(); handleBulkResolve(group, "ignore"); }}
-              className="px-4 py-1.5 rounded-lg font-bold text-[9px] uppercase whitespace-nowrap bg-white/10 backdrop-blur-md text-[var(--text)] hover:text-white hover:bg-[color-mix(in_srgb,var(--danger)_40%,transparent)] transition-all border border-white/20 hover:border-[var(--danger)]/50 shadow-sm"
+              className="px-4 py-1.5 rounded-lg font-bold text-[9px] uppercase whitespace-nowrap bg-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-md text-[var(--text)] hover:text-white hover:bg-red-500/[40%] transition-all border border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-[var(--danger)]/50 shadow-sm"
             >
               {t("btn_keep_all_old") || "KEEP ALL OLD"}
             </button>
             <button
               onClick={(e) => { e.preventDefault(); handleBulkResolve(group, "replace"); }}
-              className="px-4 py-1.5 rounded-lg font-bold text-[9px] uppercase whitespace-nowrap bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-md text-[var(--accent)] hover:text-white hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all border border-[var(--accent)]/30 hover:border-[var(--accent)]"
+              className="px-4 py-1.5 rounded-lg font-bold text-[9px] uppercase whitespace-nowrap bg-[var(--accent)]/[20%] backdrop-blur-md text-[var(--accent)] hover:text-white hover:bg-[var(--accent)]/[40%] transition-all border border-[var(--accent)]/30 hover:border-[var(--accent)]"
             >
               {t("btn_replace_all") || "KEEP ALL NEW"}
             </button>
@@ -106,7 +106,7 @@ export function DnaMatchQueueSidePanel({
                   onClick={async () => {
                     handleBulkResolve([match], "ignore");
                   }}
-                  className="px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase whitespace-nowrap bg-white/10 hover:bg-[color-mix(in_srgb,var(--danger)_40%,transparent)] border border-white/20 hover:border-[var(--danger)]/50 text-[var(--text)] hover:text-white transition-all flex items-center gap-1 shadow-sm"
+                  className="px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase whitespace-nowrap bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-red-500/[40%] border border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-[var(--danger)]/50 text-[var(--text)] hover:text-white transition-all flex items-center gap-1 shadow-sm"
                 >
                   <span className="material-symbols-outlined !text-[12px]">close</span>
                   {t("defcon_btn_skip") || "KEEP OLD"}
@@ -115,7 +115,7 @@ export function DnaMatchQueueSidePanel({
                   onClick={async () => {
                     handleBulkResolve([match], "replace");
                   }}
-                  className="px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase whitespace-nowrap bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] border border-[var(--accent)]/30 hover:border-[var(--accent)] text-[var(--accent)] hover:text-white transition-all flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase whitespace-nowrap bg-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[40%] border border-[var(--accent)]/30 hover:border-[var(--accent)] text-[var(--accent)] hover:text-white transition-all flex items-center gap-1"
                 >
                   <span className="material-symbols-outlined !text-[12px]">done</span>
                   {t("btn_replace") || "OVERWRITE"}
@@ -146,7 +146,7 @@ export function DnaMatchQueueSidePanel({
     >
       {isSuccess ? (
         <div className="flex flex-col items-center justify-center gap-4 py-12 text-center h-full">
-          <div className="w-16 h-16 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center mb-2">
+          <div className="w-16 h-16 rounded-full bg-[var(--accent)]/[20%] flex items-center justify-center mb-2">
             <span className="material-symbols-outlined !text-4xl text-[var(--accent)]">check_circle</span>
           </div>
           <h2 className="text-xl font-bold text-[var(--text)] uppercase tracking-widest">{t("status_ingest_success") || "Files Successfully Processed"}</h2>

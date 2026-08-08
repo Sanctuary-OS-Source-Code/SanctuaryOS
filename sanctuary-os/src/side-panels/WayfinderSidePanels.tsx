@@ -35,7 +35,7 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats }: any) {
     >
       <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-scrollbar">
         <div className="flex flex-col gap-4">
-          <div className="theme-glass-panel border border-white/5 rounded-2xl p-6 flex items-center justify-between">
+          <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-6 flex items-center justify-between">
              <div className="flex flex-col gap-1">
                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70">{t("wf_core_node")}</span>
                <span className={`text-xl font-black tracking-widest ${stats.networkStatus === 'ONLINE' ? 'text-emerald-400' : 'text-yellow-400'}`}>{stats.networkStatus === 'ONLINE' ? (t("wf_stat_server_nominal")) : (t("wf_stat_server_degraded"))}</span>
@@ -43,7 +43,7 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats }: any) {
              <span className="material-symbols-outlined !text-4xl opacity-20">{t("icon_memory")}</span>
           </div>
 
-          <div className="theme-glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-4">
+          <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-6 flex flex-col gap-4">
              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 flex items-center gap-2">
                <span className="material-symbols-outlined !text-[14px]">{t("icon_speed")}</span> {t("auto_system_load")}
              </span>
@@ -62,12 +62,12 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats }: any) {
                  <span className="text-orange-400">{t("auto_78")}</span>
                </div>
                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
-                 <div className="h-full bg-orange-400 w-[78%] shadow-[0_0_10px_rgba(251,146,60,0.8)]"></div>
+                 <div className="h-full bg-orange-400 w-[78%] shadow-md"></div>
                </div>
              </div>
           </div>
 
-          <div className="theme-glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-4">
+          <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-6 flex flex-col gap-4">
              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 flex items-center gap-2">
                <span className="material-symbols-outlined !text-[14px]">{t("icon_router")}</span> {t("auto_network_diagnostics")}
              </span>
@@ -83,7 +83,7 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats }: any) {
                <div className="flex flex-col gap-1 col-span-2 mt-2">
                  <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">{t("wf_db_sync")}</span>
                  <span className="text-sm font-black text-emerald-400 flex items-center gap-2">
-                   <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.8)] animate-pulse"></span>
+                   <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-md animate-pulse"></span>
                    {t("auto_synchronized")}
                  </span>
                </div>

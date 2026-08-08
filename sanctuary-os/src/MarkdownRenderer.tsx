@@ -32,20 +32,20 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
           ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
           li: ({ node, ...props }) => <li className="pl-1" {...props} />,
           blockquote: ({ node, ...props }) => (
-            <blockquote className="border-l-4 theme-border-accent pl-4 py-1 my-4 bg-white/5 rounded-r-lg italic opacity-80" {...props} />
+            <blockquote className="border-l-4 theme-border-accent pl-4 py-1 my-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-r-lg italic opacity-80" {...props} />
           ),
-          hr: ({ node, ...props }) => <hr className="my-8 border-white/10" {...props} />,
+          hr: ({ node, ...props }) => <hr className="my-8 border-[color-mix(in_srgb,var(--text)_10%,transparent)]" {...props} />,
           code: ({ node, className, children, ...props }: any) => {
             const match = /language-(\w+)/.exec(className || '');
             const isInline = !match && !content.includes('\n```');
             if (isInline) {
-              return <code className="bg-white/10 px-1.5 py-0.5 rounded font-mono text-sm theme-text-accent" {...props}>{children}</code>;
+              return <code className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1.5 py-0.5 rounded font-mono text-sm theme-text-accent" {...props}>{children}</code>;
             }
             return (
-              <div className="bg-black/40 border border-white/10 rounded-xl p-4 my-4 overflow-x-auto accent-scrollbar relative group">
+              <div className="bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 my-4 overflow-x-auto accent-scrollbar relative group">
                 <button 
                   onClick={() => navigator.clipboard.writeText(String(children))} 
-                  className="absolute top-2 right-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-[var(--subtext)] hover:text-[var(--text)] transition-colors opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer"
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-colors opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer"
                   title={t("ctx_copy") || "Copy"}
                 >
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_content_copy") || "content_copy"}</span>
@@ -64,7 +64,7 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
             const isExpanded = expandedImage === src;
             return (
               <span 
-                className={`group block my-6 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg theme-glass-inner relative cursor-pointer transition-all duration-500`}
+                className={`group block my-6 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg glass-surface relative cursor-pointer transition-all duration-500`}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedImage(isExpanded ? null : (src || null)); }}
               >
                 <img src={src} alt={alt} className={`w-full object-cover transition-all duration-500 ${isExpanded ? 'max-h-none' : 'max-h-96 group-hover:scale-105 group-hover:blur-[2px]'}`} {...props} />
@@ -74,7 +74,7 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
                   </span>
                 )}
                 {isExpanded && (
-                  <span className="absolute top-4 right-4 bg-black/50 hover:bg-black/80 rounded-full w-10 h-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none backdrop-blur-md border border-white/10">
+                  <span className="absolute top-4 right-4 bg-black/50 hover:bg-black/80 rounded-full w-10 h-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                     <span className="material-symbols-outlined text-white">close_fullscreen</span>
                   </span>
                 )}
@@ -90,7 +90,7 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
               return (
                 <span 
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAssetClick?.(type, id); }}
-                  className="my-2 mx-1 group relative inline-flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border theme-glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5 hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-2xl backdrop-blur-2xl transition-all cursor-pointer hover:scale-[1.01] w-[calc(100%-0.5rem)] sm:w-[calc(50%-0.5rem)] align-top no-underline"
+                  className="my-2 mx-1 group relative inline-flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[40%] hover:shadow-2xl backdrop-blur-2xl transition-all cursor-pointer hover:scale-[1.01] w-[calc(100%-0.5rem)] sm:w-[calc(50%-0.5rem)] align-top no-underline"
                 >
                   <span className="flex flex-col min-w-0 flex-1">
                     <span className="text-sm font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm flex items-center gap-2">
@@ -107,7 +107,7 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
                       </span>
                     </span>
                   </span>
-                  <span className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0 group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_60%,transparent)] transition-all shadow-inner">
+                  <span className="w-8 h-8 rounded-full bg-[var(--accent)]/[5%] border border-[var(--accent)]/[20%] text-[var(--accent)] flex items-center justify-center shrink-0 group-hover:bg-[var(--accent)]/[20%] group-hover:border-[var(--accent)]/[60%] transition-all shadow-inner">
                     <span className="material-symbols-outlined !text-[16px]">arrow_forward</span>
                   </span>
                 </span>

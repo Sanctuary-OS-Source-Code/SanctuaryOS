@@ -80,7 +80,7 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
                   boxShadow: `0 0 10px color-mix(in srgb, ${themeVar} 50%, transparent)`
                 }}
               >
-                <div className="absolute inset-0 bg-white/20 animate-[pulse_2s_ease-in-out_infinite]" />
+                <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_20%,transparent)] animate-[pulse_2s_ease-in-out_infinite]" />
                 <div className="absolute top-0 right-0 w-10 h-full bg-gradient-to-r from-transparent to-white/30 blur-sm" />
               </div>
             </div>

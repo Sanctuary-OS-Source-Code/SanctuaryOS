@@ -269,7 +269,7 @@ export default function Lab({
       />
 
         <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
+          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
             <HubTabButton id="DASHBOARD" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
             <HubTabButton id="BUILDER" icon="science" label={t("tab_lab_builder")} activeTab={activeTab} setTab={setActiveTab} />
             <HubTabButton id="REPORTS" icon="terminal" label={t("tab_lab_reports")} activeTab={activeTab} setTab={setActiveTab} />
@@ -293,7 +293,7 @@ export default function Lab({
                   <div className="grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4">
                   {testHistory.length > 0 ? (
                     testHistory.slice(0, 10).map((test: any, index: number) => (
-                      <div key={test.id || index} onClick={() => setSelectedReport(test)} className={`theme-glass-panel rounded-2xl p-5 border shadow-md transition-colors flex flex-col gap-3 relative overflow-hidden group cursor-pointer ${test.errorFound ? 'border-[var(--danger)]/30 hover:border-[var(--danger)]/50 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[var(--success)]/30 hover:border-[var(--success)]/50'}`}>
+                      <div key={test.id || index} onClick={() => setSelectedReport(test)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-colors flex flex-col gap-3 relative overflow-hidden group cursor-pointer ${test.errorFound ? 'border-[var(--danger)]/30 hover:border-[var(--danger)]/50 bg-red-500/[5%]' : 'border-[var(--success)]/30 hover:border-[var(--success)]/50'}`}>
                         <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${test.errorFound ? 'bg-[var(--danger)]/10' : 'bg-[var(--success)]/10'}`} />
 
                         <div className="flex items-center gap-3 relative z-10">
@@ -310,7 +310,7 @@ export default function Lab({
                       </div>
                     ))
                   ) : (
-                    <div className="theme-glass-panel rounded-2xl p-8 border border-white/5 flex flex-col items-center justify-center opacity-50 space-y-4 shadow-inner">
+                    <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center opacity-50 space-y-4 shadow-inner">
                       <span className="material-symbols-outlined !text-[48px] text-[var(--subtext)]">history</span>
                       <div className="text-sm font-black uppercase tracking-widest text-[var(--text)]">{t("no_recent_telemetry") || "NO RECENT TELEMETRY"}</div>
                     </div>
@@ -365,10 +365,10 @@ export default function Lab({
             shape="square"
             title={t("tab_lab_builder") || "ECOSYSTEM FORGE"}
             icon="science"
-            className="py-3 border-b border-white/5 w-full mb-6 relative z-20 shrink-0"
+            className="py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-6 relative z-20 shrink-0"
             rightContent={activeLabMod && (
               <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                <div className="hidden lg:flex flex-col items-end gap-1 px-4 border-r border-white/10">
+                <div className="hidden lg:flex flex-col items-end gap-1 px-4 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("payload") || "PAYLOAD"}</span>
                   <span className="text-xs font-black text-[var(--text)] tracking-widest uppercase">
                     {t("core_plus") || "1 CORE + "}{stagedExtras.length + (conflictTarget ? 1 : 0) + conflictExtras.length}{t("injected") || " INJECTED"}
@@ -379,7 +379,7 @@ export default function Lab({
                   {!shelterActive ? (
                     <ActionButton icon="bolt" label={t("btn_initiate_swap") || "CONDUCT EXPERIMENT"} onClick={runCombinedHotSwap} />
                   ) : (
-                    <ActionButton icon="science" label={t("btn_view_test") || "VIEW ACTIVE TEST"} onClick={() => setShowTestPanel(true)} className="!bg-[color-mix(in_srgb,var(--success)_10%,transparent)] !border-[var(--success)]/30 !text-[var(--success)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)]" />
+                    <ActionButton icon="science" label={t("btn_view_test") || "VIEW ACTIVE TEST"} onClick={() => setShowTestPanel(true)} className="!bg-emerald-500/[10%] !border-[var(--success)]/30 !text-[var(--success)] hover:!bg-emerald-500/[20%]" />
                   )}
                 </div>
               </div>
@@ -390,11 +390,11 @@ export default function Lab({
 
             {/* LEFT COLUMN: THE CORE (SUBJECT) */}
             <div className="flex flex-col gap-6 h-full">
-              <div className="theme-glass-panel rounded-[var(--radius)] border border-white/5 shadow-xl relative flex flex-col h-full min-h-[500px] overflow-hidden group">
+              <div className="glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative flex flex-col h-full min-h-[500px] overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-50 pointer-events-none" />
 
-                <div className="flex flex-col items-center justify-center text-center p-8 border-b border-white/5 relative z-10">
-                  <div className="w-20 h-20 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shrink-0 mb-4 shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                <div className="flex flex-col items-center justify-center text-center p-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
+                  <div className="w-20 h-20 rounded-full bg-[var(--accent)]/[10%] flex items-center justify-center border border-[var(--accent)]/[20%] shrink-0 mb-4 shadow-md">
                     <span className="material-symbols-outlined text-[var(--accent)] !text-[40px] animate-pulse">{t("icon_science")}</span>
                   </div>
                   <h3 className="text-2xl font-black text-[var(--text)] uppercase tracking-[0.2em]">{t("mount_subject")}</h3>
@@ -411,11 +411,11 @@ export default function Lab({
                       placeholder={t("filter_dna")}
                     />
                   ) : (
-                    <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-8 rounded-2xl shadow-[0_0_50px_color-mix(in_srgb,var(--accent)_20%,transparent)] flex flex-col items-center text-center group/core h-full justify-center">
+                    <div className="relative overflow-hidden bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] p-8 rounded-2xl shadow-md flex flex-col items-center text-center group/core h-full justify-center">
                       <div className="absolute inset-0 border-[2px] border-dashed border-[var(--accent)] opacity-20 rounded-2xl animate-[spin_20s_linear_infinite] pointer-events-none scale-150" />
                       <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)] opacity-10 blur-[50px] rounded-full pointer-events-none" />
 
-                      <span className="material-symbols-outlined !text-[64px] text-[var(--accent)] drop-shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_80%,transparent)] mb-6">view_in_ar</span>
+                      <span className="material-symbols-outlined !text-[64px] text-[var(--accent)] drop-shadow-md mb-6">view_in_ar</span>
 
                       <div className="flex flex-col gap-2 relative z-10 w-full px-4">
                         <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-[0.3em] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] py-1 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] w-max mx-auto px-4">{t("subject_isolation")}</span>
@@ -427,7 +427,7 @@ export default function Lab({
                           icon="close"
                           label={t("lab_btn_abort")}
                           onClick={abortLab}
-                          className="!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] !border-[var(--danger)]/30 !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
+                          className="!bg-red-500/[10%] !border-[var(--danger)]/30 !text-[var(--danger)] hover:!bg-red-500/[20%]"
                         />
                       </div>
                     </div>
@@ -440,7 +440,7 @@ export default function Lab({
             <div className="flex flex-col gap-8 pb-10">
 
               {/* SYMBIOTIC GRID */}
-              <div className={`theme-glass-panel p-8 rounded-[var(--radius)] border shadow-xl relative flex flex-col h-max min-h-[300px] transition-all ${!activeLabMod ? 'opacity-30 pointer-events-none border-white/5 grayscale' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+              <div className={`glass-panel p-8 rounded-[var(--radius)] border shadow-xl relative flex flex-col h-max min-h-[300px] transition-all ${!activeLabMod ? 'opacity-30 pointer-events-none border-[color-mix(in_srgb,var(--text)_5%,transparent)] grayscale' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                 <CommandScreenSectionHeading 
                   shape="circle"
                   title={t("symbiotic_deps")} 
@@ -448,12 +448,12 @@ export default function Lab({
                   icon="folder"
                   colorClass="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                   iconColorClass="text-[var(--text)] opacity-80"
-                  className="mb-6 border-b border-white/5 pb-4 relative z-10 w-full"
+                  className="mb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 relative z-10 w-full"
                 />
 
                 <div className="relative z-20 mb-6">
                   {missingDeps.length > 0 && (
-                    <div className="bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded-xl p-4 mb-6 flex flex-col gap-2 shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_10%,transparent)]">
+                    <div className="bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded-xl p-4 mb-6 flex flex-col gap-2 shadow-md">
                       <div className="flex items-center gap-2 text-[var(--danger)] font-black text-xs uppercase tracking-widest">
                         <span className="material-symbols-outlined !text-[16px]">warning</span>
                         {t("missing_symbiotic_deps")}
@@ -507,23 +507,23 @@ export default function Lab({
                     ))}
                   </div>
                 ) : (
-                  <div className="w-full py-10 mt-2 flex items-center justify-center border-2 border-dashed border-white/5 rounded-xl bg-black/20 text-[var(--subtext)] opacity-50 font-black text-[10px] uppercase tracking-widest">
+                  <div className="w-full py-10 mt-2 flex items-center justify-center border-2 border-dashed border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl bg-black/20 text-[var(--subtext)] opacity-50 font-black text-[10px] uppercase tracking-widest">
                     NO SYMBIOTIC ENTITIES LOADED
                   </div>
                 )}
               </div>
 
               {/* ADVERSARIAL GRID */}
-              <div className={`theme-glass-panel p-8 rounded-[var(--radius)] border shadow-xl relative flex flex-col h-max min-h-[300px] transition-all ${!activeLabMod ? 'opacity-30 pointer-events-none border-white/5 grayscale' : 'border-[color-mix(in_srgb,var(--warning)_20%,transparent)]'}`}>
+              <div className={`glass-panel p-8 rounded-[var(--radius)] border shadow-xl relative flex flex-col h-max min-h-[300px] transition-all ${!activeLabMod ? 'opacity-30 pointer-events-none border-[color-mix(in_srgb,var(--text)_5%,transparent)] grayscale' : 'border-orange-500/[20%]'}`}>
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--warning)]/5 to-transparent opacity-50 rounded-[inherit] pointer-events-none" />
                 <CommandScreenSectionHeading 
                   shape="circle"
                   title={t("adversarial_entities")} 
                   subtitle={t("adversarial_desc")} 
                   icon="warning"
-                  colorClass="bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_20%,transparent)]"
+                  colorClass="bg-orange-500/[10%] border-orange-500/[30%] shadow-md"
                   iconColorClass="theme-text-warning opacity-90 animate-pulse"
-                  className="mb-6 border-b border-white/5 pb-4 relative z-10 w-full"
+                  className="mb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 relative z-10 w-full"
                 />
 
                 <div className="relative z-20 mb-6">
@@ -549,17 +549,17 @@ export default function Lab({
                 <div className="flex flex-col gap-4 relative z-10 flex-1">
                   {conflictTarget ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-max">
-                      <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] p-4 rounded-xl shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_10%,transparent)] flex justify-between items-center group md:col-span-2 h-[80px]">
+                      <div className="relative overflow-hidden bg-orange-500/[10%] border border-orange-500/[30%] p-4 rounded-xl shadow-md flex justify-between items-center group md:col-span-2 h-[80px]">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--warning)] opacity-10 blur-[30px] rounded-full pointer-events-none" />
                         <div className="flex flex-col gap-1 relative z-10 min-w-0 pr-4">
                           <span className="text-[9px] font-black theme-text-warning uppercase tracking-[0.3em]">{t("primary_adversary")}</span>
                           <span className="text-sm font-black uppercase text-[var(--text)] truncate">{getModName(conflictTarget)}</span>
                         </div>
-                        <button onClick={() => { setConflictTarget(null); setConflictExtras([]); }} className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-[var(--danger)] text-[var(--text)] hover:text-white transition-all shadow-md relative z-10"><span className='material-symbols-outlined !text-[20px]'>{t("icon_close")}</span></button>
+                        <button onClick={() => { setConflictTarget(null); setConflictExtras([]); }} className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[var(--danger)] text-[var(--text)] hover:text-white transition-all shadow-md relative z-10"><span className='material-symbols-outlined !text-[20px]'>{t("icon_close")}</span></button>
                       </div>
 
                       {conflictExtras.map((m: any) => (
-                        <div key={m.hash} className="flex justify-between items-center bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] border border-[color-mix(in_srgb,var(--warning)_10%,transparent)] p-4 rounded-xl hover:border-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] transition-all group/item shadow-sm h-[60px]">
+                        <div key={m.hash} className="flex justify-between items-center bg-orange-500/[5%] border border-orange-500/[10%] p-4 rounded-xl hover:border-orange-500/[20%] hover:bg-orange-500/[8%] transition-all group/item shadow-sm h-[60px]">
                           <span className="text-[11px] font-black uppercase text-[var(--text)] truncate pr-4">{getModName(m)}</span>
                           <button onClick={() => setConflictExtras(conflictExtras.filter(e => e.hash !== m.hash))} className="w-8 h-8 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"><span className='material-symbols-outlined !text-[16px]'>{t("icon_close")}</span></button>
                         </div>
@@ -585,7 +585,7 @@ export default function Lab({
             shape="square"
             title={t("tab_lab_reports") || "TELEMETRY LOGS"}
             icon="terminal"
-            className="py-3 border-b border-white/5 w-full mb-6 relative z-20 shrink-0"
+            className="py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-6 relative z-20 shrink-0"
             rightContent={
               <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
                 <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
@@ -595,7 +595,7 @@ export default function Lab({
                     placeholder={t("search_logs")}
                     value={searchLogs}
                     onChange={(e) => setSearchLogs(e.target.value)}
-                    className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--text)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--text)]/50 placeholder:opacity-40"
+                    className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--text)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--text)]/50 placeholder:opacity-40"
                   />
                   {searchLogs && (
                     <button onClick={() => setSearchLogs("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
@@ -619,7 +619,7 @@ export default function Lab({
             {filteredReports.map((report: any) => {
               const isError = report.errorFound;
               return (
-                <div key={report.id} onClick={() => setSelectedReport(report)} className={`theme-glass-panel rounded-2xl p-5 border shadow-md transition-all flex flex-col gap-3 relative overflow-hidden group cursor-pointer hover:-translate-y-1 hover:shadow-xl ${isError ? 'border-[var(--danger)]/30 hover:border-[var(--danger)]/50 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[var(--success)]/30 hover:border-[var(--success)]/50'}`}>
+                <div key={report.id} onClick={() => setSelectedReport(report)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-all flex flex-col gap-3 relative overflow-hidden group cursor-pointer hover:-translate-y-1 hover:shadow-xl ${isError ? 'border-[var(--danger)]/30 hover:border-[var(--danger)]/50 bg-red-500/[5%]' : 'border-[var(--success)]/30 hover:border-[var(--success)]/50'}`}>
                   <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${isError ? 'bg-[var(--danger)]/10' : 'bg-[var(--success)]/10'}`} />
 
                   <div className="flex items-center gap-3 relative z-10">
@@ -670,7 +670,7 @@ export default function Lab({
                 <div className="flex flex-wrap items-center gap-4 mt-4 lg:mt-0">
                   <button
                     onClick={handleConcludeTest}
-                    className={`py-2.5 px-6 rounded-[var(--radius)] font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border shadow-sm ${isError ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] hover:border-[var(--danger)]' : 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)]'}`}
+                    className={`py-2.5 px-6 rounded-[var(--radius)] font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border shadow-sm ${isError ? 'bg-red-500/[15%] text-[var(--danger)] border-red-500/[30%] hover:bg-red-500/[25%] hover:border-[var(--danger)]' : 'bg-emerald-500/[15%] text-[var(--success)] border-emerald-500/[30%] hover:bg-emerald-500/[25%] hover:border-[var(--success)]'}`}
                   >
                     <span className="material-symbols-outlined !text-[16px]">{isError ? 'shield' : 'verified_user'}</span>
                     {isError ? (t("secure_broken")) : (t("secure_verified"))}
@@ -688,7 +688,7 @@ export default function Lab({
                      icon="send"
                      label={t("submit_diagnostics") || "SUBMIT TO DIAGNOSTICS"}
                      onClick={() => { setSelectedReport(null); submitLabReport(selectedReport); }}
-                     className="!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] !border-[var(--danger)]/30 !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
+                     className="!bg-red-500/[10%] !border-[var(--danger)]/30 !text-[var(--danger)] hover:!bg-red-500/[20%]"
                    />
                  )}
               </div>
@@ -698,7 +698,7 @@ export default function Lab({
               <div className="flex flex-col gap-3">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("payload_composition") || "PAYLOAD COMPOSITION"}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="theme-glass-panel rounded-xl p-3 border border-[var(--accent)]/30 flex items-center gap-3 relative overflow-hidden group">
+                  <div className="glass-panel rounded-xl p-3 border border-[var(--accent)]/30 flex items-center gap-3 relative overflow-hidden group">
                     <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent)]/10 to-transparent opacity-50" />
                     <span className="material-symbols-outlined text-[var(--accent)] !text-[18px] relative z-10">science</span>
                     <span className="text-[var(--text)] text-xs font-bold uppercase tracking-widest truncate relative z-10">{getModName(selectedReport.mod)}</span>
@@ -706,7 +706,7 @@ export default function Lab({
                   </div>
                   
                   {selectedReport.conflictTarget && (
-                    <div className="theme-glass-panel rounded-xl p-3 border border-[var(--danger)]/30 flex items-center gap-3 relative overflow-hidden group">
+                    <div className="glass-panel rounded-xl p-3 border border-[var(--danger)]/30 flex items-center gap-3 relative overflow-hidden group">
                       <div className="absolute inset-0 bg-gradient-to-r from-[var(--danger)]/10 to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--danger)] !text-[18px] relative z-10">warning</span>
                       <span className="text-[var(--text)] text-xs font-bold uppercase tracking-widest truncate relative z-10">{getModName(selectedReport.conflictTarget)}</span>
@@ -715,7 +715,7 @@ export default function Lab({
                   )}
                   
                   {selectedReport.stagedExtras?.map((m: any) => (
-                    <div key={m.hash || m.name} className="theme-glass-panel rounded-xl p-3 border border-white/10 flex items-center gap-3 relative overflow-hidden group">
+                    <div key={m.hash || m.name} className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3 relative overflow-hidden group">
                       <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--subtext)] !text-[18px] relative z-10">extension</span>
                       <span className="text-[var(--text)] text-xs font-bold uppercase tracking-widest truncate relative z-10">{getModName(m)}</span>
@@ -724,7 +724,7 @@ export default function Lab({
                   ))}
                   
                   {selectedReport.conflictExtras?.map((m: any) => (
-                    <div key={m.hash || m.name} className="theme-glass-panel rounded-xl p-3 border border-[var(--warning)]/30 flex items-center gap-3 relative overflow-hidden group">
+                    <div key={m.hash || m.name} className="glass-panel rounded-xl p-3 border border-[var(--warning)]/30 flex items-center gap-3 relative overflow-hidden group">
                       <div className="absolute inset-0 bg-gradient-to-r from-[var(--warning)]/10 to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--warning)] !text-[18px] relative z-10">extension</span>
                       <span className="text-[var(--text)] text-xs font-bold uppercase tracking-widest truncate relative z-10">{getModName(m)}</span>
@@ -734,7 +734,7 @@ export default function Lab({
                 </div>
               </div>
               
-              <div className="flex-1 min-h-[400px] theme-glass-panel backdrop-blur-xl border border-white/5 rounded-2xl p-6 font-mono text-[13px] text-[var(--text)] overflow-y-auto custom-scrollbar shadow-inner relative flex flex-col mb-10">
+              <div className="flex-1 min-h-[400px] glass-panel backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-6 font-mono text-[13px] text-[var(--text)] overflow-y-auto custom-scrollbar shadow-inner relative flex flex-col mb-10">
               <div className="flex items-center gap-3 mb-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4 shrink-0">
                 <span className="material-symbols-outlined text-[var(--subtext)] opacity-50 !text-[18px]">{t("icon_terminal") || "terminal"}</span>
                 <span className="text-[var(--subtext)] opacity-70 uppercase tracking-widest text-[11px] font-black">
@@ -780,7 +780,7 @@ export default function Lab({
              <div className="relative flex items-center justify-center">
                <div className="absolute inset-0 border-[6px] border-[var(--accent)] rounded-full border-t-transparent animate-[spin_3s_linear_infinite] opacity-30 blur-[4px] scale-150"></div>
                <div className="absolute inset-0 border-[2px] border-[var(--accent)] rounded-full border-b-transparent animate-[spin_2s_linear_infinite_reverse] opacity-50 scale-125"></div>
-               <div className="w-32 h-32 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_0_50px_color-mix(in_srgb,var(--accent)_20%,transparent)] relative z-10">
+               <div className="w-32 h-32 rounded-full bg-[var(--accent)]/[10%] flex items-center justify-center border border-[var(--accent)]/[20%] shadow-md relative z-10">
                   <span className="material-symbols-outlined !text-[64px] text-[var(--accent)] animate-pulse drop-shadow-lg">radar</span>
                </div>
              </div>
@@ -789,7 +789,7 @@ export default function Lab({
                <div className="text-2xl font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">
                  {t("monitoring_subject") || "MONITORING SUBJECT"}
                </div>
-               <div className="text-sm font-bold uppercase tracking-widest text-[var(--accent)] px-6 py-2 bg-[var(--accent)]/10 rounded-full border border-[var(--accent)]/20 mx-auto w-max mt-2 shadow-[inset_0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
+               <div className="text-sm font-bold uppercase tracking-widest text-[var(--accent)] px-6 py-2 bg-[var(--accent)]/10 rounded-full border border-[var(--accent)]/20 mx-auto w-max mt-2 shadow-md">
                  {getModName(activeLabMod)}
                </div>
                <div className="text-[10px] uppercase font-bold text-[var(--subtext)] tracking-widest mt-4">

@@ -122,18 +122,18 @@ export default function TimeCapsule({
     const themeBorder = isEngine ? 'border-rose-500/20' : 'border-indigo-500/20';
     const themeHoverBorder = isEngine ? 'hover:border-rose-500/40' : 'hover:border-indigo-500/40';
     const themeGradient = isEngine ? 'from-rose-500/5' : 'from-indigo-500/5';
-    const themeLed = isEngine ? 'bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.8)]' : 'bg-indigo-500 shadow-[0_0_8px_rgba(79,70,229,0.8)]';
+    const themeLed = isEngine ? 'bg-rose-500 shadow-md' : 'bg-indigo-500 shadow-md';
 
     return (
-      <div key={backupName} className={`relative bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 p-5 rounded-[var(--radius)] flex flex-col gap-4 shadow-xl min-h-[13rem] overflow-hidden group ${themeHoverBorder} transition-all duration-300`}>
+      <div key={backupName} className={`relative bg-black/5 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-black/5 dark:border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-5 rounded-[var(--radius)] flex flex-col gap-4 shadow-xl min-h-[13rem] overflow-hidden group ${themeHoverBorder} transition-all duration-300`}>
         <div className={`absolute inset-0 bg-gradient-to-br ${themeGradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
 
         <div className="flex justify-between items-start relative z-10">
-          <div className={`w-12 h-12 rounded-xl theme-glass-panel border ${themeBorder} shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
+          <div className={`w-12 h-12 rounded-xl glass-panel border ${themeBorder} shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
             <span className={`material-symbols-outlined !text-[24px] ${themeColor} opacity-90 drop-shadow-lg`}>{icon}</span>
           </div>
 
-          <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 px-2.5 py-1 rounded-lg">
+          <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest bg-black/5 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-black/5 dark:border-[color-mix(in_srgb,var(--text)_5%,transparent)] px-2.5 py-1 rounded-lg">
             {sizeMb < 1 ? (sizeMb * 1024).toFixed(2) + " MB" : (sizeMb / 1024).toFixed(2) + " " + t("unit_gb")}
           </span>
         </div>
@@ -156,20 +156,20 @@ export default function TimeCapsule({
           <div className={`absolute inset-0 flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName || confirmDeleteBackup === backupName ? 'opacity-0 translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
             <button
               onClick={() => setConfirmRestoreBackup(backupName)}
-              className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:${themeColor} bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all rounded-xl shadow-sm backdrop-blur-md`}
+              className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:${themeColor} bg-black/5 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-black/10 dark:hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-black/10 dark:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-black/20 dark:hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all rounded-xl shadow-sm backdrop-blur-md`}
             >
               <span className={`material-symbols-outlined !text-sm`}>{t("icon_restore")}</span>
               {t("btn_restore")}
             </button>
             <button
               onClick={() => { setSelectedBackupForInspection(backupName); setIsSidePanelOpen(true); }}
-              className="flex-[1] h-full flex items-center justify-center text-[var(--text)]/80 hover:text-[var(--text)] bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-[var(--text)]/30 transition-all rounded-xl shadow-sm backdrop-blur-md group/ins"
+              className="flex-[1] h-full flex items-center justify-center text-[var(--text)]/80 hover:text-[var(--text)] bg-black/5 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-black/10 dark:hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-black/10 dark:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--text)]/30 transition-all rounded-xl shadow-sm backdrop-blur-md group/ins"
             >
               <span className="material-symbols-outlined !text-sm group-hover/ins:scale-110 transition-transform">search</span>
             </button>
             <button
               onClick={() => setConfirmDeleteBackup(backupName)}
-              className="flex-[1] h-full flex items-center justify-center text-red-500/80 hover:text-red-500 bg-black/5 dark:bg-white/5 hover:bg-red-500/10 border border-black/10 dark:border-white/10 hover:border-red-500/30 transition-all rounded-xl shadow-sm backdrop-blur-md group/del"
+              className="flex-[1] h-full flex items-center justify-center text-red-500/80 hover:text-red-500 bg-black/5 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-red-500/10 border border-black/10 dark:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-red-500/30 transition-all rounded-xl shadow-sm backdrop-blur-md group/del"
             >
               <span className="material-symbols-outlined !text-sm group-hover/del:scale-110 transition-transform">{t("icon_delete")}</span>
             </button>
@@ -182,7 +182,7 @@ export default function TimeCapsule({
             >
               {isEngine ? t("confirm_restore_engine_card") : t("confirm_restore_state")}
             </button>
-            <button onClick={() => setConfirmRestoreBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] uppercase tracking-widest rounded-xl shadow-sm backdrop-blur-md">
+            <button onClick={() => setConfirmRestoreBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-black/20 dark:hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] border border-black/10 dark:border-[color-mix(in_srgb,var(--text)_10%,transparent)] font-black text-[10px] uppercase tracking-widest rounded-xl shadow-sm backdrop-blur-md">
               {t("btn_cancel")}
             </button>
           </div>
@@ -194,7 +194,7 @@ export default function TimeCapsule({
             >
               {isEngine ? t("confirm_delete_engine_card") : t("confirm_delete_state")}
             </button>
-            <button onClick={() => setConfirmDeleteBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] uppercase tracking-widest rounded-xl shadow-sm backdrop-blur-md">
+            <button onClick={() => setConfirmDeleteBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-black/20 dark:hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] border border-black/10 dark:border-[color-mix(in_srgb,var(--text)_10%,transparent)] font-black text-[10px] uppercase tracking-widest rounded-xl shadow-sm backdrop-blur-md">
               {t("btn_cancel")}
             </button>
           </div>
@@ -209,7 +209,7 @@ export default function TimeCapsule({
       <ViewHeader title={t("backups_title")} subtitle={t("backups_subtitle")} icon={t("icon_history")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
 
       <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
+        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
           <HubTabButton id="LANDING" icon="dashboard" label={t("tab_landing") || "LANDING"} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="WORLD" icon="public" label={t("world_state")} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="ENGINE" icon="settings" label={t("engine_full")} activeTab={activeTab} setTab={setActiveTab} />
@@ -252,9 +252,9 @@ export default function TimeCapsule({
           shape="circle"
           title={activeTab === "LANDING" ? (t("timecapsule_recent") || "RECENT CHRONOGRAMS") : activeTab === "WORLD" ? t("world_state") : t("section_engine")}
           icon={activeTab === "WORLD" ? "public" : activeTab === "ENGINE" ? "settings" : "history"}
-          colorClass={`theme-glass-inner border ${activeTab === "WORLD" ? "border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)] bg-indigo-500/5" : activeTab === "ENGINE" ? "border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)] bg-rose-500/5" : "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_15%,transparent)] bg-[var(--accent)]/5"}`}
-          iconColorClass={activeTab === "WORLD" ? "text-indigo-500 drop-shadow-[0_0_8px_rgba(99,102,241,0.6)]" : activeTab === "ENGINE" ? "text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]" : "theme-text-accent drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_60%,transparent)]"}
-          className="py-4 border-b border-white/5 w-full shrink-0"
+          colorClass={`glass-surface border ${activeTab === "WORLD" ? "border-indigo-500/30 shadow-md bg-indigo-500/5" : activeTab === "ENGINE" ? "border-rose-500/30 shadow-md bg-rose-500/5" : "border-[var(--accent)]/[30%] shadow-md bg-[var(--accent)]/5"}`}
+          iconColorClass={activeTab === "WORLD" ? "text-indigo-500 drop-shadow-md" : activeTab === "ENGINE" ? "text-rose-500 drop-shadow-md" : "theme-text-accent drop-shadow-md"}
+          className="py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full shrink-0"
           rightContent={
             <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
             <div className="relative flex-1 h-12 min-w-[200px] max-w-[350px]">
@@ -264,7 +264,7 @@ export default function TimeCapsule({
                 placeholder={t("timecapsule_search") || "Search Chronograms..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
@@ -363,9 +363,9 @@ export default function TimeCapsule({
               <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {worldBackups.length > 0 && (
                   <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
                       <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-[0.2em] flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-indigo-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                        <div className="w-12 h-12 rounded-xl glass-panel border border-indigo-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                           <span className="material-symbols-outlined !text-[24px] text-indigo-500 opacity-90 drop-shadow-lg">{t("icon_public")}</span>
                         </div>
                         {t("recent_world_states") || "RECENT WORLD STATES"}
@@ -401,9 +401,9 @@ export default function TimeCapsule({
 
                 {engineBackups.length > 0 && (
                   <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
                       <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-[0.2em] flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-rose-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                        <div className="w-12 h-12 rounded-xl glass-panel border border-rose-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                           <span className="material-symbols-outlined !text-[24px] text-rose-500 opacity-90 drop-shadow-lg">{t("icon_settings")}</span>
                         </div>
                         {t("recent_engine_cores") || "RECENT ENGINE CORES"}
@@ -456,7 +456,7 @@ export default function TimeCapsule({
             )}
 
             {activeTab === "LANDING" && worldBackups.length === 0 && engineBackups.length === 0 && (
-              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
+              <div className="flex items-center justify-center h-64 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] shadow-xl w-full">
                 <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60 flex items-center gap-4">
                   <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
                   {t("timecapsule_no_backups")}
@@ -465,7 +465,7 @@ export default function TimeCapsule({
             )}
 
             {activeTab === "WORLD" && worldBackups.length === 0 && (
-              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
+              <div className="flex items-center justify-center h-64 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] shadow-xl w-full">
                 <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60 flex items-center gap-4">
                   <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
                   {t("timecapsule_no_backups")}
@@ -474,7 +474,7 @@ export default function TimeCapsule({
             )}
 
             {activeTab === "ENGINE" && engineBackups.length === 0 && (
-              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
+              <div className="flex items-center justify-center h-64 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] shadow-xl w-full">
                 <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60 flex items-center gap-4">
                   <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
                   {t("timecapsule_no_backups")}
@@ -483,7 +483,7 @@ export default function TimeCapsule({
             )}
           </>
         ) : (
-          <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl">
+          <div className="flex items-center justify-center h-64 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] shadow-xl">
             <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60 flex items-center gap-4">
               <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
               {t("timecapsule_no_backups")}

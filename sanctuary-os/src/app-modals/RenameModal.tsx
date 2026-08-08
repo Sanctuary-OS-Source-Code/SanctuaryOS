@@ -25,10 +25,10 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
                 value={renameModal.newName} 
                 onChange={(e) => setRenameModal({ ...renameModal, newName: e.target.value }) } 
                 onKeyDown={(e) => e.key === "Enter" && executeRename()} 
-                className="w-full theme-glass-inner px-5 py-4 rounded-xl text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all" 
+                className="w-full glass-surface px-5 py-4 rounded-xl text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all" 
               />
               <div className="flex gap-3 mt-2">
-                <button onClick={() => setRenameModal(null)} className="flex-1 py-3 theme-btn-standard font-black text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/5">
+                <button onClick={() => setRenameModal(null)} className="flex-1 py-3 theme-btn-standard font-black text-[10px] uppercase tracking-widest rounded-xl transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                   {t("nav_cancel")}
                 </button>
                 <ActionButton onClick={executeRename} className="flex-1 shrink-0 h-12" label={t("btn_rename")} />
@@ -39,15 +39,15 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
       )}
       {renameTarget && (
         <div className="fixed inset-0 z-10000 flex items-center justify-center bg-[var(--bg)]/10 backdrop-blur-[2px] animate-in fade-in duration-200">
-          <div className="w-full max-w-md theme-glass-panel border theme-border-accent rounded-[var(--radius)] p-8 shadow-2xl">
+          <div className="w-full max-w-md glass-panel border theme-border-accent rounded-[var(--radius)] p-8 shadow-2xl">
             <h3 className="text-xs font-black tracking-[0.3em] theme-text-accent uppercase mb-6 flex items-center gap-2"><span className="w-2 h-2 theme-bg-accent rounded-full animate-pulse"></span>{t("rename_title")}</h3>
             <div className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] text-[var(--text)]/40 uppercase tracking-widest ml-1">{t("redesignate_label")}</label>
-                <input autoFocus value={nameInput} onChange={(e) => setNameInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmRename()} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all font-mono" />
+                <input autoFocus value={nameInput} onChange={(e) => setNameInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmRename()} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all font-mono" />
               </div>
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setRenameTarget(null)} className="flex-1 px-4 py-3 rounded-xl border border-white/10 text-[var(--text)]/60 text-[10px] font-bold uppercase tracking-widest hover:bg-white/5 transition-all">{t("btn_abort")}</button>
+                <button onClick={() => setRenameTarget(null)} className="flex-1 px-4 py-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)]/60 text-[10px] font-bold uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">{t("btn_abort")}</button>
                 <ActionButton onClick={confirmRename} className="flex-1 shrink-0 h-12" label={t("btn_confirm")} />
               </div>
             </div>

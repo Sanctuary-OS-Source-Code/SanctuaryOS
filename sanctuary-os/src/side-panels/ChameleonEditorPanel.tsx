@@ -86,7 +86,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                     <div
                       ref={(el) => { colorPickerRefs.current[key] = el; }}
                       onClick={() => setActiveColorPicker(activeColorPicker === key ? null : key)}
-                      className="w-full h-14 border border-white/10 cursor-pointer rounded-2xl overflow-hidden shrink-0 shadow-inner hover:scale-105 hover:border-white/30 transition-all flex items-center justify-between px-4"
+                      className="w-full h-14 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer rounded-2xl overflow-hidden shrink-0 shadow-inner hover:scale-105 hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all flex items-center justify-between px-4"
                       style={{ backgroundColor: currentTheme[key] }}
                     >
                        {/* Transparent background pattern to show if color is transparent */}
@@ -101,7 +101,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                   {activeColorPicker === key && createPortal(
                     <>
                       <div className="fixed inset-0 z-[50000]" onClick={() => setActiveColorPicker(null)} />
-                      <div className="fixed z-[50001] p-8 theme-glass-panel backdrop-blur-3xl rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200"
+                      <div className="fixed z-[50001] p-8 glass-panel backdrop-blur-3xl rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200"
                         style={{
                           top: Math.min(colorPickerRefs.current[key]?.getBoundingClientRect().bottom + 12, window.innerHeight - 350),
                           left: Math.min(colorPickerRefs.current[key]?.getBoundingClientRect().left, window.innerWidth - 450),
@@ -112,10 +112,10 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                               type="text"
                               value={currentTheme[key]}
                               onChange={(e) => updateActiveTheme({ [key]: e.target.value })}
-                              className="flex-1 theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-black text-[var(--text)] uppercase tracking-widest outline-none focus:theme-border-accent transition-colors shadow-inner"
+                              className="flex-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-black text-[var(--text)] uppercase tracking-widest outline-none focus:theme-border-accent transition-colors shadow-inner"
                             />
                           ) : (
-                            <div className="flex-1 theme-glass-panel border border-[var(--warning)]/40 rounded-2xl shadow-lg shadow-[var(--warning)]/10 flex items-center justify-center text-center relative overflow-hidden">
+                            <div className="flex-1 glass-panel border border-[var(--warning)]/40 rounded-2xl shadow-lg shadow-[var(--warning)]/10 flex items-center justify-center text-center relative overflow-hidden">
                               <div className="absolute inset-0 bg-[var(--warning)] opacity-10 pointer-events-none" />
                               <span className="relative z-10 text-[var(--warning)] px-5 py-4 text-[10px] font-black uppercase tracking-[0.2em] drop-shadow-sm">
                                 {t("color_restricted") || "SEMANTIC LOCK ACTIVE"}
@@ -123,7 +123,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                             </div>
                           )}
                           {!(key === 'success' || key === 'warning' || key === 'danger') && (
-                            <div className="w-12 h-12 rounded-2xl border border-white/10 shrink-0 shadow-inner flex items-center justify-center cursor-pointer hover:scale-110 transition-transform group/fav" style={{ backgroundColor: currentTheme[key] }} onClick={() => toggleFavColor(currentTheme[key])}>
+                            <div className="w-12 h-12 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0 shadow-inner flex items-center justify-center cursor-pointer hover:scale-110 transition-transform group/fav" style={{ backgroundColor: currentTheme[key] }} onClick={() => toggleFavColor(currentTheme[key])}>
                               {favColors.includes(currentTheme[key]) ? <span className="text-yellow-500 text-2xl drop-shadow-md">★</span> : <span className="opacity-0 group-hover/fav:opacity-50 text-white font-black text-2xl material-symbols-outlined">{t("icon_add") || 'add'}</span>}
                             </div>
                           )}
@@ -133,20 +133,20 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                             <button
                               key={color}
                               onClick={() => updateActiveTheme({ [key]: color })}
-                              className={`w-7 h-7 rounded-full border hover:scale-125 transition-all shadow-sm ${currentTheme[key]?.toLowerCase() === color ? 'theme-border-accent scale-110 shadow-[0_0_15px_var(--accent)]' : 'border-white/10 hover:border-white/30'}`}
+                              className={`w-7 h-7 rounded-full border hover:scale-125 transition-all shadow-sm ${currentTheme[key]?.toLowerCase() === color ? 'theme-border-accent scale-110 shadow-[0_0_15px_var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
                               style={{ backgroundColor: color }}
                             />
                           ))}
                         </div>
                         {favColors.length > 0 && !(key === 'success' || key === 'warning' || key === 'danger') && (
-                          <div className="mb-8 pt-6 border-t border-white/10">
+                          <div className="mb-8 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                             <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-4">{t("color_favs") || "Favorites"}</h4>
                             <div className="flex flex-wrap gap-3">
                               {favColors.map(color => (
                                 <button
                                   key={color}
                                   onClick={() => updateActiveTheme({ [key]: color })}
-                                  className={`w-7 h-7 rounded-xl border hover:scale-125 transition-all shadow-sm ${currentTheme[key]?.toLowerCase() === color.toLowerCase() ? 'theme-border-accent scale-110 shadow-[0_0_15px_var(--accent)]' : 'border-white/10 hover:border-white/30'}`}
+                                  className={`w-7 h-7 rounded-xl border hover:scale-125 transition-all shadow-sm ${currentTheme[key]?.toLowerCase() === color.toLowerCase() ? 'theme-border-accent scale-110 shadow-[0_0_15px_var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
                                   style={{ backgroundColor: color }}
                                 />
                               ))}
@@ -154,7 +154,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                           </div>
                         )}
                           {!(key === 'success' || key === 'warning' || key === 'danger') && (
-                            <div className="flex flex-col gap-4 pt-6 border-t border-white/10">
+                            <div className="flex flex-col gap-4 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                               <div className="flex items-center gap-4">
                                 <span className="text-xs font-black opacity-50 w-3 text-center text-red-500">{t("color_r") || 'R'}</span>
                                 <input
@@ -193,7 +193,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
           </div>
         </div>
 
-        <div className="mt-8 mb-4 flex items-center gap-4 border-b border-white/5 pb-4">
+        <div className="mt-8 mb-4 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
           <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_typography") || "Typography Engine"}</h2>
         </div>
@@ -206,7 +206,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                 <button 
                   key={font} 
                   onClick={() => updateActiveTheme({ fontFamily: font })}
-                  className={`px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentTheme.fontFamily === font || (!currentTheme.fontFamily && font.includes('Inter')) ? 'theme-glass-panel border-[var(--accent)] theme-text-accent shadow-[0_0_30px_rgba(var(--accent-rgb),0.5)] scale-105' : 'theme-glass-panel hover:bg-white/5 border border-white/5 shadow-inner'}`}
+                  className={`px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentTheme.fontFamily === font || (!currentTheme.fontFamily && font.includes('Inter')) ? 'glass-panel border-[var(--accent)] theme-text-accent shadow-[0_0_30px_rgba(var(--accent-rgb),0.5)] scale-105' : 'glass-panel hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner'}`}
                   style={{ 
                     fontFamily: font,
                     backgroundColor: (currentTheme.fontFamily === font || (!currentTheme.fontFamily && font.includes('Inter'))) ? "color-mix(in srgb, var(--accent) 15%, transparent)" : undefined 
@@ -245,7 +245,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
           </div>
         </div>
 
-        <div className="mt-8 mb-4 flex items-center gap-4 border-b border-white/5 pb-4">
+        <div className="mt-8 mb-4 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
           <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_glass") || "Glass & Material"}</h2>
         </div>
@@ -278,7 +278,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
           </div>
         </div>
 
-        <div className="mt-8 mb-4 flex items-center gap-4 border-b border-white/5 pb-4">
+        <div className="mt-8 mb-4 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
           <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_geometry") || "Shape Geometry"}</h2>
         </div>
@@ -296,7 +296,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
           />
         </div>
         
-        <div className="mt-8 mb-4 flex items-center gap-4 border-b border-white/5 pb-4">
+        <div className="mt-8 mb-4 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
           <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_background") || "Background Override"}</h2>
         </div>
@@ -315,7 +315,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
               <button 
                 key={preset.id}
                 onClick={() => updateActiveTheme({ bgGradient: preset.id })}
-                className={`aspect-video rounded-xl border transition-all flex flex-col items-center justify-center gap-2 p-2 relative overflow-hidden group shadow-lg ${currentTheme.bgGradient === preset.id || (!currentTheme.bgGradient && preset.id === 'none') ? 'border-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.4)] scale-[1.02]' : 'border-white/10 hover:border-white/30'}`}
+                className={`aspect-video rounded-xl border transition-all flex flex-col items-center justify-center gap-2 p-2 relative overflow-hidden group shadow-lg ${currentTheme.bgGradient === preset.id || (!currentTheme.bgGradient && preset.id === 'none') ? 'border-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.4)] scale-[1.02]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
                 style={{
                   backgroundColor: (currentTheme.bgGradient === preset.id || (!currentTheme.bgGradient && preset.id === 'none')) ? "color-mix(in srgb, var(--accent) 15%, transparent)" : undefined
                 }}
@@ -330,7 +330,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
             type="text" 
             value={currentTheme.bgGradient || "none"}
             onChange={(e) => updateActiveTheme({ bgGradient: e.target.value })}
-            className="w-full theme-glass-inner border border-white/10 rounded-xl px-5 py-4 text-[10px] font-mono text-[var(--text)] uppercase tracking-widest outline-none focus:theme-border-accent transition-all shadow-inner"
+            className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-5 py-4 text-[10px] font-mono text-[var(--text)] uppercase tracking-widest outline-none focus:theme-border-accent transition-all shadow-inner"
             placeholder="linear-gradient(to bottom, #000, #111)"
           />
         </div>

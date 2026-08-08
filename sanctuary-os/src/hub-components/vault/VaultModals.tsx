@@ -53,8 +53,8 @@ export function VaultModals(props: any) {
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-4 min-h-[300px]">
             <div className="grid grid-cols-1 gap-2">
               {purgeTargetFiles.map((target: any) => (
-                <div key={target.file} className="flex items-center gap-4 p-3 rounded-xl border border-white/5 transition-all hover:bg-white/5 hover:border-white/10 theme-glass-panel group">
-                  <div className="w-8 h-8 rounded-full bg-[var(--danger)]/10 text-[var(--danger)] flex items-center justify-center shrink-0 shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_10%,transparent)]">
+                <div key={target.file} className="flex items-center gap-4 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] glass-panel group">
+                  <div className="w-8 h-8 rounded-full bg-[var(--danger)]/10 text-[var(--danger)] flex items-center justify-center shrink-0 shadow-md">
                     <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100 transition-opacity">delete</span>
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">

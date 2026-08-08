@@ -143,7 +143,7 @@ export default function VersionTimeline({
               {filteredHistory.map((entry, idx) => (
                 <div
                   key={entry.timestamp}
-                  className={`p-5 rounded-2xl border flex flex-col gap-4 transition-all cursor-pointer ${selectedEntry?.timestamp === entry.timestamp ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_10px_30px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:-translate-y-1 hover:shadow-lg'} ${entry.pinned && selectedEntry?.timestamp !== entry.timestamp ? '!border-[color-mix(in_srgb,var(--accent)_15%,transparent)]' : ''}`}
+                  className={`p-5 rounded-2xl border flex flex-col gap-4 transition-all cursor-pointer ${selectedEntry?.timestamp === entry.timestamp ? 'border-[var(--accent)]/[40%] bg-[var(--accent)]/[10%] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:-translate-y-1 hover:shadow-lg'} ${entry.pinned && selectedEntry?.timestamp !== entry.timestamp ? '!border-[var(--accent)]/[15%]' : ''}`}
                   onClick={() => {
                     setSelectedEntry(entry);
                   }}
@@ -188,7 +188,7 @@ export default function VersionTimeline({
 
                     <div className="flex items-center gap-3">
                       {entry.timestamp === currentActiveTs && !searchQuery && (
-                        <div className="px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-[0.2em] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center gap-1">
+                        <div className="px-3 py-1.5 rounded-lg bg-[var(--accent)]/[20%] border border-[var(--accent)]/[40%] text-[var(--accent)] text-[9px] font-black uppercase tracking-[0.2em] shadow-md flex items-center gap-1">
                           {t("active_version")}
                         </div>
                       )}
@@ -197,13 +197,13 @@ export default function VersionTimeline({
                           <div className="flex items-center gap-1">
                             <button
                               onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }}
-                              className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text)] bg-black/20 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all"
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text)] bg-black/20 backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all"
                             >
                               <span className="material-symbols-outlined !text-[14px]">close</span>
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); deleteVersion(entry.timestamp); }}
-                              className="w-8 h-8 rounded-full flex items-center justify-center text-red-400 bg-red-500/10 backdrop-blur-md border border-red-500/30 hover:bg-red-500/30 hover:text-white hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all"
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-red-400 bg-red-500/10 backdrop-blur-md border border-red-500/30 hover:bg-red-500/30 hover:text-white hover:border-red-500/50 hover:shadow-md transition-all"
                             >
                               <span className="material-symbols-outlined !text-[14px]">delete</span>
                             </button>
@@ -219,7 +219,7 @@ export default function VersionTimeline({
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePin(entry.timestamp, !entry.pinned); }}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${entry.pinned ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-white hover:bg-white/10 border-transparent hover:border-white/20'} border`}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${entry.pinned ? 'text-[var(--accent)] bg-[var(--accent)]/[15%] border-[var(--accent)]/[30%]' : 'text-[var(--subtext)] hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'} border`}
                       >
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_push_pin")}</span>
                       </button>
@@ -228,7 +228,7 @@ export default function VersionTimeline({
 
                   {selectedEntry?.timestamp === entry.timestamp && (
                     <div className="flex flex-col gap-4 mt-2 animate-in fade-in slide-in-from-top-2">
-                      <div className="bg-black/20 p-4 rounded-xl max-h-48 overflow-y-auto custom-scrollbar border border-white/10 shadow-inner backdrop-blur-sm">
+                      <div className="bg-black/20 p-4 rounded-xl max-h-48 overflow-y-auto custom-scrollbar border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-sm">
                         <pre className="text-[11px] font-mono opacity-80 whitespace-pre-wrap leading-relaxed text-[var(--text)]">{entry.content.substring(0, 500)}{entry.content.length > 500 ? '\n\n... [TRUNCATED] ...' : ''}</pre>
                       </div>
                       {!(entry.timestamp === currentActiveTs && !searchQuery) && (
@@ -238,13 +238,13 @@ export default function VersionTimeline({
                             <div className="flex items-center gap-2 w-full">
                               <button
                                 onClick={(e) => { e.stopPropagation(); setConfirmRestore(null); }}
-                                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl text-[var(--text)] hover:bg-white/10 transition-all`}
+                                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all`}
                               >
                                 {t("cancel")}
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); onRestore(entry.content, entry.timestamp); onClose(); }}
-                                className={`h-12 flex-[2] rounded-2xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center gap-2`}
+                                className={`h-12 flex-[2] rounded-2xl bg-red-500/[15%] border border-red-500/[30%] text-[var(--danger)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:bg-red-500/[20%] hover:border-red-500/[50%] hover:shadow-md flex items-center justify-center gap-2`}
                               >
                                 {hasUnsavedChanges ? (t("confirm_nuke")) : (t("confirm_restore"))}
                               </button>
@@ -253,7 +253,7 @@ export default function VersionTimeline({
                         ) : (
                           <button
                             onClick={(e) => { e.stopPropagation(); setConfirmRestore(entry.timestamp); }}
-                            className={`h-12 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 w-full mt-2`}
+                            className={`h-12 px-6 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[var(--accent)]/[15%] hover:border-[var(--accent)]/[40%] hover:text-[var(--accent)] hover:shadow-md hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 w-full mt-2`}
                           >
                             <span className="material-symbols-outlined !text-[18px]">{t("icon_restore")}</span>
                             {t("restore_btn")}

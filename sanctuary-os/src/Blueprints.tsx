@@ -251,10 +251,10 @@ export default function Blueprints({
     const isPinned = pinnedBlueprints.includes(set.name);
     const hasAlerts = alertStatus && alertStatus.total > 0;
     return (
-      <div key={set.name} className={`theme-glass-panel p-5 rounded-[var(--radius)] flex flex-col transition-all min-h-[14rem] shadow-xl relative overflow-hidden group/card ${activeSetName === set.name ? 'border-[var(--success)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-[0_0_30px_rgba(255,255,255,0.02)] hover:bg-black/5'}`} style={activeSetName === set.name ? { backgroundColor: 'color-mix(in srgb, var(--success) 10%, transparent)', boxShadow: '0 0 40px color-mix(in srgb, var(--success) 15%, transparent)' } : {}}>
+      <div key={set.name} className={`glass-panel p-5 rounded-[var(--radius)] flex flex-col transition-all min-h-[14rem] shadow-xl relative overflow-hidden group/card ${activeSetName === set.name ? 'border-[var(--success)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-md hover:bg-black/5'}`} style={activeSetName === set.name ? { backgroundColor: 'color-mix(in srgb, var(--success) 10%, transparent)', boxShadow: '0 0 40px color-mix(in srgb, var(--success) 15%, transparent)' } : {}}>
                   <div className={`absolute inset-0 bg-gradient-to-br pointer-events-none transition-opacity duration-500 opacity-0 group-hover/card:opacity-100 ${activeSetName === set.name ? 'from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-transparent' : 'from-white/5 to-transparent'}`} />
 
-                  <button onClick={() => togglePin(set.name)} className={`absolute top-5 right-5 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all ${isPinned ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] opacity-100' : 'text-[var(--subtext)] opacity-0 group-hover/card:opacity-50 hover:!opacity-100 bg-black/20 hover:bg-black/40'}`}>
+                  <button onClick={() => togglePin(set.name)} className={`absolute top-5 right-5 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all ${isPinned ? 'text-[var(--accent)] bg-[var(--accent)]/[10%] opacity-100' : 'text-[var(--subtext)] opacity-0 group-hover/card:opacity-50 hover:!opacity-100 bg-black/20 hover:bg-black/40'}`}>
                     <span className="material-symbols-outlined !text-[16px]">keep</span>
                     <HoverTooltip title={isPinned ? (t("action_unpin") || "Unpin Blueprint") : (t("action_pin") || "Pin Blueprint")} />
                   </button>
@@ -317,7 +317,7 @@ export default function Blueprints({
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => equipPlaySet && equipPlaySet(set.name)}
-                        className={`flex-1 h-[38px] rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 relative ${activeSetName === set.name ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]' : 'theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm hover:scale-[1.02]'}`}
+                        className={`flex-1 h-[38px] rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 relative ${activeSetName === set.name ? 'bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] backdrop-blur-md shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]' : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm hover:scale-[1.02]'}`}
                       >
                         {activeSetName === set.name ? <span className="material-symbols-outlined !text-[16px]">{t("icon_verified_user")}</span> : <span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span>}
                         {activeSetName === set.name ? t("btn_deployed") : t("playsets_btn_equip")}
@@ -326,7 +326,7 @@ export default function Blueprints({
 
                       <button
                         onClick={() => { if (setActivePlaySetIndex) setActivePlaySetIndex(playSets.findIndex((s: any) => s.name === set.name)); setIsArchitectOpen(true); }}
-                        className={`h-[38px] px-4 theme-glass-inner border rounded-xl transition-all flex items-center justify-center gap-2 relative hover:scale-[1.05] font-black uppercase text-[10px] tracking-widest ${hasAlerts ? (alertStatus.tier4 > 0 || alertStatus.broken > 0 ? '!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] !bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_20%,transparent)]' : '!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] !bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_20%,transparent)]') : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
+                        className={`h-[38px] px-4 glass-surface border rounded-xl transition-all flex items-center justify-center gap-2 relative hover:scale-[1.05] font-black uppercase text-[10px] tracking-widest ${hasAlerts ? (alertStatus.tier4 > 0 || alertStatus.broken > 0 ? '!border-red-500/[30%] !text-[var(--danger)] !bg-red-500/[10%] hover:!bg-red-500/[20%] hover:!border-red-500/[50%] shadow-md' : '!border-orange-500/[30%] !text-[var(--warning)] !bg-orange-500/[10%] hover:!bg-orange-500/[20%] hover:!border-orange-500/[50%] shadow-md') : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                       >
                         <span className="material-symbols-outlined !text-[16px]">{hasAlerts ? (alertStatus.tier4 > 0 || alertStatus.broken > 0 ? "error" : "warning") : "tune"}</span>
                         <HoverTooltip title={hasAlerts ? `${alertStatus.total} Alerts` : (t("action_architect") || "Architect")} />
@@ -336,14 +336,14 @@ export default function Blueprints({
                     <div className="grid grid-cols-4 gap-2">
                       <button
                         onClick={() => handleOpenMatrix(set.name)}
-                        className="h-9 theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-all flex items-center justify-center hover:scale-105 relative"
+                        className="h-9 glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-all flex items-center justify-center hover:scale-105 relative"
                       >
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_cloud")}</span>
                         <HoverTooltip title={t("action_uplink") || "Uplink"} />
                       </button>
                       <button
                         onClick={() => exportPlaySet && exportPlaySet(set.name)}
-                        className="h-9 theme-glass-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-all flex items-center justify-center hover:scale-105 relative"
+                        className="h-9 glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-all flex items-center justify-center hover:scale-105 relative"
                       >
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_upload")}</span>
                         <HoverTooltip title={t("action_export") || "Export"} />
@@ -360,7 +360,7 @@ export default function Blueprints({
                             window.dispatchEvent(new CustomEvent('push-status', { detail: { message: t("status_blueprint_clean") || "Blueprint is already fully sanitized.", type: "success" } }));
                           }
                         }}
-                        className={`h-9 rounded-xl transition-all flex items-center justify-center border hover:scale-[1.05] relative ${cleanConfirm === set.name ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : (hasGhosts ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-black/20 hover:theme-bg-accent hover:text-white border-white/5 text-[var(--subtext)]/40 hover:text-[var(--subtext)]')}`}
+                        className={`h-9 rounded-xl transition-all flex items-center justify-center border hover:scale-[1.05] relative ${cleanConfirm === set.name ? 'bg-emerald-500/[15%] border-emerald-500/[30%] text-[var(--success)] shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : (hasGhosts ? 'bg-orange-500/[15%] border-orange-500/[30%] text-[var(--warning)] shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)] hover:bg-orange-500/[20%]' : 'bg-black/20 hover:theme-bg-accent hover:text-white border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)]/40 hover:text-[var(--subtext)]')}`}
                       >
                         <span className="material-symbols-outlined !text-[16px]">{cleanConfirm === set.name ? 'check_circle' : 'cleaning_services'}</span>
                         <HoverTooltip title={cleanConfirm === set.name ? (t("btn_clean_success") || "Cleaned") : (t("action_clean_blueprint") || "Clean Blueprint")} />
@@ -375,7 +375,7 @@ export default function Blueprints({
                             setTimeout(() => setDeleteConfirm(null), 3000);
                           }
                         }}
-                        className={`h-9 transition-all flex items-center justify-center rounded-xl border hover:scale-[1.05] relative ${deleteConfirm === set.name ? "backdrop-blur-md bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-[0_5px_15px_rgba(var(--danger-rgb),0.3)] text-[var(--danger)]" : "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] opacity-60 hover:opacity-100"}`}
+                        className={`h-9 transition-all flex items-center justify-center rounded-xl border hover:scale-[1.05] relative ${deleteConfirm === set.name ? "backdrop-blur-md bg-red-500/[25%] border-red-500/[50%] shadow-[0_5px_15px_rgba(var(--danger-rgb),0.3)] text-[var(--danger)]" : "bg-red-500/[10%] border-red-500/[30%] text-[var(--danger)] hover:bg-red-500/[20%] opacity-60 hover:opacity-100"}`}
                       >
                         <span className="material-symbols-outlined !text-[16px]">{deleteConfirm === set.name ? "warning" : t("icon_delete")}</span>
                         <HoverTooltip title={deleteConfirm === set.name ? (t("btn_confirm") || "Confirm Purge") : (t("purge") || "Purge")} />
@@ -391,7 +391,7 @@ export default function Blueprints({
       <ViewHeader title={t("playsets_title")} subtitle={t("playsets_subtitle")} icon={t("icon_map")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" shape="circle" />
 
       <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
+        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
           <HubTabButton id="LANDING" icon="dashboard" label={t("tab_landing") || "LANDING"} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="VAULT" icon="map" label={t("playsets_title") || "VAULT"} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="NETWORK" icon="cloud" label={t("btn_my_cloud_blueprints") || "NETWORK"} activeTab={activeTab} setTab={setActiveTab} iconColorClass="text-sky-500" />
@@ -445,7 +445,7 @@ export default function Blueprints({
                       {playSets.filter((s: any) => pinnedBlueprints.includes(s.name)).map((set: any) => renderVaultCard(set))}
                     </div>
                   ) : (
-                    <div className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] opacity-50 text-center py-10 border border-white/5 border-dashed rounded-[var(--radius)] h-full flex items-center justify-center min-h-[9rem] theme-glass-panel">
+                    <div className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] opacity-50 text-center py-10 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed rounded-[var(--radius)] h-full flex items-center justify-center min-h-[9rem] glass-panel">
                       {t("no_pinned_blueprints") || "NO PINNED BLUEPRINTS"}
                     </div>
                   )}
@@ -458,10 +458,10 @@ export default function Blueprints({
                   title={t("draft_new") || "DRAFT NEW BLUEPRINT"}
                   subtitle={"Create a new blueprint"}
                   onClick={() => { setActiveTab("VAULT"); setIsDraftingSet(true); }}
-                  dotColorClass="bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+                  dotColorClass="bg-emerald-500 shadow-md"
                   textColorClass="text-emerald-500"
                   hoverTextColorClass="group-hover:text-emerald-400"
-                  iconShadowClass="drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                  iconShadowClass="drop-shadow-md"
                   iconBorderHoverClass="group-hover:border-emerald-500/30"
                 />
                 <CommandScreenQuickLink
@@ -469,17 +469,17 @@ export default function Blueprints({
                   title={importStatus === "loading" ? t("btn_importing") : importStatus === "success" ? t("status_profile_imported") : importStatus === "error" ? t("alert_import_failed") : (t("playsets_btn_import") || "IMPORT BLUEPRINT")}
                   subtitle={t("import_desc") || "Import from file"}
                   onClick={handleImport}
-                  dotColorClass="bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"
+                  dotColorClass="bg-blue-500 shadow-md"
                   textColorClass="text-blue-500"
                   hoverTextColorClass="group-hover:text-blue-400"
-                  iconShadowClass="drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                  iconShadowClass="drop-shadow-md"
                   iconBorderHoverClass="group-hover:border-blue-500/30"
                 />
                 {syncInputVisible ? (
-                  <div className="w-full p-6 theme-glass-panel border border-[var(--accent)]/50 rounded-[var(--radius)] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] relative overflow-hidden h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
+                  <div className="w-full p-6 glass-panel border border-[var(--accent)]/50 rounded-[var(--radius)] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] relative overflow-hidden h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
                   <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent)]/10 via-transparent to-transparent opacity-100" />
                   <div className="flex items-center gap-5 h-full relative z-10 w-full">
-                    <div className="w-12 h-12 rounded-xl theme-glass-inner border flex items-center justify-center shrink-0 border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] bg-[var(--accent)]/10">
+                    <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] bg-[var(--accent)]/10">
                       <span className="material-symbols-outlined !text-3xl drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">cloud_download</span>
                     </div>
                     <div className="flex flex-col flex-1 min-w-0 w-full justify-center">
@@ -519,10 +519,10 @@ export default function Blueprints({
                     title={isSyncing ? t("btn_importing") : (t("btn_sync") || "SYNC UPLINK")}
                     subtitle={t("sync_desc") || "Sync with cloud code"}
                     onClick={() => setSyncInputVisible(true)}
-                    dotColorClass="bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)]"
+                    dotColorClass="bg-sky-500 shadow-md"
                     textColorClass="text-sky-500"
                     hoverTextColorClass="group-hover:text-sky-400"
-                    iconShadowClass="drop-shadow-[0_0_8px_rgba(14,165,233,0.5)]"
+                    iconShadowClass="drop-shadow-md"
                     iconBorderHoverClass="group-hover:border-sky-500/30"
                   />
                 )}
@@ -545,10 +545,10 @@ export default function Blueprints({
                     if (setActivePlaySetIndex) setActivePlaySetIndex(updatedSets.length - 1);
                     setActiveTab("VAULT");
                   }}
-                  dotColorClass="bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]"
+                  dotColorClass="bg-amber-500 shadow-md"
                   textColorClass="text-amber-500"
                   hoverTextColorClass="group-hover:text-amber-400"
-                  iconShadowClass="drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                  iconShadowClass="drop-shadow-md"
                   iconBorderHoverClass="group-hover:border-amber-500/30"
                 />
               </CommandScreenSidebar>
@@ -559,9 +559,9 @@ export default function Blueprints({
 
       {activeTab === "VAULT" && (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
-          <div className="flex items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full">
+          <div className="flex items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
             <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full theme-glass-panel border border-indigo-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-full glass-panel border border-indigo-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-[24px] text-indigo-500 opacity-90 drop-shadow-lg">map</span>
               </div>
               <span className="truncate">{t("playsets_title") || "VAULT"}</span>
@@ -575,7 +575,7 @@ export default function Blueprints({
                   placeholder={t("nav_search") || "Search Vault..."}
                   value={vaultSearchQuery}
                   onChange={(e) => setVaultSearchQuery(e.target.value)}
-                  className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                  className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
                 />
                 {vaultSearchQuery && (
                   <button onClick={() => setVaultSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
@@ -585,7 +585,7 @@ export default function Blueprints({
               </div>
               <button 
                 onClick={() => setIsDraftingSet && setIsDraftingSet(true)}
-                className="h-12 px-5 rounded-2xl theme-glass-inner border border-[var(--accent)]/30 text-[var(--accent)] font-black uppercase tracking-widest text-xs flex items-center gap-2 hover:bg-[var(--accent)]/10 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] shrink-0"
+                className="h-12 px-5 rounded-2xl glass-surface border border-[var(--accent)]/30 text-[var(--accent)] font-black uppercase tracking-widest text-xs flex items-center gap-2 hover:bg-[var(--accent)]/10 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] shrink-0"
               >
                 <span className="material-symbols-outlined !text-[18px]">add</span>
                 {t("draft_new") || "NEW BLUEPRINT"}
@@ -602,21 +602,21 @@ export default function Blueprints({
             
 <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-12">
             {isDraftingSet && (
-              <div className="theme-glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-6 rounded-[var(--radius)] flex flex-col gap-4 animate-in zoom-in-95 shadow-[0_0_30px_rgba(var(--accent-rgb),0.1)] relative overflow-hidden bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] min-h-[14rem] justify-center">
+              <div className="glass-panel border-[var(--accent)]/[30%] p-6 rounded-[var(--radius)] flex flex-col gap-4 animate-in zoom-in-95 shadow-[0_0_30px_rgba(var(--accent-rgb),0.1)] relative overflow-hidden bg-[var(--accent)]/[5%] min-h-[14rem] justify-center">
                 <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />
                 <input
                   autoFocus
                   type="text"
                   value={draftSetName}
                   onChange={(e) => setDraftSetName && setDraftSetName(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-xl text-[var(--text)] font-black outline-none shadow-inner focus:border-[var(--accent)] transition-all z-10 text-center"
+                  className="w-full bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 text-xl text-[var(--text)] font-black outline-none shadow-inner focus:border-[var(--accent)] transition-all z-10 text-center"
                   placeholder={t("draft_placeholder") || "Blueprint Name..."}
                   onKeyDown={e => {
                     if (e.key === 'Enter') finalizeDraftSet();
                   }}
                 />
                 <div className="flex gap-3 mt-2 z-10">
-                  <button onClick={finalizeDraftSet} className="flex-1 py-3 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md font-black uppercase tracking-widest text-[10px] rounded-xl hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]">{t("auto_save") || "SAVE"}</button>
+                  <button onClick={finalizeDraftSet} className="flex-1 py-3 bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] backdrop-blur-md font-black uppercase tracking-widest text-[10px] rounded-xl hover:scale-[1.02] hover:bg-emerald-500/[25%] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]">{t("auto_save") || "SAVE"}</button>
                   <button onClick={() => setIsDraftingSet && setIsDraftingSet(false)} className="w-16 py-3 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] font-black rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-[1.02] transition-all"><span className="material-symbols-outlined !text-[18px]">close</span></button>
                 </div>
               </div>
@@ -629,9 +629,9 @@ export default function Blueprints({
 
       {activeTab === "NETWORK" && (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full pb-32">
-          <div className="flex items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full">
+          <div className="flex items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
             <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-sky-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-xl glass-panel border border-sky-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-[24px] text-sky-500 opacity-90 drop-shadow-lg">cloud</span>
               </div>
               <span className="truncate">{t("btn_my_cloud_blueprints") || "NETWORK"}</span>
@@ -645,7 +645,7 @@ export default function Blueprints({
                   placeholder={t("nav_search") || "Search Uplink Codes..."}
                   value={cloudSearchQuery}
                   onChange={(e) => setCloudSearchQuery(e.target.value)}
-                  className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                  className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
                 />
                 {cloudSearchQuery && (
                   <button onClick={() => setCloudSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
@@ -668,7 +668,7 @@ export default function Blueprints({
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 h-full pt-1">
             
             {myCloudBlueprints.length === 0 ? (
-              <div className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] opacity-50 text-center py-10 border border-white/5 border-dashed rounded-xl col-span-full theme-glass-panel">
+              <div className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] opacity-50 text-center py-10 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed rounded-xl col-span-full glass-panel">
                 <span className="material-symbols-outlined !text-4xl block mb-2 opacity-50">cloud_off</span>
                 {t("no_cloud_blueprints") || "NO CLOUD BLUEPRINTS FOUND"}
               </div>
@@ -678,7 +678,7 @@ export default function Blueprints({
                 const matchesSearch = !cloudSearchQuery || bp.name.toLowerCase().includes(cloudSearchQuery.toLowerCase()) || bp.code.toLowerCase().includes(cloudSearchQuery.toLowerCase());
                 return (cloudFilterTab === 'all' ? true : !inVault) && matchesSearch;
               }).length === 0 ? (
-                <div className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] opacity-50 text-center py-10 border border-white/5 border-dashed rounded-xl col-span-full theme-glass-panel">
+                <div className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] opacity-50 text-center py-10 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed rounded-xl col-span-full glass-panel">
                   <span className="material-symbols-outlined !text-4xl block mb-2 opacity-50">task_alt</span>
                   {t("no_cloud_blueprints") || "NO MATCHING BLUEPRINTS"}
                 </div>
@@ -692,7 +692,7 @@ export default function Blueprints({
                   return (
                     <div
                       key={bp.code}
-                      className={`flex flex-col items-start gap-4 p-6 rounded-2xl theme-glass-panel border transition-all text-left group/btn animate-in slide-in-from-bottom-2 duration-500 fill-mode-both shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] min-h-[14rem] relative overflow-hidden ${inVault ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_2%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_2%,transparent)]'}`}
+                      className={`flex flex-col items-start gap-4 p-6 rounded-2xl glass-panel border transition-all text-left group/btn animate-in slide-in-from-bottom-2 duration-500 fill-mode-both shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] min-h-[14rem] relative overflow-hidden ${inVault ? 'border-emerald-500/[30%] bg-emerald-500/[2%]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/[2%]'}`}
                       style={{ animationDelay: `${i * 50}ms` }}
                     >
                       <div className={`absolute inset-0 bg-gradient-to-br transition-opacity duration-500 opacity-0 group-hover/btn:opacity-100 pointer-events-none ${inVault ? 'from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-transparent' : 'from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent'}`} />
@@ -700,7 +700,7 @@ export default function Blueprints({
                       <div className="flex flex-row items-start justify-between w-full gap-2 relative z-10">
                         <span className={`text-xl font-black truncate transition-colors ${inVault ? 'text-[var(--text)]' : 'text-[var(--text)] group-hover/btn:text-[var(--accent)]'}`}>{bp.name}</span>
                         {inVault ? (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] rounded-lg shrink-0 mt-0.5 shadow-sm">
+                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/[15%] border border-emerald-500/[30%] rounded-lg shrink-0 mt-0.5 shadow-sm">
                             <span className="material-symbols-outlined !text-[14px] text-[var(--success)]">check_circle</span>
                             <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--success)]">{t("status_in_vault") || "IN VAULT"}</span>
                           </div>
@@ -760,7 +760,7 @@ export default function Blueprints({
                                   syncBlueprintByCode(bp.code).finally(() => setIsSyncing(false));
                                 }
                               }}
-                              className="w-8 h-8 rounded-full theme-glass-inner text-[var(--text)] border border-[var(--accent)]/30 hover:border-[var(--accent)] hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] flex items-center justify-center hover:scale-110 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] relative"
+                              className="w-8 h-8 rounded-full glass-surface text-[var(--text)] border border-[var(--accent)]/30 hover:border-[var(--accent)] hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] flex items-center justify-center hover:scale-110 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] relative"
                             >
                               <span className="material-symbols-outlined !text-[16px]">download</span>
                               <HoverTooltip title={t("action_sync") || "Sync Blueprint"} />
@@ -848,8 +848,8 @@ export default function Blueprints({
             const rawName = m.name || m;
             const displayName = typeof rawName === 'string' ? (rawName.split('/').pop()?.replace(/\.[^/.]+$/, "") || rawName) : rawName;
             return (
-              <div key={idx} className="flex items-center gap-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/5 rounded-xl p-3 hover:border-[var(--accent)]/30 transition-colors group/mod">
-                <div className="w-8 h-8 rounded-lg theme-glass-inner flex items-center justify-center shrink-0 border border-white/5 group-hover/mod:border-[var(--accent)]/30 transition-colors">
+              <div key={idx} className="flex items-center gap-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl p-3 hover:border-[var(--accent)]/30 transition-colors group/mod">
+                <div className="w-8 h-8 rounded-lg glass-surface flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover/mod:border-[var(--accent)]/30 transition-colors">
                   <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-hover/mod:text-[var(--accent)] transition-colors">extension</span>
                 </div>
                 <div className="flex flex-col min-w-0">

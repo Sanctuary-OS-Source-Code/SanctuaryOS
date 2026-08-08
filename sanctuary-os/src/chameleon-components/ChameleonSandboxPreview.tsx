@@ -10,7 +10,7 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
   const { t } = useLexicon();
 
   return (
-    <div className="w-[400px] xl:w-[480px] shrink-0 h-full border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative flex flex-col theme-glass-panel !rounded-none overflow-hidden z-0" style={{
+    <div className="w-[400px] xl:w-[480px] shrink-0 h-full border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative flex flex-col glass-panel !rounded-none overflow-hidden z-0" style={{
       backgroundColor: `color-mix(in srgb, ${currentTheme.bg} 15%, transparent)`,
       '--bg': currentTheme.bg,
       '--text': currentTheme.text,

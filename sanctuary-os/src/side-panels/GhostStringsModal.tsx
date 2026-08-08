@@ -72,20 +72,20 @@ export function GhostStringsModal({
             const meta = ghostsMeta[mod] || {};
             const targetUrl = `https://www.google.com/search?q=${encodeURIComponent(`${useStore.getState().activeGameSchema?.display_name || "Mod"} ${cleanSearchName(mod, useStore.getState().activeGameSchema)}`)}`;
             return (
-              <div key={idx} className="flex justify-between items-center theme-glass-inner border border-white/5 p-4 rounded-2xl hover:border-white/20 transition-all group shadow-md">
+              <div key={idx} className="flex justify-between items-center glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-4 rounded-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all group shadow-md">
                 <div className="flex flex-col min-w-0 pr-4">
                   <span className="text-xs font-black text-[var(--text)] uppercase truncate group-hover:text-[var(--danger)] transition-colors">{cleanSearchName(mod, useStore.getState().activeGameSchema)}</span>
                   <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1 truncate">{mod}</span>
                   {(meta.is_paid || meta.is_early_access) && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {meta.is_early_access && (
-                        <div className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center gap-1 shadow-[0_0_10px_rgba(168,85,247,0.1)]">
+                        <div className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center gap-1 shadow-md">
                           <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
                           <span className="text-[8px] font-black uppercase tracking-[0.1em] text-purple-500">{t("badge_early_access") || "Early Access"}</span>
                         </div>
                       )}
                       {meta.is_paid && (
-                        <div className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-1 shadow-[0_0_10px_rgba(234,179,8,0.1)]">
+                        <div className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-1 shadow-md">
                           <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
                           <span className="text-[8px] font-black uppercase tracking-[0.1em] text-yellow-500">{t("badge_paid") || "Paid"}</span>
                         </div>
@@ -124,7 +124,7 @@ export function GhostStringsModal({
             <>
               {premiumGhosts.length > 0 && (
                 <div className="flex flex-col gap-3 mb-4">
-                  <div className="flex items-center gap-3 p-4 theme-glass-panel border border-yellow-500/30 rounded-2xl bg-yellow-500/5 shadow-md">
+                  <div className="flex items-center gap-3 p-4 glass-panel border border-yellow-500/30 rounded-2xl bg-yellow-500/5 shadow-md">
                     <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-yellow-500/20 text-yellow-500">
                       <span className="material-symbols-outlined !text-[20px]">auto_fix_high</span>
                     </div>
@@ -139,7 +139,7 @@ export function GhostStringsModal({
                         onClick={() => {
                           premiumGhosts.forEach((mod: string) => onIgnore(mod));
                         }}
-                        className="px-3 py-1.5 flex items-center gap-2 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[var(--accent)]/30 rounded-xl transition-all"
+                        className="px-3 py-1.5 flex items-center gap-2 bg-[var(--accent)]/[10%] hover:bg-[var(--accent)]/[20%] text-[var(--accent)] border border-[var(--accent)]/30 rounded-xl transition-all"
                       >
                         <span className="material-symbols-outlined !text-[14px]">visibility_off</span>
                         <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_ignore_issue")}</span>
@@ -148,7 +148,7 @@ export function GhostStringsModal({
                         onClick={() => {
                           premiumGhosts.forEach((mod: string) => onPurge(mod));
                         }}
-                        className="px-3 py-1.5 flex items-center gap-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] border border-[var(--danger)]/30 rounded-xl transition-all"
+                        className="px-3 py-1.5 flex items-center gap-2 bg-red-500/[10%] hover:bg-red-500/[20%] text-[var(--danger)] border border-[var(--danger)]/30 rounded-xl transition-all"
                       >
                         <span className="material-symbols-outlined !text-[14px]">delete</span>
                         <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_purge_issue")}</span>

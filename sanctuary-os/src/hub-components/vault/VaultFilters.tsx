@@ -23,7 +23,7 @@ export function DebouncedSearchInput({ value, onChange, placeholder, t }: { valu
         placeholder={placeholder}
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
-        className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+        className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
       />
       {localValue && (
         <button onClick={() => { setLocalValue(""); onChange(""); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
@@ -56,9 +56,9 @@ export function VaultFilters({
   setSelectedMods
 }: any) {
   return (
-    <div className={`flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500`}>
+    <div className={`flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500`}>
       <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] hidden xl:flex items-center gap-3 shrink-0">
-        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+        <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
           <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_inventory_2")}</span>
         </div>
         <span className="truncate">{t("title_artifacts") || "YOUR ARTIFACTS"}</span>
@@ -172,7 +172,7 @@ export function VaultFilters({
         {onCreateLocalFolder && (
           <button
             onClick={() => { setSelectedMods && setSelectedMods([]); onCreateLocalFolder(); }}
-            className="h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border shadow-lg hover:scale-[1.02] active:scale-95 shrink-0 theme-glass-panel text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5"
+            className="h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border shadow-lg hover:scale-[1.02] active:scale-95 shrink-0 glass-panel text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
             <span className="material-symbols-outlined !text-[18px]">add_circle</span>
             {t("btn_create_node") || "NEW NODE"}
@@ -183,8 +183,8 @@ export function VaultFilters({
           <button
             onClick={() => setHideGhostCards(!hideGhostCards)}
             className={`h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border shadow-lg hover:scale-[1.02] active:scale-95 shrink-0 ${hideGhostCards
-              ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:shadow-[0_5px_20px_color-mix(in_srgb,var(--success)_20%,transparent)]'
-              : 'theme-glass-panel text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5'
+              ? 'bg-emerald-500/[15%] text-[var(--success)] border-emerald-500/[30%] hover:bg-emerald-500/[20%] hover:shadow-md'
+              : 'glass-panel text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
               }`}
           >
             <span className="material-symbols-outlined !text-[18px]">

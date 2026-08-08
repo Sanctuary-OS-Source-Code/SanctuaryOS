@@ -10,16 +10,16 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
   return (
     <div
       ref={logModalRef}
-      className="fixed bottom-14 right-4 w-[420px] max-h-[60vh] theme-glass-panel border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-[var(--radius)] z-[99998] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/5 before:to-transparent before:pointer-events-none"
+      className="fixed bottom-14 right-4 w-[420px] max-h-[60vh] glass-panel border-[var(--accent)]/[20%] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-[var(--radius)] z-[99998] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/5 before:to-transparent before:pointer-events-none"
     >
       <div
-        className="flex items-center justify-between p-5 border-b border-white/10 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 relative z-10 cursor-move"
+        className="flex items-center justify-between p-5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 relative z-10 cursor-move"
         onPointerDown={handleLogPointerDown}
         onPointerMove={handleLogPointerMove}
         onPointerUp={handleLogPointerUp}
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl theme-glass-inner border border-white/5 flex items-center justify-center shadow-inner">
+          <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shadow-inner">
             <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_receipt_long")}</span>
           </div>
           <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">
@@ -82,7 +82,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
                         useStore.getState().setMasonActiveTab('ide');
                       }
                       setIsLogExpanded(false);
-                    }} className="px-2 py-0.5 bg-black/20 border border-white/5 hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-md transition-all uppercase tracking-widest cursor-pointer">
+                    }} className="px-2 py-0.5 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/[10%] rounded-md transition-all uppercase tracking-widest cursor-pointer">
                       {f.replace(/\.wayfinder$/i, '').replace(/\.masonhub$/i, '')}
                     </button>
                     {idx < fileNames.length - 1 && <span className="opacity-50">,</span>}
@@ -98,7 +98,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
           const isSucc = log.type === 'success' || logIcon === 'check_circle' || logIcon === 'done' || logIcon === 'verified';
           const isWarn = log.type === 'warning' || logIcon === 'warning' || logIcon === 'priority_high';
 
-          const logColor = isErr ? 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]' : isSucc ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]' : isWarn ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]' : 'text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]';
+          const logColor = isErr ? 'text-red-400 drop-shadow-md' : isSucc ? 'text-emerald-400 drop-shadow-md' : isWarn ? 'text-amber-400 drop-shadow-md' : 'text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]';
           const bgHover = isErr ? 'hover:bg-red-500/10 hover:border-red-500/20' : isSucc ? 'hover:bg-emerald-500/10 hover:border-emerald-500/20' : isWarn ? 'hover:bg-amber-500/10 hover:border-amber-500/20' : 'hover:bg-[var(--accent)]/10 hover:border-[var(--accent)]/20';
           const iconBg = isErr ? 'bg-red-500/10 border-red-500/20' : isSucc ? 'bg-emerald-500/10 border-emerald-500/20' : isWarn ? 'bg-amber-500/10 border-amber-500/20' : 'bg-[var(--accent)]/10 border-[var(--accent)]/20';
 

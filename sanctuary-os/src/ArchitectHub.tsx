@@ -54,7 +54,7 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         icon={t("icon_analytics")}
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
       >
-        <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/10 shadow-inner">
+        <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
           <button
             onClick={() => setIsVerifyPanelOpen(true)}
             className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
@@ -66,7 +66,7 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
       </ViewHeader>
 
       <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 shrink-0">
+        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 shrink-0">
           <HubTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command") || "COMMAND"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="registry" icon={t("icon_inventory_2")} label={t("items") || "ARTIFACTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="queue" icon={t("icon_search")} label={t("tab_queue") || "SCOUT"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
@@ -177,8 +177,8 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-[3px] animate-in fade-in">
-      <div className="w-full max-w-lg bg-[var(--sidebar)] border border-white/10 rounded-[var(--radius)] shadow-2xl flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-white/10">
+      <div className="w-full max-w-lg bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-black uppercase tracking-widest theme-text-accent">
               {getTitle()}
@@ -191,7 +191,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
             placeholder={t("ph_search_catalog")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent"
+            className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent"
           />
         </div>
 
@@ -200,7 +200,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
             <button
               key={mod.id}
               onClick={() => { onSelect(mod.id); }}
-              className="flex justify-between items-center px-5 py-3 theme-glass-inner border border-white/5 hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group"
+              className="flex justify-between items-center px-5 py-3 glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group"
             >
               <div className="flex flex-col max-w-[80%]">
                 <span className="text-xs font-black text-[var(--text)] uppercase truncate">{mod.name}</span>
@@ -262,7 +262,7 @@ function DLCSearchDropdown({ onSelect, currentDLC = [] }: { onSelect: (pack: str
             onChange={e => { setQuery(e.target.value); setIsOpen(true); }}
             onFocus={() => setIsOpen(true)}
             placeholder={t("registry_search_dlc")}
-            className="w-full theme-glass-inner rounded-lg px-3 py-1.5 text-[var(--text)] text-sm uppercase font-bold focus:outline-none focus:theme-border-success"
+            className="w-full glass-surface rounded-lg px-3 py-1.5 text-[var(--text)] text-sm uppercase font-bold focus:outline-none focus:theme-border-success"
           />
           {query && (
             <button onClick={() => setQuery("")} className="absolute right-2 top-1.5 text-[var(--text)]/20 hover:text-[var(--text)] text-[10px]"></button>
@@ -270,7 +270,7 @@ function DLCSearchDropdown({ onSelect, currentDLC = [] }: { onSelect: (pack: str
         </div>
       </div>
       {isOpen && query.length > 0 && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 bg-[var(--sidebar)] backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-bottom-2">
+        <div className="absolute bottom-full left-0 right-0 mb-2 bg-[var(--sidebar)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-2xl overflow-hidden z-50 max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-bottom-2">
           {filtered.length > 0 ? filtered.map(d => (
             <button
               key={d.code}

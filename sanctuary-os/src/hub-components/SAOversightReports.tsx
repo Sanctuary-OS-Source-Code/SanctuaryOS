@@ -87,9 +87,9 @@ export default function SAOversightReports() {
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full flex-wrap">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full flex-wrap">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_threat_intelligence")}</span>
           </div>
           <span className="truncate">{t("stat_malware_logs")}</span>
@@ -102,7 +102,7 @@ export default function SAOversightReports() {
                 value={search} 
                 onChange={e => setSearch(e.target.value)} 
                 placeholder={t("oversight_search")} 
-                className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
               />
             </div>
             
@@ -136,7 +136,7 @@ export default function SAOversightReports() {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
           {isLoading ? (
-            <div className="theme-glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("comp_scanning")}</div>
+            <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("comp_scanning")}</div>
           ) : groupedReports.length === 0 ? (
             <EmptyState icon={t("icon_threat_intelligence") || "policy"} title={t("sa_no_reports")} className="col-span-full py-16" />
           ) : (
@@ -160,22 +160,22 @@ export default function SAOversightReports() {
                         setViewingReport(report); 
                       }
                     }}
-                    className={`cursor-pointer theme-glass-panel rounded-[var(--radius)] flex flex-col group/card border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] ${isMalware ? 'border-red-900/50 hover:border-red-500 hover:shadow-[0_0_40px_rgba(239,68,68,0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)]'}`}
+                    className={`cursor-pointer glass-panel rounded-[var(--radius)] flex flex-col group/card border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] ${isMalware ? 'border-red-900/50 hover:border-red-500 hover:shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[50%] hover:shadow-md'}`}
                   >
                     <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
                       <div className="flex justify-between items-start gap-4">
-                        <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${isMalware ? 'group-hover/card:border-red-500/30' : 'group-hover/card:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}>
+                        <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${isMalware ? 'group-hover/card:border-red-500/30' : 'group-hover/card:border-[var(--accent)]/[30%]'}`}>
                             <span className={`material-symbols-outlined !text-[24px] opacity-50 group-hover/card:opacity-100 transition-colors duration-500 ${isMalware ? 'text-red-500' : 'text-[var(--text)] group-hover/card:theme-text-accent'}`}>
                                 {t("icon_threat_intelligence")}
                             </span>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap justify-end">
                           {group.length > 1 && (
-                            <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-white/5 ${isMalware ? 'text-red-300 border-red-500/30' : 'theme-text-accent border-[var(--accent)]/30'}`}>
+                            <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${isMalware ? 'text-red-300 border-red-500/30' : 'theme-text-accent border-[var(--accent)]/30'}`}>
                                 {group.length} {t("oversight_hits_count")}
                             </span>
                           )}
-                          <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-white/5 ${isMalware ? 'text-red-500 border-red-500/30' : 'theme-text-danger border-[var(--danger)]/30'}`}>
+                          <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${isMalware ? 'text-red-500 border-red-500/30' : 'theme-text-danger border-[var(--danger)]/30'}`}>
                               {displayStatus}
                           </span>
                         </div>
@@ -213,14 +213,14 @@ export default function SAOversightReports() {
           icon={t("icon_threat_intelligence")}
         >
           <div className="flex flex-col gap-4 h-full">
-             <div className="flex items-center gap-3 w-full border-b border-white/5 pb-4 shrink-0 flex-wrap">
+             <div className="flex items-center gap-3 w-full border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 shrink-0 flex-wrap">
                <div className="relative flex-1 min-w-[200px]">
                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
                  <input 
                    value={groupSearch} 
                    onChange={e => setGroupSearch(e.target.value)} 
                    placeholder={t("oversight_search")} 
-                   className="w-full theme-glass-panel rounded-xl pl-9 pr-4 h-10 text-xs font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                   className="w-full glass-panel rounded-xl pl-9 pr-4 h-10 text-xs font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
                  />
                </div>
                
@@ -289,16 +289,16 @@ export default function SAOversightReports() {
                     <div 
                       key={r.id} 
                       onClick={() => setViewingReport(r)}
-                      className={`p-4 theme-glass-panel rounded-2xl cursor-pointer transition-colors flex flex-col gap-1 border overflow-hidden relative group/item ${isMalware ? 'border-red-900/30 hover:border-red-500' : 'border-white/5 hover:border-[var(--accent)]/50'}`}
+                      className={`p-4 glass-panel rounded-2xl cursor-pointer transition-colors flex flex-col gap-1 border overflow-hidden relative group/item ${isMalware ? 'border-red-900/30 hover:border-red-500' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50'}`}
                     >
                        <div className="flex justify-between items-start gap-2 relative z-10 mb-1">
                           <span className="text-sm font-black text-[var(--text)] tracking-widest">{rDate.toLocaleDateString()}</span>
-                          <span className={`px-2 py-1 rounded-md text-[8px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-white/5 ${isMalware ? 'text-red-500 border-red-500/30' : 'theme-text-danger border-[var(--danger)]/30'}`}>
+                          <span className={`px-2 py-1 rounded-md text-[8px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${isMalware ? 'text-red-500 border-red-500/30' : 'theme-text-danger border-[var(--danger)]/30'}`}>
                               {displayStatus}
                           </span>
                        </div>
                        <span className="text-[10px] font-mono opacity-60 text-[var(--subtext)] relative z-10 font-bold">{rDate.toLocaleTimeString()}</span>
-                       <span className="text-[9px] uppercase font-black tracking-widest opacity-40 text-[var(--subtext)] truncate mt-2 border-t border-white/5 pt-2 relative z-10">{r.artifact_name || t("oversight_unknown_artifact") || "UNKNOWN"}</span>
+                       <span className="text-[9px] uppercase font-black tracking-widest opacity-40 text-[var(--subtext)] truncate mt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-2 relative z-10">{r.artifact_name || t("oversight_unknown_artifact") || "UNKNOWN"}</span>
                     </div>
                   );
                })}
@@ -325,7 +325,7 @@ export default function SAOversightReports() {
           >
             <div className="flex flex-col gap-8 h-full">
               <div className="flex flex-col gap-6 relative">
-                <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
                   {t("report_details")}
                 </h4>
@@ -333,51 +333,51 @@ export default function SAOversightReports() {
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-col gap-2 w-full">
                      <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("label_modname")}</span>
-                     <div className="w-full p-3.5 theme-glass-panel rounded-xl border border-white/5 shadow-inner flex items-center min-h-[48px]">
+                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
                        <span className="text-sm font-bold text-[var(--text)] break-all">{viewingReport.artifact_name || t("oversight_unknown_artifact") || "UNKNOWN ARTIFACT"}</span>
                      </div>
                   </div>
                   <div className="flex flex-col gap-2 w-full">
                      <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("status")}</span>
-                     <div className="w-full p-3.5 theme-glass-panel rounded-xl border border-white/5 shadow-inner flex items-center min-h-[48px]">
-                       <span className={`text-sm font-black uppercase tracking-widest bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(255,255,255,0.1)] ${viewingReport.status === 'blacklisted' ? 'bg-gradient-to-r from-amber-400 to-yellow-500' : viewingReport.status === 'cleared' ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-red-400 to-rose-500'}`}>
+                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
+                       <span className={`text-sm font-black uppercase tracking-widest bg-clip-text text-transparent drop-shadow-md ${viewingReport.status === 'blacklisted' ? 'bg-gradient-to-r from-amber-400 to-yellow-500' : viewingReport.status === 'cleared' ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-red-400 to-rose-500'}`}>
                          {viewingDisplayStatus}
                        </span>
                      </div>
                   </div>
                   <div className="flex flex-col gap-2 w-full">
                      <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("oversight_lbl_signature")}</span>
-                     <div className="w-full p-3.5 theme-glass-panel rounded-xl border border-white/5 shadow-inner flex items-center min-h-[48px]">
-                       <span className={`text-sm font-black uppercase tracking-widest bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(255,255,255,0.1)] ${viewingReport.signature === "N/A" ? 'bg-gradient-to-r from-gray-400 to-gray-500' : 'bg-gradient-to-r from-red-400 to-rose-500'}`}>
+                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
+                       <span className={`text-sm font-black uppercase tracking-widest bg-clip-text text-transparent drop-shadow-md ${viewingReport.signature === "N/A" ? 'bg-gradient-to-r from-gray-400 to-gray-500' : 'bg-gradient-to-r from-red-400 to-rose-500'}`}>
                          {viewingReport.signature === "N/A" ? (t("oversight_na")) : (viewingReport.signature || t("oversight_unknown_threat") || "Unknown Threat")}
                        </span>
                      </div>
                   </div>
                   <div className="flex flex-col gap-2 w-full">
                      <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("dna_hash")}</span>
-                     <div className="w-full p-3.5 theme-glass-panel rounded-xl border border-white/5 shadow-inner flex items-center min-h-[48px]">
+                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
                        <span className="text-sm font-bold text-[var(--text)] break-all opacity-90">{viewingReport.detected_hash || t("oversight_na") || "NO SIGNATURE MATCH"}</span>
                      </div>
                   </div>
                   <div className="flex flex-col gap-2 w-full">
                      <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("oversight_lbl_detected_at")}</span>
-                     <div className="w-full p-3.5 theme-glass-panel rounded-xl border border-white/5 shadow-inner flex items-center min-h-[48px]">
+                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
                        <span className="text-sm font-bold text-[var(--text)]">{formatDate(viewingReport.detected_at || viewingReport.created_at)}</span>
                      </div>
                   </div>
 
                   <div className="flex flex-col gap-2 w-full">
                      <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("oversight_lbl_orig_status")}</span>
-                     <div className="w-full p-3.5 theme-glass-panel rounded-xl border border-white/5 shadow-inner flex items-center min-h-[48px]">
-                       <span className={`text-sm font-black uppercase tracking-widest bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(255,255,255,0.1)] ${viewingReport.original_exists === true ? 'bg-gradient-to-r from-amber-400 to-yellow-500' : viewingReport.original_exists === false ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-gray-400 to-gray-500'}`}>
+                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
+                       <span className={`text-sm font-black uppercase tracking-widest bg-clip-text text-transparent drop-shadow-md ${viewingReport.original_exists === true ? 'bg-gradient-to-r from-amber-400 to-yellow-500' : viewingReport.original_exists === false ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-gray-400 to-gray-500'}`}>
                          {viewingReport.original_exists === true ? t("oversight_status_present") : viewingReport.original_exists === false ? t("oversight_status_removed") : t("vlocal")}
                        </span>
                      </div>
                   </div>
                   <div className="flex flex-col gap-2 w-full">
                      <span className="text-[9px] uppercase tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("oversight_lbl_shredded_status")}</span>
-                     <div className="w-full p-3.5 theme-glass-panel rounded-xl border border-white/5 shadow-inner flex items-center min-h-[48px]">
-                       <span className={`text-sm font-black uppercase tracking-widest bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(255,255,255,0.1)] ${(viewingReport.original_shredded === true || viewingReport.quarantined_file_shredded === true) ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : viewingReport.original_shredded === false ? 'bg-gradient-to-r from-red-400 to-rose-500' : 'bg-gradient-to-r from-gray-400 to-gray-500'}`}>
+                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
+                       <span className={`text-sm font-black uppercase tracking-widest bg-clip-text text-transparent drop-shadow-md ${(viewingReport.original_shredded === true || viewingReport.quarantined_file_shredded === true) ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : viewingReport.original_shredded === false ? 'bg-gradient-to-r from-red-400 to-rose-500' : 'bg-gradient-to-r from-gray-400 to-gray-500'}`}>
                          {(viewingReport.original_shredded === true || viewingReport.quarantined_file_shredded === true) ? t("oversight_status_removed") : viewingReport.original_shredded === false ? t("oversight_status_not_shredded") : t("vlocal")}
                        </span>
                      </div>

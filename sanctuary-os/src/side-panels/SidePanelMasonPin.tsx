@@ -35,17 +35,17 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
     >
       <div className="flex flex-col h-full">
         <div className="px-6 pt-6 shrink-0 mb-4 flex flex-col gap-4">
-          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5">
+          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5">
             <button 
               onClick={() => { setActiveTab('mod'); setActiveCategory('ALL'); }} 
-              className={`flex-1 relative shrink-0 flex flex-col items-center justify-center gap-1.5 px-6 py-3 transition-all duration-500 ${activeTab === 'mod' ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-b-2 border-b-[var(--accent)]' : 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)]'}`}
+              className={`flex-1 relative shrink-0 flex flex-col items-center justify-center gap-1.5 px-6 py-3 transition-all duration-500 ${activeTab === 'mod' ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-b-2 border-b-[var(--accent)]' : 'text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)]'}`}
             >
               <span className="material-symbols-outlined !text-xl">account_balance</span>
               <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t("type_artifacts")}</span>
             </button>
             <button 
               onClick={() => { setActiveTab('asset'); setActiveCategory('ALL'); }} 
-              className={`flex-1 relative shrink-0 flex flex-col items-center justify-center gap-1.5 px-6 py-3 transition-all duration-500 ${activeTab === 'asset' ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-b-2 border-b-[var(--accent)]' : 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)]'}`}
+              className={`flex-1 relative shrink-0 flex flex-col items-center justify-center gap-1.5 px-6 py-3 transition-all duration-500 ${activeTab === 'asset' ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-b-2 border-b-[var(--accent)]' : 'text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)]'}`}
             >
               <span className="material-symbols-outlined !text-xl">inventory_2</span>
               <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t("type_assets")}</span>
@@ -60,10 +60,10 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
                 placeholder={activeTab === 'mod' ? "Search Artifacts..." : "Search Assets..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-12 pl-12 pr-10 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-white/5 focus:border-[var(--accent)] rounded-xl outline-none text-sm transition-all placeholder:text-[var(--subtext)]/50 focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+                className="w-full h-12 pl-12 pr-10 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:border-[var(--accent)] rounded-xl outline-none text-sm transition-all placeholder:text-[var(--subtext)]/50 focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/5">
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                   <span className="material-symbols-outlined !text-lg">close</span>
                 </button>
               )}
@@ -89,7 +89,7 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
             filteredMods.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredMods.map((mod: any) => (
-                  <div key={mod.id} onClick={() => { handlePin('mod', mod.id); }} className={`relative flex items-center gap-4 p-4 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${(mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-white/5'}`}>
+                  <div key={mod.id} onClick={() => { handlePin('mod', mod.id); }} className={`relative flex items-center gap-4 p-4 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group ${(mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                     
                     <div className="w-16 h-16 rounded-xl shrink-0 overflow-hidden bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                       {mod.image_url ? (
@@ -128,7 +128,7 @@ export default function SidePanelMasonPin({ isOpen, onClose, mason, mods, market
                   const isBp = asset.asset_type === 'blueprint';
                   const smIcon = isBp ? t("icon_map") : asset.asset_type === 'lexicon' ? t("icon_translate") : asset.asset_type === 'chameleon' ? t("icon_palette") : t("icon_draw");
                   return (
-                    <div key={asset.id} onClick={() => { handlePin(isBp ? 'blueprint' : 'asset', asset.id); }} className={`relative flex items-center gap-4 p-4 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${(mason?.pinned_asset_id === asset.id || mason?.pinned_blueprint_id === asset.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-white/5'} transform-gpu backface-hidden`}>
+                    <div key={asset.id} onClick={() => { handlePin(isBp ? 'blueprint' : 'asset', asset.id); }} className={`relative flex items-center gap-4 p-4 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group ${(mason?.pinned_asset_id === asset.id || mason?.pinned_blueprint_id === asset.id) ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} transform-gpu backface-hidden`}>
 
                       <div className="w-16 h-16 rounded-xl shrink-0 overflow-hidden bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                         {asset.image_url ? (

@@ -535,13 +535,13 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                   <div className="flex p-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shadow-inner mb-2">
                      <button
                         onClick={() => setCreateMode("standard")}
-                        className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${createMode === "standard" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
+                        className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${createMode === "standard" ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-md border border-[var(--accent)]/[30%]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
                      >
                         {t("auto_standard_file") || "Standard File"}
                      </button>
                      <button
                         onClick={() => setCreateMode("lexicon")}
-                        className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${createMode === "lexicon" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
+                        className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${createMode === "lexicon" ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-md border border-[var(--accent)]/[30%]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
                      >
                         <span className="material-symbols-outlined !text-[14px] align-middle mr-2">translate</span>
                         {t("auto_lexicon_pack") || "Lexicon Pack"}
@@ -564,7 +564,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                            value={lexiconLang}
                            onChange={e => setLexiconLang(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                            placeholder="es"
-                           className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono text-center"
+                           className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono text-center"
                            autoFocus
                            onKeyDown={(e) => {
                               if (e.key === 'Enter') handleCreateSubmit();
@@ -578,7 +578,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                            value={createFileName}
                            onChange={e => setCreateFileName(e.target.value)}
                            placeholder="default"
-                           className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
+                           className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
                            onKeyDown={(e) => {
                               if (e.key === 'Enter') handleCreateSubmit();
                            }}
@@ -594,7 +594,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                            value={createFileName}
                            onChange={e => setCreateFileName(e.target.value)}
                            placeholder="example"
-                           className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
+                           className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
                            autoFocus
                            onKeyDown={(e) => {
                               if (e.key === 'Enter') handleCreateSubmit();
@@ -608,7 +608,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                            value={createFileExt}
                            onChange={e => setCreateFileExt(e.target.value)}
                            placeholder=".json"
-                           className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
+                           className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
                            onKeyDown={(e) => {
                               if (e.key === 'Enter') handleCreateSubmit();
                            }}
@@ -618,7 +618,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                )}
 
                {createMode === "lexicon" && (
-                  <div className="bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-2xl p-4 flex gap-4 mt-2">
+                  <div className="bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] rounded-2xl p-4 flex gap-4 mt-2">
                      <span className="material-symbols-outlined text-[var(--accent)] text-3xl">info</span>
                      <p
                         className="text-xs text-[var(--text)] opacity-80 leading-relaxed font-bold"

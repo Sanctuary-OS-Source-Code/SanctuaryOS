@@ -4,7 +4,7 @@ import { TabContainer, SettingsGrid, SettingCard, SettingsToggle } from './share
 import { SidePanel } from '../shared';
 import { supabase } from '../supabase';
 
-const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
+const standardButtonClass = "px-6 py-3 rounded-2xl glass-surface text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
 
 export default function NotificationsTab() {
   const { t } = useLexicon();
@@ -145,7 +145,7 @@ export default function NotificationsTab() {
         iconColorClass="theme-text-accent"
       >
         <div className="flex flex-col space-y-4 relative z-10 w-full h-full p-4 overflow-y-auto accent-scrollbar">
-          {followedMasons.length === 0 && <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 text-center mt-12 p-8 theme-glass-inner border border-dashed border-white/10 rounded-[var(--radius)]">{t("settings_no_masons")}</div>}
+          {followedMasons.length === 0 && <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 text-center mt-12 p-8 glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)]">{t("settings_no_masons")}</div>}
           <SettingsGrid>
             {followedMasons.map(m => (
               <SettingCard 

@@ -32,7 +32,7 @@ export function BrokenModsSidePanel({
         }).map((m: any) => {
           const isMismatch = m.isGhosted === true && m.ghostReason === "VERSION_MISMATCH";
           return (
-            <div key={m.hash} className="flex items-center justify-between p-4 theme-glass-inner rounded-xl border border-white/5 hover:border-amber-500/50 transition-all group gap-4">
+            <div key={m.hash} className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-amber-500/50 transition-all group gap-4">
               <div className="flex flex-col gap-1 min-w-0">
                 <span className="text-sm font-black text-[var(--text)] truncate group-hover:text-amber-500 transition-colors">
                   {m.name.split(/[/\\]/).pop()}
@@ -57,7 +57,7 @@ export function BrokenModsSidePanel({
           const isMismatch = m.isGhosted === true && m.ghostReason === "VERSION_MISMATCH";
           return isBroken || isMismatch;
         }).length === 0 && (
-          <div className="text-[var(--subtext)] text-center opacity-50 p-6 italic font-bold text-xs uppercase tracking-widest bg-black/10 rounded-xl border border-white/5">
+          <div className="text-[var(--subtext)] text-center opacity-50 p-6 italic font-bold text-xs uppercase tracking-widest bg-black/10 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             {t("broken_modal_empty")}
           </div>
         )}

@@ -21,14 +21,14 @@ export function MarketUploadPanel({
   return createPortal(
     <>
       <div className={`fixed top-0 right-0 bottom-10 ${backdropZ} bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300`} style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setUploadState((s: any) => ({ ...s, isOpen: false }))}></div>
-      <div className={`fixed top-10 right-0 bottom-10 w-[550px] max-w-[100vw] theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col ${panelZ} animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none`} onClick={(e) => e.stopPropagation()}>
-        <button type="button" onClick={() => setUploadState((s: any) => ({ ...s, isOpen: false }))} className="group absolute top-8 right-8 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
+      <div className={`fixed top-10 right-0 bottom-10 w-[550px] max-w-[100vw] glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex flex-col ${panelZ} animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none`} onClick={(e) => e.stopPropagation()}>
+        <button type="button" onClick={() => setUploadState((s: any) => ({ ...s, isOpen: false }))} className="group absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
           <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
         </button>
         <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pt-6 pb-2 px-6">
           <div className="absolute inset-0 bg-[var(--accent)]/5 blur-[50px] pointer-events-none rounded-full transform scale-150 -translate-y-1/2"></div>
           <div className="flex items-center gap-6 relative z-10 w-full pr-12">
-            <div className="w-20 h-20 shrink-0 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center">
+            <div className="w-20 h-20 shrink-0 rounded-[var(--radius)] bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] shadow-inner flex items-center justify-center">
               <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '40px' }}>
                 {marketTab === 'LEXICONS' ? 'translate' : marketTab === 'TEMPLATES' ? 'draw' : 'palette'}
               </span>
@@ -51,7 +51,7 @@ export function MarketUploadPanel({
             <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
               <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("upload_file")}</label>
               <div className="flex items-center gap-4">
-                <div className={`flex-1 theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold truncate transition-all ${uploadState.fileName ? 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--subtext)] opacity-60 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-dashed'}`}>
+                <div className={`flex-1 glass-surface rounded-xl px-4 py-3 text-sm font-bold truncate transition-all ${uploadState.fileName ? 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--subtext)] opacity-60 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-dashed'}`}>
                   {uploadState.fileName || "No file selected"}
                 </div>
                 {!(uploadState.id && ['TEMPLATES', 'templates', 'CHAMELEONS', 'chameleons'].includes(marketTab)) && marketTab !== 'LEXICONS' && marketTab !== 'lexicons' && marketTab !== 'CHAMELEONS' && marketTab !== 'TEMPLATES' && (
@@ -91,7 +91,7 @@ export function MarketUploadPanel({
                   type="text"
                   value={uploadState.name}
                   onChange={e => setUploadState((s: any) => ({ ...s, name: e.target.value }))}
-                  className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)]"
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)]"
                 />
               </div>
               <div className="flex flex-col gap-2 w-32 shrink-0">
@@ -100,7 +100,7 @@ export function MarketUploadPanel({
                   type="text"
                   value={uploadState.version}
                   onChange={e => setUploadState((s: any) => ({ ...s, version: e.target.value }))}
-                  className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)] text-center"
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)] text-center"
                 />
               </div>
             </div>
@@ -109,7 +109,7 @@ export function MarketUploadPanel({
               <textarea
                 value={uploadState.description}
                 onChange={e => setUploadState((s: any) => ({ ...s, description: e.target.value }))}
-                className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[100px] text-[var(--text)]"
+                className="w-full glass-surface rounded-xl px-4 py-3 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[100px] text-[var(--text)]"
               />
             </div>
 
@@ -119,7 +119,7 @@ export function MarketUploadPanel({
                 value={uploadState.releaseNotes || ""}
                 onChange={e => setUploadState((s: any) => ({ ...s, releaseNotes: e.target.value }))}
                 placeholder={t("update_panel_no_notes")}
-                className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[80px] text-[var(--text)]"
+                className="w-full glass-surface rounded-xl px-4 py-3 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[80px] text-[var(--text)]"
               />
             </div>
 
@@ -144,7 +144,7 @@ export function MarketUploadPanel({
                       type="text"
                       value={uploadState.newLanguage}
                       onChange={e => setUploadState((s: any) => ({ ...s, newLanguage: e.target.value }))}
-                      className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
+                      className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
                       placeholder={t("ph_language")}
                     />
                   </div>
@@ -190,7 +190,7 @@ export function MarketUploadPanel({
           <button
             onClick={submitUpload}
             disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
-            className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--success-rgb),0.2)] disabled:opacity-50 disabled:hover:scale-100 disabled:pointer-events-none"
+            className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-emerald-500/[10%] text-[var(--success)] border-emerald-500/[30%] hover:bg-emerald-500/[20%] shadow-[0_5px_20px_rgba(var(--success-rgb),0.2)] disabled:opacity-50 disabled:hover:scale-100 disabled:pointer-events-none"
           >
             <span className="material-symbols-outlined !text-[18px]">{uploadState.isEdit ? (t("icon_save")) : (t("icon_upload"))}</span>
             {uploadState.isEdit ? (t("upload_btn_update")) : (t("upload_submit"))}
@@ -212,19 +212,19 @@ export function MarketReportPanel({
   return createPortal(
     <>
       <div className="fixed top-0 right-0 bottom-10 z-[65000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setReportState({ isOpen: false, assetId: null, assetType: null, reason: '' })} />
-      <div className="fixed top-10 right-0 bottom-10 w-[500px] max-w-[100vw] theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[65001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none" onClick={(e: any) => e.stopPropagation()}>
+      <div className="fixed top-10 right-0 bottom-10 w-[500px] max-w-[100vw] glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex flex-col z-[65001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none" onClick={(e: any) => e.stopPropagation()}>
         <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-red-500/10 to-transparent pt-6 pb-4 px-6">
           <div className="absolute inset-0 bg-red-500/5 blur-[50px] pointer-events-none rounded-full transform scale-150 -translate-y-1/2"></div>
           <div className="flex items-center gap-6 relative z-10 w-full pr-12">
             <div className="w-16 h-16 shrink-0 rounded-[var(--radius)] bg-red-500/10 border border-red-500/20 shadow-inner flex items-center justify-center">
-              <span className="material-symbols-outlined text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]" style={{ fontSize: '32px' }}>{t("icon_flag")}</span>
+              <span className="material-symbols-outlined text-red-500 drop-shadow-md" style={{ fontSize: '32px' }}>{t("icon_flag")}</span>
             </div>
             <div className="flex flex-col min-w-0 flex-1 pt-1">
               <h3 className="text-2xl font-black text-[var(--text)] uppercase truncate leading-tight pb-1">{t("report_title")}</h3>
               <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("report_desc")}</p>
             </div>
           </div>
-          <button type="button" onClick={() => setReportState({ isOpen: false, assetId: null, assetType: null, reason: '' })} className="group absolute top-8 right-6 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
+          <button type="button" onClick={() => setReportState({ isOpen: false, assetId: null, assetType: null, reason: '' })} className="group absolute top-8 right-6 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
             <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
           </button>
         </div>
@@ -239,7 +239,7 @@ export function MarketReportPanel({
                 placeholder={t("report_placeholder")}
                 title={t("report_placeholder")}
                 onChange={(e) => setReportState({ ...reportState, reason: e.target.value })}
-                className="h-48 theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold resize-none focus:outline-none focus:theme-border-accent"
+                className="h-48 glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold resize-none focus:outline-none focus:theme-border-accent"
               />
             </div>
           </div>
@@ -249,7 +249,7 @@ export function MarketReportPanel({
               <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
               {t("nav_cancel")}
             </button>
-            <button type="submit" className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--danger-rgb),0.2)]">
+            <button type="submit" className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-red-500/[10%] text-[var(--danger)] border-red-500/[30%] hover:bg-red-500/[20%] shadow-[0_5px_20px_rgba(var(--danger-rgb),0.2)]">
               <span className="material-symbols-outlined !text-[18px]">{t("icon_flag")}</span>
               {t("report_submit")}
             </button>
@@ -416,14 +416,14 @@ export function MarketBlueprintPanel({
   return createPortal(
     <>
       <div className="fixed top-0 right-0 bottom-10 z-[15000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" style={{ left: 'var(--sidebar-width, 288px)' }} onClick={() => setSelectedBlueprint(null)}></div>
-      <div className="fixed top-10 right-0 bottom-10 w-full max-w-4xl theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none" onClick={(e) => e.stopPropagation()}>
-        <button onClick={() => setSelectedBlueprint(null)} className="group absolute top-8 right-8 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
+      <div className="fixed top-10 right-0 bottom-10 w-full max-w-4xl glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none" onClick={(e) => e.stopPropagation()}>
+        <button onClick={() => setSelectedBlueprint(null)} className="group absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
           <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
         </button>
         <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pt-6 pb-2 px-10">
           <div className="absolute inset-0 bg-[var(--accent)]/5 blur-[50px] pointer-events-none rounded-full transform scale-150 -translate-y-1/2"></div>
           <div className="flex items-start gap-6 relative z-10 w-full pr-12">
-            <div className="w-20 h-20 shrink-0 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center">
+            <div className="w-20 h-20 shrink-0 rounded-[var(--radius)] bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] shadow-inner flex items-center justify-center">
               <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '40px' }}>{t("icon_map")}</span>
             </div>
             <div className="flex flex-col min-w-0 flex-1 pt-1">
@@ -503,13 +503,13 @@ export function MarketBlueprintPanel({
                     {(mod.is_paid || mod.is_early_access) && (
                       <div className="flex flex-wrap gap-2 mt-2">
                         {mod.is_early_access && (
-                          <div className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center gap-1 shadow-[0_0_10px_rgba(168,85,247,0.1)]">
+                          <div className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center gap-1 shadow-md">
                             <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
                             <span className="text-[8px] font-black uppercase tracking-[0.1em] text-purple-500">{t("badge_early_access") || "Early Access"}</span>
                           </div>
                         )}
                         {mod.is_paid && (
-                          <div className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-1 shadow-[0_0_10px_rgba(234,179,8,0.1)]">
+                          <div className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-1 shadow-md">
                             <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
                             <span className="text-[8px] font-black uppercase tracking-[0.1em] text-yellow-500">{t("badge_paid") || "Paid"}</span>
                           </div>
@@ -527,7 +527,7 @@ export function MarketBlueprintPanel({
                 <div className="flex flex-col gap-6">
                   {premiumMods.length > 0 && (
                     <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-3 p-4 theme-glass-panel border border-yellow-500/30 rounded-2xl bg-yellow-500/5 shadow-md">
+                      <div className="flex items-center gap-3 p-4 glass-panel border border-yellow-500/30 rounded-2xl bg-yellow-500/5 shadow-md">
                         <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-yellow-500/20 text-yellow-500">
                           <span className="material-symbols-outlined !text-[20px]">workspace_premium</span>
                         </div>
@@ -555,7 +555,7 @@ export function MarketBlueprintPanel({
             {(filterTab === 'ALL' ? (enrichedBlueprint.json_data.artifacts?.length || 0) : ((enrichedBlueprint.json_data.artifacts || []).filter((m: any) => !modList.some((vaultMod: any) => vaultMod.hash === m.hash)).length)) > visibleCount && (
               <button
                 onClick={() => setVisibleCount((prev: number) => prev + 100)}
-                className="w-full py-4 mt-2 theme-glass-panel border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-white hover:bg-white/5 transition-all flex items-center justify-center gap-2 shadow-md active:scale-[0.99]"
+                className="w-full py-4 mt-2 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all flex items-center justify-center gap-2 shadow-md active:scale-[0.99]"
               >
                 <span className="material-symbols-outlined !text-[16px]">expand_more</span>
                 Load More Artifacts ({(filterTab === 'ALL' ? (enrichedBlueprint.json_data.artifacts?.length || 0) : ((enrichedBlueprint.json_data.artifacts || []).filter((m: any) => !modList.some((vaultMod: any) => vaultMod.hash === m.hash)).length)) - visibleCount} Remaining)
@@ -586,7 +586,7 @@ export function MarketBlueprintPanel({
               setSelectedBlueprint(null);
             }}
             disabled={isSyncing}
-            className={`flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_5px_20px_rgba(var(--accent-rgb),0.2)] ${isSyncing ? 'opacity-80 scale-100 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}
+            className={`flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs bg-[var(--accent)]/[10%] text-[var(--accent)] border-[var(--accent)]/[30%] shadow-[0_5px_20px_rgba(var(--accent-rgb),0.2)] ${isSyncing ? 'opacity-80 scale-100 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95 hover:bg-[var(--accent)]/[20%]'}`}
           >
             <span className={`material-symbols-outlined !text-[18px] ${isSyncing ? 'animate-spin' : ''}`}>
               {isSyncing ? t("icon_refresh") : t("icon_download")}

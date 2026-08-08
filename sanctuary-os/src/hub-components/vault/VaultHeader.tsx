@@ -33,14 +33,14 @@ export function VaultHeader({
           icon={<span className="material-symbols-outlined !text-4xl">{t("icon_check_circle") || "check_circle"}</span>}
           number={equippedDisplayMods.length}
           label={t("filter_equipped") || "EQUIPPED"}
-          colorClass="border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] cursor-pointer"
+          colorClass="border-emerald-500/[30%] text-[var(--success)] hover:border-[var(--success)] bg-emerald-500/[10%] hover:bg-emerald-500/[20%] cursor-pointer"
           onClick={() => { setViewMode("grid"); setEquipFilter("EQUIPPED"); setFilterStatus("ALL"); }}
         />
         <DashboardStatTile
           icon={<span className="material-symbols-outlined !text-4xl">{t("icon_help_outline") || "help_outline"}</span>}
           number={unverifiedCount}
           label={t("unverified") || "UNVERIFIED"}
-          colorClass="border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:border-[var(--warning)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] cursor-pointer"
+          colorClass="border-orange-500/[30%] text-[var(--warning)] hover:border-[var(--warning)] bg-orange-500/[10%] hover:bg-orange-500/[20%] cursor-pointer"
           onClick={() => { setViewMode("grid"); setEquipFilter("ALL"); setFilterStatus("UNVERIFIED"); }}
         />
         <DashboardStatTile
@@ -61,7 +61,7 @@ export function VaultHeader({
             onClick={() => { setViewMode("grid"); setIsBulkMode(true); }}
             textColorClass="text-emerald-500"
             hoverTextColorClass="group-hover:text-emerald-400"
-            iconShadowClass="drop-shadow-[0_0_8px_rgba(16,185,129,0.5)] text-emerald-500"
+            iconShadowClass="drop-shadow-md text-emerald-500"
             iconBorderHoverClass="group-hover:border-emerald-500/30"
           />
           <CommandScreenQuickLink
@@ -71,7 +71,7 @@ export function VaultHeader({
             onClick={() => setLocalFolderModal(true)}
             textColorClass="text-purple-500"
             hoverTextColorClass="group-hover:text-purple-400"
-            iconShadowClass="drop-shadow-[0_0_8px_rgba(168,85,247,0.5)] text-purple-500"
+            iconShadowClass="drop-shadow-md text-purple-500"
             iconBorderHoverClass="group-hover:border-purple-500/30"
           />
           <CommandScreenQuickLink
@@ -119,7 +119,7 @@ export function VaultHeader({
             }}
             textColorClass="text-rose-500"
             hoverTextColorClass="group-hover:text-rose-400"
-            iconShadowClass="drop-shadow-[0_0_8px_rgba(244,63,94,0.5)] text-rose-500"
+            iconShadowClass="drop-shadow-md text-rose-500"
             iconBorderHoverClass="group-hover:border-rose-500/30"
           />
           <CommandScreenQuickLink
@@ -129,7 +129,7 @@ export function VaultHeader({
             onClick={() => useStore.getState().setView("nexus")}
             textColorClass="text-amber-500"
             hoverTextColorClass="group-hover:text-amber-400"
-            iconShadowClass="drop-shadow-[0_0_8px_rgba(245,158,11,0.5)] text-amber-500"
+            iconShadowClass="drop-shadow-md text-amber-500"
             iconBorderHoverClass="group-hover:border-amber-500/30"
           />
         </div>

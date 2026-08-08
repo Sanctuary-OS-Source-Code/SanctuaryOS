@@ -40,7 +40,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
 
           {/* Explicit Collapse Action Button */}
           {!isSidebarCollapsed && (
-            <div className="w-7 h-7 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-all hover:bg-white/10 hover:border-white/20 shadow-lg">
+            <div className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] shadow-lg">
               <span className="material-symbols-outlined text-[16px] text-white/70 group-hover/logo:text-white transition-colors">keyboard_double_arrow_left</span>
             </div>
           )}
@@ -73,9 +73,9 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
           }}
           className="flex-1 h-full cursor-default pointer-events-auto relative z-10 transition-all duration-500 flex items-center justify-center group/drag"
         >
-          <div className="w-1/3 h-px bg-white/5 relative flex items-center justify-between pointer-events-none">
+          <div className="w-1/3 h-px bg-[color-mix(in_srgb,var(--text)_5%,transparent)] relative flex items-center justify-between pointer-events-none">
             <div className="w-1 h-1 bg-[color-mix(in_srgb,var(--text)_20%,transparent)] rotate-45" />
-            <div className="w-[10%] h-[2px] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] blur-[1px]" />
+            <div className="w-[10%] h-[2px] bg-[var(--accent)]/[20%] blur-[1px]" />
             <div className="w-1 h-1 bg-[color-mix(in_srgb,var(--text)_20%,transparent)] rotate-45" />
           </div>
 
@@ -90,7 +90,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
             onClick={async () => { await getCurrentWebviewWindow().minimize(); }}
             className="group relative w-12 h-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 outline-none"
           >
-            <div className="absolute inset-0 bg-white/5 rounded border border-white/10 group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_40%,transparent)] transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
+            <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:bg-orange-500/[20%] group-hover:border-orange-500/[50%] group-hover:shadow-md transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
             <span className="relative text-[var(--text)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--warning)] transition-all font-black flex items-center justify-center">
               <span className="material-symbols-outlined !text-[16px]">{t("icon_remove")}</span>
             </span>
@@ -104,7 +104,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
             }}
             className="group relative w-12 h-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 outline-none"
           >
-            <div className="absolute inset-0 bg-white/5 rounded border border-white/10 group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
+            <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:bg-[var(--accent)]/[20%] group-hover:border-[var(--accent)]/[50%] group-hover:shadow-md transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
             <span className="relative text-[var(--text)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all flex items-center justify-center">
               <span className="material-symbols-outlined !text-[14px] leading-none">{t("icon_fullscreen")}</span>
             </span>
@@ -114,7 +114,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
             onClick={async () => { await getCurrentWebviewWindow().close(); }}
             className="group relative w-12 h-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 outline-none"
           >
-            <div className="absolute inset-0 bg-white/5 rounded border border-white/10 group-hover:bg-red-500/20 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
+            <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:bg-red-500/20 group-hover:border-red-500/50 group-hover:shadow-md transition-all skew-x-[-20deg] shadow-[0_4px_15px_rgba(0,0,0,0.5)] backdrop-blur-md" />
             <span className="relative text-[var(--text)] opacity-40 group-hover:opacity-100 group-hover:text-red-400 transition-all font-black flex items-center justify-center">
               <span className="material-symbols-outlined !text-[16px] leading-none">{t("icon_close")}</span>
             </span>

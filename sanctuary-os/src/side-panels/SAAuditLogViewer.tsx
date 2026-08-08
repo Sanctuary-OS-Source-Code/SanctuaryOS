@@ -159,10 +159,10 @@ export function AuditLogViewer({
 
   const content = (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex flex-col md:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5">
+      <div className="flex flex-col md:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
         {!isSidePanel && (
           <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest whitespace-nowrap flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[24px] opacity-70 theme-text-accent drop-shadow-lg">{t("icon_history")}</span>
             </div>
             <span className="truncate">{t("audit_title")}</span>
@@ -177,7 +177,7 @@ export function AuditLogViewer({
               placeholder={t("audit_search")}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 font-inter"
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 font-inter"
             />
           </div>
           <div className={`flex items-center gap-4 ${isSidePanel ? 'w-full' : ''}`}>
@@ -219,20 +219,20 @@ export function AuditLogViewer({
         {loading ? (
           <div className={`grid grid-cols-1 ${isSidePanel ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'} gap-6 w-full`}>
             {[...Array(isSidePanel ? 6 : 12)].map((_, i) => (
-              <div key={i} className="flex flex-col justify-between p-6 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden min-h-[160px]">
+              <div key={i} className="flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden min-h-[160px]">
                 <div className="flex justify-between items-start w-full relative z-10 mb-4">
                   <div className="flex items-start gap-4 w-full">
-                    <div className="w-12 h-12 rounded-2xl bg-white/5 animate-pulse shrink-0" />
+                    <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] animate-pulse shrink-0" />
                     <div className="flex flex-col pt-1 min-w-0 flex-1 gap-2">
-                      <div className="h-2 bg-white/10 rounded animate-pulse w-24" />
-                      <div className="h-3 bg-white/10 rounded animate-pulse w-full mt-1" />
-                      <div className="h-2 bg-white/5 rounded animate-pulse w-3/4 mt-1" />
+                      <div className="h-2 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded animate-pulse w-24" />
+                      <div className="h-3 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded animate-pulse w-full mt-1" />
+                      <div className="h-2 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded animate-pulse w-3/4 mt-1" />
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
-                  <div className="h-6 w-24 bg-white/5 rounded animate-pulse" />
-                  <div className="h-6 w-16 bg-white/5 rounded animate-pulse" />
+                <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                  <div className="h-6 w-24 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded animate-pulse" />
+                  <div className="h-6 w-16 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded animate-pulse" />
                 </div>
               </div>
             ))}
@@ -240,13 +240,13 @@ export function AuditLogViewer({
         ) : (
           <div className={`grid grid-cols-1 ${isSidePanel ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'} gap-6 w-full`}>
             {filteredLogs.map(log => (
-              <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-between p-6 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer hover:-translate-y-1.5">
+              <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[var(--accent)]/[50%] hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer hover:-translate-y-1.5">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent)]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                 <div className="flex justify-between items-start w-full relative z-10 mb-4">
                   <div className="flex items-start gap-4 w-full">
-                    <div className="w-12 h-12 rounded-2xl theme-glass-inner border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
+                    <div className="w-12 h-12 rounded-2xl glass-surface border border-[var(--accent)]/[40%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
                       <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">{t("icon_history")}</span>
                     </div>
                     <div className="flex flex-col pt-1 min-w-0 flex-1">
@@ -266,7 +266,7 @@ export function AuditLogViewer({
                   </div>
                 </div>
 
-                <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
+                <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                   <div className="flex flex-col min-w-0 flex-1 pr-2">
                     <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("audit_actor")}</span>
                     <span className="text-[10px] font-bold text-[var(--text)] opacity-90 mt-1 flex items-center gap-1 truncate">
@@ -275,7 +275,7 @@ export function AuditLogViewer({
                     </span>
                   </div>
 
-                  <div className="flex flex-col items-end shrink-0 pl-2 border-l border-white/5">
+                  <div className="flex flex-col items-end shrink-0 pl-2 border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("sort_date")}</span>
                     <span className="text-[10px] font-bold text-[var(--text)] opacity-90 mt-1">
                       {new Date(log.created_at).toLocaleDateString()}
@@ -302,7 +302,7 @@ export function AuditLogViewer({
               {selectedLog.game_name && (
                 <div className="flex flex-col gap-2">
                   <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("env_title")}</h3>
-                  <div className="theme-glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[var(--accent)] text-sm font-black tracking-widest uppercase shadow-inner">
+                  <div className="glass-panel rounded-xl p-4 border border-[var(--accent)]/[30%] bg-[var(--accent)]/[5%] text-[var(--accent)] text-sm font-black tracking-widest uppercase shadow-inner">
                     {selectedLog.game_name}
                   </div>
                 </div>
@@ -310,42 +310,42 @@ export function AuditLogViewer({
 
               <div className="flex flex-col gap-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_target_table")}</h3>
-                <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)]">
+                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)]">
                   {selectedLog.target_table}
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_target_key")}</h3>
-                <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)] break-all">
+                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)] break-all">
                   {selectedLog.target_name || selectedLog.target_id || 'UNKNOWN'}
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_action")}</h3>
-                <div className="theme-glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] text-sm font-bold text-[var(--text)] break-all whitespace-pre-wrap">
+                <div className="glass-panel rounded-xl p-4 border border-[var(--accent)]/[30%] shadow-md text-sm font-bold text-[var(--text)] break-all whitespace-pre-wrap">
                   {selectedLog.action}
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_reason")}</h3>
-                <div className="theme-glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--danger)_10%,transparent)] text-sm font-bold text-[var(--text)] whitespace-pre-wrap">
+                <div className="glass-panel rounded-xl p-4 border border-red-500/[30%] shadow-md text-sm font-bold text-[var(--text)] whitespace-pre-wrap">
                   {selectedLog.reason}
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_timestamp")}</h3>
-                <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)]">
+                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)]">
                   {new Date(selectedLog.created_at).toLocaleString()}
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_actor")}</h3>
-                <div className="theme-glass-panel rounded-xl p-4 border border-white/5 text-sm font-bold text-[var(--text)] flex items-center justify-between">
+                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)] flex items-center justify-between">
                   <span>
                     {selectedLog.actor ? `${selectedLog.actor.username} ${selectedLog.actor.is_banned ? '(BANNED)' : ''}` : selectedLog.actor_id}
                   </span>

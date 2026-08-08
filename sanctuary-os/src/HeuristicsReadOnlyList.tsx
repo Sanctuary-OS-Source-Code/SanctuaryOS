@@ -36,7 +36,7 @@ export function HeuristicsReadOnlyList({ onEditClick, search }: { onEditClick: (
   return (
     <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
       {loading ? (
-        <div className="theme-glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("auto_loading_signatures")}</div>
+        <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("auto_loading_signatures")}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredSignatures.map(sig => {
@@ -51,7 +51,7 @@ export function HeuristicsReadOnlyList({ onEditClick, search }: { onEditClick: (
               <div 
                 key={sig.id} 
                 onClick={() => onEditClick(sig)}
-                className={`theme-glass-panel rounded-[var(--radius)] flex flex-col group border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] border-white/5 hover:${sBorder}/50 hover:shadow-[0_0_40px_rgba(0,0,0,0.2)] cursor-pointer ${!sig.enabled ? 'opacity-50 grayscale' : ''}`}
+                className={`glass-panel rounded-[var(--radius)] flex flex-col group border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:${sBorder}/50 hover:shadow-md cursor-pointer ${!sig.enabled ? 'opacity-50 grayscale' : ''}`}
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${sBg} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
                 
@@ -64,7 +64,7 @@ export function HeuristicsReadOnlyList({ onEditClick, search }: { onEditClick: (
                             {t("icon_bug_report")}
                         </span>
                     </div>
-                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-white/5 text-[var(--subtext)] border-white/10 group-hover:${sBorder}/30 group-hover:${sColor}`}>
+                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:${sBorder}/30 group-hover:${sColor}`}>
                         {sig.severity}
                     </span>
                   </div>
@@ -79,7 +79,7 @@ export function HeuristicsReadOnlyList({ onEditClick, search }: { onEditClick: (
                       </span>
                   </div>
                   
-                  <div className="flex flex-col gap-1 mt-1 border-t border-white/5 pt-3">
+                  <div className="flex flex-col gap-1 mt-1 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3">
                      <span className="text-[10px] font-bold uppercase flex justify-between items-center w-full text-[var(--subtext)] opacity-80">
                        <span className="flex items-center gap-1.5 truncate">
                          <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_shield")}</span>

@@ -423,15 +423,15 @@ export const DbpfScout = () => {
   return (
     <>
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 flex items-center justify-center">
-        <div className="absolute top-1/4 left-1/4 w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] blur-[150px] rounded-full" />
-        <div className="absolute bottom-1/4 right-1/4 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] blur-[150px] rounded-full" />
+        <div className="absolute top-1/4 left-1/4 w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[var(--accent)]/[8%] blur-[150px] rounded-full" />
+        <div className="absolute bottom-1/4 right-1/4 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-orange-500/[8%] blur-[150px] rounded-full" />
       </div>
 
       <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 w-full relative z-10">
         <ViewHeader title={t("radar_title")} subtitle={t("radar_subtitle")} icon={t("icon_track_changes")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
 
         <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
+          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
             <HubTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
             <HubTabButton
               id="CONFLICTS"
@@ -440,9 +440,9 @@ export const DbpfScout = () => {
               activeTab={activeTab}
               setTab={setActiveTab}
               badge={(fatalConflicts.length + tuningConflicts.length) > 0 ? (fatalConflicts.length + tuningConflicts.length) : null}
-              activeColorClass={fatalConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--danger)_10%,transparent)]' : tuningConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] text-[var(--warning)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--warning)_10%,transparent)]' : undefined}
-              inactiveColorClass={fatalConflicts.length > 0 ? 'text-[var(--danger)] hover:bg-white/5 opacity-80 hover:opacity-100' : tuningConflicts.length > 0 ? 'text-[var(--warning)] hover:bg-white/5 opacity-80 hover:opacity-100' : undefined}
-              badgeColorClass={fatalConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[var(--danger)]/50 text-[var(--danger)]' : tuningConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[var(--warning)]/50 text-[var(--warning)]' : undefined}
+              activeColorClass={fatalConflicts.length > 0 ? 'bg-red-500/[15%] text-[var(--danger)] shadow-md' : tuningConflicts.length > 0 ? 'bg-orange-500/[15%] text-[var(--warning)] shadow-md' : undefined}
+              inactiveColorClass={fatalConflicts.length > 0 ? 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : tuningConflicts.length > 0 ? 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : undefined}
+              badgeColorClass={fatalConflicts.length > 0 ? 'bg-red-500/[10%] border-[var(--danger)]/50 text-[var(--danger)]' : tuningConflicts.length > 0 ? 'bg-orange-500/[10%] border-[var(--warning)]/50 text-[var(--warning)]' : undefined}
             />
             <HubTabButton id="OVERRIDES" icon="rule" label={t("overrides")} activeTab={activeTab} setTab={setActiveTab} badge={ignoredPairs.length > 0 ? ignoredPairs.length : null} />
           </div>
@@ -523,10 +523,10 @@ export const DbpfScout = () => {
                         const sCount = scanScope === blueprint.name && hasScanned ? softConflicts.length : cachedStats.soft;
 
                         return (
-                          <div key={blueprint.name} className={`theme-glass-panel rounded-2xl p-6 border ${scanScope === blueprint.name ? 'border-[var(--accent)]' : 'border-white/5'} shadow-lg flex flex-col gap-4 group transition-all hover:border-[var(--accent)]/30 hover:-translate-y-1 relative overflow-hidden`} style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', boxShadow: '0 0 40px color-mix(in srgb, var(--accent) 15%, transparent)' } : {}}>
+                          <div key={blueprint.name} className={`glass-panel rounded-2xl p-6 border ${scanScope === blueprint.name ? 'border-[var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} shadow-lg flex flex-col gap-4 group transition-all hover:border-[var(--accent)]/30 hover:-translate-y-1 relative overflow-hidden`} style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', boxShadow: '0 0 40px color-mix(in srgb, var(--accent) 15%, transparent)' } : {}}>
                             <div className="flex items-start justify-between">
                               <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-xl ${scanScope === blueprint.name ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[var(--accent)]/20'} border flex items-center justify-center transition-colors relative`}>
+                                <div className={`w-10 h-10 rounded-xl ${scanScope === blueprint.name ? 'bg-[var(--accent)]/[10%] border-[var(--accent)]' : 'bg-[var(--accent)]/[5%] border-[var(--accent)]/20'} border flex items-center justify-center transition-colors relative`}>
                                   <span className={`material-symbols-outlined !text-[18px] text-[var(--accent)]`}>account_tree</span>
                                 </div>
                                 <div>
@@ -539,26 +539,26 @@ export const DbpfScout = () => {
                             </div>
 
                             <div className="grid grid-cols-4 gap-2 mt-2">
-                              <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-white/5 group-hover:border-[var(--danger)]/20 transition-colors">
+                              <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[var(--danger)]/20 transition-colors">
                                 <span className="text-xl font-black text-[var(--danger)]">{fCount}</span>
                                 <span className="text-[8px] font-black uppercase tracking-widest text-[var(--danger)] opacity-80">{t("stat_fatal")}</span>
                               </div>
-                              <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-white/5 group-hover:border-[var(--warning)]/20 transition-colors">
+                              <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[var(--warning)]/20 transition-colors">
                                 <span className="text-xl font-black text-[var(--warning)]">{tCount}</span>
                                 <span className="text-[8px] font-black uppercase tracking-widest text-[var(--warning)] opacity-80">{t("stat_tuning")}</span>
                               </div>
-                              <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-white/5 group-hover:border-[var(--accent)]/20 transition-colors">
+                              <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[var(--accent)]/20 transition-colors">
                                 <span className="text-xl font-black text-[var(--accent)]">{cCount}</span>
                                 <span className="text-[8px] font-black uppercase tracking-widest text-[var(--accent)] opacity-80">{t("stat_clones")}</span>
                               </div>
-                              <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-white/5 group-hover:border-blue-400/20 transition-colors">
+                              <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-blue-400/20 transition-colors">
                                 <span className="text-xl font-black text-blue-400">{sCount}</span>
                                 <span className="text-[8px] font-black uppercase tracking-widest text-blue-400 opacity-80">{t("stat_soft")}</span>
                               </div>
                             </div>
                             <button
                               onClick={() => { setScanScope(blueprint.name); runRadar(blueprint.name); }}
-                              className={`w-full mt-4 h-[38px] rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 relative ${scanScope === blueprint.name ? 'border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] backdrop-blur-md' : 'theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm hover:scale-[1.02]'}`}
+                              className={`w-full mt-4 h-[38px] rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 relative ${scanScope === blueprint.name ? 'border border-[var(--accent)]/[30%] text-[var(--accent)] backdrop-blur-md' : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm hover:scale-[1.02]'}`}
                               style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)', boxShadow: '0 0 20px color-mix(in srgb, var(--accent) 20%, transparent)' } : {}}
                             >
                               {scanScope === blueprint.name ? <span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle") || "check_circle"}</span> : <span className="material-symbols-outlined !text-[16px]">track_changes</span>}
@@ -597,11 +597,11 @@ export const DbpfScout = () => {
                     title={t("revert")}
                     subtitle={t("undo_overrides_desc")}
                     onClick={() => setShowUndoPanel(true)}
-                    dotColorClass="bg-white/50 shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+                    dotColorClass="bg-[color-mix(in_srgb,var(--text)_50%,transparent)] shadow-md"
                     textColorClass="text-[var(--text)]"
                     hoverTextColorClass="group-hover:text-white"
-                    iconShadowClass="drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
-                    iconBorderHoverClass="group-hover:border-white/30"
+                    iconShadowClass="drop-shadow-md"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"
                   />
                 </CommandScreenSidebar>
               </CommandScreenBody>
@@ -610,10 +610,10 @@ export const DbpfScout = () => {
 
           {activeTab === "CONFLICTS" && (
             <>
-              <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
+              <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
                 <div className="flex items-center gap-4 hidden xl:flex shrink-0">
                   <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3 shrink-0">
-                    <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                    <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">warning</span>
                     </div>
                     <span className="truncate">{t("conflict_telemetry") || "CONFLICT TELEMETRY"}</span>
@@ -636,7 +636,7 @@ export const DbpfScout = () => {
                       placeholder={t("radar_search_conflicts") || "SEARCH CONFLICTS..."}
                       value={conflictSearch}
                       onChange={(e) => setConflictSearch(e.target.value)}
-                      className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                      className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
                     />
                     {conflictSearch && (
                       <button onClick={() => setConflictSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
@@ -644,22 +644,22 @@ export const DbpfScout = () => {
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/10 shadow-inner h-12 shrink-0">
-                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 4 ? null : 4)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${activeConflictSeverity === 4 ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : 'text-[var(--danger)] hover:bg-white/5'}`}>S4</button>
-                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 3 ? null : 3)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${activeConflictSeverity === 3 ? 'bg-[var(--warning)]/20 text-[var(--warning)]' : 'text-[var(--warning)] hover:bg-white/5'}`}>S3</button>
-                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 2 ? null : 2)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${activeConflictSeverity === 2 ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--accent)] hover:bg-white/5'}`}>S2</button>
-                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 1 ? null : 1)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${activeConflictSeverity === 1 ? 'bg-blue-400/20 text-blue-400' : 'text-blue-400 hover:bg-white/5'}`}>S1</button>
+                  <div className="flex items-center overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-12 shrink-0">
+                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 4 ? null : 4)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${activeConflictSeverity === 4 ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S4</button>
+                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 3 ? null : 3)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${activeConflictSeverity === 3 ? 'bg-[var(--warning)]/20 text-[var(--warning)]' : 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S3</button>
+                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 2 ? null : 2)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${activeConflictSeverity === 2 ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S2</button>
+                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 1 ? null : 1)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${activeConflictSeverity === 1 ? 'bg-blue-400/20 text-blue-400' : 'text-blue-400 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S1</button>
                   </div>
                 </div>
               </div>
 
               {!hasScanned && !loading && !error && (
                 <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
-                  <div className="w-56 h-56 rounded-full border border-white/5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-[0_0_50px_color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center relative group cursor-pointer" onClick={() => runRadar()}>
+                  <div className="w-56 h-56 rounded-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-md flex items-center justify-center relative group cursor-pointer" onClick={() => runRadar()}>
                     <div className="absolute inset-0 rounded-full border-[2px] border-dashed border-[var(--accent)] opacity-20 animate-[spin_20s_linear_infinite]" />
                     <div className="absolute inset-4 rounded-full border border-[var(--text)] opacity-10 animate-[spin_15s_linear_infinite_reverse]" />
                     <div className="absolute inset-10 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-10 animate-[spin_25s_linear_infinite]" />
-                    <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 drop-shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_50%,transparent)]">
+                    <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 drop-shadow-md">
                       {t("icon_track_changes")}
                     </span>
                   </div>
@@ -678,11 +678,11 @@ export const DbpfScout = () => {
 
               {loading && (
                 <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
-                  <div className="w-56 h-56 rounded-full border border-[var(--accent)]/30 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] shadow-[0_0_50px_color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center relative group">
+                  <div className="w-56 h-56 rounded-full border border-[var(--accent)]/30 bg-[var(--accent)]/[5%] shadow-md flex items-center justify-center relative group">
                     <div className="absolute inset-0 rounded-full border-[2px] border-dashed border-[var(--accent)] opacity-80 animate-[spin_3s_linear_infinite]" />
                     <div className="absolute inset-4 rounded-full border-[4px] border-solid border-transparent border-t-[var(--accent)] opacity-60 animate-[spin_1s_linear_infinite_reverse]" />
                     <div className="absolute inset-8 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-40 animate-[spin_5s_linear_infinite]" />
-                    <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] animate-pulse drop-shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_80%,transparent)]">
+                    <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] animate-pulse drop-shadow-md">
                       {t("icon_track_changes")}
                     </span>
                   </div>
@@ -699,21 +699,21 @@ export const DbpfScout = () => {
 
               {hasScanned && stats.totalClashes === 0 && !loading && (
                 <div className="py-24 flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in zoom-in-95 duration-700 relative">
-                  <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] blur-[100px] rounded-full pointer-events-none" />
+                  <div className="absolute inset-0 bg-emerald-500/[10%] blur-[100px] rounded-full pointer-events-none" />
                   <div className="relative">
-                    <div className="w-32 h-32 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_50px_color-mix(in_srgb,var(--success)_20%,transparent)] flex items-center justify-center relative backdrop-blur-md">
-                      <div className="absolute inset-0 rounded-full border-[2px] border-dashed border-[color-mix(in_srgb,var(--success)_50%,transparent)] animate-[spin_10s_linear_infinite]" />
-                      <div className="absolute inset-2 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[spin_15s_linear_infinite_reverse]" />
-                      <span className="material-symbols-outlined !text-[64px] text-[var(--success)] animate-pulse drop-shadow-[0_0_15px_color-mix(in_srgb,var(--success)_80%,transparent)]">
+                    <div className="w-32 h-32 rounded-full border border-emerald-500/[30%] bg-emerald-500/[10%] shadow-md flex items-center justify-center relative backdrop-blur-md">
+                      <div className="absolute inset-0 rounded-full border-[2px] border-dashed border-emerald-500/[50%] animate-[spin_10s_linear_infinite]" />
+                      <div className="absolute inset-2 rounded-full border border-emerald-500/[30%] animate-[spin_15s_linear_infinite_reverse]" />
+                      <span className="material-symbols-outlined !text-[64px] text-[var(--success)] animate-pulse drop-shadow-md">
                         {t("icon_check")}
                       </span>
                     </div>
                   </div>
                   <div className="relative z-10 max-w-lg">
-                    <h2 className="text-4xl font-black text-[var(--success)] uppercase tracking-tighter mb-4 drop-shadow-[0_0_10px_color-mix(in_srgb,var(--success)_30%,transparent)]">
+                    <h2 className="text-4xl font-black text-[var(--success)] uppercase tracking-tighter mb-4 drop-shadow-md">
                       {t("clear_title")}
                     </h2>
-                    <p className="text-xs font-bold leading-relaxed uppercase tracking-[0.2em] text-[var(--subtext)] opacity-90 border-t border-[color-mix(in_srgb,var(--success)_20%,transparent)] pt-4">
+                    <p className="text-xs font-bold leading-relaxed uppercase tracking-[0.2em] text-[var(--subtext)] opacity-90 border-t border-emerald-500/[20%] pt-4">
                       {t("clear_desc")}
                     </p>
                   </div>
@@ -724,7 +724,7 @@ export const DbpfScout = () => {
                 <section className="space-y-6">
                   <div className="flex items-center justify-between border-b theme-border-danger pb-4 mb-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[var(--danger)]/30 flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
+                      <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--danger)]/30 flex items-center justify-center shadow-lg shrink-0 bg-red-500/[10%]">
                         <span className="material-symbols-outlined !text-2xl theme-text-danger drop-shadow-[0_0_8px_rgba(var(--danger-rgb),0.5)]">{t("icon_warning_amber")}</span>
                       </div>
                       <div className="flex flex-col gap-0.5">
@@ -741,7 +741,7 @@ export const DbpfScout = () => {
                   </div>
                   {fatalConflicts.length > visibleFatal && (
                     <div className="flex justify-center mt-8">
-                      <button onClick={() => setVisibleFatal(v => v + 100)} className="px-6 py-3 rounded-2xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                      <button onClick={() => setVisibleFatal(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-red-500/[30%] text-[var(--danger)] hover:bg-red-500/[10%] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
                         {t("nav_load_more") || "Load More"} ({fatalConflicts.length - visibleFatal})
                       </button>
                     </div>
@@ -753,7 +753,7 @@ export const DbpfScout = () => {
                 <section className="space-y-6 mt-12">
                   <div className="flex items-center justify-between border-b theme-border-warning pb-4 mb-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[var(--warning)]/30 flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]">
+                      <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--warning)]/30 flex items-center justify-center shadow-lg shrink-0 bg-orange-500/[10%]">
                         <span className="material-symbols-outlined !text-2xl theme-text-warning drop-shadow-[0_0_8px_rgba(var(--warning-rgb),0.5)]">{t("icon_tune")}</span>
                       </div>
                       <div className="flex flex-col gap-0.5">
@@ -770,7 +770,7 @@ export const DbpfScout = () => {
                   </div>
                   {tuningConflicts.length > visibleTuning && (
                     <div className="flex justify-center mt-8">
-                      <button onClick={() => setVisibleTuning(v => v + 100)} className="px-6 py-3 rounded-2xl theme-glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                      <button onClick={() => setVisibleTuning(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-orange-500/[30%] text-[var(--warning)] hover:bg-orange-500/[10%] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
                         {t("nav_load_more") || "Load More"} ({tuningConflicts.length - visibleTuning})
                       </button>
                     </div>
@@ -782,7 +782,7 @@ export const DbpfScout = () => {
                 <section className="space-y-6 mt-12">
                   <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b theme-border-accent pb-4 mb-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[var(--accent)]/30 flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
+                      <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/30 flex items-center justify-center shadow-lg shrink-0 bg-[var(--accent)]/[10%]">
                         <span className="material-symbols-outlined lowercase !text-2xl theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("icon_all_inclusive")}</span>
                       </div>
                       <div className="flex flex-col gap-0.5">
@@ -794,10 +794,10 @@ export const DbpfScout = () => {
                     <div className="flex items-center gap-3">
                       {isBulkMode && (
                         <>
-                          <button onClick={targetHq} className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 text-[var(--text)] backdrop-blur-md hover:bg-white/10 text-[10px] font-black uppercase tracking-widest transition-all">
+                          <button onClick={targetHq} className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black uppercase tracking-widest transition-all">
                             {t("btn_select_hq")}
                           </button>
-                          <button onClick={targetNonHq} className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 text-[var(--text)] backdrop-blur-md hover:bg-white/10 text-[10px] font-black uppercase tracking-widest transition-all">
+                          <button onClick={targetNonHq} className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black uppercase tracking-widest transition-all">
                             {t("btn_select_nonhq")}
                           </button>
                         </>
@@ -809,8 +809,8 @@ export const DbpfScout = () => {
                           else setIsBulkMode(false);
                         }}
                         className={`h-[42px] px-6 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center border ${isBulkMode
-                          ? (selectedForVault.length > 0 ? "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] shadow-lg" : "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] shadow-lg")
-                          : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-white/10 text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5"
+                          ? (selectedForVault.length > 0 ? "bg-red-500/[15%] border-red-500/[30%] text-[var(--danger)] hover:bg-red-500/[25%] shadow-lg" : "bg-[var(--accent)]/[15%] border-[var(--accent)]/[30%] text-[var(--accent)] hover:bg-[var(--accent)]/[25%] shadow-lg")
+                          : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
                           }`}
                       >
                         {isBulkMode ? (selectedForVault.length > 0 ? `${t("purge")} (${selectedForVault.length})` : t("btn_cancel_selection")) : "✓ " + (t("btn_select_assets"))}
@@ -819,15 +819,15 @@ export const DbpfScout = () => {
                   </div>
 
                   {confirmMassVault && (
-                    <div className="animate-in slide-in-from-top-2 p-6 theme-glass-panel border-white/10 rounded-[var(--radius)] flex flex-col md:flex-row gap-6 items-center justify-between shadow-xl mb-6">
+                    <div className="animate-in slide-in-from-top-2 p-6 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] flex flex-col md:flex-row gap-6 items-center justify-between shadow-xl mb-6">
                       <p className="text-sm font-black theme-text-danger uppercase tracking-widest">
                         {t("secure_quarantine") || `Yeet ${selectedForVault.length} duplicates to the Vault?`}
                       </p>
                       <div className="flex gap-4">
-                        <button onClick={executeMassVault} className="px-8 py-3 bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] transition-all text-[10px] tracking-widest font-black rounded-xl">
+                        <button onClick={executeMassVault} className="px-8 py-3 bg-red-500/[15%] border border-red-500/[30%] text-[var(--danger)] hover:bg-red-500/[25%] transition-all text-[10px] tracking-widest font-black rounded-xl">
                           {t("confirm_purge")}
                         </button>
-                        <button onClick={() => setConfirmMassVault(false)} className="px-8 py-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 text-[var(--text)] hover:bg-white/10 transition-all text-[10px] tracking-widest font-black rounded-xl">
+                        <button onClick={() => setConfirmMassVault(false)} className="px-8 py-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all text-[10px] tracking-widest font-black rounded-xl">
                           {t("nav_cancel")}
                         </button>
                       </div>
@@ -841,7 +841,7 @@ export const DbpfScout = () => {
                   </div>
                   {cloneConflicts.length > visibleClone && (
                     <div className="flex justify-center mt-8">
-                      <button onClick={() => setVisibleClone(v => v + 100)} className="px-6 py-3 rounded-2xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                      <button onClick={() => setVisibleClone(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[var(--accent)]/[30%] text-[var(--accent)] hover:bg-[var(--accent)]/[10%] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
                         {t("nav_load_more") || "Load More"} ({cloneConflicts.length - visibleClone})
                       </button>
                     </div>
@@ -850,26 +850,26 @@ export const DbpfScout = () => {
               )}
 
               {hasScanned && filteredSoft.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 1) && (
-                <details className="group space-y-6 theme-glass-inner p-6 rounded-[var(--radius)] border border-white/5 cursor-pointer mt-12 mb-32 transition-all hover:border-white/10">
+                <details className="group space-y-6 glass-surface p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer mt-12 mb-32 transition-all hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <summary className="flex flex-col gap-1 list-none outline-none">
                     <div className="flex justify-between items-center w-full">
                       <h3 className="text-sm font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest flex items-center gap-3 group-open:text-[var(--text)] transition-colors">
                         <span className="material-symbols-outlined !text-xl">{t("icon_info")}</span> {t("tier1_title") || "Collision Severity 1 ({count})".replace("{count}", String(softConflicts.length))}
                       </h3>
-                      <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[var(--subtext)] opacity-60 group-open:rotate-180 transition-transform shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center text-[var(--subtext)] opacity-60 group-open:rotate-180 transition-transform shrink-0">
                         <span className="material-symbols-outlined !text-[20px]">{t("icon_expand_more")}</span>
                       </div>
                     </div>
                     <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest ml-9">{t("safe_textures")}</p>
                   </summary>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 pt-6 border-t border-white/5 mt-4">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-4">
                     {filteredSoft.slice(0, visibleSoft).map((c: any) => (
                       <ConflictCard key={c.mod_pair} conflict={c} tier={1} onClick={() => setActiveConflictRes(c)} onIgnore={() => ignoreConflict(c.mod_pair)} />
                     ))}
                   </div>
                   {softConflicts.length > visibleSoft && (
                     <div className="flex justify-center mt-6">
-                      <button onClick={() => setVisibleSoft(v => v + 100)} className="px-6 py-3 rounded-2xl theme-glass-panel border border-white/10 text-[var(--text)] hover:bg-white/5 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                      <button onClick={() => setVisibleSoft(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
                         {t("nav_load_more") || "Load More"} ({softConflicts.length - visibleSoft})
                       </button>
                     </div>
@@ -881,10 +881,10 @@ export const DbpfScout = () => {
 
           {activeTab === "OVERRIDES" && (
             <div className="flex flex-col gap-6">
-              <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
+              <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
                 <div className="flex items-center gap-4 hidden xl:flex shrink-0">
                   <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3 shrink-0">
-                    <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                    <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">rule</span>
                     </div>
                     <span className="truncate">{t("active_overrides") || "ACTIVE OVERRIDES"}</span>
@@ -907,7 +907,7 @@ export const DbpfScout = () => {
                       placeholder={t("radar_search_overrides") || "SEARCH OVERRIDES..."}
                       value={overrideSearch}
                       onChange={(e) => setOverrideSearch(e.target.value)}
-                      className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                      className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
                     />
                     {overrideSearch && (
                       <button onClick={() => setOverrideSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
@@ -916,9 +916,9 @@ export const DbpfScout = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center overflow-hidden theme-glass-panel rounded-xl border border-white/10 shadow-inner h-12 shrink-0">
-                    <button onClick={() => setOverrideTab("ACTIVE")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] uppercase tracking-widest transition-all ${overrideTab === "ACTIVE" ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("active") || "ACTIVE"}</button>
-                    <button onClick={() => setOverrideTab("IGNORED")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] uppercase tracking-widest transition-all ${overrideTab === "IGNORED" ? 'bg-white/10 text-[var(--text)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("ignored") || "IGNORED"}</button>
+                  <div className="flex items-center overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-12 shrink-0">
+                    <button onClick={() => setOverrideTab("ACTIVE")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] uppercase tracking-widest transition-all ${overrideTab === "ACTIVE" ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("active") || "ACTIVE"}</button>
+                    <button onClick={() => setOverrideTab("IGNORED")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] uppercase tracking-widest transition-all ${overrideTab === "IGNORED" ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ignored") || "IGNORED"}</button>
                   </div>
 
                 </div>
@@ -985,8 +985,8 @@ export const DbpfScout = () => {
                         const displayLoserName = override.isManual ? cleanLoserPath : formatDisplayName(cleanLoserPath, activeGameSchema);
 
                         return (
-                          <div key={`active_${idx}`} className="p-3 rounded-2xl border border-white/5 theme-glass-panel flex flex-col gap-2 group relative">
-                            <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-white/5 border-[var(--accent)]/30">
+                          <div key={`active_${idx}`} className="p-3 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] glass-panel flex flex-col gap-2 group relative">
+                            <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[var(--accent)]/30">
                               <div className="flex justify-between items-start mb-1">
                                 <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-100 text-[var(--accent)]">
                                   <span className="material-symbols-outlined !text-[12px]">verified</span> {t("active_override") || "ACTIVE OVERRIDE"}
@@ -1001,12 +1001,12 @@ export const DbpfScout = () => {
                             </div>
 
                             <div className="flex items-center justify-center -my-3 relative z-20 pointer-events-none">
-                              <div className="w-6 h-6 rounded-full border shadow-lg flex items-center justify-center bg-[var(--bg)] border-white/10 text-[var(--subtext)]">
+                              <div className="w-6 h-6 rounded-full border shadow-lg flex items-center justify-center bg-[var(--bg)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]">
                                 <span className="material-symbols-outlined !text-[14px]">arrow_downward</span>
                               </div>
                             </div>
 
-                            <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-black/40 border-white/5 opacity-50">
+                            <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-black/40 border-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-50">
                               <div className="flex justify-between items-start mb-1">
                                 <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
                                   <span className="material-symbols-outlined !text-[12px]">visibility_off</span> {t("overridden_file") || "OVERRIDDEN FILE"}
@@ -1022,7 +1022,7 @@ export const DbpfScout = () => {
 
                             <button
                               onClick={() => override.isManual ? undoOverride(cleanWinnerPath).then(() => runRadar()) : unignoreConflict(override.pair).then(() => undoOverride(cleanWinnerPath).then(() => runRadar()))}
-                              className="mt-1 w-full py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[var(--danger)]/20 text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[10px] font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2"
+                              className="mt-1 w-full py-1.5 rounded-lg bg-red-500/[10%] border border-[var(--danger)]/20 text-[var(--danger)] hover:bg-red-500/[20%] text-[10px] font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2"
                             >
                               <span className="material-symbols-outlined !text-[14px]">undo</span> {t("revert_override") || "REVERT OVERRIDE"}
                             </button>
@@ -1038,9 +1038,9 @@ export const DbpfScout = () => {
                         const rightName = right.split(/[/\\]/).pop();
 
                         return (
-                          <div key={`ignored_${i}`} className="p-3 rounded-2xl border border-white/5 theme-glass-panel flex flex-col gap-2 group relative opacity-50 hover:opacity-100 transition-opacity duration-300">
+                          <div key={`ignored_${i}`} className="p-3 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] glass-panel flex flex-col gap-2 group relative opacity-50 hover:opacity-100 transition-opacity duration-300">
 
-                            <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-white/5 border-white/10">
+                            <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                               <div className="flex justify-between items-start mb-1">
                                 <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
                                   <span className="material-symbols-outlined !text-[12px]">inventory_2</span> {t("ignored_file_a") || "ARTIFACT A"}
@@ -1055,12 +1055,12 @@ export const DbpfScout = () => {
                             </div>
 
                             <div className="flex items-center justify-center -my-3 relative z-20 pointer-events-none">
-                              <div className="w-6 h-6 rounded-full border shadow-lg flex items-center justify-center bg-[var(--bg)] border-white/10 text-[var(--subtext)]">
+                              <div className="w-6 h-6 rounded-full border shadow-lg flex items-center justify-center bg-[var(--bg)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]">
                                 <span className="material-symbols-outlined !text-[14px]">visibility_off</span>
                               </div>
                             </div>
 
-                            <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-white/5 border-white/10">
+                            <div className="p-3 rounded-2xl border shadow-inner flex flex-col relative transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                               <div className="flex justify-between items-start mb-1">
                                 <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
                                   <span className="material-symbols-outlined !text-[12px]">inventory_2</span> {t("ignored_file_b") || "ARTIFACT B"}
@@ -1076,7 +1076,7 @@ export const DbpfScout = () => {
 
                             <button
                               onClick={() => unignoreConflict(pair).then(() => runRadar())}
-                              className="mt-1 w-full py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[var(--accent)]/20 text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[10px] font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2"
+                              className="mt-1 w-full py-1.5 rounded-lg bg-[var(--accent)]/[10%] border border-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/[20%] text-[10px] font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2"
                             >
                               <span className="material-symbols-outlined !text-[14px]">undo</span> {t("unignore_conflict") || "UNIGNORE"}
                             </button>

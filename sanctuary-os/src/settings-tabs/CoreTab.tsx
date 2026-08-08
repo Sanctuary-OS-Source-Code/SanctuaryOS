@@ -6,7 +6,7 @@ import { supabase } from '../supabase';
 import { TabContainer, SettingsGrid, SettingCard } from './shared';
 import { SidePanel } from '../shared';
 
-const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
+const standardButtonClass = "px-6 py-3 rounded-2xl glass-surface text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
 
 export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any) {
   const { t } = useLexicon();
@@ -48,7 +48,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
 
     return (
       <SettingCard key={dir.rustKey} title={dir.label} description={obfuscatePath(dir.value)} icon="folder" onClick={() => pickPath(dir.rustKey, dir.label)}>
-        <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest theme-glass-inner border border-white/20 shadow-lg bg-black/40 text-[var(--text)] transition-all group-hover:theme-border-accent">
+        <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_20%,transparent)] shadow-lg bg-black/40 text-[var(--text)] transition-all group-hover:theme-border-accent">
           <span className="material-symbols-outlined !text-sm text-[var(--accent)]">{t("icon_sync")}</span>
           {t("btn_calibrate")}
         </div>
@@ -68,7 +68,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
                   type="text"
                   readOnly
                   value={session.user.id}
-                  className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 outline-none shadow-inner select-all"
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 outline-none shadow-inner select-all"
                 />
               </SettingCard>
             )}
@@ -112,7 +112,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
               } catch (err) {
                 useStore.getState().pushStatus(t("settings_auto_detect_fail"), 'error');
               }
-            }} className="px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center gap-3 hover:bg-white/5">
+            }} className="px-6 py-3 rounded-2xl glass-surface text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-xl flex items-center gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
               <span className="material-symbols-outlined !text-lg text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("icon_troubleshoot")}</span>
               {t("auto_detect")}
             </button>
@@ -142,7 +142,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
               onChange={e => setEmailInput(e.target.value)}
               placeholder={session?.user?.email || ""}
               autoFocus
-              className="w-full theme-glass-inner rounded-xl px-5 py-4 text-[12px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-black/40 transition-all shadow-inner"
+              className="w-full glass-surface rounded-xl px-5 py-4 text-[12px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-black/40 transition-all shadow-inner"
             />
             <button
               type="submit"
@@ -172,7 +172,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
               onChange={e => setPasswordInput(e.target.value)}
               placeholder={t("auto_")}
               autoFocus
-              className="w-full theme-glass-inner rounded-xl px-5 py-4 text-[12px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-black/40 transition-all shadow-inner"
+              className="w-full glass-surface rounded-xl px-5 py-4 text-[12px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-black/40 transition-all shadow-inner"
             />
             <button
               type="submit"

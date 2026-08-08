@@ -236,9 +236,9 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
   return (
     <div className="flex flex-col w-full relative">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
         <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_handyman")}</span>
           </div>
           <span className="truncate">{t("sandbox_title")}</span>
@@ -250,7 +250,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder={t("search_ph")}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
@@ -271,9 +271,9 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
               ]}
             />
           </div>
-          <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl border border-white/5 shadow-inner h-12 shrink-0 divide-x divide-white/5 mr-4 hidden md:flex">
-            <button onClick={() => setSandboxTabFilter('local')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("unlinked_badge") || "LOCAL"}</button>
-            <button onClick={() => setSandboxTabFilter('synced')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("synced_badge") || "SYNCED"}</button>
+          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5 mr-4 hidden md:flex">
+            <button onClick={() => setSandboxTabFilter('local')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("unlinked_badge") || "LOCAL"}</button>
+            <button onClick={() => setSandboxTabFilter('synced')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("synced_badge") || "SYNCED"}</button>
           </div>
           <ActionButton
             onClick={handleImportToSandbox}
@@ -302,7 +302,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                       <button
                         key={mod.hash}
                         onClick={() => { setActiveMod(mod); setIsEditorOpen(true); setConfirmPurge(false); }}
-                        className="theme-glass-panel rounded-[var(--radius)] relative group flex flex-col text-left overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-orange-500/50 hover:shadow-[0_0_40px_rgba(249,115,22,0.15)] transition-all duration-500 hover:-translate-y-1.5 bg-gradient-to-br from-white/5 to-transparent min-h-[160px]"
+                        className="glass-panel rounded-[var(--radius)] relative group flex flex-col text-left overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-orange-500/50 hover:shadow-md transition-all duration-500 hover:-translate-y-1.5 bg-gradient-to-br from-white/5 to-transparent min-h-[160px]"
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
@@ -338,7 +338,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                       <button
                         key={mod.hash}
                         onClick={() => { setActiveMod(mod); setIsEditorOpen(true); setConfirmPurge(false); }}
-                        className="theme-glass-panel rounded-[var(--radius)] relative group flex flex-col text-left overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-emerald-500/50 hover:shadow-[0_0_40px_rgba(16,185,129,0.15)] transition-all duration-500 hover:-translate-y-1.5 bg-gradient-to-br from-white/5 to-transparent min-h-[160px] opacity-80 hover:opacity-100"
+                        className="glass-panel rounded-[var(--radius)] relative group flex flex-col text-left overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-emerald-500/50 hover:shadow-md transition-all duration-500 hover:-translate-y-1.5 bg-gradient-to-br from-white/5 to-transparent min-h-[160px] opacity-80 hover:opacity-100"
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
@@ -380,7 +380,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             panelZ="z-[50001]"
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
-                <ActionButton onClick={handlePurge} disabled={isCommitting} label={confirmPurge ? (t("ui_confirm_delete") || "ARE YOU SURE?") : (t("purge") || "PURGE")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                <ActionButton onClick={handlePurge} disabled={isCommitting} label={confirmPurge ? (t("ui_confirm_delete") || "ARE YOU SURE?") : (t("purge") || "PURGE")} className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]">
                   
                 </ActionButton>
                 <ActionButton onClick={handleSyncToNetwork} disabled={isCommitting} label={isCommitting ? t("btn_syncing") : (t("sandbox_btn_sync"))}>
@@ -392,7 +392,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             <div className="flex flex-col gap-8">
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_modname")}</label>
-                <input value={activeMod.name || ""} onChange={e => setActiveMod({ ...activeMod, name: e.target.value })} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 shadow-inner" />
+                <input value={activeMod.name || ""} onChange={e => setActiveMod({ ...activeMod, name: e.target.value })} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 shadow-inner" />
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -403,27 +403,27 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_file_ext")}</label>
-                  <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({ ...activeMod, file_extension: e.target.value })} placeholder={t("placeholder_file_ext")} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-inner" />
+                  <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({ ...activeMod, file_extension: e.target.value })} placeholder={t("placeholder_file_ext")} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_subclass")}</label>
-                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({ ...activeMod, sub_type: e.target.value })} placeholder={t("placeholder_subclass")} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-inner" />
+                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({ ...activeMod, sub_type: e.target.value })} placeholder={t("placeholder_subclass")} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-                  <input value={activeMod.url || ""} onChange={e => setActiveMod({ ...activeMod, url: e.target.value })} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 shadow-inner" />
+                  <input value={activeMod.url || ""} onChange={e => setActiveMod({ ...activeMod, url: e.target.value })} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2 xl:col-span-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_desc")}</label>
-                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({ ...activeMod, description: e.target.value })} className="w-full theme-glass-panel rounded-[var(--radius)] px-6 py-5 text-[var(--text)] text-sm font-bold min-h-[150px] custom-scrollbar resize-none focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 shadow-inner" />
+                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({ ...activeMod, description: e.target.value })} className="w-full glass-panel rounded-[var(--radius)] px-6 py-5 text-[var(--text)] text-sm font-bold min-h-[150px] custom-scrollbar resize-none focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2 xl:col-span-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
-                  <input value={activeMod.image_url || ""} onChange={e => setActiveMod({ ...activeMod, image_url: e.target.value })} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 shadow-inner" />
+                  <input value={activeMod.image_url || ""} onChange={e => setActiveMod({ ...activeMod, image_url: e.target.value })} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -449,11 +449,11 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-1">
                     {t("label_mason_version") || "Mason Version"} 
                   </label>
-                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="w-full theme-glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 shadow-inner" />
+                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 shadow-inner" />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 col-span-full">
-                  <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-white/5'}`}>
+                  <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                     <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
                       {t("label_is_paid")}
@@ -465,7 +465,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                     <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({...activeMod, is_paid: e.target.checked})} className="hidden" />
                   </label>
 
-                  <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-white/5'}`}>
+                  <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                     <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
                       {t("label_is_early_access")}
@@ -486,13 +486,13 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
               <div className="mt-auto shrink-0 pt-8 pb-4 flex flex-col gap-4">
                 {existingHashes.has(activeMod.hash) && (
-                  <div className="theme-glass-panel border-green-500/20 bg-green-500/5 px-6 py-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                  <div className="glass-panel border-green-500/20 bg-green-500/5 px-6 py-4 rounded-2xl flex flex-col items-center justify-center text-center">
                     <span className="text-sm font-black text-green-400 uppercase tracking-widest flex items-center justify-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span> {t("already_synced")}</span>
                     <p className="text-[10px] text-[var(--subtext)] mt-1 font-bold">{t("already_synced_desc")}</p>
                   </div>
                 )}
                 <div className="flex justify-end gap-4 mt-2">
-                  <button onClick={() => setIsLinkModalOpen(true)} disabled={isCommitting} className="flex-1 py-4 font-black text-xs uppercase tracking-widest rounded-2xl transition-all duration-300 theme-glass-panel border border-white/5 text-[var(--text)] hover:text-[var(--accent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
+                  <button onClick={() => setIsLinkModalOpen(true)} disabled={isCommitting} className="flex-1 py-4 font-black text-xs uppercase tracking-widest rounded-2xl transition-all duration-300 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
                     <span className="material-symbols-outlined !text-[16px]">{t("icon_link")}</span> {t("btn_link_existing")}
                   </button>
                 </div>
@@ -519,7 +519,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
               placeholder={t("link_search")}
               value={linkSearch}
               onChange={e => setLinkSearch(e.target.value)}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 shadow-inner"
+              className="w-full glass-panel rounded-2xl pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 shadow-inner"
               autoFocus
             />
           </div>
@@ -531,7 +531,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                 <button
                   key={m.id}
                   onClick={() => handleLinkToExisting(m.id)}
-                  className="w-full text-left p-5 rounded-2xl theme-glass-panel border border-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 transition-all duration-300 group flex items-center justify-between"
+                  className="w-full text-left p-5 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 transition-all duration-300 group flex items-center justify-between"
                 >
                   <span className="font-black text-xs text-[var(--text)] uppercase tracking-tight truncate mr-4 group-hover:text-[var(--accent)] transition-colors">{m.name}</span>
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span> {t("btn_link_existing")}</span>

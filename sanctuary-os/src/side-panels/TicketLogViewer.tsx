@@ -96,13 +96,13 @@ export default function TicketLogViewer({
 
     if (isKeyValue) {
         return (
-            <div className="flex flex-col w-full theme-glass-inner rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] px-4 py-2">
+            <div className="flex flex-col w-full glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] px-4 py-2">
                 {lines.map((line, i) => {
                     const idx = line.indexOf(':');
                     const key = line.substring(0, idx).trim();
                     const value = line.substring(idx + 1).trim();
                     return (
-                        <div key={i} className="flex flex-row justify-between items-start py-3 border-b border-white/5 last:border-0 gap-4 group">
+                        <div key={i} className="flex flex-row justify-between items-start py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 gap-4 group">
                             <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] shrink-0 pt-0.5">{key}</span>
                             {key.toUpperCase() === 'MODS PATH' ? (
                                 <div className="flex items-center gap-2 text-right">
@@ -114,7 +114,7 @@ export default function TicketLogViewer({
                                             navigator.clipboard.writeText(value);
                                             store.pushStatus && store.pushStatus(t("support_path_copied"), "success");
                                         }}
-                                        className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/10 text-[var(--subtext)] hover:text-white transition-colors"
+                                        className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-white transition-colors"
                                     >
                                         <span className="material-symbols-outlined !text-[14px]">{t("icon_content_copy")}</span>
                                     </button>
@@ -135,8 +135,8 @@ export default function TicketLogViewer({
         try {
             const parsed = JSON.parse(sec.content);
             return (
-                <div className="flex flex-col items-center justify-center gap-4 py-8 theme-glass-inner rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                    <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center text-[var(--accent)] border border-white/5 shadow-inner">
+                <div className="flex flex-col items-center justify-center gap-4 py-8 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                    <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
                         <span className="material-symbols-outlined !text-[32px]">{t("icon_map")}</span>
                     </div>
                     <div className="text-center">
@@ -145,7 +145,7 @@ export default function TicketLogViewer({
                     </div>
                     <button 
                         onClick={() => setBlueprintJson(parsed)}
-                        className="mt-2 px-6 py-3 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] hover:scale-105"
+                        className="mt-2 px-6 py-3 bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] hover:bg-[var(--accent)]/[25%] rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] hover:scale-105"
                     >
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_visibility")}</span>
                         {t("support_view_blueprint")}
@@ -158,7 +158,7 @@ export default function TicketLogViewer({
     if (sec.title === 'System Log History') {
         const historyLines = sec.content.split('\n').filter(l => l.trim() !== '');
         return (
-            <div className="flex flex-col w-full theme-glass-inner rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-2 gap-1 overflow-y-auto max-h-[300px] custom-scrollbar">
+            <div className="flex flex-col w-full glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-2 gap-1 overflow-y-auto max-h-[300px] custom-scrollbar">
                 {historyLines.map((line, i) => {
                     const match = line.match(/^\[(.*?)\]\s*\[(.*?)\]\s*(.*)$/);
                     if (match) {
@@ -182,7 +182,7 @@ export default function TicketLogViewer({
                         }
 
                         return (
-                            <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-black/20 border border-transparent hover:border-white/5 transition-all group">
+                            <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-black/20 border border-transparent hover:border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all group">
                                 <div className={`flex flex-col items-end shrink-0 w-[80px] pt-0.5`}>
                                     <span className="text-[10px] font-black tracking-wider text-[var(--text)] opacity-80">{date.toLocaleTimeString()}</span>
                                     <span className="text-[8px] font-bold tracking-widest uppercase text-[var(--subtext)] opacity-60 group-hover:opacity-100 transition-opacity">{date.toLocaleDateString()}</span>
@@ -212,13 +212,13 @@ export default function TicketLogViewer({
 
     return (
         <div className="relative group">
-            <div className="p-4 overflow-y-auto max-h-[300px] text-[11px] text-[var(--text)] whitespace-pre-wrap custom-scrollbar font-mono leading-relaxed selection:bg-[var(--accent)]/30 selection:text-white theme-glass-inner rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <div className="p-4 overflow-y-auto max-h-[300px] text-[11px] text-[var(--text)] whitespace-pre-wrap custom-scrollbar font-mono leading-relaxed selection:bg-[var(--accent)]/30 selection:text-white glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                 {sec.content || t("support_no_content") || "No content."}
             </div>
             {sec.content && (
                <button 
                  onClick={() => setViewingLogContent(sec.content)}
-                 className="absolute top-4 right-4 px-4 py-2 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center gap-2 hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all opacity-0 group-hover:opacity-100 shadow-md backdrop-blur-md"
+                 className="absolute top-4 right-4 px-4 py-2 bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center gap-2 hover:bg-[var(--accent)]/[25%] transition-all opacity-0 group-hover:opacity-100 shadow-md backdrop-blur-md"
                >
                  <span className="material-symbols-outlined !text-[14px]">{t("icon_open_in_full")}</span>
                  {t("btn_view_code")}
@@ -230,7 +230,7 @@ export default function TicketLogViewer({
 
   return (
     <div className="flex flex-col w-full mt-4 gap-4">
-         <div className="flex items-stretch overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-xl border border-white/5 shadow-inner h-10 shrink-0 divide-x divide-white/5 w-full mb-4">
+         <div className="flex items-stretch overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-10 shrink-0 divide-x divide-white/5 w-full mb-4">
             {sections.map((sec, idx) => {
                const isActive = activeTab.toString() === idx.toString();
                const icon = sec.title.includes('Log') || sec.title.includes('Blueprint') ? 'description' : 'data_object';
@@ -240,7 +240,7 @@ export default function TicketLogViewer({
                  <button 
                    key={idx}
                    onClick={() => setActiveTab(idx)}
-                   className={`h-full flex-1 shrink-0 px-4 rounded-none flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${isActive ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+                   className={`h-full flex-1 shrink-0 px-4 rounded-none flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${isActive ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                  >
                    <span className="material-symbols-outlined !text-[14px]">{icon}</span>
                    {label}
@@ -267,17 +267,17 @@ export default function TicketLogViewer({
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2">
                     <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("support_mods_list")} ({(blueprintJson.mods?.length || 0)})</div>
                     {blueprintJson.mods?.map((m: string, i: number) => (
-                        <div key={i} className="theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 rounded-xl flex items-center gap-3">
+                        <div key={i} className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 rounded-xl flex items-center gap-3">
                             <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">{t("icon_extension")}</span>
                             <span className="text-[11px] font-bold text-[var(--text)] truncate">{m.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || m.replace(/[-_]/g, ' ')}</span>
                         </div>
                     ))}
                 </div>
                 
-                <div className="pt-4 border-t border-white/10 mt-auto shrink-0 pb-6">
+                <div className="pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-auto shrink-0 pb-6">
                     <button 
                         onClick={handleImportBlueprint}
-                        className="w-full h-14 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] rounded-2xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]"
+                        className="w-full h-14 bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] rounded-2xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]"
                     >
                         <span className="material-symbols-outlined !text-[18px]">{t("icon_download")}</span>
                         {t("playsets_btn_import")}

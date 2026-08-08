@@ -35,7 +35,7 @@ export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOp
   return (
     <>
       <div className="fixed inset-0 z-[15000] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-[3px] animate-in fade-in duration-300" onClick={onClose} />
-      <div className="fixed top-0 right-0 bottom-1 w-[320px] theme-glass-panel border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-2xl flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden">
+      <div className="fixed top-0 right-0 bottom-1 w-[320px] glass-panel border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-2xl flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden">
         <div className="flex items-center justify-between pt-[60px] px-6 pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0">
           <div className="flex flex-col">
             <h3 className="text-xl font-black tracking-widest text-[var(--text)]">{t("create_title")}</h3>
@@ -48,7 +48,7 @@ export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOp
         
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
           <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_name")}</label>
-          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
 
         <div className="p-6 pb-12 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex gap-3">
@@ -185,7 +185,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     AWAITING: {
       color: "var(--subtext)",
       bg: "transparent",
-      border: "border-white/10",
+      border: "border-[color-mix(in_srgb,var(--text)_10%,transparent)]",
       icon: t("icon_hourglass_empty"),
       title: t("verify_status_awaiting"),
       desc: t("verify_status_awaiting_desc")
@@ -242,7 +242,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
   }[statusState] as any;
 
   const BannerNode = (
-    <div className={`theme-glass-panel rounded-2xl p-6 border flex items-center gap-5 ${statusConfig.border}`} style={{ backgroundColor: statusConfig.bg }}>
+    <div className={`glass-panel rounded-2xl p-6 border flex items-center gap-5 ${statusConfig.border}`} style={{ backgroundColor: statusConfig.bg }}>
       <div className={`w-14 h-14 shrink-0 rounded-xl flex items-center justify-center border shadow-inner ${statusConfig.pulse ? 'animate-pulse' : ''}`} style={{ borderColor: `color-mix(in srgb, ${statusConfig.color} 30%, transparent)`, backgroundColor: `color-mix(in srgb, var(--bg) 50%, transparent)` }}>
         <span className={`material-symbols-outlined !text-3xl ${statusConfig.pulse ? 'animate-spin-slow' : ''}`} style={{ color: statusConfig.color }}>{statusConfig.icon}</span>
       </div>
@@ -260,7 +260,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
 
           <button 
             onClick={handleImport}
-            className={`w-full py-6 rounded-2xl border-2 border-dashed border-[var(--accent)]/30 hover:border-[var(--accent)]/60 bg-[color-mix(in_srgb,var(--accent)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all flex flex-col items-center justify-center gap-3 group ${isHashing ? 'opacity-50 pointer-events-none' : ''}`}
+            className={`w-full py-6 rounded-2xl border-2 border-dashed border-[var(--accent)]/30 hover:border-[var(--accent)]/60 bg-[var(--accent)]/[2%] hover:bg-[var(--accent)]/[10%] transition-all flex flex-col items-center justify-center gap-3 group ${isHashing ? 'opacity-50 pointer-events-none' : ''}`}
           >
             <span className="material-symbols-outlined !text-4xl text-[var(--accent)]/70 group-hover:text-[var(--accent)] transition-colors">
               {isHashing ? (t("icon_sync")) : (t("icon_upload_file"))}
@@ -274,7 +274,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
 
           {filePath && (
             <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
-              <div className="theme-glass-inner rounded-2xl p-6 border border-white/5 flex flex-col gap-4">
+              <div className="glass-surface rounded-2xl p-6 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-4">
                 <div className="flex flex-col">
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("verify_panel_file_path")}</span>
                   <span className="text-xs font-mono text-[var(--text)] break-all">{filePath.replace(/^(?:[A-Z]:)?[\/\\]Users[\/\\][^\/\\]+[\/\\]/i, '...\\')}</span>
@@ -288,7 +288,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                       <span className="text-xs font-mono theme-text-accent animate-pulse">{t("scanning")}</span>
                     </div>
                   ) : (
-                    <span className="text-sm font-mono font-bold break-all bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] p-3 rounded-xl border border-white/5 shadow-inner relative overflow-hidden" style={{ color: statusConfig.color }}>
+                    <span className="text-sm font-mono font-bold break-all bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner relative overflow-hidden" style={{ color: statusConfig.color }}>
                       {fileHash || "ERROR"}
                     </span>
                   )}
@@ -298,7 +298,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               {BannerNode}
 
               {matchedMod && (
-                <div className={`theme-glass-panel rounded-2xl p-6 border flex flex-col gap-4 animate-in zoom-in-95 mt-2 bg-gradient-to-br from-transparent to-transparent ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/5' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/5' : 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[var(--accent)]/5'}`}>
+                <div className={`glass-panel rounded-2xl p-6 border flex flex-col gap-4 animate-in zoom-in-95 mt-2 bg-gradient-to-br from-transparent to-transparent ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/5' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/5' : 'border-[var(--accent)]/[30%] bg-[var(--accent)]/5'}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex flex-col">
                         <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("registry_label_name")}</span>
@@ -351,12 +351,12 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               )}
 
               {showFlagForm && (
-                <div className="theme-glass-panel border-red-500/30 rounded-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 mt-2">
+                <div className="glass-panel border-red-500/30 rounded-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 mt-2">
                   <textarea
                     value={flagReason}
                     onChange={(e) => setFlagReason(e.target.value)}
                     placeholder={t("verify_panel_flag_reason_ph")}
-                    className="w-full h-24 theme-glass-inner rounded-xl p-4 text-xs focus:outline-none focus:border-red-500/50 resize-none font-medium"
+                    className="w-full h-24 glass-surface rounded-xl p-4 text-xs focus:outline-none focus:border-red-500/50 resize-none font-medium"
                   />
                   <div className="flex justify-center items-center gap-4 mt-4 w-full">
                     <button 
@@ -390,7 +390,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               )}
 
               {successMsg && (
-                <div className="p-4 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] text-xs font-bold text-center animate-in fade-in mt-2">
+                <div className="p-4 rounded-xl bg-emerald-500/[10%] border border-emerald-500/[30%] text-[var(--success)] text-xs font-bold text-center animate-in fade-in mt-2">
                   {successMsg}
                 </div>
               )}
@@ -403,7 +403,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               <div className="flex flex-col gap-2">
                 {sessionHistory.map((item, i) => (
                   <div key={i} 
-                    className="theme-glass-panel rounded-xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer hover:border-[var(--accent)]/50 transition-colors"
+                    className="glass-panel rounded-xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer hover:border-[var(--accent)]/50 transition-colors"
                     onClick={() => {
                       setFilePath(item.path);
                       setFileHash(item.hash);

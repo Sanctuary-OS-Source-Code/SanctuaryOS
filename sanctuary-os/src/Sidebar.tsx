@@ -48,8 +48,8 @@ function NavButton({
         onMouseLeave={handleMouseLeave}
         className={`w-full flex items-center gap-4 px-6 py-4 rounded-[var(--radius)] transition-all duration-500 group relative
           ${isActive
-            ? (isAccent ? "theme-bg-accent/10 theme-text-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] backdrop-blur-md" : "bg-white/10 text-[var(--sidebartext)] shadow-lg border border-white/10")
-            : (isAccent ? "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:theme-bg-accent/5 hover:theme-text-accent border border-transparent" : "text-[var(--sidebartext)] opacity-60 hover:bg-white/5 hover:text-gray-300 border border-transparent")
+            ? (isAccent ? "theme-bg-accent/10 theme-text-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] border border-[var(--accent)]/[30%] backdrop-blur-md" : "bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--sidebartext)] shadow-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)]")
+            : (isAccent ? "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:theme-bg-accent/5 hover:theme-text-accent border border-transparent" : "text-[var(--sidebartext)] opacity-60 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-gray-300 border border-transparent")
           } ${isCollapsed ? 'justify-center px-0' : ''}`}
       >
         <div className="absolute inset-0 overflow-hidden rounded-[var(--radius)] pointer-events-none">
@@ -118,7 +118,7 @@ export function Sidebar({
       }}
     >
       <div
-        className="absolute inset-x-0 bottom-0 z-[-1] backdrop-blur-3xl border-r border-black/5 dark:border-white/10 transition-all duration-500 shadow-[4px_0_30px_rgba(0,0,0,0.05)]"
+        className="absolute inset-x-0 bottom-0 z-[-1] backdrop-blur-3xl border-r border-black/5 dark:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-500 shadow-[4px_0_30px_rgba(0,0,0,0.05)]"
         style={{ top: 0, backgroundColor: "color-mix(in srgb, var(--sidebar) 40%, transparent)" }}
       />
 
@@ -132,7 +132,7 @@ export function Sidebar({
               {activeGameName}
             </h2>
           </div>
-          <button onClick={(e) => { e.stopPropagation(); setIsWorkspacePanelOpen(true); }} className="w-8 h-8 shrink-0 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center hover:border-[var(--accent)] hover:theme-text-accent hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] transition-all group-hover/header:border-[var(--accent)] group-hover/header:theme-text-accent">
+          <button onClick={(e) => { e.stopPropagation(); setIsWorkspacePanelOpen(true); }} className="w-8 h-8 shrink-0 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center hover:border-[var(--accent)] hover:theme-text-accent hover:shadow-md transition-all group-hover/header:border-[var(--accent)] group-hover/header:theme-text-accent">
             <span className="material-symbols-outlined !text-[18px]">swap_horiz</span>
           </button>
         </div>
@@ -235,7 +235,7 @@ export function Sidebar({
           />
         )}
         {session && schemaFeatures.has_cc && ["mason", "architect", "oversight", "wayfinder", "admin"].includes(userRole) && (
-          <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+          <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!isSidebarCollapsed && (
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
                 {t("mason")}
@@ -253,7 +253,7 @@ export function Sidebar({
           </div>
         )}
         {session && schemaFeatures.has_cc && ["architect", "oversight", "wayfinder", "admin"].includes(userRole) && (
-          <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+          <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!isSidebarCollapsed && (
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
                 {t("tab_architect")}
@@ -271,7 +271,7 @@ export function Sidebar({
           </div>
         )}
         {session && schemaFeatures.has_cc && ["oversight", "wayfinder", "admin"].includes(userRole) && (
-          <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+          <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!isSidebarCollapsed && (
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
                 {t("stat_oversight")}
@@ -289,7 +289,7 @@ export function Sidebar({
           </div>
         )}
         {session && schemaFeatures?.has_cc !== false && (userRole === "wayfinder" || userRole === "admin") && (
-          <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+          <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!isSidebarCollapsed && (
               <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
                 {t("sidebar_wayfinder_tools")}
@@ -307,7 +307,7 @@ export function Sidebar({
           </div>
         )}
         {session && (userRole === "core_dev" || userRole === "admin" || userRole === "keeper") && (
-          <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+          <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!isSidebarCollapsed && (
               <p className="px-3 text-[10px] font-semibold text-purple-400 opacity-80 uppercase tracking-widest mb-2 text-left truncate">
                 Sanctuary Foundry
@@ -328,9 +328,9 @@ export function Sidebar({
           </div>
         )}
 
-        <div className={`my-4 border-t border-white/5 pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+        <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
           {!session && (
-            <div className="my-4 border-t border-white/5 pt-4">
+            <div className="my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4">
               <NavButton
                 onClick={() => {
                   localStorage.setItem("sanctuary_show_login", "true");
@@ -364,7 +364,7 @@ export function Sidebar({
                 if (isSidebarCollapsed) setHoveredTooltip(null);
               }}
               onClick={handleQuickLaunch}
-              className={`w-full py-3 rounded-xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border bg-transparent ${isPatchDetected || showDefconAlert ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]" : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]"}`}
+              className={`w-full py-3 rounded-xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border bg-transparent ${isPatchDetected || showDefconAlert ? "text-[var(--danger)] border-red-500/[30%] hover:bg-red-500/[10%]" : "text-[var(--success)] border-emerald-500/[30%] hover:bg-emerald-500/[10%]"}`}
             >
               {isSidebarCollapsed ? <span className="material-symbols-outlined !text-xl drop-shadow-md">{t("icon_rocket_launch")}</span> : <><span className="material-symbols-outlined !text-xl drop-shadow-md">{t("icon_rocket_launch")}</span> {t("sidebar_quick_launch")}</>}
             </button>
@@ -374,7 +374,7 @@ export function Sidebar({
 
       {isSidebarCollapsed && hoveredTooltip && (
         <div
-          className="fixed left-[96px] z-[1000] flex flex-col items-start justify-center theme-glass-panel !bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] px-5 py-3 max-w-[320px] w-max pointer-events-none shadow-[0_20px_50px_color-mix(in_srgb,var(--text)_20%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] animate-in fade-in slide-in-from-left-2"
+          className="fixed left-[96px] z-[1000] flex flex-col items-start justify-center glass-panel !bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] px-5 py-3 max-w-[320px] w-max pointer-events-none shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] animate-in fade-in slide-in-from-left-2"
           style={{ top: hoveredTooltip.top, transform: 'translateY(-50%)' }}
         >
           <div className="relative z-10 flex flex-col items-start gap-1 w-full">

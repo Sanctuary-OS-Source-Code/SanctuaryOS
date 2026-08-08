@@ -74,7 +74,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
 
   if (!masonProfile) return (
     <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
-      <div className="w-24 h-24 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
+      <div className="w-24 h-24 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
         <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_construction")}</span>
       </div>
       <h2 className="text-2xl font-black uppercase tracking-widest text-[var(--text)]">{t("unlinked")}</h2>
@@ -90,7 +90,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         icon={t("icon_construction")}
         iconColorClass="text-amber-400 border-amber-500/30"
       >
-        <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/10 shadow-inner">
+        <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
           <button
             onClick={() => handleOpenMasonProfile && handleOpenMasonProfile(masonProfile.id)}
             className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
@@ -122,7 +122,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
       </ViewHeader>
 
       <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
+        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
           <HubTabButton id="command_center" icon={t("icon_desktop_windows")} label={(t("wf_tab_command")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="registry" icon={t("icon_deployed_code")} label={(t("items")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="nexus" icon={t("icon_hub")} label={(t("tab_nexus")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
@@ -212,17 +212,17 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/20 backdrop-blur-[3px] animate-in fade-in">
-      <div className="w-full max-w-lg bg-[var(--sidebar)] border border-white/10 rounded-[var(--radius)] shadow-2xl flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-white/10">
+      <div className="w-full max-w-lg bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-black uppercase tracking-widest theme-text-accent">{t("sel_artifact")}</h3>
             <button onClick={onClose} className="text-[var(--text)]/50 hover:text-[var(--text)] font-black"><span className="material-symbols-outlined">{t("icon_close")}</span></button>
           </div>
-          <input autoFocus placeholder={t("ph_search_catalog")} value={query} onChange={(e) => setQuery(e.target.value)} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent" />
+          <input autoFocus placeholder={t("ph_search_catalog")} value={query} onChange={(e) => setQuery(e.target.value)} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent" />
         </div>
         <div className="p-4 flex flex-col gap-2 max-h-96 overflow-y-auto custom-scrollbar">
           {results.length > 0 ? results.map((mod: any) => (
-            <button key={mod.id} onClick={() => { onSelect(mod.id); }} className="flex justify-between items-center px-4 py-3 theme-glass-inner border border-white/5 hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group">
+            <button key={mod.id} onClick={() => { onSelect(mod.id); }} className="flex justify-between items-center px-4 py-3 glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group">
               <div className="flex flex-col">
                 <span className="text-xs font-black text-[var(--text)] uppercase truncate">{mod.name}</span>
                 <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{mod.master_author || "Unknown Architect"}</span>

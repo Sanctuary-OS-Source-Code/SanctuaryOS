@@ -224,7 +224,7 @@ export default function TicketDossierSidePanel({
                 {onEditMetadata ? (
                   <button
                     onClick={() => onEditMetadata(ticket.target_mod_id || ticket.metadata?.target_mod_id)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all active:scale-95 max-w-[250px] shrink-0"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] hover:border-[var(--accent)]/[40%] transition-all active:scale-95 max-w-[250px] shrink-0"
                   >
                     <span className="text-[10px] font-mono font-bold truncate">{ticket.target_mod_name || fetchedTargetModName || ticket.target_mod_id || ticket.metadata?.target_mod_id}</span>
                     <span className="material-symbols-outlined !text-[14px] shrink-0">{t("icon_edit")}</span>
@@ -252,7 +252,7 @@ export default function TicketDossierSidePanel({
           <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
             <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_description")}</span> {t("upload_desc")}
           </label>
-          <div className="w-full theme-glass-panel rounded-xl px-5 py-4 text-[var(--text)] text-sm border border-white/5 shadow-inner min-h-32 whitespace-pre-wrap leading-relaxed">
+          <div className="w-full glass-panel rounded-xl px-5 py-4 text-[var(--text)] text-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner min-h-32 whitespace-pre-wrap leading-relaxed">
             {ticket.description}
           </div>
         </div>
@@ -274,15 +274,15 @@ export default function TicketDossierSidePanel({
             {replies.map((r, idx) => (
               <div
                 key={idx}
-                className="relative group w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-lg"
+                className="relative group w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[40%] shadow-lg"
               >
-                <div className="absolute inset-0 theme-glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
+                <div className="absolute inset-0 glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
 
                 <div className="relative p-5 flex flex-col gap-4 z-10">
                   <div className="flex justify-between items-start gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-[0.75rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
+                      <div className="w-10 h-10 rounded-[0.75rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[var(--accent)]/[30%]">
                         <span className="text-[14px] font-black theme-text-accent">
                           {(r.author || "U").charAt(0).toUpperCase()}
                         </span>
@@ -298,7 +298,7 @@ export default function TicketDossierSidePanel({
                     </div>
                   </div>
 
-                  <div className="text-sm text-[var(--subtext)] leading-relaxed bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] p-4 rounded-xl border border-white/5">
+                  <div className="text-sm text-[var(--subtext)] leading-relaxed bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     {renderTextWithIcons(r.text)}
                   </div>
                 </div>
@@ -308,13 +308,13 @@ export default function TicketDossierSidePanel({
         )}
 
         {canReply && !isReadOnly && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '') && (
-          <div className="flex flex-col gap-3 mt-6 theme-glass-panel p-5 rounded-2xl border border-white/5 shadow-xl">
+          <div className="flex flex-col gap-3 mt-6 glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl">
             <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("dossier_add_reply")}</label>
             <textarea
               value={replyText}
               onChange={e => setReplyText(e.target.value)}
               placeholder={t("dossier_reply_placeholder")}
-              className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] transition-all h-24 resize-none custom-scrollbar"
+              className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] transition-all h-24 resize-none custom-scrollbar"
             />
             <div className="flex justify-end mt-2">
               <button
@@ -356,7 +356,7 @@ export default function TicketDossierSidePanel({
                 value={reason}
                 onChange={e => setReason(e.target.value)}
                 placeholder={t("dossier_reason_placeholder")}
-                className="w-full theme-glass-panel border-white/10 rounded-xl px-4 py-4 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] transition-all h-32 resize-none custom-scrollbar shadow-inner"
+                className="w-full glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-4 py-4 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] transition-all h-32 resize-none custom-scrollbar shadow-inner"
               />
             </div>
           </div>

@@ -130,9 +130,9 @@ export default function ArchitectTemplateOversight() {
     <div className="flex flex-col gap-6 w-full pb-32 text-[var(--text)] animate-in fade-in slide-in-from-bottom-4 duration-500">
       
 
-      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_data_object") || "data_object"}</span>
           </div>
           <span className="truncate">{t("ql_templates") || "Community Templates"}</span>
@@ -147,7 +147,7 @@ export default function ArchitectTemplateOversight() {
                   placeholder={t("template_search_files") || "Search tracked files..."}
                   value={fileSearch}
                   onChange={(e) => setFileSearch(e.target.value)}
-                  className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                  className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
                />
             </div>
 
@@ -160,16 +160,16 @@ export default function ArchitectTemplateOversight() {
                />
             </div>
             
-            <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0 z-40">
+            <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 z-40">
                 <button 
                     onClick={() => setActiveFilterTab("active")}
-                    className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilterTab === 'active' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+                    className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilterTab === 'active' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                 >
                     {t("status_active") || "Active"}
                 </button>
                 <button 
                     onClick={() => setActiveFilterTab("flagged")}
-                    className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilterTab === 'flagged' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+                    className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilterTab === 'flagged' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                 >
                     {t("oversight_tab_flagged") || "Flagged"}
                 </button>
@@ -201,10 +201,10 @@ export default function ArchitectTemplateOversight() {
                   <div 
                     key={tf.id}
                     onClick={() => { setSelectedFileGroup(tf.file_name); setSelectedTemplateForPreview(null); }}
-                    className="theme-glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] p-6"
+                    className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] p-6"
                   >
                       <div className="absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 bg-gradient-to-br from-[var(--accent)]/5 to-transparent" />
-                      <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500 ${defaultTmpl ? 'bg-emerald-500/50' : 'bg-white/10'}`} />
+                      <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500 ${defaultTmpl ? 'bg-emerald-500/50' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`} />
                       
                       <div className="flex items-start justify-between relative z-10 mb-4">
                           <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[var(--accent)]/30 transition-all duration-500 shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]">
@@ -255,7 +255,7 @@ export default function ArchitectTemplateOversight() {
                     value={newFileName}
                     onChange={(e) => setNewFileName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddSubmit()}
-                    className="h-12 w-full px-4 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]/50 transition-colors bg-black/40 text-sm font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
+                    className="h-12 w-full px-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]/50 transition-colors bg-black/40 text-sm font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
                     autoFocus
                  />
                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60">{t("desc_file_name")}</span>
@@ -286,11 +286,11 @@ export default function ArchitectTemplateOversight() {
                         return (
                             <div 
                                 onClick={() => setSelectedTemplateForPreview(defaultTmpl)}
-                                className="flex flex-col theme-glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(16,185,129,0.15)] relative overflow-hidden group"
+                                className="flex flex-col glass-panel rounded-2xl border border-emerald-500/[30%] bg-emerald-500/[5%] transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(16,185,129,0.15)] relative overflow-hidden group"
                             >
                                 <div className="absolute top-0 left-0 w-full h-1 bg-[var(--success)] opacity-50" />
                                 <div className="p-6 flex items-start gap-5">
-                                    <div className="w-14 h-14 rounded-[1rem] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-inner bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)]">
+                                    <div className="w-14 h-14 rounded-[1rem] flex items-center justify-center shrink-0 border border-emerald-500/[30%] shadow-inner bg-emerald-500/[20%] text-[var(--success)]">
                                         <span className="material-symbols-outlined !text-[28px]">{t("icon_data_object") || "data_object"}</span>
                                     </div>
                                     <div className="flex flex-col gap-2 flex-1 min-w-0">
@@ -321,7 +321,7 @@ export default function ArchitectTemplateOversight() {
                           placeholder={t("search_tmpl") || "Search templates..."}
                           value={tmplSearch}
                           onChange={(e) => setTmplSearch(e.target.value)}
-                          className="w-full h-12 pl-10 pr-4 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]/50 transition-colors bg-black/20 text-[12px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
+                          className="w-full h-12 pl-10 pr-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]/50 transition-colors bg-black/20 text-[12px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
                        />
                     </div>
                     <div className="shrink-0 flex items-center gap-2 w-max min-w-[192px] max-w-xs">
@@ -345,7 +345,7 @@ export default function ArchitectTemplateOversight() {
                         <div 
                             key={tmpl.id} 
                             onClick={() => setSelectedTemplateForPreview(tmpl)}
-                            className="flex flex-col theme-glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 bg-black/20 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg group"
+                            className="flex flex-col glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 bg-black/20 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg group"
                         >
                             <div className="p-5 flex flex-col gap-4">
                                 <div className="flex items-start justify-between gap-2">
@@ -387,7 +387,7 @@ export default function ArchitectTemplateOversight() {
                         {t("nav_cancel") || "Cancel"}
                     </button>
                     {selectedTemplateForPreview.is_community_default ? (
-                        <button disabled={true} className="px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
+                        <button disabled={true} className="px-8 py-4 rounded-[var(--radius)] bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
                             <span className="material-symbols-outlined !text-[18px]">{t("template_icon_verified") || "verified"}</span>
                             {t("active_default") || "Active Default"}</button>
                     ) : (
@@ -414,7 +414,7 @@ export default function ArchitectTemplateOversight() {
                         </div>
                     )}
 
-                    <div className="flex-1 theme-glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10 p-6 overflow-y-auto custom-scrollbar min-h-[400px]">
+                    <div className="flex-1 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10 p-6 overflow-y-auto custom-scrollbar min-h-[400px]">
                         <TemplatePreviewer templateData={selectedTemplateForPreview.parsedData} />
                     </div>
                 </div>

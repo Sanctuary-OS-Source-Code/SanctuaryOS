@@ -74,7 +74,7 @@ export function UpdateSidePanel() {
             onMouseMove={handleMouseMove}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            className="bg-black/20 backdrop-blur-md p-6 rounded-2xl border flex flex-col items-center justify-center gap-3 transition-all duration-300 relative overflow-hidden group border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-[0_4px_30px_rgba(var(--accent-rgb),0.15)] text-center"
+            className="bg-black/20 backdrop-blur-md p-6 rounded-2xl border flex flex-col items-center justify-center gap-3 transition-all duration-300 relative overflow-hidden group border-[var(--accent)]/[20%] hover:border-[var(--accent)]/[40%] hover:bg-[var(--accent)]/[5%] hover:shadow-[0_4px_30px_rgba(var(--accent-rgb),0.15)] text-center"
           >
             <div 
               className="absolute inset-0 pointer-events-none transition-opacity duration-300 z-0 mix-blend-screen"
@@ -86,7 +86,7 @@ export function UpdateSidePanel() {
             
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none z-0" />
             
-            <div className="w-16 h-16 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center relative z-10 mb-1 transition-transform duration-500 group-hover:scale-110">
+            <div className="w-16 h-16 rounded-full bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] flex items-center justify-center relative z-10 mb-1 transition-transform duration-500 group-hover:scale-110">
               <span className={`material-symbols-outlined !text-[32px] text-[var(--accent)] drop-shadow-sm ${isInstalling ? 'animate-pulse' : 'animate-bounce'}`}>{t("icon_downloading")}</span>
             </div>
             
@@ -105,7 +105,7 @@ export function UpdateSidePanel() {
         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150 ease-out fill-mode-both relative z-10 flex-1 min-h-0">
           <SectionHeader icon="subject" title={t("update_panel_notes")} glowColor="rgba(255,255,255,0.8)" />
           
-          <div className="bg-black/20 backdrop-blur-md p-6 rounded-2xl border border-white/5 transition-all hover:border-white/10 hover:bg-black/40 hover:shadow-lg relative overflow-hidden group flex-1 flex flex-col">
+          <div className="bg-black/20 backdrop-blur-md p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-black/40 hover:shadow-lg relative overflow-hidden group flex-1 flex flex-col">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
             
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 relative z-10 markdown-body">

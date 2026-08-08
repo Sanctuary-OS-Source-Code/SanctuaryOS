@@ -37,7 +37,7 @@ export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, exec
     >
       <div className="flex flex-col gap-6 p-8 h-full min-h-[400px]">
         {/* Sleek Segmented Input Row */}
-        <div className="flex items-center w-full overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0">
+        <div className="flex items-center w-full overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0">
           <div className="relative flex-1 h-full flex items-center">
             <span className="absolute left-4 opacity-50 text-[18px] material-symbols-outlined pointer-events-none">architecture</span>
             <input 
@@ -61,7 +61,7 @@ export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, exec
         </div>
 
         {/* Selected Files List */}
-        <div className="flex-1 flex flex-col min-h-0 pt-6 border-t border-white/5">
+        <div className="flex-1 flex flex-col min-h-0 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
           <div className="flex items-center gap-3 mb-6 shrink-0">
             <span className="material-symbols-outlined !text-[18px] text-[var(--text)]">{t("icon_inventory_2") || "inventory_2"}</span>
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("artifacts_linked") || "ARTIFACTS LINKED"} ({(selectedMods || []).length})</h3>
@@ -71,7 +71,7 @@ export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, exec
             {(selectedMods || []).map((modName: string, i: number) => {
               const displayName = resolveDisplayName ? resolveDisplayName(modName) : modName.replace(/_/g, " ").replace(/\.[^/.]+$/, "");
               return (
-                <div key={i} className="theme-glass-inner p-3 rounded-xl flex items-center gap-4 group/item transition-colors hover:bg-white/5 border border-white/5 hover:border-white/10">
+                <div key={i} className="glass-surface p-3 rounded-xl flex items-center gap-4 group/item transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-50">description</span>
                   <span className="text-[11px] font-black text-[var(--text)] uppercase truncate">{displayName}</span>
                 </div>

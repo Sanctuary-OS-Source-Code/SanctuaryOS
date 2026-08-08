@@ -20,8 +20,8 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
   return createPortal(
     <>
       <div className="fixed inset-0 z-[15000] bg-black/0 backdrop-blur-[3px] animate-in fade-in" onClick={onClose} />
-      <div className="fixed top-10 right-0 bottom-10 w-[450px] max-w-[100vw] theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] rounded-tl-[3rem] rounded-bl-[3rem]" onClick={e => e.stopPropagation()}>
-        <button type="button" onClick={onClose} className="absolute top-8 right-8 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+      <div className="fixed top-10 right-0 bottom-10 w-[450px] max-w-[100vw] glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] rounded-tl-[3rem] rounded-bl-[3rem]" onClick={e => e.stopPropagation()}>
+        <button type="button" onClick={onClose} className="absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <span className="material-symbols-outlined !text-[24px]">{t("icon_close")}</span>
         </button>
         <div className="px-8 pt-10 pb-6 relative flex-shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
@@ -29,8 +29,8 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
           <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("theme_choose_blueprint")}</p>
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-4">
-          <button onClick={() => onSelect(null)} className="w-full p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 group text-left">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:scale-110 transition-transform">
+          <button onClick={() => onSelect(null)} className="w-full p-4 rounded-2xl border border-[var(--accent)]/[30%] bg-[var(--accent)]/[10%] hover:bg-[var(--accent)]/[20%] hover:scale-[1.02] transition-all flex items-center gap-4 group text-left">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-[var(--accent)]/[20%] group-hover:scale-110 transition-transform">
               <span className="material-symbols-outlined text-[var(--accent)]">add</span>
             </div>
             <div>
@@ -41,7 +41,7 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
 
           <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-4 ml-2">{t("theme_core_arch")}</h4>
           {Object.entries(CORE_THEMES).map(([id, theme]: any) => (
-            <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left">
+            <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left">
               <div className="w-12 h-12 rounded-xl shrink-0" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-black text-[var(--text)] uppercase tracking-widest truncate">{theme.name}</h4>
@@ -52,7 +52,7 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
 
           <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-4 ml-2">{t("theme_personal")}</h4>
           {Object.entries(customThemes).map(([id, theme]: any) => (
-            <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left">
+            <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left">
               <div className="w-12 h-12 rounded-xl shrink-0" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-black text-[var(--text)] uppercase tracking-widest truncate">{theme.name}</h4>
@@ -147,7 +147,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder={t("ui_search_chameleons") || "Search Themes..."}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
           <ActionButton onClick={() => setIsCreatePanelOpen(true)} className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]" icon="add" label={t("auto_create") || "CREATE"} />
@@ -196,13 +196,13 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         headerActions={
           typeof editingThemeId === 'string' && editingThemeId.startsWith('dev_') ? (
             <div className="flex items-center gap-2">
-              <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
+              <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
                 <div className="relative group flex">
                   <button onClick={() => {
                     if (livePreview) setActiveThemeId(originalThemeId);
                     else setActiveThemeId(editingThemeId);
                     setLivePreview(!livePreview);
-                  }} className={`h-12 px-4 flex items-center justify-center gap-2 transition-all shrink-0 ${livePreview ? 'text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  }} className={`h-12 px-4 flex items-center justify-center gap-2 transition-all shrink-0 ${livePreview ? 'text-[var(--success)] bg-emerald-500/[10%]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                     <span className="material-symbols-outlined !text-[18px]">{livePreview ? 'visibility' : 'visibility_off'}</span>
                     <span className="text-[10px] font-black uppercase tracking-widest">{livePreview ? (t("ui_os_preview_on") || "OS PREVIEW: ON") : (t("ui_os_preview_off") || "OS PREVIEW: OFF")}</span>
                   </button>
@@ -222,7 +222,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
                     setOriginalThemeId(editingThemeId);
                     setEditingThemeId(null);
                     useStore.getState().pushStatus(t("ui_theme_applied") || "Theme Applied", "success");
-                  }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] transition-all shrink-0">
+                  }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--success)] hover:bg-emerald-500/[10%] transition-all shrink-0">
                     <span className="material-symbols-outlined !text-[18px]">check_circle</span>
                     <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_apply") || "APPLY THEME"}</span>
                   </button>

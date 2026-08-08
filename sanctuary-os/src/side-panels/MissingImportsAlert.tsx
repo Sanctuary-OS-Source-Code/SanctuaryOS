@@ -117,12 +117,12 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
         <div className="flex w-full justify-center gap-4">
           <ActionButton
             onClick={() => { setMissingImportMods(null); setPendingImportSet(null); }}
-            className="!text-xs hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:!text-[var(--danger)] hover:!border-[var(--danger)]/50 hover:!shadow-[0_0_30px_color-mix(in_srgb,var(--danger)_20%,transparent)]"
+            className="!text-xs hover:!bg-red-500/[20%] hover:!text-[var(--danger)] hover:!border-[var(--danger)]/50 hover:!shadow-md"
             label={t("btn_abort") || "ABORT"}
           />
           <ActionButton
             onClick={() => finalizeImport(pendingImportSet)}
-            className="!text-xs !bg-[color-mix(in_srgb,var(--success)_15%,transparent)] !border-[color-mix(in_srgb,var(--success)_30%,transparent)] !text-[var(--success)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:!border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:!shadow-[0_0_30px_color-mix(in_srgb,var(--success)_20%,transparent)]"
+            className="!text-xs !bg-emerald-500/[15%] !border-emerald-500/[30%] !text-[var(--success)] hover:!bg-emerald-500/[20%] hover:!border-emerald-500/[50%] hover:!shadow-md"
             label={t("btn_confirm") || "CONFIRM"}
           />
         </div>
@@ -136,20 +136,20 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
           const renderModList = (mods: any[]) => mods.slice(0, 100).map((mod: any, idx: number) => {
             const targetUrl = (mod.url && mod.url.trim() !== "") ? (mod.url.startsWith("http") ? mod.url : `https://${mod.url}`) : `https://www.google.com/search?q=${encodeURIComponent(`${useStore.getState().activeGameSchema?.display_name || "Mod"} ${cleanSearchName(mod.name, useStore.getState().activeGameSchema)}`)}`;
             return (
-              <div key={idx} className="flex justify-between items-center theme-glass-inner border border-white/5 p-4 rounded-2xl hover:border-white/20 transition-all group shadow-md">
+              <div key={idx} className="flex justify-between items-center glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-4 rounded-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all group shadow-md">
                 <div className="flex flex-col min-w-0 pr-4">
                   <span className="text-xs font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors">{cleanSearchName(mod.name, useStore.getState().activeGameSchema)}</span>
                   <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">{mod.author || t("unknown_mason") || "Unknown Mason"}</span>
                   {(mod.is_paid || mod.is_early_access) && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {mod.is_early_access && (
-                        <div className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center gap-1 shadow-[0_0_10px_rgba(168,85,247,0.1)]">
+                        <div className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center gap-1 shadow-md">
                           <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
                           <span className="text-[8px] font-black uppercase tracking-[0.1em] text-purple-500">{t("badge_early_access") || "Early Access"}</span>
                         </div>
                       )}
                       {mod.is_paid && (
-                        <div className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-1 shadow-[0_0_10px_rgba(234,179,8,0.1)]">
+                        <div className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-1 shadow-md">
                           <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
                           <span className="text-[8px] font-black uppercase tracking-[0.1em] text-yellow-500">{t("badge_paid") || "Paid"}</span>
                         </div>
@@ -197,7 +197,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
             <>
               {premiumMods.length > 0 && (
                 <div className="flex flex-col gap-3 mb-4">
-                  <div className="flex items-center gap-3 p-4 theme-glass-panel border border-yellow-500/30 rounded-2xl bg-yellow-500/5 shadow-md">
+                  <div className="flex items-center gap-3 p-4 glass-panel border border-yellow-500/30 rounded-2xl bg-yellow-500/5 shadow-md">
                     <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-yellow-500/20 text-yellow-500">
                       <span className="material-symbols-outlined !text-[20px]">auto_fix_high</span>
                     </div>
@@ -243,7 +243,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
           );
         })()}
         {missingImportMods.length > 100 && (
-          <div className="flex items-center justify-center p-6 theme-glass-inner rounded-2xl border border-white/5 border-dashed">
+          <div className="flex items-center justify-center p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed">
             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
               + {missingImportMods.length - 100} More Artifacts (Resolve visible artifacts to load more)
             </span>

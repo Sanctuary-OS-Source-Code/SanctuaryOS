@@ -55,10 +55,10 @@ export function DefconPanel() {
   };
 
   return (
-    <div className={`w-full max-w-xl mx-auto mt-12 theme-glass-panel border rounded-[var(--radius)] p-8 flex flex-col items-center justify-center text-center gap-6 relative overflow-hidden shrink-0 ${defconLevel === 1 ? 'border-amber-900/50 shadow-lg' : 'border-white/5'}`}>
+    <div className={`w-full max-w-xl mx-auto mt-12 glass-panel border rounded-[var(--radius)] p-8 flex flex-col items-center justify-center text-center gap-6 relative overflow-hidden shrink-0 ${defconLevel === 1 ? 'border-amber-900/50 shadow-lg' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
       {defconLevel === 1 && <div className="absolute inset-0 bg-amber-500/5 animate-pulse pointer-events-none" />}
 
-      <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center relative z-10 ${defconLevel === 1 ? 'border-amber-900/50 shadow-lg' : 'border-white/10'}`}>
+      <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center relative z-10 ${defconLevel === 1 ? 'border-amber-900/50 shadow-lg' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
         <span className={`text-4xl material-symbols-outlined ${defconLevel === 1 ? 'animate-bounce text-amber-500' : 'text-white'}`}>{t("icon_warning_amber")}</span>
       </div>
 
@@ -71,15 +71,15 @@ export function DefconPanel() {
 
       <button
         onClick={() => setShowDefconConfirmModal(true)}
-        className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all relative z-10 theme-glass-inner ${defconLevel === 1
-          ? 'border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5'
+        className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all relative z-10 glass-surface ${defconLevel === 1
+          ? 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
           : 'border border-amber-900/50 text-amber-400 hover:border-amber-500 hover:text-amber-400 hover:bg-amber-500/10'
           }`}
       >
         {defconLevel === 1 ? t("defcon_stand_down") : t("defcon_initiate")}
       </button>      {showDefconConfirmModal && (
         <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[var(--bg)]/60 backdrop-blur-md animate-in fade-in duration-300 p-8">
-          <div className="relative w-full max-w-4xl theme-glass-panel border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-12 shadow-2xl flex flex-col gap-8 overflow-hidden">
+          <div className="relative w-full max-w-4xl glass-panel border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-12 shadow-2xl flex flex-col gap-8 overflow-hidden">
             {defconLevel === 5 && (
               <>
                 <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(245,158,11,0.03)_25%,transparent,25%,transparent,50%,rgba(245,158,11,0.03),50%,rgba(245,158,11,0.03),75%,transparent,75%,transparent)] bg-[length:64px_64px] pointer-events-none opacity-50"></div>
@@ -89,7 +89,7 @@ export function DefconPanel() {
             )}
 
             <div className="flex items-start gap-8 relative z-10 text-left">
-              <div className={`relative w-32 h-32 rounded-[var(--radius)] flex items-center justify-center text-6xl shrink-0 shadow-lg ${defconLevel === 5 ? 'bg-amber-900/10 border border-amber-900/50' : 'bg-white/5 border border-white/10'}`}>
+              <div className={`relative w-32 h-32 rounded-[var(--radius)] flex items-center justify-center text-6xl shrink-0 shadow-lg ${defconLevel === 5 ? 'bg-amber-900/10 border border-amber-900/50' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                 {defconLevel === 5 && <div className="absolute inset-0 rounded-[var(--radius)] border-2 border-amber-500/20 animate-spin-slow"></div>}
                 <span className={`drop-shadow-md animate-pulse material-symbols-outlined ${defconLevel === 5 ? 'text-amber-500' : 'text-white'}`}>{t("icon_warning_amber")}</span>
               </div>
@@ -109,16 +109,16 @@ export function DefconPanel() {
             <div className="flex gap-4 w-full mt-4 relative z-10">
               <button
                 onClick={() => { triggerDefcon(); setShowDefconConfirmModal(false); }}
-                className={`flex-1 py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all theme-glass-inner shadow-lg ${defconLevel === 5
+                className={`flex-1 py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all glass-surface shadow-lg ${defconLevel === 5
                   ? 'border border-amber-900/50 text-amber-400 hover:border-amber-500 hover:bg-amber-500/10'
-                  : 'border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5'
+                  : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
                   }`}
               >
                 {defconLevel === 1 ? t("btn_confirm_stand_down") : t("btn_execute_defcon")}
               </button>
               <button
                 onClick={() => setShowDefconConfirmModal(false)}
-                className="flex-1 py-6 theme-glass-inner border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-sm"
+                className="flex-1 py-6 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-sm"
               >
                 {t("btn_abort")}
               </button>
@@ -239,7 +239,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
       title={t("defcon_title")}
       subtitle={t("defcon_auth_req")}
       icon={status?.defcon_level === 1 ? 'warning' : 'security'}
-      iconColorClass={status?.defcon_level === 1 ? "text-red-500 animate-pulse drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" : "text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]"}
+      iconColorClass={status?.defcon_level === 1 ? "text-red-500 animate-pulse drop-shadow-md" : "text-amber-400 drop-shadow-md"}
       widthClass="w-[600px]"
     >
       <div className="flex flex-col gap-6 h-full p-8 animate-in fade-in duration-500 relative">
@@ -252,7 +252,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
           </div>
         ) : (
           <>
-            <div className={`rounded-[var(--radius)] flex flex-col items-center justify-center p-10 text-center border-2 relative overflow-hidden transition-all duration-700 z-10 shadow-2xl min-h-[280px] ${status?.defcon_level === 1 ? 'bg-red-950/40 border-red-500/50 shadow-[0_0_80px_rgba(239,68,68,0.2)]' : 'theme-glass-panel border-[var(--accent)]/20'}`}>
+            <div className={`rounded-[var(--radius)] flex flex-col items-center justify-center p-10 text-center border-2 relative overflow-hidden transition-all duration-700 z-10 shadow-2xl min-h-[280px] ${status?.defcon_level === 1 ? 'bg-red-950/40 border-red-500/50 shadow-md' : 'glass-panel border-[var(--accent)]/20'}`}>
 
               {status?.defcon_level === 1 && (
                 <>
@@ -274,7 +274,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                 </div>
               </div>
 
-              <span className={`text-4xl font-black tracking-tighter relative z-30 mb-2 ${status?.defcon_level === 1 ? 'text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]' : 'text-[var(--text)]'}`}>
+              <span className={`text-4xl font-black tracking-tighter relative z-30 mb-2 ${status?.defcon_level === 1 ? 'text-red-500 drop-shadow-md' : 'text-[var(--text)]'}`}>
                 {status?.defcon_level === 1 ? t("defcon_active") : t("defcon_normal")}
               </span>
               <span className={`text-[11px] font-black uppercase tracking-[0.4em] relative z-30 ${status?.defcon_level === 1 ? 'text-red-300/80' : 'theme-text-success opacity-80'}`}>
@@ -295,7 +295,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
             </div>
 
             <div className="flex flex-col gap-4 relative z-10">
-              <div className="theme-glass-panel border-l-4 border-l-amber-500 p-5 rounded-2xl flex items-start gap-4">
+              <div className="glass-panel border-l-4 border-l-amber-500 p-5 rounded-2xl flex items-start gap-4">
                 <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 border border-amber-500/20">
                   <span className="material-symbols-outlined text-amber-500 !text-xl">{t("icon_info")}</span>
                 </div>
@@ -327,13 +327,13 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                       <div className="flex gap-2">
                         <button
                           onClick={standDown} disabled={submitting}
-                          className={`flex-1 py-6 text-xs ${standardSuccessButtonClass} !bg-amber-500/20 !border-amber-500/50 !text-amber-400 hover:!bg-amber-500/40 hover:!text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.2)]`}
+                          className={`flex-1 py-6 text-xs ${standardSuccessButtonClass} !bg-amber-500/20 !border-amber-500/50 !text-amber-400 hover:!bg-amber-500/40 hover:!text-amber-300 shadow-md`}
                         >
                           {t("btn_proceed")}
                         </button>
                         <button
                           onClick={() => setConfirmMode(null)} disabled={submitting}
-                          className="flex-1 py-6 theme-glass-inner border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-sm"
+                          className="flex-1 py-6 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-sm"
                         >
                           {t("btn_abort")}
                         </button>
@@ -357,13 +357,13 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                       <div className="flex gap-2">
                         <button
                           onClick={executeDefcon} disabled={submitting}
-                          className={`flex-1 py-6 text-xs ${standardDangerButtonClass} shadow-[0_0_30px_rgba(220,38,38,0.4)] animate-[pulse_2s_ease-in-out_infinite] bg-red-600/40`}
+                          className={`flex-1 py-6 text-xs ${standardDangerButtonClass} shadow-md animate-[pulse_2s_ease-in-out_infinite] bg-red-600/40`}
                         >
                           {t("btn_proceed")}
                         </button>
                         <button
                           onClick={() => setConfirmMode(null)} disabled={submitting}
-                          className="flex-1 py-6 theme-glass-inner border border-white/10 text-[var(--text)] hover:border-white/30 hover:bg-white/5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-sm"
+                          className="flex-1 py-6 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-sm"
                         >
                           {t("btn_abort")}
                         </button>
@@ -372,7 +372,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                   ) : (
                     <button
                       onClick={() => setConfirmMode('execute')} disabled={submitting}
-                      className={`w-full py-6 text-xs ${standardDangerButtonClass} hover:bg-red-600/30 active:scale-95 transition-all shadow-[0_0_30px_rgba(220,38,38,0.2)]`}
+                      className={`w-full py-6 text-xs ${standardDangerButtonClass} hover:bg-red-600/30 active:scale-95 transition-all shadow-md`}
                     >
                       <span className="material-symbols-outlined !text-xl group-hover:animate-bounce">{t("icon_warning_amber")}</span>
                       {t("defcon_execute")}

@@ -183,9 +183,9 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_flag")}</span>
           </div>
           <span className="truncate">{t("title_reports") || "REPORTS QUEUE"?.replace("dY>' ", "") || "Nexus Reports"}</span>
@@ -198,7 +198,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder={t("search_queue")}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
 
@@ -216,16 +216,16 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
             />
           </div>
 
-          <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 h-12 shrink-0">
+          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] h-12 shrink-0">
             <button
               onClick={() => setActiveStatus("pending" as any)}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeStatus === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeStatus === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
             >
               {t("pending")}
             </button>
             <button
               onClick={() => setActiveStatus("resolved" as any)}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeStatus === 'resolved' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeStatus === 'resolved' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
             >
               {t("dossier_action_resolved")}
             </button>
@@ -235,7 +235,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
         {loading ? (
-          <div className="theme-glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading")}</div>
+          <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading")}</div>
         ) : filteredReports.length === 0 ? (
           <EmptyState icon={t("icon_security") || "shield"} title={t("auto_no_tickets_found_38")} className="col-span-full py-16" />
         ) : (
@@ -243,13 +243,13 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
             {filteredReports.map(report => (
               <div
                 key={report.id}
-                className="theme-glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
+                className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
                 onClick={() => setSelectedReport(report)}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
                 <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
-                      ${report.status?.toLowerCase() === 'pending' ? 'bg-amber-500/50 group-hover:bg-amber-500 group-hover:shadow-[0_0_20px_rgba(245,158,11,0.5)]' : 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]'}
+                      ${report.status?.toLowerCase() === 'pending' ? 'bg-amber-500/50 group-hover:bg-amber-500 group-hover:shadow-md' : 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]'}
                   `} />
 
                 <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
@@ -327,9 +327,9 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
         <div className="p-6 flex flex-col gap-6">
           {selectedReport && (
             <>
-              <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
                   {t("report_details")}
                 </h4>
@@ -337,20 +337,20 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                 <div className="flex flex-col gap-6 relative z-10">
                   <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("reporter")}</label>
-                    <span className="theme-glass-inner rounded-xl px-5 h-12 flex items-center text-[var(--text)] text-sm font-bold bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{selectedReport.reporter_name}</span>
+                    <span className="glass-surface rounded-xl px-5 h-12 flex items-center text-[var(--text)] text-sm font-bold bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{selectedReport.reporter_name}</span>
                   </div>
 
                   <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("reason")}</label>
-                    <p className="text-sm font-bold text-[var(--text)] leading-relaxed theme-glass-inner px-5 py-4 min-h-[4rem] rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{selectedReport.description}</p>
+                    <p className="text-sm font-bold text-[var(--text)] leading-relaxed glass-surface px-5 py-4 min-h-[4rem] rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{selectedReport.description}</p>
                   </div>
                 </div>
               </div>
 
               {(selectedReport.source === 'nexus' && selectedReport.metadata?.asset_full || selectedReport.metadata?.json_data) && (
-                <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mt-2">
+                <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mt-2">
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none rounded-2xl" />
-                  <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                  <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span>
                     {t("label_resources")}
                   </h4>
@@ -359,7 +359,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                     {selectedReport.source === 'nexus' && selectedReport.metadata?.asset_full && (
                       <button
                         onClick={() => setActiveAsset({ id: selectedReport.metadata.asset_full.id, type: selectedReport.metadata.asset_full.asset_type })}
-                        className="flex-1 py-3 theme-glass-inner hover:bg-emerald-500/10 text-[var(--text)] hover:text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-emerald-500/30"
+                        className="flex-1 py-3 glass-surface hover:bg-emerald-500/10 text-[var(--text)] hover:text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-emerald-500/30"
                       >
                         <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("icon_visibility")}</span>
                         {t("btn_view_nexus")}
@@ -368,7 +368,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                     {selectedReport.metadata?.json_data && (
                       <button
                         onClick={() => setActiveCodeSnippet(typeof selectedReport.metadata.json_data === 'string' ? selectedReport.metadata.json_data : JSON.stringify(selectedReport.metadata.json_data, null, 2))}
-                        className="flex-1 py-3 theme-glass-inner hover:bg-emerald-500/10 text-[var(--text)] hover:text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-emerald-500/30"
+                        className="flex-1 py-3 glass-surface hover:bg-emerald-500/10 text-[var(--text)] hover:text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-emerald-500/30"
                       >
                         <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("icon_data_object")}</span>
                         {t("btn_view_code")}
@@ -379,9 +379,9 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
               )}
 
               {selectedReport.status === 'pending' && (
-                <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mt-2">
+                <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mt-2">
                   <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none rounded-2xl" />
-                  <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                  <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
                     {t("architect_action")}
                   </h4>
@@ -392,7 +392,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                         value={resolutionReason}
                         onChange={e => setResolutionReason(e.target.value)}
                         placeholder={t("resolution_reason_ph")}
-                        className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-amber-500/50 resize-none custom-scrollbar bg-black/20"
+                        className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-amber-500/50 resize-none custom-scrollbar bg-black/20"
                       />
                     </div>
 

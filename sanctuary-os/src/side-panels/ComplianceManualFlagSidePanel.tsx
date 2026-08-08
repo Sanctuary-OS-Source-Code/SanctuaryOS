@@ -285,7 +285,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       }
     >
       <div className="p-6 flex flex-col h-full gap-8">
-        <div className="flex gap-4 border-b border-white/5 pb-4">
+        <div className="flex gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
            <button onClick={() => setActiveTab('registry')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${activeTab === 'registry' ? (isMalwareOnly ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : 'bg-[var(--accent)]/20 theme-text-accent') : 'text-[var(--subtext)] hover:text-[var(--text)]'}`}>
              {t("auto_global_registry")}
            </button>
@@ -297,7 +297,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         </div>
 
         {activeTab === 'registry' ? (
-          <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+          <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
             <div className={`absolute inset-0 bg-gradient-to-br ${isMalwareOnly ? 'from-[var(--danger)]/5' : 'from-[var(--accent)]/5'} to-transparent pointer-events-none rounded-2xl`} />
             <h4 className={`text-[10px] font-black ${isMalwareOnly ? 'text-[var(--danger)] border-[var(--danger)]/20' : 'theme-text-accent border-[var(--accent)]/20'} uppercase tracking-widest flex items-center gap-2 border-b pb-4 mb-2`}>
               <span className="material-symbols-outlined !text-[14px]">{t("icon_flag")}</span>
@@ -313,7 +313,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                   onChange={e => setManualSearchQuery(e.target.value)} 
                   readOnly={!!manualSelectedMod}
                   onFocus={() => { if (!manualSelectedMod) setIsDropdownOpen(true); }}
-                  className="w-full theme-glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40" 
+                  className="w-full glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40" 
                   placeholder={t("comp_manual_search_placeholder")} 
                 />
                 {manualSelectedMod && (
@@ -324,7 +324,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               {isDropdownOpen && !manualSelectedMod && manualSearchResults.length > 0 && createPortal(
                 <>
                   <div className="fixed inset-0 z-[50000]" onClick={() => setIsDropdownOpen(false)} />
-                  <div className="fixed mt-2 theme-glass-panel border-white/10 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-y-auto custom-scrollbar" style={{
+                  <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md overflow-hidden z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-y-auto custom-scrollbar" style={{
                     top: inputRef.current?.getBoundingClientRect().bottom,
                     left: inputRef.current?.getBoundingClientRect().left,
                     width: inputRef.current?.getBoundingClientRect().width,
@@ -353,13 +353,13 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               <textarea 
                   value={registryReason}
                   onChange={e => setRegistryReason(e.target.value)}
-                  className="w-full theme-glass-panel rounded-2xl p-5 min-h-[80px] text-sm font-medium focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 custom-scrollbar" 
+                  className="w-full glass-panel rounded-2xl p-5 min-h-[80px] text-sm font-medium focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 custom-scrollbar" 
                   placeholder={t("comp_reason_ph")}
               />
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+          <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--danger)]/5 to-transparent pointer-events-none rounded-2xl" />
             <h4 className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest flex items-center gap-2 border-b border-[var(--danger)]/20 pb-4 mb-2">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_flag")}</span>
@@ -372,7 +372,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                 <input 
                   value={newSig}
                   onChange={e => setNewSig(e.target.value)}
-                  className="w-full theme-glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40" 
+                  className="w-full glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40" 
                   placeholder={t("heuristics_placeholder")}
                 />
               </div>
@@ -402,7 +402,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                 <textarea 
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  className="w-full theme-glass-panel rounded-2xl p-5 min-h-[80px] text-sm font-medium focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 custom-scrollbar" 
+                  className="w-full glass-panel rounded-2xl p-5 min-h-[80px] text-sm font-medium focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 custom-scrollbar" 
                   placeholder={t("comp_reason_ph")}
                 />
               </div>
@@ -410,7 +410,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setEnabled(!enabled)}
-                  className={`w-14 h-7 rounded-full transition-colors flex items-center px-1 border ${enabled ? 'bg-[var(--accent)]/20 border-[var(--accent)]' : 'bg-white/5 border-white/10'}`}
+                  className={`w-14 h-7 rounded-full transition-colors flex items-center px-1 border ${enabled ? 'bg-[var(--accent)]/20 border-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                 >
                   <div className={`w-5 h-5 rounded-full bg-[var(--text)] transition-transform ${enabled ? 'translate-x-7 bg-[var(--accent)]' : 'translate-x-0 opacity-50'}`} />
                 </button>
@@ -419,7 +419,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                 </span>
                 
                 {editingId && (
-                  <button onClick={resetHeuristicForm} className="ml-auto text-[10px] font-black uppercase text-[var(--subtext)] hover:text-white px-3 py-1 rounded-lg border border-white/5 hover:bg-white/5 transition-all">
+                  <button onClick={resetHeuristicForm} className="ml-auto text-[10px] font-black uppercase text-[var(--subtext)] hover:text-white px-3 py-1 rounded-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
                     {t("nav_cancel")}
                   </button>
                 )}

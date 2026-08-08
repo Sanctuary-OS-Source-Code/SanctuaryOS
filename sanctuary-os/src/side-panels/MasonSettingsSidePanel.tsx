@@ -68,33 +68,33 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
        
        <div className="flex flex-col gap-2">
          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("public_name")}</label>
-         <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+         <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
        </div>
        
        <div className="flex flex-col gap-2">
          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("avatar_url")}</label>
-         <input value={formData.avatar_url} onChange={e => setFormData({...formData, avatar_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+         <input value={formData.avatar_url} onChange={e => setFormData({...formData, avatar_url: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
        </div>
        
        <div className="flex flex-col gap-2">
          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("biography")}</label>
-         <textarea value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar overflow-y-auto" />
+         <textarea value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar overflow-y-auto" />
        </div>
        
        <div className="flex flex-col gap-4">
          <div className="flex flex-col gap-2">
            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("patreon_url")}</label>
-           <input value={formData.patreon_url} onChange={e => setFormData({...formData, patreon_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+           <input value={formData.patreon_url} onChange={e => setFormData({...formData, patreon_url: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
          </div>
          <div className="flex flex-col gap-2">
            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("personal_website")}</label>
-           <input value={formData.website_url} onChange={e => setFormData({...formData, website_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+           <input value={formData.website_url} onChange={e => setFormData({...formData, website_url: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
          </div>
         </div>
 
        <div className="flex flex-col gap-2">
          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("discord_url")}</label>
-         <input value={formData.discord_url} onChange={e => setFormData({...formData, discord_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+         <input value={formData.discord_url} onChange={e => setFormData({...formData, discord_url: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
        </div>
        
     </div>

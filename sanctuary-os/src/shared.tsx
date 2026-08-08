@@ -16,11 +16,11 @@ export const handleOpenUrl = (url: string) => {
 };
 
 export const standardButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-white/5 backdrop-blur-md border border-white/10 text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-white/10 hover:border-white/20 hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardPrimaryButtonClass = "px-8 py-4 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-[var(--text)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:border-[var(--accent)]/50 hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group";
-export const standardSuccessButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--success)_20%,transparent)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardDangerButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardAccentGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
+export const standardGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
+export const standardPrimaryButtonClass = "px-8 py-4 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:border-[var(--accent)]/50 hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group";
+export const standardSuccessButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-emerald-500/[20%] hover:border-emerald-500/[50%] hover:shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
+export const standardDangerButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-red-500/[15%] border border-red-500/[30%] text-[var(--danger)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-red-500/[20%] hover:border-red-500/[50%] hover:shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
+export const standardAccentGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[var(--accent)]/[20%] hover:border-[var(--accent)]/[50%] hover:shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
 
 export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, className = "", type = "button", form, children }: {
   icon?: string;
@@ -40,7 +40,7 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       disabled={disabled}
-      className={`px-8 py-4 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-[var(--text)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:border-[var(--accent)]/50 hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${className}`}
+      className={`px-8 py-4 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:border-[var(--accent)]/50 hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${className}`}
     >
       {icon && <span className="material-symbols-outlined !text-[16px] transition-transform group-hover:-translate-y-0.5">{icon}</span>}
       {label}
@@ -349,7 +349,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
           onFocus={() => { if (!selectedItem) setIsOpen(true); }}
           placeholder={placeholder}
           readOnly={!!selectedItem}
-          className={className || "w-full h-12 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 text-[var(--text)] text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all relative"}
+          className={className || "w-full h-12 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%] rounded-xl px-5 text-[var(--text)] text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[var(--accent)]/[50%] transition-all relative"}
         />
         {selectedItem ? (
           <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold flex items-center justify-center" onClick={onClear}>
@@ -371,7 +371,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
           return (
             <>
               <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-              <div className="fixed theme-glass-panel border-white/10 rounded-[var(--radius)] shadow-2xl overflow-hidden z-[200001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+              <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl overflow-hidden z-[200001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
                 top: shouldDropUp ? undefined : rect.bottom + 8,
                 bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
                 left: rect.left,
@@ -409,8 +409,8 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
 
 export function StatTile({ label, value, icon, color, onClick }: any) {
   return (
-    <div onClick={onClick} className={`group cursor-pointer ${color || 'theme-glass-panel border-white/5'} border p-6 rounded-[var(--radius)] shadow-xl transition-all duration-300 hover:scale-[1.03] active:scale-95`}>
-      <div className="flex justify-between items-start mb-4"><span className="text-3xl">{icon}</span><div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><span className="text-[var(--text)] text-xs">{"->"}</span></div></div>
+    <div onClick={onClick} className={`group cursor-pointer ${color || 'glass-panel border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} border p-6 rounded-[var(--radius)] shadow-xl transition-all duration-300 hover:scale-[1.03] active:scale-95`}>
+      <div className="flex justify-between items-start mb-4"><span className="text-3xl">{icon}</span><div className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><span className="text-[var(--text)] text-xs">{"->"}</span></div></div>
       <h3 className="text-[var(--text)] opacity-80 text-xs font-bold uppercase tracking-widest mb-1">{label}</h3>
       <div className={`text-4xl font-black text-[var(--text)] tracking-tighter`}>{value}</div>
     </div>
@@ -424,12 +424,12 @@ export function SidebarActionButton({ id, icon, label, subtext, active, onClick,
       onClick={() => onClick(id)}
       className={`w-full px-5 py-4 h-auto min-h-[64px] flex items-center justify-start gap-4 rounded-[var(--radius)] font-black text-[10px] uppercase tracking-widest transition-all duration-300 shadow-sm backdrop-blur-[2px] border relative overflow-hidden group ${customColorClass ? customColorClass :
         active
-          ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] scale-[1.02]'
+          ? 'bg-[var(--accent)]/[15%] border-[var(--accent)]/[40%] text-[var(--accent)] shadow-md scale-[1.02]'
           : danger
-            ? 'text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] opacity-90 hover:opacity-100 hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_25%,transparent)]'
+            ? 'text-[var(--danger)] border-red-500/[30%] bg-red-500/[10%] hover:bg-red-500/[20%] hover:border-red-500/[50%] opacity-90 hover:opacity-100 hover:shadow-md'
             : success
-              ? 'text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] opacity-90 hover:opacity-100 hover:shadow-[0_0_20px_color-mix(in_srgb,var(--success)_25%,transparent)]'
-              : 'text-[var(--text)] border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20 opacity-80 hover:opacity-100 hover:shadow-lg'
+              ? 'text-[var(--success)] border-emerald-500/[30%] bg-emerald-500/[10%] hover:bg-emerald-500/[20%] hover:border-emerald-500/[50%] opacity-90 hover:opacity-100 hover:shadow-md'
+              : 'text-[var(--text)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] opacity-80 hover:opacity-100 hover:shadow-lg'
         } ${className || ''}`}
     >
       <div className={`absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none ${customColorClass ? '' :
@@ -454,9 +454,9 @@ export function HubActionButton({ icon, label, onClick, className = "", isDanger
   return (
     <button
       onClick={onClick}
-      className={`h-10 px-5 rounded-full backdrop-blur-md transition-all flex items-center justify-center gap-2 shrink-0 font-black uppercase tracking-widest border ${isDanger ? 'border-red-500/30 text-red-400 hover:text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] bg-red-500/10 hover:bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.3)]'
-        : isWarning ? 'border-amber-500/30 text-amber-400 hover:text-amber-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.5)] bg-amber-500/10 hover:bg-amber-500/20 shadow-[0_0_30px_rgba(251,191,36,0.3)]'
-          : 'border-white/10 bg-white/5 text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/15 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:border-[var(--accent)]/50'
+      className={`h-10 px-5 rounded-full backdrop-blur-md transition-all flex items-center justify-center gap-2 shrink-0 font-black uppercase tracking-widest border ${isDanger ? 'border-red-500/30 text-red-400 hover:text-red-300 drop-shadow-md bg-red-500/10 hover:bg-red-500/20 shadow-md'
+        : isWarning ? 'border-amber-500/30 text-amber-400 hover:text-amber-300 drop-shadow-md bg-amber-500/10 hover:bg-amber-500/20 shadow-md'
+          : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/15 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:border-[var(--accent)]/50'
         } group ${className}`}
     >
       <span className={`material-symbols-outlined !text-[18px] transition-transform ${isDanger ? 'animate-bounce' : 'opacity-70 group-hover:opacity-100 group-hover:scale-110'}`}>
@@ -469,8 +469,8 @@ export function HubActionButton({ icon, label, onClick, className = "", isDanger
 
 export function HubTabButton({ id, icon, label, activeTab, setTab, badge, disabled, activeColorClass, inactiveColorClass, badgeColorClass }: any) {
   const isActive = activeTab === id;
-  const activeClass = activeColorClass || 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]';
-  const inactiveClass = inactiveColorClass || 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)] opacity-60 hover:opacity-100';
+  const activeClass = activeColorClass || 'bg-[var(--accent)]/[15%] text-[var(--accent)] shadow-md';
+  const inactiveClass = inactiveColorClass || 'text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)] opacity-60 hover:opacity-100';
 
   return (
     <button
@@ -484,7 +484,7 @@ export function HubTabButton({ id, icon, label, activeTab, setTab, badge, disabl
       {icon && <span className="material-symbols-outlined !text-lg shrink-0">{icon}</span>}
       <span className="truncate">{label}</span>
       {badge !== undefined && badge !== null && (
-        <span className={`ml-2 px-1.5 py-0.5 rounded-full border text-[10px] font-black shrink-0 ${badgeColorClass ? badgeColorClass : isActive ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)]/50 text-[var(--accent)]' : 'bg-white/5 border-white/10 text-[var(--subtext)]'}`}>
+        <span className={`ml-2 px-1.5 py-0.5 rounded-full border text-[10px] font-black shrink-0 ${badgeColorClass ? badgeColorClass : isActive ? 'bg-[var(--accent)]/[10%] border-[var(--accent)]/50 text-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]'}`}>
           {badge}
         </span>
       )}
@@ -494,7 +494,7 @@ export function HubTabButton({ id, icon, label, activeTab, setTab, badge, disabl
 
 export function HubTabs({ tabs, activeTab, setTab, className = "" }: any) {
   return (
-    <div className={`flex items-center overflow-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 shrink-0 w-full ${className}`}>
+    <div className={`flex items-center overflow-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 shrink-0 w-full ${className}`}>
       {tabs.map((tab: any) => (
         <HubTabButton key={tab.id} {...tab} activeTab={activeTab} setTab={setTab} />
       ))}
@@ -504,7 +504,7 @@ export function HubTabs({ tabs, activeTab, setTab, className = "" }: any) {
 
 export function FilterTabs({ children, className = "" }: any) {
   return (
-    <div className={`flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 ${className}`}>
+    <div className={`flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 ${className}`}>
       {children}
     </div>
   );
@@ -516,7 +516,7 @@ export function FilterTabButton({ id, icon, label, activeTab, setTab, className 
     <button
       onClick={() => setTab(id)}
       className={`h-full flex-1 px-5 rounded-none flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${isActive
-        ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'
+        ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
         } ${className}`}
     >
       {icon && <span className="material-symbols-outlined !text-[14px]">{icon}</span>}
@@ -554,8 +554,8 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
         ref={btnRef}
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full h-full px-4 py-3 flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${isActiveGroup || isOpen
-          ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]'
-          : 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)] opacity-60 hover:opacity-100'
+          ? 'bg-[var(--accent)]/[15%] text-[var(--accent)] shadow-md'
+          : 'text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)] opacity-60 hover:opacity-100'
           }`}
       >
         {displayIcon && <span className="material-symbols-outlined !text-lg">{displayIcon}</span>}
@@ -566,21 +566,21 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
       {isOpen && createPortal(
         <div
           ref={menuRef}
-          className="fixed mt-2 min-w-[200px] theme-glass-panel border border-[var(--accent)]/20 rounded-[calc(var(--radius)-4px)] shadow-xl z-[200001] overflow-hidden flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
+          className="fixed mt-2 min-w-[200px] glass-panel border border-[var(--accent)]/20 rounded-[calc(var(--radius)-4px)] shadow-xl z-[200001] overflow-hidden flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
           style={{
             top: btnRef.current?.getBoundingClientRect().bottom,
             left: btnRef.current?.getBoundingClientRect().left,
             width: Math.max(200, btnRef.current?.getBoundingClientRect().width || 0),
           }}
         >
-          <div className="px-3 py-2 text-[12px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 border-b border-white/5 mb-1">{label}</div>
+          <div className="px-3 py-2 text-[12px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-1">{label}</div>
           {options.map((opt: any) => (
             <button
               key={opt.id}
               onClick={() => { setTab(opt.id); setIsOpen(false); }}
               className={`px-4 py-3 w-full flex items-center gap-3 rounded-lg text-[12px] font-black uppercase tracking-widest transition-all text-left ${activeTab === opt.id
                 ? 'bg-[var(--accent)]/20 text-[var(--accent)]'
-                : 'text-[var(--text)] hover:bg-white/5'
+                : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
                 }`}
             >
               {opt.icon && <span className="material-symbols-outlined !text-md opacity-80">{opt.icon}</span>}
@@ -626,14 +626,14 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
 
   return (
     <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className}`}>
-      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-between items-center focus:outline-none group relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-90' : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} shadow-inner text-sm font-bold backdrop-blur-[3px] ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`} ${buttonClassName || ''}`}>
+      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-between items-center focus:outline-none group relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-90' : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} shadow-inner text-sm font-bold backdrop-blur-[3px] ${isActive ? 'bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] shadow-md' : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`} ${buttonClassName || ''}`}>
         <span className="truncate pr-4 flex-1 text-left flex items-center h-full uppercase">{getSelectedLabel()}</span>
         <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)]'}`}><span className={`material-symbols-outlined ${flat ? '!text-[16px]' : '!text-[20px]'}`}>{isOpen ? 'expand_less' : 'expand_more'}</span></span>
       </button>
       {isOpen && createPortal(
         <>
           <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-          <div className="fixed theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl overflow-hidden z-[200001] animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col backdrop-blur-[3px]" style={{
+          <div className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl overflow-hidden z-[200001] animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col backdrop-blur-[3px]" style={{
             top: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 ? undefined : (btnRef.current?.getBoundingClientRect().bottom || 0) + 8,
             bottom: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 ? window.innerHeight - (btnRef.current?.getBoundingClientRect().top || 0) + 8 : undefined,
             left: btnRef.current?.getBoundingClientRect().left,
@@ -660,7 +660,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
               }).map((o: any, index: number) => {
                 const isSelected = multiSelect ? selectedValues.includes(o.id) : String(o.id) === String(value);
                 return (
-                  <button type="button" key={`${o.id}-${index}`} onClick={() => handleSelect(o.id)} className={`w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-between ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_2px_0_0_var(--accent)]' : 'text-[var(--text)]'}`}>
+                  <button type="button" key={`${o.id}-${index}`} onClick={() => handleSelect(o.id)} className={`w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-between ${isSelected ? 'bg-[var(--accent)]/[15%] text-[var(--accent)] shadow-[inset_2px_0_0_var(--accent)]' : 'text-[var(--text)]'}`}>
                     <span className={`text-[11px] font-black uppercase w-full flex items-center ${isSelected ? 'text-[var(--accent)]' : o.className || 'text-[var(--text)]'}`}>{o.label}</span>
                     {isSelected && <span className="text-[12px] shrink-0 ml-4 flex items-center justify-center text-[var(--accent)]"><span className="material-symbols-outlined !text-[16px]">{t("icon_check")}</span></span>}
                   </button>
@@ -721,7 +721,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
     <div className="relative w-full" ref={containerRef}>
       <div className="flex flex-wrap gap-1 mb-2">
         {selectedVersions.map(v => (
-          <span key={v} className="px-2.5 py-1 theme-glass-inner border border-white/10 rounded-md text-[9px] font-black uppercase flex items-center gap-2">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300 flex items-center justify-center"><span className="material-symbols-outlined !text-[12px]">{t("icon_close")}</span></button></span>
+          <span key={v} className="px-2.5 py-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-md text-[9px] font-black uppercase flex items-center gap-2">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300 flex items-center justify-center"><span className="material-symbols-outlined !text-[12px]">{t("icon_close")}</span></button></span>
         ))}
       </div>
       <input
@@ -732,10 +732,10 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
         onBlur={(e) => {
           setTimeout(() => setIsOpen(false), 200);
         }}
-        className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:opacity-30"
+        className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[var(--accent)]/[50%] transition-all placeholder:opacity-30"
       />
       {isOpen && createPortal(
-        <div className="fixed mt-2 theme-glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
+        <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
           top: containerRef.current?.getBoundingClientRect().bottom,
           left: containerRef.current?.getBoundingClientRect().left,
           width: containerRef.current?.getBoundingClientRect().width,
@@ -805,7 +805,7 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
 
   return (
     <div className={`relative w-full ${className}`}>
-      <button ref={btnRef} onClick={() => setIsOpen(!isOpen)} className="w-full h-12 px-5 rounded-[calc(var(--radius)-4px)] theme-glass-inner outline-none transition-all shadow-inner flex justify-between items-center text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent group hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-[10]">
+      <button ref={btnRef} onClick={() => setIsOpen(!isOpen)} className="w-full h-12 px-5 rounded-[calc(var(--radius)-4px)] glass-surface outline-none transition-all shadow-inner flex justify-between items-center text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent group hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-[10]">
         <span className="truncate pr-4">{value ? new Date(value).toLocaleDateString() : (placeholder || "Select Date...")}</span>
         <div className="flex items-center gap-1 shrink-0">
           {value && (
@@ -821,7 +821,7 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
       {isOpen && createPortal(
         <>
           <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-          <div className="fixed mt-2 theme-glass-panel border-white/10 rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 p-4 w-64" style={{
+          <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 p-4 w-64" style={{
             top: btnRef.current?.getBoundingClientRect().bottom,
             left: btnRef.current ? Math.min(btnRef.current.getBoundingClientRect().left, window.innerWidth - 270) : 0,
             minWidth: btnRef.current?.getBoundingClientRect().width,
@@ -845,7 +845,7 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
                   <button
                     key={d}
                     onClick={() => handleSelect(d)}
-                    className={`p-1.5 text-[10px] rounded-lg transition-all ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-black shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent),0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-sm scale-[1.05] relative z-10' : isToday ? 'border border-[color-mix(in_srgb,var(--text)_20%,transparent)] font-bold' : 'border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                    className={`p-1.5 text-[10px] rounded-lg transition-all ${isSelected ? 'bg-[var(--accent)]/[20%] border border-[var(--accent)]/[40%] text-[var(--accent)] font-black shadow-md backdrop-blur-sm scale-[1.05] relative z-10' : isToday ? 'border border-[color-mix(in_srgb,var(--text)_20%,transparent)] font-bold' : 'border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                   >
                     {d}
                   </button>
@@ -1073,7 +1073,7 @@ export function SidePanel({
         style={isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined, ...panelStyle } : panelStyle}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={`absolute inset-0 pointer-events-none z-[-2] theme-glass-panel !border-none !shadow-none !rounded-none ${noPanelBlur ? '!backdrop-blur-none' : ''}`} />
+        <div className={`absolute inset-0 pointer-events-none z-[-2] glass-panel !border-none !shadow-none !rounded-none ${noPanelBlur ? '!backdrop-blur-none' : ''}`} />
         {isResizable && (
           <div
             className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[var(--accent)]/30 z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
@@ -1102,14 +1102,14 @@ export function SidePanel({
               </div>
             )}
 
-            <button onClick={onClose} className="absolute top-8 right-8 z-50 w-12 h-12 rounded-[var(--radius)] flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
+            <button onClick={onClose} className="absolute top-8 right-8 z-50 w-12 h-12 rounded-[var(--radius)] flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-red-500/[50%] shadow-xl group/closebtn">
               <span className="material-symbols-outlined !text-[22px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("icon_close")}</span>
             </button>
 
             <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-16">
               <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-6 min-w-0 w-full">
                 {icon && (
-                  <div className={`w-16 h-16 rounded-[1.25rem] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden group/iconbox ${iconColorClass || ''}`}>
+                  <div className={`w-16 h-16 rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden group/iconbox ${iconColorClass || ''}`}>
                     <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
                     <span className={`material-symbols-outlined !text-[32px] opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
                       {icon}
@@ -1151,7 +1151,7 @@ export function SidePanel({
 
 export function SearchBar({ value, onChange, placeholder = "Search...", className = "" }: { value: string; onChange: (v: string) => void; placeholder?: string, className?: string }) {
   return (
-    <div className={`relative flex items-center theme-glass-inner ${className || 'rounded-full'} border border-transparent focus-within:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all shadow-inner group w-full`}>
+    <div className={`relative flex items-center glass-surface ${className || 'rounded-full'} border border-transparent focus-within:border-[var(--accent)]/[50%] transition-all shadow-inner group w-full`}>
       <div className="pl-4 pr-2 py-2 flex items-center justify-center shrink-0">
         <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-focus-within:text-[var(--accent)] transition-colors">search</span>
       </div>
@@ -1235,7 +1235,7 @@ export const fetchAllPaginated = async (queryFn: () => any) => { let allData: an
 
 export function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val: number) => void }) {
   return (
-    <select value={value} onChange={e => onChange(Number(e.target.value))} className="w-full theme-glass-panel rounded-[var(--radius)] px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-white/5 hover:border-[var(--accent)]/30 appearance-none bg-transparent cursor-pointer shadow-inner">
+    <select value={value} onChange={e => onChange(Number(e.target.value))} className="w-full glass-panel rounded-[var(--radius)] px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 appearance-none bg-transparent cursor-pointer shadow-inner">
       <option value={1} className="bg-[var(--surface)] text-[var(--text)]">Tier 1</option>
       <option value={2} className="bg-[var(--surface)] text-[var(--text)]">Tier 2</option>
       <option value={3} className="bg-[var(--surface)] text-[var(--text)]">Tier 3</option>
@@ -1741,12 +1741,12 @@ export function SidePanelActionFooter({
 
   const getActionClass = () => {
     switch (actionVariant) {
-      case "success": return "!border-[color-mix(in_srgb,var(--success)_50%,transparent)] !text-[var(--success)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--success-rgb),0.4)]";
-      case "danger": return "!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]";
+      case "success": return "!border-emerald-500/[50%] !text-[var(--success)] hover:!bg-emerald-500/[20%] hover:!shadow-[0_0_30px_rgba(var(--success-rgb),0.4)]";
+      case "danger": return "!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]";
       case "primary": return "";
-      case "glass": return "!bg-white/5 !border-white/10 hover:!bg-white/10";
+      case "glass": return "!bg-[color-mix(in_srgb,var(--text)_5%,transparent)] !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
       case "accent":
-      default: return "!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)]";
+      default: return "!border-[var(--accent)]/[50%] !text-[var(--accent)] hover:!bg-[var(--accent)]/[20%] hover:!shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)]";
     }
   };
 
@@ -1756,7 +1756,7 @@ export function SidePanelActionFooter({
          <ActionButton 
            onClick={onDanger} 
            disabled={dangerDisabled || isProcessing} 
-           className={`mr-auto !border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]`}
+           className={`mr-auto !border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]`}
            icon={dangerIcon}
            label={dangerLabel || t("ui_btn_delete")}
          />
@@ -1768,7 +1768,7 @@ export function SidePanelActionFooter({
            disabled={isProcessing} 
            icon={cancelIcon}
            label={cancelLabel || t("nav_cancel")}
-           className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]"
+           className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]"
          />
       )}
       

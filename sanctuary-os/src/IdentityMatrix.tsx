@@ -12,7 +12,7 @@ const getRoleBadgeStyle = (role: string) => {
   const r = (role || 'citizen').toLowerCase();
   
   if (r === 'admin') {
-    return `${base} bg-white/5 text-[var(--text)] border-white/10 group-hover:bg-white/10 group-hover:border-white/20 group-hover:text-white`;
+    return `${base} bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] group-hover:text-white`;
   }
   if (r === 'keeper') {
     return `${base} bg-cyan-500/5 text-cyan-500/70 border-cyan-500/10 group-hover:bg-cyan-500/10 group-hover:border-cyan-500/30 group-hover:text-cyan-400`;
@@ -30,7 +30,7 @@ const getRoleBadgeStyle = (role: string) => {
     return `${base} bg-blue-500/5 text-blue-500/70 border-blue-500/10 group-hover:bg-blue-500/10 group-hover:border-blue-500/30 group-hover:text-blue-400`;
   }
   // citizen
-  return `${base} bg-white/5 text-[var(--text)] opacity-70 border-white/5 group-hover:bg-white/10 group-hover:border-white/10 group-hover:opacity-100`;
+  return `${base} bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-70 border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:opacity-100`;
 };
 
 
@@ -146,7 +146,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
       footer={
         <div className="flex flex-col gap-4 w-full">
           {status && (
-            <div className="text-center bg-black/20 p-3 rounded-xl border border-white/5 w-full">
+            <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
               <p className={`text-[10px] font-black uppercase tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
             </div>
           )}
@@ -166,9 +166,9 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
     >
       <div className="p-6 flex flex-col h-full gap-8">
 
-        <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+        <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
           <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-          <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+          <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
             <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
             {t("btn_view")}
           </h4>
@@ -178,9 +178,9 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
           </div>
         </div>
 
-        <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+        <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
           <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none rounded-2xl" />
-          <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+          <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
             <span className="material-symbols-outlined !text-[14px]">{t("icon_settings")}</span>
             {t("identities_role_label")}
           </h4>
@@ -202,9 +202,9 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
 
         {(!isWayfinder && profile?.role === 'wayfinder') ? null : (
           <div className="flex flex-col gap-6">
-            <div className={`flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border ${isBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
+            <div className={`flex flex-col gap-6 p-6 glass-surface rounded-2xl border ${isBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
               <div className={`absolute inset-0 bg-gradient-to-br ${isBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
-              <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isBanned ? 'border-red-500/20 text-red-400' : 'border-white/5 text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
+              <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isBanned ? 'border-red-500/20 text-red-400' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
                 {isWayfinder ? (t("identities_punitive_upload") || "UPLOAD & NEXUS BAN") : (t("ui_network_blacklist") || "NETWORK BLACKLIST")}
               </h4>
@@ -229,16 +229,16 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
                     value={editReason}
                     onChange={e => setEditReason(e.target.value)}
                     placeholder={t("id_reason_ban")}
-                    className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
+                    className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
                   />
                 </div>
               )}
             </div>
 
             {isWayfinder && (
-              <div className={`flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border ${isCommBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
+              <div className={`flex flex-col gap-6 p-6 glass-surface rounded-2xl border ${isCommBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
                 <div className={`absolute inset-0 bg-gradient-to-br ${isCommBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
-                <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isCommBanned ? 'border-red-500/20 text-red-400' : 'border-white/5 text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
+                <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isCommBanned ? 'border-red-500/20 text-red-400' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
                   {t("identities_punitive_comm")}
                 </h4>
@@ -263,7 +263,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
                       value={editCommReason}
                       onChange={e => setEditCommReason(e.target.value)}
                       placeholder={t("id_reason_comm_ban")}
-                      className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
+                      className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
                     />
                   </div>
                 )}
@@ -316,9 +316,9 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_group")}</span>
           </div>
           <span className="truncate">{t("title_identities")}</span>
@@ -331,7 +331,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={t("identities_search")}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
 
@@ -355,7 +355,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-8">
         {loading ? (
-          <div className="theme-glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("audit_fetching")}</div>
+          <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("audit_fetching")}</div>
         ) : (
           <>
             <div className="flex flex-col gap-4">
@@ -365,7 +365,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
                   <div
                     key={p.id}
                     onClick={() => handleOpenPanel(p)}
-                    className={`theme-glass-panel backdrop-blur-2xl border border-white/10 rounded-[1.5rem] flex flex-col transition-all duration-500 group relative overflow-hidden min-h-[160px] ${(!isWayfinder && p.role === 'wayfinder') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-white/30 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-1 active:translate-y-0'}`}
+                    className={`glass-panel backdrop-blur-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[1.5rem] flex flex-col transition-all duration-500 group relative overflow-hidden min-h-[160px] ${(!isWayfinder && p.role === 'wayfinder') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-1 active:translate-y-0'}`}
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
@@ -373,7 +373,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
 
                     <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
                       <div className="flex justify-between items-start gap-4">
-                        <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
+                        <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[var(--accent)]/[30%]">
                           <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-50 group-hover:opacity-100 group-hover:theme-text-accent transition-colors duration-500">
                             {t("icon_person")}
                           </span>
@@ -406,7 +406,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
                     <div
                       key={p.id}
                       onClick={() => handleOpenPanel(p)}
-                      className={`theme-glass-panel backdrop-blur-2xl rounded-[1.5rem] flex flex-col group border border-red-500/20 transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer hover:border-red-500/50 hover:shadow-[0_20px_50px_rgba(239,68,68,0.2)] hover:-translate-y-1 active:translate-y-0`}
+                      className={`glass-panel backdrop-blur-2xl rounded-[1.5rem] flex flex-col group border border-red-500/20 transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer hover:border-red-500/50 hover:shadow-[0_20px_50px_rgba(239,68,68,0.2)] hover:-translate-y-1 active:translate-y-0`}
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 

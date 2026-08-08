@@ -117,10 +117,10 @@ export default function SASupportSettings() {
 
     return (
         <div className="flex flex-col gap-6 w-full relative min-h-[500px] animate-in fade-in pb-20 mt-4">
-            <div className="flex items-center justify-between w-full shrink-0 border-b border-white/5 pb-4">
+            <div className="flex items-center justify-between w-full shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                        <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_support_agent")}</span>
                         </div>
                         <span className="truncate">{t("tab_support")}</span>
@@ -135,7 +135,7 @@ export default function SASupportSettings() {
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder={t("support_search")}
-                            className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                            className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
                         />
                     </div>
                     <div className="w-max min-w-[192px] max-w-xs z-[20] shrink-0">
@@ -149,16 +149,16 @@ export default function SASupportSettings() {
                             ]}
                         />
                     </div>
-                    <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 h-12 shrink-0 z-40">
+                    <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] h-12 shrink-0 z-40">
                         <button
                             onClick={() => setActiveTab("CATEGORIES")}
-                            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'CATEGORIES' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+                            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'CATEGORIES' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                         >
                             {t("categories")}
                         </button>
                         <button
                             onClick={() => setActiveTab("TELEMETRY")}
-                            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'TELEMETRY' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+                            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'TELEMETRY' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                         >
                             {t("telemetry_sources")}
                         </button>
@@ -176,11 +176,11 @@ export default function SASupportSettings() {
                 <div className="flex flex-col gap-4">
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                         {filteredCategories.map(cat => (
-                            <button key={cat.id || cat.category_code} onClick={() => openEditor(cat)} className="theme-glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px] text-left">
+                            <button key={cat.id || cat.category_code} onClick={() => openEditor(cat)} className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px] text-left">
                                 <div className={`absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 ${cat.is_active ? 'bg-gradient-to-br from-[var(--accent)]/5 to-transparent' : 'bg-gradient-to-br from-red-500/5 to-transparent'}`} />
 
                                 <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
-                      ${cat.is_active ? 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]' : 'bg-red-500/50 group-hover:bg-red-500 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.5)]'}
+                      ${cat.is_active ? 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]' : 'bg-red-500/50 group-hover:bg-red-500 group-hover:shadow-md'}
                   `} />
 
                                 <div className="p-6 flex flex-col gap-4 flex-1 relative z-10 w-full">
@@ -220,7 +220,7 @@ export default function SASupportSettings() {
                                                 </span>
                                             )}
                                             {cat.custom_fields && cat.custom_fields.length > 0 && (
-                                                <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-white/20 text-[var(--subtext)] rounded-full bg-white/5 shadow-[inset_0_0_10px_rgba(255,255,255,0.05)]">
+                                                <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(255,255,255,0.05)]">
                                                     {cat.custom_fields.length} {t("support_custom_fields_count")}
                                                 </span>
                                             )}
@@ -243,12 +243,12 @@ export default function SASupportSettings() {
                             <button
                                 key={source.id}
                                 onClick={() => openSourceEditor(source)}
-                                className="theme-glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px] text-left w-full"
+                                className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px] text-left w-full"
                             >
                                 <div className={`absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 ${source.is_active ? 'bg-gradient-to-br from-[var(--accent)]/5 to-transparent' : 'bg-gradient-to-br from-red-500/5 to-transparent'}`} />
 
                                 <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
-                        ${source.is_active ? 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]' : 'bg-red-500/50 group-hover:bg-red-500 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.5)]'}
+                        ${source.is_active ? 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]' : 'bg-red-500/50 group-hover:bg-red-500 group-hover:shadow-md'}
                     `} />
 
                                 <div className="p-6 flex flex-col gap-4 flex-1 relative z-10 w-full">
@@ -289,7 +289,7 @@ export default function SASupportSettings() {
                                                     <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-sky-500/30 text-sky-400 rounded-full bg-sky-500/10 shadow-[inset_0_0_10px_rgba(14,165,233,0.1)] flex items-center gap-1 truncate max-w-[150px]">
                                                         {source.search_path === '%MODS_DIR%' ? 'Mods Folder' : source.search_path === '%DOC_DIR%' ? 'Sims 4 Documents' : source.search_path}
                                                     </span>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-white/20 text-[var(--subtext)] rounded-full bg-white/5 shadow-[inset_0_0_10px_rgba(255,255,255,0.05)] truncate max-w-[150px] font-mono">
+                                                    <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(255,255,255,0.05)] truncate max-w-[150px] font-mono">
                                                         {source.file_pattern}
                                                     </span>
                                                 </>
@@ -424,7 +424,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                             value={actionReason}
                             onChange={(e) => setActionReason(e.target.value)}
                             placeholder={t("describe_change")}
-                            className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-amber-500/50 transition-all font-mono"
+                            className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-amber-500/50 transition-all font-mono"
                         />
                     </div>
                     <div className="flex justify-center items-center gap-4 w-full">
@@ -442,11 +442,11 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
         >
             <div className="flex flex-col gap-6">
 
-                <div className="flex items-center justify-between theme-glass-panel p-4 rounded-xl border-white/5">
+                <div className="flex items-center justify-between glass-panel p-4 rounded-xl border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <span className="text-xs font-black uppercase tracking-widest">{t("support_active_status")}</span>
                     <label className="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" className="sr-only peer" checked={draft.is_active} onChange={e => setDraft({ ...draft, is_active: e.target.checked })} />
-                        <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                        <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                     </label>
                 </div>
 
@@ -456,7 +456,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                         type="text"
                         value={draft.category_code}
                         onChange={e => setDraft({ ...draft, category_code: e.target.value })}
-                        className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all font-mono"
+                        className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all font-mono"
                         placeholder={t("support_code_ph")}
                     />
                 </div>
@@ -467,7 +467,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                         type="text"
                         value={draft.category_name}
                         onChange={e => setDraft({ ...draft, category_name: e.target.value })}
-                        className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
+                        className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
                         placeholder={t("support_name_ph")}
                     />
                 </div>
@@ -505,27 +505,27 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                     <textarea
                         value={draft.description}
                         onChange={e => setDraft({ ...draft, description: e.target.value })}
-                        className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all h-24 resize-none"
+                        className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all h-24 resize-none"
                         placeholder={t("support_desc_ph")}
                     />
                 </div>
 
                 <div className="flex flex-col gap-4 mt-4">
-                    <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("support_custom_fields")}</span>
                         <button onClick={addField} className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:opacity-80">+ {t("support_add_field")}</button>
                     </div>
 
                     <div className="flex flex-col gap-4">
                         {draft.custom_fields?.map((field, idx) => (
-                            <div key={idx} className="theme-glass-panel border border-white/5 p-4 rounded-2xl flex flex-col gap-4">
+                            <div key={idx} className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-4 rounded-2xl flex flex-col gap-4">
                                 <div className="flex items-center gap-3">
                                     <span className="text-[9px] font-black opacity-40">{(idx + 1).toString().padStart(2, '0')}</span>
                                     <input
                                         type="text"
                                         value={field.label}
                                         onChange={e => updateField(idx, { label: e.target.value })}
-                                        className="flex-1 bg-transparent border-b border-white/10 focus:border-[var(--accent)] outline-none text-sm font-bold py-1"
+                                        className="flex-1 bg-transparent border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] outline-none text-sm font-bold py-1"
                                         placeholder={t("support_field_label_ph")}
                                     />
                                 </div>
@@ -542,11 +542,11 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                             ]}
                                         />
                                     </div>
-                                    <button onClick={() => updateField(idx, { required: !field.required })} className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all border ${field.required ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'bg-transparent border-white/10 text-[var(--subtext)] hover:border-white/30'}`}>{t("req_short")}</button>
+                                    <button onClick={() => updateField(idx, { required: !field.required })} className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all border ${field.required ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] border-[var(--accent)]/[40%] shadow-md' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}>{t("req_short")}</button>
                                     <button onClick={() => removeField(idx)} className="text-red-500/70 hover:text-red-500 font-bold p-2 hover:bg-red-500/10 rounded-lg transition-all"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close")}</span></button>
                                 </div>
                                 {(field.type === "CHECKBOX" || field.type === "DROPDOWN") && (
-                                    <div className="flex flex-col gap-2 pl-6 border-l border-white/10 mt-2">
+                                    <div className="flex flex-col gap-2 pl-6 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-2">
                                         <span className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("support_options")}</span>
                                         {(field.options || []).map((opt, oIdx) => (
                                             <div key={oIdx} className="flex items-center gap-2">
@@ -558,7 +558,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                                         newOpts[oIdx] = e.target.value;
                                                         updateField(idx, { options: newOpts });
                                                     }}
-                                                    className="flex-1 theme-glass-inner rounded-md px-3 py-1.5 text-xs outline-none"
+                                                    className="flex-1 glass-surface rounded-md px-3 py-1.5 text-xs outline-none"
                                                     placeholder={t("support_option_ph")}
                                                 />
                                                 <button onClick={() => {
@@ -567,13 +567,13 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                                 }} className="text-red-500/50 hover:text-red-500 p-1"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close")}</span></button>
                                             </div>
                                         ))}
-                                        <button onClick={() => updateField(idx, { options: [...(field.options || []), ""] })} className="w-full theme-glass-inner rounded-md py-1.5 text-[9px] font-black text-center opacity-60 hover:opacity-100 uppercase tracking-widest mt-1">{t("support_add_option")}</button>
+                                        <button onClick={() => updateField(idx, { options: [...(field.options || []), ""] })} className="w-full glass-surface rounded-md py-1.5 text-[9px] font-black text-center opacity-60 hover:opacity-100 uppercase tracking-widest mt-1">{t("support_add_option")}</button>
 
                                         <div className="flex items-center justify-between mt-2 pr-2">
                                             <span className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("support_allow_multi")}</span>
                                             <label className="relative inline-flex items-center cursor-pointer scale-75">
                                                 <input type="checkbox" className="sr-only peer" checked={field.allow_multi_select || false} onChange={e => updateField(idx, { allow_multi_select: e.target.checked })} />
-                                                <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                                                <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                                             </label>
                                         </div>
                                     </div>
@@ -583,52 +583,52 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-3 mt-6 pt-6 border-t border-white/10">
+                <div className="flex flex-col gap-3 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40" /> {t("support_req_target_mod")}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_req_target_mod")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.requires_target_mod} onChange={e => setDraft({ ...draft, requires_target_mod: e.target.checked })} />
-                            <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                            <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40" /> {t("support_req_target_user")}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_req_target_user")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.requires_target_user} onChange={e => setDraft({ ...draft, requires_target_user: e.target.checked })} />
-                            <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                            <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40" /> {t("support_show_title")}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_show_title")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.show_title_box} onChange={e => setDraft({ ...draft, show_title_box: e.target.checked })} />
-                            <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                            <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40" /> {t("support_show_desc")}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_show_desc")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.show_description_box} onChange={e => setDraft({ ...draft, show_description_box: e.target.checked })} />
-                            <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                            <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/40" /> {t("support_show_logs")}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_show_logs")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.show_logs_box} onChange={e => setDraft({ ...draft, show_logs_box: e.target.checked })} />
-                            <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                            <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-4 mt-6 pt-6 border-t border-white/10">
+                <div className="flex flex-col gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                     <div className="flex flex-col">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("tab_support")}</span>
                         <span className="text-[9px] font-bold uppercase tracking-widest opacity-50">{t("support_telemetry_desc")}</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="flex flex-col gap-3 p-4 theme-glass-inner rounded-xl border border-white/5">
+                        <div className="flex flex-col gap-3 p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                             <span className="text-[9px] font-black uppercase tracking-widest theme-text-accent flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_bug_report")}</span> {t("support_mod_reports")}</span>
                             {telemetrySources.filter(s => s.type === 'MOD' && s.is_active).map(source => (
                                 <div key={source.id} className="flex items-center justify-between group">
@@ -642,13 +642,13 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                             const newSources = e.target.checked ? [...currentSources, source.id] : currentSources.filter(id => id !== source.id);
                                             setDraft({ ...draft, telemetry_config: { sources: newSources } });
                                         }} />
-                                        <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                                        <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                                     </label>
                                 </div>
                             ))}
                         </div>
 
-                        <div className="flex flex-col gap-3 p-4 theme-glass-inner rounded-xl border border-white/5">
+                        <div className="flex flex-col gap-3 p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                             <span className="text-[9px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_memory")}</span> {t("support_os_reports")}</span>
                             {telemetrySources.filter(s => s.type === 'OS' && s.is_active).map(source => (
                                 <div key={source.id} className="flex items-center justify-between group">
@@ -662,7 +662,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                             const newSources = e.target.checked ? [...currentSources, source.id] : currentSources.filter(id => id !== source.id);
                                             setDraft({ ...draft, telemetry_config: { sources: newSources } });
                                         }} />
-                                        <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                                        <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                                     </label>
                                 </div>
                             ))}
@@ -764,7 +764,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                             value={actionReason}
                             onChange={(e) => setActionReason(e.target.value)}
                             placeholder={t("describe_change")}
-                            className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-xs font-bold focus:outline-none focus:border-[var(--warning)]/50 transition-all border border-white/5"
+                            className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-xs font-bold focus:outline-none focus:border-[var(--warning)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
                         />
                     </div>
                     <div className="flex justify-center items-center gap-4 w-full">
@@ -783,7 +783,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
             <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("telemetry_label")}</label>
-                    <input type="text" value={draft.label} onChange={e => setDraft({ ...draft, label: e.target.value })} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5" placeholder={t("telemetry_label_ph")} />
+                    <input type="text" value={draft.label} onChange={e => setDraft({ ...draft, label: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]" placeholder={t("telemetry_label_ph")} />
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -809,30 +809,30 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                                 />
                             </div>
                             {!['%MODS_DIR%', '%DOC_DIR%'].includes(draft.search_path) && (
-                                <div className="flex flex-col gap-2 pl-4 border-l border-white/10 mt-1">
+                                <div className="flex flex-col gap-2 pl-4 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-1">
                                     <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("auto_custom_path")}</label>
-                                    <input type="text" value={draft.search_path} onChange={e => setDraft({ ...draft, search_path: e.target.value })} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 font-mono" placeholder={t("auto_e_g_c_17")} />
+                                    <input type="text" value={draft.search_path} onChange={e => setDraft({ ...draft, search_path: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-mono" placeholder={t("auto_e_g_c_17")} />
                                 </div>
                             )}
                         </div>
 
                         <div className="flex flex-col gap-2">
                             <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("telemetry_pattern")}</label>
-                            <input type="text" value={draft.file_pattern} onChange={e => setDraft({ ...draft, file_pattern: e.target.value })} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 font-mono" placeholder={t("telemetry_pattern_ph")} />
+                            <input type="text" value={draft.file_pattern} onChange={e => setDraft({ ...draft, file_pattern: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-mono" placeholder={t("telemetry_pattern_ph")} />
                         </div>
                     </>
                 )}
 
                 <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("upload_desc")}</label>
-                    <textarea value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-white/5 min-h-[80px]" placeholder={t("telemetry_desc_ph")} />
+                    <textarea value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] min-h-[80px]" placeholder={t("telemetry_desc_ph")} />
                 </div>
 
-                <div className="flex items-center justify-between p-4 theme-glass-inner rounded-xl border border-white/5 mt-2">
+                <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("telemetry_is_active")}</span>
                     <label className="relative inline-flex items-center cursor-pointer scale-[0.8] origin-right">
                         <input type="checkbox" className="sr-only peer" checked={draft.is_active} onChange={e => setDraft({ ...draft, is_active: e.target.checked })} />
-                        <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                        <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                     </label>
                 </div>
             </div>

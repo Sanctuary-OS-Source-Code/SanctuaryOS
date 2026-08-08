@@ -228,9 +228,9 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
   
     return (
       <div className="flex flex-col w-full relative h-full">
-        <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+        <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
           <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_search")}</span>
             </div>
             <span className="truncate">{t("reviewing")}</span>
@@ -242,11 +242,11 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
                 placeholder={t("search_queue")} 
-                className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
               />
-            </div>            <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex mr-4">
-              <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("pending")}</button>
-              <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_completed")}</button>
+            </div>            <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex mr-4">
+              <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
+              <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_completed")}</button>
             </div>
           </div>
         </div>
@@ -295,7 +295,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
           {activeScout && (
             <div className="flex flex-col gap-6">
                 
-                <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none rounded-2xl" />
                   
                   <div className="flex flex-col gap-2 relative z-10">
@@ -316,9 +316,9 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-                  <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                  <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
                     {t("btn_view")}
                   </h4>
@@ -326,7 +326,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_modname")}</label>
-                      <input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" />
+                      <input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" />
                     </div>
                     
                     <div className="flex flex-col gap-2">
@@ -335,7 +335,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                         <div className="flex-1 min-w-0">
                           <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id: string) => setEditForm({...editForm, mason_id: id})} />
                         </div>
-                        <button onClick={() => setIsMasonPanelOpen(true)} className="bg-white/10 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-5 rounded-xl font-black transition-colors shrink-0">
+                        <button onClick={() => setIsMasonPanelOpen(true)} className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-5 rounded-xl font-black transition-colors shrink-0">
                           +
                         </button>
                       </div>
@@ -350,41 +350,41 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                     
                     <div className="flex flex-col gap-2">
                         <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_file_ext")}</label>
-                        <input value={editForm.file_extension} onChange={e => setEditForm({...editForm, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("ph_file_ext")} />
+                        <input value={editForm.file_extension} onChange={e => setEditForm({...editForm, file_extension: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("ph_file_ext")} />
                       </div>
                       <div className="flex flex-col gap-2">
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
-                      <input value={editForm.sub_type} onChange={e => setEditForm({...editForm, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("auto_e_g_tuning_26")} />
+                      <input value={editForm.sub_type} onChange={e => setEditForm({...editForm, sub_type: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("auto_e_g_tuning_26")} />
                     </div>
                   </div>
                 </div>
   
-                <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none rounded-2xl" />
-                  <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                  <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span>
                     {t("label_resources")}
                   </h4>
 
                   <div className="flex flex-col gap-2 relative z-10">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-                    <input value={editForm.url || ""} onChange={e => setEditForm({...editForm, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
+                    <input value={editForm.url || ""} onChange={e => setEditForm({...editForm, url: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
-                    <input value={editForm.image_url || ""} onChange={e => setEditForm({...editForm, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
+                    <input value={editForm.image_url || ""} onChange={e => setEditForm({...editForm, image_url: e.target.value})} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
     
                   <div className="flex flex-col gap-2 relative z-10">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_desc")}</label>
-                    <textarea value={editForm.description || ""} onChange={e => setEditForm({...editForm, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-28 resize-none focus:outline-none focus:border-emerald-500/50 bg-black/20" />
+                    <textarea value={editForm.description || ""} onChange={e => setEditForm({...editForm, description: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-28 resize-none focus:outline-none focus:border-emerald-500/50 bg-black/20" />
                   </div>
                 </div>
   
-                <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none rounded-2xl" />
-                  <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                  <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("verified")}</span>
                     {t("compliance_tier")}
                   </h4>
@@ -399,7 +399,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-1">
                         {t("registry_label_version")}
                       </label>
-                      <input value={editForm.latest_version} onChange={e => setEditForm({ ...editForm, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="theme-glass-inner rounded-xl px-5 h-12 text-purple-400 text-sm font-bold focus:outline-none focus:border-purple-500/50 bg-black/20" />
+                      <input value={editForm.latest_version} onChange={e => setEditForm({ ...editForm, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="glass-surface rounded-xl px-5 h-12 text-purple-400 text-sm font-bold focus:outline-none focus:border-purple-500/50 bg-black/20" />
                     </div>
                   </div>
     
@@ -426,7 +426,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
         >
           <div className="p-6">
             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_name")}</label>
-            <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+            <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
           </div>
         </SidePanel>
       </div>

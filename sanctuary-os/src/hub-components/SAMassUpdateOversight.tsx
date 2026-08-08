@@ -160,9 +160,9 @@ export function MassUpdateOversight() {
   return (
     <div className="flex flex-col w-full relative h-full">
 
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full z-30">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-30">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3 shrink-0">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_dynamic_feed")}</span>
           </div>
           <span className="truncate">{t("ql_mass_update")}</span>
@@ -177,7 +177,7 @@ export function MassUpdateOversight() {
             placeholder={t("search_ph")}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full theme-glass-panel rounded-xl pl-10 pr-6 h-12 text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] placeholder:opacity-40"
+            className="w-full glass-panel rounded-xl pl-10 pr-6 h-12 text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[var(--accent)]/[50%] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%] placeholder:opacity-40"
           />
         </div>
 
@@ -200,10 +200,10 @@ export function MassUpdateOversight() {
           <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} />
         </div>
 
-        <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] h-12 shrink-0 z-40">
+        <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] h-12 shrink-0 z-40">
           <button
             onClick={() => setShowOnlySelected(!showOnlySelected)}
-            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${showOnlySelected ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${showOnlySelected ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
           >
             <span className="material-symbols-outlined !text-[16px] mr-2">checklist</span>
             {showOnlySelected ? "SHOWING SELECTED" : "SELECTED ONLY"}
@@ -220,7 +220,7 @@ export function MassUpdateOversight() {
         {selectedIds.size > 0 && (
           <button
             onClick={() => setIsActionPanelOpen(true)}
-            className="h-12 px-6 ml-auto rounded-xl bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[var(--accent)] text-[var(--accent)] font-black uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.6)] transition-all flex items-center gap-3 shrink-0 animate-in fade-in zoom-in duration-300"
+            className="h-12 px-6 ml-auto rounded-xl bg-[var(--accent)]/[20%] border border-[var(--accent)] text-[var(--accent)] font-black uppercase tracking-widest hover:bg-[var(--accent)]/[40%] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.6)] transition-all flex items-center gap-3 shrink-0 animate-in fade-in zoom-in duration-300"
           >
             <span className="material-symbols-outlined !text-[18px]">tune</span>
             {t("mass_update_apply") || "CONFIGURE UPDATE"} ({selectedIds.size})
@@ -239,15 +239,15 @@ export function MassUpdateOversight() {
                     <div
                       key={m.id}
                       onClick={() => handleToggle(m.id)}
-                      className={`relative group/item flex flex-col p-4 rounded-3xl theme-glass-panel border transition-all duration-300 isolate cursor-pointer ${selectedIds.has(m.id)
-                          ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-[0_10px_30px_rgba(var(--accent-rgb),0.2)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] scale-[1.02]'
-                          : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]'
+                      className={`relative group/item flex flex-col p-4 rounded-3xl glass-panel border transition-all duration-300 isolate cursor-pointer ${selectedIds.has(m.id)
+                          ? 'border-[var(--accent)]/[50%] shadow-[0_10px_30px_rgba(var(--accent-rgb),0.2)] bg-[var(--accent)]/[10%] scale-[1.02]'
+                          : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)] hover:bg-[var(--accent)]/[5%]'
                         }`}
                     >
                       <div className="flex items-start justify-between gap-3 mb-4">
                         <div className={`w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl border shadow-inner transition-colors ${selectedIds.has(m.id)
-                            ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]'
-                            : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover/item:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'
+                            ? 'bg-[var(--accent)]/[20%] border-[var(--accent)]/[50%] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]'
+                            : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover/item:border-[var(--accent)]/[30%]'
                           }`}>
                           {selectedIds.has(m.id) ? (
                             <span className="material-symbols-outlined !text-[24px] drop-shadow-[0_0_5px_var(--accent)]">check</span>
@@ -258,7 +258,7 @@ export function MassUpdateOversight() {
 
                         <div className="flex flex-col items-end gap-1">
                           <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest leading-none border ${selectedIds.has(m.id)
-                              ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'
+                              ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] border-[var(--accent)]/[30%]'
                               : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'
                             }`}>
                             {m.master_author || 'UNKNOWN'}
@@ -283,7 +283,7 @@ export function MassUpdateOversight() {
                   <div className="col-span-full flex justify-center w-full pt-4 pb-8">
                     <button
                       onClick={() => setVisibleCount(v => v + 100)}
-                      className="group px-12 py-4 rounded-full theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black uppercase tracking-widest hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all shadow-xl flex items-center gap-3"
+                      className="group px-12 py-4 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black uppercase tracking-widest hover:border-[var(--accent)]/[50%] hover:text-[var(--accent)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)] hover:bg-[var(--accent)]/[5%] transition-all shadow-xl flex items-center gap-3"
                     >
                       <span className="material-symbols-outlined !text-[20px] group-hover:animate-bounce">expand_more</span>
                       {t("ui_btn_load_more")} ({visibleCount} / {filteredMods.length})
@@ -311,7 +311,7 @@ export function MassUpdateOversight() {
           <div className="flex flex-col gap-6 w-full relative h-[calc(100vh-180px)] overflow-y-auto custom-scrollbar pr-2">
             
             <div className="flex flex-col gap-4 flex-1">
-              <div className="theme-glass-panel p-5 rounded-2xl border border-white/5 flex flex-col gap-3 relative z-50 hover:border-white/10 transition-colors">
+              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-3 relative z-50 hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors">
                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                   <span className={`material-symbols-outlined !text-[16px] ${massStatus ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>policy</span>
                   {t("mass_status_protocol")}
@@ -329,7 +329,7 @@ export function MassUpdateOversight() {
                 />
               </div>
 
-              <div className="theme-glass-panel p-5 rounded-2xl border border-white/5 flex flex-col gap-3 relative z-40 hover:border-white/10 transition-colors">
+              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-3 relative z-40 hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors">
                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                   <span className={`material-symbols-outlined !text-[16px] ${massCompliance ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>verified_user</span>
                   {t("vault_stat_tier")}
@@ -347,7 +347,7 @@ export function MassUpdateOversight() {
                 />
               </div>
 
-              <div className="theme-glass-panel p-5 rounded-2xl border border-white/5 flex flex-col gap-3 relative z-30 hover:border-white/10 transition-colors">
+              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-3 relative z-30 hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors">
                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                   <span className={`material-symbols-outlined !text-[16px] ${massCategory ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>category</span>
                   {t("mass_category_override")}
@@ -365,7 +365,7 @@ export function MassUpdateOversight() {
                 />
               </div>
 
-              <div className="theme-glass-panel p-5 rounded-2xl border border-white/5 flex flex-col gap-3 relative z-20 hover:border-white/10 transition-colors">
+              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-3 relative z-20 hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors">
                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                   <span className={`material-symbols-outlined !text-[16px] ${massGameVersions.length > 0 ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>videogame_asset</span>
                   {t("auto_replace_game_versions")}
@@ -373,7 +373,7 @@ export function MassUpdateOversight() {
                 <GameVersionMultiSelect selectedVersions={massGameVersions} onChange={setMassGameVersions} />
               </div>
 
-              <div className="theme-glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex flex-col gap-3 relative z-10 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-colors">
+              <div className="glass-panel p-5 rounded-2xl border border-red-500/[30%] flex flex-col gap-3 relative z-10 bg-red-500/[5%] hover:border-red-500/[50%] transition-colors">
                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                   <span className={`material-symbols-outlined !text-[16px] ${massConflictId ? 'text-[var(--danger)] drop-shadow-[0_0_5px_var(--danger)]' : 'text-[var(--danger)] opacity-80'}`}>gavel</span>
                   {t("mass_assign_conflict")}
@@ -388,7 +388,7 @@ export function MassUpdateOversight() {
               </div>
             </div>
 
-            <div className="mt-6 pt-6 border-t border-white/10 shrink-0 flex flex-col gap-4 pb-6">
+            <div className="mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0 flex flex-col gap-4 pb-6">
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)] animate-pulse shadow-[0_0_5px_var(--danger)]"></span>
@@ -398,7 +398,7 @@ export function MassUpdateOversight() {
                   value={editReason}
                   onChange={e => setEditReason(e.target.value)}
                   placeholder={t("reason_update")}
-                  className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 py-4 text-[var(--text)] text-[11px] font-black uppercase tracking-widest h-24 resize-none focus:outline-none focus:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
+                  className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 py-4 text-[var(--text)] text-[11px] font-black uppercase tracking-widest h-24 resize-none focus:outline-none focus:border-red-500/[50%] transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-red-500/[30%]"
                 />
               </div>
 

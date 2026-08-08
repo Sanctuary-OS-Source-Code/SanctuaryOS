@@ -47,7 +47,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader title={t("wf_hub_title")} subtitle={t("wf_hub_subtitle")} icon={t("icon_terminal")} iconColorClass="text-indigo-400 border-indigo-500/30">
-        <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/10 shadow-inner">
+        <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
           <button
             onClick={() => setIsVerifyPanelOpen(true)}
             className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 border border-transparent text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50 font-black uppercase tracking-widest text-[10px] group"
@@ -61,7 +61,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
           <button
             onClick={() => setDefconOpen(true)}
             className={`h-12 px-6 rounded-none transition-all flex items-center justify-center gap-3 shrink-0 font-black uppercase tracking-widest border border-transparent ${defconLevel === 1
-              ? 'text-red-400 hover:text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] bg-red-500/10 hover:bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.3)] animate-pulse'
+              ? 'text-red-400 hover:text-red-300 drop-shadow-md bg-red-500/10 hover:bg-red-500/20 shadow-md animate-pulse'
               : 'text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50'
               }`}
           >
@@ -74,7 +74,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
       </ViewHeader>
 
       <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
+        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
           <HubTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="wf_comms_title" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="sanctuary_tickets" icon={t("icon_local_activity")} label={t("wf_tab_tickets")} activeTab={activeTab} setTab={setActiveTab} />

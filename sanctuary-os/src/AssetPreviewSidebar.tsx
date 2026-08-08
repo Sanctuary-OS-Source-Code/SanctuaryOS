@@ -122,8 +122,8 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
   return createPortal(
     <>
       <div className="fixed top-[50px] bottom-[40px] left-0 right-0 z-[52000] bg-black/0 backdrop-blur-[3px] animate-in fade-in duration-300" onClick={onClose} />
-      <div className="fixed top-[50px] right-0 bottom-[40px] w-full max-w-xl theme-glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col z-[52001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none">
-        <button onClick={onClose} className="group absolute top-8 right-8 z-50 w-10 h-10 theme-glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
+      <div className="fixed top-[50px] right-0 bottom-[40px] w-full max-w-xl glass-panel !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex flex-col z-[52001] animate-in slide-in-from-right duration-500 overflow-hidden backdrop-blur-[3px] !rounded-l-[3rem] !rounded-r-none">
+        <button onClick={onClose} className="group absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
           <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
         </button>
 
@@ -142,7 +142,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
               <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pt-6 pb-2 px-10">
                 <div className="absolute inset-0 bg-[var(--accent)]/5 blur-[50px] pointer-events-none rounded-full transform scale-150 -translate-y-1/2"></div>
                 <div className="flex items-start gap-6 relative z-10 w-full pr-12">
-                  <div className="w-20 h-20 shrink-0 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center">
+                  <div className="w-20 h-20 shrink-0 rounded-[var(--radius)] bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] shadow-inner flex items-center justify-center">
                     <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '40px' }}>
                       {assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}
                     </span>
@@ -204,7 +204,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
               <div className="px-10 py-6 flex flex-col gap-8 shrink-0 relative z-10">
                 <div className="flex flex-col gap-4">
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("upload_desc") || "DESCRIPTION"}</h4>
-                  <div className="text-sm text-[var(--text)] leading-relaxed font-medium theme-glass-inner p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
+                  <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-surface p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
                     {data.description ? stripMarkdown(data.description) : t("no_desc_sub")}
                   </div>
                 </div>
@@ -217,43 +217,43 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                       <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("auto_template_architecture")}</h4>
                       <div className="flex flex-wrap gap-4">
                         {parsed.template_id && (
-                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                          <div className="flex flex-col gap-1 glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
                             <span className="text-xs font-bold text-[var(--subtext)]">{t("auto_template_id")}</span>
                             <span className="text-sm font-medium text-[var(--text)]">{parsed.template_id}</span>
                           </div>
                         )}
                         {parsed.target_file && (
-                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                          <div className="flex flex-col gap-1 glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
                             <span className="text-xs font-bold text-[var(--subtext)]">{t("upload_target_file")}</span>
                             <span className="text-sm font-medium text-[var(--text)]">{parsed.target_file}</span>
                           </div>
                         )}
                         {parsed.schema_version && (
-                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                          <div className="flex flex-col gap-1 glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
                             <span className="text-xs font-bold text-[var(--subtext)]">{t("auto_schema")}</span>
                             <span className="text-sm font-medium text-[var(--text)]">{t("auto_v")}{parsed.schema_version}</span>
                           </div>
                         )}
                         {parsed.template_version && (
-                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                          <div className="flex flex-col gap-1 glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
                             <span className="text-xs font-bold text-[var(--subtext)]">{t("update_version")}</span>
                             <span className="text-sm font-medium text-[var(--text)]">{parsed.template_version}</span>
                           </div>
                         )}
                         {parsed.mod_author && (
-                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                          <div className="flex flex-col gap-1 glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
                             <span className="text-xs font-bold text-[var(--subtext)]">{t("auto_mod_author")}</span>
                             <span className="text-sm font-medium text-[var(--text)]">{parsed.mod_author}</span>
                           </div>
                         )}
                         {parsed.parser_type && (
-                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                          <div className="flex flex-col gap-1 glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
                             <span className="text-xs font-bold text-[var(--subtext)]">{t("auto_parser")}</span>
                             <span className="text-sm font-medium text-[var(--text)] uppercase">{parsed.parser_type}</span>
                           </div>
                         )}
                         {parsed.supported_mod_versions && Array.isArray(parsed.supported_mod_versions) && parsed.supported_mod_versions.length > 0 && (
-                          <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
+                          <div className="flex flex-col gap-1 glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[200px]">
                             <span className="text-xs font-bold text-[var(--subtext)]">{t("auto_supported_versions")}</span>
                             <span className="text-sm font-medium text-[var(--text)]">{parsed.supported_mod_versions.join(', ')}</span>
                           </div>
@@ -268,25 +268,25 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("asset_details") || "ASSET DETAILS"}</h4>
                     <div className="flex flex-wrap gap-4">
                       {data.version && (
-                        <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
+                        <div className="flex flex-col gap-1 glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
                           <span className="text-xs font-bold text-[var(--subtext)] uppercase">{t("update_version") || "VERSION"}</span>
                           <span className="text-sm font-medium text-[var(--text)]">{data.version}</span>
                         </div>
                       )}
                       {data.downloads !== undefined && (
-                        <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
+                        <div className="flex flex-col gap-1 glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
                           <span className="text-xs font-bold text-[var(--subtext)] uppercase">{t("downloads_count") || "DOWNLOADS"}</span>
                           <span className="text-sm font-medium text-[var(--text)]">{data.downloads?.toLocaleString() || "0"}</span>
                         </div>
                       )}
                       {data.created_at && (
-                        <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
+                        <div className="flex flex-col gap-1 glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
                           <span className="text-xs font-bold text-[var(--subtext)] uppercase">{t("created_date") || "PUBLISHED"}</span>
                           <span className="text-sm font-medium text-[var(--text)]">{new Date(data.created_at).toLocaleDateString()}</span>
                         </div>
                       )}
                       {data.updated_at && data.updated_at !== data.created_at && (
-                        <div className="flex flex-col gap-1 theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
+                        <div className="flex flex-col gap-1 glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm flex-1 min-w-[120px]">
                           <span className="text-xs font-bold text-[var(--subtext)] uppercase">{t("updated_date") || "UPDATED"}</span>
                           <span className="text-sm font-medium text-[var(--text)]">{new Date(data.updated_at).toLocaleDateString()}</span>
                         </div>
@@ -298,7 +298,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                 {(data.changelog || data.release_notes || (data.json_data && (data.json_data.changelog || data.json_data.release_notes))) && (
                   <div className="flex flex-col gap-4">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("whats_new")}</h4>
-                    <div className="text-sm text-[var(--text)] leading-relaxed font-medium theme-glass-inner p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
+                    <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-surface p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
                       {stripMarkdown(data.changelog || data.release_notes || (data.json_data?.changelog) || (data.json_data?.release_notes))}
                     </div>
                   </div>
@@ -319,7 +319,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
               ) : onFlag ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); onFlag(assetId, assetType); }}
-                  className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--danger-rgb),0.2)]"
+                  className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-red-500/[10%] text-[var(--danger)] border-red-500/[30%] hover:bg-red-500/[20%] shadow-[0_5px_20px_rgba(var(--danger-rgb),0.2)]"
                 >
                   <span className="material-symbols-outlined !text-[18px]">{t("icon_flag")}</span>
                   {t("feed_btn_flag")}
@@ -333,7 +333,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                     navigator.clipboard.writeText(data.json_data?.code || '').catch(() => { });
                     useStore.getState().pushStatus("Copied Uplink Code: " + (data.json_data?.code || ''));
                   }}
-                  className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--accent-rgb),0.2)]"
+                  className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[var(--accent)]/[10%] text-[var(--accent)] border-[var(--accent)]/[30%] hover:bg-[var(--accent)]/[20%] shadow-[0_5px_20px_rgba(var(--accent-rgb),0.2)]"
                 >
                   <span className="material-symbols-outlined !text-[18px]">{t("icon_download")}</span>
                   {t("update_panel_install")}
@@ -377,7 +377,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                       ? isOutdated(data)
                         ? 'bg-[color-mix(in_srgb,#3b82f6_15%,transparent)] border border-[color-mix(in_srgb,#3b82f6_30%,transparent)] text-[#3b82f6] hover:bg-[color-mix(in_srgb,#3b82f6_20%,transparent)] shadow-[0_5px_20px_rgba(59,130,246,0.2)]'
                         : 'bg-[color-mix(in_srgb,var(--subtext)_10%,transparent)] border border-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--subtext)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--subtext)_15%,transparent)] backdrop-blur-md'
-                      : 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--success-rgb),0.2)]'
+                      : 'bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] hover:bg-emerald-500/[20%] shadow-[0_5px_20px_rgba(var(--success-rgb),0.2)]'
                     }`}
                 >
                   <span className="material-symbols-outlined !text-[18px]">{isInstalled(data) ? (isOutdated(data) ? "update" : "check_circle") : "download"}</span>

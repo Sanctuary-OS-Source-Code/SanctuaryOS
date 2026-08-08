@@ -230,8 +230,8 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             <div className="flex-1 flex flex-col md:flex-row items-center justify-center p-8 md:p-16 gap-16">
 
               <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center">
-                <span className="material-symbols-outlined !text-[8rem] md:!text-[12rem] drop-shadow-[0_0_30px_rgba(220,38,38,0.8)] text-red-500 animate-pulse">{t("icon_skull")}</span>
-                <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-red-400 to-red-800 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)] leading-none">
+                <span className="material-symbols-outlined !text-[8rem] md:!text-[12rem] drop-shadow-md text-red-500 animate-pulse">{t("icon_skull")}</span>
+                <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-red-400 to-red-800 drop-shadow-md leading-none">
                   {t("tab_network")}<br />{t("err_severed")}
                 </h1>
               </div>
@@ -249,7 +249,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
                 <button
                   onClick={() => { setShowLoginUI(false); setSandboxAccepted(true); }}
-                  className="w-full py-8 rounded-xl font-black text-sm uppercase tracking-[0.4em] transition-all bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-200 hover:border-red-500/60 shadow-[0_0_20px_rgba(220,38,38,0.15)] hover:shadow-[0_0_40px_rgba(220,38,38,0.3)] active:scale-95 group flex items-center justify-center gap-4"
+                  className="w-full py-8 rounded-xl font-black text-sm uppercase tracking-[0.4em] transition-all bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-200 hover:border-red-500/60 shadow-md hover:shadow-md active:scale-95 group flex items-center justify-center gap-4"
                 >
                   {t("btn_sandbox")}
                   <span className="opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0 duration-300">
@@ -273,7 +273,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen animate-in fade-in transition-opacity duration-1000" />
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[var(--bg)]/80 to-[var(--bg)] pointer-events-none" />
 
-      <div className="relative z-10 w-[90%] max-w-lg theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-8 md:p-14 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col backdrop-blur-3xl overflow-hidden group">
+      <div className="relative z-10 w-[90%] max-w-lg glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-8 md:p-14 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col backdrop-blur-3xl overflow-hidden group">
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)]/50 to-transparent opacity-50" />
 
         <div className="flex flex-col items-center justify-center text-center mb-10 relative z-20">
@@ -285,7 +285,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
               className="w-full h-full object-contain opacity-[0.25] hover:opacity-[0.8] hover:scale-110 hover:rotate-12 transition-all duration-700 cursor-pointer"
             />
           </div>
-          <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-[var(--headerText)] drop-shadow-[0_0_20px_color-mix(in_srgb,var(--headerText)_10%,transparent)] mb-2 transition-colors duration-500">
+          <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-[var(--headerText)] drop-shadow-md mb-2 transition-colors duration-500">
             {t("sidebar_app_title") || "SANCTUARY OS"}
           </h1>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] theme-text-accent opacity-80 transition-colors duration-500">
@@ -305,7 +305,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                 spellCheck="false"
                 data-1p-ignore
                 placeholder={t("placeholder_username")}
-                className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] focus:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px]"
+                className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[var(--accent)]/[5%] focus:shadow-md transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px]"
               />
             </div>
           )}
@@ -320,7 +320,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
               spellCheck="false"
               data-1p-ignore
               placeholder={t("placeholder_email")}
-              className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] focus:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px]"
+              className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[var(--accent)]/[5%] focus:shadow-md transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px]"
             />
           </div>
 
@@ -335,7 +335,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                 spellCheck="false"
                 data-1p-ignore
                 placeholder={t("placeholder_password")}
-                className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] focus:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px]"
+                className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[var(--accent)]/[5%] focus:shadow-md transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px]"
               />
             </div>
           )}
@@ -343,7 +343,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
           <button
             type="submit"
             disabled={isProcessing}
-            className="w-full mt-2 py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+            className="w-full mt-2 py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] transition-all bg-[var(--accent)]/[15%] backdrop-blur-md border border-[var(--accent)]/[30%] theme-text-accent hover:bg-[var(--accent)]/[25%] hover:border-[var(--accent)]/[50%] hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
           >
             {isResetPassword ? t("btn_send_reset") : isLogin ? t("btn_login") : t("btn_signup")}
           </button>
@@ -352,7 +352,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         <div className="mt-4 relative z-20">
           <button
             onClick={() => { localStorage.removeItem("sanctuary_show_login"); setShowLoginUI(false); }}
-            className="w-full py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] active:scale-[0.98]"
+            className="w-full py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] active:scale-[0.98]"
           >
             {t("btn_skip")}
           </button>

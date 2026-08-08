@@ -373,7 +373,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
         {depth > 0 && (
           <div className="absolute top-0 bottom-0 left-[-1.5rem] w-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
         )}
-        <div className={`p-4 rounded-[var(--radius)] border ${c.is_hidden ? 'border-[var(--danger)]/30 bg-[var(--danger)]/5' : 'theme-glass-inner border-white/5 hover:border-white/20 transition-all shadow-md'} flex flex-col gap-2 relative`}>
+        <div className={`p-4 rounded-[var(--radius)] border ${c.is_hidden ? 'border-[var(--danger)]/30 bg-[var(--danger)]/5' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all shadow-md'} flex flex-col gap-2 relative`}>
           {depth > 0 && (
             <div className="absolute top-6 left-[-1.5rem] w-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
           )}
@@ -382,7 +382,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               <button onClick={toggleCollapse} className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1 flex items-center justify-center">
                 <span className="material-symbols-outlined !text-[16px]">add</span>
               </button>
-              <div className="w-6 h-6 rounded-lg theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-inner border border-white/5">
+              <div className="w-6 h-6 rounded-lg theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                 {c.author?.username?.charAt(0)?.toUpperCase() || '?'}
               </div>
               <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)]">{c.author?.username || "Citizen"}</span>
@@ -407,7 +407,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                   <button onClick={toggleCollapse} className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1 flex items-center justify-center">
                     <span className="material-symbols-outlined !text-[16px]">remove</span>
                   </button>
-                  <div className="w-6 h-6 rounded-lg theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-inner border border-white/5">
+                  <div className="w-6 h-6 rounded-lg theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     {c.author?.username?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                   <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)]">{c.author?.username || "Citizen"}</span>
@@ -432,13 +432,13 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                     </button>
                   )}
                   {!c.is_hidden && userId && depth < 4 && (
-                    <button onClick={() => handleReplyTo(c)} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase theme-text-accent hover:scale-105 transition-all group px-3 py-1.5 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:theme-border-accent shadow-sm">
+                    <button onClick={() => handleReplyTo(c)} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase theme-text-accent hover:scale-105 transition-all group px-3 py-1.5 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[var(--accent)]/[10%] hover:theme-border-accent shadow-sm">
                       <span className="material-symbols-outlined !text-[14px]">{t("icon_reply")}</span>
                       {t("ui_btn_reply")}
                     </button>
                   )}
                   {userId && userId !== c.author_id && !isBanned && (
-                    <button onClick={() => setFlagTarget({ id: c.id, type: 'comment' })} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase theme-text-danger hover:scale-105 transition-all group px-3 py-1.5 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[var(--danger)] shadow-sm ml-2">
+                    <button onClick={() => setFlagTarget({ id: c.id, type: 'comment' })} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase theme-text-danger hover:scale-105 transition-all group px-3 py-1.5 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-red-500/[10%] hover:border-[var(--danger)] shadow-sm ml-2">
                       <span className="material-symbols-outlined !text-[14px]">{t("icon_flag")}</span>
                       {t("feed_btn_flag")}
                     </button>
@@ -470,7 +470,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               </div>
               {c.code_snippet && !c.is_hidden && (
                 <div className="mt-4 flex">
-                  <button onClick={() => setActiveCodeSnippet(c.code_snippet)} className="px-5 py-2.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] backdrop-blur-md text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-[0_4px_15px_color-mix(in_srgb,var(--accent)_5%,transparent)] hover:scale-105 active:scale-95">
+                  <button onClick={() => setActiveCodeSnippet(c.code_snippet)} className="px-5 py-2.5 rounded-lg bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] text-[var(--accent)] hover:bg-[var(--accent)]/[15%] hover:border-[var(--accent)]/[30%] backdrop-blur-md text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-md hover:scale-105 active:scale-95">
                     <span className="material-symbols-outlined !text-[16px]">{t("icon_data_object")}</span>
                     {t("show_code")}
                   </button>
@@ -544,16 +544,16 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
           })()}
           <div className={`p-10 gap-0 flex flex-col flex-1 relative z-20 ${imageUrl ? '-mt-22 sm:-mt-22' : ''}`}>
 
-            <div className={`flex flex-col gap-4 mb-2 ${imageUrl ? 'p-8 -mx-8 rounded-[var(--radius)] border border-white/10 bg-[var(--background)]/40 backdrop-blur-2xl shadow-2xl mt-4' : ''}`}>
+            <div className={`flex flex-col gap-4 mb-2 ${imageUrl ? 'p-8 -mx-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[var(--background)]/40 backdrop-blur-2xl shadow-2xl mt-4' : ''}`}>
               <h1 className={`text-4xl font-black uppercase tracking-tighter drop-shadow-sm leading-tight ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)] drop-shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]' : 'text-[var(--text)]'}`}>
                 {renderTextWithIcons(post.title)}
               </h1>
 
               <div className="flex items-center gap-3">
-                <span className="text-[9px] font-mono theme-text-accent px-3 py-1 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-full border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-md shadow-sm">
+                <span className="text-[9px] font-mono theme-text-accent px-3 py-1 bg-[var(--accent)]/[10%] rounded-full border border-[var(--accent)]/[20%] backdrop-blur-md shadow-sm">
                   {new Date(post.created_at).toLocaleString()}
                 </span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 opacity-80 px-3 py-1 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-full border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-md shadow-sm">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 opacity-80 px-3 py-1 bg-[var(--accent)]/[10%] rounded-full border border-[var(--accent)]/[20%] backdrop-blur-md shadow-sm">
                   {t("post_by")}
                   <span className="theme-text-accent cursor-pointer hover:underline hover:opacity-100 transition-opacity" onClick={() => { if (post.mason_id !== 'system') { onClose(); onOpenMasonProfile?.(post.mason_id); } }}>
                     {post.mason_id === 'system' ? 'Sanctuary OS' : (post.masons?.name || t("unknown_architect") || "Unknown Architect")}
@@ -574,7 +574,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               </div>
 
               {post.code_snippet && (
-                <div className="mt-12 p-6 rounded-[var(--radius)] theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative overflow-hidden group shadow-lg">
+                <div className="mt-12 p-6 rounded-[var(--radius)] glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative overflow-hidden group shadow-lg">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-5">
                       <div className="w-12 h-12 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center">
@@ -585,7 +585,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                         <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] mt-1">{t("code_desc")}</p>
                       </div>
                     </div>
-                    <button onClick={() => setActiveCodeSnippet(post.code_snippet)} className="px-6 py-3 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:scale-105 transition-all shadow-[0_10px_30px_color-mix(in_srgb,var(--accent)_15%,transparent)] flex items-center gap-2 backdrop-blur-md active:scale-95">
+                    <button onClick={() => setActiveCodeSnippet(post.code_snippet)} className="px-6 py-3 rounded-[calc(var(--radius)-4px)] bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest hover:bg-[var(--accent)]/[20%] hover:border-[var(--accent)]/[50%] hover:scale-105 transition-all shadow-md flex items-center gap-2 backdrop-blur-md active:scale-95">
                       <span className="material-symbols-outlined text-[16px]">{t("icon_visibility")}</span>
                       {t("show_code")}
                     </button>
@@ -603,9 +603,9 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               </h3>
 
               {userId && localStorage.getItem("sanctuary_blacklisted") !== "true" ? (
-                <form onSubmit={handlePostComment} className="flex flex-col gap-3 relative theme-glass-inner p-6 rounded-[var(--radius)] border border-white/5 shadow-xl">
+                <form onSubmit={handlePostComment} className="flex flex-col gap-3 relative glass-surface p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl">
                   {replyTargetId && (
-                    <div className="flex items-center justify-between bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl p-4 mb-2 shadow-inner">
+                    <div className="flex items-center justify-between bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] rounded-xl p-4 mb-2 shadow-inner">
                       <div className="flex flex-col gap-1 overflow-hidden">
                         <span className="text-[9px] font-black tracking-widest uppercase theme-text-accent flex items-center gap-2">
                           <span className="material-symbols-outlined !text-[14px]">{t("icon_reply")}</span>
@@ -615,7 +615,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                           "{renderTextWithIcons(replyTargetSnippet)}"
                         </span>
                       </div>
-                      <button type="button" onClick={() => setReplyTargetId(null)} className="theme-text-accent hover:text-white hover:bg-white/10 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                      <button type="button" onClick={() => setReplyTargetId(null)} className="theme-text-accent hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] w-8 h-8 rounded-full flex items-center justify-center transition-colors">
                         <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
                       </button>
                     </div>
@@ -640,22 +640,22 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       <div className="absolute top-4 right-4 text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-30 pointer-events-none">{t("code_snippet")}</div>
                     </div>
                   )}
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <div className="flex items-center gap-3">
-                      <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`flex items-center gap-2 px-6 py-3 rounded-[calc(var(--radius)-4px)] font-black uppercase tracking-widest text-[10px] transition-all border ${showCodeInput ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                      <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`flex items-center gap-2 px-6 py-3 rounded-[calc(var(--radius)-4px)] font-black uppercase tracking-widest text-[10px] transition-all border ${showCodeInput ? 'border-[var(--accent)]/[30%] bg-[var(--accent)]/[10%] theme-text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                         <span className="material-symbols-outlined !text-[16px]">{showCodeInput ? 'close' : 'data_object'}</span> {showCodeInput ? "HIDE CODE PASTE" : (t("add_code"))}
                       </button>
                       <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-[calc(var(--radius)-4px)] font-black uppercase tracking-widest text-[10px] transition-all border bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                         <span className="material-symbols-outlined !text-[16px]">link</span> {t("link_asset")}
                       </button>
                     </div>
-                    <button type="submit" disabled={!newComment.trim() && !codeSnippet.trim()} className="px-8 py-3 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent font-black uppercase tracking-[0.2em] text-[10px] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2">
+                    <button type="submit" disabled={!newComment.trim() && !codeSnippet.trim()} className="px-8 py-3 rounded-[calc(var(--radius)-4px)] border border-[var(--accent)]/[30%] bg-[var(--accent)]/[10%] theme-text-accent font-black uppercase tracking-[0.2em] text-[10px] hover:bg-[var(--accent)]/[20%] hover:scale-105 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2">
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_send")}</span> {t("btn_send")}
                     </button>
                   </div>
                 </form>
               ) : (
-                <div className="text-center text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] p-6 bg-white/5 rounded-[var(--radius)] border border-white/5">
+                <div className="text-center text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] p-6 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                   {localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("login_required")}
                 </div>
               )}
@@ -677,8 +677,8 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 {post.mason_id !== 'system' && (
                   <button onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }} className={standardButtonClass}>{t("btn_view_profile")}</button>
                 )}
-                {post.masons?.patreon_url && <button onClick={() => handleOpenUrl(post.masons.patreon_url)} className="px-8 py-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-black uppercase tracking-[0.2em] rounded-[var(--radius)] hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300 hover:-translate-y-1 hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--rose-500)_20%,transparent)] transition-all duration-300 flex items-center justify-center gap-2">{t("btn_patreon")}</button>}
-                {post.masons?.discord_url && <button onClick={() => handleOpenUrl(post.masons.discord_url)} className="px-8 py-4 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-black uppercase tracking-[0.2em] rounded-[var(--radius)] hover:bg-indigo-500/20 hover:border-indigo-500/60 hover:text-indigo-300 hover:-translate-y-1 hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--indigo-500)_20%,transparent)] transition-all duration-300 flex items-center justify-center gap-2">{t("btn_discord")}</button>}
+                {post.masons?.patreon_url && <button onClick={() => handleOpenUrl(post.masons.patreon_url)} className="px-8 py-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-black uppercase tracking-[0.2em] rounded-[var(--radius)] hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300 hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2">{t("btn_patreon")}</button>}
+                {post.masons?.discord_url && <button onClick={() => handleOpenUrl(post.masons.discord_url)} className="px-8 py-4 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-black uppercase tracking-[0.2em] rounded-[var(--radius)] hover:bg-indigo-500/20 hover:border-indigo-500/60 hover:text-indigo-300 hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2">{t("btn_discord")}</button>}
               </div>
               <div className="flex items-center gap-4">
                 {userId && !isPostAuthor && !isBanned && (
@@ -739,7 +739,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 value={assetSearchQuery}
                 onChange={(e) => setAssetSearchQuery(e.target.value)}
                 placeholder={t("search_assets")}
-                className="w-full theme-glass-panel rounded-[var(--radius)] pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 shadow-inner"
+                className="w-full glass-panel rounded-[var(--radius)] pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 shadow-inner"
                 autoFocus
               />
             </div>
@@ -747,7 +747,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
           <div className="flex flex-col gap-2">
             {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported") || "image_not_supported"} title={t("no_assets")} className="col-span-full py-16" />}
             {filteredAssets.map(asset => (
-              <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-[var(--radius)] theme-glass-inner hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
+              <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-[var(--radius)] glass-surface hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
                 <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("icon_extension")) : asset.type === 'blueprint' ? (t("icon_architecture")) : asset.type === 'lexicon' ? (t("icon_translate")) : (t("icon_palette"))}</span>
                 <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
               </button>

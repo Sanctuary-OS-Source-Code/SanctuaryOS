@@ -30,7 +30,7 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
 
   return (
     <div 
-      className={`theme-glass-panel rounded-[var(--radius)] overflow-hidden flex flex-col cursor-pointer border border-white/5 group hover:theme-border-accent hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 animate-in fade-in slide-in-from-bottom-8 relative break-inside-avoid bg-gradient-to-br from-white/5 to-transparent ${isFeatured ? 'lg:col-span-2 lg:flex-row min-h-[220px]' : 'min-h-[260px]'}`} 
+      className={`glass-panel rounded-[var(--radius)] overflow-hidden flex flex-col cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:theme-border-accent hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 animate-in fade-in slide-in-from-bottom-8 relative break-inside-avoid bg-gradient-to-br from-white/5 to-transparent ${isFeatured ? 'lg:col-span-2 lg:flex-row min-h-[220px]' : 'min-h-[260px]'}`} 
       style={{ animationFillMode: "both", animationDelay: `${(index % 10) * 100}ms` }} 
       onClick={() => onPostClick(post)}
     >
@@ -58,7 +58,7 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
           )}
         </div>
       {showImage && (
-        <div className={`${isFeatured ? 'w-full lg:w-2/5 h-48 lg:h-auto border-b lg:border-b-0 lg:border-r' : isCompact ? 'w-full h-24 border-b' : 'w-full h-48 border-b'} bg-black/50 relative overflow-hidden shrink-0 border-white/5`}>
+        <div className={`${isFeatured ? 'w-full lg:w-2/5 h-48 lg:h-auto border-b lg:border-b-0 lg:border-r' : isCompact ? 'w-full h-24 border-b' : 'w-full h-48 border-b'} bg-black/50 relative overflow-hidden shrink-0 border-[color-mix(in_srgb,var(--text)_5%,transparent)]`}>
           <img src={imageUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 ease-out mix-blend-screen" alt={t("auto_post_cover")} />
         </div>
       )}
@@ -80,10 +80,10 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
           </div>
         )}
 
-        <div className={`mt-auto pt-4 border-t border-white/5 flex items-center justify-between flex-wrap gap-y-3 relative z-10 ${isCompact ? 'mt-4' : ''}`}>
+        <div className={`mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-between flex-wrap gap-y-3 relative z-10 ${isCompact ? 'mt-4' : ''}`}>
           <div className="flex items-center gap-3">
             <div 
-              className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-white/5 hover:theme-border-accent transition-colors shadow-sm cursor-pointer z-20"
+              className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent transition-colors shadow-sm cursor-pointer z-20"
               onClick={(e) => { e.stopPropagation(); onOpenMasonProfile && onOpenMasonProfile(post.mason_id); }}
             >
               <span className="text-xs font-black theme-text-accent">{post.masons?.name?.charAt(0) || '?'}</span>
@@ -102,19 +102,19 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
           <div className="flex items-center gap-4 text-[10px] font-mono text-[var(--subtext)] opacity-60 group-hover:opacity-100 transition-opacity">
             <span className="relative group/tooltip flex items-center gap-1 hover:text-[var(--text)] cursor-pointer">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {(post.views?.[0]?.count || 0).toLocaleString()}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
                 {t("ui.views")}
               </div>
             </span>
             <span className="relative group/tooltip flex items-center gap-1 hover:text-[var(--text)] cursor-pointer" onClick={(e) => onToggleLike(e, post)}>
               <span className="material-symbols-outlined !text-[14px]">{t("icon_favorite")}</span> {(post.likes?.[0]?.count || 0).toLocaleString()}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
                 {t("ui_likes") || "Likes"}
               </div>
             </span>
             <span className="relative group/tooltip flex items-center gap-1 hover:text-[var(--text)] cursor-pointer">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_chat")}</span> {(post.comments?.[0]?.count || 0).toLocaleString()}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
                 {t("ui.replies")}
               </div>
             </span>

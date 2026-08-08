@@ -94,9 +94,9 @@ export const AppModals = React.memo(function AppModals(props: any) {
   const isErrorStatus = typeof status === 'string' && (status.toLowerCase().includes('error') || status.toLowerCase().includes('fail') || status.toLowerCase().includes('fatal') || status.includes('❌'));
   const isSuccessStatus = typeof status === 'string' && (status.toLowerCase().includes('success') || status.toLowerCase().includes('done') || status.includes('✅') || status.includes('icon_check_circle'));
   
-  const statusBgClass = isErrorStatus ? 'bg-red-900/40 border-red-500/50 shadow-[0_0_30px_rgba(220,38,38,0.3)]' : isSuccessStatus ? 'bg-emerald-900/40 border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.3)]' : 'bg-[var(--bg)]/40 border-white/5 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]';
+  const statusBgClass = isErrorStatus ? 'bg-red-900/40 border-red-500/50 shadow-md' : isSuccessStatus ? 'bg-emerald-900/40 border-emerald-500/50 shadow-md' : 'bg-[var(--bg)]/40 border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[0_-5px_20px_rgba(0,0,0,0.5)]';
   const statusTextClass = isErrorStatus ? 'text-red-400 font-black' : isSuccessStatus ? 'text-emerald-400 font-black' : 'theme-text-accent';
-  const statusAccentClass = isErrorStatus ? 'bg-red-500 shadow-[0_0_10px_rgba(220,38,38,1)]' : isSuccessStatus ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,1)]' : 'theme-bg-accent shadow-[0_0_10px_var(--accent)]';
+  const statusAccentClass = isErrorStatus ? 'bg-red-500 shadow-md' : isSuccessStatus ? 'bg-emerald-500 shadow-md' : 'theme-bg-accent shadow-[0_0_10px_var(--accent)]';
   const statusIconClass = isErrorStatus ? 'text-red-500' : isSuccessStatus ? 'text-emerald-500' : 'text-[var(--accent)]';
 
 

@@ -39,7 +39,7 @@ export default function MasonNotepadSidePanel({ isOpen, onClose }: MasonNotepadS
           value={content}
           onChange={handleChange}
           placeholder={t("notepad_placeholder")}
-          className="flex-1 w-full h-full bg-transparent p-8 text-sm font-mono text-[var(--text)] focus:outline-none focus:bg-white/5 transition-colors resize-none custom-scrollbar"
+          className="flex-1 w-full h-full bg-transparent p-8 text-sm font-mono text-[var(--text)] focus:outline-none focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors resize-none custom-scrollbar"
         />
       </div>
     </SidePanel>

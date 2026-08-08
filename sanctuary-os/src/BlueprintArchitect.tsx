@@ -283,7 +283,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
       }
     >
       <div className="flex-1 min-h-0 flex gap-8 p-8 pb-12 w-full">
-        <div className="flex-1 flex flex-col relative rounded-[var(--radius)] overflow-hidden transition-all duration-500 theme-glass-panel shadow-2xl min-h-0">
+        <div className="flex-1 flex flex-col relative rounded-[var(--radius)] overflow-hidden transition-all duration-500 glass-panel shadow-2xl min-h-0">
           <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5 pointer-events-none" />
 
           <div className="relative z-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
@@ -325,14 +325,14 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
 
                   const borderClass = isTier4 ? "border-red-500/30" : "border-amber-500/30";
                   const bgClass = isTier4 ? "bg-red-500/5 hover:bg-red-500/10" : "bg-amber-500/5 hover:bg-amber-500/10";
-                  const shadowClass = isTier4 ? "hover:shadow-[0_0_30px_rgba(239,68,68,0.2)]" : "hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]";
+                  const shadowClass = isTier4 ? "hover:shadow-md" : "hover:shadow-md";
                   const textClass = isTier4 ? "text-red-500" : "text-amber-500";
                   const iconName = isTier4 ? (t("icon_crisis_alert")) : (t("icon_tune"));
                   return (
                     <div
                       key={ac.pairId}
                       className={`w-full rounded-[var(--radius)] border transition-all duration-500 relative group/alert shrink-0 ${isIgnored
-                        ? 'opacity-50 grayscale border-white/5 bg-black/20'
+                        ? 'opacity-50 grayscale border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/20'
                         : `${borderClass} ${bgClass} shadow-lg ${shadowClass}`
                         }`}
                     >
@@ -340,7 +340,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                       <div className="relative p-5 z-10 flex flex-col gap-1 w-full">
                         <div className="flex justify-between items-center w-full mb-1">
                           <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored ? 'border-white/10 bg-black/50' : `${isTier4 ? 'border-red-500/50 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-amber-500/50 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.2)]'}`
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored ? 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/50' : `${isTier4 ? 'border-red-500/50 bg-red-500/10 shadow-md' : 'border-amber-500/50 bg-amber-500/10 shadow-md'}`
                               }`}>
                               <span className={`material-symbols-outlined !text-[20px] ${isIgnored ? 'text-[var(--text)] opacity-30' : textClass}`}>{iconName}</span>
                             </div>
@@ -369,7 +369,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                         </div>
 
                         <div className={`flex flex-col gap-2 w-full mt-2 ${isIgnored ? 'opacity-30' : ''}`}>
-                          <div className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-white/20 ${isWinnerA && !isTier4 ? 'border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                          <div className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] ${isWinnerA && !isTier4 ? 'border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                             <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
 
                             <div className="flex flex-col gap-1 relative z-10 flex-1 min-w-0 pr-4 group/title">
@@ -399,14 +399,14 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                     <span className="material-symbols-outlined !text-[16px]">{t("icon_star")}</span>
                                   </div>
                                 ) : isWinnerB ? (
-                                  <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 flex items-center justify-center" title={t("bp_overridden_by_winner")}>
+                                  <div className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-60 flex items-center justify-center" title={t("bp_overridden_by_winner")}>
                                     <span className="material-symbols-outlined !text-[16px]">{t("icon_block")}</span>
                                   </div>
                                 ) : (
                                   allow_write && (
                                     <button
                                       onClick={() => applyConflictOverride(ac.modA._originalSetName || ac.modA.name, ac.pairId, playSet.name)}
-                                      className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
+                                      className="h-8 w-8 rounded-lg bg-emerald-500/[10%] border border-emerald-500/[20%] text-[var(--success)] hover:bg-emerald-500/[20%] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
                                     >
                                       <span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span>
                                       <HoverTooltip title={t("bp_select_winning_artifact")} variant="default" className="!left-auto !right-0 !translate-x-0" />
@@ -430,7 +430,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                             </div>
                           </div>
 
-                          <div className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-white/20 ${isWinnerB && !isTier4 ? 'border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                          <div className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] ${isWinnerB && !isTier4 ? 'border-[var(--success)]/50 bg-[var(--success)]/10 shadow-[0_0_15px_rgba(var(--success-rgb),0.1)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                             <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
 
                             <div className="flex flex-col gap-1 relative z-10 flex-1 min-w-0 pr-4 group/title">
@@ -460,14 +460,14 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                                     <span className="material-symbols-outlined !text-[16px]">{t("icon_star")}</span>
                                   </div>
                                 ) : isWinnerA ? (
-                                  <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 flex items-center justify-center" title={t("bp_overridden_by_winner")}>
+                                  <div className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-60 flex items-center justify-center" title={t("bp_overridden_by_winner")}>
                                     <span className="material-symbols-outlined !text-[16px]">{t("icon_block")}</span>
                                   </div>
                                 ) : (
                                   allow_write && (
                                     <button
                                       onClick={() => applyConflictOverride(ac.modB._originalSetName || ac.modB.name, ac.pairId, playSet.name)}
-                                      className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
+                                      className="h-8 w-8 rounded-lg bg-emerald-500/[10%] border border-emerald-500/[20%] text-[var(--success)] hover:bg-emerald-500/[20%] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
                                     >
                                       <span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span>
                                       <HoverTooltip title={t("bp_select_winning_artifact")} variant="default" />
@@ -500,7 +500,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col relative rounded-[var(--radius)] overflow-hidden transition-all duration-500 theme-glass-panel shadow-2xl min-h-0">
+        <div className="flex-1 flex flex-col relative rounded-[var(--radius)] overflow-hidden transition-all duration-500 glass-panel shadow-2xl min-h-0">
           <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-amber-500 via-transparent to-transparent opacity-5 pointer-events-none" />
 
           <div className="relative z-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
@@ -525,7 +525,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                   {redMods.length > 0 && (
                     <button onClick={() => {
                       redMods.forEach((m: any) => toggleInActiveSet(m._originalSetName || m.name, true, true));
-                    }} className={`flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
+                    }} className={`flex-1 py-3 rounded-xl bg-red-500/[10%] text-[var(--danger)] hover:bg-red-500/[20%] border border-red-500/[30%] hover:border-red-500/[50%] text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_sweep")}</span>
                       {(t("bp_purge_corrupted")).replace("{0}", String(redMods.length))}
                     </button>
@@ -557,14 +557,14 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                       <div
                         key={mod.name}
                         className={`relative shrink-0 group/alert w-full rounded-[var(--radius)] transition-all duration-500 border flex items-center ${isIgnored
-                          ? 'opacity-50 grayscale border-white/5 bg-black/20'
+                          ? 'opacity-50 grayscale border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/20'
                           : isAmber
                             ? 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10'
-                            : 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]'
+                            : 'border-red-500/[30%] bg-red-500/[5%] hover:bg-red-500/[10%]'
                           }`}
                       >
                         <div className="relative p-4 z-10 flex items-center gap-3 w-full">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored ? 'border-white/10 bg-black/50' : isAmber ? 'border-amber-500/50 bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.2)]' : 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)]'
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored ? 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/50' : isAmber ? 'border-amber-500/50 bg-amber-500/10 shadow-md' : 'border-red-500/[50%] bg-red-500/[10%] shadow-md'
                             }`}>
                             <span className={`material-symbols-outlined !text-[20px] ${isIgnored ? 'text-[var(--text)] opacity-30' : isAmber ? 'text-amber-400' : 'theme-text-danger'}`}>{isAmber ? "gpp_maybe" : "gpp_bad"}</span>
                           </div>
@@ -601,7 +601,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                             {allow_write && !isIgnored && (
                               <button
                                 onClick={() => toggleInActiveSet(mod._originalSetName || mod.name, true, true)}
-                                className={`w-8 h-8 rounded-lg border transition-all active:scale-95 flex items-center justify-center group relative ${isAmber ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/30 hover:border-amber-500/60 hover:text-amber-200' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] hover:text-[var(--danger)]'}`}
+                                className={`w-8 h-8 rounded-lg border transition-all active:scale-95 flex items-center justify-center group relative ${isAmber ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/30 hover:border-amber-500/60 hover:text-amber-200' : 'bg-red-500/[10%] border-red-500/[30%] text-[var(--danger)] hover:bg-red-500/[30%] hover:border-red-500/[60%] hover:text-[var(--danger)]'}`}
                               >
                                 <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
                                 <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" className="!left-auto !right-0 !translate-x-0" />

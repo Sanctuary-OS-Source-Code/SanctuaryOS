@@ -4,7 +4,7 @@ import { extractPostImage, stripMarkdown } from '../shared';
 
 export function DashboardStatTile({ icon, number, label, colorClass, onClick, setStatus }: any) {
     return (
-        <div onClick={onClick} className={`flex-1 min-w-[200px] xl:min-w-[250px] h-full flex flex-col justify-center items-start gap-1 p-6 rounded-[var(--radius)] border border-white/10 backdrop-blur-[3px] ${colorClass} transition-all cursor-pointer shadow-lg relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl`}>
+        <div onClick={onClick} className={`flex-1 min-w-[200px] xl:min-w-[250px] h-full flex flex-col justify-center items-start gap-1 p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-[3px] ${colorClass} transition-all cursor-pointer shadow-lg relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl`}>
             <div className="absolute inset-0 bg-current opacity-0 group-hover:opacity-[0.15] transition-opacity duration-300" />
             <div className="flex items-center gap-3 w-full relative z-10">
                 <span className="text-3xl opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-110 transition-all drop-shadow-md">{icon}</span>
@@ -25,19 +25,19 @@ export function CommandScreenLayout({ children }: any) {
 export function CommandScreenSectionHeading({ 
   title, subtitle, icon, actions, rightContent, 
   className = "", shape = "circle", 
-  colorClass = "bg-white/5 border-white/10", 
+  colorClass = "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]", 
   iconColorClass = "theme-text-accent" 
 }: any) {
   const { t } = useLexicon();
   const shapeClass = shape === "square" ? "rounded-lg" : "rounded-full";
   
   return (
-    <div className={`flex justify-between items-center border-b border-white/10 pb-6 w-full mb-8 relative z-10 ${className}`}>
+    <div className={`flex justify-between items-center border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6 w-full mb-8 relative z-10 ${className}`}>
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[var(--accent)]/50 to-transparent" />
       <div className="flex items-center gap-4 flex-1 min-w-0">
         {icon && (
-          <div className={`w-12 h-12 ${shapeClass} flex items-center justify-center shrink-0 border theme-glass-panel relative overflow-hidden group shadow-md`}>
-            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className={`w-12 h-12 ${shapeClass} flex items-center justify-center shrink-0 border glass-panel relative overflow-hidden group shadow-md`}>
+            <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className={`material-symbols-outlined !text-[24px] relative z-10 ${iconColorClass}`}>{icon}</span>
           </div>
         )}
@@ -88,11 +88,11 @@ export function CommandScreenSidebar({ title, icon, shape = "square", children }
     const shapeClass = shape === "square" ? "rounded-lg" : "rounded-full";
     return (
         <div className="w-[380px] shrink-0 flex flex-col">
-            <div className="flex items-center gap-4 mb-6 border-b border-white/10 pb-6 relative z-10 w-full">
+            <div className="flex items-center gap-4 mb-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6 relative z-10 w-full">
                 <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[var(--accent)]/50 to-transparent" />
                 {icon && (
-                    <div className={`w-12 h-12 ${shapeClass} flex items-center justify-center shrink-0 border theme-glass-panel relative overflow-hidden group shadow-md`}>
-                        <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className={`w-12 h-12 ${shapeClass} flex items-center justify-center shrink-0 border glass-panel relative overflow-hidden group shadow-md`}>
+                        <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
                         <span className="material-symbols-outlined !text-[24px] relative z-10 theme-text-accent">{icon}</span>
                     </div>
                 )}
@@ -113,7 +113,7 @@ export function UrgentBroadcastBanner({ urgentBroadcast, setViewingPost, setUrge
     if (!urgentBroadcast || localStorage.getItem("sanctuary_notify_alert_banner") === "false") return null;
 
     return (
-        <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full theme-glass-panel border border-[var(--danger)]/30 bg-[var(--danger)]/10 rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center gap-6 shadow-[0_0_40px_rgba(239,68,68,0.1)] cursor-pointer hover:bg-[var(--danger)]/20 transition-all group overflow-hidden relative backdrop-blur-md">
+        <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full glass-panel border border-[var(--danger)]/30 bg-[var(--danger)]/10 rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center gap-6 shadow-md cursor-pointer hover:bg-[var(--danger)]/20 transition-all group overflow-hidden relative backdrop-blur-md">
             <div className="absolute inset-0 bg-gradient-to-r from-[var(--danger)]/5 to-transparent z-0 pointer-events-none" />
             <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--danger)]/10 blur-[50px] rounded-full pointer-events-none" />
             <div className="w-16 h-16 rounded-full bg-[var(--danger)]/10 border border-[var(--danger)]/30 flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform shadow-inner">
@@ -142,7 +142,7 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
             {broadcasts.length > 0 ? broadcasts.map((post: any, index: number) => {
                 return (
-                    <div key={post.id} onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="group cursor-pointer w-full theme-glass-panel rounded-[var(--radius)] overflow-hidden hover:scale-[1.02] transition-all shadow-xl hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.3)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 flex flex-col min-h-[16rem]">
+                    <div key={post.id} onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="group cursor-pointer w-full glass-panel rounded-[var(--radius)] overflow-hidden hover:scale-[1.02] transition-all shadow-xl hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.3)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 flex flex-col min-h-[16rem]">
                         <div className="w-full h-40 relative overflow-hidden bg-[var(--bg)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0">
                             <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent z-10 pointer-events-none" />
                             {extractPostImage(post) ? (
@@ -154,7 +154,7 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                         <div className="flex-1 p-6 flex flex-col min-w-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--bg)_40%,transparent)] to-transparent relative z-10">
                             <div className="flex items-center gap-2 mb-3 shrink-0 flex-wrap">
                                 <span className="px-2 py-0.5 bg-[var(--accent)]/20 text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg">{post.category || t("comms_btn_update") || "UPDATE"}</span>
-                                <span className="px-2 py-0.5 theme-glass-inner text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg">{t("category_system")}</span>
+                                <span className="px-2 py-0.5 glass-surface text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg">{t("category_system")}</span>
                             </div>
                             <h3 className="text-lg font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors mb-3 leading-tight line-clamp-2">{post.title}</h3>
                             <div className="flex-1 min-h-0 mb-4">
@@ -168,7 +168,7 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                     </div>
                 );
             }) : (
-                <div className="w-full lg:col-span-3 theme-glass-panel rounded-[var(--radius)] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <div className="w-full lg:col-span-3 glass-panel rounded-[var(--radius)] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                     {t("system_no_broadcasts")}
                 </div>
             )}
@@ -179,7 +179,7 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
 
 export function CommandScreenMetricTile({ icon, value, label, valueColorClass = "theme-text-accent", hoverBorderClass = "hover:border-[var(--accent)]/30" }: any) {
     return (
-        <div className={`min-w-0 theme-glass-panel border border-white/5 rounded-[var(--radius)] p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-white/5 ${hoverBorderClass} transition-all text-center h-32 relative overflow-hidden group`}>
+        <div className={`min-w-0 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${hoverBorderClass} transition-all text-center h-32 relative overflow-hidden group`}>
             {icon && <span className={`absolute -left-4 -bottom-4 text-[80px] opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all material-symbols-outlined grayscale group-hover:grayscale-0 ${valueColorClass}`}>{icon}</span>}
             <span className={`text-3xl font-black relative z-10 ${valueColorClass}`}>{value}</span>
             <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight relative z-10 truncate w-full">{label}</span>
@@ -189,10 +189,10 @@ export function CommandScreenMetricTile({ icon, value, label, valueColorClass = 
 
 export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "group-hover:text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "group-hover:border-[var(--accent)]/30", isAlert = false }: any) {
     return (
-        <button onClick={onClick} className="w-full p-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-white/5 hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
+        <button onClick={onClick} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
             <div className="flex items-center gap-5 h-full relative z-10">
-                <div className={`w-12 h-12 rounded-lg theme-glass-inner border flex items-center justify-center shrink-0 transition-colors border-white/10 ${iconBorderHoverClass} ${isAlert ? 'text-[var(--danger)] border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : ''}`}>
+                <div className={`w-12 h-12 rounded-lg glass-surface border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${iconBorderHoverClass} ${isAlert ? 'text-[var(--danger)] border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 shadow-md' : ''}`}>
                     <span className={`material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 ${iconShadowClass} ${isAlert ? 'animate-pulse' : ''}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0">

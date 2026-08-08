@@ -83,7 +83,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
       <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen transition-opacity duration-1000 animate-in fade-in" />
       <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 50%, transparent), var(--bg))' }} />
 
-      <div className="relative z-10 w-[95%] max-w-5xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row overflow-hidden group">
+      <div className="relative z-10 w-[95%] max-w-5xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row overflow-hidden group">
 
         {/* LEFT COLUMN: The Setup Console */}
         <div className="p-8 lg:p-12 flex flex-col lg:w-1/2 border-b lg:border-b-0 lg:border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-20 overflow-hidden">
@@ -120,20 +120,20 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
                   setStatus(t("status_autodetect_failed"));
                 }
               }}
-              className="w-full theme-glass-inner backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-5 py-3.5 rounded-xl text-[10px] font-black text-[var(--text)] hover:bg-[var(--accent)] hover:text-white hover:border-[var(--accent)]/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 uppercase tracking-widest mb-3 shadow-sm"
+              className="w-full glass-surface backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-5 py-3.5 rounded-xl text-[10px] font-black text-[var(--text)] hover:bg-[var(--accent)] hover:text-white hover:border-[var(--accent)]/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 uppercase tracking-widest mb-3 shadow-sm"
             >
               <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">cloud</span> {t("auto_auto_detect_paths") || "Auto-Detect Paths"}</span>
             </button>
 
-            <button onClick={pickLivePath} className={`w-full theme-glass-inner backdrop-blur-md border ${livePath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-between group shadow-sm`}>
+            <button onClick={pickLivePath} className={`w-full glass-surface backdrop-blur-md border ${livePath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-between group shadow-sm`}>
               <span className="uppercase tracking-widest">{livePath ? t("setup_btn_bin_locked") || "Bin Locked" : t("setup_btn_bin") || "Select Bin Folder"}</span>
               <div className={`w-2 h-2 rounded-full ${livePath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-[var(--warning)] shadow-[0_0_10px_var(--warning)] animate-pulse'}`} />
             </button>
-            <button onClick={pickModsPath} className={`w-full theme-glass-inner backdrop-blur-md border ${modsPath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-between group shadow-sm`}>
+            <button onClick={pickModsPath} className={`w-full glass-surface backdrop-blur-md border ${modsPath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-between group shadow-sm`}>
               <span className="uppercase tracking-widest">{modsPath ? t("setup_btn_mods_locked") || "Mods Locked" : t("setup_btn_mods") || "Select Mods Folder"}</span>
               <div className={`w-2 h-2 rounded-full ${modsPath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-[var(--warning)] shadow-[0_0_10px_var(--warning)] animate-pulse'}`} />
             </button>
-            <button onClick={!isGlobalVaultSet ? pickVaultPath : undefined} className={`w-full theme-glass-inner backdrop-blur-md border ${vaultPath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-between group shadow-sm mb-3 ${isGlobalVaultSet ? 'opacity-80 cursor-not-allowed' : ''}`}>
+            <button onClick={!isGlobalVaultSet ? pickVaultPath : undefined} className={`w-full glass-surface backdrop-blur-md border ${vaultPath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-between group shadow-sm mb-3 ${isGlobalVaultSet ? 'opacity-80 cursor-not-allowed' : ''}`}>
               <span className="uppercase tracking-widest">{vaultPath ? (isGlobalVaultSet ? "OS Master Vault Enforced" : "Master Vault Locked") : "Select Master OS Vault"}</span>
               <div className={`w-2 h-2 rounded-full ${vaultPath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-[var(--warning)] shadow-[0_0_10px_var(--warning)] animate-pulse'}`} />
             </button>
@@ -151,8 +151,8 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
                       const buildOption = (id: string, name: string, badge: string, isCustom: boolean = false) => {
                         const displayName = isCustom ? `Custom: ${name}` : name;
                         const badgeColor = badge.toLowerCase() === 'sanctuary' 
-                          ? 'border-[var(--accent)]/30 text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]'
-                          : 'border-white/10 text-[var(--text)] bg-white/5';
+                          ? 'border-[var(--accent)]/30 text-[var(--accent)] bg-[var(--accent)]/[10%]'
+                          : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]';
                         return {
                           id,
                           searchText: `${displayName} ${badge} ${id.toLowerCase().startsWith('en-') ? 'English' : ''} ${id.toLowerCase().startsWith('de-') ? 'German' : ''}`,
@@ -223,7 +223,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
             <button
               onClick={lockCoordinates}
               disabled={!livePath || !modsPath || !vaultPath}
-              className="w-full mt-2 py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 group/lock"
+              className="w-full mt-2 py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] transition-all bg-[var(--accent)]/[15%] backdrop-blur-md border border-[var(--accent)]/[30%] theme-text-accent hover:bg-[var(--accent)]/[25%] hover:border-[var(--accent)]/[50%] hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 group/lock"
             >
               <span className="material-symbols-outlined !text-[16px] group-hover/lock:scale-110 transition-transform duration-500">lock</span>
               {t("setup_btn_lock") || "Lock Coordinates"}
@@ -242,7 +242,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
 
           <div className="flex flex-col gap-6 relative z-10 flex-1 justify-center">
             {/* Fake Component 1: Mod Card / Transmission */}
-            <div className="theme-glass-panel p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl hover:border-[var(--accent)]/30 transition-all duration-700">
+            <div className="glass-panel p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl hover:border-[var(--accent)]/30 transition-all duration-700">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full theme-bg-accent/20 flex items-center justify-center border border-[var(--accent)]/30 transition-colors duration-500">
@@ -263,11 +263,11 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
                 {t("alert_guest_mode_uploads") || "Guest mode active. Uploads and global flags are disabled."}
               </p>
               <div className="flex items-center gap-3">
-                <button className="px-5 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-lg text-[10px] font-black uppercase tracking-widest shadow-[inset_0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent),0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 backdrop-blur-md">
+                <button className="px-5 py-2 bg-[var(--accent)]/[20%] border border-[var(--accent)]/[50%] text-[var(--accent)] rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-[var(--accent)]/[30%] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 backdrop-blur-md">
                   <span className="material-symbols-outlined !text-[14px]">bolt</span>
                   {t("context_initialize") || "INITIALIZE"}
                 </button>
-                <button className="px-5 py-2 theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
+                <button className="px-5 py-2 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
                   {t("nav_cancel") || "CANCEL"}
                 </button>
               </div>
@@ -275,7 +275,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
 
             {/* Fake Component 2: System Status widgets */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="theme-glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 relative overflow-hidden group/stat shadow-xl">
+              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 relative overflow-hidden group/stat shadow-xl">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--success)]/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500" />
                 <span className="text-[9px] font-black tracking-[0.2em] theme-text-accent uppercase opacity-80 relative z-10 transition-colors duration-500">{t("status") || "STATUS"}</span>
                 <div className="flex items-center gap-2.5 relative z-10">
@@ -283,7 +283,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
                   <span className="text-sm font-bold text-[var(--text)] tracking-wide">{t("status_operational") || "OPERATIONAL"}</span>
                 </div>
               </div>
-              <div className="theme-glass-panel p-5 rounded-2xl border border-[var(--warning)]/30 flex flex-col gap-2 relative overflow-hidden hover:border-[var(--warning)]/50 transition-colors shadow-xl">
+              <div className="glass-panel p-5 rounded-2xl border border-[var(--warning)]/30 flex flex-col gap-2 relative overflow-hidden hover:border-[var(--warning)]/50 transition-colors shadow-xl">
                 <div className="absolute inset-0 bg-[var(--warning)]/10" />
                 <span className="text-[9px] font-black tracking-[0.2em] text-[var(--warning)] uppercase opacity-90 relative z-10">{t("defcon_label")}</span>
                 <div className="flex items-center gap-2.5 relative z-10">

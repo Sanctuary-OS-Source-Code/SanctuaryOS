@@ -28,7 +28,7 @@ function TabButton({ id, label, activeTab, setTab }: any) {
             className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2
         ${isActive
                     ? 'theme-bg-accent text-[var(--bg)] shadow-lg'
-                    : 'text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:bg-white/5'
+                    : 'text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
                 }`}
         >
             {label}
@@ -69,7 +69,7 @@ export default function Oversight({ onOpenMasonProfile }: any) {
                 icon={t("icon_security")}
                 iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
             >
-                <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/10 shadow-inner">
+                <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
                     <button
                         onClick={() => setIsVerifyPanelOpen(true)}
                         className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
@@ -83,7 +83,7 @@ export default function Oversight({ onOpenMasonProfile }: any) {
                     <button
                         onClick={() => setDefconOpen(true)}
                         className={`h-12 px-6 rounded-none transition-all flex items-center justify-center gap-3 shrink-0 font-black uppercase tracking-widest border border-transparent ${defconLevel === 1
-                            ? 'text-red-400 hover:text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] bg-red-500/10 hover:bg-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.3)] animate-pulse'
+                            ? 'text-red-400 hover:text-red-300 drop-shadow-md bg-red-500/10 hover:bg-red-500/20 shadow-md animate-pulse'
                             : 'text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50'
                             }`}
                     >
@@ -96,7 +96,7 @@ export default function Oversight({ onOpenMasonProfile }: any) {
             </ViewHeader>
 
             <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
-                <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 shrink-0">
+                <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 shrink-0">
                     <HubTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
                     <HubTabButton id="oversight_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch") || "DISPATCH"} activeTab={activeTab} setTab={setActiveTab} />
                     <HubTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />

@@ -1302,7 +1302,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         <p className="text-xs font-bold uppercase tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc")}</p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-4 px-8 py-4 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest group"
+          className="mt-4 px-8 py-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest group"
         >
           <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">refresh</span>
           {t("offline_mode_refresh")}
@@ -1363,7 +1363,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
       <div className="flex flex-col">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mb-6 w-full">
-          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
+          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full">
             {['HOME', 'MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
               <HubTabButton
                 key={tab}
@@ -1380,11 +1380,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         <div className={marketTab === 'HOME' ? 'flex-1 flex flex-col relative' : 'hidden'}>
           <CommandScreenLayout>
             <CommandScreenStats>
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">extension</span>} number={stats.artifacts} label={t("tab_mods") || "Artifacts"} colorClass="border-cyan-500/30 text-cyan-400 hover:border-cyan-500/60 bg-cyan-500/10 hover:bg-cyan-500/20 cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.05)]" onClick={() => setMarketTab('MODS')} />
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">map</span>} number={stats.blueprints} label={t("tab_blueprints") || "Blueprints"} colorClass="border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] cursor-pointer" onClick={() => setMarketTab('BLUEPRINTS')} />
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">translate</span>} number={stats.lexicons} label={t("tab_lexicons") || "Lexicons"} colorClass="border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:border-[var(--warning)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] cursor-pointer" onClick={() => setMarketTab('LEXICONS')} />
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">palette</span>} number={stats.chameleons} label={t("tab_chameleons") || "Chameleons"} colorClass="border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] cursor-pointer" onClick={() => setMarketTab('CHAMELEONS')} />
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">draw</span>} number={stats.templates} label={t("tab_templates") || "Templates"} colorClass="border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] cursor-pointer" onClick={() => setMarketTab('TEMPLATES')} />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">extension</span>} number={stats.artifacts} label={t("tab_mods") || "Artifacts"} colorClass="border-cyan-500/30 text-cyan-400 hover:border-cyan-500/60 bg-cyan-500/10 hover:bg-cyan-500/20 cursor-pointer shadow-md" onClick={() => setMarketTab('MODS')} />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">map</span>} number={stats.blueprints} label={t("tab_blueprints") || "Blueprints"} colorClass="border-emerald-500/[30%] text-[var(--success)] hover:border-[var(--success)] bg-emerald-500/[10%] hover:bg-emerald-500/[20%] cursor-pointer" onClick={() => setMarketTab('BLUEPRINTS')} />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">translate</span>} number={stats.lexicons} label={t("tab_lexicons") || "Lexicons"} colorClass="border-orange-500/[30%] text-[var(--warning)] hover:border-[var(--warning)] bg-orange-500/[10%] hover:bg-orange-500/[20%] cursor-pointer" onClick={() => setMarketTab('LEXICONS')} />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">palette</span>} number={stats.chameleons} label={t("tab_chameleons") || "Chameleons"} colorClass="border-[var(--accent)]/[30%] text-[var(--accent)] hover:border-[var(--accent)] bg-[var(--accent)]/[10%] hover:bg-[var(--accent)]/[20%] cursor-pointer" onClick={() => setMarketTab('CHAMELEONS')} />
+              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">draw</span>} number={stats.templates} label={t("tab_templates") || "Templates"} colorClass="border-red-500/[30%] text-[var(--danger)] hover:border-[var(--danger)] bg-red-500/[10%] hover:bg-red-500/[20%] cursor-pointer" onClick={() => setMarketTab('TEMPLATES')} />
             </CommandScreenStats>
 
             <CommandScreenBody>
@@ -1401,7 +1401,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         {t("loading") || "LOADING RECENT ACTIVITY..."}
                       </div>
                     ) : recentFeed.length > 0 ? recentFeed.map(item => (
-                      <div key={`${item.feed_type}-${item.id}`} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group" onClick={() => {
+                      <div key={`${item.feed_type}-${item.id}`} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group" onClick={() => {
                         if (item.feed_type === 'artifact') {
                           if (onOpenDossier) onOpenDossier({ ...item, isNexusView: true });
                         } else if (item.feed_type === 'blueprint') {
@@ -1464,7 +1464,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         </div>
                       </div>
                     )) : (
-                      <div className="col-span-full theme-glass-panel p-8 rounded-2xl border border-white/5 border-dashed flex flex-col items-center justify-center gap-3 text-center opacity-70">
+                      <div className="col-span-full glass-panel p-8 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed flex flex-col items-center justify-center gap-3 text-center opacity-70">
                         <span className="material-symbols-outlined !text-6xl theme-text-accent mb-4 opacity-50">history</span>
                         <span className="text-xl">{t("no_recent_activity") || "NO RECENT ACTIVITY FOUND"}</span>
                       </div>
@@ -1482,7 +1482,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     onClick={() => setMarketTab('MODS')}
                     textColorClass="text-emerald-500"
                     hoverTextColorClass="group-hover:text-emerald-400"
-                    iconShadowClass="drop-shadow-[0_0_8px_rgba(16,185,129,0.5)] text-emerald-500"
+                    iconShadowClass="drop-shadow-md text-emerald-500"
                     iconBorderHoverClass="group-hover:border-emerald-500/30"
                   />
                   <CommandScreenQuickLink
@@ -1492,7 +1492,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     onClick={() => setMarketTab('BLUEPRINTS')}
                     textColorClass="text-blue-500"
                     hoverTextColorClass="group-hover:text-blue-400"
-                    iconShadowClass="drop-shadow-[0_0_8px_rgba(59,130,246,0.5)] text-blue-500"
+                    iconShadowClass="drop-shadow-md text-blue-500"
                     iconBorderHoverClass="group-hover:border-blue-500/30"
                   />
                   <CommandScreenQuickLink
@@ -1502,7 +1502,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     onClick={() => setMarketTab('LEXICONS')}
                     textColorClass="text-purple-500"
                     hoverTextColorClass="group-hover:text-purple-400"
-                    iconShadowClass="drop-shadow-[0_0_8px_rgba(168,85,247,0.5)] text-purple-500"
+                    iconShadowClass="drop-shadow-md text-purple-500"
                     iconBorderHoverClass="group-hover:border-purple-500/30"
                   />
                   <CommandScreenQuickLink
@@ -1512,7 +1512,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     onClick={() => setMarketTab('CHAMELEONS')}
                     textColorClass="text-rose-500"
                     hoverTextColorClass="group-hover:text-rose-400"
-                    iconShadowClass="drop-shadow-[0_0_8px_rgba(244,63,94,0.5)] text-rose-500"
+                    iconShadowClass="drop-shadow-md text-rose-500"
                     iconBorderHoverClass="group-hover:border-rose-500/30"
                   />
                   <CommandScreenQuickLink
@@ -1522,7 +1522,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     onClick={() => setMarketTab('TEMPLATES')}
                     textColorClass="text-amber-500"
                     hoverTextColorClass="group-hover:text-amber-400"
-                    iconShadowClass="drop-shadow-[0_0_8px_rgba(245,158,11,0.5)] text-amber-500"
+                    iconShadowClass="drop-shadow-md text-amber-500"
                     iconBorderHoverClass="group-hover:border-amber-500/30"
                   />
                 </div>
@@ -1533,9 +1533,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         
         <div className={marketTab === 'MODS' ? 'flex-1 flex flex-col relative' : 'hidden'}>
           <>
-            <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
+            <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
               <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] hidden xl:flex items-center gap-3 shrink-0">
-                <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">extension</span>
                 </div>
                 <span className="truncate">{t("tab_mods") || "ARTIFACTS"}</span>
@@ -1552,7 +1552,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       setSearchQuery(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                    className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
                   />
                   {searchQuery && (
                     <button onClick={() => { setSearchQuery(""); setCurrentPage(1); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
@@ -1630,7 +1630,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     <div
                       key={mod.id || `${mod.name}_${index}`}
                       onClick={() => onOpenDossier && onOpenDossier({ ...mod, isNexusView: true })}
-                      className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
+                      className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group"
                     >
                       <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
                         {(showImages !== false && mod.image_url) ? (
@@ -1648,7 +1648,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         )}
 
                         <div className="absolute top-4 left-4 z-30 pointer-events-auto">
-                          <div className={`backdrop-blur-[3px] border px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2 transition-all ${mod.status === 'verified' ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_15%,transparent)]' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)]'}`}>
+                          <div className={`backdrop-blur-[3px] border px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2 transition-all ${mod.status === 'verified' ? 'bg-emerald-500/[10%] border-emerald-500/[30%] hover:bg-emerald-500/[15%]' : 'bg-red-500/[10%] border-red-500/[30%] hover:bg-red-500/[15%]'}`}>
 
                             <span className={`text-[8px] font-black uppercase tracking-widest ${mod.status === 'verified' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                               {(mod.status || 'UNVERIFIED').replace(/_/g, ' ')}
@@ -1717,7 +1717,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 </>
               ) : (
                 <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center justify-center">
-                  <div className="w-24 h-24 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
+                  <div className="w-24 h-24 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
                     <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_hub")}</span>
                   </div>
                   <p className="font-black uppercase tracking-widest text-xl mb-2">{t("empty_title")}</p>
@@ -1731,7 +1731,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
+                  className="px-6 py-3 glass-surface rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent"
                 >
                   {t("nav_prev")}
                 </button>
@@ -1741,7 +1741,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
+                  className="px-6 py-3 glass-surface rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent"
                 >
                   {t("nav_next")}
                 </button>
@@ -1752,9 +1752,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         
         <div className={['BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].includes(marketTab) ? 'flex-1 flex flex-col relative' : 'hidden'}>
           <div className="flex flex-col">
-            <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
+            <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
               <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] hidden xl:flex items-center gap-3 shrink-0">
-                <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">
                     {marketTab === 'BLUEPRINTS' ? 'map' : marketTab === 'LEXICONS' ? 'translate' : marketTab === 'TEMPLATES' ? 'draw' : 'palette'}
                   </span>
@@ -1773,7 +1773,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       setAssetSearchQuery(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                    className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
                   />
                   {assetSearchQuery && (
                     <button onClick={() => { setAssetSearchQuery(""); setCurrentPage(1); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
@@ -1883,7 +1883,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       else if (marketTab === 'TEMPLATES') setPreviewAsset({ id: asset.id, type: 'workbench_template' });
                       else if (onOpenDossier) onOpenDossier({ ...asset, isNexusView: true });
                     }}
-                    className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
+                    className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group"
                   >
                     <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
                       <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>
@@ -1970,7 +1970,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   e.stopPropagation();
                                   setSelectedBlueprint(asset);
                                 }}
-                                className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105"
+                                className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] hover:scale-105"
                               >
                                 {isInstalled ? (t("btn_install_copy") || "INSTALL COPY") : (t("update_panel_install"))}
                               </button>
@@ -2007,7 +2007,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   return newMap;
                                 });
                               }}
-                              className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? isOutdated(asset) ? 'bg-[color-mix(in_srgb,#3b82f6_15%,transparent)] border border-[color-mix(in_srgb,#3b82f6_30%,transparent)] text-[#3b82f6] hover:bg-[color-mix(in_srgb,#3b82f6_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--subtext)_10%,transparent)] border border-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--subtext)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--subtext)_15%,transparent)] backdrop-blur-md' : 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]'}`}
+                              className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:scale-105 ${isInstalled(asset) ? isOutdated(asset) ? 'bg-[color-mix(in_srgb,#3b82f6_15%,transparent)] border border-[color-mix(in_srgb,#3b82f6_30%,transparent)] text-[#3b82f6] hover:bg-[color-mix(in_srgb,#3b82f6_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--subtext)_10%,transparent)] border border-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--subtext)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--subtext)_15%,transparent)] backdrop-blur-md' : 'bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] hover:bg-emerald-500/[20%]'}`}
                             >
                               {isInstalled(asset) ? isOutdated(asset) ? "UPDATE" : (t("btn_reinstall")) : (t("update_panel_install"))}
                             </button>
@@ -2019,7 +2019,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 ))
               ) : (
                 <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center justify-center">
-                  <div className="w-24 h-24 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
+                  <div className="w-24 h-24 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
                     <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{marketTab === 'BLUEPRINTS' ? (t("icon_map")) : marketTab === 'TEMPLATES' ? "draw" : (t("icon_palette"))}</span>
                   </div>
                   <p className="font-black uppercase tracking-widest text-xl mb-2">
@@ -2041,7 +2041,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
+                  className="px-6 py-3 glass-surface rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent"
                 >
                   {t("nav_prev")}
                 </button>
@@ -2051,7 +2051,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 <button
                   onClick={() => setCurrentPage(p => Math.min(assetTotalPages, p + 1))}
                   disabled={currentPage === assetTotalPages}
-                  className="px-6 py-3 theme-glass-inner rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent"
+                  className="px-6 py-3 glass-surface rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent"
                 >
                   {t("nav_next")}
                 </button>

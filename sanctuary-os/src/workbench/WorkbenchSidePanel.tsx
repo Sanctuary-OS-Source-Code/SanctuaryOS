@@ -74,7 +74,7 @@ export function WorkbenchSidePanel({
          defaultWidth={layoutState.isFullscreen ? window.innerWidth : ((isTemplateMode && previewMode !== 'off') || activeTab === 'dual' ? 1400 : 900)}
          panelClass={layoutState.isFullscreen ? "!w-full !max-w-[100vw] !border-r-0 !rounded-none" : ""}
          headerActions={
-            <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/10 shadow-inner mr-2 backdrop-blur-md">
+            <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner mr-2 backdrop-blur-md">
                <div className="relative group flex">
                   <button
                      onClick={() => layoutState.setIsFullscreen(!layoutState.isFullscreen)}
@@ -148,7 +148,7 @@ export function WorkbenchSidePanel({
                                  layoutState.setConfirmSaveWithErrors(false);
                                  fileState.saveConfig(editorState.rawText);
                               }}
-                              disabled={fileState.isSaving} label={t("btn_confirm_save_errors") || "FORCE SAVE"} icon="check" className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
+                              disabled={fileState.isSaving} label={t("btn_confirm_save_errors") || "FORCE SAVE"} icon="check" className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]"
                            >
                               
                               
@@ -189,13 +189,13 @@ export function WorkbenchSidePanel({
             <div className="flex-1 relative min-h-0 mx-2 mb-2 flex flex-col gap-4">
                {!isTemplateMode && (
                   <div className="flex justify-start items-center px-2 mt-2 shrink-0 z-[100]">
-                     <div className="flex-1 flex items-center overflow-x-auto overflow-y-hidden custom-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5">
+                     <div className="flex-1 flex items-center overflow-x-auto overflow-y-hidden custom-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5">
                         <HubTabButton id="visual" activeTab={activeTab} setTab={setActiveTab} label={t("tab_visual") || "Visual"} icon={t("icon_tune") || "tune"} />
                         <HubTabButton id="raw" activeTab={activeTab} setTab={setActiveTab} label={t("tab_raw") || "Raw"} icon={t("icon_code") || "code"} />
                         <HubTabButton id="dual" activeTab={activeTab} setTab={setActiveTab} label={t("tab_dual_vision") || "Dual Vision"} icon="splitscreen" />
                      </div>
                      {activeTab === 'dual' && (
-                        <button onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)} className={`ml-4 shrink-0 h-10 px-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${layoutState.isScrollLocked ? 'theme-glass-panel !bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] !border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)] !shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'theme-glass-panel border border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>
+                        <button onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)} className={`ml-4 shrink-0 h-10 px-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${layoutState.isScrollLocked ? 'glass-panel !bg-[var(--accent)]/[15%] !border-[var(--accent)]/[50%] !text-[var(--accent)] !shadow-md' : 'glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                            <span className="material-symbols-outlined !text-[18px]">{layoutState.isScrollLocked ? 'lock' : 'lock_open'}</span>
                            {t("sync_scroll") || "Sync Scroll"}
                         </button>
@@ -306,7 +306,7 @@ export function WorkbenchSidePanel({
                         </>
                      )}
 
-                     <div ref={layoutState.rawContainerRef} className={`monaco-wrapper relative flex flex-col theme-glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${activeTab === 'dual' ? 'shrink-0' : 'flex-1 min-w-0 min-h-0'} ${activeTab !== 'raw' && activeTab !== 'dual' ? 'hidden' : ''}`} style={activeTab === 'dual' ? { width: layoutState.isResizingPreview ? layoutState.dragPreviewWidthRef.current : layoutState.previewWidth } : {}}>
+                     <div ref={layoutState.rawContainerRef} className={`monaco-wrapper relative flex flex-col glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${activeTab === 'dual' ? 'shrink-0' : 'flex-1 min-w-0 min-h-0'} ${activeTab !== 'raw' && activeTab !== 'dual' ? 'hidden' : ''}`} style={activeTab === 'dual' ? { width: layoutState.isResizingPreview ? layoutState.dragPreviewWidthRef.current : layoutState.previewWidth } : {}}>
                            <WorkbenchRawEditor
                               value={editorState.rawText}
                               onChange={editorState.handleRawChange}
@@ -374,13 +374,13 @@ export function WorkbenchSidePanel({
 
                {isTemplateMode && (
                   <div className="flex justify-start items-center px-2 mt-2 mb-2 shrink-0 z-[100]">
-                     <div className="flex-1 flex items-center overflow-x-auto overflow-y-hidden custom-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5">
+                     <div className="flex-1 flex items-center overflow-x-auto overflow-y-hidden custom-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5">
                         <HubTabButton id="preview" activeTab={previewMode} setTab={setPreviewMode} label={t("preview") || "Preview"} icon="visibility" />
                         <HubTabButton id="file" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_file") || "File"} icon="description" />
                         <HubTabButton id="off" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_off") || "Off"} icon="visibility_off" />
                      </div>
                      {(previewMode === 'preview' || previewMode === 'file') && (
-                        <button onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)} className={`ml-4 shrink-0 h-10 px-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${layoutState.isScrollLocked ? 'theme-glass-panel !bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] !border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)] !shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'theme-glass-panel border border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>
+                        <button onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)} className={`ml-4 shrink-0 h-10 px-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${layoutState.isScrollLocked ? 'glass-panel !bg-[var(--accent)]/[15%] !border-[var(--accent)]/[50%] !text-[var(--accent)] !shadow-md' : 'glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                            <span className="material-symbols-outlined !text-[18px]">{layoutState.isScrollLocked ? 'lock' : 'lock_open'}</span>
                            {t("sync_scroll") || "Sync Scroll"}
                         </button>
@@ -390,7 +390,7 @@ export function WorkbenchSidePanel({
 
                {isTemplateMode && (
                   <div className={`flex-1 flex gap-4 min-w-0 min-h-0 ${previewMode === 'off' ? 'flex-col' : 'flex-row'}`}>
-                     <div className="flex-1 theme-glass-panel rounded-[var(--radius)] overflow-visible shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative flex flex-col min-h-0 min-w-0 z-[110]">
+                     <div className="flex-1 glass-panel rounded-[var(--radius)] overflow-visible shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative flex flex-col min-h-0 min-w-0 z-[110]">
                         <div className="p-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 flex items-center justify-between z-10 w-full overflow-visible flex-wrap rounded-t-[var(--radius)]">
                            <WorkbenchTemplateTools
                               parsedData={editorState.parsedData}
@@ -443,7 +443,7 @@ export function WorkbenchSidePanel({
                            >
                               <div className="h-12 w-1 rounded-full bg-[var(--accent)]/30" />
                            </div>
-                           <div className={`shrink-0 theme-glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${layoutState.isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: layoutState.previewWidth }}>
+                           <div className={`shrink-0 glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${layoutState.isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: layoutState.previewWidth }}>
                               <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 text-center flex items-center justify-between">
                                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">{previewMode === 'preview' ? t("workbench_preview_title") : (editorState.parsedData?.target_file || 'Target File')}</span>
                               </div>

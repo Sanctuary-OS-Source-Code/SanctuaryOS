@@ -161,9 +161,9 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_policy")}</span>
           </div>
           <span className="truncate">{t("comp_title")}</span>
@@ -176,7 +176,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={t("search_ph")}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
 
@@ -193,16 +193,16 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             />
           </div>
 
-          <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 h-12 shrink-0 z-40">
+          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] h-12 shrink-0 z-40">
             <button
               onClick={() => setFilterStatus("pending")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
             >
               {t("pending")}
             </button>
             <button
               onClick={() => setFilterStatus("verified")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'verified' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'verified' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
             >
               {t("verified")}
             </button>
@@ -220,7 +220,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
           {loading ? (
-            <div className="theme-glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("comp_scanning")}</div>
+            <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("comp_scanning")}</div>
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {filteredMods.map(mod => {
@@ -229,7 +229,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
                   <div
                     key={mod.id}
                     onClick={() => handleOpenPanel(mod)}
-                    className={`theme-glass-panel rounded-[var(--radius)] flex flex-col group border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] cursor-pointer hover:-translate-y-1.5 border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)]`}
+                    className={`glass-panel rounded-[var(--radius)] flex flex-col group border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] cursor-pointer hover:-translate-y-1.5 border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[50%] hover:shadow-md`}
                   >
                     <div className={`absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
 
@@ -237,12 +237,12 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
                     <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
                       <div className="flex justify-between items-start gap-4">
-                        <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]`}>
+                        <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[var(--accent)]/[30%]`}>
                           <span className={`material-symbols-outlined !text-[24px] opacity-50 group-hover:opacity-100 transition-colors duration-500 text-[var(--text)] group-hover:theme-text-accent`}>
                             {t("icon_policy")}
                           </span>
                         </div>
-                        <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-white/5 ${td.color}`}>
+                        <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${td.color}`}>
                           {td.label}
                         </span>
                       </div>
@@ -257,7 +257,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
                         </span>
                       </div>
 
-                      <div className="flex flex-col gap-1 mt-1 border-t border-white/5 pt-3">
+                      <div className="flex flex-col gap-1 mt-1 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3">
                         <span className="text-[10px] font-bold uppercase flex justify-between items-center w-full text-[var(--subtext)] opacity-80">
                           <span className="flex items-center gap-1.5 truncate">
                             <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_fingerprint")}</span>
@@ -288,7 +288,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         footer={
           <div className="flex flex-col gap-4 w-full">
             {status && (
-              <div className="text-center bg-black/20 p-3 rounded-xl border border-white/5 w-full">
+              <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
                 <p className={`text-[10px] font-black uppercase tracking-widest ${status.includes('Failed') || status.includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
               </div>
             )}
@@ -337,7 +337,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           </div>
 
           <div className="flex flex-col gap-6 relative">
-            <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+            <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_policy")}</span>
               {t("comp_enforcement")}
             </h4>
@@ -353,14 +353,14 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
             <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-40 mt-2">
               <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-md"></span>
                 {t("tier_reason_req")}
               </label>
               <textarea
                 value={editReason}
                 onChange={e => setEditReason(e.target.value)}
                 placeholder={t("comp_reason_placeholder")}
-                className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
+                className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
               />
             </div>
           </div>

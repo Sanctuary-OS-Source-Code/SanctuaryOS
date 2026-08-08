@@ -16,7 +16,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
       <div className="flex flex-col lg:flex-row gap-8 w-full h-full min-h-0">
         <div className="flex-1 flex flex-col gap-6 min-w-0">
           <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3 min-w-[200px] shrink-0 mb-4">
-            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-cyan-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl glass-panel border border-cyan-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-2xl text-cyan-400 opacity-90 drop-shadow-lg">{t("icon_satellite_alt")}</span>
             </div>
             <span className="truncate">{t("tab_commlink")}</span>
@@ -43,7 +43,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
         <div className="w-full lg:w-[420px] shrink-0 flex flex-col gap-6">
           <div className="flex items-center justify-between mb-4 w-full gap-4">
             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3 min-w-[200px] shrink-0">
-              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-amber-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-xl glass-panel border border-amber-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-2xl text-amber-500 opacity-90 drop-shadow-lg">workspace_premium</span>
               </div>
               <span className="truncate">{t("showcase") || "Showcase"}</span>
@@ -67,7 +67,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
                 const otherMods = mods.filter((m: any) => m.id !== showcaseMod.id).slice(0, 2);
                 return (
                   <div className="flex flex-col gap-3">
-                    <div onClick={() => onModClick({ ...showcaseMod, author: mason.name, isNexusView: true })} className="relative flex flex-col theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">
+                    <div onClick={() => onModClick({ ...showcaseMod, author: mason.name, isNexusView: true })} className="relative flex flex-col glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group">
                       <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
                         {showcaseMod.image_url ? (
                           <img src={showcaseMod.image_url} alt={showcaseMod.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700" />
@@ -99,7 +99,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate">{mason.name}</p>
                           {(mason?.pinned_mod_id === showcaseMod.id || mason?.pinned_ccset_id === showcaseMod.id) && (
-                            <div className="px-1.5 py-0.5 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded flex items-center gap-1 shadow-sm shrink-0">
+                            <div className="px-1.5 py-0.5 bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] rounded flex items-center gap-1 shadow-sm shrink-0">
                               <span className="material-symbols-outlined !text-[10px] text-[var(--accent)]">push_pin</span>
                               <span className="text-[8px] font-black uppercase tracking-widest text-[var(--accent)]">{t("pinned") || "PINNED"}</span>
                             </div>
@@ -114,7 +114,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
                     {otherMods.length > 0 && (
                       <div className="grid grid-cols-2 gap-3">
                         {otherMods.map((mod: any) => (
-                          <div key={mod.id} onClick={() => onModClick({ ...mod, author: mason.name, isNexusView: true })} className="relative flex flex-col h-full theme-glass-panel rounded-xl overflow-hidden transition-all duration-300 shadow hover:shadow-lg cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                          <div key={mod.id} onClick={() => onModClick({ ...mod, author: mason.name, isNexusView: true })} className="relative flex flex-col h-full glass-panel rounded-xl overflow-hidden transition-all duration-300 shadow hover:shadow-lg cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] group border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                             <div className="relative h-28 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] overflow-hidden flex items-center justify-center shrink-0">
                               {mod.image_url ? (
                                 <img src={mod.image_url} alt={mod.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-transform duration-700 group-hover:scale-110" />
@@ -169,7 +169,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
                       } else {
                         setActiveAsset({ type: showcaseAsset.asset_type, id: showcaseAsset.id });
                       }
-                    }} className="relative flex flex-col theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group">
+                    }} className="relative flex flex-col glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group">
                       <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
                         {showcaseAsset.image_url ? (
                           <img src={showcaseAsset.image_url} alt={showcaseAsset.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700" />
@@ -185,7 +185,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate">{mason.name}</p>
                           {(mason?.pinned_asset_id === showcaseAsset.id || mason?.pinned_blueprint_id === showcaseAsset.id) && (
-                            <div className="px-1.5 py-0.5 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded flex items-center gap-1 shadow-sm shrink-0">
+                            <div className="px-1.5 py-0.5 bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] rounded flex items-center gap-1 shadow-sm shrink-0">
                               <span className="material-symbols-outlined !text-[10px] text-[var(--accent)]">push_pin</span>
                               <span className="text-[8px] font-black uppercase tracking-widest text-[var(--accent)]">{t("pinned") || "PINNED"}</span>
                             </div>
@@ -209,7 +209,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
                               } else {
                                 setActiveAsset({ type: asset.asset_type, id: asset.id });
                               }
-                            }} className="relative flex flex-col h-full theme-glass-panel rounded-xl overflow-hidden transition-all duration-300 shadow hover:shadow-lg cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                            }} className="relative flex flex-col h-full glass-panel rounded-xl overflow-hidden transition-all duration-300 shadow hover:shadow-lg cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] group border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                               <div className="relative h-28 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] overflow-hidden flex items-center justify-center shrink-0">
                                 {asset.image_url ? (
                                   <img src={asset.image_url} alt={asset.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-transform duration-700 group-hover:scale-110" />

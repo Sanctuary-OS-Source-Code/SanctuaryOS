@@ -143,9 +143,9 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
 
   return (
     <div className="flex flex-col w-full relative h-full pb-20">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
         <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_hub")}</span>
           </div>
           <span className="truncate">{t("mason_market_title")}</span>
@@ -157,7 +157,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder={t("market_search")}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchQuery && (
               <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
@@ -179,12 +179,12 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                 onChange={(val: string[]) => setActiveCategory(val[0])}
               />
             </div>
-            <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl border border-white/5 shadow-inner h-12 shrink-0 divide-x divide-white/5">
-              <button onClick={() => setVisibilityFilter("active")} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${visibilityFilter === 'active' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_active") || "ACTIVE"}</button>
-              <button onClick={() => setVisibilityFilter("inactive")} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${visibilityFilter === 'inactive' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_inactive") || "INACTIVE"}</button>
+            <div className="flex items-stretch overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5">
+              <button onClick={() => setVisibilityFilter("active")} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${visibilityFilter === 'active' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_active") || "ACTIVE"}</button>
+              <button onClick={() => setVisibilityFilter("inactive")} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${visibilityFilter === 'inactive' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_inactive") || "INACTIVE"}</button>
             </div>
             {activeCategory !== 'all' && (
-              <button onClick={() => setUploadState({ isOpen: true, editId: null, assetType: activeCategory, isHidden: false, name: '', version: '1.0.0', description: '', releaseNotes: '', fileContent: null, fileName: '', language: availableLanguages.length > 0 ? availableLanguages[0] : 'English', newLanguage: '', lexiconType: 'Theme', themeMode: 'Dark' })} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
+              <button onClick={() => setUploadState({ isOpen: true, editId: null, assetType: activeCategory, isHidden: false, name: '', version: '1.0.0', description: '', releaseNotes: '', fileContent: null, fileName: '', language: availableLanguages.length > 0 ? availableLanguages[0] : 'English', newLanguage: '', lexiconType: 'Theme', themeMode: 'Dark' })} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] hover:scale-105 shadow-lg font-black uppercase tracking-widest text-[10px] group">
                 <span className="material-symbols-outlined !text-[16px] group-hover:-translate-y-0.5 transition-transform">add</span> {t("ui_tab_new")}
               </button>
             )}
@@ -201,7 +201,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
               const isHidden = asset.is_public === false;
               const displayAssetType = asset.asset_type;
               return (
-                <div key={asset.id} onClick={() => handleEditAsset(asset)} className="theme-glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden relative">
+                <div key={asset.id} onClick={() => handleEditAsset(asset)} className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden relative">
 
                   <div className="absolute top-4 left-4 z-20 pointer-events-none">
                     {isHidden ? (
@@ -237,7 +237,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                     </p>
                   </div>
 
-                  <div className="p-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-white/5 flex gap-2 relative z-10 items-center justify-between">
+                  <div className="p-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex gap-2 relative z-10 items-center justify-between">
                     <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_download")}</span> {asset.downloads || 0}</span>
                     <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
                       {t("mason_edit_listing") || "EDIT LISTING"} <span className="material-symbols-outlined !text-[14px]">arrow_forward</span>
@@ -316,7 +316,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
             <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_file")}</label>
               <div className="flex items-center gap-4">
-                <div className="flex-1 theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] truncate opacity-70">
+                <div className="flex-1 glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] truncate opacity-70">
                   {uploadState.fileName || "No file selected"}
                 </div>
                 {!uploadState.isHidden && (
@@ -354,7 +354,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                 type="text"
                 value={uploadState.name}
                 onChange={e => setUploadState(s => ({ ...s, name: e.target.value }))}
-                className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)]"
+                className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)]"
               />
             </div>
             <div className="flex flex-col gap-2 w-32 shrink-0">
@@ -363,7 +363,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                 type="text"
                 value={uploadState.version}
                 onChange={e => setUploadState(s => ({ ...s, version: e.target.value }))}
-                className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)] text-center"
+                className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)] text-center"
               />
             </div>
           </div>
@@ -373,7 +373,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
             <textarea
               value={uploadState.description}
               onChange={e => setUploadState(s => ({ ...s, description: e.target.value }))}
-              className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[150px] text-[var(--text)] custom-scrollbar resize-none"
+              className="w-full glass-surface rounded-xl px-5 py-4 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[150px] text-[var(--text)] custom-scrollbar resize-none"
             />
           </div>
 
@@ -386,7 +386,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
               value={uploadState.releaseNotes || ""}
               onChange={e => setUploadState(s => ({ ...s, releaseNotes: e.target.value }))}
               placeholder={t("update_panel_no_notes")}
-              className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[100px] text-[var(--text)] custom-scrollbar resize-none"
+              className="w-full glass-surface rounded-xl px-5 py-4 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[100px] text-[var(--text)] custom-scrollbar resize-none"
             />
           </div>
 
@@ -468,7 +468,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                     type="text"
                     value={uploadState.newLanguage}
                     onChange={e => setUploadState(s => ({ ...s, newLanguage: e.target.value }))}
-                    className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
+                    className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
                     placeholder={t("ph_language")}
                   />
                 </div>

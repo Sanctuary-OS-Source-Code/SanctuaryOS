@@ -87,7 +87,7 @@ export function ChameleonControlDashboard({
                 {activeColorPicker === key && createPortal(
                   <>
                     <div className="fixed inset-0 z-[50000]" onClick={() => setActiveColorPicker(null)} />
-                    <div className="fixed z-[50001] p-8 theme-glass-panel backdrop-blur-3xl rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200"
+                    <div className="fixed z-[50001] p-8 glass-panel backdrop-blur-3xl rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200"
                       style={{
                         top: Math.min(colorPickerRefs.current[key]?.getBoundingClientRect().bottom + 12, window.innerHeight - 350),
                         left: Math.min(colorPickerRefs.current[key]?.getBoundingClientRect().left, window.innerWidth - 450),
@@ -98,10 +98,10 @@ export function ChameleonControlDashboard({
                             type="text"
                             value={currentTheme[key]}
                             onChange={(e) => handleUpdateTheme({ [key]: e.target.value })}
-                            className="flex-1 theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-black text-[var(--text)] uppercase tracking-widest outline-none focus:theme-border-accent transition-colors shadow-inner"
+                            className="flex-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-black text-[var(--text)] uppercase tracking-widest outline-none focus:theme-border-accent transition-colors shadow-inner"
                           />
                         ) : (
-                          <div className="flex-1 theme-glass-panel border border-[var(--warning)]/40 rounded-2xl shadow-lg shadow-[var(--warning)]/10 flex items-center justify-center text-center relative overflow-hidden">
+                          <div className="flex-1 glass-panel border border-[var(--warning)]/40 rounded-2xl shadow-lg shadow-[var(--warning)]/10 flex items-center justify-center text-center relative overflow-hidden">
                             <div className="absolute inset-0 bg-[var(--warning)] opacity-10 pointer-events-none" />
                             <span className="relative z-10 text-[var(--warning)] px-5 py-4 text-[10px] font-black uppercase tracking-[0.2em] drop-shadow-sm">
                               {t("color_restricted") || "SEMANTIC LOCK ACTIVE"}
@@ -191,7 +191,7 @@ export function ChameleonControlDashboard({
                 <button
                   key={font}
                   onClick={() => handleUpdateTheme({ fontFamily: font })}
-                  className={`px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentTheme.fontFamily === font || (!currentTheme.fontFamily && font.includes('Inter')) ? 'theme-glass-panel border-[var(--accent)] theme-text-accent shadow-[0_0_30px_rgba(var(--accent-rgb),0.5)] scale-105' : 'theme-glass-panel hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner'}`}
+                  className={`px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentTheme.fontFamily === font || (!currentTheme.fontFamily && font.includes('Inter')) ? 'glass-panel border-[var(--accent)] theme-text-accent shadow-[0_0_30px_rgba(var(--accent-rgb),0.5)] scale-105' : 'glass-panel hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner'}`}
                   style={{
                     fontFamily: font,
                     backgroundColor: (currentTheme.fontFamily === font || (!currentTheme.fontFamily && font.includes('Inter'))) ? "color-mix(in srgb, var(--accent) 15%, transparent)" : undefined
@@ -315,7 +315,7 @@ export function ChameleonControlDashboard({
             type="text"
             value={currentTheme.bgGradient || "none"}
             onChange={(e) => handleUpdateTheme({ bgGradient: e.target.value })}
-            className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-5 py-4 text-[10px] font-mono text-[var(--text)] uppercase tracking-widest outline-none focus:theme-border-accent transition-all shadow-inner"
+            className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-5 py-4 text-[10px] font-mono text-[var(--text)] uppercase tracking-widest outline-none focus:theme-border-accent transition-all shadow-inner"
             placeholder={t("ui_bg_gradient_ph") || "linear-gradient(to bottom, #000, #111)"}
           />
         </div>

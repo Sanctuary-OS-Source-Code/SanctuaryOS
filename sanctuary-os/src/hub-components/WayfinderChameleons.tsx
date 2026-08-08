@@ -138,7 +138,7 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
     <div className="flex flex-col w-full h-full relative transition-all duration-500">
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-10">
         <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">cloud_sync</span>
           </div>
           <span className="truncate">{isKeepers ? (t("keepers_master_themes") || "SANCTUARY THEMES") : (t("wf_master_themes") || "COMMUNITY THEMES")} ({Object.keys(cloudThemes).length})</span>
@@ -150,7 +150,7 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder={t("ui_search_chameleons") || "Search Themes..."}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
           <ActionButton
@@ -159,7 +159,7 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
             icon="add"
             label={t("auto_create") || "CREATE"}
           />
-          <button onClick={fetchThemes} className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
+          <button onClick={fetchThemes} className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
             <span className={`material-symbols-outlined !text-[20px] text-[var(--text)] opacity-80 ${loading ? 'animate-spin' : ''}`}>refresh</span>
           </button>
         </div>
@@ -168,7 +168,7 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 relative">
         {loading && Object.keys(cloudThemes).length === 0 ? (
           <div className="w-full h-full flex items-center justify-center">
-            <div className="w-12 h-12 border-4 border-[color-mix(in_srgb,var(--accent)_30%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
+            <div className="w-12 h-12 border-4 border-[var(--accent)]/[30%] border-t-[var(--accent)] rounded-full animate-spin" />
           </div>
         ) : Object.keys(cloudThemes).length === 0 ? (
           <EmptyState icon="palette" title="No Cloud Themes" className="py-20" />
@@ -198,7 +198,7 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
         defaultWidth={1400}
         headerActions={
           <div className="flex items-center gap-2">
-            <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
+            <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
               <div className="relative group flex">
                 <button onClick={() => {
                   if (livePreview) {
@@ -212,7 +212,7 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
                     }
                   }
                   setLivePreview(!livePreview);
-                }} className={`h-12 px-4 flex items-center justify-center gap-2 transition-all shrink-0 ${livePreview ? 'text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                }} className={`h-12 px-4 flex items-center justify-center gap-2 transition-all shrink-0 ${livePreview ? 'text-[var(--success)] bg-emerald-500/[10%]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                   <span className="material-symbols-outlined !text-[18px]">{livePreview ? 'visibility' : 'visibility_off'}</span>
                   <span className="text-[10px] font-black uppercase tracking-widest">{livePreview ? (t("ui_os_preview_on") || "OS PREVIEW: ON") : (t("ui_os_preview_off") || "OS PREVIEW: OFF")}</span>
                 </button>
@@ -234,7 +234,7 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
                     setEditingThemeId(null);
                     pushStatus(t("ui_theme_applied") || "Theme Applied", "success");
                   }
-                }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] transition-all shrink-0">
+                }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--success)] hover:bg-emerald-500/[10%] transition-all shrink-0">
                   <span className="material-symbols-outlined !text-[18px]">check_circle</span>
                   <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_apply") || "APPLY THEME"}</span>
                 </button>

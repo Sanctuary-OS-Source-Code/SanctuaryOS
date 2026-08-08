@@ -113,9 +113,9 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
   return (
     <div className="flex flex-col h-full overflow-hidden animate-in fade-in pb-20">
       
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
         <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_collections_bookmark")}</span>
           </div>
           <span className="truncate">{t("title_vaults")}</span>
@@ -127,7 +127,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
               placeholder={t("search_ph")} 
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
@@ -177,7 +177,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         <div className="flex flex-col h-full gap-8">
           <div className="flex flex-col gap-2">
             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name")}</label>
-            <input value={newSetName} onChange={e => setNewSetName(e.target.value)} placeholder={t("forge_set_name")} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+            <input value={newSetName} onChange={e => setNewSetName(e.target.value)} placeholder={t("forge_set_name")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
           </div>
           
           <div className="flex flex-col gap-2">
@@ -206,9 +206,9 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
       >
         {activeSet && (
           <div className="flex flex-col h-full gap-8">
-            <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+            <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
                 {t("metadata")}
               </h4>
@@ -224,26 +224,26 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
-                  <input value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} placeholder={t("cc_cover_url")} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
+                  <input value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} placeholder={t("cc_cover_url")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-                  <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("external_url_placeholder")} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
+                  <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("external_url_placeholder")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
               </div>
 
-              <div className="h-[1px] bg-white/5 my-2 w-full" />
+              <div className="h-[1px] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] my-2 w-full" />
 
               <div className="flex flex-col gap-4 pb-12">
                 <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title")}</h4>
                 
-                <div className="flex flex-col gap-2 bg-black/10 p-4 rounded-2xl border border-white/5 relative z-[6000]">
-                  <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t("link_search")} className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                <div className="flex flex-col gap-2 bg-black/10 p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-[6000]">
+                  <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t("link_search")} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
                   
                   {searchQuery.length >= 2 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 theme-glass-panel border-white/10 rounded-[calc(var(--radius)-4px)] shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
+                    <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-md overflow-hidden z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
                       {myMods.filter(m => !members.some(mem => mem.mod_id === m.id) && m.name.toLowerCase().includes(searchQuery.toLowerCase())).map(m => (
-                        <button type="button" key={m.id} onClick={() => { handleAddMod(m.id); setSearchQuery(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-white/5 flex justify-between items-center group transition-all shrink-0">
+                        <button type="button" key={m.id} onClick={() => { handleAddMod(m.id); setSearchQuery(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center group transition-all shrink-0">
                           <span className="text-[10px] font-black text-[var(--text)] uppercase truncate">{m.name}</span>
                           <span className="text-[9px] font-bold text-[var(--subtext)] opacity-0 group-hover:opacity-100 uppercase transition-all">{t("cc_btn_add")}</span>
                         </button>
@@ -443,9 +443,9 @@ export function CollectionForge({ setStatus }: any) {
   return (
     <div className="flex flex-col h-full overflow-hidden animate-in fade-in pb-20">
       
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_collections_bookmark")}</span>
           </div>
           <span className="truncate">{t("tab_cc")}</span>
@@ -457,7 +457,7 @@ export function CollectionForge({ setStatus }: any) {
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
               placeholder={t("search_queue")} 
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
           <div className="w-max min-w-[160px] max-w-xs relative z-50 h-12">
@@ -503,7 +503,7 @@ export function CollectionForge({ setStatus }: any) {
         <div className="flex flex-col h-full gap-8">
           <div className="flex flex-col gap-2">
             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name")}</label>
-            <input value={setName} onChange={e => setSetName(e.target.value)} placeholder={t("forge_set_name")} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+            <input value={setName} onChange={e => setSetName(e.target.value)} placeholder={t("forge_set_name")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
           </div>
           
           <div className="flex flex-col gap-2">
@@ -512,7 +512,7 @@ export function CollectionForge({ setStatus }: any) {
               <div className="flex-1">
                 <CustomMasonDropdown value={setMasonId} options={masonsList} onChange={setSetMasonId} />
               </div>
-              <button onClick={() => setIsMasonPanelOpen(true)} className="bg-white/10 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center">
+              <button onClick={() => setIsMasonPanelOpen(true)} className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center">
                 <span className="material-symbols-outlined text-[18px]">{t("icon_person_add")}</span>
               </button>
             </div>
@@ -525,7 +525,7 @@ export function CollectionForge({ setStatus }: any) {
 
           <div className="flex flex-col gap-2">
              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-             <input value={setSetUrl} onChange={e => setSetSetUrl(e.target.value)} placeholder={t("auto_https")} className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold opacity-80 focus:opacity-100 focus:outline-none focus:theme-border-accent transition-all" />
+             <input value={setSetUrl} onChange={e => setSetSetUrl(e.target.value)} placeholder={t("auto_https")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold opacity-80 focus:opacity-100 focus:outline-none focus:theme-border-accent transition-all" />
           </div>
         </div>
       </SidePanel>
@@ -549,9 +549,9 @@ export function CollectionForge({ setStatus }: any) {
       >
         {activeSet && (
           <div className="flex flex-col h-full gap-8">
-            <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+            <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
                 {t("metadata")}
               </h4>
@@ -573,7 +573,7 @@ export function CollectionForge({ setStatus }: any) {
                     <div className="flex-1">
                       <CustomMasonDropdown value={activeSet.mason_id || ""} options={masonsList} onChange={(val: string) => setActiveSet({...activeSet, mason_id: val})} />
                     </div>
-                    <button onClick={() => setIsMasonPanelOpen(true)} className="bg-white/10 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center">
+                    <button onClick={() => setIsMasonPanelOpen(true)} className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center">
                       <span className="material-symbols-outlined text-[18px]">{t("icon_person_add")}</span>
                     </button>
                   </div>
@@ -586,30 +586,30 @@ export function CollectionForge({ setStatus }: any) {
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
-                  <input value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} placeholder={t("cc_cover_url")} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
+                  <input value={activeSet.image_url || ""} onChange={e => setActiveSet({...activeSet, image_url: e.target.value})} placeholder={t("cc_cover_url")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
                 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-                  <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("external_url_placeholder")} className="w-full theme-glass-inner rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
+                  <input value={activeSet.url || ""} onChange={e => setActiveSet({...activeSet, url: e.target.value})} placeholder={t("external_url_placeholder")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
               </div>
 
-              <div className="h-[1px] bg-white/5 my-2 w-full" />
+              <div className="h-[1px] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] my-2 w-full" />
 
               <div className="flex flex-col gap-4 pb-12">
                 <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title")}</h4>
                 
-                <div className="flex flex-col gap-2 bg-black/10 p-4 rounded-2xl border border-white/5 relative z-[6000]">
+                <div className="flex flex-col gap-2 bg-black/10 p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-[6000]">
                   <div className="flex items-center gap-3">
                      <span className={isSearching ? "animate-spin theme-text-accent material-symbols-outlined" : "theme-text-accent material-symbols-outlined"}>{t("icon_search")}</span>
                      <input value={assetSearch} onChange={e => setAssetSearch(e.target.value)} placeholder={t("forge_search_assets")} className="w-full bg-transparent border-none outline-none text-[var(--text)] text-sm font-bold placeholder:opacity-40" />
                   </div>
                   
                   {assetSearch.length >= 2 && availableAssets.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 theme-glass-panel border-white/10 rounded-[calc(var(--radius)-4px)] shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
+                    <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-md overflow-hidden z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
                       {availableAssets.filter(asset => !manifestMembers.some(m => m.mod_id === asset.id)).map(asset => (
-                        <button type="button" key={asset.id} onClick={() => { addToManifest(asset.id); setAssetSearch(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-white/5 flex justify-between items-center group transition-all shrink-0">
+                        <button type="button" key={asset.id} onClick={() => { addToManifest(asset.id); setAssetSearch(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center group transition-all shrink-0">
                           <div className="flex flex-col min-w-0 pr-4">
                             <span className="text-[10px] font-black text-[var(--text)] uppercase truncate">{asset.name}</span>
                             <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate">{asset.masons?.name || asset.master_author || "UNKNOWN"}</span>
@@ -671,7 +671,7 @@ export function CollectionForge({ setStatus }: any) {
       >
         <div className="p-6">
           <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_name")}</label>
-          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
       </SidePanel>
 

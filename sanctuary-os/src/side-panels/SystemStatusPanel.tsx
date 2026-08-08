@@ -141,11 +141,11 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10">
           <SectionHeader icon="terminal" title={t("sys_info_app")} glowColor="rgba(var(--accent-rgb),0.8)" />
           {updatePayload && (
-            <button onClick={() => { setIsUpdatePanelOpen(true); }} className="w-full theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.3)] flex items-center justify-between overflow-hidden relative group hover:-translate-y-1 mt-2">
+            <button onClick={() => { setIsUpdatePanelOpen(true); }} className="w-full glass-surface p-4 rounded-xl border border-[var(--accent)]/[40%] bg-[var(--accent)]/[15%] hover:bg-[var(--accent)]/[25%] transition-all duration-300 hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.3)] flex items-center justify-between overflow-hidden relative group hover:-translate-y-1 mt-2">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10" />
               <div className="flex items-center gap-4 relative z-10">
-                <div className="w-12 h-12 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">
+                <div className="w-12 h-12 rounded-full bg-[var(--accent)]/[20%] flex items-center justify-center border border-[var(--accent)]/[50%] group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">
                   <span className="material-symbols-outlined theme-text-accent text-[24px] animate-bounce">downloading</span>
                 </div>
                 <div className="flex flex-col items-start">
@@ -194,7 +194,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150 ease-out fill-mode-both relative z-10">
           <SectionHeader icon="public" title={t("sys_info_os")} glowColor="rgba(168,85,247,0.8)" />
           <div className="grid grid-cols-2 gap-4">
-            <div className="theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
+            <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
               <div className="flex flex-col relative z-10 justify-center h-full">
                 <div className="flex items-center gap-2 mb-1">
@@ -204,7 +204,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
                 <div className="text-[14px] font-black uppercase tracking-tighter drop-shadow-md relative z-10 transition-colors text-white break-words leading-tight">{telemetry?.host_os || navigator.userAgent}</div>
               </div>
             </div>
-            <div className="theme-glass-inner p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
+            <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
               <div className="flex flex-col relative z-10 justify-center h-full">
                 <div className="flex items-center gap-2 mb-1">
@@ -385,7 +385,7 @@ function StatBox({ label, value, icon, accent = false, pulseIcon = false, glowCo
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`p-4 rounded-xl border flex flex-col gap-2 transition-all duration-300 hover:-translate-y-0.5 relative overflow-hidden group ${onClick ? 'cursor-pointer hover:shadow-lg' : ''}
-      ${accent ? 'theme-glass-inner theme-border-accent bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-[0_4px_20px_rgba(var(--accent-rgb),0.1)]' : 'theme-glass-inner border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg'}`}
+      ${accent ? 'glass-surface theme-border-accent bg-[var(--accent)]/[5%] hover:shadow-[0_4px_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg'}`}
     >
       <div
         className="absolute inset-0 pointer-events-none transition-opacity duration-300 z-0 mix-blend-screen"

@@ -159,9 +159,9 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
 
   return (
     <div className="flex flex-col gap-6 w-full pb-32 text-[var(--text)]">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full mb-4">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-4">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_local_activity")}</span>
           </div>
           <span className="truncate">{t("ql_support")}</span>
@@ -174,7 +174,7 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t("ui_placeholder_search")}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchQuery && (
               <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
@@ -190,22 +190,22 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
               disableTint={true}
             />
           </div>
-          <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12">
+          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12">
             <button
               onClick={() => setActiveFilter("pending")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
             >
               {t("pending")}
             </button>
             <button
               onClick={() => setActiveFilter("new")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'new' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'new' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
             >
               {t("ui_tab_new")}
             </button>
             <button
               onClick={() => setActiveFilter("closed")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'closed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'closed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
             >
               {t("ui_tab_closed")}
             </button>
@@ -242,16 +242,16 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
               {filteredTickets.map(ticket => (
                 <div
                   key={ticket.id}
-                  className="theme-glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
+                  className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
                   onClick={() => setSelectedTicket(ticket)}
                 >
                   <div className={`absolute inset-0 transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-100 ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-gradient-to-br from-fuchsia-500/10 to-transparent' : 'bg-gradient-to-br from-[var(--accent)]/5 to-transparent'}`} />
 
                   <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
-                        ${ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'bg-rose-500/50 group-hover:bg-rose-500 group-hover:shadow-[0_0_20px_rgba(244,63,94,0.5)]' : ''}
-                        ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-emerald-500/50 group-hover:bg-emerald-500 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.5)]' : ''}
-                        ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/50 group-hover:bg-amber-500 group-hover:shadow-[0_0_20px_rgba(245,158,11,0.5)]' : ''}
-                        ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/50 group-hover:bg-fuchsia-500 group-hover:shadow-[0_0_20px_rgba(217,70,239,0.5)]' : ''}
+                        ${ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'bg-rose-500/50 group-hover:bg-rose-500 group-hover:shadow-md' : ''}
+                        ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-emerald-500/50 group-hover:bg-emerald-500 group-hover:shadow-md' : ''}
+                        ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/50 group-hover:bg-amber-500 group-hover:shadow-md' : ''}
+                        ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/50 group-hover:bg-fuchsia-500 group-hover:shadow-md' : ''}
                         ${!['new', 'open', 'closed', 'resolved', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)]' : ''}
                     `} />
 

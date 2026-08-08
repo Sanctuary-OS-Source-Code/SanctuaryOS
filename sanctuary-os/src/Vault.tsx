@@ -42,7 +42,7 @@ function DebouncedSearchInput({ value, onChange, placeholder }: { value: string,
         placeholder={placeholder}
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
-        className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+        className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
       />
       {localValue && (
         <button onClick={() => { setLocalValue(""); onChange(""); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
@@ -513,28 +513,28 @@ const Vault = React.memo(function Vault(props: any) {
                 icon={<span className="material-symbols-outlined !text-4xl">{t("icon_inventory_2") || "inventory_2"}</span>}
                 number={displayModList.length}
                 label={t("title_artifacts") || "ALL SCHEMATICS"}
-                colorClass="border-cyan-500/30 text-cyan-400 hover:border-cyan-500/60 bg-cyan-500/10 hover:bg-cyan-500/20 cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.05)]"
+                colorClass="border-cyan-500/30 text-cyan-400 hover:border-cyan-500/60 bg-cyan-500/10 hover:bg-cyan-500/20 cursor-pointer shadow-md"
                 onClick={() => { setEquipFilter("ALL"); setFilterStatus("ALL"); setActiveCategory("ALL"); setActiveSubType("ALL"); }}
               />
               <DashboardStatTile
                 icon={<span className="material-symbols-outlined !text-4xl">{t("icon_check_circle") || "check_circle"}</span>}
                 number={equippedDisplayMods.length}
                 label={t("filter_equipped") || "IN BLUEPRINT"}
-                colorClass="border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] cursor-pointer"
+                colorClass="border-emerald-500/[30%] text-[var(--success)] hover:border-[var(--success)] bg-emerald-500/[10%] hover:bg-emerald-500/[20%] cursor-pointer"
                 onClick={() => { setEquipFilter("EQUIPPED"); setFilterStatus("ALL"); setActiveCategory("ALL"); setActiveSubType("ALL"); }}
               />
               <DashboardStatTile
                 icon={<span className="material-symbols-outlined !text-4xl">{t("icon_warning") || "warning"}</span>}
                 number={unverifiedCount}
                 label={t("status_unverified") || "UNVERIFIED"}
-                colorClass="border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:border-[var(--warning)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] cursor-pointer"
+                colorClass="border-orange-500/[30%] text-[var(--warning)] hover:border-[var(--warning)] bg-orange-500/[10%] hover:bg-orange-500/[20%] cursor-pointer"
                 onClick={() => { setEquipFilter("ALL"); setFilterStatus("UNVERIFIED"); setActiveCategory("ALL"); setActiveSubType("ALL"); }}
               />
               <DashboardStatTile
                 icon={<span className="material-symbols-outlined !text-4xl">{t("icon_folder_shared") || "folder_shared"}</span>}
                 number={localFolderCount}
                 label={t("local_folders") || "LOCAL NODES"}
-                colorClass="border-purple-500/30 text-purple-400 hover:border-purple-500/60 bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer shadow-[0_0_15px_rgba(168,85,247,0.05)]"
+                colorClass="border-purple-500/30 text-purple-400 hover:border-purple-500/60 bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer shadow-md"
                 onClick={() => { setEquipFilter("ALL"); setActiveCategory("LOCAL_FOLDERS"); }}
               />
             </CommandScreenStats>
@@ -561,7 +561,7 @@ const Vault = React.memo(function Vault(props: any) {
                       const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
                       return !folderExists;
                     }).slice(0, 20).map((item: any, idx: number) => (
-                      <div key={`recent-${idx}`} className="relative flex flex-col h-full theme-glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group" onClick={() => {
+                      <div key={`recent-${idx}`} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group" onClick={() => {
                         if (item.isVirtual && item.isLocalOverride && !item.isCollection) {
                           const targetId = item.dbId || item.familyId || item.setId;
                           if (targetId) window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: targetId }));
@@ -633,7 +633,7 @@ const Vault = React.memo(function Vault(props: any) {
                     }}
                     textColorClass="text-purple-500"
                     hoverTextColorClass="group-hover:text-purple-400"
-                    iconShadowClass="drop-shadow-[0_0_8px_rgba(168,85,247,0.5)] text-purple-500"
+                    iconShadowClass="drop-shadow-md text-purple-500"
                     iconBorderHoverClass="group-hover:border-purple-500/30"
                   />
 
@@ -681,7 +681,7 @@ const Vault = React.memo(function Vault(props: any) {
                     danger={true}
                     textColorClass="text-rose-500"
                     hoverTextColorClass="group-hover:text-rose-400"
-                    iconShadowClass="drop-shadow-[0_0_8px_rgba(244,63,94,0.5)] text-rose-500"
+                    iconShadowClass="drop-shadow-md text-rose-500"
                     iconBorderHoverClass="group-hover:border-rose-500/30"
                   />
                   <CommandScreenQuickLink
@@ -691,7 +691,7 @@ const Vault = React.memo(function Vault(props: any) {
                     onClick={() => useStore.getState().setView("nexus")}
                     textColorClass="text-amber-500"
                     hoverTextColorClass="group-hover:text-amber-400"
-                    iconShadowClass="drop-shadow-[0_0_8px_rgba(245,158,11,0.5)] text-amber-500"
+                    iconShadowClass="drop-shadow-md text-amber-500"
                     iconBorderHoverClass="group-hover:border-amber-500/30"
                   />
                 </div>
@@ -701,7 +701,7 @@ const Vault = React.memo(function Vault(props: any) {
         </div>
       ) : (
         <div className="flex flex-col gap-4 w-full mt-2">
-          <div className="flex flex-col xl:flex-row xl:items-center gap-4 shrink-0 border-b border-white/5 w-full">
+          <div className="flex flex-col xl:flex-row xl:items-center gap-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
             <VaultFilters
               t={t}
               searchQuery={searchQuery}
@@ -853,14 +853,14 @@ const Vault = React.memo(function Vault(props: any) {
           onClick={(e) => e.stopPropagation()}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
         >
-          <div className="absolute inset-0 theme-glass-panel bg-black/80 backdrop-blur-3xl border border-white/10 shadow-[0_30px_100px_rgba(0,0,0,0.9)] rounded-xl -z-10 pointer-events-none" />
+          <div className="absolute inset-0 glass-panel bg-black/80 backdrop-blur-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_30px_100px_rgba(0,0,0,0.9)] rounded-xl -z-10 pointer-events-none" />
           {(() => {
             const targetMods = selectedMods.includes(vaultContextMenu.mod.name) ? selectedMods : [vaultContextMenu.mod.name];
             const count = targetMods.length;
             const openSubmenuLeft = vaultContextMenu.x > window.innerWidth - 480;
             return (
               <>
-                <div className="px-4 py-2 border-b border-white/5 mb-2 overflow-hidden">
+                <div className="px-4 py-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-2 overflow-hidden">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 truncate block w-full">
                     {count > 1 ? `${count} ARTIFACTS SELECTED` : (vaultContextMenu.mod.displayName || vaultContextMenu.mod.name)}
                   </span>
@@ -875,7 +875,7 @@ const Vault = React.memo(function Vault(props: any) {
                       setIsLocalFolderEditorOpen(true);
                       setVaultContextMenu(null);
                     }}
-                    className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[11px] font-black uppercase tracking-widest text-[var(--accent)] flex items-center gap-3 transition-colors mb-1"
+                    className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[var(--accent)]/[20%] text-[11px] font-black uppercase tracking-widest text-[var(--accent)] flex items-center gap-3 transition-colors mb-1"
                   >
                     <span className="material-symbols-outlined !text-[16px]">edit</span>
                     MANAGE NODE
@@ -887,7 +887,7 @@ const Vault = React.memo(function Vault(props: any) {
                   onMouseEnter={() => setActiveSubmenu('blueprint')}
                   onMouseLeave={() => setActiveSubmenu(null)}
                 >
-                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[11px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center justify-between transition-colors">
+                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[var(--accent)]/[20%] text-[11px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center justify-between transition-colors">
                     <div className="flex items-center gap-3">
                       <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_architecture") || "architecture"}</span>
                       {t("add_to_blueprint") || "ADD TO BLUEPRINT"}
@@ -896,11 +896,11 @@ const Vault = React.memo(function Vault(props: any) {
                   </button>
                   {activeSubmenu === 'blueprint' && (
                     <div className={`absolute top-0 w-56 pt-0 z-50 ${openSubmenuLeft ? 'right-full pr-1' : 'left-full pl-1'}`}>
-                      <div className="w-full h-full theme-glass-panel bg-black/90 backdrop-blur-3xl border border-white/10 rounded-xl py-2 animate-in fade-in zoom-in-95 duration-100">
-                        <button onClick={(e) => { e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); setBulkModal(true); }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add")}</span>{t("context_new_blueprint")}</button>
-                        <div className="w-full h-px bg-white/5 my-1" />
+                      <div className="w-full h-full glass-panel bg-black/90 backdrop-blur-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl py-2 animate-in fade-in zoom-in-95 duration-100">
+                        <button onClick={(e) => { e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); setBulkModal(true); }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add")}</span>{t("context_new_blueprint")}</button>
+                        <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_5%,transparent)] my-1" />
                         {playSets.map((ps: any, index: number) => (
-                          <button key={index} onClick={(e) => { e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); invoke('add_to_play_set', { index, modNames: targetMods }).then(() => runRadarSweep(true)); }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[10px] font-bold uppercase tracking-widest text-[var(--accent)] truncate block">{ps.name}</button>
+                          <button key={index} onClick={(e) => { e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); invoke('add_to_play_set', { index, modNames: targetMods }).then(() => runRadarSweep(true)); }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[var(--accent)]/[20%] text-[10px] font-bold uppercase tracking-widest text-[var(--accent)] truncate block">{ps.name}</button>
                         ))}
                       </div>
                     </div>
@@ -912,7 +912,7 @@ const Vault = React.memo(function Vault(props: any) {
                   onMouseEnter={() => setActiveSubmenu('folder')}
                   onMouseLeave={() => setActiveSubmenu(null)}
                 >
-                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[11px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center justify-between transition-colors">
+                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-emerald-500/[20%] text-[11px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center justify-between transition-colors">
                     <div className="flex items-center gap-3">
                       <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">{t("icon_folder") || "folder"}</span>
                       {t("btn_group_folder") || "ADD TO FOLDER"}
@@ -921,7 +921,7 @@ const Vault = React.memo(function Vault(props: any) {
                   </button>
                   {activeSubmenu === 'folder' && (
                     <div className={`absolute top-0 w-56 pt-0 z-50 ${openSubmenuLeft ? 'right-full pr-1' : 'left-full pl-1'}`}>
-                      <div className="w-full h-full theme-glass-panel bg-black/90 backdrop-blur-3xl border border-white/10 rounded-xl py-2 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="w-full h-full glass-panel bg-black/90 backdrop-blur-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl py-2 animate-in fade-in zoom-in-95 duration-100">
                         <button onClick={(e) => {
                           e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null);
                           const localSts = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
@@ -931,8 +931,8 @@ const Vault = React.memo(function Vault(props: any) {
                           setActiveLocalFolder(newId);
                           setIsLocalFolderEditorOpen(true);
                           runRadarSweep(true);
-                        }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add")}</span>{t("context_new_folder")}</button>
-                        <div className="w-full h-px bg-white/5 my-1" />
+                        }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add")}</span>{t("context_new_folder")}</button>
+                        <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_5%,transparent)] my-1" />
                         {(() => {
                           const localSts = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
                           if (localSts.length === 0) return <div className="px-4 py-2 text-[9px] font-bold text-[var(--subtext)] opacity-50">{t("local_folders_empty") || "NO LOCAL FOLDERS"}</div>;
@@ -945,7 +945,7 @@ const Vault = React.memo(function Vault(props: any) {
                               setVaultContextMenu(null);
                               setActiveSubmenu(null);
                               runRadarSweep(true);
-                            }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[10px] font-bold uppercase tracking-widest text-[var(--success)] truncate block">{ls.name}</button>
+                            }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-emerald-500/[20%] text-[10px] font-bold uppercase tracking-widest text-[var(--success)] truncate block">{ls.name}</button>
                           ));
                         })()}
                       </div>
@@ -955,7 +955,7 @@ const Vault = React.memo(function Vault(props: any) {
 
                 {!(vaultContextMenu.mod.isVirtual && vaultContextMenu.mod.isLocalOverride && !vaultContextMenu.mod.isCollection) && (
                   <>
-                    <div className="w-full h-px bg-white/5 my-2" />
+                    <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_5%,transparent)] my-2" />
                     <button
                       onClick={() => {
                         setVaultContextMenu(null);
@@ -970,7 +970,7 @@ const Vault = React.memo(function Vault(props: any) {
                         });
                         setPurgeTargetFiles(Array.from(allFilesToPurge.entries()).map(([file, name]) => ({ file, name })));
                       }}
-                      className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[11px] font-bold uppercase tracking-widest text-[var(--danger)] flex items-center gap-3 transition-colors"
+                      className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-red-500/[20%] text-[11px] font-bold uppercase tracking-widest text-[var(--danger)] flex items-center gap-3 transition-colors"
                     >
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_forever")}</span>
                       {t("context_purge")} {count > 1 ? t("context_artifacts") : t("context_artifact")}

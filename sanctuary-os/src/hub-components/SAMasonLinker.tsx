@@ -158,9 +158,9 @@ export function MasonLinker() {
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_link")}</span>
           </div>
           <span className="truncate">{t("linker_title")}</span>
@@ -173,7 +173,7 @@ export function MasonLinker() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={t("linker_search_mason")}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
 
@@ -201,22 +201,22 @@ export function MasonLinker() {
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
         {loading ? (
-          <div className="theme-glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("audit_fetching")}</div>
+          <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("audit_fetching")}</div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
             {filteredMasons.map((m: any) => (
               <div
                 key={m.id}
                 onClick={() => handleOpenPanel(m)}
-                className={`theme-glass-panel rounded-[var(--radius)] flex flex-col group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] cursor-pointer ${m.is_verified ? 'hover:border-green-500/50 hover:shadow-[0_0_40px_rgba(34,197,94,0.15)]' : 'hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)]'} hover:-translate-y-1.5`}
+                className={`glass-panel rounded-[var(--radius)] flex flex-col group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] cursor-pointer ${m.is_verified ? 'hover:border-green-500/50 hover:shadow-md' : 'hover:border-[var(--accent)]/[50%] hover:shadow-md'} hover:-translate-y-1.5`}
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${m.is_verified ? 'from-green-500/5' : 'from-[var(--accent)]/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
 
-                <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500 ${m.is_verified ? 'bg-green-500/50 group-hover:bg-green-500 group-hover:shadow-[0_0_20px_rgba(34,197,94,0.5)]' : 'theme-bg-accent/50 group-hover:theme-bg-accent group-hover:shadow-[0_0_20px_var(--accent)]'}`} />
+                <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500 ${m.is_verified ? 'bg-green-500/50 group-hover:bg-green-500 group-hover:shadow-md' : 'theme-bg-accent/50 group-hover:theme-bg-accent group-hover:shadow-[0_0_20px_var(--accent)]'}`} />
 
                 <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
                   <div className="flex justify-between items-start gap-4">
-                    <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${m.is_verified ? 'group-hover:border-green-500/30' : 'group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}>
+                    <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] ${m.is_verified ? 'group-hover:border-green-500/30' : 'group-hover:border-[var(--accent)]/[30%]'}`}>
                       <span className={`material-symbols-outlined !text-[24px] text-[var(--text)] opacity-50 group-hover:opacity-100 transition-colors duration-500 ${m.is_verified ? 'group-hover:text-green-400' : 'group-hover:theme-text-accent'}`}>
                         {t("icon_architecture")}
                       </span>
@@ -236,7 +236,7 @@ export function MasonLinker() {
                     </span>
                   </div>
 
-                  <div className="flex flex-col gap-1 mt-1 border-t border-white/5 pt-3">
+                  <div className="flex flex-col gap-1 mt-1 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3">
                     <span className={`text-[10px] font-bold uppercase flex items-center gap-1.5 truncate ${m.profile_id ? 'text-[var(--text)] opacity-80' : 'text-red-400 opacity-80'}`}>
                       <span className="material-symbols-outlined !text-[12px] opacity-70">{m.profile_id ? "link" : "link_off"}</span>
                       {m.profile_id ? (profiles.find(p => p.id === m.profile_id)?.username || m.profile_id.substring(0, 8)) : (t("sa_unlinked"))}
@@ -261,7 +261,7 @@ export function MasonLinker() {
         footer={
           <div className="flex flex-col gap-4 w-full">
             {status && (
-              <div className="text-center bg-black/20 p-3 rounded-xl border border-white/5 w-full">
+              <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
                 <p className={`text-[10px] font-black uppercase tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
               </div>
             )}
@@ -281,9 +281,9 @@ export function MasonLinker() {
       >
         <div className="p-6 flex flex-col h-full gap-8">
 
-          <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+          <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-            <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+            <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
               {t("metadata")}
             </h4>
@@ -294,14 +294,14 @@ export function MasonLinker() {
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
                 placeholder={t("placeholder_mason_name")}
-                className="w-full theme-glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                className="w-full glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
               />
             </div>
           </div>
 
-          <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+          <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
             <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none rounded-2xl" />
-            <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+            <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span>
               {t("linking_verification")}
             </h4>
@@ -367,7 +367,7 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
           onFocus={() => { if (!value) setIsOpen(true); }}
           placeholder={t("search_profile")}
           readOnly={!!value}
-          className={`w-full h-12 theme-glass-inner rounded-xl px-5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all relative cursor-text ${value ? 'theme-text-accent' : ''}`}
+          className={`w-full h-12 glass-surface rounded-xl px-5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all relative cursor-text ${value ? 'theme-text-accent' : ''}`}
         />
         {value ? (
           <button className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold" onClick={() => { onChange(""); setQuery(""); setIsOpen(true); inputRef.current?.focus(); }}>
@@ -383,7 +383,7 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
       {isOpen && !value && createPortal(
         <>
           <div className="fixed inset-0 z-[50000]" onClick={() => setIsOpen(false)} />
-          <div className="fixed mt-2 theme-glass-panel border-white/10 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-y-auto custom-scrollbar" style={{
+          <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md overflow-hidden z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-y-auto custom-scrollbar" style={{
             top: inputRef.current?.getBoundingClientRect().bottom,
             left: inputRef.current?.getBoundingClientRect().left,
             width: inputRef.current?.getBoundingClientRect().width,

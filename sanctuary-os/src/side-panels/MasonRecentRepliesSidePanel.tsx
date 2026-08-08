@@ -81,7 +81,7 @@ export default function MasonRecentRepliesSidePanel({
                         <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("loading_transmissions")}</span>
                     </div>
                 ) : replies.length === 0 ? (
-                    <div className="flex flex-col justify-center items-center h-64 theme-glass-panel rounded-[var(--radius)] border border-white/5 shadow-xl group">
+                    <div className="flex flex-col justify-center items-center h-64 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl group">
                         <span className="text-6xl mb-4 grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:-rotate-12">{t("icon_mail")}</span>
                         <span className="text-sm font-black text-[var(--subtext)] uppercase tracking-widest text-center px-8 leading-relaxed">
                             {t("no_recent_replies")}
@@ -94,7 +94,7 @@ export default function MasonRecentRepliesSidePanel({
                     replies.map(reply => (
                         <div 
                             key={reply.id}
-                            className="theme-glass-panel rounded-2xl p-6 flex flex-col gap-3 group cursor-pointer border border-white/5 hover:border-emerald-500/30 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] transition-all hover:-translate-y-1"
+                            className="glass-panel rounded-2xl p-6 flex flex-col gap-3 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-emerald-500/30 hover:shadow-md transition-all hover:-translate-y-1"
                             onClick={() => {
                                 if (onReplyClick && reply.post_id) {
                                     onReplyClick(reply.post_id, reply.id);
@@ -113,7 +113,7 @@ export default function MasonRecentRepliesSidePanel({
                                 </span>
                             </div>
                             
-                            <p className="text-sm text-[var(--text)] leading-relaxed bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] p-4 rounded-xl border border-white/5">
+                            <p className="text-sm text-[var(--text)] leading-relaxed bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                                 {renderTextWithIcons(reply.content)}
                             </p>
                             

@@ -25,7 +25,7 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
       panelZ="z-[50001]"
     >
       <div className="p-8 flex flex-col gap-6 text-[var(--text)] h-full overflow-y-auto custom-scrollbar">
-        <div className="theme-glass-panel p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] relative overflow-hidden shrink-0">
+        <div className="glass-panel p-6 rounded-[var(--radius)] border border-[var(--accent)]/[20%] bg-[var(--accent)]/[5%] relative overflow-hidden shrink-0">
 
           <h3 className="text-md font-black uppercase tracking-widest text-[var(--accent)] mb-2">{t("author_guide_intro")}</h3>
           <p className="text-[12px] opacity-80 leading-relaxed font-mono whitespace-pre-wrap">
@@ -41,7 +41,7 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
 
         <div className="flex flex-col gap-4">
           <h4 className="text-sm font-black uppercase tracking-widest opacity-60 ml-2">{t("auto_example_blueprint")}</h4>
-          <div className="theme-glass-panel rounded-2xl p-4 overflow-x-auto border border-white/10 font-mono text-[12px] leading-relaxed custom-scrollbar bg-black/20 group relative">
+          <div className="glass-panel rounded-2xl p-4 overflow-x-auto border border-[color-mix(in_srgb,var(--text)_10%,transparent)] font-mono text-[12px] leading-relaxed custom-scrollbar bg-black/20 group relative">
             <button
               onClick={() => {
                 navigator.clipboard.writeText(`{

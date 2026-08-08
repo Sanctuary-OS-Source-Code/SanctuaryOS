@@ -73,7 +73,7 @@ export default function SystemBroadcastsFeed({ audience, noCardWrapper, gridCols
           {feedContent}
         </div>
       ) : (
-        <div className="theme-glass-panel rounded-[var(--radius)] p-8 h-full flex flex-col">
+        <div className="glass-panel rounded-[var(--radius)] p-8 h-full flex flex-col">
           {feedContent}
         </div>
       )}

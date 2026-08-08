@@ -384,9 +384,9 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
 
   return (
     <div className="flex flex-col w-full relative">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_monitor_heart")}</span>
           </div>
           <span className="truncate">{t("tab_lab") || "Homestead DIAGNOSTICS"?.replace("🧪 ", "") || "Homestead Diagnostics"}</span>
@@ -398,12 +398,12 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder={t("search_ph")}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
-          <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex">
-            <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("pending")}</button>
-            <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_completed")}</button>
+          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex">
+            <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
+            <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_completed")}</button>
           </div>
         </div>
       </div>
@@ -469,10 +469,10 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
               <div className="flex flex-col w-full gap-4">
                 {isLoading && (
                   <div className="flex gap-4">
-                    <button onClick={() => concludeTest(true)} className="flex-1 py-4 bg-white/10 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/20 hover:theme-text-success transition-all shadow-lg border border-white/5 hover:border-green-500/50">
+                    <button onClick={() => concludeTest(true)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:theme-text-success transition-all shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-green-500/50">
                       {t("auto_conclude_pass")}
                     </button>
-                    <button onClick={() => concludeTest(false)} className="flex-1 py-4 bg-white/10 text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/20 hover:theme-text-danger transition-all shadow-lg border border-white/5 hover:border-red-500/50">
+                    <button onClick={() => concludeTest(false)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:theme-text-danger transition-all shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-red-500/50">
                       {t("auto_conclude_fail")}
                     </button>
                   </div>
@@ -481,14 +481,14 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                 {!testRun && (
                   <div className="w-full">
                     {isLoading ? (
-                      <div className="flex flex-col items-center justify-center p-6 theme-glass-inner rounded-xl gap-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]">
+                      <div className="flex flex-col items-center justify-center p-6 glass-surface rounded-xl gap-4 border border-[var(--accent)]/[30%] shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]">
                         <div className="w-8 h-8 border-4 border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
                         <span className="text-[10px] font-black uppercase tracking-widest animate-pulse mt-1 theme-text-accent">{t("diagnostic_running")}</span>
                       </div>
                     ) : isModMissingLocally(activeReport.name) ? (
                       <button
                         onClick={() => setIsMissingArtifactPanelOpen(true)}
-                        className="w-full h-14 theme-glass-panel border border-[var(--warning)]/50 text-[var(--warning)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--warning)]/10 transition-all shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] flex items-center justify-center gap-2"
+                        className="w-full h-14 glass-panel border border-[var(--warning)]/50 text-[var(--warning)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--warning)]/10 transition-all shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] flex items-center justify-center gap-2"
                       >
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_download")}</span>
                         {t("missing_artifacts")}
@@ -496,7 +496,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                     ) : (
                       <button
                         onClick={runSimulation}
-                        className="w-full h-14 theme-glass-panel border border-[var(--accent)]/50 text-[var(--accent)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--accent)]/10 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2"
+                        className="w-full h-14 glass-panel border border-[var(--accent)]/50 text-[var(--accent)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--accent)]/10 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2"
                       >
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_play_arrow")}</span>
                         {t("btn_run_diagnostic")}
@@ -511,20 +511,20 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
           <div className="flex flex-col h-full overflow-hidden">
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
 
-              <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_my_location")}</span>
                   {t("target_artifact")}
                 </h4>
                 <div className="flex flex-col gap-2 relative z-10">
-                  <span className="theme-glass-inner rounded-xl px-5 h-12 flex items-center text-[var(--text)] text-sm font-bold bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{activeReport?.name}</span>
+                  <span className="glass-surface rounded-xl px-5 h-12 flex items-center text-[var(--text)] text-sm font-bold bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{activeReport?.name}</span>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-                <div className="flex flex-col gap-1 border-b border-white/5 pb-4 mb-2">
+                <div className="flex flex-col gap-1 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                   <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_account_tree")}</span>
                     {t("section_deps_title")}
@@ -543,9 +543,9 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                   {dependencies.length > 0 && (
                     <div className="flex flex-col gap-2 mt-2">
                       {dependencies.map(d => (
-                        <div key={d.id} className="flex justify-between items-center px-5 h-12 theme-glass-inner rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-sm font-bold">
+                        <div key={d.id} className="flex justify-between items-center px-5 h-12 glass-surface rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-sm font-bold">
                           <span className="truncate pr-4">{d.name}</span>
-                          <button onClick={() => handleRemoveDependency(d.id)} className="w-8 h-8 rounded-lg hover:bg-white/10 text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors">
+                          <button onClick={() => handleRemoveDependency(d.id)} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors">
                             <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
                           </button>
                         </div>
@@ -555,9 +555,9 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                 </div>
               </div>
 
-              <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--warning)]/5 to-transparent pointer-events-none rounded-2xl" />
-                <div className="flex flex-col gap-1 border-b border-white/5 pb-4 mb-2">
+                <div className="flex flex-col gap-1 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                   <h4 className="text-[10px] font-black text-[var(--warning)] uppercase tracking-widest flex items-center gap-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_warning")}</span>
                     {t("diagnostic_conflict_target")}
@@ -568,7 +568,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                 <div className="flex flex-col gap-4 relative z-10">
                   {conflictTarget ? (
                     <div className="flex flex-col gap-2">
-                      <div className="flex justify-between items-center px-5 h-16 theme-glass-inner rounded-xl border border-[var(--warning)]/30 text-[var(--text)] bg-[var(--warning)]/5 shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)]">
+                      <div className="flex justify-between items-center px-5 h-16 glass-surface rounded-xl border border-[var(--warning)]/30 text-[var(--text)] bg-[var(--warning)]/5 shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)]">
                         <div className="flex flex-col min-w-0">
                           <span className="text-[9px] font-black uppercase tracking-widest text-[var(--warning)] mb-0.5">{t("auto_testing_conflict_with")}</span>
                           <span className="text-sm font-bold truncate">{conflictTarget.name}</span>
@@ -591,15 +591,15 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
               </div>
 
               {testRun && (
-                <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative animate-in slide-in-from-bottom-4">
+                <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative animate-in slide-in-from-bottom-4">
                   <div className={`absolute inset-0 bg-gradient-to-br ${testPassed ? 'from-[var(--success)]/10' : 'from-[var(--danger)]/10'} to-transparent pointer-events-none rounded-2xl`} />
-                  <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2 ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                  <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2 ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_science")}</span>
                     {t("diagnostic_results")}
                   </h4>
 
                   <div className="flex flex-col relative z-10">
-                    <div className={`p-5 theme-glass-inner rounded-xl flex items-center gap-4 border ${testPassed ? 'border-[var(--success)]/30 bg-[var(--success)]/5 shadow-[0_0_20px_rgba(var(--success-rgb),0.1)]' : 'border-[var(--danger)]/30 bg-[var(--danger)]/5 shadow-[0_0_20px_rgba(var(--danger-rgb),0.1)]'}`}>
+                    <div className={`p-5 glass-surface rounded-xl flex items-center gap-4 border ${testPassed ? 'border-[var(--success)]/30 bg-[var(--success)]/5 shadow-[0_0_20px_rgba(var(--success-rgb),0.1)]' : 'border-[var(--danger)]/30 bg-[var(--danger)]/5 shadow-[0_0_20px_rgba(var(--danger-rgb),0.1)]'}`}>
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${testPassed ? 'border-[var(--success)]/50 bg-[var(--success)]/20 text-[var(--success)]' : 'border-[var(--danger)]/50 bg-[var(--danger)]/20 text-[var(--danger)]'}`}>
                         <span className="material-symbols-outlined !text-[24px]">{testPassed ? 'check_circle' : 'error'}</span>
                       </div>
@@ -613,7 +613,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                       </div>
                     </div>
 
-                    <div className="mt-6 w-full theme-glass-panel rounded-xl p-4 border border-white/5 font-mono text-[10px] text-[var(--subtext)] max-h-48 overflow-y-auto custom-scrollbar whitespace-pre-wrap leading-relaxed">
+                    <div className="mt-6 w-full glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-mono text-[10px] text-[var(--subtext)] max-h-48 overflow-y-auto custom-scrollbar whitespace-pre-wrap leading-relaxed">
                       {testLog || "No logs generated."}
                     </div>
 
@@ -623,7 +623,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                         <form onSubmit={submitToNexus} className="flex flex-col gap-4">
                           <div className="flex flex-col gap-2">
                             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("resolution_suggestion")}</label>
-                            <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder={t("auto_e_g_load_31")} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                            <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder={t("auto_e_g_load_31")} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
                           </div>
                           <div className="flex flex-col gap-2">
                             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("severity")}</label>
@@ -664,7 +664,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         }
       >
         <div className="flex flex-col p-8 gap-6">
-          <div className="p-6 theme-glass-panel border border-[var(--warning)]/30 rounded-[var(--radius)] flex flex-col items-center justify-center gap-4 text-center mt-8">
+          <div className="p-6 glass-panel border border-[var(--warning)]/30 rounded-[var(--radius)] flex flex-col items-center justify-center gap-4 text-center mt-8">
             <span className="material-symbols-outlined !text-[48px] text-[var(--warning)] opacity-80">{t("icon_extension_off")}</span>
             <div className="flex flex-col gap-1">
               <span className="text-sm font-black text-[var(--text)] uppercase tracking-widest">{activeReport?.name}</span>

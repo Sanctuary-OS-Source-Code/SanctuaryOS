@@ -148,9 +148,9 @@ export function GameManagementOversight() {
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex flex-col lg:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+      <div className="flex flex-col lg:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_settings")}</span>
           </div>
           <span className="truncate">{t("ql_game_versions")}</span>
@@ -164,7 +164,7 @@ export function GameManagementOversight() {
               placeholder={activeTab === 'versions' ? "Search Patches..." : "Search DLC..."}
               value={activeTab === 'versions' ? versionSearch : dlcSearch}
               onChange={e => activeTab === 'versions' ? setVersionSearch(e.target.value) : setDlcSearch(e.target.value)}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
           </div>
 
@@ -179,16 +179,16 @@ export function GameManagementOversight() {
             </div>
           )}
 
-          <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 h-12 shrink-0 z-40">
+          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] h-12 shrink-0 z-40">
             <button
               onClick={() => setActiveTab("versions")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'versions' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'versions' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
             >
               {t("sa_game_versions")}
             </button>
             <button
               onClick={() => setActiveTab("dlc")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'dlc' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'dlc' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
             >
               {t("dlc_registry")}
             </button>
@@ -210,13 +210,13 @@ export function GameManagementOversight() {
 
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">
               {filteredVersions.map(v => (
-                <div key={v.version} onClick={() => openPanel('edit_version', v.version)} className="flex flex-col justify-between p-6 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] transition-all duration-500 relative overflow-hidden min-h-[140px] cursor-pointer hover:-translate-y-1.5">
+                <div key={v.version} onClick={() => openPanel('edit_version', v.version)} className="flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[var(--accent)]/[50%] hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[140px] cursor-pointer hover:-translate-y-1.5">
                   <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent)]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                   <div className="flex justify-between items-start w-full relative z-10 mb-4">
                     <div className="flex items-start gap-4">
-                      <div className="w-14 h-14 rounded-2xl theme-glass-inner border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
+                      <div className="w-14 h-14 rounded-2xl glass-surface border border-[var(--accent)]/[40%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
                         <span className="material-symbols-outlined !text-[28px] theme-text-accent drop-shadow-md">{t("icon_gamepad")}</span>
                       </div>
                       <div className="flex flex-col pt-1">
@@ -226,7 +226,7 @@ export function GameManagementOversight() {
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
+                  <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <div className="flex flex-col">
                       <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("released")}</span>
                       <span className="text-xs font-bold text-[var(--text)] opacity-90 mt-1">
@@ -249,13 +249,13 @@ export function GameManagementOversight() {
           <>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">
               {filteredDlcs.map(d => (
-                <div key={d.id} onClick={() => openPanel('edit_dlc', d)} className="flex flex-col justify-between p-6 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] transition-all duration-500 relative overflow-hidden min-h-[140px] cursor-pointer hover:-translate-y-1.5">
+                <div key={d.id} onClick={() => openPanel('edit_dlc', d)} className="flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[var(--accent)]/[50%] hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[140px] cursor-pointer hover:-translate-y-1.5">
                   <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent)]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                   <div className="flex justify-between items-start w-full relative z-10 mb-2">
                     <div className="flex items-start gap-4 w-full truncate">
-                      <div className="w-14 h-14 rounded-2xl theme-glass-inner border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 relative overflow-hidden">
+                      <div className="w-14 h-14 rounded-2xl glass-surface border border-[var(--accent)]/[40%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/20 to-transparent pointer-events-none" />
                         <span className="relative z-10 text-sm font-black theme-text-accent drop-shadow-md tracking-wider">{d.id}</span>
                       </div>
@@ -268,10 +268,10 @@ export function GameManagementOversight() {
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
+                  <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <div className="flex flex-col items-start gap-0.5">
                       <span className="text-[8px] font-black tracking-widest text-[var(--subtext)] opacity-50 uppercase">{t("released")}</span>
-                      <span className="px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-[var(--text)] opacity-70 group-hover:opacity-100 transition-opacity">
+                      <span className="px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 group-hover:opacity-100 transition-opacity">
                         {d.release_date ? new Date(d.release_date).toLocaleDateString() : d.id}
                       </span>
                     </div>
@@ -336,16 +336,16 @@ export function GameManagementOversight() {
         <div className="p-8">
           <div className="flex flex-col gap-6">
             {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && panelTarget && (
-              <div className="p-4 theme-glass-inner rounded-xl border border-white/5 opacity-80">
+              <div className="p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80">
                 <p className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-1">{t("ql_targeting")}</p>
                 <p className="text-sm font-bold theme-text-accent">{panelTarget?.name || panelTarget}</p>
               </div>
             )}
 
             {(sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && (
-              <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2 relative z-10">
+                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2 relative z-10">
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
                   {t("metadata")}
                 </h4>
@@ -357,7 +357,7 @@ export function GameManagementOversight() {
                       value={panelInput1}
                       onChange={e => setPanelInput1(e.target.value)}
                       placeholder={t("ph_game_version")}
-                      className="theme-glass-inner rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-white/5 bg-transparent"
+                      className="glass-surface rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-transparent"
                     />
                   </div>
                 </div>
@@ -365,9 +365,9 @@ export function GameManagementOversight() {
             )}
 
             {(sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (
-              <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2 relative z-10">
+                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2 relative z-10">
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_extension")}</span>
                   {t("dlc_metadata")}
                 </h4>
@@ -380,7 +380,7 @@ export function GameManagementOversight() {
                       value={panelInput1}
                       onChange={e => setPanelInput1(e.target.value)}
                       placeholder={t("ph_pack_code")}
-                      className="theme-glass-inner rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-white/5 uppercase bg-transparent"
+                      className="glass-surface rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] uppercase bg-transparent"
                     />
                   </div>
                 </div>
@@ -409,7 +409,7 @@ export function GameManagementOversight() {
                         value={panelInput4}
                         onChange={e => setPanelInput4(e.target.value.toUpperCase())}
                         placeholder={t("ph_pack_type")}
-                        className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-white/5 uppercase bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
+                        className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] uppercase bg-[var(--accent)]/[5%]"
                       />
                     </div>
                   </div>
@@ -423,7 +423,7 @@ export function GameManagementOversight() {
                       value={panelInput2}
                       onChange={e => setPanelInput2(e.target.value)}
                       placeholder={t("ph_pack_name")}
-                      className="theme-glass-inner rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-white/5 uppercase bg-transparent"
+                      className="glass-surface rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] uppercase bg-transparent"
                     />
                   </div>
                 </div>
@@ -440,7 +440,7 @@ export function GameManagementOversight() {
                 value={panelReason}
                 onChange={e => setPanelReason(e.target.value)}
                 placeholder={t("mutation_reason")}
-                className="theme-glass-inner rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none focus:theme-border-danger transition-all border border-white/5"
+                className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none focus:theme-border-danger transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
               />
             </div>
 

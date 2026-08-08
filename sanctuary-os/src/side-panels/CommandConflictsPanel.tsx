@@ -225,8 +225,8 @@ export default function CommandConflictsPanel({
                 ? "bg-red-500/5 hover:bg-red-500/10"
                 : "bg-amber-500/5 hover:bg-amber-500/10";
               const shadowClass = isTier4
-                ? "hover:shadow-[0_0_30px_rgba(239,68,68,0.2)]"
-                : "hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]";
+                ? "hover:shadow-md"
+                : "hover:shadow-md";
               const textClass = isTier4 ? "text-red-500" : "text-amber-500";
               const iconName = isTier4
                 ? t("icon_crisis_alert")
@@ -236,7 +236,7 @@ export default function CommandConflictsPanel({
                 <div
                   key={ac.pairId}
                   className={`w-full rounded-[var(--radius)] border transition-all duration-500 relative group/alert shrink-0 ${isIgnored
-                    ? "opacity-50 grayscale border-white/5 bg-black/20"
+                    ? "opacity-50 grayscale border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/20"
                     : `${borderClass} ${bgClass} shadow-lg ${shadowClass}`
                     }`}
                 >
@@ -246,8 +246,8 @@ export default function CommandConflictsPanel({
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${isIgnored
-                            ? "border-white/10 bg-black/50"
-                            : `${isTier4 ? "border-red-500/50 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.2)]" : "border-amber-500/50 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.2)]"}`
+                            ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/50"
+                            : `${isTier4 ? "border-red-500/50 bg-red-500/10 shadow-md" : "border-amber-500/50 bg-amber-500/10 shadow-md"}`
                             }`}
                         >
                           <span
@@ -291,7 +291,7 @@ export default function CommandConflictsPanel({
                       className={`flex flex-col gap-3 w-full mt-2 ${isIgnored ? "opacity-30" : ""}`}
                     >
                       <div
-                        className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-white/20 ${isWinnerA && !isTier4 ? "border-[var(--success)]/50 bg-[var(--success)]/10" : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]"}`}
+                        className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] ${isWinnerA && !isTier4 ? "border-[var(--success)]/50 bg-[var(--success)]/10" : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]"}`}
                       >
                         <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
 
@@ -336,7 +336,7 @@ export default function CommandConflictsPanel({
                                 <HoverTooltip title={t("bp_winning_artifact")} variant="default" />
                               </div>
                             ) : isWinnerB ? (
-                              <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 flex items-center justify-center group relative">
+                              <div className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-60 flex items-center justify-center group relative">
                                 <span className="material-symbols-outlined !text-[16px]">
                                   {t("icon_block")}
                                 </span>
@@ -352,7 +352,7 @@ export default function CommandConflictsPanel({
                                       activeSetName
                                     )
                                   }
-                                  className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
+                                  className="h-8 w-8 rounded-lg bg-emerald-500/[10%] border border-emerald-500/[20%] text-[var(--success)] hover:bg-emerald-500/[20%] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">
                                     {t("icon_check_circle")}
@@ -389,7 +389,7 @@ export default function CommandConflictsPanel({
                       </div>
 
                       <div
-                        className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-white/20 ${isWinnerB && !isTier4 ? "border-[var(--success)]/50 bg-[var(--success)]/10" : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]"}`}
+                        className={`w-full flex items-center p-3 rounded-xl border transition-all relative group/card hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] ${isWinnerB && !isTier4 ? "border-[var(--success)]/50 bg-[var(--success)]/10" : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]"}`}
                       >
                         <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
 
@@ -434,7 +434,7 @@ export default function CommandConflictsPanel({
                                 <HoverTooltip title={t("bp_winning_artifact")} variant="default" />
                               </div>
                             ) : isWinnerA ? (
-                              <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 text-[var(--subtext)] opacity-60 flex items-center justify-center group relative">
+                              <div className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-60 flex items-center justify-center group relative">
                                 <span className="material-symbols-outlined !text-[16px]">
                                   {t("icon_block")}
                                 </span>
@@ -450,7 +450,7 @@ export default function CommandConflictsPanel({
                                       activeSetName
                                     )
                                   }
-                                  className="h-8 w-8 rounded-lg bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
+                                  className="h-8 w-8 rounded-lg bg-emerald-500/[10%] border border-emerald-500/[20%] text-[var(--success)] hover:bg-emerald-500/[20%] hover:border-[var(--success)] transition-all active:scale-95 flex items-center justify-center group relative"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">
                                     {t("icon_check_circle")}

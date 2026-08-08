@@ -38,7 +38,7 @@ export function VaultToolsSidePanel({
     >
       <div className="flex flex-col gap-6">
         {playSets && playSets.length > 0 && (
-          <div className="flex flex-col gap-4 pb-6 border-b border-white/5">
+          <div className="flex flex-col gap-4 pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">{t("icon_layers")}</span>
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("type_blueprint")}</h3>
@@ -55,7 +55,7 @@ export function VaultToolsSidePanel({
               </div>
               <button
                 onClick={() => equipPlaySet && equipPlaySet(playSets[activePlaySetIndex]?.name)}
-                className="h-10 px-4 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0"
+                className="h-10 px-4 rounded-xl bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] hover:bg-emerald-500/[25%] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0"
               >
                 <span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span> {t("auto_save")}
               </button>
@@ -63,7 +63,7 @@ export function VaultToolsSidePanel({
           </div>
         )}
 
-        <div className="flex flex-col gap-4 pb-6 border-b border-white/5">
+        <div className="flex flex-col gap-4 pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined !text-[18px] text-[var(--text)]">{t("icon_bolt")}</span>
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("sidebar_actions")}</h3>
@@ -124,7 +124,7 @@ export function VaultToolsSidePanel({
                     if (!target) return;
                     setIsLocalFolderEditorOpen(true);
                   }}
-                  className="h-10 px-4 rounded-xl theme-glass-inner text-[var(--text)] hover:bg-white/10 hover:text-white transition-all flex items-center justify-center shrink-0 border border-white/5"
+                  className="h-10 px-4 rounded-xl glass-surface text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-white transition-all flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
                 >
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_edit")}</span>
                 </button>
@@ -216,7 +216,7 @@ export function VaultLocalFolderEditorSidePanel({
       >
         <div className="flex flex-col h-full">
           <div className="px-8 pt-4 shrink-0 mb-4 flex flex-col gap-4">
-            <div className="flex items-center w-full overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0 bg-black/20">
+            <div className="flex items-center w-full overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 bg-black/20">
               <div className="relative flex-1 h-full flex items-center">
                 <span className="absolute left-4 opacity-50 text-[18px] material-symbols-outlined pointer-events-none">
                   {typeIcon}
@@ -262,13 +262,13 @@ export function VaultLocalFolderEditorSidePanel({
                 value={searchToAdd}
                 onChange={(e) => setSearchToAdd(e.target.value)}
                 placeholder={t("btn_search") || "SEARCH TO INJECT..."}
-                className="w-full h-14 theme-glass-inner border border-white/10 hover:border-white/20 rounded-2xl px-6 pl-14 text-[12px] uppercase tracking-widest font-black text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none bg-black/40 shadow-inner"
+                className="w-full h-14 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-2xl px-6 pl-14 text-[12px] uppercase tracking-widest font-black text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none bg-black/40 shadow-inner"
               />
               <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-[20px]">search</span>
               
               {/* SEARCH RESULTS POPOVER */}
               {searchToAdd.trim() !== "" && (
-                <div className="absolute top-full left-0 right-0 mt-3 max-h-80 bg-[#16161a]/85 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_30px_80px_rgba(0,0,0,0.9)] overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2 z-50 ring-1 ring-white/10">
+                <div className="absolute top-full left-0 right-0 mt-3 max-h-80 bg-[#16161a]/85 backdrop-blur-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-[0_30px_80px_rgba(0,0,0,0.9)] overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2 z-50 ring-1 ring-white/10">
                   {searchResults.length === 0 ? (
                     <div className="p-4 text-center text-[var(--subtext)] text-[10px] uppercase font-black tracking-widest opacity-50">No Results Found</div>
                   ) : (
@@ -277,9 +277,9 @@ export function VaultLocalFolderEditorSidePanel({
                       if (isAdded) return null;
 
                       return (
-                        <div key={m.hash} className="w-full theme-glass-inner p-2 rounded-lg flex items-center justify-between gap-3 hover:bg-white/5 transition-all">
+                        <div key={m.hash} className="w-full glass-surface p-2 rounded-lg flex items-center justify-between gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
                           <div className="flex flex-1 items-center gap-3 min-w-0">
-                            <div className="w-8 h-8 rounded border border-white/10 bg-black/40 shrink-0 overflow-hidden flex items-center justify-center">
+                            <div className="w-8 h-8 rounded border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/40 shrink-0 overflow-hidden flex items-center justify-center">
                               {m.image_url || m.imageUrl ? (
                                 <img src={m.image_url || m.imageUrl} className="w-full h-full object-cover" />
                               ) : (
@@ -312,7 +312,7 @@ export function VaultLocalFolderEditorSidePanel({
                                     setSearchToAdd("");
                                     setUpdateTrigger(prev => prev + 1);
                                   }}
-                                  className="h-8 px-3 rounded-lg border border-white/10 text-[var(--subtext)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                  className="h-8 px-3 rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
                                 >
                                   {t("editor_core") || "CORE"}
                                 </button>
@@ -324,7 +324,7 @@ export function VaultLocalFolderEditorSidePanel({
                                     setSearchToAdd("");
                                     setUpdateTrigger(prev => prev + 1);
                                   }}
-                                  className="h-8 px-3 rounded-lg border border-white/10 text-[var(--subtext)] hover:border-[var(--success)] hover:text-[var(--success)] hover:bg-[var(--success)]/10 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                  className="h-8 px-3 rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[var(--success)] hover:text-[var(--success)] hover:bg-[var(--success)]/10 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
                                 >
                                   {t("editor_twin") || "TWIN"}
                                 </button>
@@ -336,7 +336,7 @@ export function VaultLocalFolderEditorSidePanel({
                                     setSearchToAdd("");
                                     setUpdateTrigger(prev => prev + 1);
                                   }}
-                                  className="h-8 px-3 rounded-lg border border-white/10 text-[var(--subtext)] hover:border-[var(--warning)] hover:text-[var(--warning)] hover:bg-[var(--warning)]/10 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                  className="h-8 px-3 rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[var(--warning)] hover:text-[var(--warning)] hover:bg-[var(--warning)]/10 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
                                 >
                                   {t("editor_addon") || "ADDON"}
                                 </button>
@@ -352,8 +352,8 @@ export function VaultLocalFolderEditorSidePanel({
             </div>
 
             {/* MAIN CONTENT AREA */}
-            <div className="flex-1 flex flex-col min-h-0 theme-glass-panel rounded-2xl overflow-hidden border border-white/10 bg-black/20 shadow-lg relative">
-              <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-white/5 bg-black/20">
+            <div className="flex-1 flex flex-col min-h-0 glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/20 shadow-lg relative">
+              <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/20">
                 <div className="flex items-center gap-3">
                   <span className={`material-symbols-outlined !text-[18px] opacity-50 ${targetSet.isCollection ? 'text-[var(--accent)]' : 'text-[var(--success)]'}`}>{targetSet.isCollection ? 'category' : 'inventory_2'}</span>
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{targetSet.isCollection ? (t("collection_contents") || "COLLECTION CONTENTS") : (t("folder_logic") || "FOLDER LOGIC")} ({targetSet.items.length})</h3>
@@ -362,7 +362,7 @@ export function VaultLocalFolderEditorSidePanel({
 
               <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 relative z-10">
                 {targetSet.items.length === 0 ? (
-                  <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-white/10 rounded-2xl bg-white/5">
+                  <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <span className="material-symbols-outlined !text-[32px] mb-2 opacity-50">inventory_2</span>
                     <span className="text-[10px] font-black uppercase tracking-widest">{t("empty_folder") || "THIS NODE IS EMPTY"}</span>
                   </div>
@@ -375,9 +375,9 @@ export function VaultLocalFolderEditorSidePanel({
                       const art = displayModList.find((m: any) => m.hash === hash);
                       if (!art) return null;
                       return (
-                        <div key={hash} className="w-full theme-glass-panel bg-white/5 p-3 rounded-xl flex items-center justify-between gap-4 group/item border border-white/10 hover:border-white/30 transition-all shadow-lg">
+                        <div key={hash} className="w-full glass-panel bg-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 rounded-xl flex items-center justify-between gap-4 group/item border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all shadow-lg">
                           <div className="flex flex-1 items-center gap-4 min-w-0">
-                            <div className="w-8 h-8 rounded border border-white/20 bg-black/20 shrink-0 overflow-hidden flex items-center justify-center">
+                            <div className="w-8 h-8 rounded border border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-black/20 shrink-0 overflow-hidden flex items-center justify-center">
                               {art.image_url || art.imageUrl ? (
                                 <img src={art.image_url || art.imageUrl} className="w-full h-full object-cover" />
                               ) : (
@@ -408,16 +408,16 @@ export function VaultLocalFolderEditorSidePanel({
                   <div className="flex flex-col gap-8">
                     
                     {/* BUCKET: CORE */}
-                    <div className="flex flex-col gap-4 bg-black/20 border border-white/5 rounded-2xl p-5 relative">
+                    <div className="flex flex-col gap-4 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-5 relative">
                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--accent)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">stars</span> {t("editor_core_artifact") || "CORE ARTIFACT"}</h4>
                       {targetSet.archetypes?.core ? (() => {
                         const hash = targetSet.archetypes.core;
                         const art = displayModList.find((m: any) => m.hash === hash);
                         if (!art) return null;
                         return (
-                          <div className="w-full theme-glass-inner bg-white/5 border border-[var(--accent)]/30 p-3 rounded-xl flex items-center justify-between gap-4 hover:border-[var(--accent)]/60 transition-all group">
+                          <div className="w-full glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[var(--accent)]/30 p-3 rounded-xl flex items-center justify-between gap-4 hover:border-[var(--accent)]/60 transition-all group">
                             <div className="flex flex-1 items-center gap-4 min-w-0">
-                              <div className="w-10 h-10 rounded border border-white/10 bg-black/40 shrink-0 overflow-hidden flex items-center justify-center">
+                              <div className="w-10 h-10 rounded border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/40 shrink-0 overflow-hidden flex items-center justify-center">
                                 {art.image_url || art.imageUrl ? <img src={art.image_url || art.imageUrl} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] opacity-50">{getModIcon(art, activeGameSchema, t)}</span>}
                               </div>
                               <span className="text-[11px] font-black text-[var(--accent)] uppercase truncate tracking-[0.1em]">{formatDisplayName(art.displayName || art.name)}</span>
@@ -441,17 +441,17 @@ export function VaultLocalFolderEditorSidePanel({
                     </div>
 
                     {/* BUCKET: TWINS */}
-                    <div className="flex flex-col gap-4 bg-black/20 border border-white/5 rounded-2xl p-5 relative">
+                    <div className="flex flex-col gap-4 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-5 relative">
                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--success)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">join_inner</span> {t("twin_artifacts") || "TWIN ARTIFACTS"}</h4>
                       <div className="flex flex-col gap-2">
                         {(!targetSet.archetypes?.twins || targetSet.archetypes.twins.length === 0) && (
-                           <div className="w-full p-3 rounded-xl border border-dashed border-white/10 text-[var(--subtext)]/50 text-[9px] font-black uppercase tracking-widest text-center">EMPTY</div>
+                           <div className="w-full p-3 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]/50 text-[9px] font-black uppercase tracking-widest text-center">EMPTY</div>
                         )}
                         {(targetSet.archetypes?.twins || []).map((hash: string) => {
                           const art = displayModList.find((m: any) => m.hash === hash);
                           if (!art) return null;
                           return (
-                            <div key={hash} className="w-full theme-glass-inner bg-white/5 border border-[var(--success)]/30 p-2 rounded-xl flex items-center justify-between gap-3 hover:border-[var(--success)]/60 transition-all group">
+                            <div key={hash} className="w-full glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[var(--success)]/30 p-2 rounded-xl flex items-center justify-between gap-3 hover:border-[var(--success)]/60 transition-all group">
                               <div className="flex flex-1 items-center gap-3 min-w-0">
                                 <span className="text-[10px] font-black text-[var(--text)] uppercase truncate tracking-[0.1em]">{formatDisplayName(art.displayName || art.name)}</span>
                               </div>
@@ -471,17 +471,17 @@ export function VaultLocalFolderEditorSidePanel({
                     </div>
 
                     {/* BUCKET: ADDONS */}
-                    <div className="flex flex-col gap-4 bg-black/20 border border-white/5 rounded-2xl p-5 relative">
+                    <div className="flex flex-col gap-4 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-5 relative">
                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--warning)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">extension</span> {t("addon_artifacts") || "ADDON ARTIFACTS"}</h4>
                       <div className="flex flex-col gap-2">
                         {(!targetSet.archetypes?.addons || targetSet.archetypes.addons.length === 0) && (
-                           <div className="w-full p-3 rounded-xl border border-dashed border-white/10 text-[var(--subtext)]/50 text-[9px] font-black uppercase tracking-widest text-center">EMPTY</div>
+                           <div className="w-full p-3 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]/50 text-[9px] font-black uppercase tracking-widest text-center">EMPTY</div>
                         )}
                         {(targetSet.archetypes?.addons || []).map((hash: string) => {
                           const art = displayModList.find((m: any) => m.hash === hash);
                           if (!art) return null;
                           return (
-                            <div key={hash} className="w-full theme-glass-inner bg-white/5 border border-[var(--warning)]/30 p-2 rounded-xl flex items-center justify-between gap-3 hover:border-[var(--warning)]/60 transition-all group">
+                            <div key={hash} className="w-full glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[var(--warning)]/30 p-2 rounded-xl flex items-center justify-between gap-3 hover:border-[var(--warning)]/60 transition-all group">
                               <div className="flex flex-1 items-center gap-3 min-w-0">
                                 <span className="text-[10px] font-black text-[var(--text)] uppercase truncate tracking-[0.1em]">{formatDisplayName(art.displayName || art.name)}</span>
                               </div>

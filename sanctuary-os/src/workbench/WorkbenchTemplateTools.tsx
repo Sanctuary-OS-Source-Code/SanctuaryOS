@@ -49,8 +49,8 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
          )}
          <div className="flex items-center gap-1">
             {handleAutoMap && (
-               <div className="relative group flex mr-2 border-r border-white/10 pr-3">
-                  <button onClick={handleAutoMap} className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
+               <div className="relative group flex mr-2 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] pr-3">
+                  <button onClick={handleAutoMap} className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-[var(--accent)]/[20%] text-[var(--accent)] hover:bg-[var(--accent)]/[40%] shadow-md">
                      <span className="material-symbols-outlined !text-[16px]">auto_fix_high</span>
                   </button>
                   <HoverTooltip title="Auto-Map from Target File" variant="info" className="mb-2" />

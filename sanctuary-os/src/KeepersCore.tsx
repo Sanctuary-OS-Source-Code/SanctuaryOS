@@ -23,7 +23,7 @@ export default function KeepersCore() {
       </ViewHeader>
 
       <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
-        <div className="flex items-center overflow-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 shrink-0">
+        <div className="flex items-center overflow-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 shrink-0">
           <HubTabButton id="command_center" icon={t("icon_desktop_windows") || "desktop_windows"} label={t("wf_tab_command") || "Command Center"} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="keepers_comms" icon={t("icon_satellite_alt") || "satellite_alt"} label={t("wf_tab_dispatch") || "DISPATCH"} activeTab={activeTab} setTab={setActiveTab} />
           <HubTabButton id="active_games" icon="dns" label="Active Workspaces" activeTab={activeTab} setTab={setActiveTab} />

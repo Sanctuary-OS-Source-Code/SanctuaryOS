@@ -164,18 +164,18 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
           <div className="absolute left-[-2rem] top-7 w-8 h-px bg-[var(--accent)]/40 shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)] rounded-r-full" />
         )}
 
-        <div className="theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-3xl p-4 pr-6 flex items-center justify-between shadow-xl hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 group/card relative z-10 hover:z-[100] shrink-0 backdrop-blur-xl min-w-[280px]">
+        <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-3xl p-4 pr-6 flex items-center justify-between shadow-xl hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[var(--accent)]/[5%] transition-all duration-300 group/card relative z-10 hover:z-[100] shrink-0 backdrop-blur-xl min-w-[280px]">
           
           <div className="flex items-center gap-4">
             {node.type === "folder" ? (
               <button 
                 onClick={() => toggleExpand(node.id)} 
-                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:text-[var(--accent)] transition-all text-[var(--text)] shrink-0 shadow-inner group-hover/card:border-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
+                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[var(--accent)]/[10%] hover:border-[var(--accent)]/[30%] hover:text-[var(--accent)] transition-all text-[var(--text)] shrink-0 shadow-inner group-hover/card:border-[var(--accent)]/[20%]"
               >
                 <span className="material-symbols-outlined !text-[24px] drop-shadow-md transition-transform duration-300 group-hover/card:scale-110">{isExpanded ? "folder_open" : "folder"}</span>
               </button>
             ) : (
-              <div className={`w-12 h-12 flex items-center justify-center rounded-2xl border shrink-0 shadow-inner ${isConfigFile ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]'}`}>
+              <div className={`w-12 h-12 flex items-center justify-center rounded-2xl border shrink-0 shadow-inner ${isConfigFile ? 'bg-orange-500/[10%] border-orange-500/[30%] text-[var(--warning)]' : 'bg-[var(--accent)]/[10%] border-[var(--accent)]/[30%] text-[var(--accent)]'}`}>
                  <span className="material-symbols-outlined !text-[24px] drop-shadow-md">{isConfigFile ? "settings" : "description"}</span>
               </div>
             )}
@@ -186,8 +186,8 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                    <span className={`text-[13px] font-black uppercase tracking-widest truncate leading-tight ${isConfigFile ? 'text-[var(--warning)]' : 'text-[var(--text)] group-hover/card:text-[var(--accent)] transition-colors'}`}>
                      {isConfigFile ? node.assignedModName.replace(/^\[|\]$/g, '') : `[${node.assignedModName.replace(/^\[|\]$/g, '')}]`}
                    </span>
-                   {isPackage && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] font-black tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] leading-none shrink-0">PKG</span>}
-                   {isTs4script && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] font-black tracking-widest border border-[color-mix(in_srgb,var(--success)_30%,transparent)] leading-none shrink-0">TS4</span>}
+                   {isPackage && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[var(--accent)]/[15%] text-[var(--accent)] font-black tracking-widest border border-[var(--accent)]/[30%] leading-none shrink-0">PKG</span>}
+                   {isTs4script && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-500/[15%] text-[var(--success)] font-black tracking-widest border border-emerald-500/[30%] leading-none shrink-0">TS4</span>}
                 </div>
               ) : (
                 <div className="flex items-center gap-2 w-full">
@@ -197,8 +197,8 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                     className="bg-transparent border-b border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:theme-border-accent outline-none text-[13px] font-black uppercase tracking-widest text-[var(--text)] transition-all flex-1 min-w-[120px] py-1 placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)]"
                     placeholder={node.type === "folder" ? "DIR NAME..." : "FILE PATTERN..."}
                   />
-                  {isPackage && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] font-black tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] leading-none shrink-0">PKG</span>}
-                  {isTs4script && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] font-black tracking-widest border border-[color-mix(in_srgb,var(--success)_30%,transparent)] leading-none shrink-0">TS4</span>}
+                  {isPackage && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[var(--accent)]/[15%] text-[var(--accent)] font-black tracking-widest border border-[var(--accent)]/[30%] leading-none shrink-0">PKG</span>}
+                  {isTs4script && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-500/[15%] text-[var(--success)] font-black tracking-widest border border-emerald-500/[30%] leading-none shrink-0">TS4</span>}
                 </div>
               )}
             </div>
@@ -206,9 +206,9 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
 
 
           
-          <div className="absolute top-12 left-10 opacity-0 pointer-events-none group-hover/card:opacity-100 group-hover/card:pointer-events-auto transition-all scale-95 group-hover/card:scale-100 w-48 h-max theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl overflow-hidden flex flex-col py-1 z-[60] origin-top-left">
+          <div className="absolute top-12 left-10 opacity-0 pointer-events-none group-hover/card:opacity-100 group-hover/card:pointer-events-auto transition-all scale-95 group-hover/card:scale-100 w-48 h-max glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl overflow-hidden flex flex-col py-1 z-[60] origin-top-left">
             {node.type === "file" && availableMods && (
-              <button onClick={() => setActiveDropdown(activeDropdown === node.id ? null : node.id)} className="px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center gap-3 text-sm font-bold text-[var(--accent)] group">
+              <button onClick={() => setActiveDropdown(activeDropdown === node.id ? null : node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--accent)] group">
                 <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">link</span>
                 {t("auto_assign_binding")}
               </button>
@@ -216,11 +216,11 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
             
             {node.type === "folder" && (
               <>
-                <button onClick={() => handleAddFolder(node.id)} className="px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group">
+                <button onClick={() => handleAddFolder(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group">
                   <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_create_new_folder")}</span>
                   {t("auto_directory")}
                 </button>
-                <button onClick={() => handleAddFile(node.id)} className="px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group">
+                <button onClick={() => handleAddFile(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group">
                   <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_note_add")}</span>
                   {t("auto_file")}
                 </button>
@@ -228,7 +228,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
               </>
             )}
             
-            <button onClick={() => handleDelete(node.id)} className="px-4 py-2 text-left hover:bg-white/10 transition-colors flex items-center gap-3 text-sm font-bold text-[var(--danger)] group">
+            <button onClick={() => handleDelete(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--danger)] group">
               <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_delete")}</span>
               DELETE
             </button>
@@ -281,7 +281,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
         noPadding
       >
         <div className="flex flex-col h-[calc(100vh-100px)] w-full overflow-hidden p-8">
-          <div className="flex-1 flex flex-col h-full min-w-0 relative z-10 theme-glass-panel rounded-[32px] p-6 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] backdrop-blur-3xl">
+          <div className="flex-1 flex flex-col h-full min-w-0 relative z-10 glass-panel rounded-[32px] p-6 border border-[var(--accent)]/[20%] shadow-md backdrop-blur-3xl">
             
             {/* Background Effects */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--accent)]/5 rounded-full blur-[100px] pointer-events-none -translate-y-1/3 translate-x-1/3" />
@@ -301,7 +301,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                   placeholder={t("search_ph")} 
                   value={searchQuery} 
                   onChange={e => { setSearchQuery(e.target.value); setAvailablePage(0); }} 
-                  className="w-full theme-glass-inner border border-white/10 rounded-xl text-[12px] font-mono text-[var(--text)] px-5 py-2.5 outline-none focus:theme-border-accent shadow-inner transition-all bg-transparent" 
+                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl text-[12px] font-mono text-[var(--text)] px-5 py-2.5 outline-none focus:theme-border-accent shadow-inner transition-all bg-transparent" 
                 />
               </div>
             </div>
@@ -325,13 +325,13 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                     <div className="flex flex-col gap-4">
                       <h4 className="text-[10px] font-black uppercase text-[var(--accent)] tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">stars</span> {t("structure_assign_primary")}</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="relative group/item flex flex-col p-4 rounded-3xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate">
+                        <div className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[var(--accent)]/[5%] transition-all duration-300 isolate">
                           <div className="flex items-start justify-between gap-3 mb-4">
                             <div className="w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
                               {targetMod.image_url ? <img src={targetMod.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">extension</span>}
                             </div>
                             <div className="flex flex-col items-end gap-1">
-                              <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] text-right break-words max-w-[100px] leading-tight">
+                              <span className="px-2 py-0.5 rounded-md bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] text-right break-words max-w-[100px] leading-tight">
                                 PRIMARY
                               </span>
                             </div>
@@ -343,8 +343,8 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
 
                           {(targetMod.sub_type === 'TS4SCRIPT' || targetMod.sub_type === 'PACKAGE') && (
                             <div className="flex bg-black/20 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] rounded-xl overflow-hidden mt-auto">
-                              {targetMod.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, pkgExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer border-r border-white/5 transition-all">{t("auto_pkg")}</div>}
-                              {targetMod.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, scriptExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer transition-all">{t("auto_script")}</div>}
+                              {targetMod.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, pkgExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-[var(--text)] cursor-pointer border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">{t("auto_pkg")}</div>}
+                              {targetMod.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, scriptExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-[var(--text)] cursor-pointer transition-all">{t("auto_script")}</div>}
                             </div>
                           )}
                         </div>
@@ -358,7 +358,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                       <h4 className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">folder_shared</span> {t("structure_assign_family")}</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 min-[2000px]:grid-cols-3 gap-4">
                         {displayAvailableMods.map(m => (
-                          <div key={m.id} className="relative group/item flex flex-col p-4 rounded-3xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate">
+                          <div key={m.id} className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[var(--accent)]/[5%] transition-all duration-300 isolate">
                             <div className="flex items-start justify-between gap-3 mb-4">
                               <div className="w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
                                 {m.image_url ? <img src={m.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">extension</span>}
@@ -379,8 +379,8 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
 
                             {(m.sub_type === 'TS4SCRIPT' || m.sub_type === 'PACKAGE') && (
                               <div className="flex bg-black/20 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] rounded-xl overflow-hidden mt-auto">
-                                {m.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, pkgExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer border-r border-white/5 transition-all">{t("auto_pkg")}</div>}
-                                {m.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, scriptExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-white/10 hover:text-[var(--text)] cursor-pointer transition-all">{t("auto_script")}</div>}
+                                {m.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, pkgExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-[var(--text)] cursor-pointer border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">{t("auto_pkg")}</div>}
+                                {m.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, scriptExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-[var(--text)] cursor-pointer transition-all">{t("auto_script")}</div>}
                               </div>
                             )}
                           </div>

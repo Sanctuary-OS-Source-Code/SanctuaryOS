@@ -46,9 +46,9 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
         </div>
       </ViewHeader>
 
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-black/40 backdrop-blur-[3px] border border-white/10 p-4 rounded-[var(--radius)] shadow-inner shrink-0">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-black/40 backdrop-blur-[3px] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-[var(--radius)] shadow-inner shrink-0">
 
-        <div className="flex items-center gap-3 theme-glass-panel px-4 py-2 rounded-xl w-full md:w-96">
+        <div className="flex items-center gap-3 glass-panel px-4 py-2 rounded-xl w-full md:w-96">
           <span className="theme-text-accent">{t("_")}</span>
           <input
             type="text"
@@ -70,7 +70,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
                 className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
                   ${activeFilter === f
                     ? 'theme-bg-accent text-[var(--bg)] shadow-lg'
-                    : 'bg-white/5 border border-white/5 text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:border-white/20'}`}
+                    : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
               >
                 {label}
               </button>
@@ -96,7 +96,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
                   className={`relative group cursor-pointer rounded-2xl overflow-hidden border transition-all duration-300 aspect-[3/4] flex flex-col bg-black/40
                     ${isEquipped
                       ? 'theme-border-accent shadow-lg scale-[1.02]'
-                      : 'border-white/10 hover:border-white/30 opacity-70 hover:opacity-100'}`}
+                      : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] opacity-70 hover:opacity-100'}`}
                 >
 
                   <div className="flex-1 relative w-full bg-black flex items-center justify-center overflow-hidden">
@@ -111,7 +111,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
                   </div>
 
                   <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border backdrop-blur-[3px] transition-all
-                    ${isEquipped ? 'theme-bg-accent text-[var(--bg)] theme-border-accent' : 'bg-black/50 text-transparent border-white/20'}`}>
+                    ${isEquipped ? 'theme-bg-accent text-[var(--bg)] theme-border-accent' : 'bg-black/50 text-transparent border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
                     ✓
                   </div>
 

@@ -1593,7 +1593,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
   }, [search]);
 
   return (
-    <div className="absolute top-full mt-2 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl pointer-events-auto w-[360px] z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col overflow-hidden">
+    <div className="absolute top-full mt-2 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl pointer-events-auto w-[360px] z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col overflow-hidden">
 
       <div className="p-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-transparent shrink-0">
         <div className="relative">
@@ -1623,7 +1623,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
                       key={icon}
                       type="button"
                       onClick={() => onSelect(icon)}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--text)] hover:text-[var(--accent)] transition-all hover:scale-110 shadow-sm shrink-0"
+                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/[20%] text-[var(--text)] hover:text-[var(--accent)] transition-all hover:scale-110 shadow-sm shrink-0"
                     >
                       <span className="material-symbols-outlined !text-[20px]">{icon}</span>
                     </button>

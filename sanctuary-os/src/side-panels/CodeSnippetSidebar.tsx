@@ -57,11 +57,11 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
               placeholder={t("ui_placeholder_search_code")}
-              className="w-full h-10 theme-glass-inner rounded-xl pl-12 pr-12 text-[12px] font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all relative z-0"
+              className="w-full h-10 glass-surface rounded-xl pl-12 pr-12 text-[12px] font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all relative z-0"
             />
             {searchTerm && (
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
-                <span className="text-[10px] font-black text-[var(--subtext)] opacity-70 bg-black/20 px-2 py-0.5 rounded-md border border-white/5">{matchCount}</span>
+                <span className="text-[10px] font-black text-[var(--subtext)] opacity-70 bg-black/20 px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">{matchCount}</span>
                 <button onClick={() => setSearchTerm("")} className="text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
                 </button>
@@ -80,7 +80,7 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
           </div>
         </div>
 
-        <div className="w-full flex-1 min-h-0 rounded-[var(--radius)] overflow-hidden shadow-2xl border border-white/10 bg-black/40 backdrop-blur-xl flex flex-col relative">
+        <div className="w-full flex-1 min-h-0 rounded-[var(--radius)] overflow-hidden shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/40 backdrop-blur-xl flex flex-col relative">
           
           <div className="flex-1 overflow-auto custom-scrollbar relative z-0">
             {!searchTerm ? (

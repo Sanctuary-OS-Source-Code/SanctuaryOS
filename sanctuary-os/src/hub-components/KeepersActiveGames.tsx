@@ -102,17 +102,17 @@ export default function KeepersActiveGames() {
     <div className="flex flex-col w-full relative h-full">
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-10">
         <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">dns</span>
           </div>
           <span className="truncate">{t("ui_supported_games") || "Supported Game Databases"}</span>
         </h2>
 
         <div className="flex items-center gap-3 flex-1 justify-end">
-          <div className="flex items-center theme-glass-panel rounded-xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
-            <button onClick={() => setFilter('all')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_all")}</button>
-            <button onClick={() => setFilter('active')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'active' ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_active")}</button>
-            <button onClick={() => setFilter('inactive')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'inactive' ? 'text-red-500 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-red-400 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_inactive")}</button>
+          <div className="flex items-center glass-panel rounded-xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
+            <button onClick={() => setFilter('all')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? 'text-[var(--accent)] bg-[var(--accent)]/[10%] shadow-md' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_all")}</button>
+            <button onClick={() => setFilter('active')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'active' ? 'text-[var(--accent)] bg-[var(--accent)]/[10%] shadow-md' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_active")}</button>
+            <button onClick={() => setFilter('inactive')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'inactive' ? 'text-red-500 bg-red-500/10 shadow-md' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-red-400 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_inactive")}</button>
           </div>
           <ActionButton
             onClick={() => { setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", icon: "" }); setSidePanelMode('add'); }}
@@ -144,19 +144,19 @@ export default function KeepersActiveGames() {
         <div className="flex flex-col gap-6 w-full">
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-2 block">{t("ui_game_name") || "GAME NAME"}</label>
-            <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent transition-colors" placeholder="e.g. The Sims 4" />
+            <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent transition-colors" placeholder="e.g. The Sims 4" />
           </div>
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-2 block">{t("ui_schema_id") || "SCHEMA IDENTIFIER"}</label>
-            <input type="text" value={formData.schema_id} onChange={e => setFormData({ ...formData, schema_id: e.target.value })} className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent transition-colors" placeholder="e.g. SIMS4" />
+            <input type="text" value={formData.schema_id} onChange={e => setFormData({ ...formData, schema_id: e.target.value })} className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent transition-colors" placeholder="e.g. SIMS4" />
           </div>
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-2 block">{t("ui_supabase_url") || "SUPABASE URL"}</label>
-            <input type="text" value={formData.supabase_url} onChange={e => setFormData({ ...formData, supabase_url: e.target.value })} className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent transition-colors" placeholder="https://xyz.supabase.co" />
+            <input type="text" value={formData.supabase_url} onChange={e => setFormData({ ...formData, supabase_url: e.target.value })} className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent transition-colors" placeholder="https://xyz.supabase.co" />
           </div>
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-2 block">{t("ui_supabase_key") || "ANON KEY"}</label>
-            <input type="text" value={formData.supabase_anon_key} onChange={e => setFormData({ ...formData, supabase_anon_key: e.target.value })} className="w-full theme-glass-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent transition-colors" placeholder="ey..." />
+            <input type="text" value={formData.supabase_anon_key} onChange={e => setFormData({ ...formData, supabase_anon_key: e.target.value })} className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-bold text-[var(--text)] outline-none focus:theme-border-accent transition-colors" placeholder="ey..." />
           </div>
         </div>
       </SidePanel>
@@ -167,15 +167,15 @@ export default function KeepersActiveGames() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredGames.map(game => (
-              <div key={game.id} onClick={() => { setFormData({ id: game.id, name: game.name || "", schema_id: game.schema_id || "", supabase_url: game.supabase_url || "", supabase_anon_key: game.supabase_anon_key || "", icon: game.icon || "" }); setSidePanelMode('edit'); }} className={`theme-glass-panel rounded-[var(--radius)] flex flex-col group border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] hover:-translate-y-1.5 p-6 ${game.is_active === false ? 'opacity-50 grayscale border-white/5' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+              <div key={game.id} onClick={() => { setFormData({ id: game.id, name: game.name || "", schema_id: game.schema_id || "", supabase_url: game.supabase_url || "", supabase_anon_key: game.supabase_anon_key || "", icon: game.icon || "" }); setSidePanelMode('edit'); }} className={`glass-panel rounded-[var(--radius)] flex flex-col group border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] cursor-pointer hover:border-[var(--accent)]/[50%] hover:shadow-md hover:-translate-y-1.5 p-6 ${game.is_active === false ? 'opacity-50 grayscale border-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                 <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                  <button onClick={(e) => { e.stopPropagation(); handleToggleActive(game.id, game.name, game.is_active); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-110">
+                  <button onClick={(e) => { e.stopPropagation(); handleToggleActive(game.id, game.name, game.is_active); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/[10%] hover:border-[var(--accent)]/[30%] hover:scale-110">
                     <span className="material-symbols-outlined !text-[14px]">{game.is_active === false ? 'toggle_off' : 'toggle_on'}</span>
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleSeverFDW(game.schema_id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-amber-500 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:scale-110">
+                  <button onClick={(e) => { e.stopPropagation(); handleSeverFDW(game.schema_id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-amber-500 hover:bg-orange-500/[10%] hover:border-orange-500/[30%] hover:scale-110">
                     <span className="material-symbols-outlined !text-[14px]">link_off</span>
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:scale-110">
+                  <button onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-red-500/[10%] hover:border-red-500/[30%] hover:scale-110">
                     <span className="material-symbols-outlined !text-[14px]">delete</span>
                   </button>
                 </div>

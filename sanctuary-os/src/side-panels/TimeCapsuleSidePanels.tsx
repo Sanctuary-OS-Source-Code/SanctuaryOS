@@ -140,7 +140,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
           {activeSubTab === "INSPECTOR" && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-4 flex-1 min-h-0 relative">
               <div className="flex items-start gap-4 mb-4 relative z-10 shrink-0">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 shadow-inner text-emerald-500 shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-emerald-500 shrink-0">
                   <span className="material-symbols-outlined !text-[24px]">{t("icon_inspector") || "troubleshoot"}</span>
                 </div>
                 <div className="flex flex-col gap-1">
@@ -155,7 +155,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                 <div className="text-center text-xs text-[var(--subtext)] animate-pulse relative z-10">{t("loading_contents") || "Loading contents..."}</div>
               ) : (
                 <div className="flex flex-col gap-2 relative z-10 overflow-y-auto custom-scrollbar flex-1 pr-2 pb-6">
-                  <div className="p-4 border border-white/5 bg-white/5 rounded-2xl flex items-center gap-3 shrink-0">
+                  <div className="p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl flex items-center gap-3 shrink-0">
                     <span className={`material-symbols-outlined !text-[18px] ${themeColor}`}>{icon}</span>
                     <div>
                       <div className="text-sm font-black uppercase tracking-widest text-[var(--text)] truncate">{selectedBackup}</div>
@@ -164,7 +164,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                   </div>
 
                   {!isEngine && (
-                    <div className="p-4 flex flex-col gap-3 border border-white/5 bg-white/5 rounded-2xl shrink-0">
+                    <div className="p-4 flex flex-col gap-3 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shrink-0">
                       <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest">
                         <span className="text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_saves") || "save"}</span> {t("label_saves") || "Saves"}</span>
                         <span className="text-emerald-500">{saveFiles.length} {t("label_files") || "Files"}</span>
@@ -181,7 +181,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                   )}
 
                   {isEngine && (
-                    <div className="p-4 flex flex-col gap-2 border border-white/5 bg-white/5 rounded-2xl shrink-0">
+                    <div className="p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shrink-0">
                       <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest">
                         <span className="text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_folder") || "folder"}</span> {t("total_files") || "Total Files"}</span>
                         <span className="text-emerald-500">{backupFiles.length}</span>
@@ -190,7 +190,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                   )}
 
                   {/* Storage Info Details */}
-                  <div className="p-4 border border-white/5 bg-white/5 rounded-2xl flex flex-col gap-3 shrink-0">
+                  <div className="p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl flex flex-col gap-3 shrink-0">
                     <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest">
                       <span className="text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_hard_drive") || "hard_drive"}</span> {t("logical_size") || "Logical Size"}</span>
                       <span className="text-[var(--text)]">{(logicalSize / 1024 / 1024 / 1024).toFixed(2)} GB</span>
@@ -199,9 +199,9 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                       <span className="text-[var(--subtext)] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_data_usage") || "data_usage"}</span> {t("new_disk_used") || "New Disk Used"}</span>
                       <span className="text-amber-500">{(diffSize / 1024 / 1024 / 1024).toFixed(4)} GB</span>
                     </div>
-                    <div className="mt-2 pt-3 border-t border-white/5 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex flex-col gap-2">
+                    <div className="mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex flex-col gap-2">
                       <span className="flex items-center gap-1 opacity-70"><span className="material-symbols-outlined !text-[14px]">{t("icon_location") || "location_on"}</span> {t("stored_location") || "Stored Location"}</span>
-                      <span className="bg-black/20 p-3 rounded-xl font-mono text-[11px] font-black uppercase tracking-widest break-all border border-white/5 leading-relaxed">
+                      <span className="bg-black/20 p-3 rounded-xl font-mono text-[11px] font-black uppercase tracking-widest break-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] leading-relaxed">
                         {location.replace(/c:\\users\\[^\\]+/i, 'C:\\USERS\\***')}
                       </span>
                     </div>
@@ -214,7 +214,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
           {activeSubTab === "EXTRACT" && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-4 flex-1 min-h-0 relative">
               <div className="flex items-start gap-4 mb-4 relative z-10 shrink-0">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 shadow-inner text-amber-500 shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-amber-500 shrink-0">
                   <span className="material-symbols-outlined !text-[24px]">{t("icon_extract") || "content_cut"}</span>
                 </div>
                 <div className="flex flex-col gap-1">
@@ -235,7 +235,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                     value={extractSearch}
                     onChange={e => setExtractSearch(e.target.value)}
                     placeholder={t("search_files") || "Search files..."}
-                    className="w-full bg-white/5 border border-white/5 rounded-xl py-3 pl-12 pr-4 text-xs font-black uppercase tracking-widest text-[var(--text)] focus:outline-none focus:border-amber-500/50 transition-colors"
+                    className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl py-3 pl-12 pr-4 text-xs font-black uppercase tracking-widest text-[var(--text)] focus:outline-none focus:border-amber-500/50 transition-colors"
                   />
                 </div>
               </div>
@@ -245,7 +245,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
               ) : (
                 <div className="flex flex-col gap-2 relative z-10 overflow-y-auto pr-2 custom-scrollbar flex-1 pb-6">
                   {filteredExtract.slice(0, extractLimit).map((file, i) => (
-                    <div key={i} className="bg-white/5 border border-transparent p-4 rounded-xl flex items-center justify-between group hover:bg-white/10 hover:border-amber-500/30 transition-all shrink-0">
+                    <div key={i} className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent p-4 rounded-xl flex items-center justify-between group hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-amber-500/30 transition-all shrink-0">
                       <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest truncate flex-1 mr-4">
                         <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] group-hover:text-amber-500 shrink-0 transition-colors">
                           {file.path.toLowerCase().endsWith('.save') ? (t("icon_saves") || 'save') : file.path.toLowerCase().includes('.trayitem') ? (t("icon_tray_files") || 'group') : (t("icon_file") || 'description')}
@@ -266,7 +266,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                       <div className="text-center text-[10px] text-[var(--subtext)] uppercase tracking-widest">
                         {t("showing_files")?.replace("{0}", extractLimit.toString()) || `Showing first ${extractLimit} files of ${filteredExtract.length}`}
                       </div>
-                      <button onClick={() => setExtractLimit(l => l + 100)} className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-widest border border-white/5 transition-colors">
+                      <button onClick={() => setExtractLimit(l => l + 100)} className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold uppercase tracking-widest border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
                         {t("load_more") || "Load More"}
                       </button>
                     </div>
@@ -279,7 +279,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
           {activeSubTab === "DIFF" && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-4 flex-1 min-h-0 relative">
               <div className="flex items-start gap-4 mb-4 relative z-10 shrink-0">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 shadow-inner text-indigo-500 shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-indigo-500 shrink-0">
                   <span className="material-symbols-outlined !text-[24px]">{t("icon_diff") || "difference"}</span>
                 </div>
                 <div className="flex flex-col gap-1">
@@ -300,7 +300,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                     value={diffSearch}
                     onChange={e => setDiffSearch(e.target.value)}
                     placeholder={t("search_files") || "Search files..."}
-                    className="w-full bg-white/5 border border-white/5 rounded-xl py-3 pl-12 pr-4 text-xs font-black uppercase tracking-widest text-[var(--text)] focus:outline-none focus:border-indigo-500/50 transition-colors"
+                    className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl py-3 pl-12 pr-4 text-xs font-black uppercase tracking-widest text-[var(--text)] focus:outline-none focus:border-indigo-500/50 transition-colors"
                   />
                 </div>
               </div>
@@ -309,14 +309,14 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                 <div className="text-center text-xs text-[var(--subtext)] animate-pulse relative z-10">{t("calculating_diff") || "Calculating diff..."}</div>
               ) : (
                 <div className="flex flex-col gap-2 relative z-10 flex-1 min-h-0 pb-6">
-                  <div className="flex items-center justify-between shrink-0 mb-4 px-4 py-3 bg-white/5 rounded-xl border border-white/5 shadow-inner">
+                  <div className="flex items-center justify-between shrink-0 mb-4 px-4 py-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
                     <div className="text-xs font-black uppercase tracking-widest text-[var(--subtext)]">{t("current_state") || "Current State"}</div>
                     <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-50">arrow_right_alt</span>
                     <div className={`text-xs font-black uppercase tracking-widest ${themeColor}`}>{t("selected_backup") || "Selected Backup"}</div>
                   </div>
                   <div className="flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-2 flex-1">
                     {filteredDiff.slice(0, diffLimit).map((diff, i) => (
-                      <div key={i} className="flex items-center justify-between bg-white/5 hover:bg-white/10 transition-colors p-4 rounded-xl border border-transparent shrink-0">
+                      <div key={i} className="flex items-center justify-between bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors p-4 rounded-xl border border-transparent shrink-0">
                         <span className="text-xs font-black uppercase tracking-widest text-[var(--text)] truncate max-w-[60%]" title={diff.path}>{diff.path.split('/').pop()}</span>
                         <span className={`text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shrink-0 ${diff.status === 'Modified' ? 'text-amber-500 bg-amber-500/10' :
                           diff.status === 'Missing in Current' ? 'text-rose-500 bg-rose-500/10' :
@@ -338,7 +338,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                         <div className="text-center text-[10px] text-[var(--subtext)] uppercase tracking-widest">
                           {t("showing_files")?.replace("{0}", diffLimit.toString()) || `Showing first ${diffLimit} files of ${filteredDiff.length}`}
                         </div>
-                        <button onClick={() => setDiffLimit(l => l + 100)} className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-widest border border-white/5 transition-colors">
+                        <button onClick={() => setDiffLimit(l => l + 100)} className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold uppercase tracking-widest border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
                           {t("load_more") || "Load More"}
                         </button>
                       </div>

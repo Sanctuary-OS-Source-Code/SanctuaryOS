@@ -372,7 +372,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
       <MasonProfileHeader mason={mason} masonId={masonId} followerCount={followerCount} isFollowing={isFollowing} masonAlerts={masonAlerts} toggleFollow={toggleFollow} toggleMasonAlert={toggleMasonAlert} t={t} />
 
       <div className="flex flex-col gap-1 w-full mb-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5">
+        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5">
           <HubTabButton id="OVERVIEW" icon={t("icon_home") || "home"} label={t("tab_overview") || "OVERVIEW"} activeTab={activeView} setTab={setActiveView as any} />
           <HubTabButton id="COMM-LINK" icon={t("icon_satellite_alt") || "satellite_alt"} label={t("tab_commlink") || "COMM-LINK"} activeTab={activeView} setTab={setActiveView as any} />
           <HubTabButton id="MODS" icon={t("icon_account_balance") || "account_balance"} label={t("items") || "ARTIFACTS"} activeTab={activeView} setTab={setActiveView as any} />
@@ -388,7 +388,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
           <MasonProfileOverview posts={posts} mods={mods} marketAssets={marketAssets} mason={mason} setActiveView={setActiveView} setModCategory={setModCategory} setModSearch={setModSearch} setActiveAsset={setActiveAsset} setSelectedBlueprint={setSelectedBlueprint} onModClick={onModClick} activeGameSchema={activeGameSchema} handlePostClick={handlePostClick} handleToggleLike={handleToggleLike} isOwner={isOwner} onEditShowcase={() => setIsPinPanelOpen(true)} t={t} />
         ) : (
           <div className="flex flex-col gap-6 h-full w-full">
-            <div className="flex flex-wrap items-start justify-between gap-4 w-full px-4 py-2 shrink-0 border-b border-white/5 overflow-visible mb-2">
+            <div className="flex flex-wrap items-start justify-between gap-4 w-full px-4 py-2 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-visible mb-2">
               {(() => {
                 const getTitleConfig = () => {
                   switch (activeView) {
@@ -404,7 +404,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                 const conf = getTitleConfig();
                 return (
                   <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3 min-w-[200px] shrink-0">
-                    <div className={`w-12 h-12 rounded-xl theme-glass-panel border ${conf.border} shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
+                    <div className={`w-12 h-12 rounded-xl glass-panel border ${conf.border} shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
                       <span className={`material-symbols-outlined !text-2xl ${conf.color} opacity-90 drop-shadow-lg`}>{conf.icon}</span>
                     </div>
                     <span className="truncate hidden sm:block">{conf.title}</span>
@@ -413,7 +413,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               })()}
               <div className="flex flex-col items-end gap-2 flex-1 min-w-[300px] w-full">
                 <div className="flex flex-row items-center gap-3 w-full">
-                  <input value={modSearch} onChange={e => setModSearch(e.target.value)} placeholder={activeView === 'COMM-LINK' ? t("mason_search_placeholder") || "Search posts..." : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates") || "Search Templates...") : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))} className="theme-glass-inner rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full flex-1 transition-all border border-transparent shadow-inner" />
+                  <input value={modSearch} onChange={e => setModSearch(e.target.value)} placeholder={activeView === 'COMM-LINK' ? t("mason_search_placeholder") || "Search posts..." : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates") || "Search Templates...") : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full flex-1 transition-all border border-transparent shadow-inner" />
                   {activeView !== 'COMM-LINK' && (
                     <div className="min-w-[220px] w-fit max-w-[400px] shrink-0">
                       <CustomDropdown disableTint={true}
@@ -487,7 +487,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                         localStorage.setItem('sanctuary_hide_paid', String(newVal));
                         setModPage(1);
                       }}
-                      className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hidePaid ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
+                      className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hidePaid ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                     >
                       <span className="material-symbols-outlined !text-[12px]">{hidePaid ? 'visibility_off' : 'monetization_on'}</span>
                       {t("filter_hide_paid") || "Hide Paid"}
@@ -499,7 +499,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                         localStorage.setItem('sanctuary_hide_ea', String(newVal));
                         setModPage(1);
                       }}
-                      className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideEarlyAccess ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' : 'theme-glass-inner border-white/5 text-[var(--subtext)] hover:text-[var(--text)] hover:border-white/10'}`}
+                      className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideEarlyAccess ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                     >
                       <span className="material-symbols-outlined !text-[12px]">{hideEarlyAccess ? 'visibility_off' : 'science'}</span>
                       {t("filter_hide_early_access") || "Hide Early Access"}

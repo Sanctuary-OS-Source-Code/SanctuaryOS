@@ -32,7 +32,7 @@ export function DropzoneSidePanel({
           <>{droppedFiles.length > 0 ? `${t("_")}${droppedFiles.length}${t("secured_desc_suffix")}` : t("secured_desc_empty")}</>
       }
       icon={t("icon_cloud")}
-      iconColorClass={dropzoneState === "received" ? "text-emerald-400 drop-shadow-[0_0_10px_color-mix(in_srgb,var(--success)_50%,transparent)]" : "theme-text-accent"}
+      iconColorClass={dropzoneState === "received" ? "text-emerald-400 drop-shadow-md" : "theme-text-accent"}
       widthClass="w-[550px]"
       footer={
         dropzoneState !== "awaiting" ? (
@@ -60,14 +60,14 @@ export function DropzoneSidePanel({
     >
       <div className="flex-1 flex flex-col h-full min-h-[400px]">
         {dropzoneState === "awaiting" ? (
-          <div className={`flex-1 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center pointer-events-none transition-all ${isDragging ? 'border-[var(--accent)] bg-[var(--accent)]/10 shadow-[inset_0_0_50px_rgba(37,99,235,0.2)]' : 'border-white/20 bg-black/10'}`}>
+          <div className={`flex-1 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center pointer-events-none transition-all ${isDragging ? 'border-[var(--accent)] bg-[var(--accent)]/10 shadow-[inset_0_0_50px_rgba(37,99,235,0.2)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-black/10'}`}>
             <span className="material-symbols-outlined !text-[120px] opacity-20 drop-shadow-md mb-4 animate-bounce">{t("icon_cloud")}</span>
             <span className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest opacity-50">{t("modal_drop_files")}</span>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {droppedFiles.length > 0 && (
-              <div className="w-full theme-glass-inner rounded-2xl p-4 flex flex-col gap-2 shadow-inner border border-emerald-500/20 bg-emerald-500/5">
+              <div className="w-full glass-surface rounded-2xl p-4 flex flex-col gap-2 shadow-inner border border-emerald-500/20 bg-emerald-500/5">
                 {droppedFiles.map((f: any, i: number) => (
                   <div key={i} className="text-xs font-bold text-[var(--text)] py-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 truncate flex items-center gap-3">
                     <span className="text-emerald-400 material-symbols-outlined !text-sm">{t("icon_check_circle")}</span>

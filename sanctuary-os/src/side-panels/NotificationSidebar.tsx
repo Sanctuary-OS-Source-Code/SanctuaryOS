@@ -144,11 +144,11 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
     >
       <div className="flex flex-col gap-3">
         {loading ? (
-          <div className="p-12 text-center text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 theme-glass-panel rounded-[var(--radius)]">
+          <div className="p-12 text-center text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 glass-panel rounded-[var(--radius)]">
             {t("loading")}
           </div>
         ) : notifications.length === 0 ? (
-          <div className="p-12 text-center text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 theme-glass-panel rounded-[var(--radius)]">
+          <div className="p-12 text-center text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 glass-panel rounded-[var(--radius)]">
             {t("notif_empty")}
           </div>
         ) : (

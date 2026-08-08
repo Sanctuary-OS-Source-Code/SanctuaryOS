@@ -11,7 +11,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
   const cleanStatus = (mod.status || "unverified").replace(/_/g, ' ').replace(/[^\w\s-]/gi, '').trim();
 
   return (
-    <div onClick={onClick} className={`theme-glass-panel rounded-[var(--radius)] flex group cursor-pointer border hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 overflow-hidden relative ${activeModId === mod.id ? 'theme-border-accent ring-2 ring-[var(--accent)]/50' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} ${layout === 'horizontal' ? 'flex-row items-center h-20' : 'flex-col'}`}>
+    <div onClick={onClick} className={`glass-panel rounded-[var(--radius)] flex group cursor-pointer border hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 overflow-hidden relative ${activeModId === mod.id ? 'theme-border-accent ring-2 ring-[var(--accent)]/50' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} ${layout === 'horizontal' ? 'flex-row items-center h-20' : 'flex-col'}`}>
       
       {onRemove && (
         <button 
@@ -24,7 +24,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
               setTimeout(() => setConfirmDelete(false), 2000);
             }
           }} 
-          className={`absolute z-[50] w-8 h-8 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg shadow-black/20 ${confirmDelete ? 'bg-red-500/40 backdrop-blur-md border-red-500/60 hover:bg-red-500/50 scale-110 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'hover:bg-red-500/30 hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]'} ${layout === 'horizontal' ? 'top-1/2 -translate-y-1/2 right-2' : 'top-4 left-4'}`}
+          className={`absolute z-[50] w-8 h-8 rounded-full bg-black/50 backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg shadow-black/20 ${confirmDelete ? 'bg-red-500/40 backdrop-blur-md border-red-500/60 hover:bg-red-500/50 scale-110 text-white shadow-md' : 'hover:bg-red-500/30 hover:border-red-500/50 hover:shadow-md'} ${layout === 'horizontal' ? 'top-1/2 -translate-y-1/2 right-2' : 'top-4 left-4'}`}
         >
           <span className="material-symbols-outlined !text-[16px]">{confirmDelete ? (t("icon_warning_amber")) : (t("icon_close"))}</span>
         </button>
@@ -47,7 +47,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
           </div>
         )}
         {mod?.file_extension && layout === 'vertical' && (
-          <div className="absolute bottom-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-lg uppercase tracking-widest shadow-lg z-20 border bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] drop-shadow-md">
+          <div className="absolute bottom-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-lg uppercase tracking-widest shadow-lg z-20 border bg-[var(--accent)]/[15%] border-[var(--accent)]/[30%] text-[var(--accent)] drop-shadow-md">
             {mod.file_extension.replace(/^\./, '')}
           </div>
         )}
@@ -73,7 +73,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
                 {mod?.category_override || mod?.suggested_type || t("vlocal") || "Unknown"}
               </span>
               {mod?.file_extension && (
-                <div className="text-[8px] font-black px-1.5 py-0.5 backdrop-blur-md rounded-md uppercase tracking-widest border shrink-0 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] ml-2">
+                <div className="text-[8px] font-black px-1.5 py-0.5 backdrop-blur-md rounded-md uppercase tracking-widest border shrink-0 bg-[var(--accent)]/[10%] border-[var(--accent)]/[20%] text-[var(--accent)] ml-2">
                   {mod.file_extension.replace(/^\./, '')}
                 </div>
               )}
@@ -83,7 +83,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
       </div>
       
       {layout === 'vertical' && (
-        <div className="p-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-white/5 flex gap-2 relative z-10 items-center justify-between">
+        <div className="p-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex gap-2 relative z-10 items-center justify-between">
             <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
               {mod?.category_override || mod?.suggested_type || t("vlocal") || "Unknown"}
             </span>
@@ -102,7 +102,7 @@ export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonName
   const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("architect") || "MASON / CREATOR";
 
   return (
-    <div onClick={onClick} className={`theme-glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden relative ${activeSetId === setItem.id ? 'theme-border-accent ring-2 ring-[var(--accent)]/50' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+    <div onClick={onClick} className={`glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden relative ${activeSetId === setItem.id ? 'theme-border-accent ring-2 ring-[var(--accent)]/50' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
       
       <div className="p-0 flex flex-col items-center justify-center relative bg-[var(--sidebar)] h-36 shrink-0 overflow-hidden">
         {(showImages && setItem.image_url) ? (
@@ -132,7 +132,7 @@ export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonName
         </span>
       </div>
       
-      <div className="p-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-white/5 flex gap-2 relative z-10 items-center justify-between">
+      <div className="p-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex gap-2 relative z-10 items-center justify-between">
           <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
             {masonName}
           </span>

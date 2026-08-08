@@ -86,7 +86,7 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                   placeholder={t("ui_placeholder_search") || "Search alerts..."}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full h-12 bg-black/20 border border-white/5 rounded-xl pl-12 pr-4 text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]/50 transition-all placeholder-[var(--subtext)]"
+                  className="w-full h-12 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl pl-12 pr-4 text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]/50 transition-all placeholder-[var(--subtext)]"
                 />
               </div>
               <div className="w-max min-w-48 max-w-xs">
@@ -102,9 +102,9 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                   ]}
                 />
               </div>
-              <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl border border-white/5 shadow-inner h-12 shrink-0 divide-x divide-white/5">
-                <button onClick={() => setFilterStatus('Active')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'Active' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_active") || "Active"}</button>
-                <button onClick={() => setFilterStatus('Inactive')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'Inactive' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_inactive") || "Inactive"}</button>
+              <div className="flex items-stretch overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5">
+                <button onClick={() => setFilterStatus('Active')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'Active' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_active") || "Active"}</button>
+                <button onClick={() => setFilterStatus('Inactive')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'Inactive' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_inactive") || "Inactive"}</button>
               </div>
             </div>
           </div>
@@ -124,7 +124,7 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                     const isPinned = isPostPinned(post);
                     const isInactive = !post.is_active;
                     return (
-                      <div key={post.id} onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className={`theme-glass-panel p-6 rounded-[var(--radius)] cursor-pointer relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden ${isPinned ? '!border-[var(--danger)]/50 shadow-[0_10px_30px_rgba(239,68,68,0.15)]' : 'border border-white/5 hover:border-white/10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'} ${isInactive ? 'opacity-60 hover:opacity-100 grayscale-[50%]' : ''}`}>
+                      <div key={post.id} onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className={`glass-panel p-6 rounded-[var(--radius)] cursor-pointer relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden ${isPinned ? '!border-[var(--danger)]/50 shadow-[0_10px_30px_rgba(239,68,68,0.15)]' : 'border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'} ${isInactive ? 'opacity-60 hover:opacity-100 grayscale-[50%]' : ''}`}>
                         <div className={`absolute -top-32 -right-32 w-64 h-64 blur-[80px] rounded-full pointer-events-none transition-opacity duration-700 z-0 ${isPinned ? 'bg-[var(--danger)] opacity-20' : 'bg-[var(--text)] opacity-0 group-hover:opacity-[0.03]'}`} />
 
                         <div className="flex justify-between items-start z-10 relative">
@@ -139,7 +139,7 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                                 {post.category || t("comms_btn_update") || "UPDATE"}
                               </span>
                               {isInactive && (
-                                <span className="px-3 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner bg-black/40 text-[var(--subtext)] border-white/10">
+                                <span className="px-3 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner bg-black/40 text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                                   {t("status_inactive") || "Inactive"}
                                 </span>
                               )}
@@ -148,14 +148,14 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                               {post.title}
                             </h3>
                           </div>
-                          <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 bg-white/5 text-[var(--subtext)] border-white/10 flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity`}>
+                          <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity`}>
                             <span className="material-symbols-outlined !text-[14px]">calendar_today</span>
                             {new Date(post.created_at).toLocaleDateString()}
                           </span>
                         </div>
 
                         {extractPostImage(post) && (
-                          <div className="w-full h-32 rounded-xl overflow-hidden relative border border-white/5 shadow-inner mt-2 z-10 bg-[var(--bg)]">
+                          <div className="w-full h-32 rounded-xl overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner mt-2 z-10 bg-[var(--bg)]">
                             <div className="absolute inset-0 bg-[var(--danger)]/20 z-0" />
                             <div className="absolute inset-0 bg-gradient-to-br from-[var(--danger)]/20 to-transparent z-10 pointer-events-none" />
                             <img src={extractPostImage(post)} className="w-full h-full object-cover relative z-0 opacity-60 mix-blend-luminosity group-hover:scale-105 group-hover:mix-blend-normal group-hover:opacity-100 transition-all duration-700" />

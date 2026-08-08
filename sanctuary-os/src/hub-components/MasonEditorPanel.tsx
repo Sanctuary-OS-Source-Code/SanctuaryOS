@@ -95,7 +95,7 @@ export default function MasonEditorPanel({
             defaultWidth={isFullscreen ? window.innerWidth : (showReference ? 1400 : 1000)}
             panelClass={isFullscreen ? "!w-full !max-w-[100vw] !border-r-0 !rounded-none transition-all duration-500" : "transition-all duration-500"}
             headerActions={
-               <div className="flex items-center overflow-hidden theme-glass-panel rounded-2xl divide-x divide-white/5 border border-white/10 shadow-inner mr-2 backdrop-blur-md">
+               <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner mr-2 backdrop-blur-md">
                   <div className="relative group flex">
                      <button
                         onClick={() => setIsFullscreen(!isFullscreen)}
@@ -110,7 +110,7 @@ export default function MasonEditorPanel({
                         <button
                            onClick={() => setShowReference(!showReference)}
                            disabled={!activeFile}
-                           className={`h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent font-black ${showReference ? '!opacity-100 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}`}
+                           className={`h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent font-black ${showReference ? '!opacity-100 bg-[var(--accent)]/[15%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%]' : ''}`}
                         >
                            <span className="material-symbols-outlined !text-[18px] normal-case">{showReference ? "vertical_split" : "splitscreen"}</span>
                            <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_reference") || "Reference"}</span>
@@ -118,7 +118,7 @@ export default function MasonEditorPanel({
                         {showReference && (
                            <button
                               onClick={() => setIsScrollLocked(!isScrollLocked)}
-                              className={`h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-l border-white/5 font-black ${isScrollLocked ? '!opacity-100 !bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] !text-[var(--accent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}`}
+                              className={`h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-black ${isScrollLocked ? '!opacity-100 !bg-[var(--accent)]/[15%] !text-[var(--accent)] hover:!bg-[var(--accent)]/[20%]' : ''}`}
                            >
                               <span className="material-symbols-outlined !text-[18px] normal-case">{isScrollLocked ? 'lock' : 'lock_open'}</span>
                               <span className="text-[10px] font-black uppercase tracking-widest">{t("sync_scroll") || "Sync Scroll"}</span>
@@ -175,7 +175,7 @@ export default function MasonEditorPanel({
          >
             <div className="flex flex-col h-full relative">
                <div className="flex flex-col relative z-20 shrink-0 px-6 pt-0 pb-4 pointer-events-none">
-                  <div className="flex items-center overflow-x-auto custom-scrollbar theme-glass-panel rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0 w-max max-w-full mx-auto pointer-events-auto h-10">
+                  <div className="flex items-center overflow-x-auto custom-scrollbar glass-panel rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0 w-max max-w-full mx-auto pointer-events-auto h-10">
                      {openFiles.map((file: any, i: number) => {
                         if (file.isHidden) return null;
                         const isActive = activeFileIndex === i;
@@ -199,7 +199,7 @@ export default function MasonEditorPanel({
 
                   <div style={{ width: (showReference && isLexiconActive) ? `${splitRatio}%` : '100%' }} className="flex-shrink-0 relative h-full min-w-0 transition-none">
                      {validationStats && (
-                        <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-6 theme-glass-panel rounded-full border px-6 py-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all ${validationStats.missing === 0 ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--success)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_10%,transparent)]'}`}>
+                        <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-6 glass-panel rounded-full border px-6 py-3 shadow-md' : 'border-orange-500/[30%] shadow-md'}`}>
                            <div className="flex items-center gap-3">
 
                               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap opacity-90">
@@ -227,7 +227,7 @@ export default function MasonEditorPanel({
                                  {validationStats.deprecated > 0 ? (
                                     <button
                                        onClick={purgeDeprecatedStrings}
-                                       className="ml-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
+                                       className="ml-2 bg-red-500/[10%] border border-red-500/[30%] text-[var(--danger)] hover:bg-red-500/[20%] text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
                                     >
                                        <span className="material-symbols-outlined !text-[14px]">delete</span>
                                        <span>{t("lexicon_purge_keys") || "Purge Keys"} ({validationStats.deprecated})</span>
@@ -235,7 +235,7 @@ export default function MasonEditorPanel({
                                  ) : validationStats.completelyMissing > 0 ? (
                                     <button
                                        onClick={addMissingStrings}
-                                       className="ml-2 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
+                                       className="ml-2 bg-[var(--accent)]/[15%] border border-[var(--accent)]/[40%] text-[var(--accent)] hover:bg-[var(--accent)]/[25%] text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
                                     >
                                        <span className="material-symbols-outlined !text-[14px]">add_circle</span>
                                        <span>{t("lexicon_add_missing") || "Add Missing Keys"}</span>
@@ -303,7 +303,7 @@ export default function MasonEditorPanel({
                            <div className="w-[2px] h-12 bg-[var(--text)]/20 group-hover:bg-[var(--accent)] transition-colors rounded-full" />
                         </div>
                         <div style={{ width: `${100 - splitRatio}%` }} className="flex-1 relative h-full min-w-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] pl-2 transition-none">
-                           <div className="absolute top-4 right-6 z-10 theme-glass-panel px-4 py-1.5 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] shadow-md">{referenceLabel}</div>
+                           <div className="absolute top-4 right-6 z-10 glass-panel px-4 py-1.5 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] shadow-md">{referenceLabel}</div>
                            <Editor
                               height="100%"
                               language="json"
@@ -333,19 +333,19 @@ export default function MasonEditorPanel({
                </div>
 
                {problemsList.length > 0 && (
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[var(--radius)] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-[color-mix(in_srgb,var(--danger)_60%,transparent)] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
-                     <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[var(--radius)] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-red-500/[60%] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
+                     <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--danger)]/30 bg-red-500/[10%] shrink-0">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
                            <span className="material-symbols-outlined !text-[16px]">{t("icon_error")}</span>
                            {t("problems")} ({problemsList.length})
                         </span>
-                        <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
+                        <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-red-500/[20%] transition-colors">
                            <span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span>
                         </button>
                      </div>
                      <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
                         {problemsList.map((p: any, i: number) => (
-                           <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
+                           <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-red-500/[10%] cursor-pointer group transition-colors">
                               <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("nav_cancel")}</span>
                               <div className="flex flex-col gap-0.5 min-w-0">
                                  <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>

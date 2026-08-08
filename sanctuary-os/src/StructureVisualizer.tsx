@@ -59,9 +59,9 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
   return (
     <div className="flex flex-col w-full relative animate-in fade-in h-full">
       {/* 1. The Seamless Header */}
-      <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-white/5 w-full z-20">
+      <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[var(--text)]/5 border border-white/5 shadow-inner shrink-0">
+          <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[var(--text)]/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner shrink-0">
             <span className="material-symbols-outlined !text-[24px] text-[var(--accent)] drop-shadow-md opacity-80">{t("icon_architecture") || "architecture"}</span>
           </div>
           <div className="flex flex-col gap-0.5">
@@ -80,7 +80,7 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
               onSelect={(mod: any) => setTargetMod(mod)}
               onClear={() => setTargetMod(null)}
               modList={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)} 
-              className="w-full h-12 rounded-full theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-6 text-[var(--text)] text-[11px] font-black uppercase tracking-[0.2em] focus:outline-none focus:theme-border-accent transition-all relative"
+              className="w-full h-12 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%] px-6 text-[var(--text)] text-[11px] font-black uppercase tracking-[0.2em] focus:outline-none focus:theme-border-accent transition-all relative"
             />
           </div>
           {targetMod && (

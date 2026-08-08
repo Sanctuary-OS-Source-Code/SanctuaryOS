@@ -26,10 +26,10 @@ export const BlueprintRadarCard = ({
   return (
     <div 
       onClick={onClick} 
-      className={`theme-glass-panel border rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden group transition-all duration-300 cursor-pointer ${
+      className={`glass-panel border rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden group transition-all duration-300 cursor-pointer ${
         isActive 
-          ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_30%,transparent)] ring-2 ring-[var(--accent)] scale-[1.02]' 
-          : 'border-white/5 hover:border-[var(--accent)]/30 bg-white/5 hover:bg-white/10'
+          ? 'border-[var(--accent)] bg-[var(--accent)]/[20%] shadow-md ring-2 ring-[var(--accent)] scale-[1.02]' 
+          : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'
       }`}
     >
       <div className="flex items-center justify-between z-10 relative">
@@ -82,7 +82,7 @@ export const BlueprintRadarCard = ({
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-center p-4 mt-2 rounded-lg bg-white/5 border border-white/5 z-10 relative">
+        <div className="flex items-center justify-center p-4 mt-2 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] z-10 relative">
           <span className="text-xs font-bold uppercase tracking-widest text-white/40">{t("radar_no_scan")}</span>
         </div>
       )}
@@ -95,7 +95,7 @@ export const BlueprintRadarCard = ({
              className={`w-full py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 ${
                isActive 
                  ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 hover:bg-[var(--accent)]/30' 
-                 : 'bg-black/20 text-[var(--subtext)] hover:text-white hover:bg-white/5 border border-white/5'
+                 : 'bg-black/20 text-[var(--subtext)] hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]'
              } disabled:opacity-50 disabled:cursor-not-allowed`}
            >
               {t("btn_access_telemetry")}

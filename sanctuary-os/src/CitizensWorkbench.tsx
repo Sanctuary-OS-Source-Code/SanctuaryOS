@@ -96,7 +96,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
          <ViewHeader title={t("workbench_title") || "CITIZENS WORKBENCH"} subtitle={t("workbench_subtitle")} icon="tune" />
 
          <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0 relative z-30">
-            <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full shrink-0">
+            <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
                <HubTabButton id="COMMAND" icon="dashboard" label={t("overview") || "OVERVIEW"} activeTab={mainTab} setTab={setMainTab as any} />
                <HubTabButton id="CONFIGS" icon="settings" label={t("configs")} activeTab={mainTab} setTab={setMainTab as any} activeColorClass="bg-blue-500/10 text-blue-500 shadow-[inset_0_0_20px_rgba(59,130,246,0.15)]" />
                <HubTabButton id="TEMPLATES" icon="data_object" label={t("ql_templates")} activeTab={mainTab} setTab={setMainTab as any} activeColorClass="bg-emerald-500/10 text-emerald-500 shadow-[inset_0_0_20px_rgba(16,185,129,0.15)]" />
@@ -138,7 +138,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
                               if (recentActivityFiles.length === 0) {
                                  return (
-                                    <div className="theme-glass-panel rounded-2xl border border-white/5 p-8 flex flex-col items-center justify-center text-center gap-4 opacity-50 min-h-[300px]">
+                                    <div className="glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-8 flex flex-col items-center justify-center text-center gap-4 opacity-50 min-h-[300px]">
                                        <span className="material-symbols-outlined !text-5xl opacity-50">history</span>
                                        <div>
                                           <p className="font-bold text-sm tracking-widest uppercase">{t("no_recent_activity")}</p>
@@ -153,9 +153,9 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                                     {recentActivityFiles.map((file: any) => {
                                        const displayPath = file.path.replace(/^.*[\\\/](Data[\\\/]Templates|Mods)[\\\/]/i, '');
                                        return (
-                                          <div key={file.path} onClick={() => fileState.openFile(file)} className="theme-glass-panel rounded-2xl border border-white/5 p-5 flex flex-col justify-between gap-4 hover:bg-white/5 cursor-pointer transition-colors hover:border-[var(--accent)]/30 group min-h-[120px]">
+                                          <div key={file.path} onClick={() => fileState.openFile(file)} className="glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-5 flex flex-col justify-between gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer transition-colors hover:border-[var(--accent)]/30 group min-h-[120px]">
                                              <div className="flex items-start justify-between gap-3">
-                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-white/10 ${file.name.toLowerCase().endsWith('.json') ? 'bg-green-500/10 text-green-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${file.name.toLowerCase().endsWith('.json') ? 'bg-green-500/10 text-green-500' : 'bg-blue-500/10 text-blue-500'}`}>
                                                    <span className="material-symbols-outlined">{file.name.toLowerCase().endsWith('.json') ? "data_object" : "settings"}</span>
                                                 </div>
                                                 <span className="px-2 py-1 rounded bg-amber-500/10 text-amber-500 text-[9px] font-black uppercase tracking-widest border border-amber-500/20">{t("unsaved_changes") || "DRAFT"}</span>
@@ -208,9 +208,9 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
             {mainTab !== "COMMAND" && (
                <div className="flex flex-col gap-0 min-h-max w-full">
-                  <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-white/5 w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
+                  <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
                      <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest hidden xl:flex items-center gap-3 shrink-0">
-                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                        <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">
                               {mainTab === "TEMPLATES" ? "data_object" : "settings"}
                            </span>
@@ -355,7 +355,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                      <p className="text-[var(--text)] font-bold">{t("verify_panel_flag_success") || "Template flagged successfully"}</p>
                   </div>
                ) : (
-                  <div className="theme-glass-panel p-6 rounded-2xl border border-white/10 flex flex-col gap-4">
+                  <div className="glass-panel p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("flag_reason")}</label>
                      <textarea
                         value={flagReason}

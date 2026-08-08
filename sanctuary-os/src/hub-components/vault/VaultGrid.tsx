@@ -671,12 +671,12 @@ export function VaultGrid(props: any) {
                 </div>
 
                 <AccordionDrawer isOpen={expandedFolder === mainKey}>
-                  <div className="w-full theme-glass-panel rounded-[32px] p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
+                  <div className="w-full glass-panel rounded-[32px] p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
 
                   {/* Unified Full-Width Header */}
                   <div className="flex flex-wrap gap-4 items-center justify-between pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
                     <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
+                      <div className="w-12 h-12 rounded-xl bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
                         <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">folder_open</span>
                       </div>
                       <div className="flex flex-col gap-1">
@@ -699,7 +699,7 @@ export function VaultGrid(props: any) {
                           placeholder={t("search_ph") || "Search Artifacts..."}
                         />
                       </div>
-                      <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl theme-glass-inner hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] hover:border-[var(--danger)]/30 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
+                      <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl glass-surface hover:bg-red-500/[10%] hover:text-[var(--danger)] hover:border-[var(--danger)]/30 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
                         <span className="material-symbols-outlined !text-[24px]">close</span>
                       </button>
                     </div>
@@ -802,7 +802,7 @@ export function VaultGrid(props: any) {
           <button
             onClick={() => setCurrentPage((p: number) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-6 py-3 theme-glass-inner rounded-xl overflow-hidden font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5"
+            className="px-6 py-3 glass-surface rounded-xl overflow-hidden font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
             {t("nav_prev")}
           </button>
@@ -812,7 +812,7 @@ export function VaultGrid(props: any) {
           <button
             onClick={() => setCurrentPage((p: number) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-6 py-3 theme-glass-inner rounded-xl overflow-hidden font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-white/5 transition-all text-[var(--text)] border border-white/5"
+            className="px-6 py-3 glass-surface rounded-xl overflow-hidden font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
             {t("nav_next")}
           </button>

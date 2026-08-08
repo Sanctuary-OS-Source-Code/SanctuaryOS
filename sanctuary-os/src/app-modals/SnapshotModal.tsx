@@ -26,10 +26,10 @@ export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, s
             onChange={(e) => setSnapshotName(e.target.value)} 
             onKeyDown={(e) => e.key === "Enter" && executeSnapshot()} 
             placeholder={t("snapshot_placeholder")}
-            className="w-full theme-glass-inner px-5 py-4 rounded-xl text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all" 
+            className="w-full glass-surface px-5 py-4 rounded-xl text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all" 
           />
           <div className="flex gap-3 mt-2">
-            <button onClick={() => setSnapshotModal(false)} className="flex-1 py-3 theme-btn-standard font-black text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/5">
+            <button onClick={() => setSnapshotModal(false)} className="flex-1 py-3 theme-btn-standard font-black text-[10px] uppercase tracking-widest rounded-xl transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
               {t("nav_cancel")}
             </button>
             <ActionButton onClick={executeSnapshot} className="flex-1 py-3 shrink-0 h-12" label={t("auto_save")} />

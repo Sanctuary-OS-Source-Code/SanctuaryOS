@@ -179,7 +179,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         <p className="text-xs font-bold uppercase tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc")}</p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-4 px-8 py-4 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest group"
+          className="mt-4 px-8 py-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest group"
         >
           <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">refresh</span>
           {t("offline_mode_refresh")}
@@ -198,7 +198,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         shape="circle"
       />
       <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 w-full">
+        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full">
           <HubTabButton id="OVERVIEW" icon="dashboard" label={t("tab_overview")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
           <HubTabButton id="DISCOVER" icon="explore" label={t("tab_discover")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
           <HubTabButton id="FOLLOWING" icon="diversity_1" label={t("tab_following")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
@@ -220,7 +220,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     placeholder={t("mason_search_placeholder")}
-                    className="w-full h-full bg-white/5 border border-white/10 rounded-[var(--radius)] px-4 pl-10 text-[var(--text)] text-sm focus:outline-none focus:border-white/20 transition-all font-medium placeholder:text-white/40"
+                    className="w-full h-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] px-4 pl-10 text-[var(--text)] text-sm focus:outline-none focus:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all font-medium placeholder:text-white/40"
                   />
                   <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-white/40">search</span>
                 </div>
@@ -304,9 +304,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
               <CommandScreenSidebar title={t("feed_quick_actions")} icon="explore">
                 <CommandScreenQuickLink icon="explore" title={t("feed_btn_discover")} subtitle={t("feed_btn_discover_desc")} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} />
                 {masonProfileId && (
-                  <CommandScreenQuickLink icon="reply" title={t("feed_my_replies")} subtitle={t("feed_my_replies_desc")} onClick={() => setIsRepliesOpen(true)} dotColorClass="bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]" iconBorderHoverClass="group-hover:border-purple-500/30" />
+                  <CommandScreenQuickLink icon="reply" title={t("feed_my_replies")} subtitle={t("feed_my_replies_desc")} onClick={() => setIsRepliesOpen(true)} dotColorClass="bg-purple-500 shadow-md" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-md" iconBorderHoverClass="group-hover:border-purple-500/30" />
                 )}
-                <CommandScreenQuickLink icon="diversity_1" title={t("tab_following")} subtitle={t("feed_view_full")} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" iconBorderHoverClass="group-hover:border-emerald-500/30" />
+                <CommandScreenQuickLink icon="diversity_1" title={t("tab_following")} subtitle={t("feed_view_full")} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-md" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-md" iconBorderHoverClass="group-hover:border-emerald-500/30" />
               </CommandScreenSidebar>
             </CommandScreenBody>
           </CommandScreenLayout>

@@ -104,9 +104,9 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
   return (
     <>
     <div className={`flex flex-col gap-6 pb-20 ${isActiveTab ? '' : 'hidden'}`}>
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_deployed_code")}</span>
           </div>
           <span className="truncate">{t("title_artifacts")}</span>
@@ -118,7 +118,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
               placeholder={t("search_ph")} 
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50"
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
@@ -173,9 +173,9 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
       >
         {activeMod && (
           <div className="flex flex-col h-full gap-8">
-            <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+            <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
                 {t("metadata")}
               </h4>
@@ -195,23 +195,23 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
                 
                 <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_file_ext")}</label>
-                    <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext")} />
+                    <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext")} />
                 </div>
                 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
-                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
+                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-2 mt-4">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_desc")}</label>
-                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
+                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
               </div>
 
               <div className="flex flex-col gap-2 mt-4">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
-                <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
+                <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
@@ -219,17 +219,17 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
                   <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
                     {t("registry_label_version")} 
                   </label>
-                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
+                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="glass-surface rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-                  <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
+                  <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="glass-surface rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                   <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                     <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
                     {t("label_is_paid")}
@@ -241,7 +241,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
                   <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({...activeMod, is_paid: e.target.checked})} className="hidden" />
                 </label>
 
-                <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                   <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                     <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
                     {t("label_is_early_access")}
@@ -445,9 +445,9 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
   return (
     <>
       <div className={`flex flex-col gap-6 pb-20 w-full h-full relative ${isActiveTab ? '' : 'hidden'}`}>
-        <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+        <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
           <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_inventory_2")}</span>
             </div>
             <span className="truncate">{t("items")}</span>
@@ -460,7 +460,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
               placeholder={t("search_queue")} 
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
@@ -527,7 +527,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
             <button 
               onClick={() => setPage(p => p + 1)} 
               disabled={isLoading}
-              className="px-8 py-3 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-white/5 hover:border-[var(--accent)]/50 transition-all font-black text-[10px] uppercase tracking-widest text-[var(--text)] flex items-center gap-2"
+              className="px-8 py-3 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 transition-all font-black text-[10px] uppercase tracking-widest text-[var(--text)] flex items-center gap-2"
             >
               {isLoading ? (
                 <><span className="material-symbols-outlined animate-spin !text-[16px]">{t("icon_sync")}</span> {t("ui_loading")}</>
@@ -568,9 +568,9 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
       >
         {activeMod && (
           <div className="flex flex-col gap-6 pb-8">
-            <div className="flex flex-col gap-6 p-6 theme-glass-inner rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mb-2">
+            <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative mb-2">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+              <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
                 {t("metadata")}
               </h4>
@@ -591,7 +591,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
                         onChange={(id: string) => setActiveMod({...activeMod, mason_id: id})} 
                       />
                     </div>
-                    <button onClick={() => setIsMasonPanelOpen(true)} className="bg-white/10 hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-5 rounded-xl font-black transition-colors shrink-0">
+                    <button onClick={() => setIsMasonPanelOpen(true)} className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-5 rounded-xl font-black transition-colors shrink-0">
                       +
                     </button>
                   </div>
@@ -605,23 +605,23 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
                 
                 <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_file_ext")}</label>
-                    <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext")} />
+                    <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext")} />
                 </div>
                 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
-                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
+                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-2 mt-4">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_desc")}</label>
-                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
+                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
               </div>
 
               <div className="flex flex-col gap-2 mt-4">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
-                <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
+                <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
@@ -629,16 +629,16 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
                   <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
                     {t("registry_label_version")} 
                   </label>
-                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="theme-glass-inner rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
+                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="glass-surface rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-                  <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="theme-glass-inner rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
+                  <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="glass-surface rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                   <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                     <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
                     {t("label_is_paid")}
@@ -650,7 +650,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
                   <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({...activeMod, is_paid: e.target.checked})} className="hidden" />
                 </label>
 
-                <label className={`w-full theme-glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                   <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                     <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
                     {t("label_is_early_access")}
@@ -724,7 +724,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
       >
         <div className="p-6">
           <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_name")}</label>
-          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="theme-glass-inner rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
       </SidePanel>
     </>

@@ -65,12 +65,12 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
           </div>
         </div>
         
-        <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl border border-white/5 shadow-inner h-12 shrink-0 divide-x divide-white/5 w-full">
+        <div className="flex items-stretch overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5 w-full">
           {["all", "open", "pending", "closed"].map(filter => (
              <button 
                key={filter}
                onClick={() => setActiveFilter(filter as any)}
-               className={`h-full flex-1 px-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === filter ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}
+               className={`h-full flex-1 px-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === filter ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
              >
                {filter}
              </button>
@@ -91,10 +91,10 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
           filteredTickets.map(ticket => (
             <div 
               key={ticket.id}
-              className="relative group w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-lg hover:shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_10%,transparent)] hover:scale-[1.02] cursor-pointer flex flex-col"
+              className="relative group w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[40%] shadow-lg hover:shadow-md hover:scale-[1.02] cursor-pointer flex flex-col"
               onClick={() => onSelectTicket && onSelectTicket(ticket)}
             >
-              <div className="absolute inset-0 rounded-[inherit] theme-glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
+              <div className="absolute inset-0 rounded-[inherit] glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
               <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
               
               <div className="relative p-6 flex flex-col gap-4 z-10 flex-1">
@@ -111,13 +111,13 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
                     ${ticket.status?.toLowerCase() === 'open' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : ''}
                     ${ticket.status?.toLowerCase() === 'resolved' ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}
                     ${ticket.status?.toLowerCase() === 'rejected' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : ''}
-                    ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_10px_color-mix(in_srgb,var(--amber-500)_20%,transparent)]' : ''}
+                    ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-md' : ''}
                   `}>
                     {ticket.status}
                   </span>
                 </div>
                 
-                <p className="text-sm text-[var(--subtext)] line-clamp-2 bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] p-4 rounded-xl border border-white/5 flex-1">
+                <p className="text-sm text-[var(--subtext)] line-clamp-2 bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex-1">
                   {ticket.description}
                 </p>
                 

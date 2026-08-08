@@ -308,7 +308,7 @@ export default function WayfinderSupportSidePanel({
         panelZ="z-[50001]"
       >
         <div className="flex flex-col gap-8 items-center justify-center py-20 text-center animate-in fade-in duration-500">
-          <div className="w-24 h-24 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
+          <div className="w-24 h-24 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
             <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_lock")}</span>
           </div>
           <h2 className="text-2xl font-black uppercase tracking-tighter text-[var(--text)]">{t("access_denied")}</h2>
@@ -346,7 +346,7 @@ export default function WayfinderSupportSidePanel({
     >
       <div className="flex flex-col gap-6 relative">
         {error && (
-            <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(244,63,94,0.15)] group mt-2">
+            <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
                 <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
                     <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center shrink-0 border border-rose-500/30 text-rose-400">
@@ -422,7 +422,7 @@ export default function WayfinderSupportSidePanel({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
+                className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
                 placeholder={t("support_placeholder_title")}
               />
             </div>
@@ -448,7 +448,7 @@ export default function WayfinderSupportSidePanel({
                 type="text"
                 value={targetUserId}
                 onChange={(e) => setTargetUserId(e.target.value)}
-                className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
+                className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
                 placeholder={t("support_placeholder_user_uuid")}
               />
             </div>
@@ -462,7 +462,7 @@ export default function WayfinderSupportSidePanel({
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all h-32 resize-none custom-scrollbar"
+                className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all h-32 resize-none custom-scrollbar"
                 placeholder={t("support_placeholder_desc")}
               />
             </div>
@@ -480,7 +480,7 @@ export default function WayfinderSupportSidePanel({
                   type="text"
                   value={customFieldsData[field.id] || ""}
                   onChange={(e) => setCustomFieldsData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                  className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
                 />
               )}
               
@@ -488,7 +488,7 @@ export default function WayfinderSupportSidePanel({
                 <textarea
                   value={customFieldsData[field.id] || ""}
                   onChange={(e) => setCustomFieldsData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                  className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all h-24 resize-none custom-scrollbar"
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all h-24 resize-none custom-scrollbar"
                 />
               )}
               
@@ -504,9 +504,9 @@ export default function WayfinderSupportSidePanel({
               {field.type === "CHECKBOX" && (!field.options || field.options.length === 0) && (
                 <button
                   onClick={() => setCustomFieldsData(prev => ({ ...prev, [field.id]: prev[field.id] === "true" ? "false" : "true" }))}
-                  className={`w-12 h-6 rounded-full transition-all flex items-center px-1 overflow-hidden relative border ${customFieldsData[field.id] === "true" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'bg-black/40 border-white/10 hover:border-white/30'}`}
+                  className={`w-12 h-6 rounded-full transition-all flex items-center px-1 overflow-hidden relative border ${customFieldsData[field.id] === "true" ? 'bg-[var(--accent)]/[20%] border-[var(--accent)]/[40%] shadow-md' : 'bg-black/40 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
                 >
-                  <div className={`w-4 h-4 rounded-full shadow-md transition-all ${customFieldsData[field.id] === "true" ? 'translate-x-6 bg-[var(--accent)]' : 'translate-x-0 bg-white/50'}`} />
+                  <div className={`w-4 h-4 rounded-full shadow-md transition-all ${customFieldsData[field.id] === "true" ? 'translate-x-6 bg-[var(--accent)]' : 'translate-x-0 bg-[color-mix(in_srgb,var(--text)_50%,transparent)]'}`} />
                 </button>
               )}
 
@@ -520,8 +520,8 @@ export default function WayfinderSupportSidePanel({
                       : currentValue === opt;
 
                     return (
-                      <label key={opt} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl overflow-hidden relative ${isChecked ? 'theme-glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'theme-glass-inner border-white/5 hover:border-white/10 hover:bg-white/5'}`}>
-                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${isChecked ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-white/10 group-hover:border-white/30 group-hover:bg-black/30'}`}>
+                      <label key={opt} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl overflow-hidden relative ${isChecked ? 'glass-panel border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${isChecked ? 'bg-[var(--accent)]/[20%] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:bg-black/30'}`}>
                            {isChecked && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check")}</span>}
                          </div>
                          <span className={`text-sm font-bold transition-colors ${isChecked ? 'text-[var(--text)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>{opt}</span>
@@ -561,8 +561,8 @@ export default function WayfinderSupportSidePanel({
                    if (!source) return null;
                    const isOptedOut = optedOutSources.includes(sourceId);
                    return (
-                      <label key={sourceId} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl overflow-hidden relative ${!isOptedOut ? 'theme-glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'theme-glass-inner border-white/5 hover:border-white/10 hover:bg-white/5'}`}>
-                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${!isOptedOut ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-white/10 group-hover:border-white/30 group-hover:bg-black/30'}`}>
+                      <label key={sourceId} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl overflow-hidden relative ${!isOptedOut ? 'glass-panel border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${!isOptedOut ? 'bg-[var(--accent)]/[20%] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:bg-black/30'}`}>
                            {!isOptedOut && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check")}</span>}
                          </div>
                          <div className="flex flex-col">
@@ -599,7 +599,7 @@ export default function WayfinderSupportSidePanel({
               <textarea
                 value={logs}
                 onChange={(e) => setLogs(e.target.value)}
-                className="w-full theme-glass-inner rounded-xl px-4 py-3 text-[var(--text)] text-[10px] font-mono focus:outline-none focus:theme-border-accent transition-all h-24 resize-none custom-scrollbar whitespace-pre-wrap"
+                className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-[10px] font-mono focus:outline-none focus:theme-border-accent transition-all h-24 resize-none custom-scrollbar whitespace-pre-wrap"
                 placeholder={t("support_placeholder_logs")}
               />
             </div>

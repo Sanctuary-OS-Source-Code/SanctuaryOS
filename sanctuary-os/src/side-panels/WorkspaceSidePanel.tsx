@@ -113,7 +113,7 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
       panelClass="!left-0"
     >
       <div className="flex flex-col h-full -mx-8 -mt-8 relative">
-        <div className="flex flex-col md:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5">
+        <div className="flex flex-col md:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
           <div className="relative w-full flex-1 min-w-[200px]">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search") || "search"}</span>
             <input
@@ -121,12 +121,12 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
               placeholder={t("workspace_search") || "Search environments..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40 font-inter"
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 font-inter"
             />
           </div>
           <button
             onClick={() => { setIsConfigured(false); onClose(); }}
-            className="h-12 px-6 theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:border-[var(--accent)] hover:theme-text-accent transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] shrink-0"
+            className="h-12 px-6 glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:border-[var(--accent)] hover:theme-text-accent transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-md shrink-0"
           >
             <span className="material-symbols-outlined !text-[18px]">view_quilt</span>
             {t("workspace_all") || "All Workspaces"}
@@ -145,13 +145,13 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
                 <button
                   key={`ws-${ws.id}-${idx}`}
                   onClick={() => selectWorkspace(ws)}
-                  className={`flex flex-col justify-between p-6 rounded-[var(--radius)] theme-glass-panel border group transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 ${isActive ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)]'}`}
+                  className={`flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border group transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 ${isActive ? 'border-[var(--accent)]/[50%] bg-[var(--accent)]/[15%] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[50%] hover:bg-[var(--accent)]/[5%] hover:shadow-md'}`}
                 >
                   <div className={`absolute inset-0 bg-gradient-to-br from-[var(--accent)]/20 to-transparent transition-opacity duration-700 pointer-events-none ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
 
                   <div className="flex justify-between items-start w-full relative z-10 mb-4">
                     <div className="flex items-start gap-4 w-full pr-8">
-                      <div className={`w-12 h-12 rounded-2xl theme-glass-inner border shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 ${isActive ? 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-white/5' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
+                      <div className={`w-12 h-12 rounded-2xl glass-surface border shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 ${isActive ? 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
                         {game.icon ? <img src={game.icon} alt="" className="w-8 h-8 object-contain drop-shadow-md" /> : <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">sports_esports</span>}
                       </div>
                       <div className="flex flex-col pt-1 min-w-0 flex-1">
@@ -162,13 +162,13 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
 
                     <div
                       onClick={(e) => togglePin(ws.id, e)}
-                      className={`absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-white/5 hover:border-white/10'}`}
+                      className={`absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[var(--accent)]/[15%] border-[var(--accent)]/[30%]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                     >
                       <span className="material-symbols-outlined !text-[16px]" style={{ fontVariationSettings: isPinned ? '"FILL" 1' : '"FILL" 0' }}>keep</span>
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-white/5">
+                  <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <div className="flex flex-col min-w-0 flex-1 pr-2">
                       <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
                       <span className="text-[10px] font-bold text-[var(--success)] opacity-90 mt-1 flex items-center gap-1 truncate">

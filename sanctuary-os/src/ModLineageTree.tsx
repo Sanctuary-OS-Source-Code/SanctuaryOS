@@ -98,7 +98,7 @@ function EditableVersionRow({
   };
 
   return (
-    <div className="relative group/item flex flex-col p-5 rounded-3xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate">
+    <div className="relative group/item flex flex-col p-5 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[var(--accent)]/[5%] transition-all duration-300 isolate">
       <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none rounded-3xl" />
       
       {/* Top Row: Icon + Badge */}
@@ -109,7 +109,7 @@ function EditableVersionRow({
           </span>
         </div>
         {index === 0 && (
-          <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--accent)] shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.1)] mt-1">
+          <span className="px-2 py-0.5 rounded-md bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[9px] font-black uppercase tracking-widest text-[var(--accent)] shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.1)] mt-1">
             {t("lineage_latest")}
           </span>
         )}
@@ -178,11 +178,11 @@ function EditableVersionRow({
           </div>
         ) : (
           <>
-            <button onClick={() => setIsReassigning(true)} className="group relative flex-1 px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[9px] font-black uppercase hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all flex items-center justify-center gap-1.5">
+            <button onClick={() => setIsReassigning(true)} className="group relative flex-1 px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[9px] font-black uppercase hover:bg-[var(--accent)]/[15%] hover:border-[var(--accent)]/[50%] hover:text-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all flex items-center justify-center gap-1.5">
               <HoverTooltip title={t("lineage_btn_reassign") || "Reassign Artifact"} />
               <span className="material-symbols-outlined !text-[14px]">{t("icon_move_up")}</span> {t("lineage_btn_reassign") || "REASSIGN"}
             </button>
-            <button onClick={handleDelete} className="group relative px-3 py-2 shrink-0 rounded-xl flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)]/70 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-[var(--danger)] hover:shadow-[0_0_15px_rgba(var(--danger-rgb),0.2)] transition-all">
+            <button onClick={handleDelete} className="group relative px-3 py-2 shrink-0 rounded-xl flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)]/70 hover:bg-red-500/[15%] hover:border-red-500/[50%] hover:text-[var(--danger)] hover:shadow-[0_0_15px_rgba(var(--danger-rgb),0.2)] transition-all">
               <HoverTooltip title={t("lineage_btn_delete") || "Delete Artifact"} variant="danger" />
               <span className="material-symbols-outlined !text-[16px]">delete</span>
             </button>
@@ -268,7 +268,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
 
   return (
     <>
-    <div className="w-full h-full theme-glass-panel rounded-[32px] p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col relative overflow-hidden bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
+    <div className="w-full h-full glass-panel rounded-[32px] p-6 md:p-8 border border-[var(--accent)]/[20%] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
       
       {/* Hero Background Effects */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)]/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
@@ -294,7 +294,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 relative z-10 flex-1 overflow-y-auto accent-scrollbar p-2 content-start">
         {versionHistory.length === 0 ? (
-          <div className="py-12 flex flex-col items-center justify-center gap-3 opacity-40 border border-dashed border-white/10 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_40%,transparent)]">
+          <div className="py-12 flex flex-col items-center justify-center gap-3 opacity-40 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl bg-[color-mix(in_srgb,var(--bg)_40%,transparent)]">
              <span className="material-symbols-outlined !text-[32px]">{t("icon_timeline")}</span>
              <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t("no_links") || "NO HISTORY"}</span>
           </div>
@@ -348,7 +348,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
             onChange={(e) => setNewVersionLabel(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddVersion()}
             placeholder={t("ph_version")}
-            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
+            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
           />
         </div>
 
@@ -359,7 +359,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
             value={newGameVersion}
             onChange={(e) => setNewGameVersion(e.target.value)}
             placeholder={t("ph_game_version")}
-            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
+            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
           />
         </div>
 

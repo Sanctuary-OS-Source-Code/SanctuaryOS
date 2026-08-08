@@ -119,7 +119,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
       <div className="relative w-full h-full">
         <button
           onClick={() => setSelectedGameConfig(null)}
-          className="absolute top-8 left-8 z-50 px-6 py-3 theme-glass-inner text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:text-white hover:bg-[var(--accent)] transition-all rounded-lg shadow-lg"
+          className="absolute top-8 left-8 z-50 px-6 py-3 glass-surface text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:text-white hover:bg-[var(--accent)] transition-all rounded-lg shadow-lg"
         >
           {t("nav_cancel") || "CANCEL"}
         </button>
@@ -135,14 +135,14 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
       {!isTransparent && <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 transition-opacity duration-1000 animate-in fade-in mix-blend-overlay pointer-events-none" />}
       {!isTransparent && <div className="absolute inset-0 z-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] via-transparent to-[color-mix(in_srgb,var(--accent)_5%,transparent)] pointer-events-none" />}
 
-      <div className="relative z-10 w-[95%] max-w-5xl theme-glass-panel bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[var(--radius)] shadow-[0_40px_100px_color-mix(in_srgb,var(--accent)_15%,transparent),inset_0_1px_2px_color-mix(in_srgb,var(--accent)_20%,transparent)] flex flex-col overflow-hidden max-h-[90vh]">
+      <div className="relative z-10 w-[95%] max-w-5xl glass-panel bg-[var(--accent)]/[5%] border border-[var(--accent)]/[20%] rounded-[var(--radius)] shadow-md flex flex-col overflow-hidden max-h-[90vh]">
         {onClose && (
-          <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full theme-glass-inner flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:text-[var(--danger)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] z-50">
+          <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full glass-surface flex items-center justify-center hover:bg-red-500/[20%] hover:text-[var(--danger)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-red-500/[30%] z-50">
             <span className="material-symbols-outlined">close</span>
           </button>
         )}
 
-        <div className="p-10 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--accent)_15%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] relative overflow-hidden group">
+        <div className="p-10 pb-6 shrink-0 border-b border-[var(--accent)]/[15%] bg-[var(--accent)]/[8%] relative overflow-hidden group">
           <div className="flex flex-col items-center justify-center relative z-20 min-h-[100px]">
             {/* Centered Logo */}
             <div className="relative mb-6 w-20 h-20 flex items-center justify-center">
@@ -205,13 +205,13 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
                   <button
                     key={`ws-${ws.id}-${idx}`}
                     onClick={() => selectWorkspace(ws)}
-                    className={`flex flex-col justify-between p-6 rounded-[var(--radius)] theme-glass-panel border group transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 ${isActive ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--accent)_15%,transparent)]'}`}
+                    className={`flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border group transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 ${isActive ? 'border-[var(--accent)]/[50%] bg-[var(--accent)]/[15%] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[50%] hover:bg-[var(--accent)]/[5%] hover:shadow-md'}`}
                   >
                     <div className={`absolute inset-0 bg-gradient-to-br from-[var(--accent)]/20 to-transparent transition-opacity duration-700 pointer-events-none ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
 
                     <div className="flex justify-between items-start w-full relative z-10 mb-4">
                       <div className="flex items-start gap-4 w-full pr-8">
-                        <div className={`w-12 h-12 rounded-2xl theme-glass-inner border shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent),0_0_15px_color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 ${isActive ? 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
+                        <div className={`w-12 h-12 rounded-2xl glass-surface border shadow-md flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 ${isActive ? 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
                           {game.icon ? <img src={game.icon} alt="" className="w-8 h-8 object-contain drop-shadow-md" /> : <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">sports_esports</span>}
                         </div>
                         <div className="flex flex-col pt-1 min-w-0 flex-1">
@@ -222,7 +222,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
 
                       <div
                         onClick={(e) => togglePin(ws.id, e)}
-                        className={`absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
+                        className={`absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[var(--accent)]/[15%] border-[var(--accent)]/[30%]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                       >
                         <span className="material-symbols-outlined !text-[16px]" style={{ fontVariationSettings: isPinned ? '"FILL" 1' : '"FILL" 0' }}>keep</span>
                       </div>
@@ -252,7 +252,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
                   <button
                     key={`game-${game.id}-${idx}`}
                     onClick={() => setSelectedGameConfig(game)}
-                    className="flex flex-col justify-between p-6 rounded-[var(--radius)] theme-glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-solid hover:shadow-[0_0_40px_color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 opacity-70 hover:opacity-100"
+                    className="flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-solid hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 opacity-70 hover:opacity-100"
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 

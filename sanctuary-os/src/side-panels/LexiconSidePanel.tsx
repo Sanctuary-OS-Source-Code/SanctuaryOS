@@ -7,7 +7,7 @@ import { supabase } from '../supabase';
 import { SidePanel, CustomDropdown, HoverTooltip, SearchBar, HubTabs, FilterTabs, FilterTabButton } from '../shared';
 import { CommandScreenQuickLink } from '../hub-components/SharedCommandScreenLayout';
 
-const standardButtonClass = "px-6 py-3 rounded-2xl theme-glass-inner text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-white/5";
+const standardButtonClass = "px-6 py-3 rounded-2xl glass-surface text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
 
 export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { t, registry, activeLang, setActiveLang, importLexicon, deleteLexicon, lexiconMeta, useGlobalLexicon, setUseGlobalLexicon } = useLexicon();
@@ -186,23 +186,23 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                 <div
                   key={code}
                   onClick={() => setActiveLang(code)}
-                  className={`flex flex-col p-4 rounded-xl theme-glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeLang === code
-                      ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
-                      : 'border-white/5 hover:border-white/20'
+                  className={`flex flex-col p-4 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeLang === code
+                      ? 'border-[var(--accent)] bg-[var(--accent)]/[10%] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+                      : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                     }`}
                 >
                   {activeLang === code && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
 
                   <div className="flex justify-between items-start mb-4 relative z-10">
-                    <div className="w-8 h-8 rounded-full shadow-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shrink-0 flex items-center justify-center text-[var(--accent)]">
+                    <div className="w-8 h-8 rounded-full shadow-md border border-[var(--accent)]/[40%] bg-[var(--accent)]/[10%] shrink-0 flex items-center justify-center text-[var(--accent)]">
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_translate") || "translate"}</span>
                     </div>
 
                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity absolute right-3 top-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleFavoriteLexicon(code, e); }}
-                        className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-white/10 hover:border-white/30 backdrop-blur-sm shadow-md ${favoriteLexicons.includes(code)
-                            ? 'text-[var(--accent)] border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] drop-shadow-[0_0_5px_currentColor]'
+                        className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] backdrop-blur-sm shadow-md ${favoriteLexicons.includes(code)
+                            ? 'text-[var(--accent)] border-[var(--accent)] bg-[var(--accent)]/[10%] drop-shadow-[0_0_5px_currentColor]'
                             : 'text-[var(--subtext)] hover:text-white'
                           }`}
                       >
@@ -217,7 +217,7 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                             else { setConfirmDelete(code); }
                           }}
                           onMouseLeave={() => setConfirmDelete(false)}
-                          className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-white/10 backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === code ? 'bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-red-500/10 hover:border-red-500/50 theme-text-danger'}`}
+                          className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === code ? 'bg-red-500/[30%] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-red-500/10 hover:border-red-500/50 theme-text-danger'}`}
                         >
                           <span className="material-symbols-outlined !text-[16px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === code ? t("icon_warning") || 'warning' : t("icon_delete") || 'delete'}</span>
                         </button>
@@ -228,7 +228,7 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                   <div className="flex flex-col gap-1 relative z-10">
                     <span className={`text-[12px] font-black uppercase tracking-[0.2em] truncate ${activeLang === code ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{getLexiconMetadata(code).name}</span>
                     <div className="flex items-center gap-2 mt-1 opacity-80">
-                      <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] truncate border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
+                      <span className="px-1.5 py-0.5 rounded bg-[var(--accent)]/[15%] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] truncate border border-[var(--accent)]/[30%]">
                         {getLexiconMetadata(code).community}
                       </span>
                       <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--subtext)] truncate">
@@ -259,23 +259,23 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                     <div
                       key={code}
                       onClick={() => setActiveLang(code)}
-                      className={`flex flex-col p-4 rounded-xl theme-glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeLang === code
-                          ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
-                          : 'border-white/5 hover:border-white/20'
+                      className={`flex flex-col p-4 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeLang === code
+                          ? 'border-[var(--accent)] bg-[var(--accent)]/[10%] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+                          : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                         }`}
                     >
                       {activeLang === code && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
 
                       <div className="flex justify-between items-start mb-4 relative z-10">
-                        <div className="w-8 h-8 rounded-full shadow-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shrink-0 flex items-center justify-center text-[var(--accent)]">
+                        <div className="w-8 h-8 rounded-full shadow-md border border-[var(--accent)]/[40%] bg-[var(--accent)]/[10%] shrink-0 flex items-center justify-center text-[var(--accent)]">
                           <span className="material-symbols-outlined !text-[16px]">{t("icon_translate") || "translate"}</span>
                         </div>
 
                         <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity absolute right-3 top-3">
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFavoriteLexicon(code, e); }}
-                            className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-white/10 hover:border-white/30 backdrop-blur-sm shadow-md ${favoriteLexicons.includes(code)
-                                ? 'text-[var(--accent)] border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] drop-shadow-[0_0_5px_currentColor]'
+                            className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] backdrop-blur-sm shadow-md ${favoriteLexicons.includes(code)
+                                ? 'text-[var(--accent)] border-[var(--accent)] bg-[var(--accent)]/[10%] drop-shadow-[0_0_5px_currentColor]'
                                 : 'text-[var(--subtext)] hover:text-white'
                               }`}
                           >
@@ -290,7 +290,7 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                                 else { setConfirmDelete(code); }
                               }}
                               onMouseLeave={() => setConfirmDelete(false)}
-                              className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-white/10 backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === code ? 'bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-red-500/10 hover:border-red-500/50 theme-text-danger'}`}
+                              className={`relative w-7 h-7 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === code ? 'bg-red-500/[30%] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-red-500/10 hover:border-red-500/50 theme-text-danger'}`}
                             >
                               <span className="material-symbols-outlined !text-[16px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === code ? t("icon_warning") || 'warning' : t("icon_delete") || 'delete'}</span>
                             </button>
@@ -301,7 +301,7 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                       <div className="flex flex-col gap-1 relative z-10">
                         <span className={`text-[12px] font-black uppercase tracking-[0.2em] truncate ${activeLang === code ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{getLexiconMetadata(code).name}</span>
                         <div className="flex items-center gap-2 mt-1 opacity-80">
-                          <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] truncate border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
+                          <span className="px-1.5 py-0.5 rounded bg-[var(--accent)]/[15%] text-[8px] font-black uppercase tracking-widest text-[var(--accent)] truncate border border-[var(--accent)]/[30%]">
                             {getLexiconMetadata(code).community}
                           </span>
                           <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--subtext)] truncate">

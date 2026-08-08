@@ -83,7 +83,7 @@ export function GlobalTooltip() {
         ) : (
           <div 
             ref={tooltipRef}
-            className={`flex flex-col items-start justify-center theme-glass-panel px-5 py-3 max-w-[320px] w-max border ${borderColorClass} shadow-[0_30px_80px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 rounded-xl`}
+            className={`flex flex-col items-start justify-center glass-panel px-5 py-3 max-w-[320px] w-max border ${borderColorClass} shadow-[0_30px_80px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 rounded-xl`}
             style={{ 
               '--glassBlur': '30px',
               '--panelTint': 'var(--text)',

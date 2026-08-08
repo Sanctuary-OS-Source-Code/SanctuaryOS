@@ -36,7 +36,7 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-12 theme-glass-inner rounded-xl px-5 text-[11px] font-black uppercase tracking-widest focus:outline-none flex justify-between items-center transition-all ${selected.color}`}
+        className={`w-full h-12 glass-surface rounded-xl px-5 text-[11px] font-black uppercase tracking-widest focus:outline-none flex justify-between items-center transition-all ${selected.color}`}
       >
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${selected.glow}`} />
@@ -55,7 +55,7 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
           return (
             <>
               <div className="fixed inset-0 z-[50000]" onClick={() => setIsOpen(false)} />
-              <div className="fixed theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] z-[50001] overflow-hidden max-h-60 overflow-y-auto custom-scrollbar flex flex-col animate-in fade-in slide-in-from-top-2" style={{
+              <div className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-md z-[50001] overflow-hidden max-h-60 overflow-y-auto custom-scrollbar flex flex-col animate-in fade-in slide-in-from-top-2" style={{
                 top: shouldDropUp ? undefined : rect.bottom + 8,
                 bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
                 left: rect.left,
@@ -215,9 +215,9 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
   return (
     <div className="flex flex-col h-full w-full relative overflow-hidden text-[var(--text)]">
 
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-white/5 w-full">
+      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
         <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_security")}</span>
           </div>
           <span className="truncate">{t("ql_conflict")}</span>
@@ -232,7 +232,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t("ui_placeholder_search")}
-              className="w-full theme-glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-white/5 hover:border-[var(--accent)]/50 placeholder:opacity-40"
+              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
@@ -240,14 +240,14 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
               </button>
             )}
           </div>
-          <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex mr-4">
-            <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("pending")}</button>
-            <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("status_active")}</button>
+          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex mr-4">
+            <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
+            <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_active")}</button>
           </div>
-          <div className="flex items-stretch overflow-hidden theme-glass-panel rounded-xl divide-x divide-white/5 border border-white/5 shadow-inner h-12 shrink-0 hidden md:flex">
-            <button onClick={() => setTierFilter(null)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === null ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>{t("ql_all")}</button>
+          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex">
+            <button onClick={() => setTierFilter(null)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === null ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ql_all")}</button>
             {[4, 3].map(tLevel => (
-              <button key={tLevel} onClick={() => setTierFilter(tLevel)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === tLevel ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-white/5'}`}>
+              <button key={tLevel} onClick={() => setTierFilter(tLevel)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === tLevel ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                 {t("ui_icon_logo")}{tLevel}
               </button>
             ))}
@@ -272,7 +272,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                 const glowC = g.severity_rank == 4 ? 'bg-[var(--danger)]/10 group-hover:bg-[var(--danger)]/20' : g.severity_rank == 3 ? 'bg-[var(--warning)]/10 group-hover:bg-[var(--warning)]/20' : 'bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20';
                 const borderHover = g.severity_rank == 4 ? 'hover:border-[var(--danger)]/30' : g.severity_rank == 3 ? 'hover:border-[var(--warning)]/30' : 'hover:border-[var(--accent)]/30';
                 return (
-                  <div key={g.id} onClick={() => handleEditConflict(g)} className={`theme-glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-1 ${borderHover} transition-all duration-500 overflow-hidden relative`}>
+                  <div key={g.id} onClick={() => handleEditConflict(g)} className={`glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-1 ${borderHover} transition-all duration-500 overflow-hidden relative`}>
 
                     <div className={`absolute top-0 right-0 w-48 h-48 blur-[50px] pointer-events-none mix-blend-screen transition-all duration-700 ${glowC}`} />
                     <div className={`absolute bottom-0 left-0 w-48 h-48 blur-[50px] pointer-events-none mix-blend-screen transition-all duration-700 ${glowC}`} />
@@ -288,7 +288,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                     </div>
 
                     <div className="flex flex-col gap-3 relative z-10">
-                      <div className="p-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500">
+                      <div className="p-4 rounded-2xl bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500">
                         <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
                           <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
                         </span>
@@ -296,12 +296,12 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                       </div>
 
                       <div className="relative h-px w-full flex items-center justify-center z-20">
-                        <div className="w-7 h-7 rounded-full theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center bg-[var(--bg)] absolute">
+                        <div className="w-7 h-7 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center bg-[var(--bg)] absolute">
                           <span className="text-[8px] font-black text-[var(--subtext)] italic uppercase">{t("vs")}</span>
                         </div>
                       </div>
 
-                      <div className="p-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500">
+                      <div className="p-4 rounded-2xl bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500">
                         <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
                           <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
                         </span>
@@ -340,7 +340,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                     const glowC = g.severity_rank == 4 ? 'bg-[var(--danger)]/10 group-hover:bg-[var(--danger)]/20' : g.severity_rank == 3 ? 'bg-[var(--warning)]/10 group-hover:bg-[var(--warning)]/20' : 'bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20';
                     const borderHover = g.severity_rank == 4 ? 'hover:border-[var(--danger)]/30' : g.severity_rank == 3 ? 'hover:border-[var(--warning)]/30' : 'hover:border-[var(--accent)]/30';
                     return (
-                      <div key={g.id} onClick={() => handleEditConflict(g)} className={`theme-glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-1 ${borderHover} transition-all duration-500 overflow-hidden relative`}>
+                      <div key={g.id} onClick={() => handleEditConflict(g)} className={`glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-1 ${borderHover} transition-all duration-500 overflow-hidden relative`}>
 
                         <div className={`absolute top-0 right-0 w-48 h-48 blur-[50px] pointer-events-none mix-blend-screen transition-all duration-700 ${glowC}`} />
                         <div className={`absolute bottom-0 left-0 w-48 h-48 blur-[50px] pointer-events-none mix-blend-screen transition-all duration-700 ${glowC}`} />
@@ -354,7 +354,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                         </div>
 
                         <div className="flex flex-col gap-3 relative z-10">
-                          <div className="p-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500">
+                          <div className="p-4 rounded-2xl bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500">
                             <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
                               <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("enemy_a")}
                             </span>
@@ -362,12 +362,12 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                           </div>
 
                           <div className="relative h-px w-full flex items-center justify-center z-20">
-                            <div className="w-7 h-7 rounded-full theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center bg-[var(--bg)] absolute">
+                            <div className="w-7 h-7 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center bg-[var(--bg)] absolute">
                               <span className="text-[8px] font-black text-[var(--subtext)] italic uppercase">{t("vs")}</span>
                             </div>
                           </div>
 
-                          <div className="p-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500">
+                          <div className="p-4 rounded-2xl bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500">
                             <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
                               <span className="material-symbols-outlined !text-[12px]">{t("icon_error")}</span> {t("enemy_b")}
                             </span>
@@ -410,10 +410,10 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                       value={deleteReason}
                       onChange={e => setDeleteReason(e.target.value)}
                       placeholder={t("matrix_delete_reason_ph")}
-                      className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--danger)]/50 transition-all text-[var(--text)] placeholder:opacity-40 border border-[var(--danger)]/20"
+                      className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--danger)]/50 transition-all text-[var(--text)] placeholder:opacity-40 border border-[var(--danger)]/20"
                     />
                     <div className="flex gap-3">
-                      <ActionButton type="button" onClick={handleConfirmSidePanelDelete} label={t("yeet_btn_confirm")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"></ActionButton>
+                      <ActionButton type="button" onClick={handleConfirmSidePanelDelete} label={t("yeet_btn_confirm")} className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]"></ActionButton>
                       <ActionButton type="button" onClick={() => { setIsDeleting(false); setDeleteReason(""); }} label={t("nav_cancel")}></ActionButton>
                     </div>
                   </div>
@@ -424,7 +424,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                         value={updateReason}
                         onChange={e => setUpdateReason(e.target.value)}
                         placeholder={t("matrix_update_reason_ph")}
-                        className="w-full theme-glass-inner rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] placeholder:opacity-40 border border-[var(--accent)]/20"
+                        className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] placeholder:opacity-40 border border-[var(--accent)]/20"
                       />
                     )}
                     <div className="flex justify-center items-center gap-4 mt-2 w-full">
@@ -469,45 +469,45 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                 <form onSubmit={handleAddGhost} className="flex flex-col gap-8 relative z-10">
                   <div className="flex flex-col gap-6">
                     {editingGhost && (
-                      <div className="flex flex-col gap-2 p-5 rounded-[var(--radius)] theme-glass-panel border border-white/10 shadow-inner text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                      <div className="flex flex-col gap-2 p-5 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
                         <div className="flex justify-between items-center">
                           <span className="opacity-60">{t("date_created")}</span>
                           <span className="text-[var(--text)]">{new Date(editingGhost.created_at).toLocaleDateString()}</span>
                         </div>
-                        <div className="flex justify-between items-center mt-2 border-t border-white/5 pt-3">
+                        <div className="flex justify-between items-center mt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3">
                           <span className="opacity-60">{t("source")}</span>
                           <span className="text-[var(--accent)]">{editingGhost.author_id ? (t("tab_architect")) : (t("source_system"))}</span>
                         </div>
                       </div>
                     )}
 
-                    <div className="w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500 gap-3">
+                    <div className="w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500 gap-3">
                       <label className={`text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-2 ${severity === 4 ? 'text-[var(--danger)]' : severity === 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}><span className="material-symbols-outlined !text-[14px]">{t("icon_inventory_2")}</span> {t("enemy_a")}</label>
                       <ModSearchDropdown placeholder={t("enemy_a")} modList={allMods} selectedItem={modA} onSelect={setModA} onClear={() => setModA(null)} />
                     </div>
 
                     <div className="relative h-px w-full flex items-center justify-center z-20 -my-4">
-                      <div className="w-8 h-8 rounded-full theme-glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center bg-[var(--bg)] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                      <div className="w-8 h-8 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg flex items-center justify-center bg-[var(--bg)] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                         <span className="text-[9px] font-black text-[var(--subtext)] italic uppercase">{t("vs")}</span>
                       </div>
                     </div>
 
-                    <div className="w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner flex flex-col relative transition-colors duration-500 gap-3">
+                    <div className="w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner flex flex-col relative transition-colors duration-500 gap-3">
                       <label className={`text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-2 ${severity === 4 ? 'text-[var(--danger)]' : severity === 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}><span className="material-symbols-outlined !text-[14px]">{t("icon_error")}</span> {t("enemy_b")}</label>
                       <ModSearchDropdown placeholder={t("enemy_b")} modList={allMods} selectedItem={modB} onSelect={setModB} onClear={() => setModB(null)} />
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner relative z-50 transition-all hover:border-white/20">
+                  <div className="flex flex-col gap-3 w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner relative z-50 transition-all hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
                     <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest ml-1">{t("label_severity")}</label>
                     <div className="flex flex-col gap-2 relative z-50">
                       <CustomTierDropdown value={severity} onChange={setSeverity} />
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-white/5 border border-white/10 shadow-inner relative z-10 transition-all hover:border-white/20 mb-8">
+                  <div className="flex flex-col gap-3 w-full p-5 rounded-[var(--radius)] bg-black/10 dark:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner relative z-10 transition-all hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] mb-8">
                     <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest ml-1 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit_note")}</span> {t("resolution")}</label>
-                    <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("resolution")} className="w-full theme-glass-inner rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-white/5 hover:theme-border-accent resize-none custom-scrollbar shadow-inner" />
+                    <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("resolution")} className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent resize-none custom-scrollbar shadow-inner" />
                   </div>
 
                 </form>

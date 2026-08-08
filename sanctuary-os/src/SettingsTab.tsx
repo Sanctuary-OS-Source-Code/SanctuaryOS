@@ -134,14 +134,14 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
             await supabase.auth.signOut();
             window.location.reload();
           }}
-          className="px-4 py-2 mx-1 rounded-xl bg-black/20 theme-glass-inner text-red-500 text-[10px] font-black uppercase tracking-widest transition-all shadow-md hover:theme-border-danger hover:bg-red-500/10 hover:scale-105 active:scale-95 border border-white/5 flex items-center justify-center gap-3 backdrop-blur-md"
+          className="px-4 py-2 mx-1 rounded-xl bg-black/20 glass-surface text-red-500 text-[10px] font-black uppercase tracking-widest transition-all shadow-md hover:theme-border-danger hover:bg-red-500/10 hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center gap-3 backdrop-blur-md"
         >
           <span className="material-symbols-outlined !text-lg">{t("icon_logout")}</span> {t("btn_logout")}
         </button>
       </ViewHeader>
 
       <div className="flex flex-col gap-1 w-full">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar theme-glass-panel rounded-2xl border border-white/5 shadow-inner divide-x divide-white/5 shrink-0">
+        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 shrink-0">
           {TABS.map(tab => (
             <HubTabButton
               key={tab.id}

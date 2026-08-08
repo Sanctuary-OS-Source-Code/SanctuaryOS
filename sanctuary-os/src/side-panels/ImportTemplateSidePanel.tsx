@@ -89,12 +89,12 @@ export function ImportTemplateSidePanel({
 
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 pb-8">
           {isLoading ? (
-             <div className="flex flex-col items-center justify-center p-12 opacity-40 theme-glass-panel rounded-[var(--radius)] border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
+             <div className="flex flex-col items-center justify-center p-12 opacity-40 glass-panel rounded-[var(--radius)] border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
                <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)] animate-spin">{t("icon_refresh")}</span>
                <p className="text-sm font-black uppercase tracking-widest">{t("loading_templates")}</p>
              </div>
           ) : filteredTemplates.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 opacity-40 theme-glass-panel rounded-[var(--radius)] border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
+            <div className="flex flex-col items-center justify-center p-12 opacity-40 glass-panel rounded-[var(--radius)] border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
               <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)]">{t("icon_search_off")}</span>
               <p className="text-sm font-black uppercase tracking-widest">{t("empty_title_templates")}</p>
             </div>
@@ -105,18 +105,18 @@ export function ImportTemplateSidePanel({
                 onClick={() => {
                   onSelectTemplate(JSON.stringify(template, null, 2));
                 }}
-                className="flex flex-col items-start gap-4 p-6 theme-glass-panel rounded-[var(--radius)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:-translate-y-1 transition-all duration-300 group text-left border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden w-full"
+                className="flex flex-col items-start gap-4 p-6 glass-panel rounded-[var(--radius)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/[10%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:-translate-y-1 transition-all duration-300 group text-left border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden w-full"
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)]/5 rounded-full blur-3xl group-hover:bg-[var(--accent)]/20 transition-colors pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
                 
                 <div className="flex items-center justify-between w-full relative z-10">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
                        <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] drop-shadow-[0_0_5px_rgba(var(--accent-rgb),0.5)]">{t("icon_data_object")}</span>
                     </div>
                     <span className="font-black text-sm text-[var(--text)] tracking-wider drop-shadow-sm">{template.template_id}</span>
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-3 py-1.5 rounded-full shadow-inner">{template.target_file}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] px-3 py-1.5 rounded-full shadow-inner">{template.target_file}</span>
                 </div>
                 
                 <div className="flex items-center justify-between w-full mt-2 relative z-10 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4">
