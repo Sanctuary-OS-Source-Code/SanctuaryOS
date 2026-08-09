@@ -15,7 +15,7 @@ import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
 import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
 import { UpdatesSidePanel } from './side-panels/CommandCenterSidePanels';
 import MasonPostViewer from "./side-panels/MasonPostViewer";
-import { CommandScreenStats } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenStats, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 
 export default function CommandCenter({
   isScanning, modsPath, isConfigured, toggleInActiveSet,
@@ -460,26 +460,14 @@ export default function CommandCenter({
 
       <div className="flex flex-col lg:flex-row gap-8 w-full">
         <div className="flex-1 flex flex-col gap-6 min-w-0">
-          <div className="flex items-center gap-3 mb-6 mt-2">
-            <div className="w-14 h-14 rounded-[var(--radius)] flex items-center justify-center shadow-md shrink-0 relative overflow-hidden group bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-cyan-500/30 text-cyan-400">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <span className="material-symbols-outlined !text-[28px] relative z-10 drop-shadow-md">{t("icon_satellite_alt")}</span>
-            </div>
-            <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] truncate">{t("feed_title")}</h2>
-          </div>
+          <CommandScreenSectionHeading title={t("feed_title")} icon={t("icon_satellite_alt")} />
 
           <div className="w-full">
             <MasonFeed onOpenMasonProfile={handleOpenMasonProfile} noCardWrapper={true} gridCols="grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3" />
           </div>
         </div>
         <div className="w-full lg:w-[420px] shrink-0 flex flex-col gap-6">
-          <div className="flex items-center gap-3 mb-6 mt-2">
-            <div className="w-14 h-14 rounded-[var(--radius)] flex items-center justify-center shadow-md shrink-0 relative overflow-hidden group bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-amber-500/30 text-amber-500">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <span className="material-symbols-outlined !text-[28px] relative z-10 drop-shadow-md">{t("icon_bolt")}</span>
-            </div>
-            <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] shrink-0">{t("quick_actions")}</h2>
-          </div>
+          <CommandScreenSectionHeading title={t("quick_actions")} icon={t("icon_bolt")} />
 
           <div className="flex flex-col gap-4">
             {urgentBroadcast && (

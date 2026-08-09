@@ -88,7 +88,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         title={t("mason_title")}
         subtitle={t("mason_subtitle")}
         icon={t("icon_construction")}
-        iconColorClass="text-amber-400 border-amber-500/30"
+        iconColorClass="text-[var(--warning)]"
       >
         <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
           <button

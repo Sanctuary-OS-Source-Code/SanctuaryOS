@@ -209,18 +209,16 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
       <CommandScreenBody>
         <CommandScreenMain>
           <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
-
-          <div className="flex flex-col gap-8 w-full">
+          <div className="w-full mb-8">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
-
-            <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
-              <CommandScreenMetricTile value={stats.citizens + stats.masons} label={t("stat_users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
-              <CommandScreenMetricTile value={stats.masons} label={t("tab_linker")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
-              <CommandScreenMetricTile value={stats.architects} label={t("stat_architects")} valueColorClass="text-purple-400" hoverBorderClass="hover:border-purple-500/30" />
-              <CommandScreenMetricTile value={stats.blacklists} label={t("stat_blacklists")} valueColorClass="text-red-500" hoverBorderClass="hover:border-red-500/30" />
-              <CommandScreenMetricTile value={stats.oversightQueue} label={t("tab_malware_logs")} valueColorClass="text-red-700" hoverBorderClass="hover:border-emerald-500/30" />
-            </div>
+          </div>
+          <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <CommandScreenMetricTile value={stats.citizens + stats.masons} label={t("stat_users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
+            <CommandScreenMetricTile value={stats.masons} label={t("tab_linker")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
+            <CommandScreenMetricTile value={stats.architects} label={t("stat_architects")} valueColorClass="text-purple-400" hoverBorderClass="hover:border-purple-500/30" />
+            <CommandScreenMetricTile value={stats.blacklists} label={t("stat_blacklists")} valueColorClass="text-red-500" hoverBorderClass="hover:border-red-500/30" />
+            <CommandScreenMetricTile value={stats.oversightQueue} label={t("tab_malware_logs")} valueColorClass="text-red-700" hoverBorderClass="hover:border-emerald-500/30" />
           </div>
         </CommandScreenMain>
 

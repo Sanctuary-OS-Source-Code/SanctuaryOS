@@ -67,7 +67,7 @@ export default function Oversight({ onOpenMasonProfile }: any) {
                 title={t("sa_title")}
                 subtitle={t("sa_subtitle")}
                 icon={t("icon_security")}
-                iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+                iconColorClass="text-[var(--danger)]"
             >
                 <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
                     <button

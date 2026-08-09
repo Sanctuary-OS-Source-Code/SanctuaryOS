@@ -1,12 +1,12 @@
 **Sanctuary OS**
 # Master Architecture & Feature Document
 
-**Document Version: **V4
-**Last Updated:** July 31, 2026
+**Document Version:** V5 (V0.5.0)
+**Last Updated:** August 8, 2026
 
 Welcome to Sanctuary OS,
 
-Sanctuary OS has evolved from a robust mod manager into a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy.
+Sanctuary OS is a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy.  
 
 
 ## **Technology Stack & Architecture**
@@ -14,8 +14,8 @@ Sanctuary OS is built on a highly modular, decoupled architecture:
 
 - **Frontend:** React 18, TypeScript, Vite, Tailwind CSS v3.
 - State Management: Zustand (Global State & UI Overlays).
-- **Desktop Framework:** Tauri v2 (Handles native file-system operations, avoiding JavaScript limitations).
-- **Backend / Database:** Supabase (PostgreSQL, GoTrue Auth, Realtime WebSockets) for cloud synchronization and global DNA registry oversight.
+- **Desktop Framework:** Tauri V2 (Handles native file-system operations, avoiding JavaScript limitations).
+- **Backend / Database:** Supabase (PostgreSQL, GoTrue Auth, Realtime WebSockets) for cloud synchronization and global DNA registry oversight. Secures cross-database requests via a Deno Edge Function (`game-gateway`) intercepting legacy RPCs via a client-side Magic Proxy.
 - **Rust Core Capabilities:** ultra-fast compression pipelines for backups, serde, sha2 (hashing), and custom binary parsers for reading DBPF files (The Sims 4 .package format).
 
 ## **Governance & Workspace Roles**

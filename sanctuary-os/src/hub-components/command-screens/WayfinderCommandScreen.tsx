@@ -240,12 +240,11 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
       <CommandScreenBody>
         <CommandScreenMain>
           <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
-          <div className="flex flex-col gap-8 w-full mb-8">
+          <div className="w-full mb-8">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
           </div>
-
           <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <CommandScreenMetricTile value={stats.citizens} label={t("stat_users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
             <CommandScreenMetricTile value={stats.masons} label={t("tab_linker")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[var(--accent)]/30" />
             <CommandScreenMetricTile value={stats.architects} label={t("stat_architects")} valueColorClass="text-purple-400" hoverBorderClass="hover:border-purple-500/30" />

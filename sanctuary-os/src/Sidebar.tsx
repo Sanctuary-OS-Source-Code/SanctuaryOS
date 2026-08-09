@@ -4,59 +4,36 @@ import { useStore } from './store';
 import { useModalStore } from './store/modalStore';
 import { CustomDropdown, HoverTooltip } from './shared';
 import { invoke } from '@tauri-apps/api/core';
-import { WorkspaceSidePanel } from './side-panels/WorkspaceSidePanel';
 
-function NavButton({
-  id,
-  label,
-  icon,
-  activeTab,
-  setTab,
-  active,
-  onClick,
-  isCollapsed,
-  isAccent,
-  setHoveredTooltip
-}: any) {
-  const isActive = active !== undefined ? active : activeTab === id;
-  const buttonRef = React.useRef<HTMLButtonElement>(null);
-
-  const handleClick = () => {
-    if (onClick) onClick();
-    else if (setTab && id) setTab(id);
-  };
-
-  const handleMouseEnter = () => {
-    if (isCollapsed && setHoveredTooltip && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setHoveredTooltip({ label, top: rect.top + rect.height / 2 });
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (isCollapsed && setHoveredTooltip) {
-      setHoveredTooltip(null);
-    }
-  };
-
+function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false, setHoveredTooltip }: any) {
+  const isActive = active;
   return (
-    <div className="relative group/nav">
+    <div className="px-4 relative group/navbtn">
+      {isActive && (
+        <div className="absolute -left-1 inset-y-0 w-0 bg-[var(--accent)] rounded-r-full shadow-[0_0_5px_var(--accent)]" />
+      )}
       <button
-        ref={buttonRef}
-        onClick={handleClick}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        className={`w-full flex items-center gap-4 px-6 py-4 rounded-[var(--radius)] transition-all duration-500 group relative
+        onMouseEnter={(e) => {
+          if (isCollapsed) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setHoveredTooltip({ label, top: rect.top + rect.height / 2 });
+          }
+        }}
+        onMouseLeave={() => {
+          if (isCollapsed) setHoveredTooltip(null);
+        }}
+        onClick={onClick}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group
           ${isActive
-            ? (isAccent ? "theme-bg-accent/10 theme-text-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] border border-[var(--accent)]/[30%] backdrop-blur-md" : "bg-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)] text-[var(--sidebartext)] shadow-lg border border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)]")
-            : (isAccent ? "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:theme-bg-accent/5 hover:theme-text-accent border border-transparent" : "text-[var(--sidebartext)] opacity-60 hover:bg-[color-mix(in_srgb,var(--sidebartext)_5%,transparent)] hover:opacity-100 border border-transparent")
+            ? (isAccent ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] backdrop-blur-md" : "bg-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)] text-[var(--sidebartext)]")
+            : (isAccent ? "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:text-[var(--accent)] border-transparent" : "text-[var(--sidebartext)] opacity-60 hover:bg-[color-mix(in_srgb,var(--sidebartext)_5%,transparent)] hover:opacity-100 border-transparent")
           } ${isCollapsed ? 'justify-center px-0' : ''}`}
       >
-        <div className="absolute inset-0 overflow-hidden rounded-[var(--radius)] pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
-        </div>
+        {/* Sweep Micro-Animation on Hover */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+
         <span
-          className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${isActive ? "scale-110 drop-shadow-md" : "group-hover:scale-110 group-hover:drop-shadow-sm"}`}
+          className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${isActive ? "scale-110" : "group-hover:scale-110"}`}
         >
           {icon}
         </span>
@@ -119,26 +96,13 @@ export function Sidebar({
     >
       <div
         className="absolute inset-x-0 bottom-0 z-[-1] backdrop-blur-3xl border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-500 shadow-[4px_0_30px_rgba(0,0,0,0.05)]"
-        style={{ top: '50px', backgroundColor: "color-mix(in srgb, var(--sidebar) 40%, transparent)" }}
+        style={{ top: '50px', backgroundColor: "color-mix(in srgb, var(--sidebar) 8%, transparent)" }}
       />
 
       <div className="h-[50px] shrink-0" />
 
-      {!isSidebarCollapsed && useStore.getState().workspaces?.length > 0 && (
-        <div className="px-6 pt-5 pb-3 flex items-center justify-between group/header cursor-pointer" onClick={() => setIsWorkspacePanelOpen(true)}>
-          <div className="flex flex-col min-w-0 flex-1 pr-2">
-            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-[var(--subtext)] opacity-60 mb-1">{t("active_workspace") || "Active Workspace"}</span>
-            <h2 className="text-[14px] font-black uppercase tracking-widest text-[var(--headerText)] truncate drop-shadow-sm group-hover/header:theme-text-accent transition-colors">
-              {activeGameName}
-            </h2>
-          </div>
-          <button onClick={(e) => { e.stopPropagation(); setIsWorkspacePanelOpen(true); }} className="w-8 h-8 shrink-0 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center hover:border-[var(--accent)] hover:theme-text-accent hover:shadow-md transition-all group-hover/header:border-[var(--accent)] group-hover/header:theme-text-accent">
-            <span className="material-symbols-outlined !text-[18px]">swap_horiz</span>
-          </button>
-        </div>
-      )}
 
-      <div className="flex-1 pt-4 pb-6 px-4 space-y-1 overflow-y-auto accent-scrollbar">
+      <div className="flex-1 pt-2 pb-2 space-y-0.5 overflow-y-auto accent-scrollbar">
         <NavButton
           active={view === "dashboard"}
           onClick={() => setView("dashboard")}
@@ -235,11 +199,14 @@ export function Sidebar({
           />
         )}
         {session && schemaFeatures.has_cc && ["mason", "architect", "oversight", "wayfinder", "admin"].includes(userRole) && (
-          <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+          <div className={`mt-3 mb-1 pt-3 relative ${isSidebarCollapsed ? 'px-0' : ''}`}>
+            <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_5%,transparent)] via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
             {!isSidebarCollapsed && (
-              <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
-                {t("mason")}
-              </p>
+              <div className="px-6 flex items-center gap-2 mb-2">
+                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 uppercase tracking-widest truncate">
+                  {t("mason")}
+                </p>
+              </div>
             )}
             <NavButton
               active={view === "MasonHub"}
@@ -253,11 +220,14 @@ export function Sidebar({
           </div>
         )}
         {session && schemaFeatures.has_cc && ["architect", "oversight", "wayfinder", "admin"].includes(userRole) && (
-          <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+          <div className={`mt-3 mb-1 pt-3 relative ${isSidebarCollapsed ? 'px-0' : ''}`}>
+            <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_5%,transparent)] via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
             {!isSidebarCollapsed && (
-              <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
-                {t("tab_architect")}
-              </p>
+              <div className="px-6 flex items-center gap-2 mb-2">
+                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 uppercase tracking-widest truncate">
+                  {t("tab_architect")}
+                </p>
+              </div>
             )}
             <NavButton
               active={view === "ArchitectHub"}
@@ -271,11 +241,14 @@ export function Sidebar({
           </div>
         )}
         {session && schemaFeatures.has_cc && ["oversight", "wayfinder", "admin"].includes(userRole) && (
-          <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+          <div className={`mt-3 mb-1 pt-3 relative ${isSidebarCollapsed ? 'px-0' : ''}`}>
+            <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_5%,transparent)] via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
             {!isSidebarCollapsed && (
-              <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
-                {t("stat_oversight")}
-              </p>
+              <div className="px-6 flex items-center gap-2 mb-2">
+                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 uppercase tracking-widest truncate">
+                  {t("stat_oversight")}
+                </p>
+              </div>
             )}
             <NavButton
               active={view === "Oversight"}
@@ -289,11 +262,14 @@ export function Sidebar({
           </div>
         )}
         {session && schemaFeatures?.has_cc !== false && (userRole === "wayfinder" || userRole === "admin") && (
-          <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+          <div className={`mt-3 mb-1 pt-3 relative ${isSidebarCollapsed ? 'px-0' : ''}`}>
+            <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_5%,transparent)] via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
             {!isSidebarCollapsed && (
-              <p className="px-3 text-[10px] font-semibold text-[var(--subtext)] opacity-60 uppercase tracking-widest mb-2 text-left truncate">
-                {t("sidebar_wayfinder_tools")}
-              </p>
+              <div className="px-6 flex items-center gap-2 mb-2">
+                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 uppercase tracking-widest truncate">
+                  {t("sidebar_wayfinder_tools")}
+                </p>
+              </div>
             )}
             <NavButton
               active={view === "WayfinderHub"}
@@ -307,11 +283,14 @@ export function Sidebar({
           </div>
         )}
         {session && (userRole === "core_dev" || userRole === "admin" || userRole === "keeper") && (
-          <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
+          <div className={`mt-3 mb-1 pt-3 relative ${isSidebarCollapsed ? 'px-0' : ''}`}>
+            <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_30%,transparent)] to-transparent" />
             {!isSidebarCollapsed && (
-              <p className="px-3 text-[10px] font-semibold text-purple-400 opacity-80 uppercase tracking-widest mb-2 text-left truncate">
-                Sanctuary Foundry
-              </p>
+              <div className="px-6 flex items-center gap-2 mb-2">
+                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 uppercase tracking-widest truncate drop-shadow-sm">
+                  Sanctuary Foundry
+                </p>
+              </div>
             )}
             <NavButton
               active={view === "KeepersCore"}
@@ -349,8 +328,8 @@ export function Sidebar({
       </div>
 
       {schemaFeatures?.has_launch !== false && (
-        <div className="p-4 pb-14 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col gap-2 relative">
-          <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-10" />
+        <div className="p-4 pb-4 relative z-30 bg-gradient-to-t from-[var(--sidebar)] to-transparent">
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
 
           <div className="relative group/nav mt-2">
             <button
@@ -364,13 +343,30 @@ export function Sidebar({
                 if (isSidebarCollapsed) setHoveredTooltip(null);
               }}
               onClick={handleQuickLaunch}
-              className={`w-full py-3 rounded-xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border bg-transparent ${isPatchDetected || showDefconAlert ? "text-[var(--danger)] border-red-500/[30%] hover:bg-red-500/[10%]" : "text-[var(--success)] border-emerald-500/[30%] hover:bg-emerald-500/[10%]"}`}
+              className={`relative w-full py-4 rounded-[var(--radius)] bg-transparent backdrop-blur-md text-[10px] font-black uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 shadow-lg group/btn overflow-hidden border ${isPatchDetected || showDefconAlert
+                ? "border-red-500/[30%] text-[var(--danger)] hover:border-red-500/[50%] hover:bg-red-500/[10%]"
+                : "border-[var(--success)]/[30%] text-[var(--success)] hover:border-[var(--success)]/[50%] hover:bg-[var(--success)]/[10%]"
+                }`}
             >
-              {isSidebarCollapsed ? <span className="material-symbols-outlined !text-xl drop-shadow-md">{t("icon_rocket_launch")}</span> : <><span className="material-symbols-outlined !text-xl drop-shadow-md">{t("icon_rocket_launch")}</span> {t("sidebar_quick_launch")}</>}
+              {/* Dynamic Sweep effect inside button */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-in-out" />
+
+              <span className="relative z-10 material-symbols-outlined !text-[18px] drop-shadow-md transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:scale-110">
+                {t("icon_rocket_launch")}
+              </span>
+              {!isSidebarCollapsed && (
+                <span className="relative z-10 drop-shadow-md">
+                  {t("sidebar_quick_launch")}
+                </span>
+              )}
             </button>
           </div>
         </div>
       )}
+
+
+
+
 
       {isSidebarCollapsed && hoveredTooltip && (
         <div
@@ -384,8 +380,6 @@ export function Sidebar({
           </div>
         </div>
       )}
-
-      <WorkspaceSidePanel isOpen={isWorkspacePanelOpen} onClose={() => setIsWorkspacePanelOpen(false)} />
     </nav >
   );
 }

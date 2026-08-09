@@ -12,9 +12,9 @@ export default function CommandRadarSweepPanel({
   const { t, registry } = useLexicon();
   const { customThemes, CORE_THEMES } = useTheme();
   const { modList, playSets, activeSetName } = useStore();
-  
+
   const activeSet = React.useMemo(() => playSets.find((ps: any) => ps.name === activeSetName) || null, [playSets, activeSetName]);
-  
+
   const relevantMods = React.useMemo(() => {
     if (!activeSet || !activeSet.mods) return modList || [];
     return (modList || []).filter((m: any) => activeSet.mods.includes(m.name));
@@ -24,7 +24,7 @@ export default function CommandRadarSweepPanel({
   const unverifiedCount = React.useMemo(() => relevantMods.filter((m: any) => m.status === t("unverified") || String(m.status).toLowerCase() === 'unverified' || !m.status).length, [relevantMods, t]);
   const lexiconCount = React.useMemo(() => Object.keys(registry || {}).length + 3, [registry]);
   const chameleonCount = React.useMemo(() => Object.keys(customThemes || {}).length + Object.keys(CORE_THEMES || {}).length, [customThemes, CORE_THEMES]);
-  
+
   const [localLastScan, setLocalLastScan] = React.useState<number | null>(() => {
     const saved = localStorage.getItem("sanctuary_last_radar_scan");
     return saved ? parseInt(saved, 10) : null;
@@ -96,34 +96,34 @@ export default function CommandRadarSweepPanel({
   const bottomText = radarState === "critical"
     ? (t("crash_likely"))
     : radarState === "optimal"
-    ? (t("no_crash"))
-    : (t("sys_sub_stable"));
+      ? (t("no_crash"))
+      : (t("sys_sub_stable"));
 
   return (
-      <SidePanel
-        isOpen={isOpen}
-        onClose={onClose}
-        title={t("btn_radar")}
-        subtitle={t("system_core")}
-        icon={t("icon_radar")}
-        iconColorClass={c_iconColor}
-        widthClass="w-[625px]"
-        noPadding={true}
-        backdropZ="z-[140001]"
-        panelZ="z-[140002]"
-      >
-        <div className="flex flex-col gap-6 w-full p-8 pb-12">
-          
-          <div className={`glass-panel rounded-[var(--radius)] p-8 py-10 relative overflow-hidden group border ${c_panelBorder} shadow-xl flex flex-col justify-center shrink-0`}>
-            <div className={`absolute inset-0 bg-gradient-to-br ${c_bgGradient} via-transparent to-transparent opacity-50`} />
-            <div className="relative z-10 flex flex-col items-center text-center">
-              <button 
-                onClick={() => { if(!isScanning && runRadarSweep) runRadarSweep(); }}
-                disabled={isScanning}
-                className={`w-20 h-20 rounded-full flex items-center justify-center border ${c_ringBorder} ${c_ringBg} mb-6 ${c_ringShadow} ${isScanning ? 'animate-pulse opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.3)] transition-all group/radarbtn'}`}
-              >
-                 <span className={`material-symbols-outlined !text-4xl ${c_ringIcon} ${isScanning ? 'animate-spin' : 'group-hover/radarbtn:scale-110 transition-transform'}`}>{t("icon_radar")}</span>
-              </button>
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("btn_radar")}
+      subtitle={t("system_core")}
+      icon={t("icon_radar")}
+      iconColorClass={c_iconColor}
+      widthClass="w-[625px]"
+      noPadding={true}
+      backdropZ="z-[10001]"
+      panelZ="z-[10002]"
+    >
+      <div className="flex flex-col gap-6 w-full p-8 pb-12">
+
+        <div className={`glass-panel rounded-[var(--radius)] p-8 py-10 relative overflow-hidden group border ${c_panelBorder} shadow-xl flex flex-col justify-center shrink-0`}>
+          <div className={`absolute inset-0 bg-gradient-to-br ${c_bgGradient} via-transparent to-transparent opacity-50`} />
+          <div className="relative z-10 flex flex-col items-center text-center">
+            <button
+              onClick={() => { if (!isScanning && runRadarSweep) runRadarSweep(); }}
+              disabled={isScanning}
+              className={`w-20 h-20 rounded-full flex items-center justify-center border ${c_ringBorder} ${c_ringBg} mb-6 ${c_ringShadow} ${isScanning ? 'animate-pulse opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.3)] transition-all group/radarbtn'}`}
+            >
+              <span className={`material-symbols-outlined !text-4xl ${c_ringIcon} ${isScanning ? 'animate-spin' : 'group-hover/radarbtn:scale-110 transition-transform'}`}>{t("icon_radar")}</span>
+            </button>
             <h3 className={`text-xl font-black uppercase tracking-tighter ${c_titleText} mb-1 flex flex-col gap-1`}>
               {isScanning ? (t("scanning")) : topTitle}
               {!isScanning && <span className="text-sm opacity-80">{subtext}</span>}
@@ -247,7 +247,7 @@ export default function CommandRadarSweepPanel({
           </div>
         </div>
 
-        </div>
-      </SidePanel>
+      </div>
+    </SidePanel>
   );
 }

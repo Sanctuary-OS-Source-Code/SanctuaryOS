@@ -185,18 +185,17 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
       <CommandScreenBody>
         <CommandScreenMain>
           <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
-
-          <div className="flex flex-col gap-8 w-full">
+          <div className="w-full mb-8">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+          </div>
+          <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <CommandScreenMetricTile value={stats.totalArtifacts} label={t("items")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
+            <CommandScreenMetricTile value={stats.unverifiedMods} label={t("unverified")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
+            <CommandScreenMetricTile value={stats.tier4Conflicts} label={t("stat_tier4")} valueColorClass="text-red-500" hoverBorderClass="hover:border-red-500/30" />
+            <CommandScreenMetricTile value={stats.tier3Conflicts} label={t("stat_tier3")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
+            <CommandScreenMetricTile value={stats.labQueue} label={t("stat_lab_queue")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
 
-            <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
-              <CommandScreenMetricTile value={stats.totalArtifacts} label={t("items")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
-              <CommandScreenMetricTile value={stats.unverifiedMods} label={t("unverified")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
-              <CommandScreenMetricTile value={stats.tier4Conflicts} label={t("stat_tier4")} valueColorClass="text-red-500" hoverBorderClass="hover:border-red-500/30" />
-              <CommandScreenMetricTile value={stats.tier3Conflicts} label={t("stat_tier3")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
-              <CommandScreenMetricTile value={stats.labQueue} label={t("stat_lab_queue")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
-            </div>
           </div>
         </CommandScreenMain>
 

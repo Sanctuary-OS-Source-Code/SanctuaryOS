@@ -2110,7 +2110,7 @@ function App() {
           handleQuickLaunch={handleQuickLaunch}
         />
         <main className="flex-1 relative overflow-y-auto p-12 pt-[90px] custom-scrollbar">
-          <div className="relative z-10 w-full h-full pb-[40px]">
+          <div className="relative z-10 w-full h-full pb-[100px]">
             {isGlobalConfigLoaded && (
               <>
                 {(view === "dashboard" || view === "BlueprintArchitect") && (

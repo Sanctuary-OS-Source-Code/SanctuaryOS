@@ -1,10 +1,10 @@
 ## Sanctuary OS
 ## Forking & Architecture Guide
-#### Version: 4
-#### Last Updated: July 31, 2026
+#### Version: 5 (V0.5.0)
+#### Last Updated: August 8, 2026
 
 Welcome to the architecture and forking guide for Sanctuary OS. 
-Sanctuary OS has evolved from a robust mod manager into a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy. 
+Sanctuary OS is a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy.  
 This application utilizes a React 18/TypeScript frontend, a Tauri V2 (Rust) backend for native file-system operations (airgapping, symlinking, and ZSTD compression), and Supabase for cloud synchronization and global DNA registry oversight.
 
 ---
@@ -36,16 +36,21 @@ The application follows a highly decoupled Hub-and-Spoke design, completely isol
 - **Frontend:** React 18, TypeScript, Vite, Tailwind CSS v3.
 - **State Management:** Zustand (`useStore` for Global State & `useModalStore` for UI Overlays).
 - **Context Providers:** ThemeContext (Dynamic CSS Variables) & LexiconContext (Dynamic localization).
-- **Desktop Framework:** Tauri v2.11.0 (with fs, dialog, process, and opener plugins).
-- **Backend/Database:** Supabase (PostgreSQL, GoTrue Auth, Realtime WebSockets) configured in a multi-database architecture with dynamic routing.
+- **Desktop Framework:** Tauri V2 (with fs, dialog, process, and opener plugins).
+- **Backend/Database:** Supabase (PostgreSQL, GoTrue Auth, Realtime WebSockets) configured in a multi-database architecture.
+- **Cross-Database Routing:** Deno Edge Functions (`game-gateway`) on the OS Hub, paired with a client-side Magic Proxy Interceptor in `supabase.ts` for secure, server-to-server workspace communication.
 - **Rust Dependencies:** serde, sha2, zstd/tar, filetime, notify.
 
 #### 2. The Shared File System Refactor
 Bloated files (like `AppModals.tsx` and `App.tsx`) have been purged. Everything now utilizes:
 - **Command Screens Modularization**: All role-specific command screens (e.g., the massive 1,100+ line `CommandScreens.tsx`) have been refactored into individual, lightweight components for each role (Mason, Architect, Oversight, Wayfinder, Keeper) for improved maintainability.
 - **Split Modal & Router Components**: Modals are independently rendered and isolated from main routing loops.
-- **Shared Alert/Transmission Viewer**: A single unified component handles public/oversight alert flows and general comms.
-- **Side-Panel Extraction**: Side panels manage all context-heavy tasks (Ticket Dossiers, DNA Match, Radar Logic) without disrupting the main view.
+- **Side-Panel Extraction**: Side panels manage all context-heavy tasks (Ticket Dossiers, DNA Match, Radar Logic) without disrupting the main view and securely utilize the shared `<SidePanel>` architecture instead of fragile `createPortal` logic.
+
+#### 3. V0.5.0 Shell & Universal Component Refactor
+- **Global Navigation Overhaul**: The OS shell has been completely re-architected. The `TitleBar` serves as an edge-to-edge native drag region featuring a central Workspace Switcher and tactile chiclet window controls. The bottom of the OS is anchored by a unified glassmorphic `SystemStatusBar` for critical telemetry and alerts.
+- **Universal Component System**: To enforce strict UI/UX consistency, raw HTML elements have been stripped out. The entire OS now relies on a standardized suite of `UniversalCard`, `UniversalGroup`, `UniversalToggle`, `UniversalSearch`, and `ActionButton` components.
+- **Material Physics**: The aesthetic leans heavily into premium glassmorphism, utilizing layered `backdrop-blur`, complex vignette linear gradients, noise textures (`mix-blend-overlay`), and inner highlights to simulate physical frosted acrylic across all panels.
 
 #### 3. New Application Pillars
 - **Internal Browser & Download Interception**: A fully embedded browser running inside Tauri. Downloads are automatically intercepted and routed directly into your Vault.
@@ -60,9 +65,10 @@ Because JavaScript cannot safely handle heavy file operations, all physical logi
 - **Binary Parsers:** `parser.rs` / `dbpf.rs` read raw bytes and extract headers to catch logical overlaps.
 
 ---
-### Database Schema (Conceptual Overview)
-Instead of hardcoding SQL, refer to [schema.sql] and [schema_os.sql] for the exact builds. Conceptually, our Postgres tables are split into these operational blocks:
-- **Central OS Hub**: Manages `sanctuary_games` (Workspace definitions), `profiles` (Core identities), `audit_logs` (Global Oversight), and Master Configurations (`sanctuary_themes`, `sanctuary_lexicons`, `sanctuary_schemas`).
+### Database Schema & Edge Gateway Architecture
+Instead of hardcoding SQL, refer to [schema.sql] and [schema_os.sql] for the exact builds. Conceptually, our Postgres tables and cross-database flows are split into these operational blocks:
+- **Central OS Hub**: Manages `sanctuary_games` (Workspace definitions), `profiles` (Core identities), `audit_logs` (Global Oversight), and Master Configurations. The OS Hub also exclusively hosts the `game-gateway` Deno Edge Function.
+- **Secure Cross-DB Routing**: We have explicitly sunset fragile HTTP extensions (`http_request`) and legacy `secure_` RPC hacks within the Game databases. Instead, the frontend utilizes a Magic Proxy that intercepts legacy RPC calls, routing them directly through the `game-gateway` Edge Function on the OS Hub. The gateway verifies the user's OS JWT token and securely dispatches the action to the target Game DB via a Service Role key.
 - **Game Databases (Spokes)**: Contain game-specific data including:
   - **Profiles & Masons**: Defines Creator profiles (Masons) and hierarchical followings, linked via UUID to the OS Hub.
   - **Global Registry & Versions**: The true source of metadata. It tracks mods, versions, and DLC registries.

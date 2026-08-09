@@ -106,14 +106,12 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
       title={t("workspace_sidebar") || "Environments"}
       subtitle={t("workspace_select_subtitle") || "Initialize Your Sanctuary Environment"}
       icon={t("icon_view_quilt") || "view_quilt"}
-      position="left"
       widthClass="w-[700px]"
-      backdropZ="z-[1000000]"
-      panelZ="z-[1000001]"
-      panelClass="!left-0"
+      backdropZ="z-[100000]"
+      panelZ="z-[100001]"
     >
-      <div className="flex flex-col h-full -mx-8 -mt-8 relative">
-        <div className="flex flex-col md:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+      <div className="flex flex-col h-full relative">
+        <div className="flex flex-col md:flex-row items-center gap-4 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-6">
           <div className="relative w-full flex-1 min-w-[200px]">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search") || "search"}</span>
             <input
@@ -133,7 +131,7 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
           </button>
         </div>
 
-        <div className="p-6 w-full flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 pb-32">
+        <div className="w-full flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 pb-16">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
             {filteredCards.map((card: any, idx: number) => {
               const ws = card.workspace;

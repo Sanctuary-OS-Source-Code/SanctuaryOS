@@ -19,7 +19,7 @@ export default function KeepersCore() {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full flex-1 pb-48 relative">
-      <ViewHeader title="KEEPERS CORE" subtitle="CORE OS OVERSIGHT & INFRASTRUCTURE" icon="admin_panel_settings" iconColorClass="text-purple-400 border-purple-500/30">
+      <ViewHeader title="KEEPERS CORE" subtitle="CORE OS OVERSIGHT & INFRASTRUCTURE" icon="admin_panel_settings" iconColorClass="text-purple-400">
       </ViewHeader>
 
       <div className="flex flex-col gap-1 w-full mb-4 shrink-0">

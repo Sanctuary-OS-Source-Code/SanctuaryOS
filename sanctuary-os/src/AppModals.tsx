@@ -225,18 +225,9 @@ export const AppModals = React.memo(function AppModals(props: any) {
           tier4Count={activeConflictCount.tier4}
           brokenCount={activeBrokenCounts.broken}
           unstableCount={activeBrokenCounts.unstable}
-          onOpenUpdates={() => {
-            setShowUpdatesModal(true);
-            setIsConflictRadarOpen(false);
-          }}
-          onOpenConflicts={() => {
-            setShowConflictsPanel(true);
-            setIsConflictRadarOpen(false);
-          }}
-          onOpenIncompatible={() => {
-            setShowIncompatiblePanel(true);
-            setIsConflictRadarOpen(false);
-          }}
+          onOpenUpdates={() => setShowUpdatesModal(true)}
+          onOpenConflicts={() => setShowConflictsPanel(true)}
+          onOpenIncompatible={() => setShowIncompatiblePanel(true)}
           onOpenHotSwap={() => setIsBlueprintSwapOpen(true)}
         />
       )}

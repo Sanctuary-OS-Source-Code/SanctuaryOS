@@ -1,7 +1,14 @@
 **Date: August 8, 2026**
-**Version: 0.4.93 | Maybe 0.5.0**
+**Version: 0.5.0**
 
 ## **Everything Sanctuary Dragged Me Into: A Total Revamp**
+
+### **OS Shell & Global Navigation Overhaul**
+- **Global Status Bar Upgrade**: Upgraded the OS footer from a flat, solid bar into a premium, edge-to-edge glassmorphic `SystemStatusBar`. The new HUD seamlessly blends into the OS background while continuing to house critical readouts (Radar Sweep, Lockdown Status, and real-time System Notifications) with refined hover states and layout.
+- **Title Bar Architecture & Tactile Keys**: Completely reimagined the `TitleBar.tsx` layout. Evolved the previously empty, plain-text header into a sleek, functional edge-to-edge native drag region. The Window Controls (Minimize, Maximize, Close) have been rebuilt as unique 'Chiclet' style keys—3D glass-surface buttons that physically depress and lose their drop-shadow on interaction, providing a premium, tactile feel without mimicking Chrome or macOS. The Close button utilizes a custom subtle glass red glow on hover to avoid breaking the material illusion with a solid block of color.
+- **Title Bar Glass Material Upgrade**: Scrapped the flat strip of background color on the Title Bar. It now uses a massive, sweeping glassmorphic `linear-gradient` that acts as a vignette to draw focus to the center. To push the physical material realism, injected an ultra-fine 1px 3D inner top-highlight and a mathematically generated SVG noise layer (`mix-blend-overlay`) to simulate real frosted acrylic texture.
+- **Sidebar & Logo Restructuring**: Cleaned up the global Sidebar by removing the heavy Workspace Switcher block and fixing scroll region padding. The massive stacked logo in the top-left was flattened into a sleek, minimal, two-tone text logo that aligns perfectly with the new Title Bar architecture. Added a dedicated 'Collapse Sidebar' action button next to the logo for rapid navigation.
+- **Global Workspace Switcher**: Ripped the Active Workspace selector out of the Sidebar and rebuilt it as a massive, functional centerpiece in the TitleBar. It now acts as a primary visual anchor utilizing elegant typography (Figma/Notion style) alongside the game's dynamic icon and a drop-down chevron.
 
 ### **Universal Side Panel & Component Refactoring**
 - **DNA Match Panel Makeover**: Completely overhauled the DNA Match side panel to match the flat, premium aesthetic of the OS. Replaced native nested HTML buttons with standardized `ActionButton` components and removed heavy details boxes in favor of a sleek, multi-column card grid utilizing the `UniversalCard` component. Updated group bulk actions (Keep All Old / Replace All) and individual row actions (Keep Old / Overwrite) with the standard OS accent and danger variants for a cohesive look.
@@ -21,6 +28,8 @@
 - **Logic Settings Overflow**: Fixed a truncation issue in the `UniversalCard` default layout where long text keys (like Anarchy Protocols) were abruptly cut off on a single line. The core layout has been upgraded to utilize a flexible `line-clamp-2` system with full hover tooltips, perfectly wrapping long titles and descriptions within tight grid boundaries.
 - **Glass Toggle Overhaul**: Completely restyled the generic `SettingsToggle` component to utilize premium glassmorphism. Scrapped the solid background fills in favor of heavy `backdrop-blur-md`, semi-transparent accent overlays, glowing `box-shadows`, and a glowing thumb indicator that perfectly matches the OS's aesthetic.
 - **Incoming Payload Panel Buttons**: Upgraded the action buttons inside the 'Payload Secured' Dropzone panel. Swapped out the raw HTML buttons for the premium `ActionButton` component, assigning the proper `accent` (Import) and `danger` (Cancel) styles to align with the rest of the application's side panels.
+- **Workspace Panel Standardization**: Migrated the `WorkspaceSidePanel` away from its custom left-aligned layout with negative margins. It now correctly respects the global `Shared Panel Layout`, sliding in from the right edge with standard padding and a cleanly integrated search header.
+
 ### **Cross-Database Architecture & Security**
 - **Edge-Gateway Migration**: Completely sunset the brittle HTTP extension (`http_request`) and `secure_` RPC SQL hacks used for cross-database communications between the Sanctuary OS Database and active Game Databases. 
 - **Centralized Service Routing**: Deployed a highly secure Deno Edge Function (`game-gateway`) on the OS Database. The gateway acts as a secure middleman, authenticating the user's OS JWT token and routing specific actions (Follow Mason, Update Profile, Upsert/Delete Cloud Files) directly to the target Game DB via its dedicated Service Role Key.
@@ -38,6 +47,7 @@
 - **Support Dossier Polish**: Standardized the Support Dossier footer buttons to use the universal `ActionButton` component instead of basic glass tint buttons, aligning the panel with the global design system. Additionally, removed the distracting accent-colored left border strip from the description box for a cleaner aesthetic.
 
 ### **Command Center & UI Overhaul**
+- **Radar Panel UX**: The Updates, Conflicts, and Incompatible side panels now properly layer over the active Radar Sweep panel instead of forcefully auto-closing it, allowing for a much smoother workflow when investigating system warnings.
 - **Architect & Mason Side Panels**: Upgraded the "Update Directive" and "Conflict Manager" side panels. Removed the distracting ambient glows and completely flattened the input components to directly integrate with the panel background, stripping away the bulky outer containers for a much cleaner, streamlined aesthetic mirroring the Shared Registry UI.
 - **Architect Conflict Matrix Cards**: Stripped away the heavy glass boxes around "Artifact A" and "Artifact B" inside the Conflict Matrix cards, allowing the metadata text to sit cleanly over the background. This unifies the flat, sleek aesthetic implemented in the side panels.
 - **Conflict Radar UI Polish**: Refactored the "Active Override" and "Ignored Conflict" cards in the Conflict Radar to remove the nested `UniversalCard` components, completely flattening out the artifact A vs artifact B sections to mirror the flat UI look introduced in the Architect Conflict Matrix.
@@ -58,6 +68,7 @@
 - **Conflict Evaluation Race Conditions**: Patched a nasty evaluation-order bug in the `usePlaySetLogic` engine where overriding an S4 collision via "Yeet Artifacts" would sometimes yeet the incoming mod *instead* of the equipped target. This occurred because the purged mod was being inadvertently picked back up and re-evaluated by the dependency and family loops, allowing it to fire its own intercepts against the new mod. The resolver now tracks a `deletedInPass` state to aggressively block purged artifacts from re-entering the evaluation queue.
 - **Vault Drawer Override & Ghosting Fixes**: Resolved an issue in the Vault's Folder Drawer where clicking "Yeet Artifacts" on a child flavor card required two clicks to take effect. The drawer's internal confirmation layer was incorrectly intercepting force-overrides and dropping the command on the first click. Furthermore, child cards inside the drawer now properly inherit their parent folder's `ghosted` state (e.g. for missing DLC). Finally, patched the drawer computation engine to correctly execute the global `checkConflicts` routine for every child flavor; previously, child cards were only checking for flavor/beta swaps, which prevented them from rendering Severity 4 Collision badges or ghosting themselves when blocked by an equipped nemesis.
 - **Compact Card Footer Alignment**: Fixed a visual bug on compact UniversalCards where the footer text (like "1 ARTIFACTS") appeared to be clipped against the very bottom of the card. The footer's default `p-4` padding was exceeding the fixed `h-250px` height limit and overflowing. The padding has been tightened to `py-1.5` specifically for compact layouts, allowing the text to safely center within its boundary.
+- **Command Center Headers**: Replaced the custom square glass headers for "Quick Links" and "Comm-Link Feed" in the Command Center with the standardized `CommandScreenSectionHeading` component. This aligns the Command Center completely with the rest of the OS, bringing in the unified circular glass icons and streamlined aesthetic.
 
 ### **Mass Update Oversight Polish**
 - **Action Buttons & Layout Adjustments**: Standardized the 'Configure Update' and 'Initiate Mass Update' buttons to use the shared `ActionButton` system, complete with a new cancel option alongside the execution button. Centered the panel action buttons for a more balanced layout.
@@ -81,10 +92,9 @@
 - **Comm-Link & Collection Aesthetics**: Updated the Comm-Link cards so all buttons and badges utilize premium glass aesthetics instead of flat solid colors. Polished the Collections panel by harmonizing font styles on the URL inputs, eliminating dead space, and standardizing the Abort/Cancel buttons with proper white outlines and hover states.
 - **Citizens Workbench HubTabs**: Removed the explicitly forced blue/emerald color classes from the HubTabs inside the Citizens Workbench. The tabs now natively inherit the global OS accent color when active, ensuring a unified aesthetic that perfectly tracks with custom chameleons.
 
-### **Nexus, Lexicons & Infrastructure Refinements**
+### **Nexus & Refinements**
 - **Asset Loading Stabilized**: Fixed a critical bug on the Nexus where assets were failing to populate ("None found" empty state). The Nexus Asset Loading routine has been completely overhauled to ensure reliable population.
 - **Preview Z-Index Stacking**: Resolved a UI layering issue where the Nexus Asset Preview Sidebar would open behind the Comm-Link Post Viewer. The Asset Sidebar now forces a much higher z-index (`z-[70000]`), guaranteeing it properly overlays active posts when users click on attached assets.
-- **Zero-Hardcoded Strings Mandate**: Executed a massive, workspace-wide sweep to eliminate hardcoded text strings. All UI copy is now securely routed through the `en-default`, `en-sanctuary`, and `Simlish` JSON dictionaries, enforcing strict thematic compliance (e.g. translating "Play Sets" to "Blueprints" and "Backups" to "Time Capsule").
 - **Wayfinder Post Editor**: Upgraded the `WayfinderPostsEditor` interactions and UI layouts to seamlessly blend with the new glass-panel dashboard aesthetic.
 
 ### **Vault & Library Enhancements**
@@ -233,3 +243,5 @@
 
 ### Vault Alerts & Diagnostics
 - **Interactive Vault Alerts**: Overhauled the Vault Alert workflow. When encountering missing dependencies, version mismatches, or file conflicts, the generated alert cards now feature fully interactive dossiers. You can click directly into the artifact's details to view stats, edit metadata, or resolve issues without losing your place in the alert flow.
+### Visual Overhauls
+- **Core Shell OS Revamp**: Completely redesigned the core shell architecture (Titlebar, Sidebar, and SystemStatusBar) to align with the dynamic, glassmorphic 'Command Deck' aesthetic. This includes segmented footer readouts, a blinking terminal cursor, neon Quick Launch integration, and dynamic theming compatibility for both Dark and Light setups.

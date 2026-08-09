@@ -364,16 +364,16 @@ export const getHighestVersion = (reqs: string[] | string) => {
   return sorted[0];
 };
 
-export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(--accent)] border-[var(--accent)]/30", children, onSubtitleClick, shape = "circle" }: any) {
+export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(--accent)]", children, onSubtitleClick, shape = "circle" }: any) {
   const shapeClass = shape === "square" ? "rounded-[calc(var(--radius)-4px)]" : "rounded-[var(--radius)]";
   return (
     <header className="flex flex-col xl:flex-row w-full justify-between items-start mb-6 shrink-0 gap-6">
       <div className="flex items-center gap-5 flex-1 min-w-0 w-full">
         {icon && (
-          <div className={`w-14 h-14 ${shapeClass} flex items-center justify-center shadow-md shrink-0 relative overflow-hidden group bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${iconColorClass}`}>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 border glass-panel relative overflow-hidden group shadow-md`}>
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             {typeof icon === "string" ? (
-              <span className="material-symbols-outlined text-[28px] relative z-10">{icon}</span>
+              <span className={`material-symbols-outlined !text-[24px] relative z-10 ${iconColorClass}`}>{icon}</span>
             ) : (
               icon
             )}

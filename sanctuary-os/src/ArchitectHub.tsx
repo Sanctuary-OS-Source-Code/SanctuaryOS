@@ -52,7 +52,7 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         title={t("hub_title")}
         subtitle={t("hub_subtitle")}
         icon={t("icon_analytics")}
-        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+        iconColorClass="text-[var(--accent)]"
       >
         <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
           <button
