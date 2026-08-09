@@ -1,7 +1,7 @@
 # Sanctuary OS 
 
-![Version](https://img.shields.io/badge/version-0.4.9-blue)
-![Last Updated](https://img.shields.io/badge/last_updated-August_1st,_2026-brightgreen)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
+![Last Updated](https://img.shields.io/badge/last_updated-August_8th,_2026-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Alpha](https://img.shields.io/badge/Alpha-Early_Access-red)
 
@@ -39,15 +39,15 @@ This repository contains the official guides for Sanctuary OS, covering both sta
 
 # Official Citizen Guide
 
-**Version:** 4 | **Last Updated:** July 24, 2026
+**Version:** 5 (V0.5.0) | **Last Updated:** August 8, 2026
 
 > **Welcome to Sanctuary OS,**  
-> Sanctuary OS has evolved from a robust mod manager into a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy. 
+Sanctuary OS is a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy.  
 > 
 > Here is your complete User Guide to mastering this entirely new way of managing your environment.
 
 ## Cartographer Initialization (Initial Setup)
-Upon your first launch, the Workspace Selector allows you to choose your active game environment (e.g., The Sims 4 vs Cyberpunk 2077). The Cartographer then maps your machine’s layout and links your identity to the central OS Hub.
+Upon your first launch, the Workspace Switcher (located globally in the central Title Bar) allows you to choose your active game environment (e.g., The Sims 4 vs Cyberpunk 2077). The Cartographer then maps your machine’s layout and links your identity to the central OS Hub.
 
 - **Auto-Detect Paths:** Click the Cloud icon to automatically locate your game and document folders for your active workspace.
   - **Bin Folder (Live Path):** The directory where your game executable lives. *V4 Update:* Sanctuary no longer relies on the notoriously unreliable `GameVersion.txt`. It now parses the `Default.ini` manifest directly to guarantee 100% engine version accuracy.
@@ -69,7 +69,7 @@ The Command Center has been entirely redesigned in V4 to provide a high-level, d
 - **Quick Actions:** Instantly run a Radar Sweep, Lockdown the Vault (strip mods instantly), or Submit a Support Ticket.
 - **Global Comm-Link:** A live feed of updates, patch notes, and transmissions directly from Masons. Features threaded multi-level replies, WYSIWYG/Markdown text formatting, dedicated "Discover" vs "Following" tabs, and pinned posts.
 - **Sanctuary Support:** A dynamic in-house Support System designed from the ground up to streamline all support operations.
-- **Status Bar Integration:** The Unidentified (DNA) panel trigger and Conflict Radar are accessible globally from the bottom status bar, preventing intrusive screen takeovers. The radar icon dynamically ties to the active environment's status colors.
+- **Status Bar Integration**: Critical OS functions (Radar Sweep, Lockdown Vault, Notifications) are housed in the global, edge-to-edge `SystemStatusBar` at the bottom of the OS, preventing intrusive screen takeovers and making them available across every screen.
 
 ## Your Vault
 Your Vault is your local library and secured asset storage. The game never touches these files directly; they are projected into the game via symlinks.
