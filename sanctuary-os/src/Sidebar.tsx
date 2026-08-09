@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useLexicon } from "./LexiconContext";
 import { useStore } from './store';
 import { useModalStore } from './store/modalStore';
@@ -368,9 +369,9 @@ export function Sidebar({
 
 
 
-      {isSidebarCollapsed && hoveredTooltip && (
+      {isSidebarCollapsed && hoveredTooltip && createPortal(
         <div
-          className="fixed left-[96px] z-[1000] flex flex-col items-start justify-center glass-panel !bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] px-5 py-3 max-w-[320px] w-max pointer-events-none shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] animate-in fade-in slide-in-from-left-2"
+          className="fixed left-[96px] z-[150000] flex flex-col items-start justify-center glass-panel !bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] px-5 py-3 max-w-[320px] w-max pointer-events-none shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] animate-in fade-in slide-in-from-left-2"
           style={{ top: hoveredTooltip.top, transform: 'translateY(-50%)' }}
         >
           <div className="relative z-10 flex flex-col items-start gap-1 w-full">
@@ -378,7 +379,8 @@ export function Sidebar({
               <span>{hoveredTooltip.label}</span>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </nav >
   );

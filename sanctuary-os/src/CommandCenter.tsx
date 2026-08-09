@@ -61,7 +61,7 @@ export default function CommandCenter({
       const fetchUrgent = async () => {
         const { data } = await supabase.from('system_broadcasts').select('*').eq('is_active', true).eq('is_pinned', true).or('target_audience.ilike.%All%,target_audience.eq.Citizens,target_audience.ilike."Citizens,%",target_audience.ilike."%,Citizens,%",target_audience.ilike."%,Citizens"').order('created_at', { ascending: false }).limit(1);
         if (data && data.length > 0) {
-          const dismissedId = sessionStorage.getItem('dismissedAlertId');
+          const dismissedId = localStorage.getItem('sanctuary_dismissed_alert_id');
           if (dismissedId !== String(data[0].id)) {
             setUrgentBroadcast(data[0]);
           }
@@ -356,7 +356,7 @@ export default function CommandCenter({
             <h3 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--danger)] group-hover:text-red-400 transition-colors drop-shadow-md">{urgentBroadcast.title}</h3>
           </div>
           <div className="flex items-center gap-2 z-10 ml-auto">
-            <button onClick={(e) => { e.stopPropagation(); sessionStorage.setItem('dismissedAlertId', urgentBroadcast.id); setUrgentBroadcast(null); }} className="w-10 h-10 rounded-[calc(var(--radius)-4px)] border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] flex items-center justify-center transition-colors shadow-inner backdrop-blur-md hover:scale-110 active:scale-95 group/close" >
+            <button onClick={(e) => { e.stopPropagation(); localStorage.setItem('sanctuary_dismissed_alert_id', String(urgentBroadcast.id)); setUrgentBroadcast(null); }} className="w-10 h-10 rounded-[calc(var(--radius)-4px)] border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] flex items-center justify-center transition-colors shadow-inner backdrop-blur-md hover:scale-110 active:scale-95 group/close" >
               <span className="material-symbols-outlined !text-[20px] group-hover/close:rotate-90 transition-transform duration-300">close</span>
             </button>
           </div>

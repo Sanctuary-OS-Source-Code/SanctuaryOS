@@ -49,15 +49,15 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
 
       {/* TitleBar Premium Glass Background */}
       <div
-        className="absolute inset-0 z-[-1] backdrop-blur-2xl transition-all duration-500 pointer-events-none"
+        className="absolute inset-0 z-[-1] backdrop-blur-md transition-all duration-500 pointer-events-none"
         style={{ 
-          background: "linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sidebar) 6%, transparent) 50%, transparent 100%)" 
+          background: "linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--bg) 40%, transparent) 25%, color-mix(in srgb, var(--bg) 80%, transparent) 50%, color-mix(in srgb, var(--bg) 40%, transparent) 75%, transparent 100%)" 
         }}
       />
-      
+
       {/* 3D Glass Inner Top Highlight */}
       <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent opacity-60 pointer-events-none z-[-1]" />
-      
+
       {/* Ultra-faint Noise Texture for Glass Material realism */}
       <div className="absolute inset-0 z-[-1] opacity-[0.04] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
 
@@ -128,14 +128,14 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
               onClick={() => setIsWorkspacePanelOpen(true)}
             >
               {activeGameIcon ? (
-                <img src={activeGameIcon} alt="" className="w-5 h-5 object-contain opacity-70 group-hover/launcher:opacity-100 transition-opacity pointer-events-none" />
+                <img src={activeGameIcon} alt="" className="w-5 h-5 object-contain opacity-70 group-hover/launcher:opacity-100 transition-opacity pointer-events-none drop-shadow-md" />
               ) : (
-                <span className="material-symbols-outlined !text-[18px] opacity-50 group-hover/launcher:opacity-80 transition-opacity pointer-events-none">sports_esports</span>
+                <span className="material-symbols-outlined !text-[18px] opacity-50 group-hover/launcher:opacity-80 transition-opacity pointer-events-none drop-shadow-md">sports_esports</span>
               )}
-              <span className="text-[16px] tracking-wide font-black uppercase text-[var(--text)] opacity-90 group-hover/launcher:opacity-100 transition-opacity pointer-events-none px-1">
+              <span className="text-[16px] tracking-wide font-black uppercase text-[var(--text)] opacity-90 group-hover/launcher:opacity-100 transition-opacity pointer-events-none px-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                 {activeGameName}
               </span>
-              <span className="material-symbols-outlined !text-[18px] opacity-30 group-hover/launcher:opacity-70 transition-opacity pointer-events-none">
+              <span className="material-symbols-outlined !text-[18px] opacity-30 group-hover/launcher:opacity-70 transition-opacity pointer-events-none drop-shadow-md">
                 expand_more
               </span>
             </div>

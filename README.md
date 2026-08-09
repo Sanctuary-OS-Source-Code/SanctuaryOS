@@ -142,22 +142,16 @@ The Citizens Workbench allows you to configure Artifacts without manually editin
 - **Template Saving:** You can save your authored UI definitions locally. The Workbench stores these in your active data sets to override default mod configurations.
 
 ## Time Capsule
-Sanctuary OS handles automated backups using ultra-fast ZSTD compression.
+Sanctuary OS handles automated backups using an ultra-fast, hardlink-based incremental backup engine.
 
-- **World State (Purple):** Snapshots of your Saves, Tray, and `Options.ini`/`UserSettings.ini`.
-- **Engine Core (Pink):** Backups of the actual game installation files (`Game/Bin`, `Data`).
-- **True Rollback Safety:** Restoring a backup physically obliterates the live folders first, ensuring "future-state" contaminated data doesn't bleed into your rolled-back timeline.
+- **World State (Purple):** Snapshots of your Saves & Settings files.
+- **Engine Core (Pink):** Backups of the actual game installation files.
+- **Automated Version Tracking:** The OS automatically detects your active game version by scanning the executable manifest prior to executing backups and post-restore to guarantee timeline and version integrity.
+- **True Rollback Safety:**
+  - Restoring a backup utilizes a high-speed differential mirroring process. Rather than blindly wiping the entire installation, the OS intelligently compares the live state to the backup snapshot, instantly deleting rogue files and restoring changed data to guarantee 100% timeline integrity without the performance penalty of a full wipe.
 - **Back-Ups & Rollbacks:**
-  - Sanctuary OS uses local compression and restore pipelines designed for fast disaster recovery.
+  - Sanctuary OS uses an incremental hardlink backup engine designed for near-instant disaster recovery. Because only modified files are physically copied (while unchanged files are simply hardlinked), backup times and disk usage will dynamically scale based on the exact size of your changes rather than the total size of your game.
 
-| Operation | Tested Data | Result |
-| :--- | :--- | :--- |
-| **World State Backup** | ~500 MB | ~4 seconds |
-| **World State Restore** | ~500 MB | ~1 second |
-| **Engine Core Backup** | ~78 GB → ~24 GB | ~80 seconds |
-| **Engine Core Restore** | ~24 GB → ~78 GB | ~45 seconds |
-
-> *Benchmarked on local test hardware. Results vary by drive speed, CPU, file count, compression level, and antivirus activity.*
 
 ## Compliance, DEFCON & Malware Security
 Security is handled through a tiered global compliance system managed by Oversight.
