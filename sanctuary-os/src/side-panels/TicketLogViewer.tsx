@@ -4,7 +4,7 @@ import { useStore } from "../store";
 import { SidePanel , getExtensionRegex, HubTabButton, ActionButton, SidePanelActionFooter } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { UniversalSearch } from "../components/universal/UniversalLayout";
+import { SearchBar } from "../shared";
 
 interface LogSection {
   title: string;
@@ -284,10 +284,11 @@ export default function TicketLogViewer({
                       <span className="material-symbols-outlined !text-[14px]">format_list_bulleted</span>
                       {t("support_mods_list")} ({(blueprintJson.mods?.length || 0)})
                     </div>
-                    <UniversalSearch 
+                    <SearchBar 
                       value={searchQuery}
                       onChange={setSearchQuery}
                       placeholder={t("playsets_search_ph") || "SEARCH ARTIFACTS..."}
+                      className="!h-12 !rounded-2xl"
                     />
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
                       {blueprintJson.mods?.filter((m: string) => m.toLowerCase().includes(searchQuery.toLowerCase())).map((m: string, i: number) => {

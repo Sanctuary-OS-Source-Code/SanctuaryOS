@@ -187,7 +187,7 @@ export function UniversalCard({
           )}
 
           <div className={`flex items-center gap-2 min-w-0 w-full ${layout === 'stat' ? 'justify-center' : ''} relative group/title`}>
-            <span className={`flex-1 min-w-0 block ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm truncate' : layout === 'vertical-compact' ? 'text-base line-clamp-2' : layout === 'stat' ? 'text-base' : 'text-xl line-clamp-2'} font-black text-[var(--text)] uppercase tracking-tighter leading-tight group-hover:theme-text-accent transition-colors`}>
+            <span className={`flex-1 min-w-0 block ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm truncate' : layout === 'vertical-compact' ? 'text-base truncate' : layout === 'stat' ? 'text-base' : 'text-xl truncate'} font-black text-[var(--text)] uppercase tracking-tighter leading-tight group-hover:theme-text-accent transition-colors`}>
               {title}
             </span>
             {layout !== 'stat' && typeof title === 'string' && (

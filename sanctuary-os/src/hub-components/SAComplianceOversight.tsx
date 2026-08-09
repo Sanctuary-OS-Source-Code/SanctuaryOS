@@ -146,8 +146,8 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     let matchesStatus = true;
     if (filterStatus === "pending") {
       matchesStatus = ["under_review", "pending", "unverified", "blacklisted"].includes(m.status?.toLowerCase() || "");
-    } else if (filterStatus === "verified") {
-      matchesStatus = ["verified", "clean", "ok"].includes(m.status?.toLowerCase() || "");
+    } else if (filterStatus === "stable") {
+      matchesStatus = ["stable", "clean", "ok"].includes(m.status?.toLowerCase() || "");
     }
 
     return matchesSearch && matchesTier && matchesStatus;
@@ -202,10 +202,10 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
               {t("pending")}
             </button>
             <button
-              onClick={() => setFilterStatus("verified")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'verified' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+              onClick={() => setFilterStatus("stable")}
+              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'stable' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
             >
-              {t("verified")}
+              {t("status_dd_stable") || "STABLE"}
             </button>
           </div>
 

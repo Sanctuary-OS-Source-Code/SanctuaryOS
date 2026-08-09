@@ -248,11 +248,11 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                 const statusType = hasExplicitStatus ? mod.status.toLowerCase() : (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2) ? 'local' : 'local';
                 const isStatusBroken = isSelfBroken;
 
-                let badgeBg = "bg-[var(--accent)]/[10%] border-[var(--accent)]/[30%] ";
-                let badgeText = "text-[var(--accent)]";
-                let hoverBorder = "border-[var(--accent)]/30";
+                let badgeBg = "bg-slate-500/[10%] border-slate-500/[30%] ";
+                let badgeText = "text-slate-400";
+                let hoverBorder = "border-slate-500/30";
 
-                if (isStatusBroken || statusType === 'unverified') {
+                if (isStatusBroken || statusType === 'broken' || statusType === 'corrupted') {
                   badgeBg = "bg-red-500/[10%] border-red-500/[30%] ";
                   badgeText = "text-[var(--danger)]";
                   hoverBorder = "border-[var(--danger)]/30";
@@ -260,10 +260,26 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                   badgeBg = "bg-orange-500/[10%] border-orange-500/[30%] ";
                   badgeText = "text-[var(--warning)]";
                   hoverBorder = "border-[var(--warning)]/30";
-                } else if (statusType === 'verified' || statusType === 'stable' || (statusType === 'broken' && !isSelfBroken)) {
+                } else if (statusType === 'stable' || (statusType === 'broken' && !isSelfBroken)) {
                   badgeBg = "bg-emerald-500/[10%] border-emerald-500/[30%] ";
                   badgeText = "text-[var(--success)]";
                   hoverBorder = "border-[var(--success)]/30";
+                } else if (statusType === 'under review') {
+                  badgeBg = "bg-cyan-500/[10%] border-cyan-500/[30%] ";
+                  badgeText = "text-cyan-400";
+                  hoverBorder = "border-cyan-500/30";
+                } else if (statusType === 'pending') {
+                  badgeBg = "bg-sky-500/[10%] border-sky-500/[30%] ";
+                  badgeText = "text-sky-400";
+                  hoverBorder = "border-sky-500/30";
+                } else if (statusType === 'early access') {
+                  badgeBg = "bg-purple-500/[10%] border-purple-500/[30%] ";
+                  badgeText = "text-purple-400";
+                  hoverBorder = "border-purple-500/30";
+                } else if (statusType === 'paid') {
+                  badgeBg = "bg-amber-500/[10%] border-amber-500/[30%] ";
+                  badgeText = "text-amber-400";
+                  hoverBorder = "border-amber-500/30";
                 }
 
                 return (
@@ -279,6 +295,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                           if (cleaned.toUpperCase().includes('SANDBOX')) cleaned = 'SANDBOX';
                           if (isSelfBroken) return t("status_broken");
                           if (cleaned.toLowerCase() === 'broken' && !isSelfBroken) return t("badge_stable");
+                          if (cleaned.toLowerCase() === 'stable') return t("status_dd_stable") || "STABLE";
                           if (cleaned.toLowerCase() === 'unverified') return t("unverified");
                           if (cleaned.toLowerCase() === 'local folder' || cleaned.toLowerCase() === 'local node') return t("local_node") || "LOCAL FOLDER";
                           if (cleaned.toLowerCase() === 'unstable') return t("label_unstable");

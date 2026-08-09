@@ -2305,6 +2305,7 @@
   "alert_error_mason_profile_missing": "Error: Mason Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
   "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
+  "status_dd_all": "All Statuses",
   "status_conflicts_resolved": "Imports Bypassed",
   "winner": "Winner",
   "btn_copy": "Copy",

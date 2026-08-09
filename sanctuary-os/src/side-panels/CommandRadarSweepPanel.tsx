@@ -20,7 +20,7 @@ export default function CommandRadarSweepPanel({
     return (modList || []).filter((m: any) => activeSet.mods.includes(m.name));
   }, [modList, activeSet]);
 
-  const verifiedCount = React.useMemo(() => relevantMods.filter((m: any) => m.status === t("verified") || String(m.status).toLowerCase() === 'verified').length, [relevantMods, t]);
+  const stableCount = React.useMemo(() => relevantMods.filter((m: any) => m.status === t("status_dd_stable") || String(m.status).toLowerCase() === 'stable').length, [relevantMods, t]);
   const unverifiedCount = React.useMemo(() => relevantMods.filter((m: any) => m.status === t("unverified") || String(m.status).toLowerCase() === 'unverified' || !m.status).length, [relevantMods, t]);
   const lexiconCount = React.useMemo(() => Object.keys(registry || {}).length + 3, [registry]);
   const chameleonCount = React.useMemo(() => Object.keys(customThemes || {}).length + Object.keys(CORE_THEMES || {}).length, [customThemes, CORE_THEMES]);
@@ -211,10 +211,10 @@ export default function CommandRadarSweepPanel({
               />
               <UniversalCard
                 layout="stat"
-                onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'VERIFIED' } })); }}
+                onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'STABLE' } })); }}
                 customIcon={<span className="material-symbols-outlined !text-[22px] transition-colors theme-text-success">{t("icon_verified_user")}</span>}
-                subtitle={t("verified")}
-                title={verifiedCount}
+                subtitle={t("status_dd_stable") || "STABLE"}
+                title={stableCount}
               />
               <UniversalCard
                 layout="stat"

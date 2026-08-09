@@ -371,9 +371,15 @@ export function Sidebar({
 
       {isSidebarCollapsed && hoveredTooltip && createPortal(
         <div
-          className="fixed left-[96px] z-[150000] flex flex-col items-start justify-center glass-panel !bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] px-5 py-3 max-w-[320px] w-max pointer-events-none shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] animate-in fade-in slide-in-from-left-2"
+          className="fixed left-[96px] z-[150000] flex flex-col items-start justify-center px-5 py-3 max-w-[320px] w-max pointer-events-none shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl overflow-hidden bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md animate-in fade-in slide-in-from-left-2"
           style={{ top: hoveredTooltip.top, transform: 'translateY(-50%)' }}
         >
+          {/* 3D Glass Inner Top Highlight */}
+          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-60 pointer-events-none z-0" />
+          
+          {/* Ultra-faint Noise Texture for Glass Material realism */}
+          <div className="absolute inset-0 z-0 opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
+
           <div className="relative z-10 flex flex-col items-start gap-1 w-full">
             <div className="text-[10px] font-black uppercase tracking-[0.2em] flex items-start text-left gap-2 whitespace-pre-line text-[var(--text)]">
               <span>{hoveredTooltip.label}</span>

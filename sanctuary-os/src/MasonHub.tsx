@@ -6,7 +6,7 @@ import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from './IconPlugin';
-import { isVersionMatch, deriveHumanReadableVersion, getHighestVersion, CustomComplianceDropdown, extractPostImage, stripMarkdown , DashboardStatTile } from "./shared";
+import { isVersionMatch, deriveHumanReadableVersion, getHighestVersion, CustomComplianceDropdown, extractPostImage, stripMarkdown, DashboardStatTile } from "./shared";
 import MarkdownRenderer from "./MarkdownRenderer";
 import IconPicker from "./IconPicker";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
@@ -99,7 +99,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
             <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_view_profile")}</span>
           </button>
 
-          
+
 
           <button
             onClick={() => setIsNotepadOpen(true)}
@@ -109,7 +109,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
             <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_notepad")}</span>
           </button>
 
-          
+
 
           <button
             onClick={() => setIsSettingsOpen(true)}
@@ -129,13 +129,13 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           <HubTabButton id="sandbox" icon={t("icon_handyman")} label={(t("filter_dev")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="chameleons" icon="palette" label={(t("tab_chameleons") || "CHAMELEONS").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           <HubTabButton id="ide" icon={t("icon_code")} label={(t("ide_tab")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          
-          
-          
-          <HubTabDropdown 
-            icon="admin_panel_settings" 
-            label="Management" 
-            activeTab={masonActiveTab} 
+
+
+
+          <HubTabDropdown
+            icon="admin_panel_settings"
+            label="Management"
+            activeTab={masonActiveTab}
             setTab={setMasonActiveTab}
             options={[
               { id: "collections", icon: t("icon_collections_bookmark"), label: (t("tab_cc")).replace(/^[^\w]*/, '').trim() },
@@ -144,7 +144,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
               { id: "conflicts", icon: t("icon_security"), label: (t("tab_matrix")).replace(/^[^\w]*/, '').trim() },
               { id: "posts", icon: t("icon_edit_document"), label: (t("tab_posts")).replace(/^[^\w]*/, '').trim() },
               { id: "bug_reports", icon: t("icon_bug_report"), label: (t("stat_bugs")).replace(/^[^\w]*/, '').trim() }
-            ]} 
+            ]}
           />
         </div>
       </div>
@@ -247,5 +247,5 @@ export function MasonStatusDropdown({ value, onChange }: { value: string, onChan
   if (value === 'verified') {
     options.unshift({ id: 'verified', label: t("status_dd_verified") });
   }
-  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("architect")} />;
+  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason")} />;
 }

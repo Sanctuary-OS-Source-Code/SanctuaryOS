@@ -30,7 +30,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
     }
     loadGlobal();
   }, []);
-  
+
   async function pickLivePath() {
     const s = await open({ directory: true });
     if (s) setLivePath(s as string);
@@ -68,11 +68,11 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
       supabase_url: preselectedGame?.supabase_url || null,
       supabase_anon_key: preselectedGame?.supabase_anon_key || null,
     };
-    
+
     globalConfig.workspaces = [...(globalConfig.workspaces || []), newWorkspace];
     globalConfig.active_workspace_id = newWorkspaceId;
     globalConfig.vault_path = vaultPath;
-    
+
     await invoke("save_coordinates", { config: globalConfig });
     setIsConfigured(true);
     setTimeout(() => window.location.reload(), 300);
@@ -150,7 +150,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
                     (() => {
                       const buildOption = (id: string, name: string, badge: string, isCustom: boolean = false) => {
                         const displayName = isCustom ? `Custom: ${name}` : name;
-                        const badgeColor = badge.toLowerCase() === 'sanctuary' 
+                        const badgeColor = badge.toLowerCase() === 'sanctuary'
                           ? 'border-[var(--accent)]/30 text-[var(--accent)] bg-[var(--accent)]/[10%]'
                           : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]';
                         return {
@@ -250,7 +250,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-[var(--headerText)]">{t("sidebar_app_title")}</h4>
-                    <p className="text-[9px] theme-text-accent uppercase tracking-widest font-black opacity-80 transition-colors duration-500">{t("tab_architect") || "ARCHITECT"}</p>
+                    <p className="text-[9px] theme-text-accent uppercase tracking-widest font-black opacity-80 transition-colors duration-500">{t("tab_mason") || "MASON"}</p>
                   </div>
                 </div>
                 <div className="px-3 py-1.5 theme-bg-success/10 border border-[var(--success)]/20 rounded-full text-[var(--success)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">

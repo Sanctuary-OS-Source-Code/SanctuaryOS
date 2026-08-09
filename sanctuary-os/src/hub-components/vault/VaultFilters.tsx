@@ -1,6 +1,5 @@
 import React from 'react';
-import { CustomDropdown, isVersionMatch, getHighestVersion, getLowestVersion } from "../../shared";
-import { UniversalSearch } from "../../components/universal/UniversalLayout";
+import { CustomDropdown, isVersionMatch, getHighestVersion, getLowestVersion, SearchBar } from "../../shared";
 
 export function DebouncedSearchInput({ value, onChange, placeholder, t }: { value: string, onChange: (val: string) => void, placeholder: string, t: any }) {
   const [localValue, setLocalValue] = React.useState(value);
@@ -17,12 +16,11 @@ export function DebouncedSearchInput({ value, onChange, placeholder, t }: { valu
   }, [localValue, onChange, value]);
 
   return (
-    <UniversalSearch
+    <SearchBar
       value={localValue}
       onChange={(val) => { setLocalValue(val); onChange(val); }}
       placeholder={placeholder}
-      wrapperClassName="flex-1 min-w-[200px] w-full xl:max-w-[300px]"
-      inputClassName="!h-12 text-sm !rounded-2xl"
+      className="flex-1 min-w-[200px] w-full xl:max-w-[300px] !h-12 !rounded-2xl"
     />
   );
 }

@@ -19,7 +19,7 @@ import MasonProfileCommLink from "./MasonProfileCommLink";
 import MasonProfileArtifacts from "./MasonProfileArtifacts";
 import MasonProfileAssets from "./MasonProfileAssets";
 import SidePanelMasonPin from "./side-panels/SidePanelMasonPin";
-import { UniversalSearch } from "./components/universal/UniversalLayout";
+import { SearchBar } from "./shared";
 
 
 const cleanModName = (raw: string) => {
@@ -430,12 +430,11 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               })()}
               <div className="flex flex-col items-end gap-2 flex-1 min-w-[300px] w-full">
                 <div className="flex flex-row items-center gap-3 w-full">
-                  <UniversalSearch 
+                  <SearchBar 
                     value={modSearch} 
-                    onChange={val => setModSearch(val)} 
+                    onChange={setModSearch} 
                     placeholder={(activeView === 'COMM-LINK' ? t("mason_search_placeholder") || "Search posts..." : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates") || "Search Templates...") : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))) as string} 
-                    wrapperClassName="w-full flex-1"
-                    inputClassName="!h-12 text-sm !rounded-2xl" 
+                    className="w-full flex-1 !h-12 !rounded-2xl"
                   />
                   {activeView !== 'COMM-LINK' && (
                     <div className="min-w-[220px] w-fit max-w-[400px] shrink-0">

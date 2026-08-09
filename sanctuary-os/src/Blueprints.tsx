@@ -1,8 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { UniversalSearch } from "./components/universal/UniversalLayout";
-import { ViewHeader, isVersionMatch, SidePanel, SidebarActionButton, getExtensionRegex, FilterTabs, FilterTabButton, HubTabButton, DashboardStatTile, ActionButton, HoverTooltip } from "./shared";
+import { ViewHeader, isVersionMatch, SidePanel, SidebarActionButton, getExtensionRegex, FilterTabs, FilterTabButton, HubTabButton, DashboardStatTile, ActionButton, HoverTooltip, SearchBar } from "./shared";
 import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 import BlueprintMatrix from "./BlueprintMatrix";
 import BlueprintArchitect from "./BlueprintArchitect";
@@ -568,12 +567,11 @@ export default function Blueprints({
             </h2>
 
             <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
-              <UniversalSearch
+              <SearchBar
                   value={vaultSearchQuery}
                   onChange={(val: string) => setVaultSearchQuery(val)}
                   placeholder={(t("nav_search") || "Search Vault...") as string}
-                  wrapperClassName="flex-1 h-12 min-w-[200px] max-w-[350px]"
-                  inputClassName="!h-12 text-sm !rounded-2xl"
+                  className="flex-1 min-w-[200px] max-w-[350px] !h-12 !rounded-2xl"
                 />
               <button 
                 onClick={() => setIsDraftingSet && setIsDraftingSet(true)}
@@ -630,12 +628,11 @@ export default function Blueprints({
             </h2>
 
             <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
-              <UniversalSearch
+              <SearchBar
                 value={cloudSearchQuery}
                 onChange={(val) => setCloudSearchQuery(val)}
                 placeholder={(t("nav_search") || "Search Uplink Codes...") as string}
-                wrapperClassName="flex-1 h-12 min-w-[200px] max-w-[350px]"
-                inputClassName="!h-12 text-sm !rounded-2xl"
+                className="flex-1 min-w-[200px] max-w-[350px] !h-12 !rounded-2xl"
               />
 
               <div className="w-max min-w-[250px] shrink-0 h-12">
@@ -831,10 +828,11 @@ export default function Blueprints({
           <div className="flex items-center justify-between mb-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-3">
             <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-widest">{t("artifacts_linked") || "ARTIFACTS LINKED"} ({selectedUplinkBlueprint?.artifacts?.length})</h3>
           </div>
-          <UniversalSearch 
+          <SearchBar 
             value={uplinkArtifactSearch}
             onChange={setUplinkArtifactSearch}
             placeholder={t("playsets_search_ph") || "SEARCH ARTIFACTS..."}
+            className="!h-12 !rounded-2xl"
           />
           <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
             {selectedUplinkBlueprint?.artifacts?.filter((m: any) => {

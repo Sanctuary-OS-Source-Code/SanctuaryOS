@@ -7,14 +7,14 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  
+
   const masonName = masonsList?.find((m: any) => m.id === mod.mason_id)?.name || mod.master_author || mod.suggested_author || "";
   const cleanStatus = (mod.status || "unverified").replace(/_/g, ' ').replace(/[^\w\s-]/gi, '').trim();
 
   const handleRemove = (e: React.MouseEvent) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     if (confirmDelete && onRemove) {
-      onRemove(e); 
+      onRemove(e);
     } else {
       setConfirmDelete(true);
       setTimeout(() => setConfirmDelete(false), 2000);
@@ -22,15 +22,24 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
   };
 
   const removeAction = onRemove ? (
-    <button 
-      onClick={handleRemove} 
+    <button
+      onClick={handleRemove}
       className={`w-8 h-8 rounded-[var(--radius)] bg-black/50 backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg shadow-black/20 ${confirmDelete ? 'bg-red-500/40 backdrop-blur-md border-red-500/60 hover:bg-red-500/50 scale-110 text-white shadow-md' : 'hover:bg-red-500/30 hover:border-red-500/50 hover:shadow-md'}`}
     >
       <span className="material-symbols-outlined !text-[16px]">{confirmDelete ? (t("icon_warning_amber")) : (t("icon_close"))}</span>
     </button>
   ) : undefined;
 
-  const statusBadgeColor = cleanStatus === 'verified' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : cleanStatus === 'broken' ? 'bg-red-500/20 text-red-400 border-red-500/20' : 'bg-amber-500/20 text-amber-400 border-amber-500/20';
+  const statusBadgeColor = (() => {
+    if (cleanStatus === 'stable') return 'bg-emerald-500/20 text-[var(--success)] border-emerald-500/20';
+    if (cleanStatus === 'unstable') return 'bg-orange-500/20 text-[var(--warning)] border-orange-500/20';
+    if (cleanStatus === 'broken' || cleanStatus === 'corrupted' || cleanStatus === 'danger') return 'bg-red-500/20 text-[var(--danger)] border-red-500/20';
+    if (cleanStatus === 'under review') return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/20';
+    if (cleanStatus === 'pending') return 'bg-sky-500/20 text-sky-400 border-sky-500/20';
+    if (cleanStatus === 'early access') return 'bg-purple-500/20 text-purple-400 border-purple-500/20';
+    if (cleanStatus === 'paid') return 'bg-amber-500/20 text-amber-400 border-amber-500/20';
+    return 'bg-slate-500/20 text-slate-400 border-slate-500/20';
+  })();
 
   const imageOverlay = layout === 'vertical' ? (
     <>
@@ -95,7 +104,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
 export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonNameFallback }: { setItem: any, activeSetId?: string, onClick: () => void, masonsList?: any[], masonNameFallback?: string }) {
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
-  const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("architect") || "MASON / CREATOR";
+  const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("mason") || "MASON / CREATOR";
 
   const imageOverlay = (
     <div className="absolute top-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-lg uppercase tracking-widest shadow-lg z-20 border bg-amber-500/20 text-amber-400 border-amber-500/20">

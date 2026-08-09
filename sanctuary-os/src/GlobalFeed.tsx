@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
-import { ViewHeader, stripMarkdown, HubTabButton, CustomDropdown, CustomDatePicker, ActionButton } from "./shared";
+import { ViewHeader, stripMarkdown, HubTabButton, CustomDropdown, CustomDatePicker, ActionButton, SearchBar } from "./shared";
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
@@ -215,15 +215,12 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
             className="mb-8 w-full relative z-20"
             rightContent={
               <div className="flex items-center gap-4 flex-1 justify-end">
-                <div className="relative flex-1 max-w-[300px] h-12">
-                  <input
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    placeholder={t("mason_search_placeholder")}
-                    className="w-full h-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] px-4 pl-10 text-[var(--text)] text-sm focus:outline-none focus:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all font-medium placeholder:text-[var(--subtext)] placeholder:opacity-50"
-                  />
-                  <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-[var(--subtext)] opacity-50 pointer-events-none">search</span>
-                </div>
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder={t("mason_search_placeholder")}
+                  className="flex-1 max-w-[300px] !h-12 !rounded-2xl"
+                />
                 <div className="w-max min-w-[150px] shrink-0 h-12">
                   <CustomDatePicker
                     value={startDate}

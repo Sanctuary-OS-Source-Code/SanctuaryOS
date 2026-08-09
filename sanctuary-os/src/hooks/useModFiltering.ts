@@ -72,7 +72,7 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
     const searchLower = searchQuery.toLowerCase();
     const activeCatUpper = activeCategory.toUpperCase();
     const activeSubUpper = activeSubType.toUpperCase();
-    const strVerified = (t("verified") || "verified").toLowerCase();
+    const strStable = (t("status_dd_stable") || "stable").toLowerCase();
     const strReview = (t("status_dd_review") || "review").toLowerCase();
     const strUnverified = (t("unverified") || "unverified").toLowerCase();
     const strLocal = (t("unlinked_badge") || "local").toLowerCase();
@@ -114,9 +114,9 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
         let matchesStatus = false;
         if (filterStatus === "ALL") {
           matchesStatus = true;
-        } else if (filterStatus === "VERIFIED") {
+        } else if (filterStatus === "STABLE") {
           matchesStatus =
-            rawStatus.includes(strVerified) && !rawStatus.includes(strUnverified);
+            rawStatus.includes(strStable) && !rawStatus.includes(strUnverified);
         } else if (filterStatus === "REVIEW") {
           matchesStatus = rawStatus.includes(strReview);
         } else if (filterStatus === "UNVERIFIED") {

@@ -24,8 +24,28 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
               imageOverlay={
                 <>
                   <div className="absolute top-4 left-4 z-30 pointer-events-auto">
-                    <div className={`backdrop-blur-md border px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2 transition-all ${mod.status === 'verified' ? 'bg-emerald-500/[10%] border-emerald-500/[30%]' : 'bg-red-500/[10%] border-red-500/[30%]'}`}>
-                      <span className={`text-[8px] font-black uppercase tracking-widest ${mod.status === 'verified' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                    <div className={`backdrop-blur-md border px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2 transition-all ${(() => {
+                      const s = (mod.status || 'UNVERIFIED').toLowerCase().replace(/[\[\]"]/g, "");
+                      if (s === 'stable') return 'bg-emerald-500/[10%] border-emerald-500/[30%]';
+                      if (s === 'unstable') return 'bg-orange-500/[10%] border-orange-500/[30%]';
+                      if (s === 'broken' || s === 'corrupted') return 'bg-red-500/[10%] border-red-500/[30%]';
+                      if (s === 'under review') return 'bg-cyan-500/[10%] border-cyan-500/[30%]';
+                      if (s === 'pending') return 'bg-sky-500/[10%] border-sky-500/[30%]';
+                      if (s === 'early access') return 'bg-purple-500/[10%] border-purple-500/[30%]';
+                      if (s === 'paid') return 'bg-amber-500/[10%] border-amber-500/[30%]';
+                      return 'bg-slate-500/[10%] border-slate-500/[30%]';
+                    })()}`}>
+                      <span className={`text-[8px] font-black uppercase tracking-widest ${(() => {
+                        const s = (mod.status || 'UNVERIFIED').toLowerCase().replace(/[\[\]"]/g, "");
+                        if (s === 'stable') return 'text-[var(--success)]';
+                        if (s === 'unstable') return 'text-[var(--warning)]';
+                        if (s === 'broken' || s === 'corrupted') return 'text-[var(--danger)]';
+                        if (s === 'under review') return 'text-cyan-400';
+                        if (s === 'pending') return 'text-sky-400';
+                        if (s === 'early access') return 'text-purple-400';
+                        if (s === 'paid') return 'text-amber-400';
+                        return 'text-slate-400';
+                      })()}`}>
                         {(() => {
                           let s = mod.status || 'UNVERIFIED';
                           s = s.replace(/[\[\]"]/g, "");

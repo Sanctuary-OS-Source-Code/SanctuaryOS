@@ -3,9 +3,15 @@
 
 ## **Everything Sanctuary Dragged Me Into: A Total Revamp**
 
+### **Status Nomenclature & Filtering**
+- **Global Status Renaming**: Completely phased out the "Verified" nomenclature across the OS, replacing it with the more accurate "Stable" designation. This sweeping change touches everything from the Radar Sweep badges, Vault Command screens, and Architect Side Panels down to the core state logic and database filtering hooks (`useModFiltering.ts`, `useRadarLogic.ts`).
+- **Enhanced Status Filtering**: Re-architected the `CustomDropdown` status filters in `SharedRegistry.tsx` (and across the Command Center) to support expanded boolean flags. The status filter dropdowns now natively support filtering by "Early Access" and "Paid" statuses alongside standard OS states (Stable, Unstable, Broken, Under Review, Pending, etc.).
+- **Global Badge Color Standardization**: Implemented a comprehensive color-coding system for all status badges across the OS (ModCards, Artifact Cards, Dossiers, and Nexus). Rebuilt the renderers to precisely map states to specific premium glass tints: Stable (Emerald/Success), Unstable (Orange/Warning), Corrupted/Broken (Red/Danger), Under Review (Cyan), Pending (Sky Blue), Early Access (Purple), Paid (Amber/Gold), and Unverified/Local (Slate).
+
 ### **OS Shell & Global Navigation Overhaul**
-- **Global Status Bar Upgrade**: Upgraded the OS footer from a flat, solid bar into a premium, edge-to-edge glassmorphic `SystemStatusBar`. The new HUD seamlessly blends into the OS background while continuing to house critical readouts (Radar Sweep, Lockdown Status, and real-time System Notifications) with refined hover states and layout.
+- **Global Status Bar Upgrade**: Upgraded the OS footer from a flat, solid bar into a premium, edge-to-edge glassmorphic `SystemStatusBar`. The new HUD seamlessly blends into the OS background while continuing to house critical readouts (Radar Sweep, Lockdown Status, and real-time System Notifications) with refined hover states and layout. Refined the `SystemStatusBar` so that dynamic background color changes (like solid green for success or red for error) are exclusively applied to the main status log pill, leaving the right-hand action icons pill in its default glassmorphic state for better visual balance.
 - **Status Bar Glass Aesthetics**: Applied the standard `glass-panel` architecture to the global StatusBar, unifying its transparency, blur, and border style with the rest of the application's side panels and cards for a seamless, premium look.
+- **Tooltip Glass Realism**: Overhauled the `GlobalTooltip` components to push the material realism further. Added a dynamic 135-degree translucent background gradient, an ultra-fine 1px 3D inner top-highlight, and a mathematically generated SVG noise layer (`mix-blend-overlay`) to simulate real frosted acrylic texture, while increasing the inner text drop-shadow to guarantee legibility over active backgrounds.
 - **Title Bar Architecture & Tactile Keys**: Completely reimagined the `TitleBar.tsx` layout. Evolved the previously empty, plain-text header into a sleek, functional edge-to-edge native drag region. The Window Controls (Minimize, Maximize, Close) have been rebuilt as unique 'Chiclet' style keys—3D glass-surface buttons that physically depress and lose their drop-shadow on interaction, providing a premium, tactile feel without mimicking Chrome or macOS. The Close button utilizes a custom subtle glass red glow on hover to avoid breaking the material illusion with a solid block of color.
 - **Title Bar Glass Material Upgrade**: Scrapped the flat strip of background color on the Title Bar. It now uses a massive, sweeping glassmorphic `linear-gradient` that acts as a vignette to draw focus to the center. To push the physical material realism, injected an ultra-fine 1px 3D inner top-highlight and a mathematically generated SVG noise layer (`mix-blend-overlay`) to simulate real frosted acrylic texture.
 - **Sidebar & Logo Restructuring**: Cleaned up the global Sidebar by removing the heavy Workspace Switcher block and fixing scroll region padding. The massive stacked logo in the top-left was flattened into a sleek, minimal, two-tone text logo that aligns perfectly with the new Title Bar architecture. Added a dedicated 'Collapse Sidebar' action button next to the logo for rapid navigation.
@@ -123,126 +129,5 @@
 ### **Mod Dossier Polish**
 - **Aesthetic Refinements**: Cleaned up the Mod Dossier UI by replacing the stark grey background on the header close buttons with our standard `glass-panel` layout, complete with springy hover animations. Relocated the artifact title block out of the hero image overlay and directly above the content grids for a much cleaner layout. Furthermore, the massive blank header space that appeared when no cover image was available has been intelligently collapsed to a slim `140px` profile. The active equipment highlight on sub-artifacts has been significantly softened to reduce visual clashing, utilizing a more subtle `color-mix` border and shadow combination. Additionally, stripped out the floating accent line from the description boxes to streamline the brutalist, edge-to-edge aesthetic.
 
----
-
-**Date: August 5, 2026**
-**Version: 0.4.92**
- 
-## The Hub Unification & Architecture Update
-
-### **Settings Hub Architecture & Polish**
-- **Grid Architecture Revamp**: Completely tore down the legacy table rows across the Settings Hub, replacing them with a modern `SettingsGrid` and modular glassmorphic `SettingCard` components.
-- **Tab Re-Categorization**: Restructured the Settings Hub for perfect balance and mental mapping:
-  - **CORE**: Merges Identity, Auth, and Storage Path settings. Features sleek new side-panel workflows for updating emails and passwords.
-  - **ENGINE**: A dedicated tab for all game state management, timeline retention, backup targets, and defcon policies. Grouped all retention policies logically together.
-  - **PREFERENCES**: Repurposed the old Network "junk drawer" into a clean catch-all client preferences tab (Internal Browser, Offline Mode, Malware Reporting).
-- **Privacy Obfuscation Engine**: Built-in privacy masking for streamers and screenshotters. The OS now automatically intercepts and masks your Windows username in all path displays (e.g. `C:\Users\***\Desktop\...`) and correctly obfuscates your authenticated email address on the Core tab.
-- **Nuclear Override Redesign**: Scrapped the oversized, legacy red warning box in favor of a cohesive, perfectly aligned `danger` variant `SettingCard`. The critical action now perfectly matches the OS aesthetic while still demanding respect.
-- **Lexicon Harmonization**: Mapped all new settings strings across the `en-default`, `en-sanctuary`, and `Simlish` dictionaries. Renamed the confusing "Vault Max Capacity" label to "Time Capsule Limit" to correctly reflect its purpose within the Engine tab.
-- **Component Polish**: Unclamped `SettingCard` descriptions to ensure that long-form explanations (like Defcon targets) fully wrap and display without truncation.
-
-### **Command Screen & Dashboard Refinement**
-- **Aesthetic Standardization**: Unified all primary icon boxes across the Command Center (Quick Links, Alert Banners, and Section Headings) to utilize perfectly circular (`rounded-full`) borders, replacing the mixed squircle (`rounded-[var(--radius)]`/`rounded-xl`) styling for a much more cohesive UI language.
-- **Layout Integrity Fixes**: Hardened the CSS Flexbox and Grid boundaries across the dashboard. Applied strict `min-w-0` and truncation to stat tiles to prevent container blowouts, and wrapped text descriptions in `SystemBroadcastsGrid` with `flex-1 min-h-0` to properly calculate margins without text bleeding.
-- **Visual Restorations**: Replaced uncompiled Tailwind color strings with the official `theme-glass-panel` utility class on header boxes to restore their frosted glass backgrounds. Injected proper 32px vertical breathing room below the Latest Dispatch card.
-- **State Resolutions**: Resolved state initialization errors within the Mason Command Screen by explicitly typing and tracking the active blueprints count.
-
-### **Lexicon & Chameleon Panel Overhauls**
-- **Card-Based UI Revamp**: Scrapped the compact, linear row designs in both the Theme (Chameleon) and Language (Lexicon) side panels. They now feature massive, premium glassmorphic cards laid out in a clean grid.
-- **Interactive Polish**: The new cards feature fluid `shadow-xl` hover elevations (`hover:-translate-y-1`), animated circular aesthetic previews, and deeply integrated quick-action buttons for saving, editing, and favoriting.
-- **Inline Editing Upgrade**: Restyled the inline renaming inputs to utilize a heavy `bg-black/20` design with crisp padding and accent-colored focus states, drastically improving visibility against the complex frosted backgrounds.
-
-### **Nexus Core Refinements**
-- **Dashboard Telemetry Fix**: Resolved a critical issue where the Nexus dashboard incorrectly queried the deprecated `nexus_mods` table instead of the active `mods` table, successfully restoring all-time count statistics and the recent activity feed.
-- **Stats Filtering**: Enforced strict `compliance_tier=0` and `is_public=true` filters across all artifact, blueprint, and asset stat tiles to accurately exclude hidden and unverified items from global counts.
-- **Global Search Synchronization**: Patched a missing lifecycle hook that prevented the global search query from syncing properly. Additionally, clicking items on the Recent Activity feed now instantly opens their dedicated inspector panel without forcing a jarring tab swap or overriding your local search filters.
-- **Dropdown State Integrity**: Fixed a race condition in the Game Version filter dropdowns (Artifact and Blueprint tabs) that caused them to default to their placeholders by dynamically injecting the active game version into the list before the database fetch completes.
-- **Quick Links Consolidation**: Cleaned up the Nexus sidebar by stripping redundant telemetry row headers. Quick Links now natively display dynamic item counts within their localized subtitles.
-- **Landing Page Redesign**: Rebuilt the main Nexus `HOME` tab using the new `SharedCommandScreenLayout`. Added a "Recent Activity" grid displaying the latest uploads and dedicated stat tiles tracking global ecosystem counts across all artifact types.
-- **Blueprint Inspector Resiliency**: Patched a fatal crash that occurred when clicking recently uploaded blueprints from the Nexus feed due to unparsed JSON. Additionally, fixed a bug where older blueprints would falsely report "0 INCLUDED ARTIFACTS" by adding a fallback to scan the root database columns.
-
-### **Vault & Library Enhancements**
-- **Command Screen Architecture**: The Vault overview tab has been completely redesigned to utilize the `SharedCommandScreenLayout`. It now features centralized stat tiles (Total Schematics, In Blueprint, Unverified, Local Nodes), a "Recent Injections" grid, and a streamlined "Quick Actions" sidebar for bulk overrides and archive purging.
-- **Bulk Action Bar Upgrade**: The Vault's bulk selection toolkit received a major usability pass. Added dedicated "Select All" and "Clear" action buttons to rapidly manage large loadouts. The toggle itself was restyled to match the native `theme-glass-panel` aesthetic.
-- **Telemetry Expansion**: Added a brand new "Virtual Folders" stat tile to the top of the Vault to track active local folder mappings alongside Unverified artifacts.
-- **Architecture Cleanup**: Deprecated and purged the redundant `VaultToolsSidePanel` from the Vault ecosystem.
-
-### **Homestead Lab & Conflict Radar**
-- **Visual Polish**: Standardized the active target "Selected" scan buttons, and applied dynamic glowing background tints to active blueprint cards across both the Blueprints Hub and Conflict Radar.
-- **Ecosystem Forge Enhancements**: 
-  - **Missing Dependency Detection**: Upgraded the dependency resolution logic to correctly identify virtual/uninstalled artifacts, triggering a localized UI alert when required symbiotic entities are missing from the local vault.
-  - **Active Test Side Panel**: Replaced the raw button swaps with a massive new animated `SidePanel` component to indicate when an experiment is underway, featuring unified Action Button footer controls.
-  - **UI Polish**: Stripped redundant abort controls from the top header, updated the "Subject Isolation" badge to automatically adapt to OS theme styles (preventing dark mode text clashing on light themes), and refactored core subject buttons to leverage the official OS `ActionButton` components.
-  - **Core UI Architecture**: Fixed a TypeScript destructuring oversight in the shared `ActionButton` component, fully unlocking `form` and `onDoubleClick` prop pass-through capabilities.
-
-
----
-
-**Date: August 3, 2026**
-**Version: 0.4.91**
-
-## **Massive Hub Redesigns & OS Standardization**
-
-### **Major Systems Overhaul**
-- **Conflict Radar Redesign**: Completely scrapped the old linear view in favor of a massive multi-tabbed interface (`COMMAND`, `CONFLICTS`, `OVERRIDES`). Powered by the new `SharedCommandScreenLayout`, it features a sleek two-column split-pane architecture. The old scanning buttons were migrated into highly interactive `CommandScreenQuickLink` components in the sidebar. Telemetry is now fully searchable with dynamic S1-S4 severity quick-filters.
-- **Conflict Radar Polish**: 
-  - **Dynamic Grid Architecture**: Overrides and ignored collisions now flow seamlessly into a dynamic grid layout that automatically calculates the maximum number of cards per row, ensuring a perfect fit regardless of window width.
-  - **Filtered Notification Badges**: The warning badge on the `CONFLICTS` tab has been smart-filtered to exclusively count fatal (S4) and tuning (S3) collisions, intentionally ignoring minor S1 and S2 overlaps to reduce notification fatigue.
-  - **Overridden File Recovery**: Fixed a logic flaw where the UI would duplicate the winning file in the Active Overrides view. The UI now dynamically intercepts and unpacks the raw conflict string from the background `sanctuary_ignored_conflicts` cache to accurately identify and display the overwritten file.
-  - **Seamless Reversion**: Tied conflict un-ignoring directly into the "Revert Override" action, ensuring that reverted mods instantly reappear on the radar instead of remaining permanently suppressed.
-  - **Visual Polish**: Swapped out the broken 'ghost' fallback with the official 'visibility_off' material symbol.
-  - **Dynamic Scope Scanning**: Connected the blueprint dropdowns across all Radar tabs to seamlessly rescan the correct blueprint on change, fixing a core logic flaw that caused the scanner to fall back to the actively deployed game folder.
-  - **Command Telemetry Tiles**: Integrated comprehensive stat tiles into the `COMMAND` overview page to provide at-a-glance metrics for Total Fatal, Total Tuning, Total Overrides, and Total Ignored conflicts for the currently selected blueprint.
-  - **Persistent Tab Navigation**: Removed jarring, automatic tab-jumping behaviors during scans. The UI now respects your current tab and dynamically updates the data underneath you when changing blueprints.
-- **Homestead Lab Redesign**: The Homestead Lab was completely rebuilt from the ground up. Introduced a tabbed interface (`DASHBOARD`, `BUILDER`, `REPORTS`) and purged the legacy table-based logs. Telemetry is now displayed via a modern, responsive grid of rich cards featuring glowing success/danger indicators, timestamp tracking, and fluid hover animations revealing deep-link action buttons.
-- **Comm-Link Feed Revamp**: Overhauled the Comm-Link Feed, splitting it into `NETWORK SWEEP` and `SUBSCRIBED CHANNELS`. The interface now utilizes completely redesigned, premium transmission cards with pinned states, view metrics, and unified glassmorphic styling.
-- **Blueprints Polish**: Upgraded the Blueprints hub to leverage the new layout architecture, bringing its grid and action buttons into perfect alignment with the rest of the OS.
-
-### **Global Layout & Grid Standardization**
-- **Mason Profile Revamp**: Re-engineered the Mason Profile Overview layout. Restored the side-by-side split (`COMM-LINK` on the left, `SHOWCASE` on the right) for immediate access to updates without scrolling. To prevent the right sidebar from feeling squished, the featured Showcase items were upgraded to use the ultra-sleek `horizontal` list layout. Increased horizontal card dimensions across the OS to provide larger, more prominent artwork. Additionally, stripped the puffy glass-panel borders from the Mason Profile Header in favor of an edge-to-edge transparent layout with fine horizontal dividers. Fixed an alignment bug where the glowing hover border behind the avatar was rendered off-center due to flex padding.
-- **Glass Panel Shadows**: Fixed a critical theme rendering issue where all `glass-panel` and `UniversalCard` drop shadows were incorrectly tied to the `--text` CSS variable. In dark themes, this caused shadows to render as bright white, creating an unintended milky glow that ruined the depth effect. Hardcoded these specific ambient drop shadows back to deep `rgba` blacks so they maintain structure across all colorways.
-- **Action Button Standardization**: Refactored the raw HTML glass buttons in `MasonProfileAssets` (Blueprints, Lexicons, Templates, and Chameleons) to use the standard `ActionButton` component. This ensures consistent icons, padding, fonts, and hover states for all INSTALL, UPDATE, and REINSTALL actions across the OS.
-- **Badge Polish**: Overhauled all OS-wide badges (Verified, Active Status, Early Access, Paid, Category, Pinned) on Universal Cards and Profile Headers. Replaced flat tinted backgrounds with premium, glowing glassmorphic pills (`rounded-full`, heavy `backdrop-blur-xl`, and deep shadow drops) for a highly polished, unified aesthetic. Moved showcase badges out of image overlays to prevent clipping on compact cards. Also converted the `MasonPostCard` badges (Pinned, New, Urgent, Alert) from diagonal corner flags to floating glassmorphic pills for consistency.
-- **Typography & Icon Alignment**: Fixed a clipping issue in `MasonPostCard` descriptions where inline Material Symbols were being vertically cropped by removing rigid negative margins and letting them flow naturally with `align-middle`.
-- **Pixel-Perfect Spacing**: Conducted an OS-wide audit of all primary Hub wrappers. Enforced a strict `gap-0` on root flex containers and standardized an exact `mb-6` (24px) margin below all `ViewHeader` and `HubTabButton` containers, ensuring a flawless, identical vertical rhythm across every single screen.
-- **Search & Title Harmonization**: Unified the title/search rows in the **Vault**, **Nexus**, and **Workbench**. They now share the exact same `bg-black/40`, `h-12`, `rounded-xl`, `font-mono` input design.
-- **Action Button Standardization**: Relocated the Template Action buttons in Citizens Workbench into the new standardized title row with matched `rounded-xl` CSS overrides to sit perfectly alongside the search bar.
-
-
----
-
-**Date: August 1, 2026**
-**Version: 0.4.90**
-
-## **Time Capsule & Mod Dossier Polish**
-
-### **Time Capsule Hub Overhaul**
-- **Main Hub Rework**: Completely redesigned the primary Time Capsule landing page. The legacy layout has been replaced with a stunning new glassmorphic dashboard featuring fluid `animate-in` transitions and centralized statistics for total vault capacity and engine/world size allocations.
-- **Glassmorphic Backup Cards**: Transformed the old blocky backup list items into premium, fully interactive cards. Each card now features absolute positioning with a smooth `group-hover:opacity-100` gradient overlay, bringing the interface to life when hovered.
-- **3D Hover Actions**: Re-engineered the card action menus. Hovering over a Time Capsule now triggers a sleek CSS transform, smoothly translating the primary details upwards while sliding in high-contrast, fully integrated glass buttons for **Restore**, **Inspect**, and **Delete**.
-- **Interactive Tab Navigation**: Upgraded the Hub's main navigation headers to utilize the new `HubTabButton` component suite, wrapping the landing, World State, and Engine Core filters in a gorgeous frosted glass pill container.
-- **Interactive Stat Tiles**: The main dashboard stat tiles are now fully functional; clicking the World State or Engine Core capacity metrics will seamlessly slide you into their respective management tabs.
-
-### **System Status Panel**
-- **Detected Patch Tracking**: Added a brand new telemetry block to the `System Environment` section that displays the currently active game version / detected patch alongside the operating system information.
-- **Aesthetic Unification**: Stripped out the glowing emerald accents from the Uplink Status and newly added Detected Patch boxes, pulling them into the standard neutral/glass aesthetic to keep the entire telemetry interface fully unified.
-
-### **Time Capsule Operations Panel [New]**
-- **Complete Architecture Replacement**: The legacy "Seal Panel" has been completely purged and replaced with a massive new unified **Operations Panel**. This new hub centralizes all advanced Time Capsule management tools (Inspector, Extract, Diff) into a single sleek interface accessible directly from individual backup cards.
-- **Aesthetic Unification**: Built from the ground up utilizing the OS's heavy glass aesthetic. All headers, labels, and file listings across the new tabs strictly enforce the heavy `font-black uppercase tracking-widest` standard for a highly cohesive, brutalist feel.
-- **Dynamic Context Tracking**: The operations panel intelligently tracks what kind of Capsule you have selected. All UI descriptions and button texts dynamically adapt depending on whether you are inspecting an Engine Core or a World State.
-- **Diff Engine**: Introduced a unified, high-contrast directional flow header (`ACTIVE CAPSULE → SELECTED CAPSULE`) for the new Diff tool, allowing you to easily comprehend changes between your current state and historical snapshots.
-- **Extraction Tool**: Built a brand new file extraction UI featuring chunky, native-feeling search bars (`py-3`, `rounded-xl`) to instantly drill down and pull specific assets out of massive snapshots.
-- **Privacy Masking**: The Vault Coordinates output block actively intercepts the file path and masks your local OS username (`C:\USERS\***\...`), keeping your identity safe if you show the panel on stream.
-- **Streamlined Workflow**: Removed the redundant `OPERATIONS` button from the top right of the main Time Capsule Hub. The workflow has been entirely streamlined into the specific backup cards themselves via hover actions.
-
-### **Mod Dossier Polish**
-- **Clean Forms**: Removed the inner box styling from the Artifact Category dropdown when in edit mode to better match the flat appearance of surrounding text inputs, utilizing a new `flat` property on the custom dropdown component.
-- **URL & Download Fields**: Standardized the fonts for the external URL and cover image URL inputs, and relocated them below the main statistics grid for a cleaner layout. The primary action button (Download Artifact / Search Web) has been moved up to the HubTabs header pills alongside "Flag Artifact" and "Send to Lab" when the dossier is in read-only mode.
-- **Toggle Switches**: Slimmed down the vertical footprint of the Paid Artifact and Early Access toggle switches, giving them a much sleeker profile that fits the glass aesthetic.
-- **Scrollbar Overflow**: Fixed a clipping issue in the Game Version dropdown where the custom scrollbar would extend outside the rounded corner boundaries of the menu container.
-
-### Vault Alerts & Diagnostics
-- **Interactive Vault Alerts**: Overhauled the Vault Alert workflow. When encountering missing dependencies, version mismatches, or file conflicts, the generated alert cards now feature fully interactive dossiers. You can click directly into the artifact's details to view stats, edit metadata, or resolve issues without losing your place in the alert flow.
-### Visual Overhauls
-- **Core Shell OS Revamp**: Completely redesigned the core shell architecture (Titlebar, Sidebar, and SystemStatusBar) to align with the dynamic, glassmorphic 'Command Deck' aesthetic. This includes segmented footer readouts, a blinking terminal cursor, neon Quick Launch integration, and dynamic theming compatibility for both Dark and Light setups.
+### **Component Standardization**
+- **Universal Search Sweep**: Conducted a sweeping standardization of all search bars across the OS (Nexus, Vault, Blueprints, Global Feed, Mason Profiles, and Side Panels). Completely phased out the deprecated `UniversalSearch` and manual input elements in favor of the unified `SearchBar` component from `shared.tsx`. This guarantees consistent glassmorphic styling, standard hover/focus states, and identical clear-button functionality across every search input in the application.

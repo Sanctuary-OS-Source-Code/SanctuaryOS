@@ -50,8 +50,8 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
       {/* TitleBar Premium Glass Background */}
       <div
         className="absolute inset-0 z-[-1] backdrop-blur-md transition-all duration-500 pointer-events-none"
-        style={{ 
-          background: "linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--bg) 40%, transparent) 25%, color-mix(in srgb, var(--bg) 80%, transparent) 50%, color-mix(in srgb, var(--bg) 40%, transparent) 75%, transparent 100%)" 
+        style={{
+          background: "linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--bg) 40%, transparent) 25%, color-mix(in srgb, var(--bg) 80%, transparent) 50%, color-mix(in srgb, var(--bg) 40%, transparent) 75%, transparent 100%)"
         }}
       />
 
@@ -82,8 +82,8 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
           src="/icon.png"
           alt="Watermark"
           className={`absolute top-1/2 -translate-y-1/2 transition-all duration-700 pointer-events-none ${isSidebarCollapsed
-            ? 'w-10 h-10 left-1/2 -translate-x-1/2 opacity-[0.4] group-hover/logo:opacity-100 group-hover/logo:scale-110 drop-shadow-[0_0_8px_var(--accent)]'
-            : 'w-24 h-24 -left-4 opacity-[0.03] group-hover/logo:opacity-[0.08] group-hover/logo:scale-110 group-hover/logo:rotate-12 group-hover/logo:drop-shadow-[0_0_15px_var(--accent)]'
+            ? 'w-8 h-8 left-1/2 -translate-x-1/2 opacity-100 drop-shadow-sm group-hover/logo:scale-110 group-hover/logo:drop-shadow-[0_0_8px_var(--accent)]'
+            : 'w-24 h-24 -left-4 opacity-[0.06] grayscale group-hover/logo:grayscale-0 group-hover/logo:opacity-[0.15] group-hover/logo:scale-110 group-hover/logo:rotate-12 group-hover/logo:drop-shadow-[0_0_15px_var(--accent)]'
             }`}
         />
 

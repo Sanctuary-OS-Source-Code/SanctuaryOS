@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, ModSearchDropdown, HubTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter, getExtensionRegex } from "./shared";
+import { ViewHeader, ModSearchDropdown, HubTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter, getExtensionRegex, SearchBar } from "./shared";
 import { CommandScreenLayout, DashboardStatTile, CommandScreenStats, CommandScreenQuickLink, CommandScreenSectionHeading, CommandScreenBody, CommandScreenMain, CommandScreenSidebar } from "./hub-components/SharedCommandScreenLayout";
 import { useStore } from "./store";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
@@ -588,21 +588,12 @@ export default function Lab({
             className="py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-6 relative z-20 shrink-0"
             rightContent={
               <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">search</span>
-                  <input
-                    type="text"
-                    placeholder={t("search_logs")}
-                    value={searchLogs}
-                    onChange={(e) => setSearchLogs(e.target.value)}
-                    className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--text)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--text)]/50 placeholder:opacity-40"
-                  />
-                  {searchLogs && (
-                    <button onClick={() => setSearchLogs("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
-                      <span className="material-symbols-outlined text-sm">close</span>
-                    </button>
-                  )}
-                </div>
+                <SearchBar
+                  value={searchLogs}
+                  onChange={setSearchLogs}
+                  placeholder={t("search_logs") as string}
+                  className="flex-1 min-w-[200px] w-full xl:max-w-[300px] !h-12 !rounded-2xl"
+                />
 
                 <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[300px] shrink-0 relative z-50 h-12">
                   <FilterTabs className="w-full">

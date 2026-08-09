@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
 import { SidePanel, FilterTabs, FilterTabButton, SearchBar } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { UniversalGroup, UniversalSearch } from "../components/universal/UniversalLayout";
+import { UniversalGroup } from "../components/universal/UniversalLayout";
 
 export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }: { isOpen: boolean, onClose: () => void, selectedBackup: string | null, config: any }) {
   const { t } = useLexicon();

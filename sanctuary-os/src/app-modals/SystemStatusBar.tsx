@@ -84,7 +84,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
       </div>
 
       {/* Right Segment: Scanners & Actions */}
-      <div className={`h-[34px] flex items-center rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 pointer-events-auto backdrop-blur-2xl shadow-[0_4px_15px_rgba(0,0,0,0.05)] overflow-hidden transition-all duration-300 ${statusBgClass}`}>
+      <div className={`h-[34px] flex items-center rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 pointer-events-auto backdrop-blur-2xl shadow-[0_4px_15px_rgba(0,0,0,0.05)] overflow-hidden transition-all duration-300`}>
         {isScanning && (
           <div className={`flex items-center gap-4 h-full pl-6 shrink-0 w-80 animate-in fade-in duration-300 ${isErrorStatus ? 'border-red-500/20' : isSuccessStatus ? 'border-emerald-500/20' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
             <div className="flex items-center gap-2">

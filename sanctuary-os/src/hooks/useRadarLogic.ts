@@ -687,8 +687,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           compliance_tier: dbMod?.compliance_tier || 0,
           mason_id: dbMod?.mason_id || null,
           status: dbMod
-            ? dbMod.status === "verified"
-              ? t("verified")
+            ? dbMod.status === "stable"
+              ? t("status_dd_stable") || "STABLE"
               : dbMod.status === "unverified"
                 ? t("unverified")
                 : dbMod.status
@@ -724,17 +724,20 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       collectionsMetadata.forEach((set) => {
         const setMembers = setMembersMap.get(String(set.id)) || [];
         if (setMembers.length > 0) {
-          const verifiedCount = setMembers.filter((m) => m.status === (t("verified"))).length;
-          const isAllVerified = verifiedCount === setMembers.length;
-          const isNoneVerified = verifiedCount === 0;
-          const isAnyBroken = setMembers.some((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
+          const brokenCount = setMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken")).length;
+          const unstableCount = setMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
+          const stableCount = setMembers.filter((m) => m.status === (t("status_dd_stable") || "STABLE")).length;
+          const isAllStable = stableCount === setMembers.length;
+          const isNoneStable = stableCount === 0;
           
           let folderStatus = "";
-          if (isAnyBroken) {
-            folderStatus = "broken";
-          } else if (isAllVerified) {
-            folderStatus = t("verified");
-          } else if (isNoneVerified) {
+          if (brokenCount > 0) {
+            folderStatus = t("status_broken");
+          } else if (unstableCount > 0) {
+            folderStatus = t("label_unstable");
+          } else if (isAllStable) {
+            folderStatus = t("status_dd_stable") || "STABLE";
+          } else if (isNoneStable) {
             folderStatus = t("unverified");
           } else {
             folderStatus = t("status_mixed");
@@ -787,17 +790,20 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           author: familyMembers[0].author,
         };
           const safeName = pData.name || t("status_unknown_folder") || "Unknown Folder";
-          const verifiedCount = familyMembers.filter((m) => m.status === (t("verified"))).length;
-          const isAllVerified = verifiedCount === familyMembers.length;
-          const isNoneVerified = verifiedCount === 0;
-          const isAnyBroken = familyMembers.some((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
+          const brokenCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken")).length;
+          const unstableCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
+          const stableCount = familyMembers.filter((m) => m.status === (t("status_dd_stable") || "STABLE")).length;
+          const isAllStable = stableCount === familyMembers.length;
+          const isNoneStable = stableCount === 0;
           
           let folderStatus = "";
-          if (isAnyBroken) {
-            folderStatus = "broken";
-          } else if (isAllVerified) {
-            folderStatus = t("verified");
-          } else if (isNoneVerified) {
+          if (brokenCount > 0) {
+            folderStatus = t("status_broken");
+          } else if (unstableCount > 0) {
+            folderStatus = t("label_unstable");
+          } else if (isAllStable) {
+            folderStatus = t("status_dd_stable") || "STABLE";
+          } else if (isNoneStable) {
             folderStatus = t("unverified");
           } else {
             folderStatus = t("status_mixed");
@@ -873,16 +879,19 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           set.items.includes(m.hash),
         );
         const isSet = !!set.isCollection;
-        const verifiedCount = setMembers.filter((m: any) => m.status === (t("verified"))).length;
-        const isAllVerified = setMembers.length > 0 && verifiedCount === setMembers.length;
-        const isNoneVerified = setMembers.length === 0 || verifiedCount === 0;
-        const isAnyBroken = setMembers.some((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken"));
+        const brokenCount = setMembers.filter((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken")).length;
+        const unstableCount = setMembers.filter((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
+        const stableCount = setMembers.filter((m: any) => m.status === (t("status_dd_stable") || "STABLE")).length;
+        const isAllStable = setMembers.length > 0 && stableCount === setMembers.length;
+        const isNoneStable = setMembers.length === 0 || stableCount === 0;
         
         let folderStatus = "";
-        if (isAnyBroken) {
-          folderStatus = "broken";
-        } else if (isAllVerified) {
-          folderStatus = t("verified");
+        if (brokenCount > 0) {
+          folderStatus = t("status_broken");
+        } else if (unstableCount > 0) {
+          folderStatus = t("label_unstable");
+        } else if (isAllStable) {
+          folderStatus = t("status_dd_stable") || "STABLE";
         } else {
           folderStatus = t("local_node") || "LOCAL FOLDER";
         }

@@ -257,21 +257,12 @@ export default function TimeCapsule({
           className="py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full shrink-0"
           rightContent={
             <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
-            <div className="relative flex-1 h-12 min-w-[200px] max-w-[350px]">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-              <input
-                type="text"
-                placeholder={t("timecapsule_search") || "Search Chronograms..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                  <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-                </button>
-              )}
-            </div>
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={t("timecapsule_search") as string || "Search Chronograms..."}
+              className="flex-1 min-w-[200px] max-w-[350px] !h-12 !rounded-2xl"
+            />
 
             <div className="w-max min-w-[180px] shrink-0">
               <CustomDropdown disableTint={true}

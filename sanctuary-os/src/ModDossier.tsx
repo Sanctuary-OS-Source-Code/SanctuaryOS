@@ -468,10 +468,14 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
                 <div className={`col-span-2 flex flex-col p-6 glass-panel backdrop-blur-3xl rounded-[var(--radius)] border transition-all hover:scale-[1.01] shadow-2xl relative overflow-hidden group ${(() => {
                   const s = statusType;
-                  if (s === 'verified') return "border-emerald-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--success-rgb),0.1)]";
-                  if (s === 'unverified') return "border-red-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--danger-rgb),0.1)]";
-                  if (s === 'broken') return "border-orange-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--warning-rgb),0.1)]";
-                  return "border-[var(--accent)]/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--accent-rgb),0.1)]";
+                  if (s === 'stable') return "border-emerald-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--success-rgb),0.1)]";
+                  if (s === 'unstable') return "border-orange-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--warning-rgb),0.1)]";
+                  if (s === 'broken' || s === 'corrupted') return "border-red-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--danger-rgb),0.1)]";
+                  if (s === 'under review') return "border-cyan-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--cyan)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(34,211,238,0.1)]";
+                  if (s === 'pending') return "border-sky-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--sky)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(14,165,233,0.1)]";
+                  if (s === 'early access') return "border-purple-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--purple)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(168,85,247,0.1)]";
+                  if (s === 'paid') return "border-amber-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--amber)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(245,158,11,0.1)]";
+                  return "border-slate-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--slate)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(100,116,139,0.1)]";
                 })()
                   }`}>
                   {/* Tech Background Effects */}
@@ -486,28 +490,40 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       {/* Inner Glowing Orb */}
                       <div className={`absolute w-16 h-16 rounded-full blur-xl opacity-30 animate-pulse ${(() => {
                         const s = statusType;
-                        if (s === 'verified') return "bg-[var(--success)]";
-                        if (s === 'unverified') return "bg-[var(--danger)]";
-                        if (s === 'broken') return "bg-[var(--warning)]";
-                        return "bg-[var(--accent)]";
+                        if (s === 'stable') return "bg-[var(--success)]";
+                        if (s === 'unstable') return "bg-[var(--warning)]";
+                        if (s === 'broken' || s === 'corrupted') return "bg-[var(--danger)]";
+                        if (s === 'under review') return "bg-cyan-500";
+                        if (s === 'pending') return "bg-sky-500";
+                        if (s === 'early access') return "bg-purple-500";
+                        if (s === 'paid') return "bg-amber-500";
+                        return "bg-slate-500";
                       })()
                         }`}></div>
 
                       {/* Core Icon */}
                       <div className={`relative z-10 w-16 h-16 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center backdrop-blur-md shadow-inner ${(() => {
                         const s = statusType;
-                        if (s === 'verified') return "bg-emerald-500/[10%] text-[var(--success)] border-emerald-500/[30%]";
-                        if (s === 'unverified') return "bg-red-500/[10%] text-[var(--danger)] border-red-500/[30%]";
-                        if (s === 'broken') return "bg-orange-500/[10%] text-[var(--warning)] border-orange-500/[30%]";
-                        return "bg-[var(--accent)]/[10%] text-[var(--accent)] border-[var(--accent)]/[30%]";
+                        if (s === 'stable') return "bg-emerald-500/[10%] text-[var(--success)] border-emerald-500/[30%]";
+                        if (s === 'unstable') return "bg-orange-500/[10%] text-[var(--warning)] border-orange-500/[30%]";
+                        if (s === 'broken' || s === 'corrupted') return "bg-red-500/[10%] text-[var(--danger)] border-red-500/[30%]";
+                        if (s === 'under review') return "bg-cyan-500/[10%] text-cyan-400 border-cyan-500/[30%]";
+                        if (s === 'pending') return "bg-sky-500/[10%] text-sky-400 border-sky-500/[30%]";
+                        if (s === 'early access') return "bg-purple-500/[10%] text-purple-400 border-purple-500/[30%]";
+                        if (s === 'paid') return "bg-amber-500/[10%] text-amber-400 border-amber-500/[30%]";
+                        return "bg-slate-500/[10%] text-slate-400 border-slate-500/[30%]";
                       })()
                         }`}>
                         <span className="material-symbols-outlined !text-3xl drop-shadow-md">
                           {(() => {
                             const s = statusType;
-                            if (s === 'verified') return "verified_user";
-                            if (s === 'unverified') return "gpp_bad";
-                            if (s === 'broken') return "pest_control";
+                            if (s === 'stable') return "verified_user";
+                            if (s === 'unstable') return "warning";
+                            if (s === 'broken' || s === 'corrupted') return "pest_control";
+                            if (s === 'under review') return "science";
+                            if (s === 'pending') return "pending";
+                            if (s === 'early access') return "experiment";
+                            if (s === 'paid') return "monetization_on";
                             return "hub";
                           })()}
                         </span>
@@ -522,10 +538,14 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
                       <h3 className={`text-2xl lg:text-3xl font-black uppercase tracking-widest drop-shadow-md mb-1 ${(() => {
                         const s = statusType;
-                        if (s === 'verified') return "text-[var(--success)]";
-                        if (s === 'unverified') return "text-[var(--danger)]";
-                        if (s === 'broken') return "text-[var(--warning)]";
-                        return "text-[var(--accent)]";
+                        if (s === 'stable') return "text-[var(--success)]";
+                        if (s === 'unstable') return "text-[var(--warning)]";
+                        if (s === 'broken' || s === 'corrupted') return "text-[var(--danger)]";
+                        if (s === 'under review') return "text-cyan-400";
+                        if (s === 'pending') return "text-sky-400";
+                        if (s === 'early access') return "text-purple-400";
+                        if (s === 'paid') return "text-amber-400";
+                        return "text-slate-400";
                       })()
                         }`}>
                         {(() => {
@@ -533,7 +553,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                           const raw = (mod.status || "");
                           const cleaned = raw.replace(/[\[\]]/g, "").toLowerCase();
                           if (cleaned === 'broken') return t("status_broken");
-                          if (cleaned === 'verified') return t("verified");
+                          if (cleaned === 'stable') return t("status_dd_stable") || "STABLE";
                           if (cleaned === 'unverified') return t("unverified");
                           if (cleaned === 'local folder' || cleaned === 'local node') return t("local_node") || "LOCAL FOLDER";
                           if (cleaned.includes('sandbox')) return t("filter_dev") || "SANDBOX";
@@ -799,13 +819,28 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                             </span>
 
                             <div className={`backdrop-blur-xl border px-2 py-0.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all shrink-0 ${(() => {
-                              const s = (kid.status || "");
-                              if (s === (t("verified"))) return "bg-emerald-500/[10%] border-emerald-500/[30%]";
-                              if (s === (t("unverified"))) return "bg-red-500/[10%] border-red-500/[30%]";
-                              return "bg-[var(--accent)]/[10%] border-[var(--accent)]/[30%]";
+                              const s = (kid.status || "").toLowerCase().replace(/[\[\]]/g, "");
+                              if (s === (t("status_dd_stable") || "stable").toLowerCase()) return "bg-emerald-500/[10%] border-emerald-500/[30%]";
+                              if (s === 'unstable' || s === (t("label_unstable") || "unstable").toLowerCase()) return "bg-orange-500/[10%] border-orange-500/[30%]";
+                              if (s === 'broken' || s === 'corrupted' || s === (t("status_broken") || "broken").toLowerCase()) return "bg-red-500/[10%] border-red-500/[30%]";
+                              if (s === 'under review') return "bg-cyan-500/[10%] border-cyan-500/[30%]";
+                              if (s === 'pending') return "bg-sky-500/[10%] border-sky-500/[30%]";
+                              if (s === 'early access') return "bg-purple-500/[10%] border-purple-500/[30%]";
+                              if (s === 'paid') return "bg-amber-500/[10%] border-amber-500/[30%]";
+                              return "bg-slate-500/[10%] border-slate-500/[30%]";
                             })()}`}>
 
-                              <span className={`text-[7px] font-black uppercase tracking-widest truncate max-w-[140px] ${kid.status === (t("verified")) ? "text-[var(--success)]" : kid.status === (t("unverified")) ? "text-[var(--danger)]" : "text-[var(--accent)]"}`}>
+                              <span className={`text-[7px] font-black uppercase tracking-widest truncate max-w-[140px] ${(() => {
+                                const s = (kid.status || "").toLowerCase().replace(/[\[\]]/g, "");
+                                if (s === (t("status_dd_stable") || "stable").toLowerCase()) return "text-[var(--success)]";
+                                if (s === 'unstable' || s === (t("label_unstable") || "unstable").toLowerCase()) return "text-[var(--warning)]";
+                                if (s === 'broken' || s === 'corrupted' || s === (t("status_broken") || "broken").toLowerCase()) return "text-[var(--danger)]";
+                                if (s === 'under review') return "text-cyan-400";
+                                if (s === 'pending') return "text-sky-400";
+                                if (s === 'early access') return "text-purple-400";
+                                if (s === 'paid') return "text-amber-400";
+                                return "text-slate-400";
+                              })()}`}>
                                 {(() => {
                                   const raw = (kid.status || "");
                                   const cleaned = raw.replace(/[\[\]]/g, "");
@@ -937,7 +972,17 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 uppercase tracking-[0.2em] mb-1 z-10">{t("system_status")}</p>
                     <div className="relative z-10 flex items-center gap-2">
 
-                      <span className={`text-xs font-black uppercase tracking-widest truncate ${selectedKid.status === (t("verified")) ? "text-[var(--success)]" : selectedKid.status === (t("unverified")) ? "text-[var(--danger)]" : "text-[var(--accent)]"}`}>
+                      <span className={`text-xs font-black uppercase tracking-widest truncate ${(() => {
+                        const s = (selectedKid.status || "").toLowerCase().replace(/[\[\]]/g, "");
+                        if (s === (t("status_dd_stable") || "stable").toLowerCase()) return "text-[var(--success)]";
+                        if (s === 'unstable' || s === (t("label_unstable") || "unstable").toLowerCase()) return "text-[var(--warning)]";
+                        if (s === 'broken' || s === 'corrupted' || s === (t("status_broken") || "broken").toLowerCase()) return "text-[var(--danger)]";
+                        if (s === 'under review') return "text-cyan-400";
+                        if (s === 'pending') return "text-sky-400";
+                        if (s === 'early access') return "text-purple-400";
+                        if (s === 'paid') return "text-amber-400";
+                        return "text-slate-400";
+                      })()}`}>
                         {(() => {
                           const raw = (selectedKid.status || "");
                           const cleaned = raw.replace(/[\[\]]/g, "");

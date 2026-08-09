@@ -424,7 +424,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
           onFocus={() => { if (!selectedItem) setIsOpen(true); }}
           placeholder={placeholder}
           readOnly={!!selectedItem}
-          className={className || "w-full h-12 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%] rounded-xl px-5 text-[var(--text)] text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[var(--accent)]/[50%] transition-all relative"}
+          className={className || "w-full h-12 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%] rounded-xl px-5 text-[var(--text)] text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[var(--accent)]/[50%] transition-all relative"}
         />
         {selectedItem ? (
           <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold flex items-center justify-center" onClick={onClear}>
@@ -709,7 +709,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
       {isOpen && createPortal(
         <>
           <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-          <div className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl overflow-hidden z-[200001] animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col backdrop-blur-[3px]" style={{
+          <div className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl overflow-hidden z-[200001] animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
             top: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 ? undefined : (btnRef.current?.getBoundingClientRect().bottom || 0) + 8,
             bottom: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 ? window.innerHeight - (btnRef.current?.getBoundingClientRect().top || 0) + 8 : undefined,
             left: btnRef.current?.getBoundingClientRect().left,
@@ -717,7 +717,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
             width: 'max-content',
           }}>
             {searchable && (
-              <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] sticky top-0 bg-transparent z-10 shrink-0 flex items-center px-4 backdrop-blur-sm">
+              <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] sticky top-0 bg-transparent z-10 shrink-0 flex items-center px-4">
                 <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] mr-3 opacity-60">search</span>
                 <input
                   type="text"
@@ -1245,11 +1245,15 @@ export function SidePanel({
   );
 }
 
-export function SearchBar({ value, onChange, placeholder = "Search...", className = "" }: { value: string; onChange: (v: string) => void; placeholder?: string, className?: string }) {
+export function SearchBar({ value, onChange, placeholder = "Search...", className = "", isLoading }: { value: string; onChange: (v: string) => void; placeholder?: string, className?: string, isLoading?: boolean }) {
   return (
     <div className={`relative flex items-center glass-surface ${className || 'rounded-full'} border border-transparent focus-within:border-[var(--accent)]/[50%] transition-all shadow-inner group w-full`}>
       <div className="pl-4 pr-2 py-2 flex items-center justify-center shrink-0">
-        <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-focus-within:text-[var(--accent)] transition-colors">search</span>
+        {isLoading ? (
+          <span className="material-symbols-outlined !text-[16px] theme-text-accent animate-spin">refresh</span>
+        ) : (
+          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-focus-within:text-[var(--accent)] transition-colors">search</span>
+        )}
       </div>
       <input
         type="text"
@@ -1258,6 +1262,14 @@ export function SearchBar({ value, onChange, placeholder = "Search...", classNam
         onChange={(e) => onChange(e.target.value)}
         className="w-full bg-transparent border-none px-2 py-2 text-[11px] font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-50 tracking-wider min-w-0"
       />
+      {value.trim() !== "" && (
+        <button
+          onClick={() => onChange("")}
+          className="pr-4 pl-2 flex items-center justify-center shrink-0 text-[var(--subtext)] opacity-50 hover:opacity-100 hover:text-[var(--danger)] transition-all focus:outline-none"
+        >
+          <span className="material-symbols-outlined !text-[16px]">close</span>
+        </button>
+      )}
     </div>
   );
 }

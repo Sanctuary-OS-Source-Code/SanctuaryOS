@@ -13,7 +13,7 @@ import { invoke } from '@tauri-apps/api/core';
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import BlueprintMatrix from "./BlueprintMatrix";
 import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
-import { UniversalSearch } from "./components/universal/UniversalLayout";
+
 
 declare global {
   interface Window {
@@ -1650,15 +1650,14 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               </h2>
 
               <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                <UniversalSearch
+                <SearchBar
                   value={searchQuery}
                   onChange={(val) => {
                     setSearchQuery(val);
                     setCurrentPage(1);
                   }}
                   placeholder={t("search_placeholder") as string}
-                  wrapperClassName="flex-1 min-w-[200px] w-full xl:max-w-[300px]"
-                  inputClassName="!h-12 text-sm !rounded-2xl"
+                  className="flex-1 min-w-[200px] w-full xl:max-w-[300px] !h-12 !rounded-2xl"
                 />
 
                 <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
@@ -1752,9 +1751,28 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           )}
 
                           <div className="absolute top-4 left-4 z-30 pointer-events-auto">
-                            <div className={`backdrop-blur-[3px] border px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2 transition-all ${mod.status === 'verified' ? 'bg-emerald-500/[10%] border-emerald-500/[30%] hover:bg-emerald-500/[15%]' : 'bg-red-500/[10%] border-red-500/[30%] hover:bg-red-500/[15%]'}`}>
-
-                              <span className={`text-[8px] font-black uppercase tracking-widest ${mod.status === 'verified' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                            <div className={`backdrop-blur-[3px] border px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2 transition-all ${(() => {
+                              const s = (mod.status || 'UNVERIFIED').toLowerCase().replace(/[\[\]]/g, "");
+                              if (s === 'stable') return 'bg-emerald-500/[10%] border-emerald-500/[30%] hover:bg-emerald-500/[15%]';
+                              if (s === 'unstable') return 'bg-orange-500/[10%] border-orange-500/[30%] hover:bg-orange-500/[15%]';
+                              if (s === 'broken' || s === 'corrupted') return 'bg-red-500/[10%] border-red-500/[30%] hover:bg-red-500/[15%]';
+                              if (s === 'under review') return 'bg-cyan-500/[10%] border-cyan-500/[30%] hover:bg-cyan-500/[15%]';
+                              if (s === 'pending') return 'bg-sky-500/[10%] border-sky-500/[30%] hover:bg-sky-500/[15%]';
+                              if (s === 'early access') return 'bg-purple-500/[10%] border-purple-500/[30%] hover:bg-purple-500/[15%]';
+                              if (s === 'paid') return 'bg-amber-500/[10%] border-amber-500/[30%] hover:bg-amber-500/[15%]';
+                              return 'bg-slate-500/[10%] border-slate-500/[30%] hover:bg-slate-500/[15%]';
+                            })()}`}>
+                              <span className={`text-[8px] font-black uppercase tracking-widest ${(() => {
+                                const s = (mod.status || 'UNVERIFIED').toLowerCase().replace(/[\[\]]/g, "");
+                                if (s === 'stable') return 'text-[var(--success)]';
+                                if (s === 'unstable') return 'text-[var(--warning)]';
+                                if (s === 'broken' || s === 'corrupted') return 'text-[var(--danger)]';
+                                if (s === 'under review') return 'text-cyan-400';
+                                if (s === 'pending') return 'text-sky-400';
+                                if (s === 'early access') return 'text-purple-400';
+                                if (s === 'paid') return 'text-amber-400';
+                                return 'text-slate-400';
+                              })()}`}>
                                 {(mod.status || 'UNVERIFIED').replace(/_/g, ' ')}
                               </span>
                             </div>
@@ -1964,15 +1982,14 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               </h2>
 
               <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                <UniversalSearch
+                <SearchBar
                   value={assetSearchQuery}
                   onChange={(val) => {
                     setAssetSearchQuery(val);
                     setCurrentPage(1);
                   }}
                   placeholder={(marketTab === 'LEXICONS' ? (t("search_lexicons")) : marketTab === 'TEMPLATES' ? (t("search_tmpl")) : marketTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_chameleons"))) as string}
-                  wrapperClassName="flex-1 min-w-[200px] w-full xl:max-w-[300px]"
-                  inputClassName="!h-12 text-sm !rounded-2xl"
+                  className="flex-1 min-w-[200px] w-full xl:max-w-[300px] !h-12 !rounded-2xl"
                 />
 
                 {marketTab === 'BLUEPRINTS' && gameVersions.length > 0 && (

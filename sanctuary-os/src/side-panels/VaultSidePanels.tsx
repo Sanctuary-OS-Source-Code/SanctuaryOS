@@ -1,10 +1,10 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, SidePanelActionFooter, SidebarActionButton, CustomDropdown, getFileLabel, isSupportedExtension, formatDisplayName, HoverTooltip, HubTabs, ActionButton, getModIcon } from "../shared";
+import { SidePanel, SidePanelActionFooter, SidebarActionButton, CustomDropdown, getFileLabel, isSupportedExtension, formatDisplayName, HoverTooltip, HubTabs, ActionButton, getModIcon, SearchBar } from "../shared";
 import { useStore } from "../store";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { UniversalSearch, UniversalGroup } from "../components/universal/UniversalLayout";
+import { UniversalGroup } from "../components/universal/UniversalLayout";
 
 export function VaultToolsSidePanel({
   isOpen,
@@ -261,7 +261,7 @@ export function VaultLocalFolderEditorSidePanel({
             
             {/* UNIFIED SEARCH BAR */}
             <div className="relative shrink-0 w-full z-[60]">
-              <UniversalSearch
+              <SearchBar
                 value={searchToAdd}
                 onChange={setSearchToAdd}
                 placeholder={t("btn_search") || "SEARCH TO INJECT..."}

@@ -37,8 +37,8 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
 
   useEffect(() => {
     if (initialActiveMod && myMods.length > 0) {
-      const mod = myMods.find(m => 
-        m.id === initialActiveMod || 
+      const mod = myMods.find(m =>
+        m.id === initialActiveMod ||
         (m.mod_versions && m.mod_versions.some((v: any) => v.dna_hash === initialActiveMod))
       );
       if (mod) {
@@ -82,12 +82,16 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
   };
 
   const filteredMods = myMods.filter(mod => {
-    if (statusFilter !== "ALL" && mod.status !== statusFilter) return false;
-    
+    if (statusFilter !== "ALL") {
+      if (statusFilter === "paid" && !mod.is_paid) return false;
+      else if (statusFilter === "early_access" && !mod.is_early_access) return false;
+      else if (statusFilter !== "paid" && statusFilter !== "early_access" && mod.status !== statusFilter) return false;
+    }
+
     if (activeCategory !== "ALL") {
       const modCat = mod.category_override || "Script";
       if (modCat !== activeCategory) return false;
-      
+
       if (activeCategory === "CAS" && activeSubType !== "ALL") {
         const modSub = mod.sub_type || "";
         if (modSub.toLowerCase() !== activeSubType.toLowerCase()) return false;
@@ -96,54 +100,64 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
 
     if (searchTerm.toLowerCase() === 'nsfw') return mod.compliance_tier === 1;
     if (searchTerm.toLowerCase() === 'explicit') return mod.compliance_tier === 2;
-    return (mod.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) || 
-           (mod.id || "").toLowerCase().includes(searchTerm.toLowerCase());
+    return (mod.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (mod.id || "").toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const displayMods = filteredMods.slice(0, 50);
 
   return (
     <>
-    <div className={`flex flex-col gap-6 pb-20 ${isActiveTab ? '' : 'hidden'}`}>
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_deployed_code")}</span>
-          </div>
-          <span className="truncate">{t("title_artifacts")}</span>
-        </h2>
-        <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t("search_ph")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
-          <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-12">
-             <CustomDropdown disableTint={true}  value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[{id: "ALL", label: "ALL STATUS"}, {id: "verified", label: "VERIFIED"}, {id: "unverified", label: "UNVERIFIED"}, {id: "broken", label: "BROKEN"}, {id: "deprecated", label: "DEPRECATED"}]} />
-          </div>
-        </div>
-      </div>
-      
-      <div className="w-full p-6">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pr-2">
-          {displayMods.length === 0 && <EmptyState icon={t("icon_deployed_code") || "inventory"} title={t("registry_no_mods")} className="col-span-full py-16" />}
-          {displayMods.map((mod: any) => (
-              <ArtifactCard 
-                key={mod.id} 
-                mod={mod} 
-                activeModId={activeMod?.id} 
-                onClick={() => setActiveMod(mod)} 
+      <div className={`flex flex-col gap-6 pb-20 ${isActiveTab ? '' : 'hidden'}`}>
+        <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_deployed_code")}</span>
+            </div>
+            <span className="truncate">{t("title_artifacts")}</span>
+          </h2>
+          <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
+            <div className="relative flex-1 max-w-[300px]">
+              <SearchBar
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t("search_ph")}
+                className="h-12 w-full rounded-2xl"
               />
-          ))}
+            </div>
+            <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-12">
+              <CustomDropdown disableTint={true} value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
+                { id: "ALL", label: t("status_dd_all") || "ALL STATUSES" },
+                { id: "stable", label: t("status_dd_stable") || "STABLE" },
+                { id: "unstable", label: t("label_unstable") || "UNSTABLE" },
+                { id: "broken", label: t("status_broken") || "BROKEN" },
+                { id: "under_review", label: t("status_dd_review") || "UNDER REVIEW" },
+                { id: "pending", label: t("pending") || "PENDING" },
+                { id: "unverified", label: t("unverified") || "UNVERIFIED" },
+                { id: "early_access", label: t("label_is_early_access") || "EARLY ACCESS" },
+                { id: "paid", label: t("label_is_paid") || "PAID" }
+              ]} />
+            </div>
+          </div>
+        </div>
+
+        <div className="w-full p-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pr-2">
+            {displayMods.length === 0 && <EmptyState icon={t("icon_deployed_code") || "inventory"} title={t("registry_no_mods")} className="col-span-full py-16" />}
+            {displayMods.map((mod: any) => (
+              <ArtifactCard
+                key={mod.id}
+                mod={mod}
+                activeModId={activeMod?.id}
+                onClick={() => setActiveMod(mod)}
+              />
+            ))}
+          </div>
         </div>
       </div>
-    </div>
 
-    <SidePanel
-      isOpen={!!activeMod}
+      <SidePanel
+        isOpen={!!activeMod}
         onClose={() => setActiveMod(null)}
         title={t("ui_edit_metadata")}
         subtitle={`UUID: ${activeMod?.id}`}
@@ -169,118 +183,118 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
         {activeMod && (
           <div className="flex flex-col h-full gap-8">
             <div className="flex flex-col gap-3 shrink-0 mb-4 mt-2">
-              <input value={activeMod?.name || ""} onChange={e => setActiveMod({...activeMod, name: e.target.value})} placeholder={t("registry_label_name")} className="bg-transparent text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full" />
+              <input value={activeMod?.name || ""} onChange={e => setActiveMod({ ...activeMod, name: e.target.value })} placeholder={t("registry_label_name")} className="bg-transparent text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full" />
             </div>
-            
 
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
-                  <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(val: string) => setActiveMod({...activeMod, category_override: val})} />
-                </div>
-                
-                <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_file_ext")}</label>
-                    <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext")} />
-                </div>
-                
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
-                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
-                </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
+                <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(val: string) => setActiveMod({ ...activeMod, category_override: val })} />
               </div>
 
-              <div className="flex flex-col gap-2 mt-4">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_desc")}</label>
-                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_file_ext")}</label>
+                <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({ ...activeMod, file_extension: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext")} />
               </div>
 
-              <div className="flex flex-col gap-2 mt-4">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
-                <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
-                    {t("registry_label_version")} 
-                  </label>
-                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="glass-surface rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-                  <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="glass-surface rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                  <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
-                    {t("label_is_paid")}
-                  </span>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                    <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
-                    </div>
-                  </div>
-                  <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({...activeMod, is_paid: e.target.checked})} className="hidden" />
-                </label>
-
-                <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                  <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
-                    {t("label_is_early_access")}
-                  </span>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                    <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
-                    </div>
-                  </div>
-                  <input type="checkbox" checked={activeMod.is_early_access || false} onChange={e => setActiveMod({...activeMod, is_early_access: e.target.checked})} className="hidden" />
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status")}</label>
-                  <MasonStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({...activeMod, status: newStatus})} />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
-                  <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({...activeMod, compliance_tier: newTier})} includeTier3={false} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("uploaded_date")}</label>
-                  <div className="w-full">
-                    <CustomDatePicker value={activeMod.created_at || null} onChange={(date: any) => setActiveMod({...activeMod, created_at: date})} />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("updated_date")}</label>
-                  <div className="w-full">
-                    <CustomDatePicker value={activeMod.updated_at || null} onChange={(date: any) => setActiveMod({...activeMod, updated_at: date})} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 mt-4 pb-25">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("game_versions")}</label>
-                <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({...activeMod, compatible_versions: v})} />
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
+                <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({ ...activeMod, sub_type: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
               </div>
             </div>
+
+            <div className="flex flex-col gap-2 mt-4">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_desc")}</label>
+              <textarea value={activeMod.description || ""} onChange={e => setActiveMod({ ...activeMod, description: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
+            </div>
+
+            <div className="flex flex-col gap-2 mt-4">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
+              <input value={activeMod.image_url || ""} onChange={e => setActiveMod({ ...activeMod, image_url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
+                  {t("registry_label_version")}
+                </label>
+                <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="glass-surface rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                <input value={activeMod.url || ""} onChange={e => setActiveMod({ ...activeMod, url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                  <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
+                  {t("label_is_paid")}
+                </span>
+                <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
+                  </div>
+                </div>
+                <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({ ...activeMod, is_paid: e.target.checked })} className="hidden" />
+              </label>
+
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                  <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
+                  {t("label_is_early_access")}
+                </span>
+                <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
+                  </div>
+                </div>
+                <input type="checkbox" checked={activeMod.is_early_access || false} onChange={e => setActiveMod({ ...activeMod, is_early_access: e.target.checked })} className="hidden" />
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status")}</label>
+                <MasonStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({ ...activeMod, status: newStatus })} />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
+                <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({ ...activeMod, compliance_tier: newTier })} includeTier3={false} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("uploaded_date")}</label>
+                <div className="w-full">
+                  <CustomDatePicker value={activeMod.created_at || null} onChange={(date: any) => setActiveMod({ ...activeMod, created_at: date })} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("updated_date")}</label>
+                <div className="w-full">
+                  <CustomDatePicker value={activeMod.updated_at || null} onChange={(date: any) => setActiveMod({ ...activeMod, updated_at: date })} />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 mt-4 pb-25">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("game_versions")}</label>
+              <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({ ...activeMod, compatible_versions: v })} />
+            </div>
+          </div>
         )}
       </SidePanel>
     </>
   );
 }
 
-export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSearch, initialActiveMod = null, onClearActiveMod, modList , setStatus }: any = {}) {
+export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onClearSearch, initialActiveMod = null, onClearActiveMod, modList, setStatus }: any = {}) {
   const { t } = useLexicon();
   const [cloudMods, setCloudMods] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
@@ -326,19 +340,25 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         query = query.eq('sub_type', activeSubType);
       }
     }
-    
+
     if (statusFilter !== "ALL") {
-      query = query.eq('status', statusFilter);
+      if (statusFilter === "paid") {
+        query = query.eq('is_paid', true);
+      } else if (statusFilter === "early_access") {
+        query = query.eq('is_early_access', true);
+      } else {
+        query = query.eq('status', statusFilter);
+      }
     }
 
     if (searchTerm) {
-       if (searchTerm.toLowerCase() === 'nsfw') {
-         query = query.eq('compliance_tier', 1);
-       } else if (searchTerm.toLowerCase() === 'explicit') {
-         query = query.eq('compliance_tier', 2);
-       } else {
-         query = query.ilike('name', `%${searchTerm}%`);
-       }
+      if (searchTerm.toLowerCase() === 'nsfw') {
+        query = query.eq('compliance_tier', 1);
+      } else if (searchTerm.toLowerCase() === 'explicit') {
+        query = query.eq('compliance_tier', 2);
+      } else {
+        query = query.ilike('name', `%${searchTerm}%`);
+      }
     }
 
     const { data, error, count } = await query
@@ -380,11 +400,15 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
     if (!newMasonName.trim()) return;
     setIsCreatingMason(true);
     const newId = crypto.randomUUID();
-    const { error } = await supabase.from('masons').insert([{ id: newId, name: newMasonName }]);
+    const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+      p_token: useStore.getState().session?.access_token || '',
+      p_target: 'masons',
+      p_payload: { id: newId, name: newMasonName }
+    });
     if (!error) {
       const { data: mData } = await supabase.from('masons').select('id, name').order('name');
       if (mData) setMasonsList(mData);
-      setActiveMod({...activeMod, mason_id: newId});
+      setActiveMod({ ...activeMod, mason_id: newId });
       setIsMasonPanelOpen(false);
       setNewMasonName("");
     }
@@ -395,25 +419,30 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
     if (!activeMod) return;
     setIsCommitting(true);
     try {
-      const { error } = await supabase.from('mods').update({
-        name: activeMod.name,
-        category_override: activeMod.category_override,
-        sub_type: activeMod.sub_type,
-        file_extension: activeMod.file_extension,
-        status: activeMod.status,
-        url: activeMod.url,
-        image_url: activeMod.image_url,
-        latest_version: activeMod.latest_version,
-        description: activeMod.description,
-        compatible_versions: activeMod.compatible_versions,
-        family_slug: activeMod.family_slug,
-        mason_id: activeMod.mason_id,
-        compliance_tier: activeMod.compliance_tier,
-        is_paid: activeMod.is_paid || false,
-        is_early_access: activeMod.is_early_access || false,
-        folder_structure: activeMod.folder_structure || [],
-        updated_at: new Date().toISOString()
-      }).eq('id', activeMod.id);
+      const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '',
+        p_target: 'mods',
+        p_payload: {
+          id: activeMod.id,
+          name: activeMod.name,
+          category_override: activeMod.category_override,
+          sub_type: activeMod.sub_type,
+          file_extension: activeMod.file_extension,
+          status: activeMod.status,
+          url: activeMod.url,
+          image_url: activeMod.image_url,
+          latest_version: activeMod.latest_version,
+          description: activeMod.description,
+          compatible_versions: activeMod.compatible_versions,
+          family_slug: activeMod.family_slug,
+          mason_id: activeMod.mason_id,
+          compliance_tier: activeMod.compliance_tier,
+          is_paid: activeMod.is_paid || false,
+          is_early_access: activeMod.is_early_access || false,
+          folder_structure: activeMod.folder_structure || [],
+          updated_at: new Date().toISOString()
+        }
+      });
 
       if (!error) {
         logArchitectAction(`Updated Mod Metadata`, `mods`, activeMod.name);
@@ -439,86 +468,96 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
             </div>
             <span className="truncate">{t("items")}</span>
           </h2>
-          
+
           <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t("search_queue")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
-
-          <div className="w-max min-w-[160px] max-w-xs relative z-50 h-12">
-            <CustomDropdown disableTint={true}
-              value={activeCategory}
-              onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
-              options={[
-                { id: "ALL", label: t("ql_all") },
-                ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({ id: c.id, label: t(c.lexicon_key) || c.id }))
-              ]}
-            />
-          </div>
-
-          {(() => {
-            const activeSchemaCategory = useStore.getState().activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
-            const subcats = activeSchemaCategory?.subcategories || [];
-            if (subcats.length === 0) return null;
-            
-            return (
-              <div className="w-max min-w-[160px] max-w-xs relative z-50 h-12 animate-in fade-in slide-in-from-right-4">
-                <CustomDropdown disableTint={true}
-                  value={activeSubType}
-                  onChange={(val: string[]) => setActiveSubType(val[0])}
-                  options={[
-                    { id: "ALL", label: t("ql_all") },
-                    ...subcats.map((sub: any) => ({
-                      id: sub.id,
-                      label: t(sub.lexicon_key) || sub.id
-                    }))
-                  ]}
-                />
-              </div>
-            );
-          })()}
-
-          <div className="w-max min-w-[192px] max-w-xs relative z-50 h-12">
-             <CustomDropdown disableTint={true} value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[{id: "ALL", label: "ALL STATUS"}, {id: "verified", label: "VERIFIED"}, {id: "unverified", label: "UNVERIFIED"}, {id: "broken", label: "BROKEN"}, {id: "deprecated", label: "DEPRECATED"}]} />
-          </div>
-        </div>
-      </div>
-
-      <div className="p-6 w-full">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pr-2">
-          {cloudMods.length === 0 ? (
-                <EmptyState icon={searchTerm ? "search_off" : t("icon_inventory_2") || "inventory"} title={searchTerm ? t("no_matches") : t("no_artifacts") || "No Artifacts Found"} className="col-span-full py-16" />
-            ) : cloudMods.map((mod: any) => (
-              <ArtifactCard 
-                key={mod.id} 
-                mod={mod} 
-                activeModId={activeMod?.id} 
-                onClick={() => setActiveMod(mod)} 
+            <div className="relative flex-1 max-w-[300px]">
+              <SearchBar
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t("search_queue")}
+                className="h-12 w-full rounded-2xl"
               />
-          ))}
-        </div>
-        
-        {hasMore && (
-          <div className="w-full flex justify-center mt-12 mb-8">
-            <button 
-              onClick={() => setPage(p => p + 1)} 
-              disabled={isLoading}
-              className="px-8 py-3 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 transition-all font-black text-[10px] uppercase tracking-widest text-[var(--text)] flex items-center gap-2"
-            >
-              {isLoading ? (
-                <><span className="material-symbols-outlined animate-spin !text-[16px]">{t("icon_sync")}</span> {t("ui_loading")}</>
-              ) : (
-                <><span className="material-symbols-outlined !text-[16px]">{t("icon_expand_more")}</span> {t("ui_btn_load_more")}</>
-              )}
-            </button>
+            </div>
+
+            <div className="w-max min-w-[160px] max-w-xs relative z-50 h-12">
+              <CustomDropdown disableTint={true}
+                value={activeCategory}
+                onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
+                options={[
+                  { id: "ALL", label: t("ql_all") },
+                  ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({ id: c.id, label: t(c.lexicon_key) || c.id }))
+                ]}
+              />
+            </div>
+
+            {(() => {
+              const activeSchemaCategory = useStore.getState().activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
+              const subcats = activeSchemaCategory?.subcategories || [];
+              if (subcats.length === 0) return null;
+
+              return (
+                <div className="w-max min-w-[160px] max-w-xs relative z-50 h-12 animate-in fade-in slide-in-from-right-4">
+                  <CustomDropdown disableTint={true}
+                    value={activeSubType}
+                    onChange={(val: string[]) => setActiveSubType(val[0])}
+                    options={[
+                      { id: "ALL", label: t("ql_all") },
+                      ...subcats.map((sub: any) => ({
+                        id: sub.id,
+                        label: t(sub.lexicon_key) || sub.id
+                      }))
+                    ]}
+                  />
+                </div>
+              );
+            })()}
+
+            <div className="w-max min-w-[192px] max-w-xs relative z-50 h-12">
+              <CustomDropdown disableTint={true} value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
+                { id: "ALL", label: t("status_dd_all") || "ALL STATUSES" },
+                { id: "stable", label: t("status_dd_stable") || "STABLE" },
+                { id: "unstable", label: t("label_unstable") || "UNSTABLE" },
+                { id: "broken", label: t("status_broken") || "BROKEN" },
+                { id: "under_review", label: t("status_dd_review") || "UNDER REVIEW" },
+                { id: "pending", label: t("pending") || "PENDING" },
+                { id: "unverified", label: t("unverified") || "UNVERIFIED" },
+                { id: "early_access", label: t("label_is_early_access") || "EARLY ACCESS" },
+                { id: "paid", label: t("label_is_paid") || "PAID" }
+              ]} />
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+
+        <div className="p-6 w-full">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pr-2">
+            {cloudMods.length === 0 ? (
+              <EmptyState icon={searchTerm ? "search_off" : t("icon_inventory_2") || "inventory"} title={searchTerm ? t("no_matches") : t("no_artifacts") || "No Artifacts Found"} className="col-span-full py-16" />
+            ) : cloudMods.map((mod: any) => (
+              <ArtifactCard
+                key={mod.id}
+                mod={mod}
+                activeModId={activeMod?.id}
+                onClick={() => setActiveMod(mod)}
+              />
+            ))}
+          </div>
+
+          {hasMore && (
+            <div className="w-full flex justify-center mt-12 mb-8">
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={isLoading}
+                className="px-8 py-3 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 transition-all font-black text-[10px] uppercase tracking-widest text-[var(--text)] flex items-center gap-2"
+              >
+                {isLoading ? (
+                  <><span className="material-symbols-outlined animate-spin !text-[16px]">{t("icon_sync")}</span> {t("ui_loading")}</>
+                ) : (
+                  <><span className="material-symbols-outlined !text-[16px]">{t("icon_expand_more")}</span> {t("ui_btn_load_more")}</>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <SidePanel
@@ -530,16 +569,16 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         icon={t("icon_inventory_2")}
         footer={
           <div className="flex justify-center items-center gap-4 w-full px-8">
-            <ActionButton 
-              onClick={() => setActiveMod(null)} 
-              disabled={isCommitting} 
+            <ActionButton
+              onClick={() => setActiveMod(null)}
+              disabled={isCommitting}
               label={t("nav_cancel")}
               icon="close"
               className="flex-1"
             />
-            <ActionButton 
-              onClick={handleCommitChanges} 
-              disabled={isCommitting} 
+            <ActionButton
+              onClick={handleCommitChanges}
+              disabled={isCommitting}
               label={isCommitting ? (t("dossier_btn_saving") || "SAVING...") : (t("ui_btn_commit") || "COMMIT CHANGES")}
               icon="save"
               className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[var(--accent)]/50"
@@ -550,124 +589,124 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         {activeMod && (
           <div className="flex flex-col gap-6 pb-8">
             <div className="flex flex-col gap-3 shrink-0 mb-4 mt-2">
-              <input value={activeMod?.name || ""} onChange={e => setActiveMod({...activeMod, name: e.target.value})} placeholder={t("registry_label_name")} className="bg-transparent text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full" />
+              <input value={activeMod?.name || ""} onChange={e => setActiveMod({ ...activeMod, name: e.target.value })} placeholder={t("registry_label_name")} className="bg-transparent text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full" />
             </div>
 
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("architect")}</label>
-                  <div className="flex gap-2 relative">
-                    <div className="flex-1 min-w-0">
-                      <CustomMasonDropdown 
-                        value={activeMod.mason_id} 
-                        options={masonsList} 
-                        onChange={(id: string) => setActiveMod({...activeMod, mason_id: id})} 
-                      />
-                    </div>
-                    <button onClick={() => setIsMasonPanelOpen(true)} className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-5 rounded-xl font-black transition-colors shrink-0">
-                      +
-                    </button>
-                  </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason")}</label>
+              <div className="flex gap-2 relative">
+                <div className="flex-1 min-w-0">
+                  <CustomMasonDropdown
+                    value={activeMod.mason_id}
+                    options={masonsList}
+                    onChange={(id: string) => setActiveMod({ ...activeMod, mason_id: id })}
+                  />
                 </div>
+                <button onClick={() => setIsMasonPanelOpen(true)} className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-5 rounded-xl font-black transition-colors shrink-0">
+                  +
+                </button>
+              </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
-                  <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(newType: string) => setActiveMod({...activeMod, category_override: newType})} />
-                </div>
-                
-                <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_file_ext")}</label>
-                    <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({...activeMod, file_extension: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext")} />
-                </div>
-                
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
-                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({...activeMod, sub_type: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
+                <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(newType: string) => setActiveMod({ ...activeMod, category_override: newType })} />
               </div>
 
-              <div className="flex flex-col gap-2 mt-4">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_desc")}</label>
-                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({...activeMod, description: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_file_ext")}</label>
+                <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({ ...activeMod, file_extension: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext")} />
               </div>
 
-              <div className="flex flex-col gap-2 mt-4">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
-                <input value={activeMod.image_url || ""} onChange={e => setActiveMod({...activeMod, image_url: e.target.value})} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
+                <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({ ...activeMod, sub_type: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
-                    {t("registry_label_version")} 
-                  </label>
-                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="glass-surface rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
-                </div>
+            <div className="flex flex-col gap-2 mt-4">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_desc")}</label>
+              <textarea value={activeMod.description || ""} onChange={e => setActiveMod({ ...activeMod, description: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
+            </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-                  <input value={activeMod.url || ""} onChange={e => setActiveMod({...activeMod, url: e.target.value})} className="glass-surface rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                  <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
-                    {t("label_is_paid")}
-                  </span>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                    <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
-                    </div>
-                  </div>
-                  <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({...activeMod, is_paid: e.target.checked})} className="hidden" />
+            <div className="flex flex-col gap-2 mt-4">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
+              <input value={activeMod.image_url || ""} onChange={e => setActiveMod({ ...activeMod, image_url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
+                  {t("registry_label_version")}
                 </label>
-
-                <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                  <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
-                    {t("label_is_early_access")}
-                  </span>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                    <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
-                    </div>
-                  </div>
-                  <input type="checkbox" checked={activeMod.is_early_access || false} onChange={e => setActiveMod({...activeMod, is_early_access: e.target.checked})} className="hidden" />
-                </label>
+                <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="glass-surface rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status")}</label>
-                  <CustomStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({...activeMod, status: newStatus})} />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
-                  <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({...activeMod, compliance_tier: newTier})} includeTier3={false} />
-                </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                <input value={activeMod.url || ""} onChange={e => setActiveMod({ ...activeMod, url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("uploaded_date")}</label>
-                  <div className="w-full">
-                    <CustomDatePicker value={activeMod.created_at || null} onChange={(date: any) => setActiveMod({...activeMod, created_at: date})} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                  <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
+                  {t("label_is_paid")}
+                </span>
+                <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
                   </div>
                 </div>
+                <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({ ...activeMod, is_paid: e.target.checked })} className="hidden" />
+              </label>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("updated_date")}</label>
-                  <div className="w-full">
-                    <CustomDatePicker value={activeMod.updated_at || null} onChange={(date: any) => setActiveMod({...activeMod, updated_at: date})} />
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                  <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
+                  {t("label_is_early_access")}
+                </span>
+                <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
                   </div>
+                </div>
+                <input type="checkbox" checked={activeMod.is_early_access || false} onChange={e => setActiveMod({ ...activeMod, is_early_access: e.target.checked })} className="hidden" />
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status")}</label>
+                <CustomStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({ ...activeMod, status: newStatus })} />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
+                <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({ ...activeMod, compliance_tier: newTier })} includeTier3={false} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("uploaded_date")}</label>
+                <div className="w-full">
+                  <CustomDatePicker value={activeMod.created_at || null} onChange={(date: any) => setActiveMod({ ...activeMod, created_at: date })} />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 mt-4 pb-25">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("game_versions")}</label>
-                <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({...activeMod, compatible_versions: v})} />
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("updated_date")}</label>
+                <div className="w-full">
+                  <CustomDatePicker value={activeMod.updated_at || null} onChange={(date: any) => setActiveMod({ ...activeMod, updated_at: date })} />
+                </div>
               </div>
+            </div>
+
+            <div className="flex flex-col gap-2 mt-4 pb-25">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("game_versions")}</label>
+              <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({ ...activeMod, compatible_versions: v })} />
+            </div>
           </div>
         )}
       </SidePanel>
@@ -680,14 +719,14 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         widthClass="w-[450px]"
         footer={
           <div className="flex justify-center items-center gap-4 w-full px-8">
-            <ActionButton 
-              onClick={() => setIsMasonPanelOpen(false)} 
+            <ActionButton
+              onClick={() => setIsMasonPanelOpen(false)}
               label={t("nav_cancel")}
               icon="close"
               className="flex-1"
             />
-            <ActionButton 
-              onClick={handleCreateMason} 
+            <ActionButton
+              onClick={handleCreateMason}
               label={t("create_btn_create") || "CREATE"}
               icon="person_add"
               className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[var(--accent)]/50"
@@ -714,6 +753,6 @@ export function CustomClassificationDropdown({ value, onChange }: any) {
       label: t(c.lexicon_key) || c.id
     }))
   ];
-  return <CustomDropdown disableTint={true}  value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("category")} />;
+  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("category")} />;
 }
 
