@@ -1,4 +1,4 @@
-import { SearchBar } from "../shared";
+import { SearchBar, ScreenUtilityBar } from "../shared";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
@@ -466,59 +466,47 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
 
   const contentBlock = (
     <div className="h-full flex flex-col w-full relative">
-      <div className="flex flex-col md:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-        <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_satellite_alt")}</span>
-          </div>
-          <span className="truncate">{isOversight ? t("oversight_posts_editor") : t("wf_tab_dispatch")}</span>
-        </h2>
-        <div className="relative flex-1 max-w-4xl ml-auto flex gap-4 items-center justify-end">
-          <div className="relative flex-1">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t("mason_search_placeholder")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
-          <div className="w-max min-w-[180px] max-w-xs">
-            <CustomDropdown
-              value={filterCategory}
-              onChange={(v: string[]) => setFilterCategory(v[0])}
-              options={[
-                { id: "All", label: t("all_classes") || "All Categories" },
-                { id: "Update", label: t("category_update") || "Update" },
-                { id: "Info", label: t("category_info") || "Info" },
-                { id: "Alert", label: t("category_alert") || "Alert" }
-              ]}
-              placeholder={t("filter_category")}
-            />
-          </div>
-          <FilterTabs className="h-12 z-40">
-            <FilterTabButton
-              id="Active"
-              label={t("status_active")}
-              activeTab={filterStatus}
-              setTab={setFilterStatus}
-            />
-            <FilterTabButton
-              id="Inactive"
-              label={t("status_inactive")}
-              activeTab={filterStatus}
-              setTab={setFilterStatus}
-            />
-          </FilterTabs>
-          <ActionButton
-            onClick={() => openEditor()}
-            className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px] relative"
-            icon={t("icon_cell_tower")}
-            label={wayfinderDrafts['new'] ? t("action_unsaved_draft") || "UNSAVED DRAFT" : t("post_broadcast")}
-            variant={wayfinderDrafts['new'] ? "warning" : "default"}
-          >
-          </ActionButton>
+      <ScreenUtilityBar
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("mason_search_placeholder")}
+        className="!mb-0 !border-0 !pb-0" // matching inner layout pattern
+      >
+        <div className="w-max min-w-[180px] max-w-xs h-12">
+          <CustomDropdown
+            value={filterCategory}
+            onChange={(v: string[]) => setFilterCategory(v[0])}
+            options={[
+              { id: "All", label: t("all_classes") || "All Categories" },
+              { id: "Update", label: t("category_update") || "Update" },
+              { id: "Info", label: t("category_info") || "Info" },
+              { id: "Alert", label: t("category_alert") || "Alert" }
+            ]}
+            placeholder={t("filter_category")}
+          />
         </div>
-      </div>
+        <FilterTabs className="h-12 z-40">
+          <FilterTabButton
+            id="Active"
+            label={t("status_active")}
+            activeTab={filterStatus}
+            setTab={setFilterStatus}
+          />
+          <FilterTabButton
+            id="Inactive"
+            label={t("status_inactive")}
+            activeTab={filterStatus}
+            setTab={setFilterStatus}
+          />
+        </FilterTabs>
+        <ActionButton
+          onClick={() => openEditor()}
+          className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px] relative"
+          icon={t("icon_cell_tower")}
+          label={wayfinderDrafts['new'] ? t("action_unsaved_draft") || "UNSAVED DRAFT" : t("post_broadcast")}
+          variant={wayfinderDrafts['new'] ? "warning" : "default"}
+        />
+      </ScreenUtilityBar>
 
       <div className="p-8 flex flex-col gap-10 pb-32">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-8">

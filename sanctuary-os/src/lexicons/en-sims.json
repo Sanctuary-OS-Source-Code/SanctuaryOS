@@ -21,5 +21,14 @@
   "search_artifacts": "Search Mods...",
   "search_assets": "Search Mods...",
   "no_match_artifacts": "No Matching Mods",
-  "no_match_assets": "No Matching Mods"
+  "no_match_assets": "No Matching Mods",
+  "status_corrupted": "Corrupted",
+  "oversight_title": "Oversight",
+  "oversight_subtitle": "Global Administration & Compliance",
+  "mason_hub_title": "Mason Hub",
+  "mason_hub_subtitle": "Creator Dashboard & Analytics",
+  "tab_vault": "Vault",
+  "tab_conflicts": "Conflicts",
+  "tab_world": "World State",
+  "tab_linker": "Creators"
 }

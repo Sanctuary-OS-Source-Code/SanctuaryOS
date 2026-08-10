@@ -186,14 +186,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
   return (
     <div className="flex flex-col w-full relative h-full">
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_flag")}</span>
-          </div>
-          <span className="truncate">{t("title_reports") || "REPORTS QUEUE"?.replace("dY>' ", "") || "Nexus Reports"}</span>
-        </h2>
-
-        <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
+        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
           <div className="relative flex-1 max-w-[300px]">
             <SearchBar
               value={searchTerm}
@@ -254,7 +247,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                   `} />
 
                 <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
-                  <div className="flex justify-between items-start gap-4">
+                  <div className="flex justify-start items-start gap-4">
                     <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[var(--accent)]/30">
                       <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-colors duration-500">
                         {report.status?.toLowerCase() === 'pending' ? 'warning' : 'done_all'}
@@ -280,7 +273,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                     {report.description}
                   </p>
 
-                  <div className="flex justify-between items-center mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-4 relative">
+                  <div className="flex justify-start items-center mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-4 relative">
                     <div className="flex items-center gap-4 flex-1 min-w-0 group-hover:opacity-0 transition-opacity duration-300">
                       <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
                         <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>

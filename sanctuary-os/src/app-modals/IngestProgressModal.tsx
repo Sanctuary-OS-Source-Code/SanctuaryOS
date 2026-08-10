@@ -7,7 +7,7 @@ export function IngestProgressModal({ ingestProgress }: any) {
 
   return (
     <div className="fixed bottom-14 right-6 z-[15000] w-72 glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-3 rounded-2xl shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 pointer-events-none flex flex-col gap-2">
-      <div className="flex items-center justify-between px-1">
+      <div className="flex items-center justify-start px-1">
         <div className="flex items-center gap-2">
           <span className="text-[var(--accent)] text-lg animate-pulse">{t("icon_cloud")}</span>
           <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text)]">{t("overlay_uplink_title")}</span>

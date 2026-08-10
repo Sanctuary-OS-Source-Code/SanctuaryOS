@@ -199,13 +199,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
     return (
         <div className="flex flex-col gap-6 w-full pb-32">
             <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-                <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_bug_report")}</span>
-                    </div>
-                    <span className="truncate">{t("title_bug_reports")}</span>
-                </h2>
-                <div className="flex items-center gap-3 relative flex-1 max-w-2xl ml-auto justify-end">
+        <div className="flex items-center gap-3 relative flex-1 max-w-2xl w-full justify-start">
                     <div className="relative flex-1 h-12 max-w-[400px]">
                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
                         <input
@@ -301,7 +295,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                                         </span>
                                     ]}
                                     footer={
-                                        <div className="flex justify-between items-center w-full">
+                                        <div className="flex justify-start items-center w-full">
                                             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60">
                                                 <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
                                                 {new Date(ticket.created_at).toLocaleDateString()}

@@ -161,7 +161,7 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
                   : "theme-bg-accent/10 theme-border-accent hover:theme-bg-accent/20"
                 }`}
             >
-              <div className="flex justify-between items-start mb-3">
+              <div className="flex justify-start items-start mb-3">
                 <div className="flex items-center gap-3">
                   <span className={`text-[10px] font-black uppercase tracking-widest ${n.is_read ? 'text-[var(--text)] opacity-80' : 'theme-text-accent'}`}>
                     {n.type === "reply" ? (t("ui_btn_reply")) : n.type === "support_reply" ? (t("notif_type_support")) : n.type === "new_post" ? (t("post_broadcast")) : (t("category_system"))}

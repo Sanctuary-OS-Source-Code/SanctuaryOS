@@ -621,7 +621,7 @@ export default function SidePanelBrowser() {
 
               {isBookmarksDropdownOpen && (
                 <div className="w-72 shrink-0 h-full flex flex-col animate-in slide-in-from-right-4 z-50 min-h-0 relative pointer-events-auto bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-[0.5rem] overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(0,0,0,0.3)]">
-                  <div className="px-5 py-4 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex justify-between items-center gap-3 relative">
+                  <div className="px-5 py-4 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex justify-start items-center gap-3 relative">
                     <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
                     <div className="flex-1 flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner relative z-10 shrink-0">
                       <button onClick={() => setDrawerTab('bookmarks')} className={`h-full py-2 flex-1 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${drawerTab === 'bookmarks' ? 'bg-[var(--accent)]/[15%] text-[var(--accent)] shadow-md' : 'text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)] opacity-60 hover:opacity-100'}`}>
@@ -686,7 +686,7 @@ export default function SidePanelBrowser() {
                             </div>
                           ) : (
                             <>
-                              <div className="flex items-center justify-between gap-3 w-full overflow-hidden">
+                              <div className="flex items-center justify-start gap-3 w-full overflow-hidden">
                                 <span className="text-[12px] font-bold truncate text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">{b.title.replace(/^https?:\/\/(www\.)?/, '')}</span>
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <span
@@ -728,7 +728,7 @@ export default function SidePanelBrowser() {
                           return (
                             <div key={date} className="flex flex-col gap-2">
                               <div
-                                className="flex items-center justify-between px-2 py-1 cursor-pointer group"
+                                className="flex items-center justify-start px-2 py-1 cursor-pointer group"
                                 onClick={() => setExpandedHistoryDays(prev => ({ ...prev, [date]: !prev[date] }))}
                               >
                                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] group-hover:text-[var(--text)] transition-colors">{date}</span>
@@ -756,7 +756,7 @@ export default function SidePanelBrowser() {
                                         }}
                                         className="px-4 py-3 text-left rounded-2xl glass-panel border border-transparent hover:border-[var(--accent)]/[30%] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] text-[var(--subtext)] hover:text-[var(--text)] transition-all flex flex-col gap-1 group bg-[color-mix(in_srgb,var(--text)_3%,transparent)]"
                                       >
-                                        <div className="flex items-center justify-between gap-3 w-full overflow-hidden">
+                                        <div className="flex items-center justify-start gap-3 w-full overflow-hidden">
                                           <span className="text-[12px] font-bold truncate text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">{domain}</span>
                                           <span
                                             className="material-symbols-outlined !text-[16px] opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400 shrink-0 p-1 rounded-full hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"

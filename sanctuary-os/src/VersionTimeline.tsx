@@ -148,7 +148,7 @@ export default function VersionTimeline({
                     setSelectedEntry(entry);
                   }}
                 >
-                  <div className="flex justify-between items-center w-full">
+                  <div className="flex justify-start items-center w-full">
                     <div className="flex flex-col gap-1 flex-1 min-w-0 mr-4">
                       <div className="flex items-center gap-2">
                         {entry.pinned && <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] shrink-0">{t("icon_push_pin")}</span>}

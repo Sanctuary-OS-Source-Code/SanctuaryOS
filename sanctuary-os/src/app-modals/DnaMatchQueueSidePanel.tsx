@@ -73,7 +73,7 @@ export function DnaMatchQueueSidePanel({
     if (group.length === 0) return null;
     return (
       <details className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shadow-inner group/details" open>
-        <summary className="cursor-pointer select-none p-5 flex items-center justify-between font-black text-xs uppercase tracking-widest text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-t-2xl transition-all">
+        <summary className="cursor-pointer select-none p-5 flex items-center justify-start font-black text-xs uppercase tracking-widest text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-t-2xl transition-all">
           <div className="flex items-center gap-3 min-w-0">
             <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">{icon}</span>
             <div className="flex items-center gap-2 min-w-0">

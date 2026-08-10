@@ -13,7 +13,7 @@ export function GlassHeader({ title, subtitle, icon, actions, children }: GlassH
     <div className="sticky top-0 z-50 w-full mb-6">
       <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] backdrop-blur-3xl border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[0_10px_30px_-15px_rgba(0,0,0,0.2)] pointer-events-none" />
       
-      <div className="relative px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="relative px-8 py-6 flex flex-col md:flex-row md:items-center justify-start gap-4">
         <div className="flex items-center gap-4">
           {icon && (
             <div className="w-12 h-12 rounded-xl bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]">

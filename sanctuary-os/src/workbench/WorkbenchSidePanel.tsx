@@ -391,7 +391,7 @@ export function WorkbenchSidePanel({
                {isTemplateMode && (
                   <div className={`flex-1 flex gap-4 min-w-0 min-h-0 ${previewMode === 'off' ? 'flex-col' : 'flex-row'}`}>
                      <div className="flex-1 glass-panel rounded-[var(--radius)] overflow-visible shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative flex flex-col min-h-0 min-w-0 z-[110]">
-                        <div className="p-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 flex items-center justify-between z-10 w-full overflow-visible flex-wrap rounded-t-[var(--radius)]">
+                        <div className="p-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 flex items-center justify-start z-10 w-full overflow-visible flex-wrap rounded-t-[var(--radius)]">
                            <WorkbenchTemplateTools
                               parsedData={editorState.parsedData}
                               rawText={editorState.rawText}
@@ -444,7 +444,7 @@ export function WorkbenchSidePanel({
                               <div className="h-12 w-1 rounded-full bg-[var(--accent)]/30" />
                            </div>
                            <div className={`shrink-0 glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${layoutState.isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: layoutState.previewWidth }}>
-                              <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 text-center flex items-center justify-between">
+                              <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 text-center flex items-center justify-start">
                                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">{previewMode === 'preview' ? t("workbench_preview_title") : (editorState.parsedData?.target_file || 'Target File')}</span>
                               </div>
                               <div ref={layoutState.visualScrollRef} className="flex-1 overflow-y-auto custom-scrollbar p-6">

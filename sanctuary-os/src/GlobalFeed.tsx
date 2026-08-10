@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
-import { ViewHeader, stripMarkdown, HubTabButton, CustomDropdown, CustomDatePicker, ActionButton, SearchBar } from "./shared";
+import { ViewHeader, stripMarkdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, CustomDatePicker, ActionButton, SearchBar } from "./shared";
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
@@ -196,64 +196,56 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         icon={t("icon_satellite_alt")}
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
         shape="circle"
+        breadcrumb={activeTab !== "OVERVIEW" ? (t(`tab_${activeTab.toLowerCase()}`) || activeTab) : undefined}
+        onTitleClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }}
       />
-      <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full">
-          <HubTabButton id="OVERVIEW" icon="dashboard" label={t("tab_overview")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
-          <HubTabButton id="DISCOVER" icon="explore" label={t("tab_discover")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
-          <HubTabButton id="FOLLOWING" icon="diversity_1" label={t("tab_following")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
-        </div>
-      </div>
+      <HoverTabDrawer title="Comm-Link Navigation" activeTab={activeTab} setTab={setActiveTab}>
+        <VerticalTabButton id="OVERVIEW" icon="dashboard" label={t("tab_overview")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
+        <VerticalTabButton id="DISCOVER" icon="explore" label={t("tab_discover")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
+        <VerticalTabButton id="FOLLOWING" icon="diversity_1" label={t("tab_following")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
+      </HoverTabDrawer>
 
 
       {activeTab !== "OVERVIEW" && (
         <div className="flex flex-col gap-4 mb-8 mx-2 animate-in slide-in-from-top-4 duration-500">
-          <CommandScreenSectionHeading
-            shape="circle"
-            title={activeTab === "DISCOVER" ? t("tab_discover") : t("tab_following")}
-            icon={activeTab === "DISCOVER" ? "explore" : "diversity_1"}
-            className="mb-8 w-full relative z-20"
-            rightContent={
-              <div className="flex items-center gap-4 flex-1 justify-end">
-                <SearchBar
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder={t("mason_search_placeholder")}
-                  className="flex-1 max-w-[300px] !h-12 !rounded-2xl"
-                />
-                <div className="w-max min-w-[150px] shrink-0 h-12">
-                  <CustomDatePicker
-                    value={startDate}
-                    onChange={setStartDate}
-                    placeholder={t("filter_start_date") || "Start Date"}
-                  />
-                </div>
-                <div className="w-max min-w-[150px] shrink-0 h-12">
-                  <CustomDatePicker
-                    value={endDate}
-                    onChange={setEndDate}
-                    placeholder={t("filter_end_date") || "End Date"}
-                  />
-                </div>
-                {(startDate || endDate) && (
-                  <div className="shrink-0 h-12 flex">
-                    <ActionButton icon="close" label={t("btn_clear")} onClick={() => { setStartDate(null); setEndDate(null); }} className="h-full py-0 rounded-[calc(var(--radius)-4px)]" />
-                  </div>
-                )}
-                <div className="w-max min-w-[150px] shrink-0 h-12">
-                  <CustomDropdown
-                    disableTint={true}
-                    value={activeSort}
-                    options={[
-                      { id: "NEWEST", label: t("sort_newest") },
-                      { id: "TOP", label: t("sort_top") }
-                    ]}
-                    onChange={(val: any) => setActiveSort(Array.isArray(val) ? val[0] : val)}
-                  />
-                </div>
+          <div className="flex items-center gap-4 flex-1 justify-end w-full mb-8 relative z-20">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={t("mason_search_placeholder")}
+              className="flex-1 max-w-[300px] !h-12 !rounded-2xl"
+            />
+            <div className="w-max min-w-[150px] shrink-0 h-12">
+              <CustomDatePicker
+                value={startDate}
+                onChange={setStartDate}
+                placeholder={t("filter_start_date") || "Start Date"}
+              />
+            </div>
+            <div className="w-max min-w-[150px] shrink-0 h-12">
+              <CustomDatePicker
+                value={endDate}
+                onChange={setEndDate}
+                placeholder={t("filter_end_date") || "End Date"}
+              />
+            </div>
+            {(startDate || endDate) && (
+              <div className="shrink-0 h-12 flex">
+                <ActionButton icon="close" label={t("btn_clear")} onClick={() => { setStartDate(null); setEndDate(null); }} className="h-full py-0 rounded-[calc(var(--radius)-4px)]" />
               </div>
-            }
-          />
+            )}
+            <div className="w-max min-w-[150px] shrink-0 h-12">
+              <CustomDropdown
+                disableTint={true}
+                value={activeSort}
+                options={[
+                  { id: "NEWEST", label: t("sort_newest") },
+                  { id: "TOP", label: t("sort_top") }
+                ]}
+                onChange={(val: any) => setActiveSort(Array.isArray(val) ? val[0] : val)}
+              />
+            </div>
+          </div>
         </div>
       )}
 

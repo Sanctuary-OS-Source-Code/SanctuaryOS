@@ -78,7 +78,7 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
               }
               className={`w-full h-full transition-all duration-300 ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`}
               footer={
-                <div className="flex items-center justify-between w-full pt-1 relative min-h-[16px]">
+                <div className="flex items-center justify-start w-full pt-1 relative min-h-[16px]">
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     {isFolder && (
                       <div className="group/hitbox static flex items-center justify-center gap-2 font-black text-[9px] uppercase tracking-widest text-[var(--subtext)] group-hover/hitbox:text-[var(--text)] transition-colors pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}>
@@ -113,7 +113,7 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
               <AccordionDrawer isOpen={expandedFolder === mainKey}>
                 <div className="w-full glass-panel rounded-[32px] p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
                   {/* Header */}
-                  <div className="flex flex-wrap gap-4 items-center justify-between pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
+                  <div className="flex flex-wrap gap-4 items-center justify-start pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
                     <div className="flex items-center gap-5">
                       <div className="w-12 h-12 rounded-xl bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
                         <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">folder_open</span>

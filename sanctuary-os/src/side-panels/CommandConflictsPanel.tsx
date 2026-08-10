@@ -178,7 +178,7 @@ export default function CommandConflictsPanel({
       widthClass="w-[550px]"
     >
       <div className="flex flex-col gap-4 w-full">
-        <div className="px-1 py-2 shrink-0 flex items-center justify-between relative">
+        <div className="px-1 py-2 shrink-0 flex items-center justify-start relative">
           <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">
             {t("bp_load_order_conflicts")}
           </h3>
@@ -240,7 +240,7 @@ export default function CommandConflictsPanel({
                   statusColor={isIgnored ? "border-[color-mix(in_srgb,var(--text)_5%,transparent)]" : borderClass}
                   className={isIgnored ? "opacity-50 grayscale bg-black/20" : `${bgClass} shadow-lg ${shadowClass}`}
                   title={
-                    <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center justify-start w-full">
                       <div className="flex items-center gap-2">
                         <span className={`material-symbols-outlined !text-[18px] ${isIgnored ? "text-[var(--text)] opacity-30" : textClass}`}>
                           {iconName}

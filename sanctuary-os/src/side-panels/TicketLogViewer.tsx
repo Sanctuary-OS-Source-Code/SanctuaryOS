@@ -105,7 +105,7 @@ export default function TicketLogViewer({
                     const key = line.substring(0, idx).trim();
                     const value = line.substring(idx + 1).trim();
                     return (
-                        <div key={i} className="flex flex-row justify-between items-start py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 gap-4 group">
+                        <div key={i} className="flex flex-row justify-start items-start py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 gap-4 group">
                             <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] shrink-0 pt-0.5">{key}</span>
                             {key.toUpperCase() === 'MODS PATH' ? (
                                 <div className="flex items-center gap-2 text-right">

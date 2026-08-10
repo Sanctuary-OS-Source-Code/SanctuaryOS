@@ -353,7 +353,7 @@ export function VaultLocalFolderEditorSidePanel({
 
           {/* MAIN CONTENT AREA */}
           <div className="px-4 flex flex-col gap-6 relative z-10">
-            <div className="flex items-center justify-between pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <div className="flex items-center justify-start pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
               <div className="flex items-center gap-3">
                 <span className={`material-symbols-outlined !text-[18px] opacity-70 ${targetSet.isCollection ? 'text-[var(--accent)]' : 'text-[var(--success)]'}`}>{targetSet.isCollection ? 'category' : 'inventory_2'}</span>
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{targetSet.isCollection ? (t("collection_contents") || "COLLECTION CONTENTS") : (t("folder_logic") || "FOLDER LOGIC")} ({targetSet.items.length})</h3>

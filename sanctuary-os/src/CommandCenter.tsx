@@ -364,7 +364,7 @@ export default function CommandCenter({
       )}
 
       {hasSymlinkPerms === false && (
-        <div className="w-full glass-panel rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden transition-all duration-500 animate-in fade-in zoom-in-95 backdrop-blur-md group"
+        <div className="w-full glass-panel rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-start md:items-center justify-start gap-6 relative overflow-hidden transition-all duration-500 animate-in fade-in zoom-in-95 backdrop-blur-md group"
           style={{
             borderColor: `color-mix(in srgb, var(--danger) 30%, transparent)`,
             borderWidth: '1px',
@@ -373,7 +373,7 @@ export default function CommandCenter({
           }}>
           <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: `linear-gradient(90deg, color-mix(in srgb, var(--danger) 5%, transparent), transparent)` }} />
           <div className="absolute top-0 right-0 w-32 h-32 blur-[50px] rounded-[var(--radius)] pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)` }} />
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 w-full z-10 pl-2">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-start gap-6 w-full z-10 pl-2">
             <div className="flex items-center gap-5">
               <div className="w-14 h-14 rounded-[var(--radius)] flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)`, borderColor: `color-mix(in srgb, var(--danger) 30%, transparent)`, color: 'var(--danger)', borderWidth: '1px' }}>
                 <span className="material-symbols-outlined !text-[32px] animate-pulse">{t("icon_warning_amber")}</span>
@@ -406,7 +406,7 @@ export default function CommandCenter({
         const alertIcon = radarState === 'critical' ? 'gpp_bad' : radarState === 'warning' ? 'gpp_maybe' : 'update';
 
         return (
-          <div className="w-full glass-panel rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden transition-all duration-500 animate-in fade-in zoom-in-95 backdrop-blur-md group"
+          <div className="w-full glass-panel rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center justify-start gap-6 relative overflow-hidden transition-all duration-500 animate-in fade-in zoom-in-95 backdrop-blur-md group"
             style={{
               borderColor: `color-mix(in srgb, ${alertVar} 30%, transparent)`,
               borderWidth: '1px',

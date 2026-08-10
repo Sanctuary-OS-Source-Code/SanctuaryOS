@@ -42,24 +42,12 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
           setTimeout(() => { (window as any).__sanc_manual_max = false; }, 1000);
         }
       }}
-      className="fixed top-0 left-0 right-0 h-[50px] select-none flex items-center z-[999999] pointer-events-auto group/titlebar transition-colors"
+      className="fixed top-0 left-0 right-0 h-[50px] select-none flex items-center z-[999999] pointer-events-auto group/titlebar transition-colors glass-panel !rounded-none !border-0 !shadow-none"
     >
 
 
 
-      {/* TitleBar Premium Glass Background */}
-      <div
-        className="absolute inset-0 z-[-1] backdrop-blur-md transition-all duration-500 pointer-events-none"
-        style={{
-          background: "linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--bg) 40%, transparent) 25%, color-mix(in srgb, var(--bg) 80%, transparent) 50%, color-mix(in srgb, var(--bg) 40%, transparent) 75%, transparent 100%)"
-        }}
-      />
 
-      {/* 3D Glass Inner Top Highlight */}
-      <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent opacity-60 pointer-events-none z-[-1]" />
-
-      {/* Ultra-faint Noise Texture for Glass Material realism */}
-      <div className="absolute inset-0 z-[-1] opacity-[0.04] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
 
       {/* Title Bar Bottom Borders */}
       <div
@@ -87,7 +75,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
             }`}
         />
 
-        <div className={`flex items-center w-full relative z-10 transition-all duration-500 ${isSidebarCollapsed ? 'justify-center' : 'justify-between px-6'}`}>
+        <div className={`flex items-center w-full relative z-10 transition-all duration-500 ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-6'}`}>
           {!isSidebarCollapsed && (
             <div className="flex items-center gap-3">
               <div className="flex flex-col pt-0">

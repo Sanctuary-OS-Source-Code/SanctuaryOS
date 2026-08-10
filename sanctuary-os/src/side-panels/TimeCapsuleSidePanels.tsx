@@ -261,7 +261,7 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
               ) : (
                 <div className="flex flex-col gap-2 relative z-10 overflow-y-auto pr-2 custom-scrollbar flex-1 pb-6">
                   {filteredExtract.slice(0, extractLimit).map((file, i) => (
-                    <div key={i} className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent p-4 rounded-xl flex items-center justify-between group hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-amber-500/30 transition-all shrink-0">
+                    <div key={i} className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent p-4 rounded-xl flex items-center justify-start group hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-amber-500/30 transition-all shrink-0">
                       <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest truncate flex-1 mr-4">
                         <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] group-hover:text-amber-500 shrink-0 transition-colors">
                           {file.path.toLowerCase().endsWith('.save') ? (t("icon_saves") || 'save') : file.path.toLowerCase().includes('.trayitem') ? (t("icon_tray_files") || 'group') : (t("icon_file") || 'description')}
@@ -325,14 +325,14 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                 <div className="text-center text-xs text-[var(--subtext)] animate-pulse relative z-10">{t("calculating_diff") || "Calculating diff..."}</div>
               ) : (
                 <div className="flex flex-col gap-2 relative z-10 flex-1 min-h-0 pb-6">
-                  <div className="flex items-center justify-between shrink-0 mb-4 px-4 py-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
+                  <div className="flex items-center justify-start shrink-0 mb-4 px-4 py-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
                     <div className="text-xs font-black uppercase tracking-widest text-[var(--subtext)]">{t("current_state") || "Current State"}</div>
                     <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-50">arrow_right_alt</span>
                     <div className={`text-xs font-black uppercase tracking-widest ${themeColor}`}>{t("selected_backup") || "Selected Backup"}</div>
                   </div>
                   <div className="flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-2 flex-1">
                     {filteredDiff.slice(0, diffLimit).map((diff, i) => (
-                      <div key={i} className="flex items-center justify-between bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors p-4 rounded-xl border border-transparent shrink-0">
+                      <div key={i} className="flex items-center justify-start bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors p-4 rounded-xl border border-transparent shrink-0">
                         <span className="text-xs font-black uppercase tracking-widest text-[var(--text)] truncate max-w-[60%]" title={diff.path}>{diff.path.split('/').pop()}</span>
                         <span className={`text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shrink-0 ${diff.status === 'Modified' ? 'text-amber-500 bg-amber-500/10' :
                           diff.status === 'Missing in Current' ? 'text-rose-500 bg-rose-500/10' :

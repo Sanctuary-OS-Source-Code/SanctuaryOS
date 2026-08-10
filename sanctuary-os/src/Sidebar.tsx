@@ -96,8 +96,8 @@ export function Sidebar({
       }}
     >
       <div
-        className="absolute inset-x-0 bottom-0 z-[-1] backdrop-blur-3xl border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-500 shadow-[4px_0_30px_rgba(0,0,0,0.05)]"
-        style={{ top: '50px', backgroundColor: "color-mix(in srgb, var(--sidebar) 8%, transparent)" }}
+        className="absolute inset-x-0 bottom-0 z-[-1] glass-panel !border-0 !border-r !rounded-none transition-all duration-500"
+        style={{ top: '50px', boxShadow: '4px 0 30px rgba(0,0,0,0.05)' }}
       />
 
       <div className="h-[50px] shrink-0" />

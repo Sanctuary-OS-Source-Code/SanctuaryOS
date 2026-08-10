@@ -172,7 +172,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
       {isGhostPlaceholder && (
         <div className="absolute inset-0 z-50 rounded-[var(--radius)] border-2 border-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] animate-pulse pointer-events-none" />
       )}
-      <div className={`relative w-full h-full transition-transform duration-500 [transform-style:preserve-3d] ${confirmMode ? '[transform:rotateY(180deg)]' : ''}`}>
+      <div className={`relative w-full h-full transition-transform duration-500 ${confirmMode ? '[transform-style:preserve-3d] [transform:rotateY(180deg)]' : ''}`}>
 
         <UniversalCard
           layout={compact ? "vertical-compact" : "vertical"}
@@ -239,7 +239,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
               }
             }
           }}
-          className={`w-full h-full [backface-visibility:hidden] [transform:translateZ(0)] ${isExpanded ? 'ring-2 ring-[var(--accent)]/50 shadow-lg' : ''}`}
+          className={`w-full h-full ${confirmMode ? '[backface-visibility:hidden] [transform:translateZ(0)]' : ''} ${isExpanded ? 'ring-2 ring-[var(--accent)]/50 shadow-lg' : ''}`}
           badges={
             <div className="flex flex-wrap items-center gap-2">
               {(() => {
@@ -284,7 +284,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
 
                 return (
                   <div className="group/badge relative cursor-help inline-flex">
-                    <div className={`backdrop-blur-md border px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1.5 transition-all ${badgeBg}`}>
+                    <div className={`glass-surface border px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1.5 transition-all ${badgeBg}`}>
                       <span className={`text-[8px] font-black uppercase tracking-widest ${badgeText}`}>
                         {(() => {
                           if (!hasExplicitStatus && (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2)) return t("unlinked_badge") || "LOCAL";
@@ -534,7 +534,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                   <div className="flex flex-col relative gap-2">
                     <div className="text-[9px] font-black uppercase tracking-widest text-orange-500 mb-1 opacity-70 px-1">{t("select_winner") || "SELECT WINNER"}</div>
                     <div className="relative flex flex-col gap-8">
-                      <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, mod.name); } }, 10); }} className="flex items-center justify-between gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,orange_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95  duration-300 p-3 rounded-2xl w-full text-left group/btn shadow-md hover:shadow-lg">
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, mod.name); } }, 10); }} className="flex items-center justify-start gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,orange_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95  duration-300 p-3 rounded-2xl w-full text-left group/btn shadow-md hover:shadow-lg">
                         <div className="flex flex-col min-w-0 flex-1">
                           <span className="text-[8px] font-black text-orange-500 opacity-50 group-hover/btn:opacity-100 transition-opacity uppercase tracking-widest">{t("equip_artifact") || "EQUIP ARTIFACT"}</span>
                           <span className="text-[10px] font-mono font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate">{formatDisplayName(mod.displayName || mod.name)}</span>
@@ -546,7 +546,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                           <span className="text-[9px] font-black leading-none tracking-[0.1em] mt-[1px]">{t("vs")}</span>
                         </div>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, tier3List[0]?.rawName || tier3List[0]?.name); } }, 10); }} className="flex items-center justify-between gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,orange_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95  duration-300 p-3 rounded-2xl w-full text-left group/btn shadow-md hover:shadow-lg">
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, tier3List[0]?.rawName || tier3List[0]?.name); } }, 10); }} className="flex items-center justify-start gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,orange_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95  duration-300 p-3 rounded-2xl w-full text-left group/btn shadow-md hover:shadow-lg">
                         <div className="flex flex-col min-w-0 flex-1">
                           <span className="text-[8px] font-black text-orange-500 opacity-50 group-hover/btn:opacity-100 transition-opacity uppercase tracking-widest">{t("keep_artifact") || "KEEP ARTIFACT"}</span>
                           <span className="text-[10px] font-mono font-black text-[var(--text)] opacity-90 uppercase tracking-widest truncate">{formatDisplayName(tier3List[0]?.name || tier3List[0] || "")}</span>

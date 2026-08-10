@@ -14,7 +14,7 @@ export function QuarantineModal({ showQuarantineModal, setShowQuarantineModal, q
         
         <div className="bg-black/40 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-4 max-h-80 overflow-y-auto custom-scrollbar flex flex-col gap-2">
           {quarantineList.length > 0 ? quarantineList.map((q: string) => (
-            <div key={q} className="flex justify-between items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors">
+            <div key={q} className="flex justify-start items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors">
               <span className="font-mono text-xs opacity-90 truncate flex-1">{q}</span>
               <div className="flex gap-2 shrink-0 ml-4">
                 <button onClick={() => restoreMod(q)} className="px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/40 transition-colors">{t("quarantine_modal_restore")}</button>

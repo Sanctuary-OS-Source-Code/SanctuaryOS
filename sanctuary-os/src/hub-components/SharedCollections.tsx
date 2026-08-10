@@ -1,4 +1,4 @@
-import { SearchBar } from "../shared";
+import { SearchBar, ScreenUtilityBar } from "../shared";
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
@@ -114,28 +114,17 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
   return (
     <div className="flex flex-col h-full overflow-hidden animate-in fade-in pb-20">
 
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_collections_bookmark")}</span>
-          </div>
-          <span className="truncate">{t("title_vaults")}</span>
-        </h2>
-        <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t("search_ph")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
-          <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-12">
-            <CustomDropdown disableTint={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
-          </div>
-          <ActionButton onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]" icon={t("icon_add")} label={t("auto_create")} />
+            <ScreenUtilityBar
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("search_ph")}
+        className="!mb-0 !border-0 !pb-0" // matching inner layout pattern
+      >
+        <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-12">
+          <CustomDropdown disableTint={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
         </div>
-      </div>
+        <ActionButton onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]" icon={t("icon_add")} label={t("auto_create")} />
+      </ScreenUtilityBar>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 content-start pr-2">

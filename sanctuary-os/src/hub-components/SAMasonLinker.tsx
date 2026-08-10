@@ -1,4 +1,4 @@
-import { SearchBar } from "../shared";
+import { SearchBar, ScreenUtilityBar } from "../shared";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase, getActiveGameClient } from "../supabase";
@@ -160,45 +160,32 @@ export function MasonLinker() {
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_link")}</span>
-          </div>
-          <span className="truncate">{t("linker_title")}</span>
-        </h2>
-
-        <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={search}
-              onChange={setSearch}
-              placeholder={t("linker_search_mason")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
-
-          <div className="w-max min-w-[192px] max-w-xs z-40">
-            <CustomDropdown disableTint={true}
-              value={filterType}
-              onChange={(v: string[]) => setFilterType(v[0] as any)}
-              options={[
-                { id: "all", label: "ALL MASONS" },
-                { id: "verified", label: "VERIFIED" },
-                { id: "unverified", label: "UNVERIFIED" }
-              ]}
-              placeholder={t("filter_status")}
-            />
-          </div>
-
-          <ActionButton
-            onClick={() => handleOpenPanel(null)}
-            className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
-            icon={t("icon_add")}
-            label={t("btn_create_mason_naked")}
+            <ScreenUtilityBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={t("linker_search_mason")}
+        className="!mb-0 !border-0 !pb-0" // matching inner layout pattern
+      >
+        <div className="w-max min-w-[192px] max-w-xs z-40 h-12">
+          <CustomDropdown disableTint={true}
+            value={filterType}
+            onChange={(v: string[]) => setFilterType(v[0] as any)}
+            options={[
+              { id: "all", label: "ALL MASONS" },
+              { id: "verified", label: "VERIFIED" },
+              { id: "unverified", label: "UNVERIFIED" }
+            ]}
+            placeholder={t("filter_status")}
           />
         </div>
-      </div>
+
+        <ActionButton
+          onClick={() => handleOpenPanel(null)}
+          className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+          icon={t("icon_add")}
+          label={t("btn_create_mason_naked")}
+        />
+      </ScreenUtilityBar>
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
         {loading ? (
@@ -302,7 +289,7 @@ export function MasonLinker() {
               />
             </div>
 
-            <div className="flex items-center justify-between mt-4 w-full">
+            <div className="flex items-center justify-start mt-4 w-full">
               <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest ml-2 flex items-center gap-2">
                 {t("mark_verified")}
               </label>

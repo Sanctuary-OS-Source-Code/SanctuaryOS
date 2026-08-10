@@ -86,7 +86,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                     <div
                       ref={(el) => { colorPickerRefs.current[key] = el; }}
                       onClick={() => setActiveColorPicker(activeColorPicker === key ? null : key)}
-                      className="w-full h-14 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer rounded-2xl overflow-hidden shrink-0 shadow-inner hover:scale-105 hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all flex items-center justify-between px-4"
+                      className="w-full h-14 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer rounded-2xl overflow-hidden shrink-0 shadow-inner hover:scale-105 hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all flex items-center justify-start px-4"
                       style={{ backgroundColor: currentTheme[key] }}
                     >
                        {/* Transparent background pattern to show if color is transparent */}
@@ -230,7 +230,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
               { key: 'sidebarWidth', label: t('forge_sidebar_width') || 'Side Bar Width', def: '288', max: 500, min: 200, isPx: true }
             ].map(cfg => (
               <div key={cfg.key} className="flex flex-col gap-3">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-between">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
                   <span>{cfg.label}</span>
                   <span className="theme-text-accent">{currentTheme[cfg.key] || (cfg.isPx ? `${cfg.def}px` : `${cfg.def}rem`)}</span>
                 </label>
@@ -252,7 +252,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-between">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
               <span>{t("forge_glass_opacity") || "Panel Opacity"}</span>
               <span className="theme-text-accent">{currentTheme.glassOpacity || "3%"}</span>
             </label>
@@ -265,7 +265,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
           </div>
           
           <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-between">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
               <span>{t("forge_glass_blur") || "Frosted Blur"}</span>
               <span className="theme-text-accent">{currentTheme.glassBlur || "16px"}</span>
             </label>
@@ -284,7 +284,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
         </div>
 
         <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-between">
+          <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
             <span>{t("forge_radius") || "Border Radius"}</span>
             <span className="theme-text-accent">{currentTheme.radius || "1.5rem"}</span>
           </label>

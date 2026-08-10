@@ -9,7 +9,7 @@ import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMu
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown } from "../shared";
+  fetchAllPaginated, CustomTierDropdown, ScreenUtilityBar } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -44,8 +44,7 @@ export function AuditLogViewer({
   const [search, setSearch] = useState("");
   const [filterAction, setFilterAction] = useState("ALL");
   const [filterGame, setFilterGame] = useState("ALL");
-  const [dateStart, setDateStart] = useState("");
-  const [dateEnd, setDateEnd] = useState("");
+  const [dateRange, setDateRange] = useState<{start: string | null, end: string | null}>({ start: null, end: null });
 
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [selectedLog, setSelectedLog] = useState<any>(null);
@@ -61,9 +60,9 @@ export function AuditLogViewer({
     const buildQuery = (client: any) => {
       let q = client.from('audit_logs').select('*');
       if (isSidePanel) q = q.neq('target_table', 'profiles').neq('target_table', 'sanctuary_tickets');
-      if (dateStart) q = q.gte('created_at', new Date(dateStart).toISOString());
-      if (dateEnd) {
-        const end = new Date(dateEnd);
+      if (dateRange.start) q = q.gte('created_at', new Date(dateRange.start).toISOString());
+      if (dateRange.end) {
+        const end = new Date(dateRange.end);
         end.setHours(23, 59, 59, 999);
         q = q.lte('created_at', end.toISOString());
       }
@@ -128,7 +127,7 @@ export function AuditLogViewer({
 
   useEffect(() => {
     fetchLogs();
-  }, [dateStart, dateEnd]);
+  }, [dateRange.start, dateRange.end]);
 
   const ALL_KNOWN_TABLES = ["audit_logs", "keeper_system_broadcasts", "keeper_tickets", "logical_conflicts", "mod_rules", "mod_vault", "play_sets", "profiles", "sanctuary_games", "sanctuary_support_categories", "sanctuary_tickets", "dlc_registry", "mod_rules_history", "logical_conflicts_history"];
   const uniqueTargets = ["ALL", ...Array.from(new Set([...ALL_KNOWN_TABLES, ...logs.map(log => log.target_table).filter(Boolean)]))];
@@ -159,68 +158,54 @@ export function AuditLogViewer({
 
   const content = (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex flex-col md:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-        {!isSidePanel && (
-          <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest whitespace-nowrap flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] opacity-70 theme-text-accent drop-shadow-lg">{t("icon_history")}</span>
-            </div>
-            <span className="truncate">{t("audit_title")}</span>
-          </h2>
-        )}
-
-        <div className={`flex gap-4 flex-1 w-full ${isSidePanel ? 'flex-col' : 'justify-end items-center flex-wrap'}`}>
-          <div className={`relative ${isSidePanel ? 'w-full' : 'flex-1 max-w-[300px] min-w-[200px]'}`}>
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-            <input
-              type="text"
-              placeholder={t("audit_search")}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 font-inter"
+      <ScreenUtilityBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={t("audit_search")}
+        isSidePanel={isSidePanel}
+      >
+        {isKeepers && (
+          <div className={`${isSidePanel ? 'flex-1' : 'w-max min-w-[160px]'} z-50 shrink-0`}>
+            <CustomDropdown disableTint={true}
+              value={filterGame}
+              onChange={(v: string[]) => setFilterGame(v[0])}
+              options={filterGameOptions}
+              placeholder="WORKSPACES"
+              searchable={true}
             />
           </div>
-          <div className={`flex items-center gap-4 ${isSidePanel ? 'w-full' : ''}`}>
-            {isKeepers && (
-              <div className={`${isSidePanel ? 'flex-1' : 'w-max min-w-[160px]'} z-50 shrink-0`}>
-                <CustomDropdown disableTint={true}
-                  value={filterGame}
-                  onChange={(v: string[]) => setFilterGame(v[0])}
-                  options={filterGameOptions}
-                  placeholder="WORKSPACES"
-                  searchable={true}
-                />
-              </div>
-            )}
-            <div className={`${isSidePanel ? 'flex-1' : 'w-max min-w-[160px]'} z-40 shrink-0`}>
-              <CustomDropdown disableTint={true}
-                value={filterAction}
-                onChange={(v: string[]) => setFilterAction(v[0])}
-                options={filterOptions}
-                placeholder={t("auto_filter_logs")}
-                searchable={true}
-              />
-            </div>
-            <div className={`flex items-center gap-2 text-[var(--subtext)] z-30 ${isSidePanel ? 'flex-1' : ''}`}>
-              <div className={`${isSidePanel ? 'flex-1' : 'w-36'}`}>
-                <CustomDatePicker value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
-              </div>
-              <span className="opacity-50">-</span>
-              <div className={`${isSidePanel ? 'flex-1' : 'w-36'}`}>
-                <CustomDatePicker value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
-              </div>
-            </div>
-          </div>
+        )}
+        <div className={`${isSidePanel ? 'flex-1' : 'w-max min-w-[160px]'} z-40 shrink-0`}>
+          <CustomDropdown disableTint={true}
+            value={filterAction}
+            onChange={(v: string[]) => setFilterAction(v[0])}
+            options={filterOptions}
+            placeholder={t("auto_filter_logs")}
+            searchable={true}
+          />
         </div>
-      </div>
+        <div className="flex items-center gap-2 text-[var(--subtext)] z-30 shrink-0">
+          <CustomDatePicker
+            value={dateRange.start || null}
+            onChange={(date) => setDateRange(prev => ({ ...prev, start: date }))}
+            placeholder="Start"
+          />
+          <span className="opacity-50">to</span>
+          <CustomDatePicker
+            value={dateRange.end || null}
+            onChange={(date) => setDateRange(prev => ({ ...prev, end: date }))}
+            placeholder="End"
+          />
+        </div>
+      </ScreenUtilityBar>
 
-      <div className="p-6 w-full flex flex-col gap-6 animate-in fade-in">
+      <div className={`p-6 w-full flex flex-col gap-6 animate-in fade-in`}>
 
         {loading ? (
           <div className={`grid grid-cols-1 ${isSidePanel ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'} gap-6 w-full`}>
             {[...Array(isSidePanel ? 6 : 12)].map((_, i) => (
-              <div key={i} className="flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden min-h-[160px]">
-                <div className="flex justify-between items-start w-full relative z-10 mb-4">
+              <div key={i} className="flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden min-h-[160px]">
+                <div className="flex justify-start items-start w-full relative z-10 mb-4">
                   <div className="flex items-start gap-4 w-full">
                     <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] animate-pulse shrink-0" />
                     <div className="flex flex-col pt-1 min-w-0 flex-1 gap-2">
@@ -230,7 +215,7 @@ export function AuditLogViewer({
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                <div className="flex justify-start items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                   <div className="h-6 w-24 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded animate-pulse" />
                   <div className="h-6 w-16 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded animate-pulse" />
                 </div>
@@ -240,11 +225,11 @@ export function AuditLogViewer({
         ) : (
           <div className={`grid grid-cols-1 ${isSidePanel ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'} gap-6 w-full`}>
             {filteredLogs.map(log => (
-              <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-between p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[var(--accent)]/[50%] hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer hover:-translate-y-1.5">
+              <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[var(--accent)]/[50%] hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer hover:-translate-y-1.5">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent)]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                <div className="flex justify-between items-start w-full relative z-10 mb-4">
+                <div className="flex justify-start items-start w-full relative z-10 mb-4">
                   <div className="flex items-start gap-4 w-full">
                     <div className="w-12 h-12 rounded-2xl glass-surface border border-[var(--accent)]/[40%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
                       <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">{t("icon_history")}</span>
@@ -266,7 +251,7 @@ export function AuditLogViewer({
                   </div>
                 </div>
 
-                <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                <div className="flex justify-start items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                   <div className="flex flex-col min-w-0 flex-1 pr-2">
                     <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("audit_actor")}</span>
                     <span className="text-[10px] font-bold text-[var(--text)] opacity-90 mt-1 flex items-center gap-1 truncate">
@@ -345,7 +330,7 @@ export function AuditLogViewer({
 
               <div className="flex flex-col gap-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_actor")}</h3>
-                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)] flex items-center justify-between">
+                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)] flex items-center justify-start">
                   <span>
                     {selectedLog.actor ? `${selectedLog.actor.username} ${selectedLog.actor.is_banned ? '(BANNED)' : ''}` : selectedLog.actor_id}
                   </span>

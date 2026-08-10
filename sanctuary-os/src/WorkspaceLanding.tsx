@@ -164,7 +164,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 mt-10 relative z-20">
+          <div className="flex flex-col md:flex-row items-center justify-start gap-6 mt-10 relative z-20">
             <FilterTabs className="w-full md:w-auto">
               <FilterTabButton
                 id="configured"

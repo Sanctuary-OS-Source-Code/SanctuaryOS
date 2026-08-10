@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { ViewHeader, HubTabButton, SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, SearchBar, FilterTabs, FilterTabButton } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, SearchBar, ScreenUtilityBar, FilterTabs, FilterTabButton } from './shared';
 import { WorkbenchFileGrid } from './workbench/WorkbenchFileGrid';
 import { WorkbenchSidePanel } from './workbench/WorkbenchSidePanel';
 import { PushTemplateSidePanel } from './side-panels/PushTemplateSidePanel';
@@ -93,15 +93,19 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
    return (
       <div className="flex flex-col w-full relative animate-in fade-in slide-in-from-bottom-4 duration-700">
-         <ViewHeader title={t("workbench_title") || "CITIZENS WORKBENCH"} subtitle={t("workbench_subtitle")} icon="tune" />
+         <ViewHeader 
+            title={t("workbench_title") || "CITIZENS WORKBENCH"} 
+            subtitle={t("workbench_subtitle")} 
+            icon="tune" 
+            breadcrumb={mainTab !== "COMMAND" ? (t(`tab_${mainTab.toLowerCase()}`) || mainTab) : undefined}
+            onTitleClick={() => setMainTab("COMMAND" as any)}
+         />
 
-         <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0 relative z-30">
-            <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
-               <HubTabButton id="COMMAND" icon="dashboard" label={t("overview") || "OVERVIEW"} activeTab={mainTab} setTab={setMainTab as any} />
-               <HubTabButton id="CONFIGS" icon="settings" label={t("configs")} activeTab={mainTab} setTab={setMainTab as any} />
-               <HubTabButton id="TEMPLATES" icon="data_object" label={t("ql_templates")} activeTab={mainTab} setTab={setMainTab as any} />
-            </div>
-         </div>
+         <HoverTabDrawer title="Workbench Navigation" activeTab={mainTab} setTab={setMainTab as any}>
+            <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview") || "OVERVIEW"} activeTab={mainTab} setTab={setMainTab as any} />
+            <VerticalTabButton id="CONFIGS" icon="settings" label={t("configs")} activeTab={mainTab} setTab={setMainTab as any} />
+            <VerticalTabButton id="TEMPLATES" icon="data_object" label={t("ql_templates")} activeTab={mainTab} setTab={setMainTab as any} />
+         </HoverTabDrawer>
 
          <div className="flex flex-col w-full animate-in slide-in-from-top-4 duration-500 flex-1 min-h-[400px]">
             {mainTab === "COMMAND" && (
@@ -153,8 +157,8 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                                     {recentActivityFiles.map((file: any) => {
                                        const displayPath = file.path.replace(/^.*[\\\/](Data[\\\/]Templates|Mods)[\\\/]/i, '');
                                        return (
-                                          <div key={file.path} onClick={() => fileState.openFile(file)} className="glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-5 flex flex-col justify-between gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer transition-colors hover:border-[var(--accent)]/30 group min-h-[120px]">
-                                             <div className="flex items-start justify-between gap-3">
+                                          <div key={file.path} onClick={() => fileState.openFile(file)} className="glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-5 flex flex-col justify-start gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer transition-colors hover:border-[var(--accent)]/30 group min-h-[120px]">
+                                             <div className="flex items-start justify-start gap-3">
                                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${file.name.toLowerCase().endsWith('.json') ? 'bg-green-500/10 text-green-500' : 'bg-blue-500/10 text-blue-500'}`}>
                                                    <span className="material-symbols-outlined">{file.name.toLowerCase().endsWith('.json') ? "data_object" : "settings"}</span>
                                                 </div>
@@ -208,33 +212,17 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
             {mainTab !== "COMMAND" && (
                <div className="flex flex-col gap-0 min-h-max w-full">
-                  <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
-                     <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest hidden xl:flex items-center gap-3 shrink-0">
-                        <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                           <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">
-                              {mainTab === "TEMPLATES" ? "data_object" : "settings"}
-                           </span>
-                        </div>
-                        <span className="truncate">
-                           {mainTab === "TEMPLATES" ? (t("ql_templates") || "TEMPLATES") : (t("configs") || "CONFIGURATIONS")}
-                        </span>
-                     </h2>
-                     
-                     <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                        <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[350px]">
-                           <SearchBar
-                              value={mainSearchQuery}
-                              onChange={setMainSearchQuery}
-                              placeholder={t("search_files") || "Search files..."}
-                              className="rounded-xl h-12"
-                           />
-                        </div>
-                        <FilterTabs className="shrink-0 xl:ml-2">
-                           <FilterTabButton id="ALL" label="ALL" activeTab={gridFilter} setTab={setGridFilter} />
-                           <FilterTabButton id="UNSAVED" label={t("unsaved_changes") || "DRAFTS"} activeTab={gridFilter} setTab={setGridFilter} />
-                        </FilterTabs>
-                     </div>
-                  </div>
+                          <ScreenUtilityBar
+          search={mainSearchQuery}
+          onSearchChange={setMainSearchQuery}
+          searchPlaceholder={t("search_files") || "Search files..."}
+          className="!mb-8 animate-in slide-in-from-top-4 duration-500 relative z-20"
+        >
+          <FilterTabs className="shrink-0 xl:ml-2 z-50">
+            <FilterTabButton id="ALL" label="ALL" activeTab={gridFilter} setTab={setGridFilter} />
+            <FilterTabButton id="UNSAVED" label={t("unsaved_changes") || "DRAFTS"} activeTab={gridFilter} setTab={setGridFilter} />
+          </FilterTabs>
+        </ScreenUtilityBar>
 
                   <div className="flex-1 pb-10">
                      <WorkbenchFileGrid

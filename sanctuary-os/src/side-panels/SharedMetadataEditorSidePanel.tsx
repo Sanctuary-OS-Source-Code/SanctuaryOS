@@ -200,7 +200,7 @@ export function SharedMetadataEditorSidePanel({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-            <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${modForm.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+            <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${modForm.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
               <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${modForm.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                 <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
                 {t("label_is_paid")}
@@ -212,7 +212,7 @@ export function SharedMetadataEditorSidePanel({
               <input type="checkbox" checked={modForm.is_paid || false} onChange={e => setModForm({...modForm, is_paid: e.target.checked})} className="hidden" />
             </label>
 
-            <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${modForm.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+            <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${modForm.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
               <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${modForm.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                 <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
                 {t("label_is_early_access")}

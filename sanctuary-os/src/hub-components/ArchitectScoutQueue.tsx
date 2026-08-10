@@ -1,4 +1,4 @@
-import { SearchBar } from "../shared";
+import { SearchBar, ScreenUtilityBar, FilterTabs, FilterTabButton } from "../shared";
 import React, { useState, useEffect } from "react";
 import { DashboardStatTile, fetchAllPaginated , isSupportedExtension } from "../shared";
 import { CustomClassificationDropdown } from "../hub-components/SharedRegistry";
@@ -229,27 +229,17 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
   
     return (
       <div className="flex flex-col w-full relative h-full">
-        <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_search")}</span>
-            </div>
-            <span className="truncate">{t("reviewing")}</span>
-          </h2>
-          <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
-            <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t("search_queue")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>            <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex mr-4">
-              <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
-              <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_completed")}</button>
-            </div>
-          </div>
-        </div>
+        <ScreenUtilityBar
+          search={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder={t("search_queue")}
+          className="!mb-0 !border-0 !pb-0" // matching inner layout pattern
+        >
+          <FilterTabs className="h-12 z-40">
+            <FilterTabButton id="pending" label={t("pending")} activeTab={filterTab} setTab={setFilterTab} />
+            <FilterTabButton id="completed" label={t("status_completed")} activeTab={filterTab} setTab={setFilterTab} />
+          </FilterTabs>
+        </ScreenUtilityBar>
   
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
           {loading ? (

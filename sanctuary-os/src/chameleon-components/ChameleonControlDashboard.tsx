@@ -215,7 +215,7 @@ export function ChameleonControlDashboard({
               { key: 'sidebarWidth', label: t('forge_sidebar_width') || 'Side Bar Width', def: '288', max: 500, min: 200, isPx: true }
             ].map(cfg => (
               <div key={cfg.key} className="flex flex-col gap-3">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-between">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
                   <span>{cfg.label}</span>
                   <span className="theme-text-accent">{currentTheme[cfg.key] || (cfg.isPx ? `${cfg.def}px` : `${cfg.def}rem`)}</span>
                 </label>
@@ -237,7 +237,7 @@ export function ChameleonControlDashboard({
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-between">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
               <span>{t("forge_glass_opacity") || "Panel Opacity"}</span>
               <span className="theme-text-accent">{currentTheme.glassOpacity || "3%"}</span>
             </label>
@@ -250,7 +250,7 @@ export function ChameleonControlDashboard({
           </div>
 
           <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-between">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
               <span>{t("forge_glass_blur") || "Frosted Blur"}</span>
               <span className="theme-text-accent">{currentTheme.glassBlur || "16px"}</span>
             </label>
@@ -269,7 +269,7 @@ export function ChameleonControlDashboard({
         </div>
 
         <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-between">
+          <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
             <span>{t("forge_radius") || "Border Radius"}</span>
             <span className="theme-text-accent">{currentTheme.radius || "1.5rem"}</span>
           </label>

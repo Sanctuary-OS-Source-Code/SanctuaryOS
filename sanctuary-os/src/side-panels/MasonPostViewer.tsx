@@ -403,7 +403,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
             </div>
           ) : (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-start gap-2">
                 <div className="flex items-center gap-2">
                   <button onClick={toggleCollapse} className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1 flex items-center justify-center">
                     <span className="material-symbols-outlined !text-[16px]">remove</span>
@@ -604,7 +604,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
 
                 {post.code_snippet && (
                   <div className="mt-8 p-6 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden group">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-start">
                       <div className="flex items-center gap-5">
                         <div className="w-12 h-12 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center">
                           <span className="material-symbols-outlined text-[24px] theme-text-accent">{t("icon_data_object")}</span>
@@ -630,7 +630,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               {userId && localStorage.getItem("sanctuary_blacklisted") !== "true" ? (
                 <form onSubmit={handlePostComment} className="flex flex-col gap-3 relative glass-surface p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl">
                   {replyTargetId && (
-                    <div className="flex items-center justify-between bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] rounded-xl p-4 mb-2 shadow-inner">
+                    <div className="flex items-center justify-start bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] rounded-xl p-4 mb-2 shadow-inner">
                       <div className="flex flex-col gap-1 overflow-hidden">
                         <span className="text-[9px] font-black tracking-widest uppercase theme-text-accent flex items-center gap-2">
                           <span className="material-symbols-outlined !text-[14px]">{t("icon_reply")}</span>
@@ -665,7 +665,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       <div className="absolute top-4 right-4 text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-30 pointer-events-none">{t("code_snippet")}</div>
                     </div>
                   )}
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                  <div className="flex items-center justify-start mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <div className="flex items-center gap-3">
                       <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`flex items-center gap-2 px-6 py-3 rounded-[calc(var(--radius)-4px)] font-black uppercase tracking-widest text-[10px] transition-all border ${showCodeInput ? 'border-[var(--accent)]/[30%] bg-[var(--accent)]/[10%] theme-text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                         <span className="material-symbols-outlined !text-[16px]">{showCodeInput ? 'close' : 'data_object'}</span> {showCodeInput ? "HIDE CODE PASTE" : (t("add_code"))}

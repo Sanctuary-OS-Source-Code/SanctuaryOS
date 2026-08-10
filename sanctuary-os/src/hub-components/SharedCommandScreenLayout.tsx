@@ -33,7 +33,7 @@ export function CommandScreenSectionHeading({
   const shapeClass = shape === "square" ? "rounded-lg" : "rounded-full";
   
   return (
-    <div className={`flex justify-between items-center border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6 w-full mb-8 relative z-10 ${className}`}>
+    <div className={`flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6 w-full mb-8 relative z-10 ${className}`}>
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[var(--accent)]/50 to-transparent" />
       <div className="flex items-center gap-4 flex-1 min-w-0">
         {icon && (
@@ -158,7 +158,7 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                             </div>
                         }
                         footer={
-                            <div className="flex items-center justify-between w-full mt-2">
+                            <div className="flex items-center justify-start w-full mt-2">
                                 <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
                                     <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(post.created_at).toLocaleDateString()}
                                 </span>

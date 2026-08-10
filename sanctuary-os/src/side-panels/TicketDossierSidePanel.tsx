@@ -183,7 +183,7 @@ export default function TicketDossierSidePanel({
 
         <UniversalGroup title={t("dossier_ticket_details") || "TICKET DETAILS"} icon={t("icon_receipt_long") || "receipt_long"}>
           
-          <div className="flex justify-between items-center relative z-10">
+          <div className="flex justify-start items-center relative z-10">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_person")}</span> {(t("dossier_author")).replace(/^[^\w]*/, '').trim()}
             </span>
@@ -193,7 +193,7 @@ export default function TicketDossierSidePanel({
             </span>
           </div>
 
-          <div className="flex justify-between items-center relative z-10">
+          <div className="flex justify-start items-center relative z-10">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_info")}</span> {(t("status")).replace(/^[^\w]*/, '').trim()}
             </span>
@@ -208,7 +208,7 @@ export default function TicketDossierSidePanel({
             </span>
           </div>
 
-          <div className="flex justify-between items-center relative z-10">
+          <div className="flex justify-start items-center relative z-10">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_label")}</span> {(t("category")).replace(/^[^\w]*/, '').trim()}
             </span>
@@ -216,7 +216,7 @@ export default function TicketDossierSidePanel({
           </div>
 
           {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
-            <div className="flex justify-between items-center relative z-10 mt-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <div className="flex justify-start items-center relative z-10 mt-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
               <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_extension")}</span> {t("target_artifact")}
               </span>
@@ -238,7 +238,7 @@ export default function TicketDossierSidePanel({
             </div>
           )}
 
-          <div className="flex justify-between items-center relative z-10 mt-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+          <div className="flex justify-start items-center relative z-10 mt-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_calendar_today")}</span> {(t("dossier_created_at")).replace(/^[^\w]*/, '').trim()}
             </span>
@@ -280,7 +280,7 @@ export default function TicketDossierSidePanel({
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
 
                 <div className="relative p-5 flex flex-col gap-4 z-10">
-                  <div className="flex justify-between items-start gap-4">
+                  <div className="flex justify-start items-start gap-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-[0.75rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[var(--accent)]/[30%]">
                         <span className="text-[14px] font-black theme-text-accent">

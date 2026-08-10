@@ -74,7 +74,7 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
         subtitle={t("subtitle_sanctuary_alerts") || "System Broadcasts & Urgent Alerts"}
       >
         <div className="flex flex-col h-full relative z-10">
-          <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10 relative">
+          <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col sm:flex-row sm:items-center justify-start gap-4 z-10 relative">
             <h2 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px]">filter_list</span>
               {t("ui_btn_filter")}
@@ -160,7 +160,7 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                           </>
                         }
                         footer={
-                          <div className="flex justify-between items-center gap-4">
+                          <div className="flex justify-start items-center gap-4">
                             <div className="flex items-center gap-4 flex-1 min-w-0">
                               <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
                                 <span className="material-symbols-outlined !text-[14px]">groups</span>

@@ -156,13 +156,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
     <div className="flex flex-col h-full w-full relative overflow-hidden">
       
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <h2 className="text-xl font-black uppercase tracking-widest flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_security")}</span>
-          </div>
-          <span className="truncate">{t("ql_conflict") || "Conflict Matrix"?.replace("⚔️ ", "") || "Conflict Matrix"}</span>
-        </h2>
-        <div className="flex-1 flex justify-end gap-4 items-center">
+        <div className="flex-1 w-full flex justify-start gap-4 items-center">
           <div className="relative w-64 h-12 shrink-0">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
             <input
@@ -218,7 +212,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                     <div className="absolute inset-0 pointer-events-none transition-all duration-700 opacity-20 group-hover:opacity-40" />
 
                     {/* Header */}
-                    <div className="flex justify-between items-start z-10 relative">
+                    <div className="flex justify-start items-start z-10 relative">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">{isPending ? "hourglass_empty" : "gavel"}</span>
                         <span className="text-[10px] font-black uppercase tracking-widest opacity-80 text-[var(--subtext)]">{isPending ? t("pending") : t("active_network_directives")}</span>
@@ -250,7 +244,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                       </div>
                     </div>
 
-                    <div className="mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center w-full relative z-10">
+                    <div className="mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-start items-center w-full relative z-10">
                       <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60">
                         <span className="material-symbols-outlined !text-[12px] normal-case">{t("icon_calendar_today")}</span>
                         {new Date(c.created_at).toLocaleDateString()}
@@ -322,11 +316,11 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                   <div className="flex flex-col gap-6">
                     {editingGhost && (
                        <div className="flex flex-col gap-2 relative z-10 w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-4">
-                          <div className="flex justify-between items-center">
+                          <div className="flex justify-start items-center">
                              <span className="opacity-60 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">calendar_today</span>{t("date_created")}</span>
                              <span className="text-[var(--text)] drop-shadow-md">{new Date(editingGhost.created_at).toLocaleDateString()}</span>
                           </div>
-                          <div className="flex justify-between items-center mt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3 relative z-10">
+                          <div className="flex justify-start items-center mt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3 relative z-10">
                              <span className="opacity-60 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">fingerprint</span>{t("source")}</span>
                              <span className="text-[var(--accent)] drop-shadow-md">{editingGhost.author_id ? (t("tab_architect")) : (t("source_system"))}</span>
                           </div>
@@ -398,7 +392,7 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-12 glass-surface rounded-xl px-5 text-[11px] font-black uppercase tracking-widest focus:outline-none flex justify-between items-center transition-all ${selected.color}`}
+        className={`w-full h-12 glass-surface rounded-xl px-5 text-[11px] font-black uppercase tracking-widest focus:outline-none flex justify-start items-center transition-all ${selected.color}`}
       >
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${selected.glow}`} />

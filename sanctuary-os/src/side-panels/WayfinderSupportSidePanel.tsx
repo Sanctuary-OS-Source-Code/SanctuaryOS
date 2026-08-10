@@ -456,7 +456,7 @@ export default function WayfinderSupportSidePanel({
 
           {String(activeCategory?.show_description_box) !== "false" && (
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex justify-between">
+              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex justify-start">
                 <span>{t("support_desc")}</span>
               </label>
               <textarea
@@ -590,7 +590,7 @@ export default function WayfinderSupportSidePanel({
 
           {String(activeCategory?.show_logs_box) !== "false" && (
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex justify-between items-center">
+              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex justify-start items-center">
                 <span>{t("support_logs")}</span>
                 <button onClick={attachLog} className="text-[var(--accent)] hover:opacity-80 transition-opacity flex items-center gap-1">
                   <span>+ {t("support_attach_log")}</span>

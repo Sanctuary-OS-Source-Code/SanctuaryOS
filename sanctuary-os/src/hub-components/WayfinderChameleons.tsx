@@ -1,4 +1,4 @@
-import { SearchBar } from "../shared";
+import { SearchBar, ScreenUtilityBar } from "../shared";
 import { useState, useEffect } from 'react';
 import { SidePanel, EmptyState, ActionButton } from '../shared';
 import { useLexicon } from '../LexiconContext';
@@ -137,33 +137,22 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
 
   return (
     <div className="flex flex-col w-full h-full relative transition-all duration-500">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-10">
-        <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">cloud_sync</span>
-          </div>
-          <span className="truncate">{isKeepers ? (t("keepers_master_themes") || "SANCTUARY THEMES") : (t("wf_master_themes") || "COMMUNITY THEMES")} ({Object.keys(cloudThemes).length})</span>
-        </h2>
-        <div className="flex items-center gap-3 flex-1 justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder={t("ui_search_chameleons") || "Search Themes..."}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
-          <ActionButton
-            onClick={createNewTheme}
-            className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
-            icon="add"
-            label={t("auto_create") || "CREATE"}
-          />
-          <button onClick={fetchThemes} className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
-            <span className={`material-symbols-outlined !text-[20px] text-[var(--text)] opacity-80 ${loading ? 'animate-spin' : ''}`}>refresh</span>
-          </button>
-        </div>
-      </div>
+            <ScreenUtilityBar
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder={t("ui_search_chameleons") || "Search Themes..."}
+        className="!mb-0 !border-0 !pb-0" // matching inner layout pattern
+      >
+        <ActionButton
+          onClick={createNewTheme}
+          className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+          icon="add"
+          label={t("auto_create") || "CREATE"}
+        />
+        <button onClick={fetchThemes} className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
+          <span className={`material-symbols-outlined !text-[20px] text-[var(--text)] opacity-80 ${loading ? 'animate-spin' : ''}`}>refresh</span>
+        </button>
+      </ScreenUtilityBar>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 relative">
         {loading && Object.keys(cloudThemes).length === 0 ? (

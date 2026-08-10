@@ -149,7 +149,7 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
 
          {problemsList.length > 0 && (
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[var(--radius)] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-red-500/[60%] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
-               <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--danger)]/30 bg-red-500/[10%] shrink-0">
+               <div className="flex items-center justify-start px-6 py-3 border-b border-[var(--danger)]/30 bg-red-500/[10%] shrink-0">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
                      <span className="material-symbols-outlined !text-[16px]">{t("icon_error")}</span>
                      {t("problems")} ({problemsList.length})

@@ -46,7 +46,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
         </div>
       </ViewHeader>
 
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-black/40 backdrop-blur-[3px] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-[var(--radius)] shadow-inner shrink-0">
+      <div className="flex flex-col md:flex-row justify-start items-center gap-4 bg-black/40 backdrop-blur-[3px] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-[var(--radius)] shadow-inner shrink-0">
 
         <div className="flex items-center gap-3 glass-panel px-4 py-2 rounded-xl w-full md:w-96">
           <span className="theme-text-accent">{t("_")}</span>

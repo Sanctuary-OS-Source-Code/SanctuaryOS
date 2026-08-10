@@ -580,11 +580,11 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
 
         setActivePanel(panelType);
       }}
-      className="group glass-panel rounded-3xl p-8 shadow-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/[5%] transition-all text-left flex flex-col justify-between h-56 relative overflow-hidden hover:scale-[1.02] active:scale-[0.98]"
+      className="group glass-panel rounded-3xl p-8 shadow-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/[5%] transition-all text-left flex flex-col justify-start h-56 relative overflow-hidden hover:scale-[1.02] active:scale-[0.98]"
     >
       <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[var(--accent)] opacity-[0.05] group-hover:opacity-[0.15] transition-opacity pointer-events-none rounded-full blur-2xl group-hover:scale-150 duration-700" />
 
-      <div className="flex justify-between items-start w-full relative z-10">
+      <div className="flex justify-start items-start w-full relative z-10">
         <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[var(--text)]/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:bg-[var(--accent)]/20 group-hover:border-[var(--accent)]/50 transition-all shadow-inner">
           <span className="material-symbols-outlined !text-[28px] text-[var(--text)] group-hover:text-[var(--accent)] transition-colors drop-shadow-md">{icon}</span>
         </div>
@@ -620,7 +620,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
 
             {/* Hero Header is removed as it's redundant with the Panel Title */}
 
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14">
+            <div className="flex items-center justify-start pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14">
               <h3 className="text-[14px] font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">check_circle</span>
                 {t("assigned_artifacts") || "ACTIVE PROTOCOLS"}
@@ -650,7 +650,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
             {type === 'flavors' && (
               <div className="mb-4 relative z-10">
                 {activeFlavorGroup ? (
-                  <div className="flex items-center gap-4 bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] px-4 py-3 rounded-xl w-full justify-between shadow-inner">
+                  <div className="flex items-center gap-4 bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] px-4 py-3 rounded-xl w-full justify-start shadow-inner">
                     <div className="flex items-center gap-3 w-full max-w-[200px]">
                       <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">{t("icon_hub")}</span>
                       {editingGroupId === activeFlavorGroup.id ? (
@@ -689,7 +689,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
             {type === 'community' && (
               <div className="mb-4 relative z-10">
                 {activeCommunityGroup ? (
-                  <div className="flex items-center gap-4 bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] px-4 py-3 rounded-xl w-full justify-between shadow-inner">
+                  <div className="flex items-center gap-4 bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] px-4 py-3 rounded-xl w-full justify-start shadow-inner">
                     <div className="flex items-center gap-3 w-full max-w-[200px]">
                       <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">{t("icon_community_groups") || "category"}</span>
                       {editingGroupId === activeCommunityGroup.id ? (
@@ -781,7 +781,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                     <div key={item.id} className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-red-500/[30%] hover:shadow-[0_10px_30px_rgba(var(--danger-rgb),0.15)] hover:bg-red-500/[5%] transition-all duration-300 isolate">
                       
                       {/* Top Row: Icon + Badge */}
-                      <div className="flex items-start justify-between gap-3 mb-4">
+                      <div className="flex items-start justify-start gap-3 mb-4">
                         <div className="w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
                           {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">{type === 'dlc' ? 'widgets' : (t("icon_deployed_code") || "extension")}</span>}
                         </div>
@@ -833,7 +833,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-[var(--text)]/5 rounded-full blur-[80px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
 
           {/* Header for Right Pane */}
-          <div className="shrink-0 flex items-center justify-between pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14">
+          <div className="shrink-0 flex items-center justify-start pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14">
             <h3 className="text-[14px] font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
               <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">apps</span>
               {t("available_lists") || "AVAILABLE ARTIFACTS"}
@@ -879,7 +879,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                   <div key={item.id} className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[var(--accent)]/[5%] transition-all duration-300 isolate">
 
                     {/* Top Row: Icon + Badge */}
-                    <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex items-start justify-start gap-3 mb-4">
                       <div className="w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
                         {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">{type === 'dlc' ? 'widgets' : (t("icon_deployed_code") || "extension")}</span>}
                       </div>
@@ -948,7 +948,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
     <div className="flex flex-col w-full relative animate-in fade-in h-full">
 
       {/* 1. The Seamless Header */}
-      <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20">
+      <div className="flex items-center justify-start px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[var(--text)]/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner shrink-0">
             <span className="material-symbols-outlined !text-[24px] text-[var(--accent)] drop-shadow-md opacity-80">{t("icon_link")}</span>

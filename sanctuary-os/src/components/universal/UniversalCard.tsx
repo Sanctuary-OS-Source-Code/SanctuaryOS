@@ -133,11 +133,11 @@ export function UniversalCard({
     }
     
     return (
-      <div className={`relative flex flex-col items-center justify-center shrink-0 overflow-hidden ${imageContainerClasses} ${layout === 'horizontal' ? 'bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'bg-[var(--sidebar)]'}`}>
+      <div className={`relative flex flex-col items-center justify-center shrink-0 overflow-hidden ${imageContainerClasses} ${layout === 'horizontal' ? 'bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'bg-transparent'}`}>
           {image ? (
             <img src={image} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent to-transparent flex items-center justify-center transition-colors duration-500" style={{ backgroundImage: `linear-gradient(to bottom right, color-mix(in srgb, var(--accent) 10%, transparent), transparent)` }}>
+            <div className="absolute inset-0 bg-transparent flex items-center justify-center transition-colors duration-500">
               {(layout === 'vertical' || layout === 'vertical-compact') && <div className="absolute top-0 right-0 w-32 h-32 rounded-[var(--radius)] blur-[30px] pointer-events-none mix-blend-screen" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 10%, transparent)` }} />}
               {customIcon ? customIcon : (
                 <span className={`material-symbols-outlined opacity-60 group-hover:opacity-100 theme-text-accent transition-all duration-500 drop-shadow-lg group-hover:scale-110 relative z-10 ${layout === 'horizontal' ? '!text-[36px]' : layout === 'vertical-compact' ? '!text-[48px]' : '!text-[72px]'}`}>
@@ -159,8 +159,8 @@ export function UniversalCard({
       style={style}
       {...restProps}
     >
-      {/* Background Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-[var(--bg)]/5 to-transparent group-hover:from-[var(--accent)]/5 transition-colors duration-500 pointer-events-none z-0" />
+      {/* Background Gradient overlay - REMOVED so it doesn't ruin the glass */}
+      <div className="absolute inset-0 transition-colors duration-500 pointer-events-none z-0" />
 
       {/* Floating or Inline Actions */}
       {actions && layout !== 'horizontal' && layout !== 'compact' && (

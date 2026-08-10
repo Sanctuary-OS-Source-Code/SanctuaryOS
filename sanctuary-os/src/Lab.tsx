@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, ModSearchDropdown, HubTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter, getExtensionRegex, SearchBar } from "./shared";
+import { ViewHeader, ModSearchDropdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter, getExtensionRegex, SearchBar, ScreenUtilityBar } from "./shared";
 import { CommandScreenLayout, DashboardStatTile, CommandScreenStats, CommandScreenQuickLink, CommandScreenSectionHeading, CommandScreenBody, CommandScreenMain, CommandScreenSidebar } from "./hub-components/SharedCommandScreenLayout";
 import { useStore } from "./store";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
@@ -266,15 +266,15 @@ export default function Lab({
         subtitle={t("lab_subtitle")}
         icon={t("icon_science")}
         iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+        breadcrumb={activeTab !== "DASHBOARD" ? (t(`tab_lab_${activeTab.toLowerCase()}`) || activeTab) : undefined}
+        onTitleClick={() => setActiveTab("DASHBOARD")}
       />
 
-        <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
-            <HubTabButton id="DASHBOARD" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
-            <HubTabButton id="BUILDER" icon="science" label={t("tab_lab_builder")} activeTab={activeTab} setTab={setActiveTab} />
-            <HubTabButton id="REPORTS" icon="terminal" label={t("tab_lab_reports")} activeTab={activeTab} setTab={setActiveTab} />
-          </div>
-        </div>
+      <HoverTabDrawer title="Lab Navigation" activeTab={activeTab} setTab={setActiveTab}>
+        <VerticalTabButton id="DASHBOARD" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="BUILDER" icon="science" label={t("tab_lab_builder")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="REPORTS" icon="terminal" label={t("tab_lab_reports")} activeTab={activeTab} setTab={setActiveTab} />
+      </HoverTabDrawer>
 
       {activeTab === "DASHBOARD" && (
         <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full">
@@ -500,7 +500,7 @@ export default function Lab({
                 {stagedExtras.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-max">
                     {stagedExtras.map((m: any) => (
-                      <div key={m.hash} className="flex justify-between items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all group/item shadow-sm h-[60px]">
+                      <div key={m.hash} className="flex justify-start items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all group/item shadow-sm h-[60px]">
                         <span className="text-[11px] font-black uppercase text-[var(--text)] truncate pr-4">{getModName(m)}</span>
                         <button onClick={() => setStagedExtras(stagedExtras.filter(e => e.hash !== m.hash))} className="w-8 h-8 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"><span className='material-symbols-outlined !text-[16px]'>{t("icon_close")}</span></button>
                       </div>
@@ -549,7 +549,7 @@ export default function Lab({
                 <div className="flex flex-col gap-4 relative z-10 flex-1">
                   {conflictTarget ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-max">
-                      <div className="relative overflow-hidden bg-orange-500/[10%] border border-orange-500/[30%] p-4 rounded-xl shadow-md flex justify-between items-center group md:col-span-2 h-[80px]">
+                      <div className="relative overflow-hidden bg-orange-500/[10%] border border-orange-500/[30%] p-4 rounded-xl shadow-md flex justify-start items-center group md:col-span-2 h-[80px]">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--warning)] opacity-10 blur-[30px] rounded-full pointer-events-none" />
                         <div className="flex flex-col gap-1 relative z-10 min-w-0 pr-4">
                           <span className="text-[9px] font-black theme-text-warning uppercase tracking-[0.3em]">{t("primary_adversary")}</span>
@@ -559,7 +559,7 @@ export default function Lab({
                       </div>
 
                       {conflictExtras.map((m: any) => (
-                        <div key={m.hash} className="flex justify-between items-center bg-orange-500/[5%] border border-orange-500/[10%] p-4 rounded-xl hover:border-orange-500/[20%] hover:bg-orange-500/[8%] transition-all group/item shadow-sm h-[60px]">
+                        <div key={m.hash} className="flex justify-start items-center bg-orange-500/[5%] border border-orange-500/[10%] p-4 rounded-xl hover:border-orange-500/[20%] hover:bg-orange-500/[8%] transition-all group/item shadow-sm h-[60px]">
                           <span className="text-[11px] font-black uppercase text-[var(--text)] truncate pr-4">{getModName(m)}</span>
                           <button onClick={() => setConflictExtras(conflictExtras.filter(e => e.hash !== m.hash))} className="w-8 h-8 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"><span className='material-symbols-outlined !text-[16px]'>{t("icon_close")}</span></button>
                         </div>
@@ -581,30 +581,20 @@ export default function Lab({
       {activeTab === "REPORTS" && (
         <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full h-full min-h-[500px]">
 
-          <CommandScreenSectionHeading 
-            shape="square"
-            title={t("tab_lab_reports") || "TELEMETRY LOGS"}
-            icon="terminal"
-            className="py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-6 relative z-20 shrink-0"
-            rightContent={
-              <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                <SearchBar
-                  value={searchLogs}
-                  onChange={setSearchLogs}
-                  placeholder={t("search_logs") as string}
-                  className="flex-1 min-w-[200px] w-full xl:max-w-[300px] !h-12 !rounded-2xl"
-                />
-
-                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[300px] shrink-0 relative z-50 h-12">
-                  <FilterTabs className="w-full">
-                    <FilterTabButton id="all" label={t("all_logs") || "All Logs"} activeTab={logFilter} setTab={setLogFilter} />
-                    <FilterTabButton id="pass" label={t("verified") || "Verified"} activeTab={logFilter} setTab={setLogFilter} />
-                    <FilterTabButton id="errors" label={t("fatal") || "Fatal"} activeTab={logFilter} setTab={setLogFilter} />
-                  </FilterTabs>
-                </div>
-              </div>
-            }
-          />
+                    <ScreenUtilityBar
+            search={searchLogs}
+            onSearchChange={setSearchLogs}
+            searchPlaceholder={t("search_logs") as string}
+            className="!mb-6 animate-in slide-in-from-top-4 duration-500 relative z-20"
+          >
+            <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[300px] shrink-0 relative z-50 h-12">
+              <FilterTabs className="w-full h-full">
+                <FilterTabButton id="all" label={t("all_logs") || "All Logs"} activeTab={logFilter} setTab={setLogFilter} />
+                <FilterTabButton id="verified" label={t("verified") || "Verified"} activeTab={logFilter} setTab={setLogFilter} />
+                <FilterTabButton id="fatal" label={t("fatal") || "Fatal"} activeTab={logFilter} setTab={setLogFilter} />
+              </FilterTabs>
+            </div>
+          </ScreenUtilityBar>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-32">
             {filteredReports.map((report: any) => {

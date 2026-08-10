@@ -149,14 +149,7 @@ export function GameManagementOversight() {
   return (
     <div className="flex flex-col w-full relative h-full">
       <div className="flex flex-col lg:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_settings")}</span>
-          </div>
-          <span className="truncate">{t("ql_game_versions")}</span>
-        </h2>
-
-        <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
+        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
           <div className="relative flex-1 max-w-[300px]">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
             <input
@@ -218,7 +211,7 @@ export function GameManagementOversight() {
                   title={v.version}
                   subtitle={t("patch_release")}
                   footer={
-                    <div className="flex justify-between items-center w-full">
+                    <div className="flex justify-start items-center w-full">
                       <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
                         <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
                         {v.release_date ? new Date(v.release_date).toLocaleDateString() : (v.created_at ? new Date(v.created_at).toLocaleDateString() : "UNKNOWN")}
@@ -252,7 +245,7 @@ export function GameManagementOversight() {
                     </span>
                   ]}
                   footer={
-                    <div className="flex justify-between items-center w-full">
+                    <div className="flex justify-start items-center w-full">
                       <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
                         <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
                         {d.release_date ? new Date(d.release_date).toLocaleDateString() : d.id}

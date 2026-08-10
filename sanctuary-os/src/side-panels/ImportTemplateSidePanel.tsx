@@ -109,7 +109,7 @@ export function ImportTemplateSidePanel({
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)]/5 rounded-full blur-3xl group-hover:bg-[var(--accent)]/20 transition-colors pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
                 
-                <div className="flex items-center justify-between w-full relative z-10">
+                <div className="flex items-center justify-start w-full relative z-10">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
                        <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] drop-shadow-[0_0_5px_rgba(var(--accent-rgb),0.5)]">{t("icon_data_object")}</span>
@@ -119,7 +119,7 @@ export function ImportTemplateSidePanel({
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] px-3 py-1.5 rounded-full shadow-inner">{template.target_file}</span>
                 </div>
                 
-                <div className="flex items-center justify-between w-full mt-2 relative z-10 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4">
+                <div className="flex items-center justify-start w-full mt-2 relative z-10 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4">
                    <div className="flex items-center gap-6">
                        {template.mod_author && (
                          <div className="flex items-center gap-2">

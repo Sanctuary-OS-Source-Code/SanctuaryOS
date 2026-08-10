@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, isVersionMatch, SidePanel, SidebarActionButton, getExtensionRegex, FilterTabs, FilterTabButton, HubTabButton, DashboardStatTile, ActionButton, HoverTooltip, SearchBar } from "./shared";
+import { ViewHeader, isVersionMatch, SidePanel, SidebarActionButton, getExtensionRegex, FilterTabs, FilterTabButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionButton, HoverTooltip, SearchBar } from "./shared";
 import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 import BlueprintMatrix from "./BlueprintMatrix";
 import BlueprintArchitect from "./BlueprintArchitect";
@@ -31,7 +31,7 @@ export default function Blueprints({
   const [syncInputVisible, setSyncInputVisible] = useState(false);
   const [localSyncCode, setLocalSyncCode] = useState("");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-      const [ghostModalSet, setGhostModalSet] = useState<string | null>(null);
+  const [ghostModalSet, setGhostModalSet] = useState<string | null>(null);
   const [ghostStrings, setGhostStrings] = useState<string[]>([]);
 
   const [myCloudBlueprints, setMyCloudBlueprints] = useState<any[]>([]);
@@ -253,149 +253,155 @@ export default function Blueprints({
     const hasAlerts = alertStatus && alertStatus.total > 0;
     return (
       <div key={set.name} className={`glass-panel p-6 rounded-3xl flex flex-col transition-all min-h-[14rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative overflow-hidden group/card ${activeSetName === set.name ? 'border-[var(--success)] shadow-[0_20px_50px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] hover:shadow-[0_30px_60px_rgba(var(--accent-rgb),0.1)]'}`} style={activeSetName === set.name ? { backgroundColor: 'color-mix(in srgb, var(--success) 10%, transparent)' } : {}}>
-                  <div className={`absolute inset-0 bg-gradient-to-br pointer-events-none transition-opacity duration-500 opacity-0 group-hover/card:opacity-100 ${activeSetName === set.name ? 'from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-transparent' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent'}`} />
+        <div className={`absolute inset-0 bg-gradient-to-br pointer-events-none transition-opacity duration-500 opacity-0 group-hover/card:opacity-100 ${activeSetName === set.name ? 'from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-transparent' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent'}`} />
 
-                  <button onClick={() => togglePin(set.name)} className={`absolute top-6 right-6 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md ${isPinned ? 'text-[var(--accent)] bg-[var(--accent)]/[15%] border border-[var(--accent)]/[40%] opacity-100 shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)]' : 'text-[var(--subtext)] opacity-0 group-hover/card:opacity-50 hover:!opacity-100 bg-black/40 hover:bg-black/60 border border-[color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
-                    <span className="material-symbols-outlined !text-[18px]">keep</span>
-                    <HoverTooltip title={isPinned ? (t("action_unpin") || "Unpin Blueprint") : (t("action_pin") || "Pin Blueprint")} />
-                  </button>
+        <button onClick={() => togglePin(set.name)} className={`absolute top-6 right-6 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md ${isPinned ? 'text-[var(--accent)] bg-[var(--accent)]/[15%] border border-[var(--accent)]/[40%] opacity-100 shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)]' : 'text-[var(--subtext)] opacity-0 group-hover/card:opacity-50 hover:!opacity-100 bg-black/40 hover:bg-black/60 border border-[color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
+          <span className="material-symbols-outlined !text-[18px]">keep</span>
+          <HoverTooltip title={isPinned ? (t("action_unpin") || "Unpin Blueprint") : (t("action_pin") || "Pin Blueprint")} />
+        </button>
 
-                  <div className="mb-4 relative group/title z-10 flex flex-col items-start gap-1 pr-14">
-                    {editingSetName === set.name ? (
-                      <input
-                        autoFocus
-                        value={newSetName}
-                        onChange={(e) => setNewSetName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            if (renamePlaySet && newSetName.trim() !== "" && newSetName !== set.name) {
-                              renamePlaySet(set.name, newSetName.trim());
-                            }
-                            setEditingSetName(null);
-                          } else if (e.key === 'Escape') {
-                            setEditingSetName(null);
-                          }
-                        }}
-                        onBlur={() => {
-                          if (renamePlaySet && newSetName.trim() !== "" && newSetName !== set.name) {
-                            renamePlaySet(set.name, newSetName.trim());
-                          }
-                          setEditingSetName(null);
-                        }}
-                        className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-3 py-2 rounded-xl text-xl font-black text-[var(--text)] tracking-tighter outline-none mb-1 shadow-inner focus:border-[var(--accent)] transition-colors"
-                      />
-                    ) : (
-                      <div
-                        className="flex items-center gap-2 cursor-pointer w-full group/editbtn"
-                        onClick={() => {
-                          setNewSetName(set.name);
-                          setEditingSetName(set.name);
-                        }}
-                      >
-                        <h3 className="text-2xl font-black text-[var(--text)] tracking-tighter truncate leading-tight hover:text-[var(--accent)] transition-colors drop-shadow-md">{set.name}</h3>
-                        <span className="material-symbols-outlined !text-sm opacity-0 group-hover/editbtn:opacity-100 transition-opacity text-[var(--subtext)] hover:text-[var(--accent)] drop-shadow-md shrink-0 bg-black/40 p-1.5 rounded-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{t("icon_edit")}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 mt-2">
-                      <button 
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all w-max group/link shadow-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedUplinkBlueprint({ name: set.name, code: "LOCAL BLUEPRINT", artifacts: set.mods });
-                        }}
-                      >
-                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] opacity-80 group-hover/link:opacity-100">extension</span>
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-80 group-hover/link:opacity-100">
-                          {(set.mods || []).map((m: any) => typeof m === 'string' ? m : (m?.name || '')).filter((modName: string) => modName && !modName.startsWith("FOLDER_") && !modName.startsWith("SET_") && !modName.startsWith("LOCAL_SET_")).length} {t("artifacts_linked") || "ARTIFACTS LINKED"}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
+        <div className="mb-4 relative group/title z-10 flex flex-col items-start gap-1 pr-14">
+          {editingSetName === set.name ? (
+            <input
+              autoFocus
+              value={newSetName}
+              onChange={(e) => setNewSetName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (renamePlaySet && newSetName.trim() !== "" && newSetName !== set.name) {
+                    renamePlaySet(set.name, newSetName.trim());
+                  }
+                  setEditingSetName(null);
+                } else if (e.key === 'Escape') {
+                  setEditingSetName(null);
+                }
+              }}
+              onBlur={() => {
+                if (renamePlaySet && newSetName.trim() !== "" && newSetName !== set.name) {
+                  renamePlaySet(set.name, newSetName.trim());
+                }
+                setEditingSetName(null);
+              }}
+              className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-3 py-2 rounded-xl text-xl font-black text-[var(--text)] tracking-tighter outline-none mb-1 shadow-inner focus:border-[var(--accent)] transition-colors"
+            />
+          ) : (
+            <div
+              className="flex items-center gap-2 cursor-pointer w-full group/editbtn"
+              onClick={() => {
+                setNewSetName(set.name);
+                setEditingSetName(set.name);
+              }}
+            >
+              <h3 className="text-2xl font-black text-[var(--text)] tracking-tighter truncate leading-tight hover:text-[var(--accent)] transition-colors drop-shadow-md">{set.name}</h3>
+              <span className="material-symbols-outlined !text-sm opacity-0 group-hover/editbtn:opacity-100 transition-opacity text-[var(--subtext)] hover:text-[var(--accent)] drop-shadow-md shrink-0 bg-black/40 p-1.5 rounded-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{t("icon_edit")}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all w-max group/link shadow-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedUplinkBlueprint({ name: set.name, code: "LOCAL BLUEPRINT", artifacts: set.mods });
+              }}
+            >
+              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] opacity-80 group-hover/link:opacity-100">extension</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-80 group-hover/link:opacity-100">
+                {(set.mods || []).map((m: any) => typeof m === 'string' ? m : (m?.name || '')).filter((modName: string) => modName && !modName.startsWith("FOLDER_") && !modName.startsWith("SET_") && !modName.startsWith("LOCAL_SET_")).length} {t("artifacts_linked") || "ARTIFACTS LINKED"}
+              </span>
+            </button>
+          </div>
+        </div>
 
-                  <div className="flex flex-col gap-3 mt-auto relative z-10 pt-6">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => equipPlaySet && equipPlaySet(set.name)}
-                        className={`flex-1 h-12 rounded-xl font-black text-[11px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 relative shadow-lg hover:scale-[1.02] active:scale-95 ${activeSetName === set.name ? 'bg-emerald-500/[15%] border border-emerald-500/[40%] text-[var(--success)] backdrop-blur-md shadow-[0_10px_30px_rgba(var(--success-rgb),0.2)]' : 'glass-surface border border-[var(--accent)]/[30%] text-[var(--accent)] hover:border-[var(--accent)]/[60%] hover:bg-[var(--accent)]/[10%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)]'}`}
-                      >
-                        {activeSetName === set.name ? <span className="material-symbols-outlined !text-[18px] drop-shadow-md">verified_user</span> : <span className="material-symbols-outlined !text-[18px]">play_circle</span>}
-                        {activeSetName === set.name ? t("btn_deployed") : t("playsets_btn_equip")}
-                        <HoverTooltip title={activeSetName === set.name ? (t("status_deployed") || "Deployed") : (t("action_equip") || "Deploy Blueprint")} />
-                      </button>
+        <div className="flex flex-col gap-3 mt-auto relative z-10 pt-6">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => equipPlaySet && equipPlaySet(set.name)}
+              className={`flex-1 h-12 rounded-xl font-black text-[11px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 relative shadow-lg hover:scale-[1.02] active:scale-95 ${activeSetName === set.name ? 'bg-emerald-500/[15%] border border-emerald-500/[40%] text-[var(--success)] backdrop-blur-md shadow-[0_10px_30px_rgba(var(--success-rgb),0.2)]' : 'glass-surface border border-[var(--accent)]/[30%] text-[var(--accent)] hover:border-[var(--accent)]/[60%] hover:bg-[var(--accent)]/[10%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)]'}`}
+            >
+              {activeSetName === set.name ? <span className="material-symbols-outlined !text-[18px] drop-shadow-md">verified_user</span> : <span className="material-symbols-outlined !text-[18px]">play_circle</span>}
+              {activeSetName === set.name ? t("btn_deployed") : t("playsets_btn_equip")}
+              <HoverTooltip title={activeSetName === set.name ? (t("status_deployed") || "Deployed") : (t("action_equip") || "Deploy Blueprint")} />
+            </button>
 
-                      <button
-                        onClick={() => { if (setActivePlaySetIndex) setActivePlaySetIndex(playSets.findIndex((s: any) => s.name === set.name)); setIsArchitectOpen(true); }}
-                        className={`h-12 px-6 glass-surface border rounded-xl transition-all flex items-center justify-center gap-2 relative hover:scale-[1.05] active:scale-95 font-black uppercase text-[11px] tracking-widest shadow-lg ${hasAlerts ? (alertStatus.tier4 > 0 || alertStatus.broken > 0 ? '!border-red-500/[40%] !text-[var(--danger)] !bg-red-500/[15%] hover:!bg-red-500/[25%] hover:!border-red-500/[60%] shadow-[0_10px_30px_rgba(var(--danger-rgb),0.2)]' : '!border-orange-500/[40%] !text-[var(--warning)] !bg-orange-500/[15%] hover:!bg-orange-500/[25%] hover:!border-orange-500/[60%] shadow-[0_10px_30px_rgba(var(--warning-rgb),0.2)]') : 'border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[18px]">{hasAlerts ? (alertStatus.tier4 > 0 || alertStatus.broken > 0 ? "error" : "warning") : "tune"}</span>
-                        <HoverTooltip title={hasAlerts ? `${alertStatus.total} Alerts` : (t("action_architect") || "Architect")} />
-                      </button>
-                    </div>
+            <button
+              onClick={() => { if (setActivePlaySetIndex) setActivePlaySetIndex(playSets.findIndex((s: any) => s.name === set.name)); setIsArchitectOpen(true); }}
+              className={`h-12 px-6 glass-surface border rounded-xl transition-all flex items-center justify-center gap-2 relative hover:scale-[1.05] active:scale-95 font-black uppercase text-[11px] tracking-widest shadow-lg ${hasAlerts ? (alertStatus.tier4 > 0 || alertStatus.broken > 0 ? '!border-red-500/[40%] !text-[var(--danger)] !bg-red-500/[15%] hover:!bg-red-500/[25%] hover:!border-red-500/[60%] shadow-[0_10px_30px_rgba(var(--danger-rgb),0.2)]' : '!border-orange-500/[40%] !text-[var(--warning)] !bg-orange-500/[15%] hover:!bg-orange-500/[25%] hover:!border-orange-500/[60%] shadow-[0_10px_30px_rgba(var(--warning-rgb),0.2)]') : 'border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
+            >
+              <span className="material-symbols-outlined !text-[18px]">{hasAlerts ? (alertStatus.tier4 > 0 || alertStatus.broken > 0 ? "error" : "warning") : "tune"}</span>
+              <HoverTooltip title={hasAlerts ? `${alertStatus.total} Alerts` : (t("action_architect") || "Architect")} />
+            </button>
+          </div>
 
-                    <div className="grid grid-cols-4 gap-3 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] p-2 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                      <button
-                        onClick={() => handleOpenMatrix(set.name)}
-                        className="h-10 glass-surface border border-transparent text-[var(--subtext)] hover:text-[var(--accent)] rounded-xl hover:bg-[var(--accent)]/[10%] hover:border-[var(--accent)]/[30%] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.15)] transition-all flex items-center justify-center hover:scale-105 active:scale-95 relative"
-                      >
-                        <span className="material-symbols-outlined !text-[18px]">{t("icon_cloud")}</span>
-                        <HoverTooltip title={t("action_uplink") || "Uplink"} />
-                      </button>
-                      <button
-                        onClick={() => exportPlaySet && exportPlaySet(set.name)}
-                        className="h-10 glass-surface border border-transparent text-[var(--subtext)] hover:text-[var(--accent)] rounded-xl hover:bg-[var(--accent)]/[10%] hover:border-[var(--accent)]/[30%] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.15)] transition-all flex items-center justify-center hover:scale-105 active:scale-95 relative"
-                      >
-                        <span className="material-symbols-outlined !text-[18px]">{t("icon_upload")}</span>
-                        <HoverTooltip title={t("action_export") || "Export"} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          const missingStrings = getMissingStrings ? getMissingStrings(set.name) : [];
-                          if (missingStrings.length > 0) {
-                            setGhostStrings(missingStrings);
-                            setGhostModalSet(set.name);
-                          } else {
-                            setCleanConfirm(set.name);
-                            setTimeout(() => setCleanConfirm(null), 2000);
-                            window.dispatchEvent(new CustomEvent('push-status', { detail: { message: t("status_blueprint_clean") || "Blueprint is already fully sanitized.", type: "success" } }));
-                          }
-                        }}
-                        className={`h-10 rounded-xl transition-all flex items-center justify-center border hover:scale-105 active:scale-95 relative ${cleanConfirm === set.name ? 'bg-emerald-500/[15%] border-emerald-500/[40%] text-[var(--success)] shadow-[0_0_20px_rgba(var(--success-rgb),0.3)]' : (hasGhosts ? 'bg-orange-500/[15%] border-orange-500/[40%] text-[var(--warning)] shadow-[0_0_20px_rgba(var(--warning-rgb),0.3)] hover:bg-orange-500/[25%]' : 'bg-transparent hover:bg-[var(--accent)]/[10%] border-transparent hover:border-[var(--accent)]/[30%] text-[var(--subtext)] hover:text-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.15)]')}`}
-                      >
-                        <span className="material-symbols-outlined !text-[18px]">{cleanConfirm === set.name ? 'check_circle' : 'cleaning_services'}</span>
-                        <HoverTooltip title={cleanConfirm === set.name ? (t("btn_clean_success") || "Cleaned") : (t("action_clean_blueprint") || "Clean Blueprint")} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (deleteConfirm === set.name) {
-                            deletePlaySet && deletePlaySet(set.name);
-                            setDeleteConfirm(null);
-                          } else {
-                            setDeleteConfirm(set.name);
-                            setTimeout(() => setDeleteConfirm(null), 3000);
-                          }
-                        }}
-                        className={`h-10 transition-all flex items-center justify-center rounded-xl border hover:scale-105 active:scale-95 relative ${deleteConfirm === set.name ? "backdrop-blur-md bg-red-500/[25%] border-red-500/[50%] shadow-[0_0_20px_rgba(var(--danger-rgb),0.4)] text-[var(--danger)]" : "bg-transparent border-transparent text-[var(--danger)]/60 hover:text-[var(--danger)] hover:bg-red-500/[15%] hover:border-red-500/[40%] hover:shadow-[0_0_15px_rgba(var(--danger-rgb),0.15)]"}`}
-                      >
-                        <span className="material-symbols-outlined !text-[18px]">{deleteConfirm === set.name ? "warning" : t("icon_delete")}</span>
-                        <HoverTooltip title={deleteConfirm === set.name ? (t("btn_confirm") || "Confirm Purge") : (t("purge") || "Purge")} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+          <div className="grid grid-cols-4 gap-3 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] p-2 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
+            <button
+              onClick={() => handleOpenMatrix(set.name)}
+              className="h-10 glass-surface border border-transparent text-[var(--subtext)] hover:text-[var(--accent)] rounded-xl hover:bg-[var(--accent)]/[10%] hover:border-[var(--accent)]/[30%] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.15)] transition-all flex items-center justify-center hover:scale-105 active:scale-95 relative"
+            >
+              <span className="material-symbols-outlined !text-[18px]">{t("icon_cloud")}</span>
+              <HoverTooltip title={t("action_uplink") || "Uplink"} />
+            </button>
+            <button
+              onClick={() => exportPlaySet && exportPlaySet(set.name)}
+              className="h-10 glass-surface border border-transparent text-[var(--subtext)] hover:text-[var(--accent)] rounded-xl hover:bg-[var(--accent)]/[10%] hover:border-[var(--accent)]/[30%] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.15)] transition-all flex items-center justify-center hover:scale-105 active:scale-95 relative"
+            >
+              <span className="material-symbols-outlined !text-[18px]">{t("icon_upload")}</span>
+              <HoverTooltip title={t("action_export") || "Export"} />
+            </button>
+            <button
+              onClick={() => {
+                const missingStrings = getMissingStrings ? getMissingStrings(set.name) : [];
+                if (missingStrings.length > 0) {
+                  setGhostStrings(missingStrings);
+                  setGhostModalSet(set.name);
+                } else {
+                  setCleanConfirm(set.name);
+                  setTimeout(() => setCleanConfirm(null), 2000);
+                  window.dispatchEvent(new CustomEvent('push-status', { detail: { message: t("status_blueprint_clean") || "Blueprint is already fully sanitized.", type: "success" } }));
+                }
+              }}
+              className={`h-10 rounded-xl transition-all flex items-center justify-center border hover:scale-105 active:scale-95 relative ${cleanConfirm === set.name ? 'bg-emerald-500/[15%] border-emerald-500/[40%] text-[var(--success)] shadow-[0_0_20px_rgba(var(--success-rgb),0.3)]' : (hasGhosts ? 'bg-orange-500/[15%] border-orange-500/[40%] text-[var(--warning)] shadow-[0_0_20px_rgba(var(--warning-rgb),0.3)] hover:bg-orange-500/[25%]' : 'bg-transparent hover:bg-[var(--accent)]/[10%] border-transparent hover:border-[var(--accent)]/[30%] text-[var(--subtext)] hover:text-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.15)]')}`}
+            >
+              <span className="material-symbols-outlined !text-[18px]">{cleanConfirm === set.name ? 'check_circle' : 'cleaning_services'}</span>
+              <HoverTooltip title={cleanConfirm === set.name ? (t("btn_clean_success") || "Cleaned") : (t("action_clean_blueprint") || "Clean Blueprint")} />
+            </button>
+            <button
+              onClick={() => {
+                if (deleteConfirm === set.name) {
+                  deletePlaySet && deletePlaySet(set.name);
+                  setDeleteConfirm(null);
+                } else {
+                  setDeleteConfirm(set.name);
+                  setTimeout(() => setDeleteConfirm(null), 3000);
+                }
+              }}
+              className={`h-10 transition-all flex items-center justify-center rounded-xl border hover:scale-105 active:scale-95 relative ${deleteConfirm === set.name ? "backdrop-blur-md bg-red-500/[25%] border-red-500/[50%] shadow-[0_0_20px_rgba(var(--danger-rgb),0.4)] text-[var(--danger)]" : "bg-transparent border-transparent text-[var(--danger)]/60 hover:text-[var(--danger)] hover:bg-red-500/[15%] hover:border-red-500/[40%] hover:shadow-[0_0_15px_rgba(var(--danger-rgb),0.15)]"}`}
+            >
+              <span className="material-symbols-outlined !text-[18px]">{deleteConfirm === set.name ? "warning" : t("icon_delete")}</span>
+              <HoverTooltip title={deleteConfirm === set.name ? (t("btn_confirm") || "Confirm Purge") : (t("purge") || "Purge")} />
+            </button>
+          </div>
+        </div>
+      </div>
     );
   };
 
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 w-full">
-      <ViewHeader title={t("playsets_title")} subtitle={t("playsets_subtitle")} icon={t("icon_map")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" shape="circle" />
+      <ViewHeader
+        title={t("playsets_title")}
+        subtitle={t("playsets_subtitle")}
+        icon={t("icon_map")}
+        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+        shape="circle"
+        breadcrumb={activeTab !== "LANDING" ? (t(`tab_${activeTab.toLowerCase()}`) || activeTab) : undefined}
+        onTitleClick={() => setActiveTab("LANDING")}
+      />
 
-      <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
-          <HubTabButton id="LANDING" icon="dashboard" label={t("tab_landing") || "LANDING"} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="VAULT" icon="map" label={t("playsets_title") || "VAULT"} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="NETWORK" icon="cloud" label={t("btn_my_cloud_blueprints") || "NETWORK"} activeTab={activeTab} setTab={setActiveTab} iconColorClass="text-sky-500" />
-        </div>
-      </div>
+      <HoverTabDrawer title="Blueprint Navigation" activeTab={activeTab} setTab={setActiveTab}>
+        <VerticalTabButton id="LANDING" icon="dashboard" label={t("tab_landing") || "LANDING"} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="ALL" icon="map" label={t("playsets_all") || "VAULT"} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="NETWORK" icon="cloud" label={t("btn_my_cloud_blueprints") || "NETWORK"} activeTab={activeTab} setTab={setActiveTab} iconColorClass="text-sky-500" />
+      </HoverTabDrawer>
 
       {activeTab === "LANDING" && (
         <div className="flex flex-col w-full animate-in slide-in-from-top-4 duration-500 flex-1 min-h-[400px]">
@@ -434,8 +440,8 @@ export default function Blueprints({
             <CommandScreenBody>
               <CommandScreenMain>
                 <div className="flex flex-col gap-6 w-full">
-                  <CommandScreenSectionHeading 
-                    title={t("pinned_blueprints") || "PINNED BLUEPRINTS"} 
+                  <CommandScreenSectionHeading
+                    title={t("pinned_blueprints") || "PINNED BLUEPRINTS"}
                     icon="keep"
                   />
 
@@ -476,42 +482,42 @@ export default function Blueprints({
                 />
                 {syncInputVisible ? (
                   <div className="w-full p-6 glass-panel border border-[var(--accent)]/50 rounded-[var(--radius)] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] relative overflow-hidden h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
-                  <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent)]/10 via-transparent to-transparent opacity-100" />
-                  <div className="flex items-center gap-5 h-full relative z-10 w-full">
-                    <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] bg-[var(--accent)]/10">
-                      <span className="material-symbols-outlined !text-3xl drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">cloud_download</span>
-                    </div>
-                    <div className="flex flex-col flex-1 min-w-0 w-full justify-center">
-                      <div className="flex items-center justify-between w-full border-b border-[var(--accent)]/30 pb-1">
-                        <input 
-                          autoFocus
-                          value={localSyncCode}
-                          onChange={e => setLocalSyncCode(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' && localSyncCode.trim()) {
-                              if (setSyncCode) setSyncCode(localSyncCode.trim());
-                              if (syncBlueprintByCode) {
-                                setIsSyncing(true);
-                                syncBlueprintByCode(localSyncCode.trim()).finally(() => setIsSyncing(false));
-                              }
-                              setLocalSyncCode("");
-                              setSyncInputVisible(false);
-                            }
-                          }}
-                          placeholder={t("sidebar_uplink_placeholder") || "ENTER CODE..."}
-                          className="bg-transparent border-none outline-none w-full text-[11px] font-black uppercase tracking-widest text-[var(--accent)] placeholder:text-[var(--accent)]/40"
-                        />
-                        <button onClick={() => setSyncInputVisible(false)} className="text-[var(--subtext)] hover:text-white ml-2 transition-colors shrink-0">
-                          <span className="material-symbols-outlined !text-[14px]">close</span>
-                        </button>
+                    <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent)]/10 via-transparent to-transparent opacity-100" />
+                    <div className="flex items-center gap-5 h-full relative z-10 w-full">
+                      <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 border-[var(--accent)]/50 text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] bg-[var(--accent)]/10">
+                        <span className="material-symbols-outlined !text-3xl drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">cloud_download</span>
                       </div>
-                      <span className="text-[8px] uppercase font-bold opacity-80 tracking-widest text-[var(--accent)] mt-1.5 flex items-center gap-1.5">
-                        <span className="material-symbols-outlined !text-[10px]">keyboard_return</span>
-                        {t("press_enter_to_sync") || "PRESS ENTER TO SYNC"}
-                      </span>
+                      <div className="flex flex-col flex-1 min-w-0 w-full justify-center">
+                        <div className="flex items-center justify-start w-full border-b border-[var(--accent)]/30 pb-1">
+                          <input
+                            autoFocus
+                            value={localSyncCode}
+                            onChange={e => setLocalSyncCode(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && localSyncCode.trim()) {
+                                if (setSyncCode) setSyncCode(localSyncCode.trim());
+                                if (syncBlueprintByCode) {
+                                  setIsSyncing(true);
+                                  syncBlueprintByCode(localSyncCode.trim()).finally(() => setIsSyncing(false));
+                                }
+                                setLocalSyncCode("");
+                                setSyncInputVisible(false);
+                              }
+                            }}
+                            placeholder={t("sidebar_uplink_placeholder") || "ENTER CODE..."}
+                            className="bg-transparent border-none outline-none w-full text-[11px] font-black uppercase tracking-widest text-[var(--accent)] placeholder:text-[var(--accent)]/40"
+                          />
+                          <button onClick={() => setSyncInputVisible(false)} className="text-[var(--subtext)] hover:text-white ml-2 transition-colors shrink-0">
+                            <span className="material-symbols-outlined !text-[14px]">close</span>
+                          </button>
+                        </div>
+                        <span className="text-[8px] uppercase font-bold opacity-80 tracking-widest text-[var(--accent)] mt-1.5 flex items-center gap-1.5">
+                          <span className="material-symbols-outlined !text-[10px]">keyboard_return</span>
+                          {t("press_enter_to_sync") || "PRESS ENTER TO SYNC"}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
                 ) : (
                   <CommandScreenQuickLink
                     icon={isSyncing ? "sync" : "cloud_sync"}
@@ -559,21 +565,14 @@ export default function Blueprints({
       {activeTab === "VAULT" && (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
           <div className="flex items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-            <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full glass-panel border border-indigo-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] text-indigo-500 opacity-90 drop-shadow-lg">map</span>
-              </div>
-              <span className="truncate">{t("playsets_title") || "VAULT"}</span>
-            </h2>
-
             <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
               <SearchBar
-                  value={vaultSearchQuery}
-                  onChange={(val: string) => setVaultSearchQuery(val)}
-                  placeholder={(t("nav_search") || "Search Vault...") as string}
-                  className="flex-1 min-w-[200px] max-w-[350px] !h-12 !rounded-2xl"
-                />
-              <button 
+                value={vaultSearchQuery}
+                onChange={(val: string) => setVaultSearchQuery(val)}
+                placeholder={(t("nav_search") || "Search Vault...") as string}
+                className="flex-1 min-w-[200px] max-w-[350px] !h-12 !rounded-2xl"
+              />
+              <button
                 onClick={() => setIsDraftingSet && setIsDraftingSet(true)}
                 className="h-12 px-5 rounded-2xl glass-surface border border-[var(--accent)]/30 text-[var(--accent)] font-black uppercase tracking-widest text-xs flex items-center gap-2 hover:bg-[var(--accent)]/10 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] shrink-0"
               >
@@ -582,15 +581,15 @@ export default function Blueprints({
               </button>
 
 
-              
+
             </div>
           </div>
 
-          
 
-          
-            
-<div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-12">
+
+
+
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-12">
             {isDraftingSet && (
               <div className="glass-panel border-[var(--accent)]/[30%] p-6 rounded-[var(--radius)] flex flex-col gap-4 animate-in zoom-in-95 shadow-[0_0_30px_rgba(var(--accent-rgb),0.1)] relative overflow-hidden bg-[var(--accent)]/[5%] min-h-[14rem] justify-center">
                 <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />
@@ -620,14 +619,7 @@ export default function Blueprints({
       {activeTab === "NETWORK" && (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full pb-32">
           <div className="flex items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-            <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl glass-panel border border-sky-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] text-sky-500 opacity-90 drop-shadow-lg">cloud</span>
-              </div>
-              <span className="truncate">{t("btn_my_cloud_blueprints") || "NETWORK"}</span>
-            </h2>
-
-            <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
+            <div className="flex items-center gap-3 relative flex-1 w-full justify-end flex-wrap">
               <SearchBar
                 value={cloudSearchQuery}
                 onChange={(val) => setCloudSearchQuery(val)}
@@ -641,13 +633,13 @@ export default function Blueprints({
                   <FilterTabButton id="not_in_vault" label={t("blueprint_tab_missing") || "MISSING"} activeTab={cloudFilterTab} setTab={setCloudFilterTab} className="flex-1" />
                 </FilterTabs>
               </div>
-              
+
             </div>
           </div>
 
-          
+
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 h-full pt-1">
-            
+
             {myCloudBlueprints.length === 0 ? (
               <div className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] opacity-50 text-center py-10 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed rounded-xl col-span-full glass-panel">
                 <span className="material-symbols-outlined !text-4xl block mb-2 opacity-50">cloud_off</span>
@@ -678,7 +670,7 @@ export default function Blueprints({
                     >
                       <div className={`absolute inset-0 bg-gradient-to-br transition-opacity duration-500 opacity-0 group-hover/btn:opacity-100 pointer-events-none ${inVault ? 'from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-transparent' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent'}`} />
 
-                      <div className="flex flex-row items-start justify-between w-full gap-2 relative z-10">
+                      <div className="flex flex-row items-start justify-start w-full gap-2 relative z-10">
                         <span className={`text-2xl font-black tracking-tighter truncate transition-colors drop-shadow-md ${inVault ? 'text-[var(--text)]' : 'text-[var(--text)] group-hover/btn:text-[var(--accent)]'}`}>{bp.name}</span>
                         {inVault ? (
                           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/[15%] border border-emerald-500/[40%] rounded-lg shrink-0 shadow-sm shadow-[0_0_15px_rgba(var(--success-rgb),0.2)]">
@@ -695,7 +687,7 @@ export default function Blueprints({
 
                       {bp.artifacts && bp.artifacts.length > 0 && (
                         <div className="mt-2 flex items-center relative z-10">
-                          <button 
+                          <button
                             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all w-max group/link shadow-sm"
                             onClick={() => setSelectedUplinkBlueprint(bp)}
                           >
@@ -707,11 +699,11 @@ export default function Blueprints({
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between w-full mt-auto relative z-10 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                        <div 
+                      <div className="flex items-center justify-start w-full mt-auto relative z-10 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                        <div
                           className="group/code flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity px-4 py-2 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                           onClick={() => {
-                            navigator.clipboard.writeText(bp.code).catch(()=>{});
+                            navigator.clipboard.writeText(bp.code).catch(() => { });
                             setCopiedCode(bp.code);
                             setTimeout(() => setCopiedCode(null), 2000);
                           }}
@@ -812,23 +804,23 @@ export default function Blueprints({
           }}
         />
       )}
-    
-      <SidePanel 
-        isOpen={!!selectedUplinkBlueprint} 
+
+      <SidePanel
+        isOpen={!!selectedUplinkBlueprint}
         onClose={() => {
           setSelectedUplinkBlueprint(null);
           setUplinkArtifactSearch("");
-        }} 
-        title={selectedUplinkBlueprint?.name || "Blueprint Mods"} 
-        subtitle={selectedUplinkBlueprint?.code || "Uplink Code"} 
-        icon="extension" 
+        }}
+        title={selectedUplinkBlueprint?.name || "Blueprint Mods"}
+        subtitle={selectedUplinkBlueprint?.code || "Uplink Code"}
+        icon="extension"
         iconColorClass="theme-text-accent"
       >
         <div className="flex flex-col min-h-full gap-4 pb-4">
-          <div className="flex items-center justify-between mb-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-3">
+          <div className="flex items-center justify-start mb-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-3">
             <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-widest">{t("artifacts_linked") || "ARTIFACTS LINKED"} ({selectedUplinkBlueprint?.artifacts?.length})</h3>
           </div>
-          <SearchBar 
+          <SearchBar
             value={uplinkArtifactSearch}
             onChange={setUplinkArtifactSearch}
             placeholder={t("playsets_search_ph") || "SEARCH ARTIFACTS..."}

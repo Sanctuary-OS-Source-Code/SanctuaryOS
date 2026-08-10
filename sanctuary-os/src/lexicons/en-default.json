@@ -2305,6 +2305,10 @@
   "alert_error_mason_profile_missing": "Error: Creator Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
   "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
+  "tab_vault": "Vault",
+  "tab_conflicts": "Conflicts",
+  "tab_world": "World State",
+  "oversight_subtitle": "Compliance, enforcement, audit control, and emergency authority",
   "status_dd_all": "All Statuses",
   "status_conflicts_resolved": "Conflicts Resolved",
   "btn_keep_new": "Keep",
@@ -2733,5 +2737,8 @@
   "panel_pin_subtitle": "Select an item to feature on your profile",
   "search_artifacts": "Search Artifacts...",
   "no_match_artifacts": "No Matching Artifacts",
-  "no_match_assets": "No Matching Assets"
+  "no_match_assets": "No Matching Assets",
+  "status_corrupted": "Corrupted",
+  "playsets_all": "All Playsets",
+  "oversight_title": "Admin Command"
 }

@@ -32,7 +32,7 @@ export function BrokenModsSidePanel({
         }).map((m: any) => {
           const isMismatch = m.isGhosted === true && m.ghostReason === "VERSION_MISMATCH";
           return (
-            <div key={m.hash} className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-amber-500/50 transition-all group gap-4">
+            <div key={m.hash} className="flex items-center justify-start p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-amber-500/50 transition-all group gap-4">
               <div className="flex flex-col gap-1 min-w-0">
                 <span className="text-sm font-black text-[var(--text)] truncate group-hover:text-amber-500 transition-colors">
                   {m.name.split(/[/\\]/).pop()}

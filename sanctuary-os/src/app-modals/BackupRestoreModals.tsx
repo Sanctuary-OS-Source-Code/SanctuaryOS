@@ -65,7 +65,7 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
              style={{ borderColor: `color-mix(in srgb, ${themeVar} 10%, transparent)` }}>
           {backupProgress ? (
           <>
-            <div className="flex justify-between items-end text-[11px] font-black uppercase tracking-[0.3em]"
+            <div className="flex justify-start items-end text-[11px] font-black uppercase tracking-[0.3em]"
                  style={{ color: `color-mix(in srgb, ${themeVar} 90%, transparent)`, filter: `drop-shadow(0 0 10px color-mix(in srgb, ${themeVar} 20%, transparent))` }}>
               <span className="truncate pr-4">{backupProgress.action}</span>
               <span className="shrink-0 opacity-80">{backupProgress.current} / {backupProgress.total}</span>
@@ -87,7 +87,7 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
           </>
           ) : (
             <>
-              <div className="flex justify-between items-end text-[11px] font-black uppercase tracking-[0.3em]"
+              <div className="flex justify-start items-end text-[11px] font-black uppercase tracking-[0.3em]"
                    style={{ color: `color-mix(in srgb, ${themeVar} 90%, transparent)` }}>
                 <span>{t("defcon_init_secure") || "INITIALIZING DATA STREAM..."} [DEBUG: {JSON.stringify(backupProgress)}]</span>
                 <span className="animate-pulse opacity-80">{t("defcon_stand_by") || "STAND BY"}</span>

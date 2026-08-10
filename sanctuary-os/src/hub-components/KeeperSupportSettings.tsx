@@ -82,7 +82,7 @@ export default function KeeperSupportSettings() {
 
     return (
         <div className="flex flex-col gap-6 w-full relative min-h-[500px] animate-in fade-in pb-20 mt-4">
-            <div className="flex items-center justify-between w-full shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
+            <div className="flex items-center justify-start w-full shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
@@ -275,7 +275,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
         >
             <div className="flex flex-col gap-6">
 
-                <div className="flex items-center justify-between glass-panel p-4 rounded-[1.5rem] border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                <div className="flex items-center justify-start glass-panel p-4 rounded-[1.5rem] border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <UniversalToggle
                         checked={draft.is_active}
                         onChange={(checked) => setDraft({ ...draft, is_active: checked })}
@@ -329,7 +329,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                 />
 
                 <div className="flex flex-col gap-4 mt-4">
-                    <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
+                    <div className="flex items-center justify-start border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("support_custom_fields")}</span>
                         <button onClick={addField} className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:opacity-80">+ {t("support_add_field")}</button>
                     </div>
@@ -403,7 +403,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.requires_target_mod ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.requires_target_mod ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                       <span className={`text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 truncate ${draft.requires_target_mod ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                         <span className="material-symbols-outlined !text-[14px]">extension</span>
                         <span className="truncate">{t("support_req_target_mod")}</span>
@@ -414,7 +414,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                       <input type="checkbox" checked={draft.requires_target_mod || false} onChange={e => setDraft({...draft, requires_target_mod: e.target.checked})} className="hidden" />
                     </label>
 
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.requires_target_user ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.requires_target_user ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                       <span className={`text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 truncate ${draft.requires_target_user ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                         <span className="material-symbols-outlined !text-[14px]">person</span>
                         <span className="truncate">{t("support_req_target_user")}</span>
@@ -425,7 +425,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                       <input type="checkbox" checked={draft.requires_target_user || false} onChange={e => setDraft({...draft, requires_target_user: e.target.checked})} className="hidden" />
                     </label>
 
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.show_title_box ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.show_title_box ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                       <span className={`text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 truncate ${draft.show_title_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                         <span className="material-symbols-outlined !text-[14px]">title</span>
                         <span className="truncate">{t("support_show_title")}</span>
@@ -436,7 +436,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                       <input type="checkbox" checked={draft.show_title_box || false} onChange={e => setDraft({...draft, show_title_box: e.target.checked})} className="hidden" />
                     </label>
 
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.show_description_box ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.show_description_box ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                       <span className={`text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 truncate ${draft.show_description_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                         <span className="material-symbols-outlined !text-[14px]">description</span>
                         <span className="truncate">{t("support_show_desc")}</span>
@@ -447,7 +447,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                       <input type="checkbox" checked={draft.show_description_box || false} onChange={e => setDraft({...draft, show_description_box: e.target.checked})} className="hidden" />
                     </label>
 
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.show_logs_box ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.show_logs_box ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                       <span className={`text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 truncate ${draft.show_logs_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                         <span className="material-symbols-outlined !text-[14px]">history</span>
                         <span className="truncate">{t("support_show_logs")}</span>
@@ -458,7 +458,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                       <input type="checkbox" checked={draft.show_logs_box || false} onChange={e => setDraft({...draft, show_logs_box: e.target.checked})} className="hidden" />
                     </label>
 
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.attach_blueprints ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${draft.attach_blueprints ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                       <span className={`text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 truncate ${draft.attach_blueprints ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                         <span className="material-symbols-outlined !text-[14px]">architecture</span>
                         <span className="truncate">{t("support_attach_blueprints") || "ATTACH BLUEPRINTS"}</span>

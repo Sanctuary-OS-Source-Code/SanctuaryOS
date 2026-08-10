@@ -90,7 +90,7 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
               return (
                 <span 
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAssetClick?.(type, id); }}
-                  className="my-2 mx-1 group relative inline-flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[40%] hover:shadow-2xl backdrop-blur-2xl transition-all cursor-pointer hover:scale-[1.01] w-[calc(100%-0.5rem)] sm:w-[calc(50%-0.5rem)] align-top no-underline"
+                  className="my-2 mx-1 group relative inline-flex flex-row items-center justify-start gap-3 p-4 px-5 rounded-[var(--radius)] border glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[40%] hover:shadow-2xl backdrop-blur-2xl transition-all cursor-pointer hover:scale-[1.01] w-[calc(100%-0.5rem)] sm:w-[calc(50%-0.5rem)] align-top no-underline"
                 >
                   <span className="flex flex-col min-w-0 flex-1">
                     <span className="text-sm font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm flex items-center gap-2">

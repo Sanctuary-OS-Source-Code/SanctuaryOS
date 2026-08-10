@@ -30,7 +30,7 @@ const SettingNode = React.memo(({ setting, val, dataPath, isHighlighted, isPrevi
    };
 
    return (
-      <div data-setting-key={setting.key} className={`rounded-[var(--radius)] border p-4 sm:p-6 flex justify-between group hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 gap-4 sm:gap-6 transform-gpu backface-hidden relative overflow-hidden ${isPreview ? 'flex-col' : 'flex-col flex-wrap md:flex-row md:items-center'} ${isHighlighted ? 'z-10 bg-[var(--accent)]/[5%] border-[var(--accent)]/[30%] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-transparent'}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '80px' }}>
+      <div data-setting-key={setting.key} className={`rounded-[var(--radius)] border p-4 sm:p-6 flex justify-start group hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 gap-4 sm:gap-6 transform-gpu backface-hidden relative overflow-hidden ${isPreview ? 'flex-col' : 'flex-col flex-wrap md:flex-row md:items-center'} ${isHighlighted ? 'z-10 bg-[var(--accent)]/[5%] border-[var(--accent)]/[30%] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-transparent'}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '80px' }}>
          {isHighlighted && (
             <>
                <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: `linear-gradient(90deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent)` }} />

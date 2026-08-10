@@ -101,7 +101,7 @@ export default function MasonRecentRepliesSidePanel({
                                 }
                             }}
                         >
-                            <div className="flex justify-between items-center mb-1">
+                            <div className="flex justify-start items-center mb-1">
                                 <span className="text-xs font-black tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors uppercase flex items-center gap-2">
                                     <div className="w-6 h-6 rounded theme-bg-accent/20 flex items-center justify-center text-[10px] theme-text-accent shrink-0">
                                         {(reply.profiles?.username || t("a_citizen") || "A Citizen").charAt(0).toUpperCase()}

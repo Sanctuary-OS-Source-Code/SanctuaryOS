@@ -161,13 +161,7 @@ export function MassUpdateOversight() {
     <div className="flex flex-col w-full relative h-full">
 
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-30">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3 shrink-0">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_dynamic_feed")}</span>
-          </div>
-          <span className="truncate">{t("ql_mass_update")}</span>
-        </h2>
-      </div>
+        </div>
 
       <div className="flex flex-wrap items-center gap-4 px-6 py-2 shrink-0 z-20 relative">
         <div className="relative flex-1 min-w-[200px]">
@@ -245,7 +239,7 @@ export function MassUpdateOversight() {
                           : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)] hover:bg-[var(--accent)]/[5%]'
                         }`}
                     >
-                      <div className="flex items-start justify-between gap-3 mb-4">
+                      <div className="flex items-start justify-start gap-3 mb-4">
                         <div className={`w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl border shadow-inner transition-colors ${selectedIds.has(m.id)
                             ? 'bg-[var(--accent)]/[20%] border-[var(--accent)]/[50%] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]'
                             : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover/item:border-[var(--accent)]/[30%]'

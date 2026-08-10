@@ -222,7 +222,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
           <div className="w-full max-w-6xl h-full max-h-[800px] bg-[var(--bg)]/40 backdrop-blur-3xl border border-red-500/30 rounded-2xl shadow-[0_40px_100px_rgba(220,38,38,0.15),inset_0_1px_1px_rgba(255,255,255,0.05)] flex flex-col overflow-hidden relative">
 
             <div className="h-1 w-full bg-gradient-to-r from-transparent via-red-500/80 to-transparent opacity-50" />
-            <div className="w-full flex justify-between p-8 text-red-500/50 text-[10px] font-black uppercase tracking-widest font-mono">
+            <div className="w-full flex justify-start p-8 text-red-500/50 text-[10px] font-black uppercase tracking-widest font-mono">
               <span>{t("err_sys_prefix")} {t("auto_0xdeadbeef")}</span>
               <span>{t("err_sys_severed")}</span>
             </div>

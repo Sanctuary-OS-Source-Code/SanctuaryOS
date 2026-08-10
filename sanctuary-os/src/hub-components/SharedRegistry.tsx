@@ -1,4 +1,4 @@
-import { SearchBar } from "../shared";
+import { SearchBar, ScreenUtilityBar } from "../shared";
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
@@ -110,13 +110,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
     <>
       <div className={`flex flex-col gap-6 pb-20 ${isActiveTab ? '' : 'hidden'}`}>
         <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_deployed_code")}</span>
-            </div>
-            <span className="truncate">{t("title_artifacts")}</span>
-          </h2>
-          <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
+        <div className="flex items-center gap-3 relative flex-1 w-full justify-end justify-start">
             <div className="relative flex-1 max-w-[300px]">
               <SearchBar
                 value={searchTerm}
@@ -130,12 +124,10 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
                 { id: "ALL", label: t("status_dd_all") || "ALL STATUSES" },
                 { id: "stable", label: t("status_dd_stable") || "STABLE" },
                 { id: "unstable", label: t("label_unstable") || "UNSTABLE" },
-                { id: "broken", label: t("status_broken") || "BROKEN" },
+                { id: "corrupted", label: t("status_corrupted") || "CORRUPTED" },
                 { id: "under_review", label: t("status_dd_review") || "UNDER REVIEW" },
                 { id: "pending", label: t("pending") || "PENDING" },
                 { id: "unverified", label: t("unverified") || "UNVERIFIED" },
-                { id: "early_access", label: t("label_is_early_access") || "EARLY ACCESS" },
-                { id: "paid", label: t("label_is_paid") || "PAID" }
               ]} />
             </div>
           </div>
@@ -230,7 +222,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                 <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
                   {t("label_is_paid")}
@@ -242,7 +234,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
                 <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({ ...activeMod, is_paid: e.target.checked })} className="hidden" />
               </label>
 
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                 <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
                   {t("label_is_early_access")}
@@ -462,14 +454,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
     <>
       <div className={`flex flex-col gap-6 pb-20 w-full h-full relative ${isActiveTab ? '' : 'hidden'}`}>
         <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-          <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_inventory_2")}</span>
-            </div>
-            <span className="truncate">{t("items")}</span>
-          </h2>
-
-          <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
+        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
             <div className="relative flex-1 max-w-[300px]">
               <SearchBar
                 value={searchTerm}
@@ -517,12 +502,10 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
                 { id: "ALL", label: t("status_dd_all") || "ALL STATUSES" },
                 { id: "stable", label: t("status_dd_stable") || "STABLE" },
                 { id: "unstable", label: t("label_unstable") || "UNSTABLE" },
-                { id: "broken", label: t("status_broken") || "BROKEN" },
+                { id: "corrupted", label: t("status_corrupted") || "CORRUPTED" },
                 { id: "under_review", label: t("status_dd_review") || "UNDER REVIEW" },
                 { id: "pending", label: t("pending") || "PENDING" },
                 { id: "unverified", label: t("unverified") || "UNVERIFIED" },
-                { id: "early_access", label: t("label_is_early_access") || "EARLY ACCESS" },
-                { id: "paid", label: t("label_is_paid") || "PAID" }
               ]} />
             </div>
           </div>
@@ -650,7 +633,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                 <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
                   {t("label_is_paid")}
@@ -662,7 +645,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
                 <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({ ...activeMod, is_paid: e.target.checked })} className="hidden" />
               </label>
 
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                 <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
                   {t("label_is_early_access")}

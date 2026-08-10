@@ -77,7 +77,7 @@ export default function MasonProfileAssets({
               }
               className="w-full h-full"
               footer={
-                <div className="flex items-center justify-between w-full pt-1">
+                <div className="flex items-center justify-start w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton
@@ -138,7 +138,7 @@ export default function MasonProfileAssets({
               }
               className="w-full h-full"
               footer={
-                <div className="flex items-center justify-between w-full pt-1">
+                <div className="flex items-center justify-start w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton
@@ -197,7 +197,7 @@ export default function MasonProfileAssets({
               }
               className="w-full h-full"
               footer={
-                <div className="flex items-center justify-between w-full pt-1">
+                <div className="flex items-center justify-start w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton
@@ -254,7 +254,7 @@ export default function MasonProfileAssets({
               }
               className="w-full h-full"
               footer={
-                <div className="flex items-center justify-between w-full pt-1">
+                <div className="flex items-center justify-start w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton

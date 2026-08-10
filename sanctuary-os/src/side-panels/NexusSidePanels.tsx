@@ -476,7 +476,7 @@ export function MarketBlueprintPanel({
               <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '40px' }}>{t("icon_map")}</span>
             </div>
             <div className="flex flex-col min-w-0 flex-1 pt-1">
-              <div className="flex justify-between items-start gap-4">
+              <div className="flex justify-start items-start gap-4">
                 <h3 className="text-3xl font-black text-[var(--text)] uppercase truncate leading-tight pb-1">{enrichedBlueprint.name}</h3>
                 {(enrichedBlueprint.is_paid || enrichedBlueprint.is_early_access) && (
                   <div className="flex gap-2 shrink-0 flex-col items-end">
@@ -530,7 +530,7 @@ export function MarketBlueprintPanel({
 
         <div className="flex-1 overflow-y-auto custom-scrollbar px-10 py-4 flex flex-col gap-6 relative z-10">
           <div className="flex flex-col gap-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-start items-center">
               <h3 className="text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-80 flex items-center gap-2">
                 <span className="theme-text-accent">{enrichedBlueprint.json_data.artifacts?.length || 0}</span> {t("blueprint_included")}
               </h3>

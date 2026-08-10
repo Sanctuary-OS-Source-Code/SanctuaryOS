@@ -164,7 +164,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
           <div className="absolute left-[-2rem] top-7 w-8 h-px bg-[var(--accent)]/40 shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)] rounded-r-full" />
         )}
 
-        <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-3xl p-4 pr-6 flex items-center justify-between shadow-xl hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[var(--accent)]/[5%] transition-all duration-300 group/card relative z-10 hover:z-[100] shrink-0 backdrop-blur-xl min-w-[280px]">
+        <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-3xl p-4 pr-6 flex items-center justify-start shadow-xl hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[var(--accent)]/[5%] transition-all duration-300 group/card relative z-10 hover:z-[100] shrink-0 backdrop-blur-xl min-w-[280px]">
           
           <div className="flex items-center gap-4">
             {node.type === "folder" ? (
@@ -288,7 +288,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-[var(--text)]/5 rounded-full blur-[80px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
 
             {/* Header for Right Pane */}
-            <div className="shrink-0 flex items-center justify-between pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14">
+            <div className="shrink-0 flex items-center justify-start pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14">
               <h3 className="text-[14px] font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">apps</span>
                 {t("available_lists") || "AVAILABLE ARTIFACTS"}
@@ -326,7 +326,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                       <h4 className="text-[10px] font-black uppercase text-[var(--accent)] tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">stars</span> {t("structure_assign_primary")}</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[var(--accent)]/[5%] transition-all duration-300 isolate">
-                          <div className="flex items-start justify-between gap-3 mb-4">
+                          <div className="flex items-start justify-start gap-3 mb-4">
                             <div className="w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
                               {targetMod.image_url ? <img src={targetMod.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">extension</span>}
                             </div>
@@ -359,7 +359,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                       <div className="grid grid-cols-1 md:grid-cols-2 min-[2000px]:grid-cols-3 gap-4">
                         {displayAvailableMods.map(m => (
                           <div key={m.id} className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[var(--accent)]/[5%] transition-all duration-300 isolate">
-                            <div className="flex items-start justify-between gap-3 mb-4">
+                            <div className="flex items-start justify-start gap-3 mb-4">
                               <div className="w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
                                 {m.image_url ? <img src={m.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">extension</span>}
                               </div>

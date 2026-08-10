@@ -59,7 +59,7 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
   return (
     <div className="flex flex-col w-full relative animate-in fade-in h-full">
       {/* 1. The Seamless Header */}
-      <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20">
+      <div className="flex items-center justify-start px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[var(--text)]/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner shrink-0">
             <span className="material-symbols-outlined !text-[24px] text-[var(--accent)] drop-shadow-md opacity-80">{t("icon_architecture") || "architecture"}</span>

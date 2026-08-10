@@ -35,7 +35,7 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
           {settings.map((setting: any, idx: number) => {
               const val = setting.default;
               return (
-                 <div key={idx} className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-6 shadow-inner flex flex-col xl:flex-row xl:items-center justify-between group hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all duration-300 gap-6 opacity-80 pointer-events-none select-none">
+                 <div key={idx} className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-6 shadow-inner flex flex-col xl:flex-row xl:items-center justify-start group hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all duration-300 gap-6 opacity-80 pointer-events-none select-none">
                     <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                        <div className="flex flex-wrap items-center gap-3">
                           <span className="text-[12px] font-black uppercase tracking-widest text-[var(--text)]">{resolveText(setting.label_key, setting.key)}</span>
@@ -68,7 +68,7 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
                           </div>
                        )}
                        {setting.type === "options" && (
-                          <div className="glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl h-10 px-4 text-[12px] font-bold text-[var(--text)] flex items-center justify-between w-48">
+                          <div className="glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl h-10 px-4 text-[12px] font-bold text-[var(--text)] flex items-center justify-start w-48">
                              <span className="truncate">{val || "Select option..."}</span>
                              <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">{t("icon_expand_more") || "expand_more"}</span>
                           </div>

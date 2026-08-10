@@ -1,4 +1,4 @@
-import { SearchBar } from "../shared";
+import { SearchBar, ScreenUtilityBar } from "../shared";
 import React, { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
@@ -88,50 +88,38 @@ export default function SAOversightReports() {
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full flex-wrap">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_threat_intelligence")}</span>
-          </div>
-          <span className="truncate">{t("stat_malware_logs")}</span>
-        </h2>
 
-          <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
-            <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-            <SearchBar
-              value={search}
-              onChange={setSearch}
-              placeholder={t("oversight_search")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
-            
-            <FilterTabs className="h-12 z-40">
-              <FilterTabButton
-                id="new"
-                label={t("ui_tab_new")}
-                activeTab={filterTab}
-                setTab={setFilterTab}
-              />
-              <FilterTabButton
-                id="archive"
-                label={t("oversight_tab_archive")}
-                activeTab={filterTab}
-                setTab={setFilterTab}
-              />
-            </FilterTabs>
+      <ScreenUtilityBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={t("oversight_search")}
+        className="!mb-0 !border-0 !pb-0"
+      >
+        <FilterTabs className="h-12 z-40">
+          <FilterTabButton
+            id="new"
+            label={t("ui_tab_new")}
+            activeTab={filterTab}
+            setTab={setFilterTab}
+          />
+          <FilterTabButton
+            id="archive"
+            label={t("oversight_tab_archive")}
+            activeTab={filterTab}
+            setTab={setFilterTab}
+          />
+        </FilterTabs>
 
-          <div className="flex items-center gap-2 text-[var(--subtext)] z-30 shrink-0">
-             <div className="w-40">
-               <CustomDatePicker value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
-             </div>
-             <span className="opacity-50">-</span>
-             <div className="w-40">
-               <CustomDatePicker value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
-             </div>
+        <div className="flex items-center gap-2 text-[var(--subtext)] z-30 shrink-0">
+          <div className="w-40">
+            <CustomDatePicker value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
+          </div>
+          <span className="opacity-50">-</span>
+          <div className="w-40">
+            <CustomDatePicker value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
           </div>
         </div>
-      </div>
+      </ScreenUtilityBar>
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">

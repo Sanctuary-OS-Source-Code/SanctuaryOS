@@ -424,7 +424,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
           </div>
 
           {/* Header: Author & Category */}
-          <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center justify-start relative z-10">
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] flex items-center justify-center shadow-md cursor-pointer hover:scale-105 hover:border-[var(--accent)] transition-all"
@@ -464,7 +464,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
           </div>
 
           {/* Footer Actions */}
-          <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center z-10">
+          <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-start items-center z-10">
             <div className="flex gap-2">
               {confirmDelete === post.id ? (
                 <>
@@ -497,13 +497,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   return (
     <>
       <div className="flex flex-col md:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-        <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_edit_document")}</span>
-          </div>
-          <span className="truncate">{t("tab_title")}</span>
-        </h2>
-        <div className="relative flex-1 max-w-xl ml-auto flex gap-4 items-center justify-end">
+        <div className="relative flex-1 w-full flex gap-4 items-center justify-start">
           <div className="relative flex-1 max-w-[300px]">
             <SearchBar
               value={searchTerm}
@@ -610,7 +604,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <div className="flex justify-between items-center ml-2">
+                    <div className="flex justify-start items-center ml-2">
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("post_description")}</label>
                       <span className={`text-[9px] font-black ${description.length >= 250 ? 'text-[var(--warning)]' : 'text-[var(--subtext)] opacity-60'}`}>{description.length} / 250</span>
                     </div>
@@ -623,7 +617,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                   </div>
 
                   <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
-                    <div className="flex items-center justify-between ml-2">
+                    <div className="flex items-center justify-start ml-2">
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("post_content")}</label>
                     </div>
                     <div className="flex flex-col flex-1 glass-surface bg-black/40 rounded-2xl border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
@@ -702,7 +696,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between p-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-b-2xl shrink-0">
+                      <div className="flex items-center justify-start p-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-b-2xl shrink-0">
                         <div className="flex gap-2">
                           <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest flex items-center gap-1.5 ${showCodeInput ? 'theme-bg-accent/20 theme-text-accent' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                             <span className="material-symbols-outlined !text-[14px]">{t("icon_data_object")}</span> {showCodeInput ? (t("hide_code")) : (t("masonhub_add_code"))}

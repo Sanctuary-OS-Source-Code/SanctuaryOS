@@ -40,7 +40,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
 
         {/* SHOWCASE on right */}
         <div className="w-full xl:w-[480px] 2xl:w-[560px] shrink-0 flex flex-col gap-6">
-          <div className="flex items-center justify-between w-full gap-4 mb-2">
+          <div className="flex items-center justify-start w-full gap-4 mb-2">
             <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3 min-w-[200px] shrink-0">
               <div className="w-12 h-12 rounded-xl glass-panel border border-amber-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-2xl text-amber-500 opacity-90 drop-shadow-lg">workspace_premium</span>
@@ -93,7 +93,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
                         }
                         className="w-full"
                       >
-                        <div className="flex items-center justify-between w-full mt-1">
+                        <div className="flex items-center justify-start w-full mt-1">
                           {(mason?.pinned_mod_id === showcaseMod.id || mason?.pinned_ccset_id === showcaseMod.id) ? (
                             <div className="px-2 py-1 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-full flex items-center gap-1 shadow-md shrink-0 backdrop-blur-md">
                               <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">push_pin</span>
@@ -173,7 +173,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
                         }
                         className="w-full"
                       >
-                        <div className="flex items-center justify-between w-full mt-1">
+                        <div className="flex items-center justify-start w-full mt-1">
                           {(mason?.pinned_asset_id === showcaseAsset.id || mason?.pinned_blueprint_id === showcaseAsset.id) ? (
                             <div className="px-2 py-1 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-full flex items-center gap-1 shadow-md shrink-0 backdrop-blur-md">
                               <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">push_pin</span>

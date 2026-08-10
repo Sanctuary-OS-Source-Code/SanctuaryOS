@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { WayfinderCommandScreen } from "./hub-components/CommandScreens";
-import { ViewHeader, HubTabButton, HubTabDropdown, SidePanel, extractPostImage, stripMarkdown, EmptyState } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, SidePanel, extractPostImage, stripMarkdown, EmptyState } from './shared';
 import ArchitectSupportTickets from './hub-components/ArchitectSupportTickets';
 
 
@@ -45,7 +45,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
   const defconLevel = useStore((state) => state.defconLevel);
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
+    <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader title={t("wf_hub_title")} subtitle={t("wf_hub_subtitle")} icon={t("icon_terminal")} iconColorClass="text-[var(--success)]">
         <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
           <button
@@ -55,8 +55,6 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
             <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("icon_verified_user")}</span>
             {t("wf_hub_verify")}
           </button>
-
-
 
           <button
             onClick={() => setDefconOpen(true)}
@@ -73,42 +71,22 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
         </div>
       </ViewHeader>
 
-      <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
-          <HubTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="wf_comms_title" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="sanctuary_tickets" icon={t("icon_local_activity")} label={t("wf_tab_tickets")} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
+      <HoverTabDrawer title="Wayfinder Navigation" activeTab={activeTab} setTab={setActiveTab}>
+        <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="wf_comms_title" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="sanctuary_tickets" icon={t("icon_local_activity")} label={t("wf_tab_tickets")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
 
-
-
-          <HubTabDropdown
-            icon="admin_panel_settings"
-            label="Moderation"
-            activeTab={activeTab}
-            setTab={(id: string) => { if (id === 'malware_oversight') setComplianceFilter('pending'); setActiveTab(id); }}
-            options={[
-              { id: "linker", icon: t("icon_link"), label: t("tab_linker") },
-              { id: "compliance", icon: t("icon_policy"), label: t("tab_compliance") },
-              { id: "malware_oversight", icon: t("icon_coronavirus"), label: t("rating_malware") },
-              { id: "oversight_reports", icon: t("icon_threat_intelligence"), label: t("tab_malware_logs") },
-              { id: "reports", icon: t("icon_flag"), label: t("stat_bugs") },
-              { id: "audit_logs", icon: t("icon_history"), label: t("tab_audit") }
-            ]}
-          />
-          <HubTabDropdown
-            icon="memory"
-            label="System"
-            activeTab={activeTab}
-            setTab={setActiveTab}
-            options={[
-              { id: "support_settings", icon: t("icon_support_agent"), label: t("wf_tab_support") },
-              { id: "ide", icon: "code", label: "WAYFINDER IDE" },
-              { id: "chameleons", icon: "palette", label: t("wf_master_themes") }
-            ]}
-          />
-        </div>
-      </div>
+        <VerticalTabButton id="linker" icon={t("icon_link")} label={t("tab_linker")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="compliance" icon={t("icon_policy")} label={t("tab_compliance")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="malware_oversight" icon={t("icon_coronavirus")} label={t("rating_malware")} activeTab={activeTab} setTab={(id: string) => { setComplianceFilter('pending'); setActiveTab(id); }} />
+        <VerticalTabButton id="oversight_reports" icon={t("icon_threat_intelligence")} label={t("tab_malware_logs")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="reports" icon={t("icon_flag")} label={t("stat_bugs")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="audit_logs" icon={t("icon_history")} label={t("tab_audit")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="support_settings" icon={t("icon_support_agent")} label={t("wf_tab_support")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="ide" icon="code" label="WAYFINDER IDE" activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="chameleons" icon="palette" label={t("wf_master_themes")} activeTab={activeTab} setTab={setActiveTab} />
+      </HoverTabDrawer>
 
       <div className="w-full flex-1 flex flex-col min-h-0">
         {activeTab === "command_center" && <WayfinderCommandScreen setTab={setActiveTab} setComplianceFilter={setComplianceFilter} onOpenMasonProfile={onOpenMasonProfile} />}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HubTabButton, DashboardStatTile, SearchBar } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, SearchBar } from "./shared";
 import { getExtensionRegex, formatDisplayName, getFileLabel } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { useLexicon } from "./LexiconContext";
@@ -429,25 +429,30 @@ export const DbpfScout = () => {
       </div>
 
       <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 w-full relative z-10">
-        <ViewHeader title={t("radar_title")} subtitle={t("radar_subtitle")} icon={t("icon_track_changes")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
+        <ViewHeader 
+          title={t("radar_title")} 
+          subtitle={t("radar_subtitle")} 
+          icon={t("icon_track_changes")} 
+          iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" 
+          breadcrumb={activeTab !== "COMMAND" ? (t(`tab_${activeTab.toLowerCase()}`) || activeTab) : undefined}
+          onTitleClick={() => setActiveTab("COMMAND")}
+        />
 
-        <div className="flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 w-full mb-6 shrink-0">
-          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full shrink-0">
-            <HubTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
-            <HubTabButton
-              id="CONFLICTS"
-              icon="warning"
-              label={t("conflicts")}
-              activeTab={activeTab}
-              setTab={setActiveTab}
-              badge={(fatalConflicts.length + tuningConflicts.length) > 0 ? (fatalConflicts.length + tuningConflicts.length) : null}
-              activeColorClass={fatalConflicts.length > 0 ? 'bg-red-500/[15%] text-[var(--danger)] shadow-md' : tuningConflicts.length > 0 ? 'bg-orange-500/[15%] text-[var(--warning)] shadow-md' : undefined}
-              inactiveColorClass={fatalConflicts.length > 0 ? 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : tuningConflicts.length > 0 ? 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : undefined}
-              badgeColorClass={fatalConflicts.length > 0 ? 'bg-red-500/[10%] border-[var(--danger)]/50 text-[var(--danger)]' : tuningConflicts.length > 0 ? 'bg-orange-500/[10%] border-[var(--warning)]/50 text-[var(--warning)]' : undefined}
-            />
-            <HubTabButton id="OVERRIDES" icon="rule" label={t("overrides")} activeTab={activeTab} setTab={setActiveTab} badge={ignoredPairs.length > 0 ? ignoredPairs.length : null} />
-          </div>
-        </div>
+        <HoverTabDrawer title="Radar Navigation" activeTab={activeTab} setTab={setActiveTab}>
+          <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton
+            id="CONFLICTS"
+            icon="warning"
+            label={t("conflicts")}
+            activeTab={activeTab}
+            setTab={setActiveTab}
+            badge={(fatalConflicts.length + tuningConflicts.length) > 0 ? (fatalConflicts.length + tuningConflicts.length) : null}
+            activeColorClass={fatalConflicts.length > 0 ? 'bg-red-500/[15%] text-[var(--danger)] shadow-md' : tuningConflicts.length > 0 ? 'bg-orange-500/[15%] text-[var(--warning)] shadow-md' : undefined}
+            inactiveColorClass={fatalConflicts.length > 0 ? 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : tuningConflicts.length > 0 ? 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : undefined}
+            badgeColorClass={fatalConflicts.length > 0 ? 'bg-red-500/[10%] border-[var(--danger)]/50 text-[var(--danger)]' : tuningConflicts.length > 0 ? 'bg-orange-500/[10%] border-[var(--warning)]/50 text-[var(--warning)]' : undefined}
+          />
+          <VerticalTabButton id="OVERRIDES" icon="rule" label={t("overrides")} activeTab={activeTab} setTab={setActiveTab} badge={ignoredPairs.length > 0 ? ignoredPairs.length : null} />
+        </HoverTabDrawer>
 
         <div className="flex flex-col w-full animate-in slide-in-from-top-4 duration-500 flex-1 min-h-[400px]">
 
@@ -504,13 +509,24 @@ export const DbpfScout = () => {
                       title={t("target_blueprints")}
                       icon="map"
                       rightContent={
-                        <div className="relative w-full md:w-64 shrink-0">
-                          <SearchBar
-                            value={blueprintSearch}
-                            onChange={setBlueprintSearch}
-                            placeholder={t("search_blueprints")}
-                            className="w-full"
-                          />
+                        <div className="flex items-center gap-3">
+                          <div className="w-48 shrink-0 relative z-50 h-[38px]">
+                            <CustomDropdown
+                              disableTint={true}
+                              options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
+                              value={scanScope}
+                              onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
+                              icon="map"
+                            />
+                          </div>
+                          <div className="relative w-full md:w-64 shrink-0 h-[38px]">
+                            <SearchBar
+                              value={blueprintSearch}
+                              onChange={setBlueprintSearch}
+                              placeholder={t("search_blueprints")}
+                              className="w-full h-full"
+                            />
+                          </div>
                         </div>
                       }
                     />
@@ -525,7 +541,7 @@ export const DbpfScout = () => {
 
                         return (
                           <div key={blueprint.name} className={`glass-panel rounded-2xl p-6 border ${scanScope === blueprint.name ? 'border-[var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} shadow-lg flex flex-col gap-4 group transition-all hover:border-[var(--accent)]/30 hover:-translate-y-1 relative overflow-hidden`} style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', boxShadow: '0 0 40px color-mix(in srgb, var(--accent) 15%, transparent)' } : {}}>
-                            <div className="flex items-start justify-between">
+                            <div className="flex items-start justify-start">
                               <div className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-xl ${scanScope === blueprint.name ? 'bg-[var(--accent)]/[10%] border-[var(--accent)]' : 'bg-[var(--accent)]/[5%] border-[var(--accent)]/20'} border flex items-center justify-center transition-colors relative`}>
                                   <span className={`material-symbols-outlined !text-[18px] text-[var(--accent)]`}>account_tree</span>
@@ -573,15 +589,7 @@ export const DbpfScout = () => {
                 </CommandScreenMain>
 
                 <CommandScreenSidebar title={t("quick_actions")} icon="bolt">
-                  <div className="mb-4">
-                    <CustomDropdown
-                      disableTint={true}
-                      options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
-                      value={scanScope}
-                      onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
-                      icon="map"
-                    />
-                  </div>
+
                   <CommandScreenQuickLink
                     icon={loading ? "sync" : "track_changes"}
                     title={t("btn_sweep")}
@@ -613,12 +621,7 @@ export const DbpfScout = () => {
             <>
               <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
                 <div className="flex items-center gap-4 hidden xl:flex shrink-0">
-                  <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3 shrink-0">
-                    <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">warning</span>
-                    </div>
-                    <span className="truncate">{t("conflict_telemetry") || "CONFLICT TELEMETRY"}</span>
-                  </h2>
+
                   <div className="w-64">
                     <CustomDropdown
                       disableTint={true}
@@ -723,7 +726,7 @@ export const DbpfScout = () => {
 
               {hasScanned && filteredFatal.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 4) && (
                 <section className="space-y-6">
-                  <div className="flex items-center justify-between border-b theme-border-danger pb-4 mb-6">
+                  <div className="flex items-center justify-start border-b theme-border-danger pb-4 mb-6">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--danger)]/30 flex items-center justify-center shadow-lg shrink-0 bg-red-500/[10%]">
                         <span className="material-symbols-outlined !text-2xl theme-text-danger drop-shadow-[0_0_8px_rgba(var(--danger-rgb),0.5)]">{t("icon_warning_amber")}</span>
@@ -752,7 +755,7 @@ export const DbpfScout = () => {
 
               {hasScanned && filteredTuning.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 3) && (
                 <section className="space-y-6 mt-12">
-                  <div className="flex items-center justify-between border-b theme-border-warning pb-4 mb-6">
+                  <div className="flex items-center justify-start border-b theme-border-warning pb-4 mb-6">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--warning)]/30 flex items-center justify-center shadow-lg shrink-0 bg-orange-500/[10%]">
                         <span className="material-symbols-outlined !text-2xl theme-text-warning drop-shadow-[0_0_8px_rgba(var(--warning-rgb),0.5)]">{t("icon_tune")}</span>
@@ -781,7 +784,7 @@ export const DbpfScout = () => {
 
               {hasScanned && filteredClone.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 2) && (
                 <section className="space-y-6 mt-12">
-                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b theme-border-accent pb-4 mb-6">
+                  <div className="flex flex-col lg:flex-row justify-start items-start lg:items-end gap-6 border-b theme-border-accent pb-4 mb-6">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/30 flex items-center justify-center shadow-lg shrink-0 bg-[var(--accent)]/[10%]">
                         <span className="material-symbols-outlined lowercase !text-2xl theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("icon_all_inclusive")}</span>
@@ -820,7 +823,7 @@ export const DbpfScout = () => {
                   </div>
 
                   {confirmMassVault && (
-                    <div className="animate-in slide-in-from-top-2 p-6 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] flex flex-col md:flex-row gap-6 items-center justify-between shadow-xl mb-6">
+                    <div className="animate-in slide-in-from-top-2 p-6 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] flex flex-col md:flex-row gap-6 items-center justify-start shadow-xl mb-6">
                       <p className="text-sm font-black theme-text-danger uppercase tracking-widest">
                         {t("secure_quarantine") || `Yeet ${selectedForVault.length} duplicates to the Vault?`}
                       </p>
@@ -853,7 +856,7 @@ export const DbpfScout = () => {
               {hasScanned && filteredSoft.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 1) && (
                 <details className="group space-y-6 glass-surface p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer mt-12 mb-32 transition-all hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <summary className="flex flex-col gap-1 list-none outline-none">
-                    <div className="flex justify-between items-center w-full">
+                    <div className="flex justify-start items-center w-full">
                       <h3 className="text-sm font-black text-[var(--subtext)] opacity-80 uppercase tracking-widest flex items-center gap-3 group-open:text-[var(--text)] transition-colors">
                         <span className="material-symbols-outlined !text-xl">{t("icon_info")}</span> {t("tier1_title") || "Collision Severity 1 ({count})".replace("{count}", String(softConflicts.length))}
                       </h3>
@@ -988,7 +991,7 @@ export const DbpfScout = () => {
                         return (
                           <div key={`active_${idx}`} className="p-5 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-xl relative group/card hover:-translate-y-1 hover:shadow-2xl hover:border-[var(--accent)]/[50%] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]">
                             <div className="absolute inset-0 bg-gradient-to-tr from-[var(--bg)]/5 to-transparent pointer-events-none z-0" />
-                            <div className="flex items-center justify-between relative z-10">
+                            <div className="flex items-center justify-start relative z-10">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/20 flex items-center justify-center text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]">
                                   <span className="material-symbols-outlined !text-[18px]">verified</span>
@@ -1042,7 +1045,7 @@ export const DbpfScout = () => {
                         return (
                           <div key={`ignored_${i}`} className="p-5 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl relative group/card hover:-translate-y-1 hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
                             <div className="absolute inset-0 bg-gradient-to-tr from-[var(--bg)]/5 to-transparent pointer-events-none z-0" />
-                            <div className="flex items-center justify-between relative z-10">
+                            <div className="flex items-center justify-start relative z-10">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] shadow-sm">
                                   <span className="material-symbols-outlined !text-[18px]">visibility_off</span>

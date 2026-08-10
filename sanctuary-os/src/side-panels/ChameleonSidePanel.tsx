@@ -196,7 +196,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                   >
                     {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
 
-                    <div className="flex justify-between items-start mb-4 relative z-10">
+                    <div className="flex justify-start items-start mb-4 relative z-10">
                       <div className="w-8 h-8 rounded-full shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0" style={{ backgroundColor: data.accent }} />
 
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity absolute right-3 top-3">
@@ -302,7 +302,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                   >
                     {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
 
-                    <div className="flex justify-between items-start mb-4 relative z-10">
+                    <div className="flex justify-start items-start mb-4 relative z-10">
                       <div className="w-8 h-8 rounded-full shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0" style={{ backgroundColor: data.accent }} />
 
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity absolute right-3 top-3">

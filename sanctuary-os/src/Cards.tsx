@@ -75,7 +75,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
   ) : undefined;
 
   const footer = layout === 'vertical' ? (
-    <div className="flex gap-2 items-center justify-between group">
+    <div className="flex gap-2 items-center justify-start group">
       <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
         {mod?.category_override || mod?.suggested_type || t("vlocal") || "Unknown"}
       </span>
@@ -113,7 +113,7 @@ export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonName
   );
 
   const footer = (
-    <div className="flex gap-2 items-center justify-between group">
+    <div className="flex gap-2 items-center justify-start group">
       <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
         {masonName}
       </span>

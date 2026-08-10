@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HubTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, enrichBlueprintsWithPremiumStatus, FilterTabs, AccordionDrawer, DeferredRender, SearchBar } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, enrichBlueprintsWithPremiumStatus, FilterTabs, AccordionDrawer, DeferredRender, SearchBar, ScreenUtilityBar } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel } from './side-panels/NexusSidePanels';
@@ -248,17 +248,17 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             const allSetIds = Array.from(new Set(collections?.map(c => c.set_id) || []));
 
             const [{ data: allSiblings }, { data: allSetMembers }] = await Promise.all([
-               allParentIds.length > 0 ? supabase.from('mod_relationships').select('child_id, parent_id').in('parent_id', allParentIds).in('relationship_type', ['twin', 'addon', 'flavor', 'set_item', 'beta']) : { data: [] },
-               allSetIds.length > 0 ? supabase.from('collection_members').select('mod_id, set_id').in('set_id', allSetIds) : { data: [] }
+              allParentIds.length > 0 ? supabase.from('mod_relationships').select('child_id, parent_id').in('parent_id', allParentIds).in('relationship_type', ['twin', 'addon', 'flavor', 'set_item', 'beta']) : { data: [] },
+              allSetIds.length > 0 ? supabase.from('collection_members').select('mod_id, set_id').in('set_id', allSetIds) : { data: [] }
             ]);
 
             const trueFamilyCounts = new Map();
             allSiblings?.forEach((s: any) => {
-               trueFamilyCounts.set(s.parent_id, (trueFamilyCounts.get(s.parent_id) || 0) + 1);
+              trueFamilyCounts.set(s.parent_id, (trueFamilyCounts.get(s.parent_id) || 0) + 1);
             });
             const trueSetCounts = new Map();
             allSetMembers?.forEach((s: any) => {
-               trueSetCounts.set(s.set_id, (trueSetCounts.get(s.set_id) || 0) + 1);
+              trueSetCounts.set(s.set_id, (trueSetCounts.get(s.set_id) || 0) + 1);
             });
 
             const allModsForFeed = [...recentModsRaw, ...fetchedParents];
@@ -473,23 +473,23 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       if (!isSilent) setLoadingAssets(false);
       return;
     }
-    
+
     const hasCache = Object.keys(window.__nexusCache!.assetResultsMap).length > 0;
     const isCacheFresh = !forceRefresh && hasCache && (performance.now() - window.__nexusCache!.lastAssetFetch < CACHE_TTL);
-    
+
     // Stale-While-Revalidate: Show cache immediately if we have it
     if (hasCache && !isSilent) {
       if (Object.keys(assetResultsMap).length === 0) setAssetResultsMap(window.__nexusCache!.assetResultsMap);
       setLoadingAssets(false);
     }
-    
+
     if (isCacheFresh) {
       return;
     }
 
     if (assetsFetchPromise) {
       if (!hasCache && !isSilent) setLoadingAssets(true);
-      try { await assetsFetchPromise; } catch (e) {}
+      try { await assetsFetchPromise; } catch (e) { }
       if (!isSilent) {
         if (Object.keys(window.__nexusCache!.assetResultsMap).length > 0) {
           setAssetResultsMap(window.__nexusCache!.assetResultsMap);
@@ -502,93 +502,93 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     if (!hasCache && !isSilent) setLoadingAssets(true);
     assetsFetchPromise = (async () => {
       try {
-      const [
-        { data: blueprints, error: bpError },
-        { data: allAssets, error: assetError },
-        { data: masonData }
-      ] = await Promise.all([
-        supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_market_listed', true).order('created_at', { ascending: false }).limit(1000),
-        supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(1000),
-        supabase.from('masons').select('id, name')
-      ]);
+        const [
+          { data: blueprints, error: bpError },
+          { data: allAssets, error: assetError },
+          { data: masonData }
+        ] = await Promise.all([
+          supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_market_listed', true).order('created_at', { ascending: false }).limit(1000),
+          supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(1000),
+          supabase.from('masons').select('id, name')
+        ]);
 
-      if (bpError) throw bpError;
-      if (assetError) throw assetError;
+        if (bpError) throw bpError;
+        if (assetError) throw assetError;
 
-      let premiumMap: Record<string, any> = {};
-      if (blueprints && blueprints.length > 0) {
-        premiumMap = await enrichBlueprintsWithPremiumStatus(supabase, blueprints);
-      }
-
-      if (masonData) {
-        setMasonMap(masonData.reduce((acc: any, m: any) => { acc[m.name.toLowerCase()] = m.id; return acc; }, {}));
-      }
-
-      const processedBlueprints = blueprints?.map(b => {
-        const premiumInfo = premiumMap[b.id];
-        const isPaid = premiumInfo?.is_paid || b.is_paid;
-        const isEarlyAccess = premiumInfo?.is_early_access || b.is_early_access;
-        const artifactsList = b.artifacts || [];
-        return {
-          id: b.id,
-          name: b.name,
-          author: masonData?.find((m: any) => m.id === b.mason_id)?.name || "Citizen",
-          description: artifactsList.length > 0 ? `${artifactsList.length} ${t("items")}` : (t("tab_blueprints") || "Blueprint"),
-          created_at: b.created_at,
-          asset_type: 'blueprint',
-          is_paid: isPaid,
-          is_early_access: isEarlyAccess,
-          downloads: b.downloads,
-          game_version: b.game_version,
-          originalBlueprint: b
-        };
-      }) || [];
-
-      const lexicons = allAssets?.filter((a: any) => a.asset_type === 'lexicon') || [];
-      const chameleons = allAssets?.filter((a: any) => a.asset_type === 'chameleon') || [];
-      const templates = allAssets?.filter((a: any) => a.asset_type === 'workbench_template') || [];
-
-      const newMap: Record<string, any[]> = {
-        'BLUEPRINTS': processedBlueprints || [],
-        'LEXICONS': lexicons,
-        'CHAMELEONS': chameleons,
-        'TEMPLATES': templates,
-        'MASON_DATA': masonData || []
-      };
-
-      window.__nexusCache!.assetResultsMap = newMap;
-      window.__nexusCache!.lastAssetFetch = performance.now();
-
-      if (!isSilent || marketTab !== 'HOME' && marketTab !== 'MODS') {
-        if (Object.keys(assetResultsMap).length === 0 || forceRefresh) {
-          setAssetResultsMap(newMap);
+        let premiumMap: Record<string, any> = {};
+        if (blueprints && blueprints.length > 0) {
+          premiumMap = await enrichBlueprintsWithPremiumStatus(supabase, blueprints);
         }
-      }
 
-      const dbLangs = allAssets?.map((d: any) => d.language).filter(Boolean) || [];
-      const commonLangs = ["English", "Spanish", "French", "German", "Italian", "Portuguese", "Russian", "Japanese", "Korean", "Chinese"];
-      const langs = Array.from(new Set([...commonLangs, ...dbLangs])) as string[];
-      setAvailableLanguages(langs);
+        if (masonData) {
+          setMasonMap(masonData.reduce((acc: any, m: any) => { acc[m.name.toLowerCase()] = m.id; return acc; }, {}));
+        }
 
-    } catch (err: any) {
-      console.error("NEXUS LOG ERROR: Asset fetch error:", err);
-      // Only clear if we don't have cache to fall back on
-      if (Object.keys(window.__nexusCache!.assetResultsMap).length === 0) {
-        setAssetResultsMap({});
+        const processedBlueprints = blueprints?.map(b => {
+          const premiumInfo = premiumMap[b.id];
+          const isPaid = premiumInfo?.is_paid || b.is_paid;
+          const isEarlyAccess = premiumInfo?.is_early_access || b.is_early_access;
+          const artifactsList = b.artifacts || [];
+          return {
+            id: b.id,
+            name: b.name,
+            author: masonData?.find((m: any) => m.id === b.mason_id)?.name || "Citizen",
+            description: artifactsList.length > 0 ? `${artifactsList.length} ${t("items")}` : (t("tab_blueprints") || "Blueprint"),
+            created_at: b.created_at,
+            asset_type: 'blueprint',
+            is_paid: isPaid,
+            is_early_access: isEarlyAccess,
+            downloads: b.downloads,
+            game_version: b.game_version,
+            originalBlueprint: b
+          };
+        }) || [];
+
+        const lexicons = allAssets?.filter((a: any) => a.asset_type === 'lexicon') || [];
+        const chameleons = allAssets?.filter((a: any) => a.asset_type === 'chameleon') || [];
+        const templates = allAssets?.filter((a: any) => a.asset_type === 'workbench_template') || [];
+
+        const newMap: Record<string, any[]> = {
+          'BLUEPRINTS': processedBlueprints || [],
+          'LEXICONS': lexicons,
+          'CHAMELEONS': chameleons,
+          'TEMPLATES': templates,
+          'MASON_DATA': masonData || []
+        };
+
+        window.__nexusCache!.assetResultsMap = newMap;
+        window.__nexusCache!.lastAssetFetch = performance.now();
+
+        if (!isSilent || marketTab !== 'HOME' && marketTab !== 'MODS') {
+          if (Object.keys(assetResultsMap).length === 0 || forceRefresh) {
+            setAssetResultsMap(newMap);
+          }
+        }
+
+        const dbLangs = allAssets?.map((d: any) => d.language).filter(Boolean) || [];
+        const commonLangs = ["English", "Spanish", "French", "German", "Italian", "Portuguese", "Russian", "Japanese", "Korean", "Chinese"];
+        const langs = Array.from(new Set([...commonLangs, ...dbLangs])) as string[];
+        setAvailableLanguages(langs);
+
+      } catch (err: any) {
+        console.error("NEXUS LOG ERROR: Asset fetch error:", err);
+        // Only clear if we don't have cache to fall back on
+        if (Object.keys(window.__nexusCache!.assetResultsMap).length === 0) {
+          setAssetResultsMap({});
+        }
+        throw err;
       }
-      throw err;
+    })();
+
+    try {
+      await assetsFetchPromise;
+    } catch (err) {
+      // handled inside promise
+    } finally {
+      assetsFetchPromise = null;
+      if (!isSilent) setLoadingAssets(false);
     }
-  })();
-  
-  try {
-    await assetsFetchPromise;
-  } catch (err) {
-    // handled inside promise
-  } finally {
-    assetsFetchPromise = null;
-    if (!isSilent) setLoadingAssets(false);
   }
-}
 
   const handleUploadAsset = async () => {
     try {
@@ -825,7 +825,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
     if (nexusFetchPromise) {
       if (!isSilent && !window.__nexusCache!.nexusItems) setLoadingMods(true);
-      try { await nexusFetchPromise; } catch (e) {}
+      try { await nexusFetchPromise; } catch (e) { }
       if (!isSilent) {
         if (window.__nexusCache!.nexusItems) setResults(window.__nexusCache!.nexusItems);
         setCurrentPage(1);
@@ -836,266 +836,266 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
     if (!isSilent && !window.__nexusCache!.nexusItems) setLoadingMods(true);
     const startFetch = performance.now();
-    
+
     nexusFetchPromise = (async () => {
       try {
-      const { count, error: countError } = await supabase
-        .from("mods")
-        .select("id", { count: "exact", head: true })
-        .eq('compliance_tier', 0);
-
-      if (countError) throw countError;
-
-      const BATCH_SIZE = 1000;
-      const pages = Math.ceil((count || 0) / BATCH_SIZE);
-      let allMods: any[] = [];
-      
-      for (let i = 0; i < pages; i++) {
-        const res = await supabase
+        const { count, error: countError } = await supabase
           .from("mods")
-          .select("id, name, created_at, category_override, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label), masons(id, name)")
-          .eq('compliance_tier', 0)
-          .range(i * BATCH_SIZE, (i + 1) * BATCH_SIZE - 1);
+          .select("id", { count: "exact", head: true })
+          .eq('compliance_tier', 0);
 
-        if (res.error) throw res.error;
-        if (res.data) allMods = [...allMods, ...res.data];
-      }
+        if (countError) throw countError;
 
-      const authorNames = Array.from(new Set(allMods?.map(m => m.master_author).filter(Boolean)));
-      let verifiedMap: Record<string, boolean> = {};
-      if (authorNames.length > 0) {
-        const { data: verifiedAuthors } = await supabase.from('masons').select('name, is_verified').in('name', authorNames);
-        verifiedAuthors?.forEach(p => {
-          verifiedMap[p.name] = p.is_verified;
-        });
-      }
-      if (allMods) {
-        allMods = allMods.map(m => ({ ...m, is_verified: verifiedMap[m.master_author] || false }));
-      }
+        const BATCH_SIZE = 1000;
+        const pages = Math.ceil((count || 0) / BATCH_SIZE);
+        let allMods: any[] = [];
 
-      const [
-        flavorGroupsRes,
-        collectionsRes,
-        relationshipsRes,
-        flavorMembersRes,
-        setMembersRes
-      ] = await Promise.all([
-        supabase.from("flavor_groups").select("*"),
-        supabase.from("collections").select("*"),
-        supabase.from("mod_relationships").select("parent_id, child_id, relationship_type").in("relationship_type", ["twin", "addon", "flavor", "set_item", "beta"]),
-        supabase.from("flavor_group_members").select("group_id, mod_hash"),
-        supabase.from("collection_members").select("set_id, mod_id")
-      ]);
+        for (let i = 0; i < pages; i++) {
+          const res = await supabase
+            .from("mods")
+            .select("id, name, created_at, category_override, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label), masons(id, name)")
+            .eq('compliance_tier', 0)
+            .range(i * BATCH_SIZE, (i + 1) * BATCH_SIZE - 1);
 
-      const modsData = allMods;
-      const midFetch = performance.now();
-
-      const flavorGroups = flavorGroupsRes.data;
-      const collections = collectionsRes.data;
-      const relationships = relationshipsRes.data;
-      const allFlavorMembers = flavorMembersRes.data;
-      const allSetMembers = setMembersRes.data;
-
-      let allItems: any[] = [];
-
-      const modsById = new Map<string, any>();
-      if (modsData) {
-        modsData.forEach((mod: any) => {
-          if (mod.compliance_tier > 0) return;
-          modsById.set(String(mod.id), mod);
-        });
-      }
-
-      const familyMap = new Map<string, Set<string>>();
-      const processedMods = new Set<string>();
-
-      if (relationships) {
-        relationships.forEach((rel: any) => {
-          const parentId = String(rel.parent_id);
-          const childId = String(rel.child_id);
-
-          if (modsById.has(parentId) && modsById.has(childId)) {
-            if (!familyMap.has(parentId)) {
-              familyMap.set(parentId, new Set([parentId]));
-            }
-            familyMap.get(parentId)!.add(childId);
-          }
-        });
-
-        familyMap.forEach((memberIds, parentId) => {
-          if (memberIds.size > 1) {
-            const members = Array.from(memberIds)
-              .map(id => modsById.get(id))
-              .filter(Boolean);
-
-            const parentMod = modsById.get(parentId);
-            const isValidName = parentMod?.name && !parentMod.name.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-
-            if (members.length > 1 && parentMod && isValidName) {
-              allItems.push({
-                ...parentMod,
-                isVirtual: true,
-                isParent: true,
-                familyId: parentId,
-                flavors: members,
-                familyCount: members.length
-              });
-
-              memberIds.forEach(id => processedMods.add(id));
-            }
-          }
-        });
-      }
-
-      if (flavorGroups) {
-        const membersByGroup = new Map<string, any[]>();
-        if (allFlavorMembers) {
-          for (const fm of allFlavorMembers) {
-            if (!membersByGroup.has(fm.group_id)) membersByGroup.set(fm.group_id, []);
-            membersByGroup.get(fm.group_id)!.push(fm);
-          }
+          if (res.error) throw res.error;
+          if (res.data) allMods = [...allMods, ...res.data];
         }
 
-        for (const group of flavorGroups) {
-          const flavorMembers = membersByGroup.get(group.id) || [];
+        const authorNames = Array.from(new Set(allMods?.map(m => m.master_author).filter(Boolean)));
+        let verifiedMap: Record<string, boolean> = {};
+        if (authorNames.length > 0) {
+          const { data: verifiedAuthors } = await supabase.from('masons').select('name, is_verified').in('name', authorNames);
+          verifiedAuthors?.forEach(p => {
+            verifiedMap[p.name] = p.is_verified;
+          });
+        }
+        if (allMods) {
+          allMods = allMods.map(m => ({ ...m, is_verified: verifiedMap[m.master_author] || false }));
+        }
 
-          const members: any[] = [];
-          const memberIds = new Set<string>();
+        const [
+          flavorGroupsRes,
+          collectionsRes,
+          relationshipsRes,
+          flavorMembersRes,
+          setMembersRes
+        ] = await Promise.all([
+          supabase.from("flavor_groups").select("*"),
+          supabase.from("collections").select("*"),
+          supabase.from("mod_relationships").select("parent_id, child_id, relationship_type").in("relationship_type", ["twin", "addon", "flavor", "set_item", "beta"]),
+          supabase.from("flavor_group_members").select("group_id, mod_hash"),
+          supabase.from("collection_members").select("set_id, mod_id")
+        ]);
 
-          if (flavorMembers.length > 0) {
-            for (const fm of flavorMembers) {
-              for (const [modId, mod] of modsById.entries()) {
-                if (mod.mod_versions?.some((v: any) => v.dna_hash === fm.mod_hash)) {
-                  if (!memberIds.has(modId)) {
-                    members.push(mod);
-                    memberIds.add(modId);
-                    processedMods.add(modId);
+        const modsData = allMods;
+        const midFetch = performance.now();
+
+        const flavorGroups = flavorGroupsRes.data;
+        const collections = collectionsRes.data;
+        const relationships = relationshipsRes.data;
+        const allFlavorMembers = flavorMembersRes.data;
+        const allSetMembers = setMembersRes.data;
+
+        let allItems: any[] = [];
+
+        const modsById = new Map<string, any>();
+        if (modsData) {
+          modsData.forEach((mod: any) => {
+            if (mod.compliance_tier > 0) return;
+            modsById.set(String(mod.id), mod);
+          });
+        }
+
+        const familyMap = new Map<string, Set<string>>();
+        const processedMods = new Set<string>();
+
+        if (relationships) {
+          relationships.forEach((rel: any) => {
+            const parentId = String(rel.parent_id);
+            const childId = String(rel.child_id);
+
+            if (modsById.has(parentId) && modsById.has(childId)) {
+              if (!familyMap.has(parentId)) {
+                familyMap.set(parentId, new Set([parentId]));
+              }
+              familyMap.get(parentId)!.add(childId);
+            }
+          });
+
+          familyMap.forEach((memberIds, parentId) => {
+            if (memberIds.size > 1) {
+              const members = Array.from(memberIds)
+                .map(id => modsById.get(id))
+                .filter(Boolean);
+
+              const parentMod = modsById.get(parentId);
+              const isValidName = parentMod?.name && !parentMod.name.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+
+              if (members.length > 1 && parentMod && isValidName) {
+                allItems.push({
+                  ...parentMod,
+                  isVirtual: true,
+                  isParent: true,
+                  familyId: parentId,
+                  flavors: members,
+                  familyCount: members.length
+                });
+
+                memberIds.forEach(id => processedMods.add(id));
+              }
+            }
+          });
+        }
+
+        if (flavorGroups) {
+          const membersByGroup = new Map<string, any[]>();
+          if (allFlavorMembers) {
+            for (const fm of allFlavorMembers) {
+              if (!membersByGroup.has(fm.group_id)) membersByGroup.set(fm.group_id, []);
+              membersByGroup.get(fm.group_id)!.push(fm);
+            }
+          }
+
+          for (const group of flavorGroups) {
+            const flavorMembers = membersByGroup.get(group.id) || [];
+
+            const members: any[] = [];
+            const memberIds = new Set<string>();
+
+            if (flavorMembers.length > 0) {
+              for (const fm of flavorMembers) {
+                for (const [modId, mod] of modsById.entries()) {
+                  if (mod.mod_versions?.some((v: any) => v.dna_hash === fm.mod_hash)) {
+                    if (!memberIds.has(modId)) {
+                      members.push(mod);
+                      memberIds.add(modId);
+                      processedMods.add(modId);
+                    }
+                    break;
                   }
-                  break;
                 }
               }
             }
-          }
 
-          if (members.length > 0) {
-            allItems.push({
-              id: `flavor_${group.id}`,
-              name: group.name,
-              category_override: "Exclusives",
-              image_url: group.image_url || null,
-              master_author: "Flavor Group",
-              description: null,
-              created_at: group.created_at,
-              isFlavorGroup: true,
-              flavorGroupId: group.id,
-              flavors: members,
-              familyCount: members.length,
-              isVirtual: true,
-              isParent: true
-            });
-          }
-        }
-      }
-
-      if (collections) {
-        const membersBySet = new Map<string, any[]>();
-        if (allSetMembers) {
-          for (const sm of allSetMembers) {
-            if (!membersBySet.has(sm.set_id)) membersBySet.set(sm.set_id, []);
-            membersBySet.get(sm.set_id)!.push(sm);
+            if (members.length > 0) {
+              allItems.push({
+                id: `flavor_${group.id}`,
+                name: group.name,
+                category_override: "Exclusives",
+                image_url: group.image_url || null,
+                master_author: "Flavor Group",
+                description: null,
+                created_at: group.created_at,
+                isFlavorGroup: true,
+                flavorGroupId: group.id,
+                flavors: members,
+                familyCount: members.length,
+                isVirtual: true,
+                isParent: true
+              });
+            }
           }
         }
 
-        for (const set of collections) {
-          const setMembers = membersBySet.get(set.id) || [];
-
-          const members = setMembers
-            .map((sm: any) => modsById.get(String(sm.mod_id)))
-            .filter(Boolean) || [];
-
-          if (setMembers.length > 0) {
-            setMembers.forEach((sm: any) => processedMods.add(String(sm.mod_id)));
+        if (collections) {
+          const membersBySet = new Map<string, any[]>();
+          if (allSetMembers) {
+            for (const sm of allSetMembers) {
+              if (!membersBySet.has(sm.set_id)) membersBySet.set(sm.set_id, []);
+              membersBySet.get(sm.set_id)!.push(sm);
+            }
           }
 
-          if (members.length > 0) {
-            allItems.push({
-              id: `ccset_${set.id}`,
-              name: set.name,
-              category_override: "Collection",
-              image_url: set.image_url || null,
-              master_author: set.creator_name || "Unknown Creator",
-              description: null,
-              created_at: set.created_at,
-              url: set.url || null,
-              isCollection: true,
-              collectionId: set.id,
-              flavors: members,
-              familyCount: members.length,
-              isVirtual: true,
-              isParent: true
-            });
+          for (const set of collections) {
+            const setMembers = membersBySet.get(set.id) || [];
+
+            const members = setMembers
+              .map((sm: any) => modsById.get(String(sm.mod_id)))
+              .filter(Boolean) || [];
+
+            if (setMembers.length > 0) {
+              setMembers.forEach((sm: any) => processedMods.add(String(sm.mod_id)));
+            }
+
+            if (members.length > 0) {
+              allItems.push({
+                id: `ccset_${set.id}`,
+                name: set.name,
+                category_override: "Collection",
+                image_url: set.image_url || null,
+                master_author: set.creator_name || "Unknown Creator",
+                description: null,
+                created_at: set.created_at,
+                url: set.url || null,
+                isCollection: true,
+                collectionId: set.id,
+                flavors: members,
+                familyCount: members.length,
+                isVirtual: true,
+                isParent: true
+              });
+            }
           }
         }
-      }
 
-      modsById.forEach((mod, id) => {
-        if (!processedMods.has(id)) {
-          allItems.push(mod);
-        }
-      });
-
-      const nameMap = new Map<string, any>();
-      allItems.forEach(item => {
-        const name = item.name?.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (!name) return;
-
-        const existing = nameMap.get(name);
-        if (!existing) {
-          nameMap.set(name, item);
-        } else {
-          if ((existing.isVirtual || existing.isParent) && (item.isVirtual || item.isParent)) {
-            return;
+        modsById.forEach((mod, id) => {
+          if (!processedMods.has(id)) {
+            allItems.push(mod);
           }
+        });
 
-          if (item.isVirtual || item.isParent) {
+        const nameMap = new Map<string, any>();
+        allItems.forEach(item => {
+          const name = item.name?.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (!name) return;
+
+          const existing = nameMap.get(name);
+          if (!existing) {
             nameMap.set(name, item);
-          } else if (existing.isVirtual || existing.isParent) {
-            return;
           } else {
-            const existingVersions = existing.compatible_versions || [];
-            const itemVersions = item.compatible_versions || [];
-            const mergedVersions = Array.from(new Set([...existingVersions, ...itemVersions]));
-            existing.compatible_versions = mergedVersions;
+            if ((existing.isVirtual || existing.isParent) && (item.isVirtual || item.isParent)) {
+              return;
+            }
+
+            if (item.isVirtual || item.isParent) {
+              nameMap.set(name, item);
+            } else if (existing.isVirtual || existing.isParent) {
+              return;
+            } else {
+              const existingVersions = existing.compatible_versions || [];
+              const itemVersions = item.compatible_versions || [];
+              const mergedVersions = Array.from(new Set([...existingVersions, ...itemVersions]));
+              existing.compatible_versions = mergedVersions;
+            }
           }
+        });
+
+        allItems = Array.from(nameMap.values());
+        allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+        window.__nexusCache!.nexusItems = allItems;
+        window.__nexusCache!.lastNexusFetch = performance.now();
+
+        if (!isSilent || useStore.getState().marketTab === 'MODS') {
+          setResults(allItems);
+          setCurrentPage(1);
         }
-      });
-
-      allItems = Array.from(nameMap.values());
-      allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      window.__nexusCache!.nexusItems = allItems;
-      window.__nexusCache!.lastNexusFetch = performance.now();
-
-      if (!isSilent || useStore.getState().marketTab === 'MODS') {
-        setResults(allItems);
-        setCurrentPage(1);
+      } catch (err: any) {
+        console.error(err);
+        if (!isSilent) useStore.getState().pushStatus(t("error_nexus_load") || "Failed to load Nexus items.");
+        throw err;
       }
-    } catch (err: any) {
-      console.error(err);
-      if (!isSilent) useStore.getState().pushStatus(t("error_nexus_load") || "Failed to load Nexus items.");
-      throw err;
+    })();
+
+    try {
+      await nexusFetchPromise;
+    } catch (err) {
+      // handled inside promise
+    } finally {
+      nexusFetchPromise = null;
+      if (!isSilent) setLoadingMods(false);
     }
-  })();
-  
-  try {
-    await nexusFetchPromise;
-  } catch(err) {
-    // handled inside promise
-  } finally {
-    nexusFetchPromise = null;
-    if (!isSilent) setLoadingMods(false);
   }
-}
 
   const categories = useMemo(() => [t("ql_all"), ...Array.from(new Set(results.map((m: any) => m.category_override || "Uncategorized").filter(Boolean)))], [results, t]);
 
@@ -1347,39 +1347,39 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
 
   return (
-    <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <ViewHeader
-        title={t("market_title")}
-        subtitle={`${t("subtitle_suffix")}`}
-        icon={t("icon_hub")}
-        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
-      >
-        <ActionButton
-          icon={t("icon_refresh") || "refresh"}
-          label={t("ui_btn_refresh") || "Refresh"}
-          onClick={() => {
-            if (marketTab === 'MODS') fetchNexus(true);
-            else fetchNexusAssets(true);
-          }}
-          className="h-12 px-6"
-        />
-      </ViewHeader>
+    <>
+      <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <ViewHeader
+          title={t("market_title")}
+          subtitle={`${t("subtitle_suffix")}`}
+          icon={t("icon_hub")}
+          iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+          breadcrumb={marketTab !== 'HOME' ? (marketTab === 'HOME' ? t('tab_overview') || 'Overview' : t(`tab_${marketTab.toLowerCase()}`) || marketTab) : undefined}
+          onTitleClick={() => setMarketTab('HOME')}
+        >
+          <ActionButton
+            icon={t("icon_refresh") || "refresh"}
+            label={t("ui_btn_refresh") || "Refresh"}
+            onClick={() => {
+              if (marketTab === 'MODS') fetchNexus(true);
+              else fetchNexusAssets(true);
+            }}
+            className="h-12 px-6"
+          />
+        </ViewHeader>
 
-      <div className="flex flex-col">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 mb-6 w-full">
-          <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 w-full">
-            {['HOME', 'MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
-              <HubTabButton
-                key={tab}
-                id={tab}
-                activeTab={marketTab}
-                setTab={setMarketTab}
-                label={tab === 'HOME' ? t('tab_overview') || 'Overview' : t(`tab_${tab.toLowerCase()}`) || tab}
-                icon={tab === 'HOME' ? 'dashboard' : tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : tab === 'TEMPLATES' ? "draw" : "palette"}
-              />
-            ))}
-          </div>
-        </div>
+        <HoverTabDrawer title="Nexus Navigation" activeTab={marketTab} setTab={setMarketTab}>
+          {['HOME', 'MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
+            <VerticalTabButton
+              key={tab}
+              id={tab}
+              activeTab={marketTab}
+              setTab={setMarketTab}
+              label={tab === 'HOME' ? t('tab_overview') || 'Overview' : t(`tab_${tab.toLowerCase()}`) || tab}
+              icon={tab === 'HOME' ? 'dashboard' : tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : tab === 'TEMPLATES' ? "draw" : "palette"}
+            />
+          ))}
+        </HoverTabDrawer>
 
         <div className={marketTab === 'HOME' ? 'flex-1 flex flex-col relative' : 'hidden'}>
           <CommandScreenLayout>
@@ -1456,7 +1456,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest pointer-events-auto z-10 w-16">
                                 {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
                               </span>
-                              
+
                               <div className="absolute inset-0 flex items-center justify-center pointer-events-none pt-3">
                                 {isFolder && (
                                   <div className="group/hitbox static flex items-center justify-center gap-2 font-black text-[9px] uppercase tracking-widest text-[var(--subtext)] group-hover/hitbox:text-[var(--text)] transition-colors pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}>
@@ -1522,47 +1522,47 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   </div>
                                 </div>
                                 <div className="hidden xl:block w-px bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_10%,transparent)] via-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent" />
-                                
+
                                 <div className="flex-1 min-w-0">
                                   <DeferredRender>
                                     <div className="grid grid-cols-1 xl:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 max-h-[500px] xl:max-h-[600px] overflow-y-auto custom-scrollbar p-6">
-                                    {(item.flavors || [])
-                                      .filter((flavor: any) => {
-                                        if (!drawerSearchQuery) return true;
-                                        const query = drawerSearchQuery.toLowerCase();
-                                        return (flavor.displayName || flavor.name || "").toLowerCase().includes(query) || (flavor.author || "").toLowerCase().includes(query);
-                                      })
-                                      .map((flavor: any, subIdx: number) => (
-                                        <div
-                                          key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
-                                          onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
-                                          className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group"
-                                        >
-                                          <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
-                                            {(showImages !== false && flavor.image_url) ? (
-                                              <img
-                                                src={flavor.image_url}
-                                                alt={flavor.name}
-                                                loading="lazy"
-                                                className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
-                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                              />
-                                            ) : (
-                                              <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
-                                                {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
-                                              </span>
-                                            )}
+                                      {(item.flavors || [])
+                                        .filter((flavor: any) => {
+                                          if (!drawerSearchQuery) return true;
+                                          const query = drawerSearchQuery.toLowerCase();
+                                          return (flavor.displayName || flavor.name || "").toLowerCase().includes(query) || (flavor.author || "").toLowerCase().includes(query);
+                                        })
+                                        .map((flavor: any, subIdx: number) => (
+                                          <div
+                                            key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
+                                            onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
+                                            className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group"
+                                          >
+                                            <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
+                                              {(showImages !== false && flavor.image_url) ? (
+                                                <img
+                                                  src={flavor.image_url}
+                                                  alt={flavor.name}
+                                                  loading="lazy"
+                                                  className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                                                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                />
+                                              ) : (
+                                                <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
+                                                  {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="p-4 flex flex-col flex-1">
+                                              <h3 className="text-[10px] font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                                                {cleanModName(flavor.name || flavor.id).name}
+                                              </h3>
+                                              <p className="text-[8px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
+                                                {flavor.master_author || item.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` \u2022 ${flavor.latest_version || flavor.version}` : ""}
+                                              </p>
+                                            </div>
                                           </div>
-                                          <div className="p-4 flex flex-col flex-1">
-                                            <h3 className="text-[10px] font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
-                                              {cleanModName(flavor.name || flavor.id).name}
-                                            </h3>
-                                            <p className="text-[8px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
-                                              {flavor.master_author || item.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` • ${flavor.latest_version || flavor.version}` : ""}
-                                            </p>
-                                          </div>
-                                        </div>
-                                      ))}
+                                        ))}
                                     </div>
                                   </DeferredRender>
                                 </div>
@@ -1635,32 +1635,21 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   />
                 </div>
               </CommandScreenSidebar>
-              </CommandScreenBody>
-            </CommandScreenLayout>
+            </CommandScreenBody>
+          </CommandScreenLayout>
         </div>
-        
+
         <div className={marketTab === 'MODS' ? 'flex-1 flex flex-col relative' : 'hidden'}>
           <>
-            <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
-              <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] hidden xl:flex items-center gap-3 shrink-0">
-                <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">extension</span>
-                </div>
-                <span className="truncate">{t("tab_mods") || "ARTIFACTS"}</span>
-              </h2>
-
-              <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                <SearchBar
-                  value={searchQuery}
-                  onChange={(val) => {
-                    setSearchQuery(val);
-                    setCurrentPage(1);
-                  }}
-                  placeholder={t("search_placeholder") as string}
-                  className="flex-1 min-w-[200px] w-full xl:max-w-[300px] !h-12 !rounded-2xl"
-                />
-
-                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
+            <ScreenUtilityBar
+              search={searchQuery}
+              onSearchChange={(val: string) => {
+                setSearchQuery(val);
+                setCurrentPage(1);
+              }}
+              searchPlaceholder={t("search_placeholder") as string}
+              className="mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500"
+            >                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
                   <CustomDropdown disableTint={true}
                     value={selectedGameVersion}
                     onChange={(val: string[]) => {
@@ -1715,8 +1704,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     />
                   </div>
                 )}
-              </div>
-            </div>
+            </ScreenUtilityBar>
 
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingMods ? (
@@ -1728,7 +1716,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   {paginatedResults.map((mod: any, index: number) => {
                     const mainKey = mod.id || `${mod.name}_${index}`;
                     const isFolder = mod.isVirtual || mod.isParent || mod.familyCount > 1;
-                    
+
                     const renderedCard = (
                       <div
                         key={mainKey}
@@ -1805,7 +1793,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             {cleanModName(mod.name || mod.id).name}
                           </h3>
                           <p className="text-[9px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
-                            {mod.master_author || t("unknown_mason") || "Unknown Creator"}{(mod.latest_version) ? ` • ${mod.latest_version}` : ""}
+                            {mod.master_author || t("unknown_mason") || "Unknown Creator"}{(mod.latest_version) ? ` \u2022 ${mod.latest_version}` : ""}
                           </p>
                           {mod.description && (
                             <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">
@@ -1817,7 +1805,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest pointer-events-auto z-10 w-20">
                               {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("date_unknown")}
                             </span>
-                            
+
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none pt-4">
                               {isFolder && (
                                 <div className="group/hitbox static flex items-center justify-center gap-2 font-black text-[9px] uppercase tracking-widest text-[var(--subtext)] group-hover/hitbox:text-[var(--text)] transition-colors pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}>
@@ -1883,47 +1871,47 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 </div>
                               </div>
                               <div className="hidden xl:block w-px bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_10%,transparent)] via-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent" />
-                              
+
                               <div className="flex-1 min-w-0">
                                 <DeferredRender>
                                   <div className="grid grid-cols-1 xl:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 max-h-[500px] xl:max-h-[600px] overflow-y-auto custom-scrollbar p-6">
-                                  {(mod.flavors || [])
-                                    .filter((flavor: any) => {
-                                      if (!drawerSearchQuery) return true;
-                                      const query = drawerSearchQuery.toLowerCase();
-                                      return (flavor.displayName || flavor.name || "").toLowerCase().includes(query) || (flavor.author || "").toLowerCase().includes(query);
-                                    })
-                                    .map((flavor: any, subIdx: number) => (
-                                      <div
-                                        key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
-                                        onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
-                                        className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group"
-                                      >
-                                        <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
-                                          {(showImages !== false && flavor.image_url) ? (
-                                            <img
-                                              src={flavor.image_url}
-                                              alt={flavor.name}
-                                              loading="lazy"
-                                              className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
-                                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                            />
-                                          ) : (
-                                            <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
-                                              {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
-                                            </span>
-                                          )}
+                                    {(mod.flavors || [])
+                                      .filter((flavor: any) => {
+                                        if (!drawerSearchQuery) return true;
+                                        const query = drawerSearchQuery.toLowerCase();
+                                        return (flavor.displayName || flavor.name || "").toLowerCase().includes(query) || (flavor.author || "").toLowerCase().includes(query);
+                                      })
+                                      .map((flavor: any, subIdx: number) => (
+                                        <div
+                                          key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
+                                          onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
+                                          className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group"
+                                        >
+                                          <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
+                                            {(showImages !== false && flavor.image_url) ? (
+                                              <img
+                                                src={flavor.image_url}
+                                                alt={flavor.name}
+                                                loading="lazy"
+                                                className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                              />
+                                            ) : (
+                                              <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
+                                                {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="p-4 flex flex-col flex-1">
+                                            <h3 className="text-[10px] font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                                              {cleanModName(flavor.name || flavor.id).name}
+                                            </h3>
+                                            <p className="text-[8px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
+                                              {flavor.master_author || mod.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` \u2022 ${flavor.latest_version || flavor.version}` : ""}
+                                            </p>
+                                          </div>
                                         </div>
-                                        <div className="p-4 flex flex-col flex-1">
-                                          <h3 className="text-[10px] font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
-                                            {cleanModName(flavor.name || flavor.id).name}
-                                          </h3>
-                                          <p className="text-[8px] font-black text-[var(--text)]/30 uppercase tracking-widest truncate mb-2">
-                                            {flavor.master_author || mod.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` • ${flavor.latest_version || flavor.version}` : ""}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    ))}
+                                      ))}
                                   </div>
                                 </DeferredRender>
                               </div>
@@ -1968,31 +1956,18 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             )}
           </>
         </div>
-        
+
         <div className={['BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].includes(marketTab) ? 'flex-1 flex flex-col relative' : 'hidden'}>
           <div className="flex flex-col">
-            <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
-              <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] hidden xl:flex items-center gap-3 shrink-0">
-                <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">
-                    {marketTab === 'BLUEPRINTS' ? 'map' : marketTab === 'LEXICONS' ? 'translate' : marketTab === 'TEMPLATES' ? 'draw' : 'palette'}
-                  </span>
-                </div>
-                <span className="truncate">{t(`tab_${marketTab.toLowerCase()}`) || marketTab}</span>
-              </h2>
-
-              <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                <SearchBar
-                  value={assetSearchQuery}
-                  onChange={(val) => {
-                    setAssetSearchQuery(val);
-                    setCurrentPage(1);
-                  }}
-                  placeholder={(marketTab === 'LEXICONS' ? (t("search_lexicons")) : marketTab === 'TEMPLATES' ? (t("search_tmpl")) : marketTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_chameleons"))) as string}
-                  className="flex-1 min-w-[200px] w-full xl:max-w-[300px] !h-12 !rounded-2xl"
-                />
-
-                {marketTab === 'BLUEPRINTS' && gameVersions.length > 0 && (
+            <ScreenUtilityBar
+              search={assetSearchQuery}
+              onSearchChange={(val: string) => {
+                setAssetSearchQuery(val);
+                setCurrentPage(1);
+              }}
+              searchPlaceholder={(marketTab === 'LEXICONS' ? (t("search_lexicons")) : marketTab === 'TEMPLATES' ? (t("search_tmpl")) : marketTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_chameleons"))) as string}
+              className="mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500"
+            >                {marketTab === 'BLUEPRINTS' && gameVersions.length > 0 && (
                   <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
                     <CustomDropdown disableTint={true}
                       value={selectedGameVersion}
@@ -2074,8 +2049,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     />
                   </div>
                 )}
-              </div>
-            </div>
+            </ScreenUtilityBar>
 
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingAssets ? (
@@ -2345,6 +2319,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           onUpdatePlaySet={() => { }}
         />
       )}
-    </div>
+    </>
   );
 }

@@ -9,7 +9,7 @@ export function SidePanelBrowserDownloads({ downloadsQueue, setDownloadsQueue }:
 
   return (
     <div className="shrink-0 m-4 mt-0 glass-panel border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] rounded-[var(--radius)] p-4 flex flex-col gap-3 z-50 animate-in slide-in-from-bottom-10 backdrop-blur-3xl overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
+      <div className="flex items-center justify-start border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] animate-bounce">download</span>
           <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">{t("browser_downloads_intercepted")}</span>
@@ -20,7 +20,7 @@ export function SidePanelBrowserDownloads({ downloadsQueue, setDownloadsQueue }:
         {downloadsQueue.map(filePath => {
           const fileName = filePath.split(/[/\\]/).pop() || "Unknown File";
           return (
-            <div key={filePath} className="flex flex-col justify-between bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md p-3 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group shadow-sm hover:border-[var(--accent)]/[30%] transition-all">
+            <div key={filePath} className="flex flex-col justify-start bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md p-3 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group shadow-sm hover:border-[var(--accent)]/[30%] transition-all">
               <span className="text-[11px] font-bold text-[var(--text)] truncate mb-3" title={fileName}>{fileName}</span>
               <div className="flex gap-2 justify-end w-full">
                 <button

@@ -163,7 +163,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
       <div className="flex flex-col gap-8">
         <div className="grid grid-cols-2 gap-4">
           <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isPublic ? 'theme-border-success bg-[var(--success)]/10 shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(true)}>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isPublic ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_public")}</span>
                 <span className={`text-sm font-black uppercase tracking-widest ${isPublic ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_public")}</span>
@@ -178,7 +178,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
           </div>
 
           <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isPublic ? 'theme-border-accent bg-[var(--accent)]/10 shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(false)}>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isPublic ? 'theme-text-accent' : 'text-[var(--subtext)]'}`}>{t("icon_visibility_off")}</span>
                 <span className={`text-sm font-black uppercase tracking-widest ${!isPublic ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_private")}</span>
@@ -193,7 +193,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
           </div>
 
           <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isLocked ? 'theme-border-danger bg-[var(--danger)]/10 shadow-[0_0_30px_rgba(var(--danger-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(true)}>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isLocked ? 'theme-text-danger' : 'text-[var(--subtext)]'}`}>{t("icon_lock")}</span>
                 <span className={`text-sm font-black uppercase tracking-widest ${isLocked ? 'theme-text-danger' : 'text-[var(--text)]'}`}>{t("matrix_locked")}</span>
@@ -208,7 +208,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
           </div>
 
           <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isLocked ? 'theme-border-success bg-[var(--success)]/10 shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(false)}>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isLocked ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_lock_open")}</span>
                 <span className={`text-sm font-black uppercase tracking-widest ${!isLocked ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_unlocked")}</span>
@@ -223,7 +223,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
           </div>
 
           <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isMarketListed ? 'theme-border-success bg-[var(--success)]/10 shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(true)}>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isMarketListed ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_storefront")}</span>
                 <span className={`text-sm font-black uppercase tracking-widest ${isMarketListed ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_market")}</span>
@@ -238,7 +238,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
           </div>
 
           <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isMarketListed ? 'theme-border-accent bg-[var(--accent)]/10 shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(false)}>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isMarketListed ? 'theme-text-accent' : 'text-[var(--subtext)]'}`}>{t("icon_visibility_off")}</span>
                 <span className={`text-sm font-black uppercase tracking-widest ${!isMarketListed ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_market_off")}</span>
@@ -273,7 +273,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             </div>
             <div className="glass-surface rounded-2xl p-6 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-2 relative z-10">
               {blockedMods.map((mod: any) => (
-                <div key={mod.name} className="flex justify-between items-center py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 group">
+                <div key={mod.name} className="flex justify-start items-center py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 group">
                   <span className="text-sm font-bold text-[var(--text)] truncate mr-4">{formatDisplayName(mod.name)}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-[10px] font-black theme-text-danger bg-[var(--danger)]/10 px-4 py-2 rounded-xl shadow-inner whitespace-nowrap">{t("auto_tier")} {mod.compliance_tier}</span>

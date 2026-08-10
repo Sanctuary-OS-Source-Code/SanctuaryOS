@@ -36,7 +36,7 @@ export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOp
     <>
       <div className="fixed inset-0 z-[15000] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-[3px] animate-in fade-in duration-300" onClick={onClose} />
       <div className="fixed top-0 right-0 bottom-1 w-[320px] glass-panel border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-2xl flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden">
-        <div className="flex items-center justify-between pt-[60px] px-6 pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0">
+        <div className="flex items-center justify-start pt-[60px] px-6 pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0">
           <div className="flex flex-col">
             <h3 className="text-xl font-black tracking-widest text-[var(--text)]">{t("create_title")}</h3>
             <p className="text-[9px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("create_subtitle")}</p>
@@ -299,7 +299,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
 
               {matchedMod && (
                 <div className={`glass-panel rounded-2xl p-6 border flex flex-col gap-4 animate-in zoom-in-95 mt-2 bg-gradient-to-br from-transparent to-transparent ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/5' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/5' : 'border-[var(--accent)]/[30%] bg-[var(--accent)]/5'}`}>
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-start">
                       <div className="flex flex-col">
                         <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("registry_label_name")}</span>
                         <span className={`text-sm font-black uppercase tracking-widest ${statusState === 'MALWARE' ? 'text-red-500' : statusState === 'EXPLICIT' ? 'text-yellow-400' : 'theme-text-accent'}`}>{matchedMod.name}</span>
@@ -412,11 +412,11 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                       setShowFlagForm(false);
                     }}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-start">
                       <span className="text-[10px] font-bold text-[var(--text)] truncate max-w-[200px]" title={item.path}>{item.path.split(/[/\\]/).pop()}</span>
                       <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60">{new Date(item.timestamp).toLocaleTimeString()}</span>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-start">
                       <span className="text-[9px] font-mono text-[var(--subtext)] truncate max-w-[150px]" title={item.hash}>{item.hash}</span>
                       {item.matchedMod ? (
                         item.matchedMod.compliance_tier === 3 ? (

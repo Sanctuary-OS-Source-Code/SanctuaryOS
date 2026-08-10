@@ -59,7 +59,7 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
   return (
     <div className="flex flex-col gap-6 w-full p-6 pb-20 text-[var(--text)]">
       <div className="flex flex-col gap-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-start items-center">
           <div className="flex flex-col">
             <h2 className="text-xl font-black uppercase tracking-widest">{t("your_tickets")}</h2>
             <p className="text-sm text-[var(--subtext)]">{t("create_new")}</p>
@@ -115,7 +115,7 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
                   </span>
                 }
                 footer={
-                  <div className="flex justify-between items-center w-full">
+                  <div className="flex justify-start items-center w-full">
                     <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
                       {new Date(ticket.created_at).toLocaleDateString()}
                     </span>

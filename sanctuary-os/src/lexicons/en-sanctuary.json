@@ -2305,6 +2305,11 @@
   "alert_error_mason_profile_missing": "Error: Mason Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
   "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
+  "tab_vault": "Vault",
+  "tab_conflicts": "Conflict Radar",
+  "tab_world": "Time Capsule",
+  "oversight_title": "Oversight Command",
+  "oversight_subtitle": "Compliance, enforcement, audit control, and emergency authority",
   "status_dd_all": "All Statuses",
   "status_conflicts_resolved": "Imports Bypassed",
   "winner": "Winner",
@@ -2725,5 +2730,9 @@
   "panel_pin_subtitle": "Select a local node to broadcast to the network",
   "search_artifacts": "Query Artifacts...",
   "no_match_artifacts": "No Matching Artifacts Found",
-  "no_match_assets": "No Matching Assets Found"
+  "no_match_assets": "No Matching Assets Found",
+  "status_corrupted": "Corrupted",
+  "mason_hub_title": "Mason Command",
+  "mason_hub_subtitle": "Creator Operations & Metrics",
+  "playsets_all": "All Blueprints"
 }

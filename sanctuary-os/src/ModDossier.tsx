@@ -719,7 +719,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
             {editMode && (
               <div className="grid grid-cols-1 gap-4 mb-8 relative z-20">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className={`flex flex-row items-center justify-between gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-[var(--radius)] border transition-all hover:scale-[1.02] shadow-xl cursor-pointer ${metaInputs.is_paid ? 'border-[color-mix(in_srgb,#eab308_30%,transparent)] bg-[color-mix(in_srgb,#eab308_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  <label className={`flex flex-row items-center justify-start gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-[var(--radius)] border transition-all hover:scale-[1.02] shadow-xl cursor-pointer ${metaInputs.is_paid ? 'border-[color-mix(in_srgb,#eab308_30%,transparent)] bg-[color-mix(in_srgb,#eab308_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                     <div className="flex flex-col items-start gap-1">
                       <p className={`text-[9px] font-black opacity-80 uppercase tracking-[0.2em] ${metaInputs.is_paid ? 'text-[#fef08a]' : 'text-[var(--subtext)]'}`}>{t("label_is_paid") || "LICENSE"}</p>
                       <span className={`text-xs font-black uppercase tracking-widest truncate flex items-center gap-2 ${metaInputs.is_paid ? 'text-[#fef08a]' : 'text-[var(--text)] opacity-90'}`}>
@@ -734,7 +734,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     <input type="checkbox" checked={metaInputs.is_paid || false} onChange={e => setMetaInputs.is_paid(e.target.checked)} className="hidden" />
                   </label>
 
-                  <label className={`flex flex-row items-center justify-between gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-[var(--radius)] border transition-all hover:scale-[1.02] shadow-xl cursor-pointer ${metaInputs.is_early_access ? 'border-[color-mix(in_srgb,#a855f7_30%,transparent)] bg-[color-mix(in_srgb,#a855f7_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  <label className={`flex flex-row items-center justify-start gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-[var(--radius)] border transition-all hover:scale-[1.02] shadow-xl cursor-pointer ${metaInputs.is_early_access ? 'border-[color-mix(in_srgb,#a855f7_30%,transparent)] bg-[color-mix(in_srgb,#a855f7_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                     <div className="flex flex-col items-start gap-1">
                       <p className={`text-[9px] font-black opacity-80 uppercase tracking-[0.2em] ${metaInputs.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--subtext)]'}`}>{t("label_is_early_access") || "RELEASE TIER"}</p>
                       <span className={`text-xs font-black uppercase tracking-widest truncate flex items-center gap-2 ${metaInputs.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--text)] opacity-90'}`}>
@@ -779,7 +779,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
             {kids.length > 0 && (
               <div className="flex flex-col gap-6">
-                <div className="flex justify-between items-center px-1 ml-2">
+                <div className="flex justify-start items-center px-1 ml-2">
                   <h3 className="text-xs font-black theme-text-success uppercase tracking-[0.2em] opacity-90 flex items-center gap-2">
                     <span className="material-symbols-outlined !text-[18px]">{t("icon_inventory_2")}</span>
                     {t("manifest")} <span className="opacity-60 font-mono text-[10px]">({kids.length})</span>
@@ -798,7 +798,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       <div
                         key={kid.hash || kid.id || `${kid.name}_${kidIndex}`}
                         onClick={() => setSelectedKid(kid)}
-                        className={`group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl ${isEquipped ? 'glass-panel bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_20%,transparent)] shadow-[0_5px_15px_rgba(0,0,0,0.2)]' : 'glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
+                        className={`group relative flex flex-row items-center justify-start gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl ${isEquipped ? 'glass-panel bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_20%,transparent)] shadow-[0_5px_15px_rgba(0,0,0,0.2)]' : 'glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                           }`}>
                         <div className="flex flex-col min-w-0 flex-1 relative group/title">
                           <span className="text-xs font-extrabold text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm">
@@ -870,7 +870,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
             {(requirements.length > 0 || twins.length > 0 || conflicts.length > 0) && (
               <div className="flex flex-col mt-8">
-                <div className="flex items-center justify-between px-2 mb-4">
+                <div className="flex items-center justify-start px-2 mb-4">
                   <h3 className="text-xs font-black theme-text-warning uppercase tracking-[0.2em] flex items-center gap-2">
                     <span className="material-symbols-outlined !text-[18px]">{t("auto_extension")}</span>
                     {t("network_protocols")}
@@ -884,7 +884,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     const displayName = match ? (match.displayName || match.name) : (typeof req === 'string' ? req : req.name);
                     const searchUrl = reqUrl || `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanSearchName(displayName, activeGameSchema))}`;
                     return (
-                      <div key={i} onClick={() => match ? setSelectedKid(match) : (setSideBrowserUrl(searchUrl), setIsSideBrowserOpen(true))} className={`group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] ${!match ? 'border-red-500/[30%]' : ''}`}>
+                      <div key={i} onClick={() => match ? setSelectedKid(match) : (setSideBrowserUrl(searchUrl), setIsSideBrowserOpen(true))} className={`group relative flex flex-row items-center justify-start gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] ${!match ? 'border-red-500/[30%]' : ''}`}>
                         <div className="flex items-center gap-3 min-w-0 flex-1">
 
                           <span className={`text-sm font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm`}>{displayName}</span>
@@ -904,7 +904,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     const match = modList?.find((m: any) => String(m.dbId) === String(twinId) || m.hash === twinId) || twin;
                     const displayName = match ? (match.displayName || match.name) : (twin.displayName || twin.name);
                     return (
-                      <div key={i} onClick={() => match && setSelectedKid(match)} className={`group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]`}>
+                      <div key={i} onClick={() => match && setSelectedKid(match)} className={`group relative flex flex-row items-center justify-start gap-3 p-4 px-5 rounded-[var(--radius)] border transition-all cursor-pointer hover:scale-[1.01] hover:shadow-2xl backdrop-blur-2xl glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]`}>
                         <div className="flex items-center gap-3 min-w-0 flex-1">
 
                           <span className={`text-sm font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm`}>{displayName}</span>

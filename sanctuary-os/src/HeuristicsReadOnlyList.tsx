@@ -68,7 +68,7 @@ export function HeuristicsReadOnlyList({ onEditClick, search }: { onEditClick: (
                   </span>
                 ]}
                 footer={
-                  <div className="flex justify-between items-center w-full">
+                  <div className="flex justify-start items-center w-full">
                     <span className="flex items-center gap-1.5 truncate text-[var(--subtext)] opacity-80">
                       <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_shield")}</span>
                       {sig.enabled ? (t("comp_enabled")) : (t("comp_disabled"))}

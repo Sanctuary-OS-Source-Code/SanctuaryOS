@@ -51,14 +51,14 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
 
   return (
     <div
-      className="fixed bottom-0 right-0 h-10 flex items-center justify-between z-[140000] text-xs font-bold transition-all duration-300 select-none pointer-events-none px-4 pb-2 gap-2"
+      className="fixed bottom-0 right-0 h-10 flex items-center justify-start z-[140000] text-xs font-bold transition-all duration-300 select-none pointer-events-none px-4 pb-2 gap-2"
       style={{ left: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)' }}
     >
 
 
       {/* Center Segment: Terminal Log Readout */}
       <div
-        className={`flex-1 h-[34px] flex items-center gap-3 px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] pointer-events-auto backdrop-blur-2xl shadow-[0_4px_15px_rgba(0,0,0,0.05)] cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors ${statusBgClass}`}
+        className={`flex-1 h-[34px] flex items-center gap-3 px-4 glass-surface pointer-events-auto cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors ${statusBgClass}`}
         onClick={() => setIsLogExpanded(!isLogExpanded)}
       >
         <span className={`material-symbols-outlined text-sm shrink-0 opacity-70 ${statusIconClass}`}>
@@ -84,7 +84,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
       </div>
 
       {/* Right Segment: Scanners & Actions */}
-      <div className={`h-[34px] flex items-center rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 pointer-events-auto backdrop-blur-2xl shadow-[0_4px_15px_rgba(0,0,0,0.05)] overflow-hidden transition-all duration-300`}>
+      <div className={`h-[34px] flex items-center glass-surface shrink-0 pointer-events-auto overflow-hidden transition-all duration-300`}>
         {isScanning && (
           <div className={`flex items-center gap-4 h-full pl-6 shrink-0 w-80 animate-in fade-in duration-300 ${isErrorStatus ? 'border-red-500/20' : isSuccessStatus ? 'border-emerald-500/20' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
             <div className="flex items-center gap-2">

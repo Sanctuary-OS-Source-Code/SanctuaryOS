@@ -103,7 +103,7 @@ function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelected
 
 
       {/* Header */}
-      <div className="flex justify-between items-start z-10 relative">
+      <div className="flex justify-start items-start z-10 relative">
         {titleNode}
         {actionsNode && (
           <div className="shrink-0 ml-4">
@@ -118,7 +118,7 @@ function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelected
           onClick={onKeepA ? (e) => { e.stopPropagation(); onKeepA(); } : undefined}
           className={`flex flex-col relative group/moda transition-colors duration-500 ${onKeepA ? 'cursor-pointer p-2 rounded-xl hover:bg-emerald-500/[10%]' : ''} ${isSelectedA ? 'bg-[var(--accent)]/10 rounded-xl p-2' : ''}`}
         >
-          <div className="flex justify-between items-center mb-1">
+          <div className="flex justify-start items-center mb-1">
             <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tColor}`}>
               {t("enemy_a")}
             </span>
@@ -142,7 +142,7 @@ function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelected
           onClick={onKeepB ? (e) => { e.stopPropagation(); onKeepB(); } : undefined}
           className={`flex flex-col relative group/modb transition-colors duration-500 ${onKeepB ? 'cursor-pointer p-2 rounded-xl hover:bg-emerald-500/[10%]' : ''} ${isSelectedB ? 'bg-[var(--accent)]/10 rounded-xl p-2' : ''}`}
         >
-          <div className="flex justify-between items-center mb-1">
+          <div className="flex justify-start items-center mb-1">
             <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 opacity-80 ${tColor}`}>
               {t("enemy_b")}
             </span>

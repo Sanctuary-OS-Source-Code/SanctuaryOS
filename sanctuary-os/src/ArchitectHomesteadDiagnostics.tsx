@@ -386,13 +386,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
   return (
     <div className="flex flex-col w-full relative">
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_monitor_heart")}</span>
-          </div>
-          <span className="truncate">{t("tab_lab") || "Homestead DIAGNOSTICS"?.replace("🧪 ", "") || "Homestead Diagnostics"}</span>
-        </h2>
-        <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
+        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
           <div className="relative flex-1 max-w-[300px]">
             <SearchBar
               value={searchTerm}
@@ -543,7 +537,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                   {dependencies.length > 0 && (
                     <div className="flex flex-col gap-2 mt-2">
                       {dependencies.map(d => (
-                        <div key={d.id} className="flex justify-between items-center px-5 h-12 glass-surface rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-sm font-bold">
+                        <div key={d.id} className="flex justify-start items-center px-5 h-12 glass-surface rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-sm font-bold">
                           <span className="truncate pr-4">{d.name}</span>
                           <button onClick={() => handleRemoveDependency(d.id)} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors">
                             <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
@@ -568,7 +562,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                 <div className="flex flex-col gap-4 relative z-10">
                   {conflictTarget ? (
                     <div className="flex flex-col gap-2">
-                      <div className="flex justify-between items-center px-5 h-16 glass-surface rounded-xl border border-[var(--warning)]/30 text-[var(--text)] bg-[var(--warning)]/5 shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)]">
+                      <div className="flex justify-start items-center px-5 h-16 glass-surface rounded-xl border border-[var(--warning)]/30 text-[var(--text)] bg-[var(--warning)]/5 shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)]">
                         <div className="flex flex-col min-w-0">
                           <span className="text-[9px] font-black uppercase tracking-widest text-[var(--warning)] mb-0.5">{t("auto_testing_conflict_with")}</span>
                           <span className="text-sm font-bold truncate">{conflictTarget.name}</span>

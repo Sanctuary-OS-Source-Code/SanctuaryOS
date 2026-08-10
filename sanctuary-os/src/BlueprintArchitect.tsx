@@ -291,7 +291,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
               const tier3Count = activeConflicts.length - tier4Count;
               return (
                 <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative mb-4">
-                  <div className="flex items-center justify-between w-full relative z-10">
+                  <div className="flex items-center justify-start w-full relative z-10">
                     <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("bp_load_order_conflicts")}</h3>
                     <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest">
                       <span>{activeConflicts.length} {t("items")}</span>
@@ -473,7 +473,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
         <div className="flex-[5] flex flex-col min-h-0 min-w-0">
           <div className="flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-4">
             <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative mb-4">
-              <div className="flex items-center justify-between w-full relative z-10">
+              <div className="flex items-center justify-start w-full relative z-10">
                 <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("bp_compatibility_scanner")}</h3>
                 <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest">
                   <span>{brokenMods.length} {t("items")}</span>

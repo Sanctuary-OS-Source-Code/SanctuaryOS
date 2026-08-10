@@ -38,7 +38,7 @@ export function DefconAlert() {
           <div className="relative z-10 w-full mt-4 bg-[var(--bg)]/10 backdrop-blur-xl p-8 rounded-2xl border border-red-500/[10%] flex flex-col gap-6 shadow-[inset_0_2px_20px_rgba(0,0,0,0.5)]">
             {backupProgress ? (
             <>
-              <div className="flex justify-between items-end text-[11px] font-black uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--danger)_90%,transparent)] drop-shadow-md">
+              <div className="flex justify-start items-end text-[11px] font-black uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--danger)_90%,transparent)] drop-shadow-md">
                 <span className="truncate pr-4">{backupProgress.action}</span>
                 <span className="shrink-0 opacity-80">{backupProgress.current} / {backupProgress.total}</span>
               </div>
@@ -54,7 +54,7 @@ export function DefconAlert() {
             </>
             ) : (
               <>
-                <div className="flex justify-between items-end text-[11px] font-black uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--danger)_90%,transparent)]">
+                <div className="flex justify-start items-end text-[11px] font-black uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--danger)_90%,transparent)]">
                   <span>{t("defcon_init_secure")}</span>
                   <span className="animate-pulse opacity-80">{t("defcon_stand_by")}</span>
                 </div>

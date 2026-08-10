@@ -49,7 +49,7 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
     >
       <div className="flex-1 overflow-hidden p-2 lg:p-2 flex flex-col gap-6">
         
-        <div className="flex items-center justify-between shrink-0">
+        <div className="flex items-center justify-start shrink-0">
           <div className="flex items-center gap-2 relative w-1/2 max-w-md">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-[18px] opacity-50 z-10">{t("icon_search")}</span>
             <input 

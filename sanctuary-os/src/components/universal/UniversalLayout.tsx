@@ -24,7 +24,7 @@ export function UniversalGroup({
 }: UniversalGroupProps) {
   return (
     <div className={`flex flex-col gap-6 relative mb-2 ${className}`}>
-      <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+      <div className="flex items-center justify-start border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
         <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${headerColorClass}`}>
           {icon && <span className="material-symbols-outlined !text-[14px]">{icon}</span>}
           {title}
@@ -171,7 +171,7 @@ export function UniversalToggle({
 
   if (layout === "horizontal-reverse") {
     return (
-      <div className={`flex items-center justify-between gap-4 w-full ${className}`}>
+      <div className={`flex items-center justify-start gap-4 w-full ${className}`}>
         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-80">{label}</span>
         {toggleNode}
       </div>

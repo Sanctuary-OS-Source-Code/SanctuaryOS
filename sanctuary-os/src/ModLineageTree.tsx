@@ -102,7 +102,7 @@ function EditableVersionRow({
       <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none rounded-3xl" />
       
       {/* Top Row: Icon + Badge */}
-      <div className="flex items-start justify-between gap-3 mb-4 relative z-10">
+      <div className="flex items-start justify-start gap-3 mb-4 relative z-10">
         <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
           <span className="text-[16px] font-black text-[var(--accent)] drop-shadow-md">
             {index === 0 ? '★' : totalCount - index}
@@ -274,7 +274,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
       <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)]/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
       <div className="absolute bottom-0 left-0 w-48 h-48 bg-[var(--text)]/5 rounded-full blur-[60px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
 
-      <div className="flex justify-between items-end pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2">
+      <div className="flex justify-start items-end pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2">
         <div className="flex flex-col gap-1">
           <h3 className="text-[13px] font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
             <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] drop-shadow-md">{t("icon_timeline")}</span>

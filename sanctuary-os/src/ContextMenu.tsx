@@ -456,7 +456,7 @@ export function ContextMenu() {
               <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] my-1 w-full" />
               <button
                 onMouseDown={(e) => { e.preventDefault(); setShowIconPicker(!showIconPicker); }}
-                className={`px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center justify-between text-sm font-medium text-[var(--text)] group ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}`}
+                className={`px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center justify-start text-sm font-medium text-[var(--text)] group ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}`}
               >
                 <div className="flex items-center gap-3">
                    <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">add_reaction</span>

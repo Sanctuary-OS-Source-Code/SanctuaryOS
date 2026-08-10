@@ -72,7 +72,7 @@ export default function BlueprintSwapSidePanel({
                     </div>
 
                     <div className="flex-1 flex flex-col min-w-0 w-full">
-                      <div className="flex items-center justify-between gap-4 mb-2">
+                      <div className="flex items-center justify-start gap-4 mb-2">
                         <h4 className={`text-xl font-black uppercase tracking-widest truncate transition-colors duration-500 ${isActive ? 'theme-text-accent drop-shadow-md' : 'text-[var(--text)] group-hover:theme-text-accent'}`}>
                           {bp.name}
                         </h4>

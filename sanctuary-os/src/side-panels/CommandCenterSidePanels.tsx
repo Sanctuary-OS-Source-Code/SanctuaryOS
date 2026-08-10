@@ -81,7 +81,7 @@ export function UpdatesSidePanel({
     >
       <div className="flex flex-col gap-4 w-full">
         <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative">
-          <div className="flex items-center justify-between w-full relative z-10">
+          <div className="flex items-center justify-start w-full relative z-10">
             <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("updates_modal_title")}</h3>
             <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest">
               {activeUpdates.length > 0 ? (

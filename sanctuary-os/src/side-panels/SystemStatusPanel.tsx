@@ -141,7 +141,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
 
         <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10" title={t("sys_info_app")} icon="terminal" innerClassName="flex flex-col gap-4">
           {updatePayload && (
-            <button onClick={() => { setIsUpdatePanelOpen(true); }} className="w-full glass-surface p-4 rounded-xl border border-[var(--accent)]/[40%] bg-[var(--accent)]/[15%] hover:bg-[var(--accent)]/[25%] transition-all duration-300 hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.3)] flex items-center justify-between overflow-hidden relative group hover:-translate-y-1 mt-2">
+            <button onClick={() => { setIsUpdatePanelOpen(true); }} className="w-full glass-surface p-4 rounded-xl border border-[var(--accent)]/[40%] bg-[var(--accent)]/[15%] hover:bg-[var(--accent)]/[25%] transition-all duration-300 hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.3)] flex items-center justify-start overflow-hidden relative group hover:-translate-y-1 mt-2">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10" />
               <div className="flex items-center gap-4 relative z-10">

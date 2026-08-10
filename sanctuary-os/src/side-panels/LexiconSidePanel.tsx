@@ -193,7 +193,7 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                 >
                   {activeLang === code && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
 
-                  <div className="flex justify-between items-start mb-4 relative z-10">
+                  <div className="flex justify-start items-start mb-4 relative z-10">
                     <div className="w-8 h-8 rounded-full shadow-md border border-[var(--accent)]/[40%] bg-[var(--accent)]/[10%] shrink-0 flex items-center justify-center text-[var(--accent)]">
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_translate") || "translate"}</span>
                     </div>
@@ -266,7 +266,7 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                     >
                       {activeLang === code && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
 
-                      <div className="flex justify-between items-start mb-4 relative z-10">
+                      <div className="flex justify-start items-start mb-4 relative z-10">
                         <div className="w-8 h-8 rounded-full shadow-md border border-[var(--accent)]/[40%] bg-[var(--accent)]/[10%] shrink-0 flex items-center justify-center text-[var(--accent)]">
                           <span className="material-symbols-outlined !text-[16px]">{t("icon_translate") || "translate"}</span>
                         </div>

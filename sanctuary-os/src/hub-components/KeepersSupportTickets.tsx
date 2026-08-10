@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import { supabase, supabaseAuth } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { SidePanel, CustomDropdown, standardAccentGlassButtonClass, EmptyState } from "../shared";
+import { SidePanel, CustomDropdown, standardAccentGlassButtonClass, EmptyState, ScreenUtilityBar, FilterTabs, FilterTabButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 
 interface Ticket {
@@ -160,61 +160,28 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
 
   return (
     <div className="flex flex-col gap-6 w-full pb-32 text-[var(--text)]">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-4">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_local_activity")}</span>
-          </div>
-          <span className="truncate">{t("ql_support")}</span>
-        </h2>
-        <div className="flex items-center gap-3 relative flex-1 max-w-2xl ml-auto justify-end">
-          <div className="relative flex-1 h-12 max-w-[400px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("ui_placeholder_search")}
-              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-              </button>
-            )}
-          </div>
-          <div className="w-max min-w-[192px] max-w-xs shrink-0 relative z-50 h-12">
-            <CustomDropdown
-              value={activeCategory}
-              onChange={(v: string[]) => setActiveCategory(v[0])}
-              options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
-              disableTint={true}
-            />
-          </div>
-          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12">
-            <button
-              onClick={() => setActiveFilter("pending")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-            >
-              {t("pending")}
-            </button>
-            <button
-              onClick={() => setActiveFilter("new")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'new' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-            >
-              {t("ui_tab_new")}
-            </button>
-            <button
-              onClick={() => setActiveFilter("closed")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === 'closed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-            >
-              {t("ui_tab_closed")}
-            </button>
-          </div>
+      <ScreenUtilityBar
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder={t("ui_placeholder_search")}
+        className="!mb-0"
+      >
+        <div className="w-max min-w-[192px] max-w-xs shrink-0 relative z-50 h-12">
+          <CustomDropdown
+            value={activeCategory}
+            onChange={(v: string[]) => setActiveCategory(v[0])}
+            options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
+            disableTint={true}
+          />
         </div>
-      </div>
+        <FilterTabs className="h-12 z-40">
+          <FilterTabButton id="pending" label={t("pending")} activeTab={activeFilter} setTab={setActiveFilter} />
+          <FilterTabButton id="new" label={t("ui_tab_new")} activeTab={activeFilter} setTab={setActiveFilter} />
+          <FilterTabButton id="closed" label={t("ui_tab_closed")} activeTab={activeFilter} setTab={setActiveFilter} />
+        </FilterTabs>
+      </ScreenUtilityBar>
 
-      <div className="w-full flex flex-col gap-4 pb-10">
+      <div className="w-full flex flex-col gap-4 pb-10 px-6">
         {isLoading ? (
           <div className="flex justify-center items-center h-40 opacity-50">
             <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing")}</span>

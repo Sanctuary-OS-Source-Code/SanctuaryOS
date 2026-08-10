@@ -1,5 +1,5 @@
 import React from 'react';
-import { CustomDropdown, isVersionMatch, getHighestVersion, getLowestVersion, SearchBar } from "../../shared";
+import { CustomDropdown, isVersionMatch, getHighestVersion, getLowestVersion, SearchBar, ScreenUtilityBar } from "../../shared";
 
 export function DebouncedSearchInput({ value, onChange, placeholder, t }: { value: string, onChange: (val: string) => void, placeholder: string, t: any }) {
   const [localValue, setLocalValue] = React.useState(value);
@@ -47,16 +47,12 @@ export function VaultFilters({
   setSelectedMods
 }: any) {
   return (
-    <div className={`flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500`}>
-      <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] hidden xl:flex items-center gap-3 shrink-0">
-        <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-          <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_inventory_2")}</span>
-        </div>
-        <span className="truncate">{t("title_artifacts") || "YOUR ARTIFACTS"}</span>
-      </h2>
-
-        <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-          <DebouncedSearchInput value={searchQuery} onChange={setSearchQuery} placeholder={t("search_ph")} t={t} />
+        <ScreenUtilityBar
+      search={searchQuery}
+      onSearchChange={setSearchQuery}
+      searchPlaceholder={t("search_ph")}
+      className="!mb-8 animate-in slide-in-from-top-4 duration-500 relative z-20"
+    >
 
           <div className="flex items-center gap-2 flex-1 xl:flex-none xl:w-max min-w-[140px] shrink-0 relative z-50 h-12">
             <div className="flex-1 xl:max-w-[200px] h-full">
@@ -103,9 +99,12 @@ export function VaultFilters({
             onChange={(val: string[]) => setFilterStatus(val[0])}
             options={[
               { id: "ALL", label: t("ql_all") || "ALL" },
-              { id: "VERIFIED", label: t("verified") },
-              { id: "REVIEW", label: t("status_dd_review") },
-              { id: "UNVERIFIED", label: t("unverified") }
+              { id: "STABLE", label: t("status_stable") || "STABLE" },
+              { id: "UNSTABLE", label: t("status_unstable") || "UNSTABLE" },
+              { id: "CORRUPTED", label: t("status_corrupted") || "CORRUPTED" },
+              { id: "REVIEW", label: t("status_dd_review") || "UNDER REVIEW" },
+              { id: "PENDING", label: t("status_pending") || "PENDING" },
+              { id: "UNVERIFIED", label: t("status_unverified") || "UNVERIFIED" },
             ]}
           />
         </div>
@@ -184,7 +183,6 @@ export function VaultFilters({
             {t("btn_hide_ghosts")}
           </button>
         )}
-      </div>
-    </div>
+          </ScreenUtilityBar>
   );
 }

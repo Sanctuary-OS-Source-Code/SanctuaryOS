@@ -8,7 +8,7 @@ import { useStore } from "./store";
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
-import { ViewHeader, stripMarkdown, SidePanel, standardPrimaryButtonClass, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HubTabButton, compareVersions, cleanSearchName, DashboardStatTile, LoadingScreen } from "./shared";
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, CustomDropdown, HoverTooltip, SidebarActionButton, StatTile, EmptyState, extractPostImage, DashboardStatTile, SearchBar, LoadingScreen, SidePanel, standardPrimaryButtonClass, standardButtonClass, standardAccentGlassButtonClass, compareVersions, cleanSearchName } from "./shared";
 import MasonPostCard from "./MasonPostCard";
 import { readDir, readTextFile, exists } from '@tauri-apps/plugin-fs';
 import * as importFs from '@tauri-apps/plugin-fs';
@@ -19,7 +19,6 @@ import MasonProfileCommLink from "./MasonProfileCommLink";
 import MasonProfileArtifacts from "./MasonProfileArtifacts";
 import MasonProfileAssets from "./MasonProfileAssets";
 import SidePanelMasonPin from "./side-panels/SidePanelMasonPin";
-import { SearchBar } from "./shared";
 
 
 const cleanModName = (raw: string) => {
@@ -299,7 +298,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         updateData.pinned_asset_id = id;
         updateData.pinned_blueprint_id = null;
       }
-      
+
       const state = useStore.getState();
       const token = state.session?.access_token;
       const activeWs = state.workspaces?.find((w: any) => w.id === state.activeWorkspaceId);
@@ -317,7 +316,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         const { error } = await getActiveGameClient().from('masons').update(updateData).eq('id', masonId);
         if (error) throw error;
       }
-      
+
       setMason((prev: any) => ({ ...prev, ...updateData }));
       useStore.getState().pushStatus(t("pinned_success") || `Pinned to showcase!`);
     } catch (e: any) {
@@ -388,24 +387,22 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
 
       <MasonProfileHeader mason={mason} masonId={masonId} followerCount={followerCount} isFollowing={isFollowing} masonAlerts={masonAlerts} toggleFollow={toggleFollow} toggleMasonAlert={toggleMasonAlert} t={t} />
 
-      <div className="flex flex-col gap-1 w-full mb-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5">
-          <HubTabButton id="OVERVIEW" icon={t("icon_home") || "home"} label={t("tab_overview") || "OVERVIEW"} activeTab={activeView} setTab={setActiveView as any} />
-          <HubTabButton id="COMM-LINK" icon={t("icon_satellite_alt") || "satellite_alt"} label={t("tab_commlink") || "COMM-LINK"} activeTab={activeView} setTab={setActiveView as any} />
-          <HubTabButton id="MODS" icon={t("icon_account_balance") || "account_balance"} label={t("items") || "ARTIFACTS"} activeTab={activeView} setTab={setActiveView as any} />
-          <HubTabButton id="BLUEPRINTS" icon={t("icon_map") || "map"} label={t("playsets_title") || "BLUEPRINTS"} activeTab={activeView} setTab={setActiveView as any} />
-          <HubTabButton id="LEXICONS" icon={t("icon_translate") || "translate"} label={t("tab_lexicons") || "LEXICONS"} activeTab={activeView} setTab={setActiveView as any} />
-          <HubTabButton id="CHAMELEONS" icon={t("icon_palette") || "palette"} label={t("type_theme") || "CHAMELEONS"} activeTab={activeView} setTab={setActiveView as any} />
-          <HubTabButton id="TEMPLATES" icon={t("icon_draw") || "draw"} label={t("ql_templates") || "TEMPLATES"} activeTab={activeView} setTab={setActiveView as any} />
-        </div>
-      </div>
+      <HoverTabDrawer title="Mason Navigation" activeTab={activeView} setTab={setActiveView as any}>
+        <VerticalTabButton id="OVERVIEW" icon={t("icon_home") || "home"} label={t("tab_overview") || "OVERVIEW"} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="COMM-LINK" icon={t("icon_satellite_alt") || "satellite_alt"} label={t("tab_commlink") || "COMM-LINK"} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="MODS" icon={t("icon_account_balance") || "account_balance"} label={t("items") || "ARTIFACTS"} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="BLUEPRINTS" icon={t("icon_map") || "map"} label={t("playsets_title") || "BLUEPRINTS"} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="LEXICONS" icon={t("icon_translate") || "translate"} label={t("tab_lexicons") || "LEXICONS"} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="CHAMELEONS" icon={t("icon_palette") || "palette"} label={t("type_theme") || "CHAMELEONS"} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="TEMPLATES" icon={t("icon_draw") || "draw"} label={t("ql_templates") || "TEMPLATES"} activeTab={activeView} setTab={setActiveView as any} />
+      </HoverTabDrawer>
 
       <div className="flex-1 flex flex-col min-h-0 w-full mt-4">
         {activeView === 'OVERVIEW' ? (
           <MasonProfileOverview posts={posts} mods={mods} marketAssets={marketAssets} mason={mason} setActiveView={setActiveView} setModCategory={setModCategory} setModSearch={setModSearch} setActiveAsset={setActiveAsset} setSelectedBlueprint={setSelectedBlueprint} onModClick={onModClick} activeGameSchema={activeGameSchema} handlePostClick={handlePostClick} handleToggleLike={handleToggleLike} isOwner={isOwner} onEditShowcase={() => setIsPinPanelOpen(true)} t={t} />
         ) : (
           <div className="flex flex-col gap-6 h-full w-full">
-            <div className="flex flex-wrap items-start justify-between gap-4 w-full px-4 py-2 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-visible mb-2">
+            <div className="flex flex-wrap items-start justify-start gap-4 w-full px-4 py-2 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-visible mb-2">
               {(() => {
                 const getTitleConfig = () => {
                   switch (activeView) {
@@ -430,10 +427,10 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               })()}
               <div className="flex flex-col items-end gap-2 flex-1 min-w-[300px] w-full">
                 <div className="flex flex-row items-center gap-3 w-full">
-                  <SearchBar 
-                    value={modSearch} 
-                    onChange={setModSearch} 
-                    placeholder={(activeView === 'COMM-LINK' ? t("mason_search_placeholder") || "Search posts..." : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates") || "Search Templates...") : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))) as string} 
+                  <SearchBar
+                    value={modSearch}
+                    onChange={setModSearch}
+                    placeholder={(activeView === 'COMM-LINK' ? t("mason_search_placeholder") || "Search posts..." : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates") || "Search Templates...") : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))) as string}
                     className="w-full flex-1 !h-12 !rounded-2xl"
                   />
                   {activeView !== 'COMM-LINK' && (

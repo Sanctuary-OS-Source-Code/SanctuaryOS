@@ -243,7 +243,7 @@ export const UniversalListPicker = ({
             )}
           </div>
           <div className="flex flex-col min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-start gap-2">
               <span className="text-[13px] font-bold text-[var(--text)] uppercase truncate tracking-wide">
                 {item.title}
               </span>

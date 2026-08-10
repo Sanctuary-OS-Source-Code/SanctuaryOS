@@ -131,15 +131,8 @@ export default function ArchitectTemplateOversight() {
     <div className="flex flex-col gap-6 w-full pb-32 text-[var(--text)] animate-in fade-in slide-in-from-bottom-4 duration-500">
       
 
-      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_data_object") || "data_object"}</span>
-          </div>
-          <span className="truncate">{t("ql_templates") || "Community Templates"}</span>
-        </h2>
-        
-        <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
+      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-start gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
+        <div className="flex items-center gap-3 relative flex-1 w-full justify-end flex-wrap">
 
             <div className="relative flex-1 min-w-[200px] max-w-[300px]">
                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search") || "search"}</span>
@@ -288,7 +281,7 @@ export default function ArchitectTemplateOversight() {
                                         <span className="material-symbols-outlined !text-[28px]">{t("icon_data_object") || "data_object"}</span>
                                     </div>
                                     <div className="flex flex-col gap-2 flex-1 min-w-0">
-                                        <div className="flex items-center justify-between gap-4">
+                                        <div className="flex items-center justify-start gap-4">
                                             <span className="text-xl font-black text-[var(--text)] truncate group-hover:text-[var(--success)] transition-colors">{defaultTmpl.name || defaultTmpl.targetFile}</span>
                                         </div>
                                         <span className="text-xs text-[var(--subtext)] line-clamp-2 leading-relaxed">{defaultTmpl.description || "No description provided."}</span>
@@ -342,7 +335,7 @@ export default function ArchitectTemplateOversight() {
                             className="flex flex-col glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 bg-black/20 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg group"
                         >
                             <div className="p-5 flex flex-col gap-4">
-                                <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start justify-start gap-2">
                                     <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] text-[var(--accent)] group-hover:bg-[var(--accent)]/10 transition-colors">
                                         <span className="material-symbols-outlined !text-[20px]">{t("icon_data_object") || "data_object"}</span>
                                     </div>

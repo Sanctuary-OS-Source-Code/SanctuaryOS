@@ -2,7 +2,7 @@ import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { SidePanel, ModSearchDropdown, ViewHeader, GameVersionMultiSelect, CustomDropdown, formatDisplayName, CustomDatePicker, CustomComplianceDropdown, CustomClassificationDropdown, HubTabButton, HubTabDropdown, StatTile, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, extractPostImage, stripMarkdown, EmptyState, DashboardStatTile } from "./shared";
+import { SidePanel, ModSearchDropdown, ViewHeader, GameVersionMultiSelect, CustomDropdown, formatDisplayName, CustomDatePicker, CustomComplianceDropdown, CustomClassificationDropdown, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, StatTile, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, extractPostImage, stripMarkdown, EmptyState, DashboardStatTile } from "./shared";
 import ProtocolVisualizer from "./ProtocolVisualizer";
 import ModStructureBuilder from "./ModStructureBuilder";
 import ArchitectSupportTickets from "./hub-components/ArchitectSupportTickets";
@@ -47,12 +47,14 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-32 relative">
+    <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader
         title={t("hub_title")}
         subtitle={t("hub_subtitle")}
         icon={t("icon_analytics")}
         iconColorClass="text-[var(--accent)]"
+        breadcrumb={activeTab !== "command_center" ? activeTab.replace(/_/g, ' ').toUpperCase() : undefined}
+        onTitleClick={() => setActiveTab("command_center")}
       >
         <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
           <button
@@ -65,42 +67,21 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         </div>
       </ViewHeader>
 
-      <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 shrink-0">
-          <HubTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command") || "COMMAND"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="registry" icon={t("icon_inventory_2")} label={t("items") || "ARTIFACTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="queue" icon={t("icon_search")} label={t("tab_queue") || "SCOUT"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-          <HubTabButton id="lab" icon={t("icon_monitor_heart")} label={t("tab_diagnostics") || "DIAGNOSTICS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+      <HoverTabDrawer title="Architect Navigation" activeTab={activeTab} setTab={setActiveTab}>
+        <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command") || "COMMAND"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="registry" icon={t("icon_inventory_2")} label={t("items") || "ARTIFACTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="queue" icon={t("icon_search")} label={t("tab_queue") || "SCOUT"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="lab" icon={t("icon_monitor_heart")} label={t("tab_diagnostics") || "DIAGNOSTICS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
 
-
-
-          <HubTabDropdown
-            icon="hub"
-            label="Network"
-            activeTab={activeTab}
-            setTab={setActiveTab}
-            options={[
-              { id: "collections", icon: t("icon_collections_bookmark"), label: t("tab_cc") || "COLLECTIONS"?.replace(/^[^\w]*/, '').trim() },
-              { id: "protocols", icon: t("icon_link"), label: t("tab_protocols") || "PROTOCOLS"?.replace(/^[^\w]*/, '').trim() },
-              { id: "structure", icon: t("icon_architecture"), label: t("tab_structure") || "STRUCTURE"?.replace(/^[^\w]*/, '').trim() },
-              { id: "matrix", icon: t("icon_security"), label: t("tab_matrix") || "CONFLICTS"?.replace(/^[^\w]*/, '').trim() }
-            ]}
-          />
-
-          <HubTabDropdown
-            icon="visibility"
-            label="Management"
-            activeTab={activeTab}
-            setTab={setActiveTab}
-            options={[
-              { id: "mason_queue", icon: t("icon_construction"), label: t("mason") || "MASON"?.replace(/^[^\w]*/, '').trim() },
-              { id: "template_oversight", icon: t("icon_data_object") || "data_object", label: t("ql_templates") || "TEMPLATES" },
-              { id: "nexus_reports", icon: t("icon_flag"), label: t("stat_bugs") || "REPORTS"?.replace(/^[^\w]*/, '').trim() },
-              { id: "support_tickets", icon: t("icon_local_activity"), label: (t("wf_tab_tickets")).replace(/^[^\w]*/, '').trim() }
-            ]}
-          />
-        </div>
-      </div>
+        <VerticalTabButton id="collections" icon={t("icon_collections_bookmark")} label={t("tab_cc") || "COLLECTIONS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="protocols" icon={t("icon_link")} label={t("tab_protocols") || "PROTOCOLS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="structure" icon={t("icon_architecture")} label={t("tab_structure") || "STRUCTURE"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="matrix" icon={t("icon_security")} label={t("tab_matrix") || "CONFLICTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="mason_queue" icon={t("icon_construction")} label={t("mason") || "MASON"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="template_oversight" icon={t("icon_data_object") || "data_object"} label={t("ql_templates") || "TEMPLATES"} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="nexus_reports" icon={t("icon_flag")} label={t("stat_bugs") || "REPORTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="support_tickets" icon={t("icon_local_activity")} label={(t("wf_tab_tickets")).replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+      </HoverTabDrawer>
 
       <FileVerificationSidePanel
         isOpen={isVerifyPanelOpen}
@@ -145,7 +126,7 @@ export function CustomStatusDropdown({ value, onChange }: { value: string, onCha
   const options = [
     { id: 'stable', label: t("status_dd_stable") },
     { id: 'unstable', label: t("label_unstable") },
-    { id: 'broken', label: t("status_broken") },
+    { id: 'corrupted', label: t("status_corrupted") },
     { id: 'under_review', label: t("status_dd_review") },
     { id: 'pending', label: t("pending") },
     { id: 'unverified', label: t("unverified") },
@@ -179,7 +160,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-[3px] animate-in fade-in">
       <div className="w-full max-w-lg bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl flex flex-col overflow-hidden">
         <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-start items-center mb-4">
             <h3 className="text-sm font-black uppercase tracking-widest theme-text-accent">
               {getTitle()}
             </h3>
@@ -200,7 +181,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
             <button
               key={mod.id}
               onClick={() => { onSelect(mod.id); }}
-              className="flex justify-between items-center px-5 py-3 glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group"
+              className="flex justify-start items-center px-5 py-3 glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group"
             >
               <div className="flex flex-col max-w-[80%]">
                 <span className="text-xs font-black text-[var(--text)] uppercase truncate">{mod.name}</span>

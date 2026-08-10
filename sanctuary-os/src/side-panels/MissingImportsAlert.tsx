@@ -136,7 +136,7 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
           const renderModList = (mods: any[]) => mods.slice(0, 100).map((mod: any, idx: number) => {
             const targetUrl = (mod.url && mod.url.trim() !== "") ? (mod.url.startsWith("http") ? mod.url : `https://${mod.url}`) : `https://www.google.com/search?q=${encodeURIComponent(`${useStore.getState().activeGameSchema?.display_name || "Mod"} ${cleanSearchName(mod.name, useStore.getState().activeGameSchema)}`)}`;
             return (
-              <div key={idx} className="flex justify-between items-center glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-4 rounded-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all group shadow-md">
+              <div key={idx} className="flex justify-start items-center glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-4 rounded-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all group shadow-md">
                 <div className="flex flex-col min-w-0 pr-4">
                   <span className="text-xs font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors">{cleanSearchName(mod.name, useStore.getState().activeGameSchema)}</span>
                   <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">{mod.author || t("unknown_mason") || "Unknown Mason"}</span>

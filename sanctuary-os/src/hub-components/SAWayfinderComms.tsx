@@ -112,7 +112,7 @@ export function WayfinderComms() {
           commsMessages.map((msg, i) => (
             <div key={msg.id || i} className="flex flex-col gap-3 text-left glass-surface p-6 rounded-[var(--radius)] animate-in fade-in slide-in-from-bottom-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] transition-all shadow-lg group relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-1 w-1 theme-bg-accent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="flex justify-between items-center opacity-70 mb-1">
+              <div className="flex justify-start items-center opacity-70 mb-1">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)] flex items-center gap-2">
                   <span className="w-4 h-4 rounded flex items-center justify-center bg-[var(--accent)]/[20%] text-[8px]">{(msg.sender_name || msg.sender_id)?.charAt(0)}</span>
                   {msg.sender_name || msg.sender_id?.substring(0, 8)}

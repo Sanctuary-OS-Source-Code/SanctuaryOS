@@ -490,10 +490,10 @@ const Vault = React.memo(function Vault(props: any) {
       <ViewHeader
         title={t("vault_title") || "YOUR VAULT"}
         subtitle={t("vault_subtitle") || "LOCAL LIBRARY, SECURED ASSETS, AND INSTALLED ARTIFACTS"}
-        icon={t("icon_account_balance") || "account_balance"}
-        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+        icon={<span className="material-symbols-outlined !text-3xl text-[var(--accent)]">{t("icon_account_balance") || "account_balance"}</span>}
+        breadcrumb={equipFilter !== "OVERVIEW" ? (t(`filter_${equipFilter.toLowerCase()}`) || equipFilter) : undefined}
+        onTitleClick={() => setEquipFilter("OVERVIEW")}
       >
-
       </ViewHeader>
 
       <VaultTabs t={t} equipFilter={equipFilter} setEquipFilter={setEquipFilter} />
@@ -591,7 +591,7 @@ const Vault = React.memo(function Vault(props: any) {
                             BY {item.meta_author || item.author || t("unknown_mason")}
                           </p>
 
-                          <div className="mt-auto pt-3 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                          <div className="mt-auto pt-3 flex items-center justify-start border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                             <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
                               {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
                             </span>
@@ -880,7 +880,7 @@ const Vault = React.memo(function Vault(props: any) {
                   onMouseEnter={() => setActiveSubmenu('blueprint')}
                   onMouseLeave={() => setActiveSubmenu(null)}
                 >
-                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[var(--accent)]/[20%] text-[11px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center justify-between transition-colors">
+                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[var(--accent)]/[20%] text-[11px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center justify-start transition-colors">
                     <div className="flex items-center gap-3">
                       <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_architecture") || "architecture"}</span>
                       {t("add_to_blueprint") || "ADD TO BLUEPRINT"}
@@ -905,7 +905,7 @@ const Vault = React.memo(function Vault(props: any) {
                   onMouseEnter={() => setActiveSubmenu('folder')}
                   onMouseLeave={() => setActiveSubmenu(null)}
                 >
-                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-emerald-500/[20%] text-[11px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center justify-between transition-colors">
+                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-emerald-500/[20%] text-[11px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center justify-start transition-colors">
                     <div className="flex items-center gap-3">
                       <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">{t("icon_folder") || "folder"}</span>
                       {t("btn_group_folder") || "ADD TO FOLDER"}

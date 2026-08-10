@@ -228,7 +228,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
                   {t("identities_punitive_comm")}
                 </h4>
-                <div className="flex items-center justify-between relative z-10">
+                <div className="flex items-center justify-start relative z-10">
                   <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
                     {t("identities_ban")}
                   </label>
@@ -303,14 +303,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
   return (
     <div className="flex flex-col w-full relative h-full">
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_group")}</span>
-          </div>
-          <span className="truncate">{t("title_identities")}</span>
-        </h2>
-
-        <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
+        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
           <div className="relative flex-1 max-w-[300px]">
             <SearchBar
               value={search}

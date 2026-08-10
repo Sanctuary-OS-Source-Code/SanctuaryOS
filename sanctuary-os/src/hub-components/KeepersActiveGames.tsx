@@ -104,14 +104,7 @@ export default function KeepersActiveGames() {
   return (
     <div className="flex flex-col w-full relative h-full">
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-10">
-        <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">dns</span>
-          </div>
-          <span className="truncate">{t("ui_supported_games") || "Supported Game Databases"}</span>
-        </h2>
-
-        <div className="flex items-center gap-3 flex-1 justify-end">
+        <div className="flex items-center gap-3 flex-1 w-full justify-end">
           <div className="flex items-center glass-panel rounded-xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
             <button onClick={() => setFilter('all')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? 'text-[var(--accent)] bg-[var(--accent)]/[10%] shadow-md' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_all")}</button>
             <button onClick={() => setFilter('active')} className={`px-4 h-12 text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'active' ? 'text-[var(--accent)] bg-[var(--accent)]/[10%] shadow-md' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("filter_active")}</button>

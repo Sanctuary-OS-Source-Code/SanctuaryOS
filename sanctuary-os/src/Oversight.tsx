@@ -5,7 +5,7 @@ import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { useModalStore } from './store/modalStore';
-import { ViewHeader, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, SidePanel, CustomComplianceDropdown, loadDLCMap, HubTabButton, HubTabDropdown, StatTile, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, CustomDatePicker, extractPostImage, stripMarkdown, EmptyState } from './shared';
+import { ViewHeader, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, SidePanel, CustomComplianceDropdown, loadDLCMap, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, StatTile, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, CustomDatePicker, extractPostImage, stripMarkdown, EmptyState } from './shared';
 import ArchitectSupportTickets from './hub-components/ArchitectSupportTickets';
 import SASupportSettings from './hub-components/SASupportSettings';
 import MasonPostViewer from './side-panels/MasonPostViewer';
@@ -62,12 +62,14 @@ export default function Oversight({ onOpenMasonProfile }: any) {
 
 
     return (
-        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-32 relative">
+        <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
             <ViewHeader
-                title={t("sa_title")}
-                subtitle={t("sa_subtitle")}
-                icon={t("icon_security")}
+                title={t("oversight_title")}
+                subtitle={t("oversight_subtitle")}
+                icon="admin_panel_settings"
                 iconColorClass="text-[var(--danger)]"
+                breadcrumb={activeTab !== "command_center" ? activeTab.replace(/_/g, ' ').toUpperCase() : undefined}
+                onTitleClick={() => setActiveTab("command_center")}
             >
                 <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
                     <button
@@ -95,42 +97,21 @@ export default function Oversight({ onOpenMasonProfile }: any) {
                 </div>
             </ViewHeader>
 
-            <div className="flex flex-col gap-1 w-full mb-4 shrink-0">
-                <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 shrink-0">
-                    <HubTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
-                    <HubTabButton id="oversight_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch") || "DISPATCH"} activeTab={activeTab} setTab={setActiveTab} />
-                    <HubTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
-                    <HubTabButton id="compliance" icon={t("icon_policy")} label={t("tab_compliance")} activeTab={activeTab} setTab={setActiveTab} />
+            <HoverTabDrawer title="Oversight Navigation" activeTab={activeTab} setTab={setActiveTab}>
+                <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
+                <VerticalTabButton id="oversight_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch") || "DISPATCH"} activeTab={activeTab} setTab={setActiveTab} />
+                <VerticalTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
+                <VerticalTabButton id="compliance" icon={t("icon_policy")} label={t("tab_compliance")} activeTab={activeTab} setTab={setActiveTab} />
 
-
-
-                    <HubTabDropdown
-                        icon="admin_panel_settings"
-                        label="Moderation"
-                        activeTab={activeTab}
-                        setTab={(id: string) => { if (id === 'malware_oversight') setComplianceFilter('pending'); setActiveTab(id); }}
-                        options={[
-                            { id: "linker", icon: t("icon_link"), label: t("tab_linker") },
-                            { id: "malware_oversight", icon: t("icon_coronavirus"), label: t("rating_malware") },
-                            { id: "oversight_reports", icon: t("icon_threat_intelligence"), label: t("tab_malware_logs") },
-                            { id: "sanctuary_tickets", icon: t("icon_local_activity"), label: t("wf_tab_tickets") }
-                        ]}
-                    />
-
-                    <HubTabDropdown
-                        icon="memory"
-                        label="System"
-                        activeTab={activeTab}
-                        setTab={setActiveTab}
-                        options={[
-                            { id: "mass_update", icon: t("icon_dynamic_feed"), label: t("tab_mass_update") },
-                            { id: "game_versions", icon: t("icon_settings"), label: t("tab_game_versions") },
-                            { id: "support_settings", icon: t("icon_support_agent"), label: t("wf_tab_support") },
-                            { id: "audit_logs", icon: t("icon_history"), label: t("tab_audit") }
-                        ]}
-                    />
-                </div>
-            </div>
+                <VerticalTabButton id="linker" icon={t("icon_link")} label={t("tab_linker")} activeTab={activeTab} setTab={setActiveTab} />
+                <VerticalTabButton id="malware_oversight" icon={t("icon_coronavirus")} label={t("rating_malware")} activeTab={activeTab} setTab={(id: string) => { setComplianceFilter('pending'); setActiveTab(id); }} />
+                <VerticalTabButton id="oversight_reports" icon={t("icon_threat_intelligence")} label={t("tab_malware_logs")} activeTab={activeTab} setTab={setActiveTab} />
+                <VerticalTabButton id="sanctuary_tickets" icon={t("icon_local_activity")} label={t("wf_tab_tickets")} activeTab={activeTab} setTab={setActiveTab} />
+                <VerticalTabButton id="mass_update" icon={t("icon_dynamic_feed")} label={t("tab_mass_update")} activeTab={activeTab} setTab={setActiveTab} />
+                <VerticalTabButton id="game_versions" icon={t("icon_settings")} label={t("tab_game_versions")} activeTab={activeTab} setTab={setActiveTab} />
+                <VerticalTabButton id="support_settings" icon={t("icon_support_agent")} label={t("wf_tab_support")} activeTab={activeTab} setTab={setActiveTab} />
+                <VerticalTabButton id="audit_logs" icon={t("icon_history")} label={t("tab_audit")} activeTab={activeTab} setTab={setActiveTab} />
+            </HoverTabDrawer>
 
             <div className="w-full flex-1 flex flex-col min-h-0">
                 {activeTab === "command_center" && <OversightCommandScreen setTab={setActiveTab} onOpenDefcon={() => setDefconOpen(true)} setComplianceFilter={setComplianceFilter} setViewingPost={setViewingPost} />}

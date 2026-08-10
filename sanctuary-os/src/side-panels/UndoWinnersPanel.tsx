@@ -105,7 +105,7 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
         ) : (
           <div className="flex flex-col gap-2">
             {overrides.map((file) => (
-              <div key={file} className="flex items-center justify-between p-4 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all">
+              <div key={file} className="flex items-center justify-start p-4 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all">
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined !text-xl text-[var(--accent)]">{t("icon_extension")}</span>

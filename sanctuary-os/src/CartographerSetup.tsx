@@ -125,15 +125,15 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
               <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">cloud</span> {t("auto_auto_detect_paths") || "Auto-Detect Paths"}</span>
             </button>
 
-            <button onClick={pickLivePath} className={`w-full glass-surface backdrop-blur-md border ${livePath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-between group shadow-sm`}>
+            <button onClick={pickLivePath} className={`w-full glass-surface backdrop-blur-md border ${livePath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-start group shadow-sm`}>
               <span className="uppercase tracking-widest">{livePath ? t("setup_btn_bin_locked") || "Bin Locked" : t("setup_btn_bin") || "Select Bin Folder"}</span>
               <div className={`w-2 h-2 rounded-full ${livePath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-[var(--warning)] shadow-[0_0_10px_var(--warning)] animate-pulse'}`} />
             </button>
-            <button onClick={pickModsPath} className={`w-full glass-surface backdrop-blur-md border ${modsPath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-between group shadow-sm`}>
+            <button onClick={pickModsPath} className={`w-full glass-surface backdrop-blur-md border ${modsPath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-start group shadow-sm`}>
               <span className="uppercase tracking-widest">{modsPath ? t("setup_btn_mods_locked") || "Mods Locked" : t("setup_btn_mods") || "Select Mods Folder"}</span>
               <div className={`w-2 h-2 rounded-full ${modsPath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-[var(--warning)] shadow-[0_0_10px_var(--warning)] animate-pulse'}`} />
             </button>
-            <button onClick={!isGlobalVaultSet ? pickVaultPath : undefined} className={`w-full glass-surface backdrop-blur-md border ${vaultPath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-between group shadow-sm mb-3 ${isGlobalVaultSet ? 'opacity-80 cursor-not-allowed' : ''}`}>
+            <button onClick={!isGlobalVaultSet ? pickVaultPath : undefined} className={`w-full glass-surface backdrop-blur-md border ${vaultPath ? 'border-[var(--success)]/30 bg-[var(--success)]/10' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-start group shadow-sm mb-3 ${isGlobalVaultSet ? 'opacity-80 cursor-not-allowed' : ''}`}>
               <span className="uppercase tracking-widest">{vaultPath ? (isGlobalVaultSet ? "OS Master Vault Enforced" : "Master Vault Locked") : "Select Master OS Vault"}</span>
               <div className={`w-2 h-2 rounded-full ${vaultPath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-[var(--warning)] shadow-[0_0_10px_var(--warning)] animate-pulse'}`} />
             </button>
@@ -157,7 +157,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
                           id,
                           searchText: `${displayName} ${badge} ${id.toLowerCase().startsWith('en-') ? 'English' : ''} ${id.toLowerCase().startsWith('de-') ? 'German' : ''}`,
                           label: (
-                            <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center justify-start w-full">
                               <span className="truncate pr-4 normal-case">{displayName}</span>
                               <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${badgeColor} shrink-0`}>
                                 {badge}
@@ -243,7 +243,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
           <div className="flex flex-col gap-6 relative z-10 flex-1 justify-center">
             {/* Fake Component 1: Mod Card / Transmission */}
             <div className="glass-panel p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl hover:border-[var(--accent)]/30 transition-all duration-700">
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-start mb-5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full theme-bg-accent/20 flex items-center justify-center border border-[var(--accent)]/30 transition-colors duration-500">
                     <span className="material-symbols-outlined theme-text-accent !text-[18px]">engineering</span>

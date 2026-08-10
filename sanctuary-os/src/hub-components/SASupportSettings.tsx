@@ -119,7 +119,7 @@ export default function SASupportSettings() {
 
     return (
         <div className="flex flex-col gap-6 w-full relative min-h-[500px] animate-in fade-in pb-20 mt-4">
-            <div className="flex items-center justify-between w-full shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
+            <div className="flex items-center justify-start w-full shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
@@ -412,7 +412,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
         >
             <div className="flex flex-col gap-6">
 
-                <div className="flex items-center justify-between glass-panel p-4 rounded-xl border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                <div className="flex items-center justify-start glass-panel p-4 rounded-xl border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <span className="text-xs font-black uppercase tracking-widest">{t("support_active_status")}</span>
                     <label className="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" className="sr-only peer" checked={draft.is_active} onChange={e => setDraft({ ...draft, is_active: e.target.checked })} />
@@ -481,7 +481,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                 </div>
 
                 <div className="flex flex-col gap-4 mt-4">
-                    <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
+                    <div className="flex items-center justify-start border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("support_custom_fields")}</span>
                         <button onClick={addField} className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:opacity-80">+ {t("support_add_field")}</button>
                     </div>
@@ -539,7 +539,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                         ))}
                                         <button onClick={() => updateField(idx, { options: [...(field.options || []), ""] })} className="w-full glass-surface rounded-md py-1.5 text-[9px] font-black text-center opacity-60 hover:opacity-100 uppercase tracking-widest mt-1">{t("support_add_option")}</button>
 
-                                        <div className="flex items-center justify-between mt-2 pr-2">
+                                        <div className="flex items-center justify-start mt-2 pr-2">
                                             <span className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("support_allow_multi")}</span>
                                             <label className="relative inline-flex items-center cursor-pointer scale-75">
                                                 <input type="checkbox" className="sr-only peer" checked={field.allow_multi_select || false} onChange={e => updateField(idx, { allow_multi_select: e.target.checked })} />
@@ -554,35 +554,35 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                 </div>
 
                 <div className="flex flex-col gap-3 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-start">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_req_target_mod")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.requires_target_mod} onChange={e => setDraft({ ...draft, requires_target_mod: e.target.checked })} />
                             <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-start">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_req_target_user")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.requires_target_user} onChange={e => setDraft({ ...draft, requires_target_user: e.target.checked })} />
                             <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-start">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_show_title")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.show_title_box} onChange={e => setDraft({ ...draft, show_title_box: e.target.checked })} />
                             <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-start">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_show_desc")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.show_description_box} onChange={e => setDraft({ ...draft, show_description_box: e.target.checked })} />
                             <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                         </label>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-start">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_show_logs")}</span>
                         <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
                             <input type="checkbox" className="sr-only peer" checked={draft.show_logs_box} onChange={e => setDraft({ ...draft, show_logs_box: e.target.checked })} />
@@ -601,7 +601,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                         <div className="flex flex-col gap-3 p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                             <span className="text-[9px] font-black uppercase tracking-widest theme-text-accent flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_bug_report")}</span> {t("support_mod_reports")}</span>
                             {telemetrySources.filter(s => s.type === 'MOD' && s.is_active).map(source => (
-                                <div key={source.id} className="flex items-center justify-between group">
+                                <div key={source.id} className="flex items-center justify-start group">
                                     <div className="flex flex-col">
                                         <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--subtext)]">{source.label}</span>
                                         <span className="text-[8px] font-bold uppercase tracking-widest opacity-40">{source.description || source.file_pattern}</span>
@@ -621,7 +621,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                         <div className="flex flex-col gap-3 p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                             <span className="text-[9px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_memory")}</span> {t("support_os_reports")}</span>
                             {telemetrySources.filter(s => s.type === 'OS' && s.is_active).map(source => (
-                                <div key={source.id} className="flex items-center justify-between group">
+                                <div key={source.id} className="flex items-center justify-start group">
                                     <div className="flex flex-col">
                                         <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--subtext)]">{source.label}</span>
                                         <span className="text-[8px] font-bold uppercase tracking-widest opacity-40">{source.description || source.file_pattern}</span>
@@ -768,7 +768,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                         <>
                             <div className="flex flex-col gap-3">
                                 <div className="flex flex-col gap-2 relative z-40">
-                                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center justify-between">
+                                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center justify-start">
                                         <span>{t("telemetry_prefix")}</span>
                                     </label>
                                     <CustomDropdown disableTint={true}
