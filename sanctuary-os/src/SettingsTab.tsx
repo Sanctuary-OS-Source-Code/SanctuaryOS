@@ -5,7 +5,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { open } from "@tauri-apps/plugin-dialog";
 import { useTheme } from "./ThemeContext";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, HubTabButton } from "./shared";
+import { ViewHeader, HoverTabDrawer, VerticalTabButton } from "./shared";
 import { useStore } from "./store";
 import { supabase } from "./supabase";
 
@@ -140,21 +140,18 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         </button>
       </ViewHeader>
 
-      <div className="flex flex-col gap-1 w-full">
-        <div className="flex items-center overflow-x-auto overflow-y-hidden accent-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5 shrink-0">
-          {TABS.map(tab => (
-            <HubTabButton
-              key={tab.id}
-              id={tab.id}
-              icon={tab.icon}
-              label={tab.label}
-              activeTab={activeTab}
-              setTab={setActiveTab}
-            />
-          ))}
-          <div className="flex-0" />
-        </div>
-      </div>
+      <HoverTabDrawer title={t("settings_title") || "Settings"} activeTab={activeTab} setTab={setActiveTab}>
+        {TABS.map(tab => (
+          <VerticalTabButton
+            key={tab.id}
+            id={tab.id}
+            icon={tab.icon}
+            label={tab.label}
+            activeTab={activeTab}
+            setTab={setActiveTab}
+          />
+        ))}
+      </HoverTabDrawer>
 
       <div className="flex flex-col gap-4 relative">
         <div className="w-full relative">

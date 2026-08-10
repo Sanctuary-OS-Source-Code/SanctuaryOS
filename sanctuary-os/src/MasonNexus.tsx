@@ -10,7 +10,8 @@ import {
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen, ActionButton, SearchBar } from "./shared";
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen, ActionButton, SearchBar, ScreenUtilityBar
+} from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
@@ -144,16 +145,13 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
 
   return (
     <div className="flex flex-col w-full relative h-full pb-20">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <div className="flex items-center gap-3 relative flex-1 max-w-2xl w-full justify-start">
-          <div className="relative flex-1 min-w-[250px] max-w-[450px]">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder={t("market_search") || "SEARCH ASSETS..."}
-              className="h-12 w-full"
-            />
-          </div>
+      <ScreenUtilityBar
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder={(t("market_search") || "SEARCH ASSETS...") as string}
+        className="px-6 !mb-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+        alignLeft={true}
+      >
           <div className="flex items-center gap-3">
             <div className="w-[180px] shrink-0">
               <CustomDropdown
@@ -178,8 +176,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
               </button>
             )}
           </div>
-        </div>
-      </div>
+      </ScreenUtilityBar>
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
         {filteredAssets.length === 0 ? (
@@ -268,21 +265,21 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                   }
                 }} label={t("btn_remove_asset") || "REMOVE ASSET"}
               >
-                
+
               </ActionButton>
             ) : (
               <ActionButton
                 type="button"
                 onClick={() => setUploadState(s => ({ ...s, isOpen: false }))} label={t("nav_cancel") || "Cancel"}
               >
-                
+
               </ActionButton>
             )}
             <ActionButton
               onClick={submitUpload}
               disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)} label={uploadState.editId ? (uploadState.isHidden ? (t("upload_btn_relink") || "RELINK LISTING") : (t("upload_btn_update") || "UPDATE LISTING")) : (t("upload_btn_publish") || "PUBLISH ASSET")}
             >
-              
+
             </ActionButton>
           </div>
         }

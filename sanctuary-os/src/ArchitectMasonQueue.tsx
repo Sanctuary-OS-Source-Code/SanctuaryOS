@@ -1,4 +1,4 @@
-import { SearchBar } from "./shared";
+import { ScreenUtilityBar } from "./shared";
 import React, { useState, useEffect } from "react";
 import { DashboardStatTile, fetchAllPaginated } from "./shared";
 import { CustomClassificationDropdown } from "./hub-components/SharedRegistry";
@@ -130,21 +130,17 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t("search_queue")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>            <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex mr-4">
+      <ScreenUtilityBar
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("search_queue") as string}
+        className="px-6 !mb-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+      >
+          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex mr-4">
             <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
             <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_completed")}</button>
           </div>
-        </div>
-      </div>
+      </ScreenUtilityBar>
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
         {loading ? (

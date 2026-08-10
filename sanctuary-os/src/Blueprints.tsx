@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, isVersionMatch, SidePanel, SidebarActionButton, getExtensionRegex, FilterTabs, FilterTabButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionButton, HoverTooltip, SearchBar } from "./shared";
+import { ActionButton, CustomDropdown, ModSearchDropdown, ViewHeader, FilterTabs, FilterTabButton, standardButtonClass, standardAccentGlassButtonClass, getExtensionRegex, formatDisplayName, SearchBar, ScreenUtilityBar, SidePanel, isVersionMatch, SidebarActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, HoverTooltip } from "./shared";
 import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 import BlueprintMatrix from "./BlueprintMatrix";
 import BlueprintArchitect from "./BlueprintArchitect";
@@ -26,6 +26,7 @@ export default function Blueprints({
   useEffect(() => { localStorage.setItem('myPinnedBlueprints', JSON.stringify(pinnedBlueprints)); }, [pinnedBlueprints]);
   const togglePin = (name: string) => setPinnedBlueprints(prev => prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]);
   const [vaultSearchQuery, setVaultSearchQuery] = useState("");
+  const [archiveSearchQuery, setArchiveSearchQuery] = useState("");
   const [importStatus, setImportStatus] = useState<"idle" | "loading" | "success" | "error" | "missing">("idle");
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncInputVisible, setSyncInputVisible] = useState(false);
@@ -564,14 +565,12 @@ export default function Blueprints({
 
       {activeTab === "VAULT" && (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
-          <div className="flex items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-            <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end flex-wrap">
-              <SearchBar
-                value={vaultSearchQuery}
-                onChange={(val: string) => setVaultSearchQuery(val)}
-                placeholder={(t("nav_search") || "Search Vault...") as string}
-                className="flex-1 min-w-[200px] max-w-[350px] !h-12 !rounded-2xl"
-              />
+          <ScreenUtilityBar
+            search={vaultSearchQuery}
+            onSearchChange={(val: string) => setVaultSearchQuery(val)}
+            searchPlaceholder={(t("nav_search") || "Search Vault...") as string}
+            className="!mb-6"
+          >
               <button
                 onClick={() => setIsDraftingSet && setIsDraftingSet(true)}
                 className="h-12 px-5 rounded-2xl glass-surface border border-[var(--accent)]/30 text-[var(--accent)] font-black uppercase tracking-widest text-xs flex items-center gap-2 hover:bg-[var(--accent)]/10 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] shrink-0"
@@ -579,11 +578,7 @@ export default function Blueprints({
                 <span className="material-symbols-outlined !text-[18px]">add</span>
                 {t("draft_new") || "NEW BLUEPRINT"}
               </button>
-
-
-
-            </div>
-          </div>
+          </ScreenUtilityBar>
 
 
 
@@ -618,24 +613,19 @@ export default function Blueprints({
 
       {activeTab === "NETWORK" && (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full pb-32">
-          <div className="flex items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-            <div className="flex items-center gap-3 relative flex-1 w-full justify-end flex-wrap">
-              <SearchBar
-                value={cloudSearchQuery}
-                onChange={(val) => setCloudSearchQuery(val)}
-                placeholder={(t("nav_search") || "Search Uplink Codes...") as string}
-                className="flex-1 min-w-[200px] max-w-[350px] !h-12 !rounded-2xl"
-              />
-
+          <ScreenUtilityBar
+            search={cloudSearchQuery}
+            onSearchChange={(val: string) => setCloudSearchQuery(val)}
+            searchPlaceholder={(t("nav_search") || "Search Uplink Codes...") as string}
+            className="!mb-6"
+          >
               <div className="w-max min-w-[250px] shrink-0 h-12">
                 <FilterTabs className="w-full h-full text-xs">
                   <FilterTabButton id="all" label={t("blueprint_tab_all") || "ALL"} activeTab={cloudFilterTab} setTab={setCloudFilterTab} className="flex-1" />
                   <FilterTabButton id="not_in_vault" label={t("blueprint_tab_missing") || "MISSING"} activeTab={cloudFilterTab} setTab={setCloudFilterTab} className="flex-1" />
                 </FilterTabs>
               </div>
-
-            </div>
-          </div>
+          </ScreenUtilityBar>
 
 
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 h-full pt-1">

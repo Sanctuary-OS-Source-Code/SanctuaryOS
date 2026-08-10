@@ -1,4 +1,4 @@
-import { SearchBar } from "./shared";
+import { ScreenUtilityBar } from "./shared";
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { DashboardStatTile, fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, ActionButton } from "./shared";
@@ -380,30 +380,25 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
     return true;
   });
 
-  const pendingReports = filteredReports.filter(mod => mod.status === 'under_review');
-  const completedReports = filteredReports.filter(mod => mod.status !== 'under_review');
+  const pendingReports = filteredReports.filter((mod: any) => mod.status === 'under_review');
+  const completedReports = filteredReports.filter((mod: any) => mod.status !== 'under_review');
 
   return (
     <div className="flex flex-col w-full relative">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t("search_ph")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
+      <ScreenUtilityBar
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("search_ph") as string}
+        className="px-6 !mb-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+      >
           <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex">
             <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
             <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_completed")}</button>
           </div>
-        </div>
-      </div>
+      </ScreenUtilityBar>
 
       <div className="p-6 flex flex-col gap-10 pb-32">
-        {filterTab === 'pending' && pendingReports.length > 0 && (
+        {filterTab === 'pending' && (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {pendingReports.length === 0 ? (

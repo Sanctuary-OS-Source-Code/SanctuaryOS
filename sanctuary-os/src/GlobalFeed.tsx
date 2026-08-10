@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
-import { ViewHeader, stripMarkdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, CustomDatePicker, ActionButton, SearchBar } from "./shared";
+import { ViewHeader, stripMarkdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, CustomDatePicker, ActionButton, ScreenUtilityBar } from "./shared";
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
@@ -207,14 +207,12 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
 
 
       {activeTab !== "OVERVIEW" && (
-        <div className="flex flex-col gap-4 mb-8 mx-2 animate-in slide-in-from-top-4 duration-500">
-          <div className="flex items-center gap-4 flex-1 justify-end w-full mb-8 relative z-20">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder={t("mason_search_placeholder")}
-              className="flex-1 max-w-[300px] !h-12 !rounded-2xl"
-            />
+        <ScreenUtilityBar
+          search={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder={t("mason_search_placeholder") as string}
+          className="mx-2 !mb-8"
+        >
             <div className="w-max min-w-[150px] shrink-0 h-12">
               <CustomDatePicker
                 value={startDate}
@@ -245,8 +243,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                 onChange={(val: any) => setActiveSort(Array.isArray(val) ? val[0] : val)}
               />
             </div>
-          </div>
-        </div>
+        </ScreenUtilityBar>
       )}
 
       {activeTab === "OVERVIEW" ? (

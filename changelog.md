@@ -13,12 +13,11 @@
 - Flattened the sidebar navigation groupings (`VerticalTabDropdown`) into a continuous list structure with section headers, completely removing the "folder tree" behavior that users found confusing.
 
 
--- AGENT NEEDS TO REDO THIS PROPERLY-- 
 ### Visual Overhauls & Architecture
-- Replaced disparate, hardcoded header layouts and disjointed search bars across all major hub screens with a unified, universally styled `<ScreenUtilityBar>` component. 
-- Implemented the utility bar across the `SAAuditLogViewer`, `ArchitectSupportTickets`, `KeepersSupportTickets`, `SAOversightReports`, `SAComplianceOversight`, `WayfinderPostsEditor`, `KeeperPostsEditor`, `SharedRegistry`, `VaultFilters`, `SharedCollections`, `SAMasonLinker`, `WayfinderChameleons`, `TimeCapsule`, and `ArchitectScoutQueue` screens.
+- **Unified ScreenUtilityBar Architecture**: Replaced disparate, hardcoded header layouts and disjointed search bars across all major hub screens with a unified, universally styled `<ScreenUtilityBar>` component. 
+- Implemented the utility bar across core pages including `Vault.tsx`, `Blueprints.tsx`, `GlobalFeed.tsx`, `IdentityMatrix.tsx`, `ArchitectMasonQueue.tsx`, `ArchitectHomesteadDiagnostics.tsx`, and `MasonNexus.tsx`.
 - Eliminated all instances of duplicate `h2` page titles trapped inside the old header structures for components like Scout Queue and Dispatch.
-- Search bars now position consistently with `justify-end` alignment and sticky behavior to balance page titles and prevent jumping on scroll.
+- Search bars and filter tabs now position consistently within the `ScreenUtilityBar` block to balance page layout, completely eliminating floating `SearchBar` inputs.
 
 
 -- AGENT NEEDS TO REDO THIS PROPERLY-- 
