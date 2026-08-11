@@ -109,29 +109,24 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
   return (
     <>
       <div className={`flex flex-col gap-6 pb-20 ${isActiveTab ? '' : 'hidden'}`}>
-        <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-        <div className="flex items-center gap-3 relative flex-1 w-full justify-end justify-start">
-            <div className="relative flex-1 max-w-[300px]">
-              <SearchBar
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t("search_ph")}
-                className="h-12 w-full rounded-2xl"
-              />
-            </div>
-            <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-12">
-              <CustomDropdown disableTint={true} value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
-                { id: "ALL", label: t("status_dd_all") || "ALL STATUSES" },
-                { id: "stable", label: t("status_dd_stable") || "STABLE" },
-                { id: "unstable", label: t("label_unstable") || "UNSTABLE" },
-                { id: "corrupted", label: t("status_corrupted") || "CORRUPTED" },
-                { id: "under_review", label: t("status_dd_review") || "UNDER REVIEW" },
-                { id: "pending", label: t("pending") || "PENDING" },
-                { id: "unverified", label: t("unverified") || "UNVERIFIED" },
-              ]} />
-            </div>
+        <ScreenUtilityBar
+          search={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder={t("search_ph") as string}
+          className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+        >
+          <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-12">
+            <CustomDropdown disableTint={true} value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
+              { id: "ALL", label: t("status_dd_all") || "ALL STATUSES" },
+              { id: "stable", label: t("status_dd_stable") || "STABLE" },
+              { id: "unstable", label: t("label_unstable") || "UNSTABLE" },
+              { id: "corrupted", label: t("status_corrupted") || "CORRUPTED" },
+              { id: "under_review", label: t("status_dd_review") || "UNDER REVIEW" },
+              { id: "pending", label: t("pending") || "PENDING" },
+              { id: "unverified", label: t("unverified") || "UNVERIFIED" },
+            ]} />
           </div>
-        </div>
+        </ScreenUtilityBar>
 
         <div className="w-full p-6">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pr-2">
@@ -453,17 +448,13 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
   return (
     <>
       <div className={`flex flex-col gap-6 pb-20 w-full h-full relative ${isActiveTab ? '' : 'hidden'}`}>
-        <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
-            <div className="relative flex-1 max-w-[300px]">
-              <SearchBar
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t("search_queue")}
-                className="h-12 w-full rounded-2xl"
-              />
-            </div>
-
+        <ScreenUtilityBar
+          search={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder={t("search_queue") as string}
+          className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+        >
+          <>
             <div className="w-max min-w-[160px] max-w-xs relative z-50 h-12">
               <CustomDropdown disableTint={true}
                 value={activeCategory}
@@ -508,8 +499,8 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
                 { id: "unverified", label: t("unverified") || "UNVERIFIED" },
               ]} />
             </div>
-          </div>
-        </div>
+          </>
+        </ScreenUtilityBar>
 
         <div className="p-6 w-full">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pr-2">

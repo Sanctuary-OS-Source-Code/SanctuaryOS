@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, SearchBar } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, SearchBar, ScreenUtilityBar } from "./shared";
 import { getExtensionRegex, formatDisplayName, getFileLabel } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { useLexicon } from "./LexiconContext";
@@ -505,31 +505,21 @@ export const DbpfScout = () => {
               <CommandScreenBody>
                 <CommandScreenMain>
                   <div className="flex flex-col gap-6 w-full">
-                    <CommandScreenSectionHeading
-                      title={t("target_blueprints")}
-                      icon="map"
-                      rightContent={
-                        <div className="flex items-center gap-3">
-                          <div className="w-48 shrink-0 relative z-50 h-[38px]">
-                            <CustomDropdown
-                              disableTint={true}
-                              options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
-                              value={scanScope}
-                              onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
-                              icon="map"
-                            />
-                          </div>
-                          <div className="relative w-full md:w-64 shrink-0 h-[38px]">
-                            <SearchBar
-                              value={blueprintSearch}
-                              onChange={setBlueprintSearch}
-                              placeholder={t("search_blueprints")}
-                              className="w-full h-full"
-                            />
-                          </div>
-                        </div>
-                      }
-                    />
+                    <ScreenUtilityBar
+                      search={blueprintSearch}
+                      onSearchChange={setBlueprintSearch}
+                      searchPlaceholder={t("search_blueprints") as string}
+                    >
+                      <div className="w-48 shrink-0 relative z-50 h-[38px]">
+                        <CustomDropdown
+                          disableTint={true}
+                          options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
+                          value={scanScope}
+                          onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
+                          icon="map"
+                        />
+                      </div>
+                    </ScreenUtilityBar>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {playSets.filter((bp: any) => !blueprintSearch || bp.name.toLowerCase().includes(blueprintSearch.toLowerCase())).map((blueprint: any) => {
                         const cachedStatsStr = localStorage.getItem(`radar_stats_${blueprint.name}`);

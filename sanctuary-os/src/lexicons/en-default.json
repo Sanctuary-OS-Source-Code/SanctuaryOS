@@ -2740,5 +2740,7 @@
   "no_match_assets": "No Matching Assets",
   "status_corrupted": "Corrupted",
   "playsets_all": "All Playsets",
-  "oversight_title": "Admin Command"
+  "oversight_title": "Admin Command",
+  "ui_total_glass": "Total Glass",
+  "ui_total_glass_desc": "Remove application backgrounds and render UI directly on your desktop."
 }

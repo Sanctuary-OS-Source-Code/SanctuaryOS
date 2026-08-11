@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { logArchitectAction } from "./lib/audit";
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, standardAccentGlassButtonClass, standardSuccessButtonClass, EmptyState, ActionButton } from "./shared";
+import { ModSearchDropdown, standardAccentGlassButtonClass, standardSuccessButtonClass, EmptyState, ActionButton, ScreenUtilityBar } from "./shared";
 import { useStore } from "./store";
 import ModStructureBuilder, { StructureNode } from "./ModStructureBuilder";
 
@@ -59,52 +59,41 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
   return (
     <div className="flex flex-col w-full relative animate-in fade-in h-full">
       {/* 1. The Seamless Header */}
-      <div className="flex items-center justify-start px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[var(--text)]/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner shrink-0">
-            <span className="material-symbols-outlined !text-[24px] text-[var(--accent)] drop-shadow-md opacity-80">{t("icon_architecture") || "architecture"}</span>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest">
-              {t("structure_title")}
-            </h2>
-            <span className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-[0.2em] opacity-70">{t("structure_subtitle")}</span>
-          </div>
+      <ScreenUtilityBar
+        className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20"
+      >
+        <div className="w-[400px] z-50">
+          <ModSearchDropdown 
+            placeholder={t("structure_select_artifact")}
+            selectedItem={targetMod}
+            onSelect={(mod: any) => setTargetMod(mod)}
+            onClear={() => setTargetMod(null)}
+            modList={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)} 
+          />
         </div>
-        
         <div className="flex items-center gap-4 z-50">
-          <div className="w-[400px]">
-            <ModSearchDropdown 
-              placeholder={t("structure_select_artifact")}
-              selectedItem={targetMod}
-              onSelect={(mod: any) => setTargetMod(mod)}
-              onClear={() => setTargetMod(null)}
-              modList={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)} 
-              className="w-full h-12 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%] px-6 text-[var(--text)] text-[11px] font-black uppercase tracking-[0.2em] focus:outline-none focus:theme-border-accent transition-all relative"
-            />
+            {targetMod && (
+              <>
+                <ActionButton
+                  onClick={() => {
+                    const newFolder = { id: Math.random().toString(36).substr(2, 9), name: t("structure_new_folder") || "New Folder", type: "folder" as const, children: [] };
+                    handleStructureChange([...(targetMod.folder_structure || []), newFolder]);
+                  }}
+                  className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px] rounded-full"
+                  icon={t("icon_create_new_folder") || "create_new_folder"}
+                  label={t("structure_add_root") || "ADD ROOT"}
+                />
+                <ActionButton
+                  onClick={saveStructure}
+                  disabled={isSaving}
+                  className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px] rounded-full"
+                  icon={isSaving ? 'sync' : 'save'}
+                  label={isSaving ? t("btn_saving") : t("btn_save_structure")}
+                />
+              </>
+            )}
           </div>
-          {targetMod && (
-            <>
-              <ActionButton
-                onClick={() => {
-                  const newFolder = { id: Math.random().toString(36).substr(2, 9), name: t("structure_new_folder") || "New Folder", type: "folder" as const, children: [] };
-                  handleStructureChange([...(targetMod.folder_structure || []), newFolder]);
-                }}
-                className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px] rounded-full"
-                icon={t("icon_create_new_folder") || "create_new_folder"}
-                label={t("structure_add_root") || "ADD ROOT"}
-              />
-              <ActionButton
-                onClick={saveStructure}
-                disabled={isSaving}
-                className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px] rounded-full"
-                icon={isSaving ? 'sync' : 'save'}
-                label={isSaving ? t("btn_saving") : t("btn_save_structure")}
-              />
-            </>
-          )}
-        </div>
-      </div>
+      </ScreenUtilityBar>
 
       {/* 2. The Main Body */}
       <div className="flex-1 w-full relative z-0 h-full overflow-hidden flex flex-col pt-4">

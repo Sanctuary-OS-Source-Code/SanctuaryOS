@@ -361,12 +361,8 @@ export default function Lab({
       {activeTab === "BUILDER" && (
         <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full mt-2 pb-32">
 
-          <CommandScreenSectionHeading
-            shape="square"
-            title={t("tab_lab_builder") || "ECOSYSTEM FORGE"}
-            icon="science"
-            className="py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-6 relative z-20 shrink-0"
-            rightContent={activeLabMod && (
+          <div className="py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-6 relative z-20 shrink-0 flex justify-end">
+            {activeLabMod && (
               <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
                 <div className="hidden lg:flex flex-col items-end gap-1 px-4 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("payload") || "PAYLOAD"}</span>
@@ -384,7 +380,7 @@ export default function Lab({
                 </div>
               </div>
             )}
-          />
+          </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-[1fr_2fr] gap-8 w-full max-w-[1600px] mx-auto">
 

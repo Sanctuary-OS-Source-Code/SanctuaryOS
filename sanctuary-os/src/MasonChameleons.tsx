@@ -1,4 +1,4 @@
-import { SearchBar } from "./shared";
+import { SearchBar, ScreenUtilityBar } from "./shared";
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SidePanel } from './shared';
@@ -142,24 +142,14 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
 
   return (
     <div className="flex flex-col w-full h-full relative transition-all duration-500">
-      <CommandScreenSectionHeading
-        shape="circle"
-        title={t("forge_title") || "MATRIX FORGE"}
-        icon="palette"
-        className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-10 shrink-0"
-        rightContent={
-          <div className="flex items-center gap-3 flex-1 justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder={t("ui_search_chameleons") || "Search Themes..."}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
+      <ScreenUtilityBar
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder={(t("ui_search_chameleons") as string) || "Search Themes..."}
+        className="px-6 py-4"
+      >
           <ActionButton onClick={() => setIsCreatePanelOpen(true)} className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]" icon="add" label={t("auto_create") || "CREATE"} />
-        </div>
-      } />
+      </ScreenUtilityBar>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">

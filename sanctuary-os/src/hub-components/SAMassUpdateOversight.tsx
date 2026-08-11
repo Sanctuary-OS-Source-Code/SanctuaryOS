@@ -9,7 +9,7 @@ import {
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown, ActionButton
+  fetchAllPaginated, CustomTierDropdown, ActionButton, ScreenUtilityBar
 } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
@@ -160,21 +160,12 @@ export function MassUpdateOversight() {
   return (
     <div className="flex flex-col w-full relative h-full">
 
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-30">
-        </div>
-
-      <div className="flex flex-wrap items-center gap-4 px-6 py-2 shrink-0 z-20 relative">
-        <div className="relative flex-1 min-w-[200px]">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-          <input
-            type="text"
-            placeholder={t("search_ph")}
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full glass-panel rounded-xl pl-10 pr-6 h-12 text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[var(--accent)]/[50%] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%] placeholder:opacity-40"
-          />
-        </div>
-
+      <ScreenUtilityBar
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder={t("search_ph") as string}
+        className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-30"
+      >
         <div className="w-max min-w-[192px] z-40 shrink-0">
           <CustomDropdown disableTint={true}
             value={filterCategory}
@@ -212,210 +203,211 @@ export function MassUpdateOversight() {
         </div>
 
         {selectedIds.size > 0 && (
-          <div className="ml-auto shrink-0 animate-in fade-in zoom-in duration-300">
+          <div className="shrink-0 animate-in fade-in zoom-in duration-300">
             <ActionButton
               onClick={() => setIsActionPanelOpen(true)}
               variant="accent"
               icon="tune"
               label={`${t("mass_update_apply") || "CONFIGURE UPDATE"} (${selectedIds.size})`}
+              className="h-12 px-6 font-black uppercase tracking-widest text-[10px]"
             />
           </div>
         )}
-      </div>
+      </ScreenUtilityBar>
 
       <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-6 pb-24">
-            {loading ? (
-              <div className="py-20 text-center font-black opacity-50 uppercase tracking-widest animate-pulse">{t("loading_registry")}</div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 pb-4">
-                  {filteredMods.slice(0, visibleCount).map(m => (
-                    <div
-                      key={m.id}
-                      onClick={() => handleToggle(m.id)}
-                      className={`relative group/item flex flex-col p-4 rounded-3xl glass-panel border transition-all duration-300 isolate cursor-pointer ${selectedIds.has(m.id)
-                          ? 'border-[var(--accent)]/[50%] shadow-[0_10px_30px_rgba(var(--accent-rgb),0.2)] bg-[var(--accent)]/[10%] scale-[1.02]'
-                          : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)] hover:bg-[var(--accent)]/[5%]'
-                        }`}
-                    >
-                      <div className="flex items-start justify-start gap-3 mb-4">
-                        <div className={`w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl border shadow-inner transition-colors ${selectedIds.has(m.id)
-                            ? 'bg-[var(--accent)]/[20%] border-[var(--accent)]/[50%] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]'
-                            : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover/item:border-[var(--accent)]/[30%]'
-                          }`}>
-                          {selectedIds.has(m.id) ? (
-                            <span className="material-symbols-outlined !text-[24px] drop-shadow-[0_0_5px_var(--accent)]">check</span>
-                          ) : (
-                            <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">extension</span>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col items-end gap-1">
-                          <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest leading-none border ${selectedIds.has(m.id)
-                              ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] border-[var(--accent)]/[30%]'
-                              : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'
-                            }`}>
-                            {m.master_author || 'UNKNOWN'}
-                          </span>
-                          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase mt-1">
-                            {t("auto_status")} {(m.status || "UNVERIFIED").replace(/_/g, ' ')} | {t("auto_tier")} {m.compliance_tier}
-                          </span>
-                        </div>
+          {loading ? (
+            <div className="py-20 text-center font-black opacity-50 uppercase tracking-widest animate-pulse">{t("loading_registry")}</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 pb-4">
+                {filteredMods.slice(0, visibleCount).map(m => (
+                  <div
+                    key={m.id}
+                    onClick={() => handleToggle(m.id)}
+                    className={`relative group/item flex flex-col p-4 rounded-3xl glass-panel border transition-all duration-300 isolate cursor-pointer ${selectedIds.has(m.id)
+                      ? 'border-[var(--accent)]/[50%] shadow-[0_10px_30px_rgba(var(--accent-rgb),0.2)] bg-[var(--accent)]/[10%] scale-[1.02]'
+                      : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.1)] hover:bg-[var(--accent)]/[5%]'
+                      }`}
+                  >
+                    <div className="flex items-start justify-start gap-3 mb-4">
+                      <div className={`w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl border shadow-inner transition-colors ${selectedIds.has(m.id)
+                        ? 'bg-[var(--accent)]/[20%] border-[var(--accent)]/[50%] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]'
+                        : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover/item:border-[var(--accent)]/[30%]'
+                        }`}>
+                        {selectedIds.has(m.id) ? (
+                          <span className="material-symbols-outlined !text-[24px] drop-shadow-[0_0_5px_var(--accent)]">check</span>
+                        ) : (
+                          <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">extension</span>
+                        )}
                       </div>
 
-                      <div className="flex flex-col min-w-0 flex-1 justify-center relative z-10 mb-2">
-                        <span className={`text-[13px] font-black uppercase tracking-widest leading-tight transition-colors duration-300 break-words line-clamp-2 ${selectedIds.has(m.id) ? 'text-[var(--text)]' : 'text-[var(--text)] group-hover/item:text-[var(--accent)]'
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest leading-none border ${selectedIds.has(m.id)
+                          ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] border-[var(--accent)]/[30%]'
+                          : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'
                           }`}>
-                          {m.name}
+                          {m.master_author || 'UNKNOWN'}
+                        </span>
+                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase mt-1">
+                          {t("auto_status")} {(m.status || "UNVERIFIED").replace(/_/g, ' ')} | {t("auto_tier")} {m.compliance_tier}
                         </span>
                       </div>
                     </div>
-                  ))}
-                </div>
 
-                {filteredMods.length > visibleCount && (
-                  <div className="col-span-full flex justify-center w-full pt-4 pb-8">
-                    <button
-                      onClick={() => setVisibleCount(v => v + 100)}
-                      className="group px-12 py-4 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black uppercase tracking-widest hover:border-[var(--accent)]/[50%] hover:text-[var(--accent)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)] hover:bg-[var(--accent)]/[5%] transition-all shadow-xl flex items-center gap-3"
-                    >
-                      <span className="material-symbols-outlined !text-[20px] group-hover:animate-bounce">expand_more</span>
-                      {t("ui_btn_load_more")} ({visibleCount} / {filteredMods.length})
-                    </button>
+                    <div className="flex flex-col min-w-0 flex-1 justify-center relative z-10 mb-2">
+                      <span className={`text-[13px] font-black uppercase tracking-widest leading-tight transition-colors duration-300 break-words line-clamp-2 ${selectedIds.has(m.id) ? 'text-[var(--text)]' : 'text-[var(--text)] group-hover/item:text-[var(--accent)]'
+                        }`}>
+                        {m.name}
+                      </span>
+                    </div>
                   </div>
-                )}
+                ))}
+              </div>
 
-                {!loading && filteredMods.length === 0 && (
-                  <EmptyState icon={t("icon_extension_off") || "extension_off"} title={t("sa_no_artifacts")} className="col-span-full py-16" />
-                )}
-              </>
-            )}
+              {filteredMods.length > visibleCount && (
+                <div className="col-span-full flex justify-center w-full pt-4 pb-8">
+                  <button
+                    onClick={() => setVisibleCount(v => v + 100)}
+                    className="group px-12 py-4 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black uppercase tracking-widest hover:border-[var(--accent)]/[50%] hover:text-[var(--accent)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)] hover:bg-[var(--accent)]/[5%] transition-all shadow-xl flex items-center gap-3"
+                  >
+                    <span className="material-symbols-outlined !text-[20px] group-hover:animate-bounce">expand_more</span>
+                    {t("ui_btn_load_more")} ({visibleCount} / {filteredMods.length})
+                  </button>
+                </div>
+              )}
+
+              {!loading && filteredMods.length === 0 && (
+                <EmptyState icon={t("icon_extension_off") || "extension_off"} title={t("sa_no_artifacts")} className="col-span-full py-16" />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <SidePanel
+        isOpen={isActionPanelOpen}
+        onClose={() => setIsActionPanelOpen(false)}
+        title={t("mass_update_apply") || "APPLY MASS UPDATE"}
+        subtitle={`${selectedIds.size} ${t("artifacts_selected") || "ARTIFACTS SELECTED"}`}
+        icon="batch_prediction"
+        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+        keepMounted={true}
+        noPadding={true}
+      >
+        <div className="flex flex-col gap-6 w-full relative flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6">
+
+          <div className="flex flex-col gap-8 flex-1">
+            <div className="flex flex-col gap-2 relative z-50">
+              <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                <span className={`material-symbols-outlined !text-[16px] ${massStatus ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>policy</span>
+                {t("mass_status_protocol")}
+              </label>
+              <CustomDropdown disableTint={true}
+                value={massStatus}
+                onChange={(v: string[]) => setMassStatus(v[0])}
+                options={[
+                  { id: "", label: "-- LEAVE UNCHANGED --" },
+                  { id: "verified", label: "VERIFIED" },
+                  { id: "unverified", label: "UNVERIFIED" },
+                  { id: "deprecated", label: "DEPRECATED" },
+                  { id: "quarantined", label: "QUARANTINED" }
+                ]}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 relative z-40">
+              <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                <span className={`material-symbols-outlined !text-[16px] ${massCompliance ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>verified_user</span>
+                {t("vault_stat_tier")}
+              </label>
+              <CustomDropdown disableTint={true}
+                value={massCompliance}
+                onChange={(v: string[]) => setMassCompliance(v[0])}
+                options={[
+                  { id: "", label: "-- LEAVE UNCHANGED --" },
+                  { id: "0", label: "CLEAN (TIER 0)" },
+                  { id: "1", label: "NSFW 18+ (TIER 1)" },
+                  { id: "2", label: "EXPLICIT (TIER 2)" },
+                  { id: "3", label: "MALWARE (TIER 3)" }
+                ]}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 relative z-30">
+              <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                <span className={`material-symbols-outlined !text-[16px] ${massCategory ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>category</span>
+                {t("mass_category_override")}
+              </label>
+              <CustomDropdown disableTint={true}
+                value={massCategory}
+                onChange={(v: string[]) => setMassCategory(v[0])}
+                options={[
+                  { id: "", label: "-- LEAVE UNCHANGED --" },
+                  ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                    id: cat.id,
+                    label: (t(cat.lexicon_key) || cat.id).toUpperCase()
+                  })) || [])
+                ]}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 relative z-20">
+              <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                <span className={`material-symbols-outlined !text-[16px] ${massGameVersions.length > 0 ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>videogame_asset</span>
+                {t("auto_replace_game_versions")}
+              </label>
+              <GameVersionMultiSelect selectedVersions={massGameVersions} onChange={setMassGameVersions} />
+            </div>
+
+            <div className="flex flex-col gap-2 relative z-10">
+              <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                <span className={`material-symbols-outlined !text-[16px] ${massConflictId ? 'text-[var(--danger)] drop-shadow-[0_0_5px_var(--danger)]' : 'text-[var(--danger)] opacity-80'}`}>gavel</span>
+                {t("mass_assign_conflict")}
+              </label>
+              <ModSearchDropdown
+                placeholder={t("auto_select_artifact_to_32")}
+                selectedItem={massConflictId}
+                onSelect={setMassConflictId}
+                onClear={() => setMassConflictId(null)}
+                modList={mods}
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0 flex flex-col gap-4 pb-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)] animate-pulse shadow-[0_0_5px_var(--danger)]"></span>
+                {t("batch_reason_req")}
+              </label>
+              <textarea
+                value={editReason}
+                onChange={e => setEditReason(e.target.value)}
+                placeholder={t("reason_update")}
+                className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 py-4 text-[var(--text)] text-[11px] font-black uppercase tracking-widest h-24 resize-none focus:outline-none focus:border-red-500/[50%] transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-red-500/[30%]"
+              />
+            </div>
+
+            <div className="flex items-center justify-center gap-4 mt-2">
+              <ActionButton
+                onClick={() => setIsActionPanelOpen(false)}
+                variant="glass"
+                icon="close"
+                label={t("nav_cancel") || "CANCEL"}
+              />
+              <ActionButton
+                disabled={isUpdating || selectedIds.size === 0 || !hasAnyAction || !editReason.trim()}
+                onClick={executeMassUpdate}
+                variant="success"
+                icon="done_all"
+                label={isUpdating ? "EXECUTING..." : "INITIATE MASS UPDATE"}
+              />
+            </div>
           </div>
         </div>
-        
-        <SidePanel
-          isOpen={isActionPanelOpen}
-          onClose={() => setIsActionPanelOpen(false)}
-          title={t("mass_update_apply") || "APPLY MASS UPDATE"}
-          subtitle={`${selectedIds.size} ${t("artifacts_selected") || "ARTIFACTS SELECTED"}`}
-          icon="batch_prediction"
-          iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
-          keepMounted={true}
-          noPadding={true}
-        >
-          <div className="flex flex-col gap-6 w-full relative flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6">
-            
-            <div className="flex flex-col gap-8 flex-1">
-              <div className="flex flex-col gap-2 relative z-50">
-                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
-                  <span className={`material-symbols-outlined !text-[16px] ${massStatus ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>policy</span>
-                  {t("mass_status_protocol")}
-                </label>
-                <CustomDropdown disableTint={true}
-                  value={massStatus}
-                  onChange={(v: string[]) => setMassStatus(v[0])}
-                  options={[
-                    { id: "", label: "-- LEAVE UNCHANGED --" },
-                    { id: "verified", label: "VERIFIED" },
-                    { id: "unverified", label: "UNVERIFIED" },
-                    { id: "deprecated", label: "DEPRECATED" },
-                    { id: "quarantined", label: "QUARANTINED" }
-                  ]}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2 relative z-40">
-                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
-                  <span className={`material-symbols-outlined !text-[16px] ${massCompliance ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>verified_user</span>
-                  {t("vault_stat_tier")}
-                </label>
-                <CustomDropdown disableTint={true}
-                  value={massCompliance}
-                  onChange={(v: string[]) => setMassCompliance(v[0])}
-                  options={[
-                    { id: "", label: "-- LEAVE UNCHANGED --" },
-                    { id: "0", label: "CLEAN (TIER 0)" },
-                    { id: "1", label: "NSFW 18+ (TIER 1)" },
-                    { id: "2", label: "EXPLICIT (TIER 2)" },
-                    { id: "3", label: "MALWARE (TIER 3)" }
-                  ]}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2 relative z-30">
-                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
-                  <span className={`material-symbols-outlined !text-[16px] ${massCategory ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>category</span>
-                  {t("mass_category_override")}
-                </label>
-                <CustomDropdown disableTint={true}
-                  value={massCategory}
-                  onChange={(v: string[]) => setMassCategory(v[0])}
-                  options={[
-                    { id: "", label: "-- LEAVE UNCHANGED --" },
-                    ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
-                      id: cat.id,
-                      label: (t(cat.lexicon_key) || cat.id).toUpperCase()
-                    })) || [])
-                  ]}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2 relative z-20">
-                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
-                  <span className={`material-symbols-outlined !text-[16px] ${massGameVersions.length > 0 ? 'text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--subtext)] opacity-50'}`}>videogame_asset</span>
-                  {t("auto_replace_game_versions")}
-                </label>
-                <GameVersionMultiSelect selectedVersions={massGameVersions} onChange={setMassGameVersions} />
-              </div>
-
-              <div className="flex flex-col gap-2 relative z-10">
-                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
-                  <span className={`material-symbols-outlined !text-[16px] ${massConflictId ? 'text-[var(--danger)] drop-shadow-[0_0_5px_var(--danger)]' : 'text-[var(--danger)] opacity-80'}`}>gavel</span>
-                  {t("mass_assign_conflict")}
-                </label>
-                <ModSearchDropdown
-                  placeholder={t("auto_select_artifact_to_32")}
-                  selectedItem={massConflictId}
-                  onSelect={setMassConflictId}
-                  onClear={() => setMassConflictId(null)}
-                  modList={mods}
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0 flex flex-col gap-4 pb-6">
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)] animate-pulse shadow-[0_0_5px_var(--danger)]"></span>
-                  {t("batch_reason_req")}
-                </label>
-                <textarea
-                  value={editReason}
-                  onChange={e => setEditReason(e.target.value)}
-                  placeholder={t("reason_update")}
-                  className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 py-4 text-[var(--text)] text-[11px] font-black uppercase tracking-widest h-24 resize-none focus:outline-none focus:border-red-500/[50%] transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-red-500/[30%]"
-                />
-              </div>
-
-              <div className="flex items-center justify-center gap-4 mt-2">
-                <ActionButton
-                  onClick={() => setIsActionPanelOpen(false)}
-                  variant="glass"
-                  icon="close"
-                  label={t("nav_cancel") || "CANCEL"}
-                />
-                <ActionButton
-                  disabled={isUpdating || selectedIds.size === 0 || !hasAnyAction || !editReason.trim()}
-                  onClick={executeMassUpdate}
-                  variant="success"
-                  icon="done_all"
-                  label={isUpdating ? "EXECUTING..." : "INITIATE MASS UPDATE"}
-                />
-              </div>
-            </div>
-          </div>
-        </SidePanel>
+      </SidePanel>
     </div>
   );
 }

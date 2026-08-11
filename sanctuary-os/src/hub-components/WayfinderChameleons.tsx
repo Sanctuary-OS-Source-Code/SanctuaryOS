@@ -14,7 +14,7 @@ import { standardButtonClass } from '../shared';
 export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean }) {
   const { t } = useLexicon();
   const pushStatus = useStore((state: any) => state.pushStatus);
-  const { activeThemeId, setActiveThemeId, setCoreThemes } = useTheme();
+  const { activeThemeId, setActiveThemeId, setCoreThemes, isTotalGlass, setTotalGlass } = useTheme();
 
   const [cloudThemes, setCloudThemes] = useState<Record<string, any>>({});
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);

@@ -12,7 +12,7 @@ import {
   HubTabButton, ModSearchDropdown, EmptyState, FilterTabs, FilterTabButton, ActionButton,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, ScreenUtilityBar
 } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
@@ -237,42 +237,38 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
   return (
     <div className="flex flex-col w-full relative">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-        <div className="flex items-center gap-3 relative flex-1 w-full justify-end justify-start">
-          <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t("search_ph")}
-              className="h-12 w-full rounded-2xl"
+      <ScreenUtilityBar
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("search_ph") as string}
+      >
+        <>
+            <div className="w-max min-w-[180px] max-w-xs shrink-0">
+              <CustomDropdown
+                disableTint={true}
+                value={sandboxTypeFilter}
+                onChange={(v: string[]) => setSandboxTypeFilter(v[0] as any)}
+                options={[
+                  { id: "ALL", label: t("ql_all") || "ALL" },
+                  { id: "ARTIFACTS", label: t("items") || "ARTIFACTS" },
+                  { id: "CONFIGS", label: t("type_configs") || "CONFIGS" },
+                  { id: "TEMPLATES", label: t("ql_templates") || "TEMPLATES" }
+                ]}
+              />
+            </div>
+            <div className="flex items-stretch overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5 mr-4 hidden md:flex">
+              <button onClick={() => setSandboxTabFilter('local')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("unlinked_badge") || "LOCAL"}</button>
+              <button onClick={() => setSandboxTabFilter('synced')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("synced_badge") || "SYNCED"}</button>
+            </div>
+            <ActionButton
+              onClick={handleImportToSandbox}
+              disabled={isImporting}
+              icon={isImporting ? t("icon_refresh") : t("icon_download")}
+              label={isImporting ? t("btn_importing") : t("btn_import")}
+              className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]"
             />
-          </div>
-          <div className="w-max min-w-[180px] max-w-xs shrink-0">
-            <CustomDropdown
-              disableTint={true}
-              value={sandboxTypeFilter}
-              onChange={(v: string[]) => setSandboxTypeFilter(v[0] as any)}
-              options={[
-                { id: "ALL", label: t("ql_all") || "ALL" },
-                { id: "ARTIFACTS", label: t("items") || "ARTIFACTS" },
-                { id: "CONFIGS", label: t("type_configs") || "CONFIGS" },
-                { id: "TEMPLATES", label: t("ql_templates") || "TEMPLATES" }
-              ]}
-            />
-          </div>
-          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5 mr-4 hidden md:flex">
-            <button onClick={() => setSandboxTabFilter('local')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("unlinked_badge") || "LOCAL"}</button>
-            <button onClick={() => setSandboxTabFilter('synced')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("synced_badge") || "SYNCED"}</button>
-          </div>
-          <ActionButton
-            onClick={handleImportToSandbox}
-            disabled={isImporting}
-            icon={isImporting ? t("icon_refresh") : t("icon_download")}
-            label={isImporting ? t("btn_importing") : t("btn_import")}
-            className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]"
-          />
-        </div>
-      </div>
+          </>
+      </ScreenUtilityBar>
 
       <div className="p-6 flex flex-col gap-10 pb-32 overflow-y-auto custom-scrollbar">
         {isLoading ? (
@@ -359,10 +355,10 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
                 <ActionButton onClick={handlePurge} disabled={isCommitting} label={confirmPurge ? (t("ui_confirm_delete") || "ARE YOU SURE?") : (t("purge") || "PURGE")} className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]">
-                  
+
                 </ActionButton>
                 <ActionButton onClick={handleSyncToNetwork} disabled={isCommitting} label={isCommitting ? t("btn_syncing") : (t("sandbox_btn_sync"))}>
-                  
+
                 </ActionButton>
               </div>
             }
@@ -425,7 +421,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-1">
-                    {t("label_mason_version") || "Mason Version"} 
+                    {t("label_mason_version") || "Mason Version"}
                   </label>
                   <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 shadow-inner" />
                 </div>
@@ -440,7 +436,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                       <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
                       </div>
                     </div>
-                    <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({...activeMod, is_paid: e.target.checked})} className="hidden" />
+                    <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({ ...activeMod, is_paid: e.target.checked })} className="hidden" />
                   </label>
 
                   <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
@@ -452,7 +448,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                       <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
                       </div>
                     </div>
-                    <input type="checkbox" checked={activeMod.is_early_access || false} onChange={e => setActiveMod({...activeMod, is_early_access: e.target.checked})} className="hidden" />
+                    <input type="checkbox" checked={activeMod.is_early_access || false} onChange={e => setActiveMod({ ...activeMod, is_early_access: e.target.checked })} className="hidden" />
                   </label>
                 </div>
 

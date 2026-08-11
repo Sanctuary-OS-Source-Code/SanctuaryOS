@@ -418,9 +418,6 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
           </div>
         )}
 
-        {filterTab === 'pending' && pendingReports.length === 0 && (
-          <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart") || "healing"} title={searchTerm ? t("no_matches") : t("no_pending_reports") || "No Pending Reports"} className="py-16 mt-10" />
-        )}
 
         {filterTab === 'completed' && completedReports.length > 0 && (
           <div className="flex flex-col gap-4">

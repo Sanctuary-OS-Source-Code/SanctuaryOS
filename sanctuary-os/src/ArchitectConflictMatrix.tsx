@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton } from "./shared";
+import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ScreenUtilityBar } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { logArchitectAction } from "./lib/audit";
 
@@ -216,23 +216,12 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
   return (
     <div className="flex flex-col h-full w-full relative overflow-hidden text-[var(--text)]">
 
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t("ui_placeholder_search")}
-              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
-            />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-              </button>
-            )}
-          </div>
+      <ScreenUtilityBar
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("ui_placeholder_search") as string}
+        className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full"
+      >
           <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex mr-4">
             <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
             <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_active")}</button>
@@ -251,8 +240,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
             icon={t("icon_add")}
             label={t("auto_create")}
           />
-        </div>
-      </div>
+      </ScreenUtilityBar>
 
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
         {filterTab === 'pending' && (
@@ -431,22 +419,22 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                     <div className="flex justify-center items-center gap-4 mt-2 w-full">
                       {!editConflictId && (
                         <ActionButton type="button" onClick={() => setIsSidePanelOpen(false)} label={t("nav_cancel")}>
-                          
+
                         </ActionButton>
                       )}
                       {editConflictId && (
                         <ActionButton type="button" onClick={() => setIsDeleting(true)} label={editingGhost?.status === 'pending' ? (t("matrix_btn_reject")) : (t("purge"))}>
-                          
+
                         </ActionButton>
                       )}
                       {editingGhost?.status !== 'pending' && (
                         <ActionButton type="button" onClick={() => handleAddGhost()} disabled={!modA || !modB || (!!editConflictId && !updateReason.trim())} label={editConflictId ? (t("edit_side_panel")) : (t("inject"))}>
-                          
+
                         </ActionButton>
                       )}
                       {editingGhost?.status === 'pending' && (
                         <ActionButton type="button" onClick={() => handleConfirmSidePanelApprove()} label={t("ui_btn_approve")}>
-                          
+
                         </ActionButton>
                       )}
                     </div>

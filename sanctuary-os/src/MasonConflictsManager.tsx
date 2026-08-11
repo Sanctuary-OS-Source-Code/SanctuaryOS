@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase, getActiveGameClient } from "./supabase";
 import { useStore } from './store';
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState, ActionButton } from "./shared";
+import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState, ActionButton, ScreenUtilityBar } from "./shared";
 import { logArchitectAction } from "./lib/audit";
 import { UniversalCard } from "./components/universal/UniversalCard";
 
@@ -155,39 +155,29 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
   return (
     <div className="flex flex-col h-full w-full relative overflow-hidden">
       
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <div className="flex-1 w-full flex justify-start gap-4 items-center">
-          <div className="relative w-64 h-12 shrink-0">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t("ui_placeholder_search")}
-              className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+      <ScreenUtilityBar
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("ui_placeholder_search") as string}
+        className="px-6 py-4"
+      >
+          <>
+            <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex">
+              <button onClick={() => setTierFilter(null)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === null ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ql_all")}</button>
+              {[4, 3].map(tLevel => (
+                <button key={tLevel} onClick={() => setTierFilter(tLevel)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === tLevel ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  {t("ui_icon_logo")}{tLevel}
+                </button>
+              ))}
+            </div>
+            <ActionButton
+              onClick={() => { setEditConflictId(null); setActiveMaster(myMods[0] || null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }}
+              className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]"
+              icon={t("icon_add")}
+              label={t("auto_create")}
             />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-              </button>
-            )}
-          </div>
-          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex">
-            <button onClick={() => setTierFilter(null)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === null ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ql_all")}</button>
-            {[4, 3].map(tLevel => (
-              <button key={tLevel} onClick={() => setTierFilter(tLevel)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === tLevel ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                {t("ui_icon_logo")}{tLevel}
-              </button>
-            ))}
-          </div>
-          <ActionButton
-            onClick={() => { setEditConflictId(null); setActiveMaster(myMods[0] || null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }}
-            className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]"
-            icon={t("icon_add")}
-            label={t("auto_create")}
-          />
-        </div>
-      </div>
+          </>
+      </ScreenUtilityBar>
       
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 mt-6 pb-24">

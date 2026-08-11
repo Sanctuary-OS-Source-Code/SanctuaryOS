@@ -5,7 +5,7 @@ import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
-import { GameVersionMultiSelect, deriveHumanReadableVersion, CustomDatePicker, CustomClassificationDropdown, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, getHighestVersion, getLowestVersion, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, HoverTooltip, cleanSearchName, SidePanel } from "./shared";
+import { GameVersionMultiSelect, deriveHumanReadableVersion, CustomDatePicker, CustomClassificationDropdown, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, getHighestVersion, getLowestVersion, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, HoverTooltip, cleanSearchName, SidePanel, ActionButton } from "./shared";
 
 export default function ModDossier({ mod, modList, activePlaySet, onToggleInActiveSet, onShowYeetAlert, onClose, metaInputs, setMetaInputs, onSaveMetadata, onResetMetadata, onOpenMasonProfile, editMode, setEditMode, onSendToLab, onSecureShred, isCorrecting, setIsCorrecting, onSyncToNetwork }: any) {
   const activeGameSchema = useStore(state => state.activeGameSchema);
@@ -779,16 +779,18 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
             {kids.length > 0 && (
               <div className="flex flex-col gap-6">
-                <div className="flex justify-start items-center px-1 ml-2">
+                <div className="flex justify-between items-center px-1 ml-2 w-full pr-2">
                   <h3 className="text-xs font-black theme-text-success uppercase tracking-[0.2em] opacity-90 flex items-center gap-2">
                     <span className="material-symbols-outlined !text-[18px]">{t("icon_inventory_2")}</span>
                     {t("manifest")} <span className="opacity-60 font-mono text-[10px]">({kids.length})</span>
                   </h3>
                   {!isNexusView && (
-                    <button onClick={handleToggleAll} className={allEquipped ? standardDangerButtonClass : standardSuccessButtonClass}>
-                      <span className="material-symbols-outlined !text-[16px]">{allEquipped ? "remove_circle_outline" : "add_circle_outline"}</span>
-                      {allEquipped ? t("remove_all") : t("add_all")}
-                    </button>
+                    <ActionButton
+                      onClick={handleToggleAll}
+                      variant={allEquipped ? "danger" : "success"}
+                      icon={allEquipped ? "remove_circle_outline" : "add_circle_outline"}
+                      label={allEquipped ? t("remove_all") : t("add_all")}
+                    />
                   )}
                 </div>
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">

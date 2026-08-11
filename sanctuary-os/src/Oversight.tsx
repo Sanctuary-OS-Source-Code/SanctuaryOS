@@ -5,7 +5,7 @@ import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { useModalStore } from './store/modalStore';
-import { ViewHeader, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, SidePanel, CustomComplianceDropdown, loadDLCMap, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, StatTile, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, CustomDatePicker, extractPostImage, stripMarkdown, EmptyState } from './shared';
+import { ViewHeader, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, SidePanel, CustomComplianceDropdown, loadDLCMap, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, StatTile, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, CustomDatePicker, extractPostImage, stripMarkdown, EmptyState, ActionButton } from './shared';
 import ArchitectSupportTickets from './hub-components/ArchitectSupportTickets';
 import SASupportSettings from './hub-components/SASupportSettings';
 import MasonPostViewer from './side-panels/MasonPostViewer';
@@ -70,34 +70,31 @@ export default function Oversight({ onOpenMasonProfile }: any) {
                 iconColorClass="text-[var(--danger)]"
                 breadcrumb={activeTab !== "command_center" ? activeTab.replace(/_/g, ' ').toUpperCase() : undefined}
                 onTitleClick={() => setActiveTab("command_center")}
+            />
+
+            <HoverTabDrawer 
+                title="Oversight Navigation" 
+                activeTab={activeTab} 
+                setTab={setActiveTab}
+                footer={
+                    <>
+                        <ActionButton
+                            icon={t("icon_verified_user")}
+                            label={t("wf_hub_verify")}
+                            variant="glass"
+                            className="w-full"
+                            onClick={() => setIsVerifyPanelOpen(true)}
+                        />
+                        <ActionButton
+                            icon={defconLevel === 1 ? "warning" : "security"}
+                            label={<span className="truncate">{t("defcon_title") || "DEFCON OVERRIDE".replace("🚨 ", "").replace("⚠️ ", "")}</span>}
+                            variant={defconLevel === 1 ? "danger" : "glass"}
+                            className={`w-full ${defconLevel === 1 ? 'animate-pulse' : ''}`}
+                            onClick={() => setDefconOpen(true)}
+                        />
+                    </>
+                }
             >
-                <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
-                    <button
-                        onClick={() => setIsVerifyPanelOpen(true)}
-                        className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
-                    >
-                        <span className="material-symbols-outlined text-xl normal-case">{t("icon_verified_user")}</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest">{t("wf_hub_verify")}</span>
-                    </button>
-
-
-
-                    <button
-                        onClick={() => setDefconOpen(true)}
-                        className={`h-12 px-6 rounded-none transition-all flex items-center justify-center gap-3 shrink-0 font-black uppercase tracking-widest border border-transparent ${defconLevel === 1
-                            ? 'text-red-400 hover:text-red-300 drop-shadow-md bg-red-500/10 hover:bg-red-500/20 shadow-md animate-pulse'
-                            : 'text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50'
-                            }`}
-                    >
-                        <span className={`material-symbols-outlined !text-[24px] ${defconLevel === 1 ? 'animate-bounce' : 'opacity-70'}`}>
-                            {defconLevel === 1 ? 'warning' : 'security'}
-                        </span>
-                        <span className="text-[10px]">{t("defcon_title") || "DEFCON OVERRIDE".replace("🚨 ", "").replace("⚠️ ", "")}</span>
-                    </button>
-                </div>
-            </ViewHeader>
-
-            <HoverTabDrawer title="Oversight Navigation" activeTab={activeTab} setTab={setActiveTab}>
                 <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
                 <VerticalTabButton id="oversight_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch") || "DISPATCH"} activeTab={activeTab} setTab={setActiveTab} />
                 <VerticalTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />

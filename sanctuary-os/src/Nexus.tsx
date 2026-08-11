@@ -1356,19 +1356,25 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
           breadcrumb={marketTab !== 'HOME' ? (marketTab === 'HOME' ? t('tab_overview') || 'Overview' : t(`tab_${marketTab.toLowerCase()}`) || marketTab) : undefined}
           onTitleClick={() => setMarketTab('HOME')}
-        >
-          <ActionButton
-            icon={t("icon_refresh") || "refresh"}
-            label={t("ui_btn_refresh") || "Refresh"}
-            onClick={() => {
-              if (marketTab === 'MODS') fetchNexus(true);
-              else fetchNexusAssets(true);
-            }}
-            className="h-12 px-6"
-          />
-        </ViewHeader>
+        />
 
-        <HoverTabDrawer title="Nexus Navigation" activeTab={marketTab} setTab={setMarketTab}>
+        <HoverTabDrawer 
+          title="Nexus Navigation" 
+          activeTab={marketTab} 
+          setTab={setMarketTab}
+          footer={
+            <ActionButton
+              icon={t("icon_refresh") || "refresh"}
+              label={t("ui_btn_refresh") || "Refresh"}
+              variant="glass"
+              onClick={() => {
+                if (marketTab === 'MODS') fetchNexus(true);
+                else fetchNexusAssets(true);
+              }}
+              className="w-full"
+            />
+          }
+        >
           {['HOME', 'MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
             <VerticalTabButton
               key={tab}

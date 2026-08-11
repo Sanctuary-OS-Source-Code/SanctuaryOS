@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { WayfinderCommandScreen } from "./hub-components/CommandScreens";
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, SidePanel, extractPostImage, stripMarkdown, EmptyState } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, ActionButton, VerticalTabDropdown, SidePanel, extractPostImage, stripMarkdown, EmptyState } from './shared';
 import ArchitectSupportTickets from './hub-components/ArchitectSupportTickets';
 
 
@@ -46,32 +46,31 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
 
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
-      <ViewHeader title={t("wf_hub_title")} subtitle={t("wf_hub_subtitle")} icon={t("icon_terminal")} iconColorClass="text-[var(--success)]">
-        <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
-          <button
-            onClick={() => setIsVerifyPanelOpen(true)}
-            className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 border border-transparent text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50 font-black uppercase tracking-widest text-[10px] group"
-          >
-            <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("icon_verified_user")}</span>
-            {t("wf_hub_verify")}
-          </button>
+      <ViewHeader title={t("wf_hub_title")} subtitle={t("wf_hub_subtitle")} icon={t("icon_terminal")} iconColorClass="text-[var(--success)]" />
 
-          <button
-            onClick={() => setDefconOpen(true)}
-            className={`h-12 px-6 rounded-none transition-all flex items-center justify-center gap-3 shrink-0 font-black uppercase tracking-widest border border-transparent ${defconLevel === 1
-              ? 'text-red-400 hover:text-red-300 drop-shadow-md bg-red-500/10 hover:bg-red-500/20 shadow-md animate-pulse'
-              : 'text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] hover:border-[var(--accent)]/50'
-              }`}
-          >
-            <span className={`material-symbols-outlined !text-[24px] ${defconLevel === 1 ? 'animate-bounce' : 'opacity-70'}`}>
-              {defconLevel === 1 ? 'warning' : 'security'}
-            </span>
-            <span className="text-[10px]">{t("defcon_title") || "DEFCON OVERRIDE".replace("🚨 ", "").replace("⚠️ ", "")}</span>
-          </button>
-        </div>
-      </ViewHeader>
-
-      <HoverTabDrawer title="Wayfinder Navigation" activeTab={activeTab} setTab={setActiveTab}>
+      <HoverTabDrawer 
+        title="Wayfinder Navigation" 
+        activeTab={activeTab} 
+        setTab={setActiveTab}
+        footer={
+          <>
+            <ActionButton
+              icon={t("icon_verified_user")}
+              label={t("wf_hub_verify")}
+              variant="glass"
+              className="w-full"
+              onClick={() => setIsVerifyPanelOpen(true)}
+            />
+            <ActionButton
+              icon={defconLevel === 1 ? "warning" : "security"}
+              label={<span className="truncate">{t("defcon_title") || "DEFCON OVERRIDE".replace("🚨 ", "").replace("⚠️ ", "")}</span>}
+              variant={defconLevel === 1 ? "danger" : "glass"}
+              className={`w-full ${defconLevel === 1 ? 'animate-pulse' : ''}`}
+              onClick={() => setDefconOpen(true)}
+            />
+          </>
+        }
+      >
         <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="wf_comms_title" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="sanctuary_tickets" icon={t("icon_local_activity")} label={t("wf_tab_tickets")} activeTab={activeTab} setTab={setActiveTab} />

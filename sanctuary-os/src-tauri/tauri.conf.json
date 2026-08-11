@@ -20,7 +20,8 @@
         "resizable": true,
         "center": true,
         "title": "Sanctuary OS",
-        "decorations": false
+        "decorations": false,
+        "transparent": true
       }
     ],
     "security": {

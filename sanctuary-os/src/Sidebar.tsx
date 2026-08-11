@@ -329,7 +329,7 @@ export function Sidebar({
       </div>
 
       {schemaFeatures?.has_launch !== false && (
-        <div className="p-4 pb-4 relative z-30 bg-gradient-to-t from-[var(--sidebar)] to-transparent">
+        <div className="p-4 pb-4 relative z-30">
           <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
 
           <div className="relative group/nav mt-2">
@@ -376,7 +376,7 @@ export function Sidebar({
         >
           {/* 3D Glass Inner Top Highlight */}
           <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-60 pointer-events-none z-0" />
-          
+
           {/* Ultra-faint Noise Texture for Glass Material realism */}
           <div className="absolute inset-0 z-0 opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
 

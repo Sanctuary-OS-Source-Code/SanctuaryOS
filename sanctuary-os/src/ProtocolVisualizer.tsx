@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { logArchitectAction } from "./lib/audit";
 import { useLexicon } from "./LexiconContext";
-import { SidePanel, CustomDropdown, FilterTabs, FilterTabButton, ModSearchDropdown, EmptyState, ActionButton, cleanSearchName, SearchBar, HoverTooltip } from "./shared";
+import { SidePanel, CustomDropdown, FilterTabs, FilterTabButton, ModSearchDropdown, EmptyState, ActionButton, cleanSearchName, SearchBar, HoverTooltip, ScreenUtilityBar } from "./shared";
 import ModLineageTree from "./ModLineageTree";
 import { useStore } from './store';
 
@@ -43,7 +43,10 @@ function ServerModSearchDropdown({ onSelect, selectedItem, placeholder, masonId,
 
   return (
     <div className="relative w-full">
-      <div className="relative z-[10]">
+      <div className={`relative flex items-center glass-surface ${className || 'rounded-full border border-transparent'} focus-within:border-[var(--accent)]/[50%] hover:border-[var(--accent)]/[30%] transition-all shadow-inner group w-full h-12 z-[10]`}>
+        <div className="pl-4 pr-2 py-2 flex items-center justify-center shrink-0">
+          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-focus-within:text-[var(--accent)] transition-colors">search</span>
+        </div>
         <input
           ref={inputRef}
           type="text"
@@ -52,14 +55,14 @@ function ServerModSearchDropdown({ onSelect, selectedItem, placeholder, masonId,
           onFocus={() => { if (!selectedItem) setIsOpen(true); }}
           placeholder={placeholder}
           readOnly={!!selectedItem}
-          className={className || "w-full h-12 glass-surface rounded-[calc(var(--radius)-4px)] px-5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all relative"}
+          className="w-full bg-transparent border-none px-2 py-2 text-[11px] font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-50 tracking-[0.2em] uppercase min-w-0"
         />
         {selectedItem ? (
-          <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold flex items-center justify-center" onClick={onClear}>
+          <button className="pr-4 pl-2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold flex items-center justify-center" onClick={onClear}>
             <span className="material-symbols-outlined !text-[18px]">{t("icon_close") || "close"}</span>
           </button>
         ) : (
-          <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 flex items-center justify-center" onClick={() => setIsOpen(!isOpen)}>
+          <button className="pr-4 pl-2 text-[var(--subtext)] opacity-60 flex items-center justify-center" onClick={() => setIsOpen(!isOpen)}>
             <span className="material-symbols-outlined !text-[20px]">{isOpen ? "expand_less" : "expand_more"}</span>
           </button>
         )}
@@ -948,20 +951,11 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
     <div className="flex flex-col w-full relative animate-in fade-in h-full">
 
       {/* 1. The Seamless Header */}
-      <div className="flex items-center justify-start px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[var(--text)]/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner shrink-0">
-            <span className="material-symbols-outlined !text-[24px] text-[var(--accent)] drop-shadow-md opacity-80">{t("icon_link")}</span>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest">
-              {t("pv_title")}
-            </h2>
-            <span className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-[0.2em] opacity-70">{t("pv_subtitle")}</span>
-          </div>
-        </div>
-
-        <div className="w-full max-w-lg z-50">
+      {/* 1. The Seamless Header */}
+      <ScreenUtilityBar
+        className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20"
+      >
+        <div className="w-full md:w-[400px] z-50">
           <ServerModSearchDropdown
             masonId={masonId}
             isArchitect={isArchitect}
@@ -969,10 +963,9 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
             selectedItem={targetMod}
             onClear={() => { setTargetMod(null); setActivePanel(null); }}
             placeholder={t("search_ph")}
-            className="w-full h-12 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%] px-6 text-[var(--text)] text-[11px] font-black uppercase tracking-[0.2em] focus:outline-none focus:theme-border-accent transition-all relative"
           />
         </div>
-      </div>
+      </ScreenUtilityBar>
 
       {/* 2. The Main Body (The Trigger Grid) */}
       <div className="flex-1 overflow-y-auto accent-scrollbar w-full p-6">

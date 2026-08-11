@@ -1,4 +1,5 @@
 import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from '../components/universal/UniversalLayout';
+import { ScreenUtilityBar } from "../shared";
 import { useStore } from "../store";
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
@@ -119,60 +120,44 @@ export default function SASupportSettings() {
 
     return (
         <div className="flex flex-col gap-6 w-full relative min-h-[500px] animate-in fade-in pb-20 mt-4">
-            <div className="flex items-center justify-start w-full shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_support_agent")}</span>
-                        </div>
-                        <span className="truncate">{t("tab_support")}</span>
-                    </h2>
-                </div>
-
-                <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
-                    <div className="relative flex-1 max-w-[300px]">
-                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            placeholder={t("support_search")}
-                            className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
-                        />
-                    </div>
-                    <div className="w-max min-w-[192px] max-w-xs z-[20] shrink-0">
-                        <CustomDropdown disableTint={true}
-                            value={filter}
-                            onChange={(v: string[]) => setFilter(v[0])}
-                            options={[
-                                { id: "ALL", label: t("all_classes") },
-                                { id: "ACTIVE", label: t("support_active_only") },
-                                { id: "INACTIVE", label: t("support_inactive_only") }
-                            ]}
-                        />
-                    </div>
-                    <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] h-12 shrink-0 z-40">
-                        <button
-                            onClick={() => setActiveTab("CATEGORIES")}
-                            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'CATEGORIES' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-                        >
-                            {t("categories")}
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("TELEMETRY")}
-                            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'TELEMETRY' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-                        >
-                            {t("telemetry_sources")}
-                        </button>
-                    </div>
-                    <ActionButton
-                        onClick={() => activeTab === 'CATEGORIES' ? openEditor() : openSourceEditor()}
-                        className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
-                        icon={t("icon_add")}
-                        label={activeTab === 'CATEGORIES' ? (t("support_add_cat")) : (t("telemetry_add_source"))}
+            <ScreenUtilityBar
+                search={searchQuery}
+                onSearchChange={setSearchQuery}
+                searchPlaceholder={t("support_search") as string}
+                className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full"
+            >
+                <div className="w-max min-w-[192px] max-w-xs z-[20] shrink-0">
+                    <CustomDropdown disableTint={true}
+                        value={filter}
+                        onChange={(v: string[]) => setFilter(v[0])}
+                        options={[
+                            { id: "ALL", label: t("all_classes") },
+                            { id: "ACTIVE", label: t("support_active_only") },
+                            { id: "INACTIVE", label: t("support_inactive_only") }
+                        ]}
                     />
                 </div>
-            </div>
+                <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] h-12 shrink-0 z-40">
+                    <button
+                        onClick={() => setActiveTab("CATEGORIES")}
+                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'CATEGORIES' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                    >
+                        {t("categories")}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("TELEMETRY")}
+                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'TELEMETRY' ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                    >
+                        {t("telemetry_sources")}
+                    </button>
+                </div>
+                <ActionButton
+                    onClick={() => activeTab === 'CATEGORIES' ? openEditor() : openSourceEditor()}
+                    className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+                    icon={t("icon_add")}
+                    label={activeTab === 'CATEGORIES' ? (t("support_add_cat")) : (t("telemetry_add_source"))}
+                />
+            </ScreenUtilityBar>
 
             {activeTab === 'CATEGORIES' && (
                 <div className="flex flex-col gap-4">

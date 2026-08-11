@@ -6,7 +6,7 @@ import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from './IconPlugin';
-import { isVersionMatch, deriveHumanReadableVersion, getHighestVersion, CustomComplianceDropdown, extractPostImage, stripMarkdown, DashboardStatTile } from "./shared";
+import { isVersionMatch, deriveHumanReadableVersion, getHighestVersion, CustomComplianceDropdown, extractPostImage, stripMarkdown, DashboardStatTile, ActionButton } from "./shared";
 import MarkdownRenderer from "./MarkdownRenderer";
 import IconPicker from "./IconPicker";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
@@ -85,45 +85,42 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader
-        title={t("mason_title")}
-        subtitle={t("mason_subtitle")}
-        icon={t("icon_precision_manufacturing")}
-        breadcrumb={masonActiveTab !== "command_center" ? masonActiveTab.replace(/_/g, ' ').toUpperCase() : undefined}
-        onTitleClick={() => setMasonActiveTab("command_center")}
-        iconColorClass="text-[var(--warning)]"
+        title={t("mason_hub_title")}
+        subtitle={t("mason_hub_subtitle")}
+        icon={t("icon_construction")}
+        iconColorClass="text-[var(--accent)]"
+      />
+
+      <HoverTabDrawer 
+        title="Mason Navigation" 
+        activeTab={masonActiveTab} 
+        setTab={setMasonActiveTab}
+        footer={
+          <>
+            <ActionButton
+              icon={t("icon_visibility")}
+              label={t("btn_view_profile")}
+              variant="glass"
+              className="w-full"
+              onClick={() => handleOpenMasonProfile && handleOpenMasonProfile(masonProfile.id)}
+            />
+            <ActionButton
+              icon={t("icon_description")}
+              label={t("ui_btn_notepad")}
+              variant="glass"
+              className="w-full"
+              onClick={() => setIsNotepadOpen(true)}
+            />
+            <ActionButton
+              icon={t("icon_settings")}
+              label={t("wf_tab_support")}
+              variant="glass"
+              className="w-full"
+              onClick={() => setIsSettingsOpen(true)}
+            />
+          </>
+        }
       >
-        <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
-          <button
-            onClick={() => handleOpenMasonProfile && handleOpenMasonProfile(masonProfile.id)}
-            className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
-          >
-            <span className="material-symbols-outlined text-xl normal-case">{t("icon_visibility")}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_view_profile")}</span>
-          </button>
-
-
-
-          <button
-            onClick={() => setIsNotepadOpen(true)}
-            className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
-          >
-            <span className="material-symbols-outlined text-xl normal-case">{t("icon_description")}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_notepad")}</span>
-          </button>
-
-
-
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
-          >
-            <span className="material-symbols-outlined text-xl normal-case">{t("icon_settings")}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest">{t("wf_tab_support")}</span>
-          </button>
-        </div>
-      </ViewHeader>
-
-      <HoverTabDrawer title="Mason Navigation" activeTab={masonActiveTab} setTab={setMasonActiveTab}>
         <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={(t("wf_tab_command")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
         <VerticalTabButton id="registry" icon={t("icon_deployed_code")} label={(t("items")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
         <VerticalTabButton id="nexus" icon={t("icon_hub")} label={(t("tab_nexus")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />

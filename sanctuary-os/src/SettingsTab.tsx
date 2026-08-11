@@ -5,7 +5,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { open } from "@tauri-apps/plugin-dialog";
 import { useTheme } from "./ThemeContext";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, HoverTabDrawer, VerticalTabButton } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton } from './shared';
 import { useStore } from "./store";
 import { supabase } from "./supabase";
 
@@ -123,24 +123,30 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         icon="settings"
         subtitle={t("settings_subtitle")}
         onSubtitleClick={() => setHackerClicks(prev => prev + 1)}
-      >
-        <button
-          className="px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] opacity-30 hover:opacity-100 transition-opacity bg-black/20"
-        >
-          {appVersion}
-        </button>
-        <button
-          onClick={async () => {
-            await supabase.auth.signOut();
-            window.location.reload();
-          }}
-          className="px-4 py-2 mx-1 rounded-xl bg-black/20 glass-surface text-red-500 text-[10px] font-black uppercase tracking-widest transition-all shadow-md hover:theme-border-danger hover:bg-red-500/10 hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center gap-3 backdrop-blur-md"
-        >
-          <span className="material-symbols-outlined !text-lg">{t("icon_logout")}</span> {t("btn_logout")}
-        </button>
-      </ViewHeader>
+      />
 
-      <HoverTabDrawer title={t("settings_title") || "Settings"} activeTab={activeTab} setTab={setActiveTab}>
+      <HoverTabDrawer 
+        title={t("settings_title") || "Settings"} 
+        activeTab={activeTab} 
+        setTab={setActiveTab}
+        footer={
+          <>
+            <ActionButton
+              icon={t("icon_logout")}
+              label={t("btn_logout")}
+              variant="danger"
+              className="w-full"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.reload();
+              }}
+            />
+            <div className="text-center text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50 mt-1">
+              {appVersion}
+            </div>
+          </>
+        }
+      >
         {TABS.map(tab => (
           <VerticalTabButton
             key={tab.id}

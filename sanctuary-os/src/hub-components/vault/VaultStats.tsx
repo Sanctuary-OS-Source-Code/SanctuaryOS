@@ -1,10 +1,10 @@
 import React from 'react';
 
-export function VaultStats({ 
-  t, 
+export function VaultStats({
+  t,
   displayModList,
   equippedDisplayMods,
-  unverifiedCount, 
+  unverifiedCount,
   localFolderCount,
   setActiveCategory,
   setFilterStatus,
@@ -13,36 +13,36 @@ export function VaultStats({
 }: any) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <div onClick={() => { setActiveCategory("all"); setFilterStatus("ALL"); setEquipFilter("ALL"); }} className="glass-panel rounded-[var(--radius)] p-4 flex flex-col justify-start cursor-pointer hover:border-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_30%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] group">
+      <div onClick={() => { setActiveCategory("all"); setFilterStatus("ALL"); setEquipFilter("ALL"); }} className="glass-panel rounded-[var(--radius)] p-5 flex flex-col justify-start cursor-pointer group hover:-translate-y-1 transition-all" style={{ backgroundColor: 'rgba(var(--text-rgb), 0.04)', borderColor: 'rgba(var(--text-rgb), 0.1)' }}>
         <div className="flex items-center gap-3 text-[var(--text)]">
-          <span className="material-symbols-outlined !text-4xl opacity-80 group-hover:scale-110 transition-transform">{t("icon_inventory_2") || "inventory_2"}</span>
-          <div className="text-4xl font-black text-[var(--text)]">{displayModList.length}</div>
+          <span className="material-symbols-outlined !text-4xl opacity-80 group-hover:scale-110 transition-transform duration-300">{t("icon_inventory_2") || "inventory_2"}</span>
+          <div className="text-4xl font-black">{displayModList.length}</div>
         </div>
-        <div className="text-[10px] uppercase font-black tracking-widest text-[var(--text)] opacity-60 mt-4">{t("filter_all") || "YOUR ARTIFACTS"}</div>
-      </div>
-      
-      <div onClick={() => { setActiveCategory("equipped"); setEquipFilter("EQUIPPED"); }} className="glass-panel rounded-[var(--radius)] p-4 flex flex-col justify-start cursor-pointer hover:border-[var(--success)] hover:bg-emerald-500/[10%] transition-all border border-emerald-500/[30%] bg-emerald-500/[5%] group">
-        <div className="flex items-center gap-3 text-[var(--success)]">
-          <span className="material-symbols-outlined !text-4xl opacity-80 group-hover:scale-110 transition-transform">{t("icon_check_circle") || "check_circle"}</span>
-          <div className="text-4xl font-black text-[var(--success)]">{equippedDisplayMods.length}</div>
-        </div>
-        <div className="text-[10px] uppercase font-black tracking-widest text-[var(--success)] opacity-60 mt-4">{t("filter_equipped") || "IN BLUEPRINT"}</div>
+        <div className="text-[10px] uppercase font-bold tracking-widest opacity-60 mt-3">{t("filter_all") || "YOUR ARTIFACTS"}</div>
       </div>
 
-      <div onClick={() => { setActiveCategory("all"); setFilterStatus("unverified"); }} className="glass-panel rounded-[var(--radius)] p-4 flex flex-col justify-start cursor-pointer hover:border-[var(--warning)] hover:bg-orange-500/[10%] transition-all border border-orange-500/[30%] bg-orange-500/[5%] group">
-        <div className="flex items-center gap-3 text-[var(--warning)]">
-          <span className="material-symbols-outlined !text-4xl opacity-80 group-hover:scale-110 transition-transform">{t("icon_help_outline") || "help_outline"}</span>
-          <div className="text-4xl font-black text-[var(--warning)]">{unverifiedCount}</div>
+      <div onClick={() => { setActiveCategory("equipped"); setEquipFilter("EQUIPPED"); }} className="glass-panel rounded-[var(--radius)] p-5 flex flex-col justify-start cursor-pointer group hover:-translate-y-1 transition-all bg-emerald-500/[5%] border-emerald-500/[20%] hover:bg-emerald-500/[10%] hover:border-emerald-500/[40%]">
+        <div className="flex items-center gap-3 text-emerald-500">
+          <span className="material-symbols-outlined !text-4xl opacity-80 group-hover:scale-110 transition-transform duration-300">{t("icon_check_circle") || "check_circle"}</span>
+          <div className="text-4xl font-black">{equippedDisplayMods.length}</div>
         </div>
-        <div className="text-[10px] uppercase font-black tracking-widest text-[var(--warning)] opacity-60 mt-4">{t("status_unverified") || "UNVERIFIED"}</div>
+        <div className="text-[10px] uppercase font-bold tracking-widest opacity-60 mt-3 text-emerald-500">{t("filter_equipped") || "IN BLUEPRINT"}</div>
       </div>
 
-      <div onClick={() => setLocalFolderModal(true)} className="glass-panel rounded-[var(--radius)] p-4 flex flex-col justify-start cursor-pointer hover:border-[var(--info)] hover:bg-[color-mix(in_srgb,var(--info)_10%,transparent)] transition-all border border-[color-mix(in_srgb,var(--info)_30%,transparent)] bg-[color-mix(in_srgb,var(--info)_5%,transparent)] group">
-        <div className="flex items-center gap-3 text-[var(--info)]">
-          <span className="material-symbols-outlined !text-4xl opacity-80 group-hover:scale-110 transition-transform">{t("icon_account_tree") || "account_tree"}</span>
-          <div className="text-4xl font-black text-[var(--info)]">{localFolderCount}</div>
+      <div onClick={() => { setActiveCategory("all"); setFilterStatus("unverified"); }} className="glass-panel rounded-[var(--radius)] p-5 flex flex-col justify-start cursor-pointer group hover:-translate-y-1 transition-all bg-orange-500/[5%] border-orange-500/[20%] hover:bg-orange-500/[10%] hover:border-orange-500/[40%]">
+        <div className="flex items-center gap-3 text-orange-500">
+          <span className="material-symbols-outlined !text-4xl opacity-80 group-hover:scale-110 transition-transform duration-300">{t("icon_help_outline") || "help_outline"}</span>
+          <div className="text-4xl font-black">{unverifiedCount}</div>
         </div>
-        <div className="text-[10px] uppercase font-black tracking-widest text-[var(--info)] opacity-60 mt-4">{t("filter_local") || "LOCAL FOLDERS"}</div>
+        <div className="text-[10px] uppercase font-bold tracking-widest opacity-60 mt-3 text-orange-500">{t("status_unverified") || "UNVERIFIED"}</div>
+      </div>
+
+      <div onClick={() => setLocalFolderModal(true)} className="glass-panel rounded-[var(--radius)] p-5 flex flex-col justify-start cursor-pointer group hover:-translate-y-1 transition-all bg-purple-500/[5%] border-purple-500/[20%] hover:bg-purple-500/[10%] hover:border-purple-500/[40%]">
+        <div className="flex items-center gap-3 text-purple-500">
+          <span className="material-symbols-outlined !text-4xl opacity-80 group-hover:scale-110 transition-transform duration-300">{t("icon_account_tree") || "account_tree"}</span>
+          <div className="text-4xl font-black">{localFolderCount}</div>
+        </div>
+        <div className="text-[10px] uppercase font-bold tracking-widest opacity-60 mt-3 text-purple-500">{t("filter_local") || "LOCAL FOLDERS"}</div>
       </div>
     </div>
   );

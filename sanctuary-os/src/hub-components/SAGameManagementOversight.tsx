@@ -2,13 +2,15 @@ import React, { useState, useEffect } from "react";
 import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+import {
+  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
+  standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton, ScreenUtilityBar,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown, loadDLCMap } from "../shared";
+  fetchAllPaginated, CustomTierDropdown, loadDLCMap
+} from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -83,49 +85,61 @@ export function GameManagementOversight() {
     if (isDelete) {
       if (sidePanelMode === 'edit_version') {
         await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'game_versions', p_id: panelTarget });
-        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-          action: `Deleted Game Version ${panelTarget}`, target_table: 'game_versions', target_name: panelTarget, actor_id: userRes.data.user?.id, reason: panelReason
-        }});
+        await supabase.rpc('secure_upsert_cloud_file', {
+          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
+            action: `Deleted Game Version ${panelTarget}`, target_table: 'game_versions', target_name: panelTarget, actor_id: userRes.data.user?.id, reason: panelReason
+          }
+        });
         useStore.getState().pushStatus(`Deleted Game Version ${panelTarget}`, "success");
         fetchVersions();
       } else if (sidePanelMode === 'edit_dlc') {
         await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'dlc_registry', p_id: panelTarget.id });
         await loadDLCMap();
-        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-          action: `Deleted DLC Pack ${panelTarget.id}`, target_table: 'dlc_registry', target_name: panelTarget.id, actor_id: userRes.data.user?.id, reason: panelReason
-        }});
+        await supabase.rpc('secure_upsert_cloud_file', {
+          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
+            action: `Deleted DLC Pack ${panelTarget.id}`, target_table: 'dlc_registry', target_name: panelTarget.id, actor_id: userRes.data.user?.id, reason: panelReason
+          }
+        });
         useStore.getState().pushStatus(`Deleted DLC Pack ${panelTarget.id}`, "success");
         fetchDlcs();
       }
     } else {
       if (sidePanelMode === 'add_version') {
         await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'game_versions', p_payload: { version: panelInput1 } });
-        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-          action: `Added Game Version ${panelInput1}`, target_table: 'game_versions', target_name: panelInput1, actor_id: userRes.data.user?.id, reason: panelReason
-        }});
+        await supabase.rpc('secure_upsert_cloud_file', {
+          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
+            action: `Added Game Version ${panelInput1}`, target_table: 'game_versions', target_name: panelInput1, actor_id: userRes.data.user?.id, reason: panelReason
+          }
+        });
         useStore.getState().pushStatus(`Added Game Version ${panelInput1}`, "success");
         fetchVersions();
       } else if (sidePanelMode === 'edit_version') {
         await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'game_versions', p_payload: { version: panelInput1 } });
-        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-          action: `Edited Game Version ${panelTarget} -> ${panelInput1}`, target_table: 'game_versions', target_name: panelInput1, actor_id: userRes.data.user?.id, reason: panelReason
-        }});
+        await supabase.rpc('secure_upsert_cloud_file', {
+          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
+            action: `Edited Game Version ${panelTarget} -> ${panelInput1}`, target_table: 'game_versions', target_name: panelInput1, actor_id: userRes.data.user?.id, reason: panelReason
+          }
+        });
         useStore.getState().pushStatus(`Edited Game Version ${panelTarget} -> ${panelInput1}`, "success");
         fetchVersions();
       } else if (sidePanelMode === 'add_dlc') {
         await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'dlc_registry', p_payload: { id: panelInput1.toUpperCase(), name: panelInput2, type: resolvedType } });
         await loadDLCMap();
-        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-          action: `Added DLC Pack [${panelInput1.toUpperCase()}] ${panelInput2}`, target_table: 'dlc_registry', target_name: panelInput1.toUpperCase(), actor_id: userRes.data.user?.id, reason: panelReason
-        }});
+        await supabase.rpc('secure_upsert_cloud_file', {
+          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
+            action: `Added DLC Pack [${panelInput1.toUpperCase()}] ${panelInput2}`, target_table: 'dlc_registry', target_name: panelInput1.toUpperCase(), actor_id: userRes.data.user?.id, reason: panelReason
+          }
+        });
         useStore.getState().pushStatus(`Added DLC Pack [${panelInput1.toUpperCase()}] ${panelInput2}`, "success");
         fetchDlcs();
       } else if (sidePanelMode === 'edit_dlc') {
         await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'dlc_registry', p_payload: { id: panelInput1.toUpperCase(), name: panelInput2, type: resolvedType } });
         await loadDLCMap();
-        await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-          action: `Edited DLC Pack [${panelTarget.id}] -> [${panelInput1.toUpperCase()}] ${panelInput2}`, target_table: 'dlc_registry', target_name: panelInput1.toUpperCase(), actor_id: userRes.data.user?.id, reason: panelReason
-        }});
+        await supabase.rpc('secure_upsert_cloud_file', {
+          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
+            action: `Edited DLC Pack [${panelTarget.id}] -> [${panelInput1.toUpperCase()}] ${panelInput2}`, target_table: 'dlc_registry', target_name: panelInput1.toUpperCase(), actor_id: userRes.data.user?.id, reason: panelReason
+          }
+        });
         useStore.getState().pushStatus(`Edited DLC Pack [${panelTarget.id}]`, "success");
         fetchDlcs();
       }
@@ -148,19 +162,12 @@ export function GameManagementOversight() {
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex flex-col lg:flex-row items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-            <input
-              type="text"
-              placeholder={activeTab === 'versions' ? "Search Patches..." : "Search DLC..."}
-              value={activeTab === 'versions' ? versionSearch : dlcSearch}
-              onChange={e => activeTab === 'versions' ? setVersionSearch(e.target.value) : setDlcSearch(e.target.value)}
-              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
-            />
-          </div>
-
+      <ScreenUtilityBar
+        search={activeTab === 'versions' ? versionSearch : dlcSearch}
+        onSearchChange={(e: string) => activeTab === 'versions' ? setVersionSearch(e) : setDlcSearch(e)}
+        searchPlaceholder={activeTab === 'versions' ? "Search Patches..." : "Search DLC..."}
+        className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full"
+      >
           {activeTab === 'dlc' && (
             <div className="w-max min-w-[192px] max-w-xs z-40 shrink-0">
               <CustomDropdown disableTint={true}
@@ -193,8 +200,7 @@ export function GameManagementOversight() {
             icon={t("icon_add")}
             label={activeTab === 'versions' ? "REGISTER PATCH" : `REGISTER DLC`}
           />
-        </div>
-      </div>
+      </ScreenUtilityBar>
 
       <div className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-8 animate-in fade-in">
 
@@ -278,8 +284,8 @@ export function GameManagementOversight() {
         footer={
           <div className="flex justify-center items-center gap-4 w-full px-8">
             {(sidePanelMode === 'add_version' || sidePanelMode === 'add_dlc') && (
-              <ActionButton 
-                onClick={() => setSidePanelMode(null)} 
+              <ActionButton
+                onClick={() => setSidePanelMode(null)}
                 label={t("nav_cancel")}
                 icon="close"
                 className="flex-1"

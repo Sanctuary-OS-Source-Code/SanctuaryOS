@@ -2,7 +2,7 @@ import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { SidePanel, ModSearchDropdown, ViewHeader, GameVersionMultiSelect, CustomDropdown, formatDisplayName, CustomDatePicker, CustomComplianceDropdown, CustomClassificationDropdown, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, StatTile, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, extractPostImage, stripMarkdown, EmptyState, DashboardStatTile } from "./shared";
+import { SidePanel, ModSearchDropdown, ViewHeader, GameVersionMultiSelect, CustomDropdown, formatDisplayName, CustomDatePicker, CustomComplianceDropdown, CustomClassificationDropdown, HoverTabDrawer, VerticalTabButton, ActionButton, VerticalTabDropdown, StatTile, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, extractPostImage, stripMarkdown, EmptyState, DashboardStatTile } from "./shared";
 import ProtocolVisualizer from "./ProtocolVisualizer";
 import ModStructureBuilder from "./ModStructureBuilder";
 import ArchitectSupportTickets from "./hub-components/ArchitectSupportTickets";
@@ -55,19 +55,22 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         iconColorClass="text-[var(--accent)]"
         breadcrumb={activeTab !== "command_center" ? activeTab.replace(/_/g, ' ').toUpperCase() : undefined}
         onTitleClick={() => setActiveTab("command_center")}
-      >
-        <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner">
-          <button
-            onClick={() => setIsVerifyPanelOpen(true)}
-            className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black"
-          >
-            <span className="material-symbols-outlined text-xl normal-case">{t("icon_verified_user")}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest">{t("wf_hub_verify")}</span>
-          </button>
-        </div>
-      </ViewHeader>
+      />
 
-      <HoverTabDrawer title="Architect Navigation" activeTab={activeTab} setTab={setActiveTab}>
+      <HoverTabDrawer 
+        title="Architect Navigation" 
+        activeTab={activeTab} 
+        setTab={setActiveTab}
+        footer={
+          <ActionButton
+            icon={t("icon_verified_user")}
+            label={t("wf_hub_verify")}
+            variant="glass"
+            className="w-full"
+            onClick={() => setIsVerifyPanelOpen(true)}
+          />
+        }
+      >
         <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command") || "COMMAND"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="registry" icon={t("icon_inventory_2")} label={t("items") || "ARTIFACTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="queue" icon={t("icon_search")} label={t("tab_queue") || "SCOUT"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />

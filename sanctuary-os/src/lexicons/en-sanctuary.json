@@ -2734,5 +2734,6 @@
   "status_corrupted": "Corrupted",
   "mason_hub_title": "Mason Command",
   "mason_hub_subtitle": "Creator Operations & Metrics",
-  "playsets_all": "All Blueprints"
+  "playsets_all": "All Blueprints",
+  "ui_total_glass": "Total Glass"
 }

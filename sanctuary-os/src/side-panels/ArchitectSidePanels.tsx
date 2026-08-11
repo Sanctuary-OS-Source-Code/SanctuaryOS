@@ -4,12 +4,12 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { 
-  ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect, 
-  CustomComplianceDropdown, CustomDatePicker, StatTile, 
+import {
+  ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+  CustomComplianceDropdown, CustomDatePicker, StatTile,
   HubTabButton, ModSearchDropdown, EmptyState, ActionButton,
-  standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, 
-  standardDangerButtonClass, standardAccentGlassButtonClass, 
+  standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
+  standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
 } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
@@ -33,30 +33,26 @@ export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOp
   };
 
   return (
-    <>
-      <div className="fixed inset-0 z-[15000] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-[3px] animate-in fade-in duration-300" onClick={onClose} />
-      <div className="fixed top-0 right-0 bottom-1 w-[320px] glass-panel border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-2xl flex flex-col z-[15001] animate-in slide-in-from-right duration-500 overflow-hidden">
-        <div className="flex items-center justify-start pt-[60px] px-6 pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0">
-          <div className="flex flex-col">
-            <h3 className="text-xl font-black tracking-widest text-[var(--text)]">{t("create_title")}</h3>
-            <p className="text-[9px] font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest mt-1">{t("create_subtitle")}</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text)] transition-colors hover:scale-110 bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-            <span className="text-sm font-black">&times;</span>
-          </button>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_name")}</label>
-          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-        </div>
-
-        <div className="p-6 pb-12 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex gap-3">
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("create_title")}
+      subtitle={t("create_subtitle")}
+      widthClass="w-[320px]"
+      panelZ="z-[15001]"
+      backdropZ="z-[15000]"
+      footer={
+        <div className="flex gap-3 w-full">
           <button onClick={onClose} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:scale-[1.02] text-[var(--text)] font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all">{t("nav_cancel")}</button>
           <ActionButton onClick={handleCreate} disabled={isCreating || !newMasonName.trim()} className="flex-1 shrink-0 h-12" label={isCreating ? t("create_btn_creating") : t("create_btn_create")} />
         </div>
+      }
+    >
+      <div className="flex flex-col gap-6 w-full">
+        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_name")}</label>
+        <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full" />
       </div>
-    </>
+    </SidePanel>
   );
 }
 
@@ -66,7 +62,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
   const [fileHash, setFileHash] = useState<string>("");
   const [isHashing, setIsHashing] = useState(false);
   const [matchedMod, setMatchedMod] = useState<any>(null);
-  
+
   const [showFlagForm, setShowFlagForm] = useState(false);
   const [flagReason, setFlagReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,7 +78,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       setSuccessMsg("");
       setShowFlagForm(false);
       setMatchedMod(null);
-      
+
       const fetchMod = async () => {
         const { data: verData } = await supabase.from('mod_versions').select('*, mods(*)').eq('dna_hash', initialHash).maybeSingle();
         let fetchedMod = null;
@@ -111,10 +107,10 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
         setSuccessMsg("");
         setShowFlagForm(false);
         setMatchedMod(null);
-        
+
         const hash = await invoke<string>("generate_full_dna_hash", { filePath: selected });
         setFileHash(hash);
-        
+
         const { data: verData } = await supabase.from('mod_versions').select('*, mods(*)').eq('dna_hash', hash).maybeSingle();
         let fetchedMod = null;
         if (verData && verData.mods) {
@@ -129,7 +125,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
           matchedMod: fetchedMod,
           timestamp: Date.now()
         }, ...prev]);
-        
+
         await logArchitectAction(`DNA Verification Scan: ${hash}`, 'mod_versions', fetchedMod?.name || selected.split(/[/\\]/).pop() || 'Unknown File');
       }
     } catch (e) {
@@ -142,10 +138,10 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
   const handleFlag = async () => {
     if (!flagReason.trim() || !filePath || !fileHash) return;
     setIsSubmitting(true);
-    
+
     const { data: { session } } = await supabase.auth.getSession();
     const userId = session?.user?.id || "system";
-    
+
     const fileName = filePath.split(/[/\\]/).pop() || "Unknown File";
     const cleanFileName = fileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
     const hiddenPath = filePath.replace(/^(?:[A-Z]:)?[\/\\]Users[\/\\][^\/\\]+[\/\\]/i, '...\\');
@@ -200,7 +196,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       pulse: true
     },
     VERIFIED: {
-      color: "rgb(52, 211, 153)", 
+      color: "rgb(52, 211, 153)",
       bg: "color-mix(in srgb, rgb(52, 211, 153) 15%, transparent)",
       border: "border-emerald-400/30",
       icon: "verified_user",
@@ -208,7 +204,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       desc: t("verify_status_verified_desc")
     },
     MISMATCH: {
-      color: "rgb(251, 146, 60)", 
+      color: "rgb(251, 146, 60)",
       bg: "color-mix(in srgb, rgb(251, 146, 60) 15%, transparent)",
       border: "border-orange-400/30",
       icon: "warning",
@@ -216,7 +212,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       desc: t("verify_status_mismatch_desc")
     },
     MALWARE: {
-      color: "rgb(239, 68, 68)", 
+      color: "rgb(239, 68, 68)",
       bg: "color-mix(in srgb, rgb(239, 68, 68) 15%, transparent)",
       border: "border-red-500/30",
       icon: "skull",
@@ -224,7 +220,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       desc: t("verify_status_malware_desc")
     },
     EXPLICIT: {
-      color: "rgb(250, 204, 21)", 
+      color: "rgb(250, 204, 21)",
       bg: "color-mix(in srgb, rgb(250, 204, 21) 15%, transparent)",
       border: "border-yellow-400/30",
       icon: "warning",
@@ -232,7 +228,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       desc: t("verify_status_explicit_desc")
     },
     FLAGGED: {
-      color: "rgb(248, 113, 113)", 
+      color: "rgb(248, 113, 113)",
       bg: "color-mix(in srgb, rgb(248, 113, 113) 15%, transparent)",
       border: "border-red-400/30",
       icon: "gavel",
@@ -258,7 +254,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       <div className="flex flex-col h-full relative">
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-6">
 
-          <button 
+          <button
             onClick={handleImport}
             className={`w-full py-6 rounded-2xl border-2 border-dashed border-[var(--accent)]/30 hover:border-[var(--accent)]/60 bg-[var(--accent)]/[2%] hover:bg-[var(--accent)]/[10%] transition-all flex flex-col items-center justify-center gap-3 group ${isHashing ? 'opacity-50 pointer-events-none' : ''}`}
           >
@@ -279,7 +275,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("verify_panel_file_path")}</span>
                   <span className="text-xs font-mono text-[var(--text)] break-all">{filePath.replace(/^(?:[A-Z]:)?[\/\\]Users[\/\\][^\/\\]+[\/\\]/i, '...\\')}</span>
                 </div>
-                
+
                 <div className="flex flex-col">
                   <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("dna_hash")}</span>
                   {isHashing ? (
@@ -299,39 +295,39 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
 
               {matchedMod && (
                 <div className={`glass-panel rounded-2xl p-6 border flex flex-col gap-4 animate-in zoom-in-95 mt-2 bg-gradient-to-br from-transparent to-transparent ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/5' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/5' : 'border-[var(--accent)]/[30%] bg-[var(--accent)]/5'}`}>
-                    <div className="flex items-start justify-start">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("registry_label_name")}</span>
-                        <span className={`text-sm font-black uppercase tracking-widest ${statusState === 'MALWARE' ? 'text-red-500' : statusState === 'EXPLICIT' ? 'text-yellow-400' : 'theme-text-accent'}`}>{matchedMod.name}</span>
-                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1 uppercase tracking-widest">
-                          {t("update_version")}: {matchedMod.version_label || matchedMod.version_number || "UNKNOWN"}
-                        </span>
-                      </div>
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-inner ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/10' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/10' : 'border-[var(--accent)]/30 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]'}`}>
-                        <span className={`material-symbols-outlined !text-[20px] ${statusState === 'MALWARE' ? 'text-red-500' : statusState === 'EXPLICIT' ? 'text-yellow-400' : 'theme-text-accent'}`}>{statusState === 'MALWARE' ? 'skull' : statusState === 'EXPLICIT' ? 'warning' : 'check_circle'}</span>
-                      </div>
+                  <div className="flex items-start justify-start">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("registry_label_name")}</span>
+                      <span className={`text-sm font-black uppercase tracking-widest ${statusState === 'MALWARE' ? 'text-red-500' : statusState === 'EXPLICIT' ? 'text-yellow-400' : 'theme-text-accent'}`}>{matchedMod.name}</span>
+                      <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1 uppercase tracking-widest">
+                        {t("update_version")}: {matchedMod.version_label || matchedMod.version_number || "UNKNOWN"}
+                      </span>
                     </div>
-                    {onJumpToArtifact && !isOversight && (
-                      <button 
-                        onClick={() => onJumpToArtifact(matchedMod)}
-                        className="w-full py-3 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                      >
-                        {t("btn_link")} <span className="text-sm leading-none">&rarr;</span>
-                      </button>
-                    )}
-                    {isOversight && onManualFlag && (
-                      <button 
-                        onClick={() => onManualFlag(fileHash)}
-                        className="w-full py-3 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                      >
-                        {t("comp_manual_title")} <span className="text-sm leading-none">&rarr;</span>
-                      </button>
-                    )}
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-inner ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/10' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/10' : 'border-[var(--accent)]/30 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]'}`}>
+                      <span className={`material-symbols-outlined !text-[20px] ${statusState === 'MALWARE' ? 'text-red-500' : statusState === 'EXPLICIT' ? 'text-yellow-400' : 'theme-text-accent'}`}>{statusState === 'MALWARE' ? 'skull' : statusState === 'EXPLICIT' ? 'warning' : 'check_circle'}</span>
+                    </div>
+                  </div>
+                  {onJumpToArtifact && !isOversight && (
+                    <button
+                      onClick={() => onJumpToArtifact(matchedMod)}
+                      className="w-full py-3 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                    >
+                      {t("btn_link")} <span className="text-sm leading-none">&rarr;</span>
+                    </button>
+                  )}
+                  {isOversight && onManualFlag && (
+                    <button
+                      onClick={() => onManualFlag(fileHash)}
+                      className="w-full py-3 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                    >
+                      {t("comp_manual_title")} <span className="text-sm leading-none">&rarr;</span>
+                    </button>
+                  )}
                 </div>
               )}
 
               {fileHash && !showFlagForm && !isOversight && (
-                <button 
+                <button
                   onClick={() => setShowFlagForm(true)}
                   className="w-full py-4 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
                 >
@@ -341,13 +337,13 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               )}
 
               {fileHash && !matchedMod && isOversight && onManualFlag && (
-                  <button 
-                    onClick={() => onManualFlag(fileHash)}
-                    className="w-full py-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
-                  >
-                    <span className="material-symbols-outlined !text-sm">{t("icon_gavel")}</span>
-                    {t("comp_manual_title")} <span className="text-sm leading-none">&rarr;</span>
-                  </button>
+                <button
+                  onClick={() => onManualFlag(fileHash)}
+                  className="w-full py-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
+                >
+                  <span className="material-symbols-outlined !text-sm">{t("icon_gavel")}</span>
+                  {t("comp_manual_title")} <span className="text-sm leading-none">&rarr;</span>
+                </button>
               )}
 
               {showFlagForm && (
@@ -359,7 +355,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                     className="w-full h-24 glass-surface rounded-xl p-4 text-xs focus:outline-none focus:border-red-500/50 resize-none font-medium"
                   />
                   <div className="flex justify-center items-center gap-4 mt-4 w-full">
-                    <button 
+                    <button
                       onClick={() => {
                         if (confirmFlag) {
                           setConfirmFlag(false);
@@ -371,7 +367,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                     >
                       {t("nav_cancel")}
                     </button>
-                    <button 
+                    <button
                       onClick={() => {
                         if (!confirmFlag) {
                           setConfirmFlag(true);
@@ -382,8 +378,8 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                       disabled={isSubmitting || !flagReason.trim()}
                       className={standardDangerButtonClass}
                     >
-                      {isSubmitting ? (t("scanning")) : 
-                       (confirmFlag ? (t("verify_panel_flag_confirm")) : (t("verify_panel_flag_submit")))}
+                      {isSubmitting ? (t("scanning")) :
+                        (confirmFlag ? (t("verify_panel_flag_confirm")) : (t("verify_panel_flag_submit")))}
                     </button>
                   </div>
                 </div>
@@ -402,7 +398,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("auto_session_history")}</span>
               <div className="flex flex-col gap-2">
                 {sessionHistory.map((item, i) => (
-                  <div key={i} 
+                  <div key={i}
                     className="glass-panel rounded-xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer hover:border-[var(--accent)]/50 transition-colors"
                     onClick={() => {
                       setFilePath(item.path);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ViewHeader, EmptyState } from "./shared";
+import { ViewHeader, EmptyState, ScreenUtilityBar } from "./shared";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import TicketDossierSidePanel from './side-panels/TicketDossierSidePanel';
@@ -198,45 +198,32 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
 
     return (
         <div className="flex flex-col gap-6 w-full pb-32">
-            <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <div className="flex items-center gap-3 relative flex-1 max-w-2xl w-full justify-start">
-                    <div className="relative flex-1 h-12 max-w-[400px]">
-                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={t("ui_placeholder_search")}
-                            className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
-                        />
-                        {searchQuery && (
-                            <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                                <span className="material-symbols-outlined text-sm">{t("icon_close")}</span>
-                            </button>
-                        )}
-                    </div>
-                    <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12">
-                        <button
-                            onClick={() => setActiveTab("pending")}
-                            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-                        >
-                            {t("pending")}
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("open")}
-                            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'open' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-                        >
-                            {t("ui_tab_new")}
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("closed")}
-                            className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'closed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-                        >
-                            {t("ui_tab_closed")}
-                        </button>
-                    </div>
+            <ScreenUtilityBar
+                search={searchQuery}
+                onSearchChange={setSearchQuery}
+                searchPlaceholder={t("ui_placeholder_search") as string}
+            >
+                <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12">
+                    <button
+                        onClick={() => setActiveTab("pending")}
+                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                    >
+                        {t("pending")}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("open")}
+                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'open' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                    >
+                        {t("ui_tab_new")}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("closed")}
+                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'closed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                    >
+                        {t("ui_tab_closed")}
+                    </button>
                 </div>
-            </div>
+            </ScreenUtilityBar>
 
             <div className="w-full flex flex-col gap-6 px-6 pb-20">
                 {isLoading ? (
@@ -264,70 +251,70 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                             {filteredTickets.map(ticket => {
                                 const statusClass = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'border-rose-500/50' :
-                                                    ticket.status?.toLowerCase() === 'resolved' ? 'border-emerald-500/50' :
-                                                    ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'border-amber-500/50' :
-                                                    ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500/50' :
-                                                    'border-[var(--accent)]/50';
+                                    ticket.status?.toLowerCase() === 'resolved' ? 'border-emerald-500/50' :
+                                        ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'border-amber-500/50' :
+                                            ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500/50' :
+                                                'border-[var(--accent)]/50';
 
-                                const iconName = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'support_agent' : 
-                                                 ticket.status?.toLowerCase() === 'resolved' ? 'done_all' : 
-                                                 ticket.status?.toLowerCase() === 'investigating' ? 'warning' : 
-                                                 ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' : 
-                                                 'bug_report';
+                                const iconName = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'support_agent' :
+                                    ticket.status?.toLowerCase() === 'resolved' ? 'done_all' :
+                                        ticket.status?.toLowerCase() === 'investigating' ? 'warning' :
+                                            ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' :
+                                                'bug_report';
 
                                 const badgeClass = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 group-hover:bg-rose-500/20' :
-                                                   ticket.status?.toLowerCase() === 'resolved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:bg-emerald-500/20' :
-                                                   ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' :
-                                                   ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' :
-                                                   'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20';
+                                    ticket.status?.toLowerCase() === 'resolved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:bg-emerald-500/20' :
+                                        ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' :
+                                            ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' :
+                                                'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20';
 
                                 return (
-                                <UniversalCard
-                                    key={ticket.id}
-                                    onClick={() => setSelectedTicket(ticket)}
-                                    layout="vertical"
-                                    icon={iconName}
-                                    title={ticket.title}
-                                    statusColor={statusClass}
-                                    badges={[
-                                        <span key="status" className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors ${badgeClass}`}>
-                                            {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
-                                        </span>
-                                    ]}
-                                    footer={
-                                        <div className="flex justify-start items-center w-full">
-                                            <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60">
-                                                <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
-                                                {new Date(ticket.created_at).toLocaleDateString()}
+                                    <UniversalCard
+                                        key={ticket.id}
+                                        onClick={() => setSelectedTicket(ticket)}
+                                        layout="vertical"
+                                        icon={iconName}
+                                        title={ticket.title}
+                                        statusColor={statusClass}
+                                        badges={[
+                                            <span key="status" className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors ${badgeClass}`}>
+                                                {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
                                             </span>
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex -space-x-2">
-                                                    {ticket.author_id && (
-                                                        <div className="w-6 h-6 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden">
-                                                            <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${ticket.author_id}`} alt="avatar" className="w-full h-full opacity-80 mix-blend-screen" />
-                                                        </div>
-                                                    )}
+                                        ]}
+                                        footer={
+                                            <div className="flex justify-start items-center w-full">
+                                                <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60">
+                                                    <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
+                                                    {new Date(ticket.created_at).toLocaleDateString()}
+                                                </span>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex -space-x-2">
+                                                        {ticket.author_id && (
+                                                            <div className="w-6 h-6 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden">
+                                                                <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${ticket.author_id}`} alt="avatar" className="w-full h-full opacity-80 mix-blend-screen" />
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
+                                        }
+                                    >
+                                        <div className="mt-2 text-xs font-medium text-[var(--subtext)] leading-relaxed line-clamp-3 mb-4">
+                                            {ticket.description}
                                         </div>
-                                    }
-                                >
-                                    <div className="mt-2 text-xs font-medium text-[var(--subtext)] leading-relaxed line-clamp-3 mb-4">
-                                        {ticket.description}
-                                    </div>
-                                    {ticket.target_mod_name && (
-                                        <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-5 h-5 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0">
-                                                    <span className="material-symbols-outlined !text-[10px] text-[var(--subtext)]">{t("icon_extension")}</span>
+                                        {ticket.target_mod_name && (
+                                            <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0">
+                                                        <span className="material-symbols-outlined !text-[10px] text-[var(--subtext)]">{t("icon_extension")}</span>
+                                                    </div>
+                                                    <span className="text-[10px] font-bold text-[var(--text)] truncate">{ticket.target_mod_name}</span>
                                                 </div>
-                                                <span className="text-[10px] font-bold text-[var(--text)] truncate">{ticket.target_mod_name}</span>
                                             </div>
-                                        </div>
-                                    )}
-                                </UniversalCard>
-                            );
-                        })}
+                                        )}
+                                    </UniversalCard>
+                                );
+                            })}
                         </div>
                     );
                 })()}
