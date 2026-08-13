@@ -112,7 +112,7 @@ export function UrgentBroadcastBanner({ urgentBroadcast, setViewingPost, setUrge
     if (!urgentBroadcast || localStorage.getItem("sanctuary_notify_alert_banner") === "false") return null;
 
     return (
-        <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full glass-panel rounded-[1.25rem] p-5 md:p-6 flex flex-col md:flex-row items-center gap-6 shadow-xl hover:shadow-2xl cursor-pointer hover:-translate-y-1 transition-all duration-700 ease-out group overflow-hidden relative border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_60%,transparent)]">
+        <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full glass-panel rounded-[1.25rem] p-5 md:p-6 flex flex-col md:flex-row items-center gap-6 shadow-xl hover:shadow-2xl cursor-pointer transition-all duration-700 ease-out group overflow-hidden relative border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_60%,transparent)]">
             <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] z-0 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
             
             <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--danger)_50%,transparent)] to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
@@ -198,23 +198,23 @@ export function CommandScreenMetricTile({ icon, value, label, valueColorClass = 
     );
 }
 
-export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "group-hover:text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "group-", isAlert = false }: any) {
+export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "", isAlert = false }: any) {
     return (
-        <button onClick={onClick} className={`w-full p-5 glass-panel rounded-[1.25rem] transition-all duration-500 text-left group relative overflow-hidden h-24 shadow-md hover:shadow-xl hover:-translate-y-1 ${isAlert ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}>
-            <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none blur-xl ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`} />
+        <button onClick={onClick} className={`w-full p-5 glass-panel rounded-[1.25rem] transition-all duration-500 text-left group relative overflow-hidden h-24 shadow-md ${isAlert ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
+            <div className={`absolute inset-0 opacity-0 transition-opacity duration-700 pointer-events-none blur-xl ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`} />
             
-            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none mix-blend-overlay" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent opacity-0 transition-opacity duration-700 pointer-events-none mix-blend-overlay" />
 
             <div className="flex items-center gap-4 h-full relative z-10">
-                <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 transition-transform duration-500 group-hover:scale-110 shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_5%,transparent)] border ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-[var(--accent)]'}`}>
-                    <span className={`material-symbols-outlined !text-[28px] opacity-80 group-hover:opacity-100 transition-all duration-300 ${isAlert ? 'animate-pulse drop-shadow-[0_0_10px_currentColor]' : 'group-hover:drop-shadow-[0_0_15px_currentColor]'}`}>{icon}</span>
+                <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 transition-transform duration-500 shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_5%,transparent)] border ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)]'}`}>
+                    <span className={`material-symbols-outlined !text-[28px] opacity-80 transition-all duration-300 ${isAlert ? 'animate-pulse drop-shadow-[0_0_10px_currentColor]' : ''}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">
-                    <h3 className={`text-[11px] font-[900] uppercase tracking-widest transition-colors truncate ${isAlert ? 'text-[var(--danger)] group-hover:brightness-125' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>{title}</h3>
-                    <span className={`text-[9px] capitalize font-bold opacity-70 tracking-widest flex items-center gap-2 truncate ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>{subtitle}</span>
+                    <h3 className={`text-[11px] font-[900] uppercase tracking-widest transition-colors truncate ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>{title}</h3>
+                    <span className={`text-[9px] capitalize font-bold opacity-70 tracking-widest flex items-center gap-2 truncate ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--subtext)]'}`}>{subtitle}</span>
                 </div>
             </div>
-            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-0 transition-opacity duration-500" />
         </button>
     );
 }

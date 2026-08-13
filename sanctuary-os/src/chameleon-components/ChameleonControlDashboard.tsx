@@ -39,6 +39,47 @@ export function ChameleonControlDashboard({
   // We'll allow rename if renameTheme is passed and it's not explicitly false.
   const canRename = !!renameTheme;
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        const MAX_WIDTH = 1920;
+        const MAX_HEIGHT = 1080;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round(height * (MAX_WIDTH / width));
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round(width * (MAX_HEIGHT / height));
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/webp', 0.7);
+          handleUpdateTheme({ bgImage: dataUrl });
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden">
       {/* SECONDARY HEADER: Editable Title */}
@@ -279,6 +320,53 @@ export function ChameleonControlDashboard({
             onChange={(e) => handleUpdateTheme({ radius: `${e.target.value}rem` })}
             className="w-full sanctuary-slider"
           />
+        </div>
+
+        <div className="mt-14 mb-8 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
+          <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">wallpaper</span>
+          <h2 className="text-[14px] font-black capitalize tracking-[0.15em] text-[var(--text)]">Wallpaper Engine</h2>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+            {currentTheme.bgImage ? (
+              <div className="relative w-64 h-36 rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg group">
+                <img src={currentTheme.bgImage} alt="Wallpaper Preview" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <button 
+                    onClick={() => handleUpdateTheme({ bgImage: null })}
+                    className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/50 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all"
+                  >
+                    Remove Wallpaper
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="w-64 h-36 rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)] flex flex-col items-center justify-center gap-2 opacity-60">
+                <span className="material-symbols-outlined !text-[32px]">image_not_supported</span>
+                <span className="text-[9px] font-black uppercase tracking-widest">No Wallpaper</span>
+              </div>
+            )}
+
+            <div className="flex-1 flex flex-col gap-3">
+              <label className="text-[10px] font-black capitalize tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80">Upload High-Res Wallpaper</label>
+              <div className="relative">
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                />
+                <div className="w-full px-6 py-4 glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl flex items-center justify-center gap-3 hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all">
+                  <span className="material-symbols-outlined !text-[20px] text-[var(--accent)]">upload</span>
+                  <span className="text-xs font-black uppercase tracking-widest text-[var(--accent)]">Select Local Image</span>
+                </div>
+              </div>
+              <p className="text-[9px] text-[var(--subtext)] font-black capitalize tracking-widest ml-1 opacity-60 mt-1 leading-relaxed">
+                Images are automatically resized and heavily compressed into a highly optimized WebP format so they can be safely shared on the Nexus without breaking or consuming excessive bandwidth.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="mt-14 mb-8 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">

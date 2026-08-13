@@ -9,7 +9,7 @@ function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: any) {
   const image = (showImages && (update.image_url || update.imageUrl) && String(update.image_url || update.imageUrl) !== "null" && String(update.image_url || update.imageUrl).trim() !== "") ? (update.image_url || update.imageUrl) : undefined;
 
   return (
-    <div className="relative group/shadow h-[250px] shadow-xl transition-all duration-500 hover:-translate-y-1 z-10 hover:z-[100]" style={{ borderRadius: 'var(--radius)' }}>
+    <div className="relative group/shadow h-[250px] shadow-xl transition-all duration-500 z-10 hover:z-[100]" style={{ borderRadius: 'var(--radius)' }}>
       <div className={`relative w-full h-full transition-transform duration-500`}>
         <UniversalCard
           layout="vertical-compact"

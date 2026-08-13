@@ -591,7 +591,7 @@ const Vault = React.memo(function Vault(props: any) {
                             BY {item.meta_author || item.author || t("unknown_mason")}
                           </p>
 
-                          <div className="mt-auto pt-3 flex items-center justify-start border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                          <div className="mt-auto pt-3 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                             <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">
                               {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
                             </span>
@@ -973,8 +973,7 @@ const Vault = React.memo(function Vault(props: any) {
               </>
             );
           })()}
-        </div>,
-        document.body
+        </div>, document.body
       )}
     </div>);
 });

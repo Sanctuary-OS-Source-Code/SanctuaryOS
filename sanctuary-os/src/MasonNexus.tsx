@@ -172,7 +172,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
           </div>
           {activeCategory !== 'all' && (
             <button onClick={() => setUploadState({ isOpen: true, editId: null, assetType: activeCategory, isHidden: false, name: '', version: '1.0.0', description: '', releaseNotes: '', fileContent: null, fileName: '', language: availableLanguages.length > 0 ? availableLanguages[0] : 'English', newLanguage: '', lexiconType: 'Theme', themeMode: 'Dark' })} className="h-12 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-105 shadow-lg font-black capitalize tracking-widest text-[10px] group">
-              <span className="material-symbols-outlined !text-[16px] group-hover:-translate-y-0.5 transition-transform">add</span> {t("ui_tab_new")}
+              <span className="material-symbols-outlined !text-[16px] transition-transform">add</span> {t("ui_tab_new")}
             </button>
           )}
         </div>

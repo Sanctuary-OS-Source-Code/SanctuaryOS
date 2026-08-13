@@ -32,8 +32,7 @@ export function CustomSettingsDropdown({ value, options, onChange }: any) {
               </button>
             ))}
           </div>
-        </>,
-        document.body
+        </>, document.body
       )}
     </div>
   );

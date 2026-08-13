@@ -350,8 +350,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                       </button>
                     ))}
                   </div>
-                </>,
-                document.body
+                </>, document.body
               )}
             </div>
 

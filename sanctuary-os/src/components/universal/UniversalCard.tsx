@@ -103,7 +103,7 @@ export function UniversalCard({
   const opacityClasses = isGhosted ? "opacity-50 grayscale-[0.8]" : isDisabled ? "opacity-50 cursor-not-allowed grayscale" : "";
 
   // The hover effect
-  const hoverClasses = !isDisabled ? "group-hover/card:shadow-2xl group-hover/card:shadow-[color-mix(in_srgb,currentColor_10%,transparent)] group-hover/card:-translate-y-1 transition-all duration-700 ease-out" : "";
+  const hoverClasses = !isDisabled ? "group-hover/card:shadow-2xl group-hover/card:shadow-[color-mix(in_srgb,currentColor_10%,transparent)] transition-all duration-700 ease-out" : "";
 
   const containerClasses = `glass-panel rounded-[var(--radius)] relative overflow-hidden flex group/card ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${onClick ? 'cursor-pointer' : ''} ${className}`;
 

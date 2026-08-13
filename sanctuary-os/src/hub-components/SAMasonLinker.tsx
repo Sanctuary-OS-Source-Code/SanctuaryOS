@@ -374,8 +374,7 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
             ))}
             {filtered.length === 0 && <EmptyState icon={t("ui_icon_person_off")} title={t("no_profiles")} className="col-span-full py-16" />}
           </div>
-        </>,
-        document.body
+        </>, document.body
       )}
     </div>
   );

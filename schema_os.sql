@@ -46,6 +46,14 @@ CREATE TABLE sanctuary_themes (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE sanctuary_theme_images (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    theme_id TEXT REFERENCES sanctuary_themes(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_data TEXT NOT NULL, -- Base64 encoded image data
+    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 CREATE TABLE sanctuary_lexicons (
     id TEXT PRIMARY KEY,
     name TEXT,

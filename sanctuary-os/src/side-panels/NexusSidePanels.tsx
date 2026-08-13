@@ -589,14 +589,14 @@ export function MarketBlueprintPanel({
                           </span>
                         </div>
                       </div>
-                      <div className="flex flex-col gap-3">
+                      <div className="grid grid-cols-2 gap-3">
                         {premiumMods.map(renderMod)}
                       </div>
                     </div>
                   )}
 
                   {standardMods.length > 0 && (
-                    <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       {standardMods.map(renderMod)}
                     </div>
                   )}

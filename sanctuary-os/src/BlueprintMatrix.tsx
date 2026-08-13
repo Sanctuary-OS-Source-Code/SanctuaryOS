@@ -325,8 +325,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
           </div>
         )}
       </div>
-    </SidePanel>,
-    document.body
+    </SidePanel>, document.body
   );
 }
 

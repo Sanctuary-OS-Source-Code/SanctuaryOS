@@ -7,7 +7,7 @@ import { useStore } from "./store";
 import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel } from './side-panels/NexusSidePanels';
 import { useTheme } from "./ThemeContext";
 import { open } from "@tauri-apps/plugin-dialog";
-import { readDir, readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
+import { readDir, readTextFile, writeTextFile, exists, mkdir, readFile } from '@tauri-apps/plugin-fs';
 import { appDataDir } from "@tauri-apps/api/path";
 import { invoke } from '@tauri-apps/api/core';
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
@@ -645,6 +645,36 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     try {
       const finalLanguage = uploadState.language === 'add_new' ? uploadState.newLanguage : uploadState.language;
       const finalContent = { ...uploadState.fileContent, version: uploadState.version, _meta_version: uploadState.version };
+
+      if (marketTab === 'CHAMELEONS' && finalContent.bgImage && finalContent.bgImage.includes('asset.localhost')) {
+        try {
+          let localPath = finalContent.bgImage.replace(/^https?:\/\/asset\.localhost\//, '');
+          localPath = decodeURIComponent(localPath);
+          const fileData = await readFile(localPath);
+          const ext = localPath.split('.').pop() || 'jpg';
+          const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+          
+          onSetStatus('Uploading background image to cloud...');
+          const { error: uploadError, data: uploadData } = await supabase.storage
+            .from('backgrounds')
+            .upload(fileName, fileData, {
+              contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+              upsert: true
+            });
+            
+          if (uploadError) {
+            console.error('Image Upload Error:', uploadError);
+            throw new Error('Failed to upload background image.');
+          }
+          
+          const { data: publicUrlData } = supabase.storage.from('backgrounds').getPublicUrl(fileName);
+          finalContent.bgImage = publicUrlData.publicUrl;
+        } catch (e: any) {
+          console.error('Local Image Processing Error:', e);
+          throw new Error('Failed to process and upload local background image: ' + e.message);
+        }
+      }
+
       const payload = {
         asset_type: marketTab === 'CHAMELEONS' ? 'chameleon' : marketTab === 'TEMPLATES' ? 'workbench_template' : 'lexicon',
         name: uploadState.name,
@@ -1358,9 +1388,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           onTitleClick={() => setMarketTab('HOME')}
         />
 
-        <HoverTabDrawer 
-          title="Nexus Navigation" 
-          activeTab={marketTab} 
+        <HoverTabDrawer
+          title="Nexus Navigation"
+          activeTab={marketTab}
           setTab={setMarketTab}
           footer={
             <SidebarFooterButton
@@ -1414,7 +1444,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       const isFolder = item.feed_type === 'artifact' && (item.isVirtual || item.isParent || item.familyCount > 1);
 
                       const renderedCard = (
-                        <div key={mainKey} className={`relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`} onClick={() => {
+                        <div key={mainKey} className={`relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`} onClick={() => {
                           if (item.feed_type === 'artifact') {
                             if (onOpenDossier) onOpenDossier({ ...item, isNexusView: true });
                           } else if (item.feed_type === 'blueprint') {
@@ -1655,60 +1685,60 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               searchPlaceholder={t("search_placeholder") as string}
               className="mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500"
             >                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
-                  <CustomDropdown disableTint={true}
-                    value={selectedGameVersion}
-                    onChange={(val: string[]) => {
-                      setSelectedGameVersion(val[0]);
-                      setCurrentPage(1);
-                    }}
-                    options={[
-                      { id: "all", label: "ALL VERSIONS" },
-                      ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
-                      ...gameVersions.map(v => ({ id: v, label: v }))
-                    ]}
+                <CustomDropdown disableTint={true}
+                  value={selectedGameVersion}
+                  onChange={(val: string[]) => {
+                    setSelectedGameVersion(val[0]);
+                    setCurrentPage(1);
+                  }}
+                  options={[
+                    { id: "all", label: "ALL VERSIONS" },
+                    ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
+                    ...gameVersions.map(v => ({ id: v, label: v }))
+                  ]}
+                />
+              </div>
+
+              <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
+                <CustomDropdown disableTint={true}
+                  value={sortBy}
+                  onChange={(val: string[]) => setSortBy(val[0])}
+                  options={[
+                    { id: "newest", label: t("sort_newest") },
+                    { id: "oldest", label: t("sort_oldest") },
+                    { id: "name", label: t("sort_name") },
+                    { id: "author", label: t("sort_author") }
+                  ]}
+                />
+              </div>
+
+              <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[49] h-12">
+                <CustomDropdown disableTint={true}
+                  value={categoryFilter}
+                  onChange={(val: string[]) => {
+                    setCategoryFilter(val[0]);
+                    setCurrentPage(1);
+                  }}
+                  options={[
+                    { id: "ALL", label: "ALL CATEGORIES" },
+                    ...categories.filter(c => c !== "ALL").map(cat => ({ id: cat, label: cat }))
+                  ]}
+                />
+              </div>
+
+              {(marketTab === 'MODS' || marketTab === 'BLUEPRINTS') && (
+                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[48] h-12">
+                  <CustomDropdown
+                    disableTint={true}
+                    multiSelect={true}
+                    placeholder={t("filter_view_options")}
+                    value={activeViewFilters}
+                    selectedValues={activeViewFilters}
+                    onChange={handleViewFiltersChange}
+                    options={viewFilterOptions.filter(o => o.id !== 'hide_installed')}
                   />
                 </div>
-
-                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
-                  <CustomDropdown disableTint={true}
-                    value={sortBy}
-                    onChange={(val: string[]) => setSortBy(val[0])}
-                    options={[
-                      { id: "newest", label: t("sort_newest") },
-                      { id: "oldest", label: t("sort_oldest") },
-                      { id: "name", label: t("sort_name") },
-                      { id: "author", label: t("sort_author") }
-                    ]}
-                  />
-                </div>
-
-                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[49] h-12">
-                  <CustomDropdown disableTint={true}
-                    value={categoryFilter}
-                    onChange={(val: string[]) => {
-                      setCategoryFilter(val[0]);
-                      setCurrentPage(1);
-                    }}
-                    options={[
-                      { id: "ALL", label: "ALL CATEGORIES" },
-                      ...categories.filter(c => c !== "ALL").map(cat => ({ id: cat, label: cat }))
-                    ]}
-                  />
-                </div>
-
-                {(marketTab === 'MODS' || marketTab === 'BLUEPRINTS') && (
-                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[48] h-12">
-                    <CustomDropdown
-                      disableTint={true}
-                      multiSelect={true}
-                      placeholder={t("filter_view_options")}
-                      value={activeViewFilters}
-                      selectedValues={activeViewFilters}
-                      onChange={handleViewFiltersChange}
-                      options={viewFilterOptions.filter(o => o.id !== 'hide_installed')}
-                    />
-                  </div>
-                )}
+              )}
             </ScreenUtilityBar>
 
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
@@ -1973,87 +2003,87 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               searchPlaceholder={(marketTab === 'LEXICONS' ? (t("search_lexicons")) : marketTab === 'TEMPLATES' ? (t("search_tmpl")) : marketTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_chameleons"))) as string}
               className="mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500"
             >                {marketTab === 'BLUEPRINTS' && gameVersions.length > 0 && (
-                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
-                    <CustomDropdown disableTint={true}
-                      value={selectedGameVersion}
-                      onChange={(val: string[]) => {
-                        setSelectedGameVersion(val[0]);
-                        setCurrentPage(1);
-                      }}
-                      options={[
-                        { id: "all", label: "ALL VERSIONS" },
-                        ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
-                        ...gameVersions.map(v => ({ id: v, label: v }))
-                      ]}
-                    />
-                  </div>
-                )}
+              <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
+                <CustomDropdown disableTint={true}
+                  value={selectedGameVersion}
+                  onChange={(val: string[]) => {
+                    setSelectedGameVersion(val[0]);
+                    setCurrentPage(1);
+                  }}
+                  options={[
+                    { id: "all", label: "ALL VERSIONS" },
+                    ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
+                    ...gameVersions.map(v => ({ id: v, label: v }))
+                  ]}
+                />
+              </div>
+            )}
 
-                {(marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') && (
-                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
-                    <CustomDropdown disableTint={true}
-                      value={languageFilter}
-                      onChange={(val: string[]) => { setLanguageFilter(val[0]); setCurrentPage(1); }}
-                      options={[
-                        { id: "all", label: marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates")) },
-                        ...availableLanguages.map(l => ({ id: l, label: l }))
-                      ]}
-                    />
-                  </div>
-                )}
-                {marketTab === 'LEXICONS' && (
-                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
-                    <CustomDropdown disableTint={true}
-                      value={lexiconTypeFilter}
-                      onChange={(val: string[]) => { setLexiconTypeFilter(val[0]); setCurrentPage(1); }}
-                      options={[
-                        { id: "all", label: t("filter_type") },
-                        { id: "Default", label: t("type_default") },
-                        { id: "Theme", label: t("type_theme") }
-                      ]}
-                    />
-                  </div>
-                )}
-
-                {marketTab === 'CHAMELEONS' && (
-                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
-                    <CustomDropdown disableTint={true}
-                      value={themeModeFilter}
-                      onChange={(val: string[]) => { setThemeModeFilter(val[0]); setCurrentPage(1); }}
-                      options={[
-                        { id: "all", label: t("filter_mode") },
-                        { id: "Dark", label: t("mode_dark") },
-                        { id: "Light", label: t("mode_light") }
-                      ]}
-                    />
-                  </div>
-                )}
-
-                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[49] h-12">
+              {(marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') && (
+                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
                   <CustomDropdown disableTint={true}
-                    value={assetSortBy}
-                    onChange={(val: string[]) => setAssetSortBy(val[0])}
+                    value={languageFilter}
+                    onChange={(val: string[]) => { setLanguageFilter(val[0]); setCurrentPage(1); }}
                     options={[
-                      { id: "newest", label: t("sort_newest") },
-                      { id: "oldest", label: t("sort_oldest") },
-                      { id: "name", label: t("sort_name") },
-                      { id: "author", label: t("sort_author") }
+                      { id: "all", label: marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates")) },
+                      ...availableLanguages.map(l => ({ id: l, label: l }))
                     ]}
                   />
                 </div>
+              )}
+              {marketTab === 'LEXICONS' && (
+                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
+                  <CustomDropdown disableTint={true}
+                    value={lexiconTypeFilter}
+                    onChange={(val: string[]) => { setLexiconTypeFilter(val[0]); setCurrentPage(1); }}
+                    options={[
+                      { id: "all", label: t("filter_type") },
+                      { id: "Default", label: t("type_default") },
+                      { id: "Theme", label: t("type_theme") }
+                    ]}
+                  />
+                </div>
+              )}
 
-                {marketTab !== 'MODS' && (
-                  <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[48] h-12">
-                    <CustomDropdown
-                      disableTint={true}
-                      multiSelect={true}
-                      placeholder={t("filter_view_options")}
-                      value={activeViewFilters}
-                      selectedValues={activeViewFilters}
-                      onChange={handleViewFiltersChange}
-                    />
-                  </div>
-                )}
+              {marketTab === 'CHAMELEONS' && (
+                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
+                  <CustomDropdown disableTint={true}
+                    value={themeModeFilter}
+                    onChange={(val: string[]) => { setThemeModeFilter(val[0]); setCurrentPage(1); }}
+                    options={[
+                      { id: "all", label: t("filter_mode") },
+                      { id: "Dark", label: t("mode_dark") },
+                      { id: "Light", label: t("mode_light") }
+                    ]}
+                  />
+                </div>
+              )}
+
+              <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[49] h-12">
+                <CustomDropdown disableTint={true}
+                  value={assetSortBy}
+                  onChange={(val: string[]) => setAssetSortBy(val[0])}
+                  options={[
+                    { id: "newest", label: t("sort_newest") },
+                    { id: "oldest", label: t("sort_oldest") },
+                    { id: "name", label: t("sort_name") },
+                    { id: "author", label: t("sort_author") }
+                  ]}
+                />
+              </div>
+
+              {marketTab !== 'MODS' && (
+                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[48] h-12">
+                  <CustomDropdown
+                    disableTint={true}
+                    multiSelect={true}
+                    placeholder={t("filter_view_options")}
+                    value={activeViewFilters}
+                    selectedValues={activeViewFilters}
+                    onChange={handleViewFiltersChange}
+                  />
+                </div>
+              )}
             </ScreenUtilityBar>
 
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">

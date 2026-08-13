@@ -264,7 +264,7 @@ export default function ArchitectTemplateOversight() {
                                 return (
                                     <div
                                         onClick={() => setSelectedTemplateForPreview(defaultTmpl)}
-                                        className="flex flex-col glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(16,185,129,0.15)] relative overflow-hidden group"
+                                        className="flex flex-col glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] transition-all duration-300 cursor-pointer hover:shadow-[0_10px_30px_rgba(16,185,129,0.15)] relative overflow-hidden group"
                                     >
                                         <div className="absolute top-0 left-0 w-full h-1 bg-[var(--success)] opacity-50" />
                                         <div className="p-6 flex items-start gap-5">
@@ -323,7 +323,7 @@ export default function ArchitectTemplateOversight() {
                                 <div
                                     key={tmpl.id}
                                     onClick={() => setSelectedTemplateForPreview(tmpl)}
-                                    className="flex flex-col glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-black/20 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg group"
+                                    className="flex flex-col glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-black/20 transition-all duration-300 cursor-pointer hover:shadow-lg group"
                                 >
                                     <div className="p-5 flex flex-col gap-4">
                                         <div className="flex items-start justify-start gap-2">

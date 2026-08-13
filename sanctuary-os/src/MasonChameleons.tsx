@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SidePanel } from './shared';
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import { readTextFile, writeTextFile, readFile } from "@tauri-apps/plugin-fs";
 import { useLexicon } from './LexiconContext';
 import { useTheme } from './ThemeContext';
 import { useStore } from './store';
@@ -120,11 +120,43 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
 
   const submitUpload = async () => {
     try {
+      const { supabase } = await import('./supabase');
+      let finalContent = { ...uploadState.fileContent };
+
+      if (finalContent.bgImage && finalContent.bgImage.includes('asset.localhost')) {
+        try {
+          let localPath = finalContent.bgImage.replace(/^https?:\/\/asset\.localhost\//, '');
+          localPath = decodeURIComponent(localPath);
+          const fileData = await readFile(localPath);
+          const ext = localPath.split('.').pop() || 'jpg';
+          const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+          
+          useStore.getState().pushStatus('Uploading background image to cloud...');
+          const { error: uploadError } = await supabase.storage
+            .from('backgrounds')
+            .upload(fileName, fileData, {
+              contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+              upsert: true
+            });
+            
+          if (uploadError) {
+            console.error('Image Upload Error:', uploadError);
+            throw new Error('Failed to upload background image.');
+          }
+          
+          const { data: publicUrlData } = supabase.storage.from('backgrounds').getPublicUrl(fileName);
+          finalContent.bgImage = publicUrlData.publicUrl;
+        } catch (e: any) {
+          console.error('Local Image Processing Error:', e);
+          throw new Error('Failed to process and upload local background image: ' + e.message);
+        }
+      }
+
       const payload = {
         name: uploadState.name, version: uploadState.version, description: uploadState.description, release_notes: uploadState.releaseNotes,
-        json_data: uploadState.fileContent, asset_type: 'chameleon', is_public: true, theme_mode: uploadState.themeMode, author: masonProfile.name, downloads: 0
+        json_data: finalContent, asset_type: 'chameleon', is_public: true, theme_mode: uploadState.themeMode, author: masonProfile.name, downloads: 0
       };
-      const { supabase } = await import('./supabase');
+
       const { error } = await supabase.from('nexus_assets').insert([payload]);
       if (error) throw error;
       useStore.getState().pushStatus(`Theme published successfully.`, "success");
@@ -229,7 +261,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
           ) : undefined
         }
         footer={
-          typeof editingThemeId === 'string' && editingThemeId.startsWith('dev_') ? (
+          typeof editingThemeId === 'string' ? (
             <>
               <button onClick={publishThemeToNexus} className={standardAccentGlassButtonClass}>
                 <span className="material-symbols-outlined !text-[18px]">cloud_upload</span>

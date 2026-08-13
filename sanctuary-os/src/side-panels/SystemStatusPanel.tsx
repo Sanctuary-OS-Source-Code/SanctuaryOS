@@ -141,7 +141,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
 
         <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10" title={t("sys_info_app")} icon="terminal" innerClassName="flex flex-col gap-4">
           {updatePayload && (
-            <button onClick={() => { setIsUpdatePanelOpen(true); }} className="w-full glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.3)] flex items-center justify-start overflow-hidden relative group hover:-translate-y-1 mt-2">
+            <button onClick={() => { setIsUpdatePanelOpen(true); }} className="w-full glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.3)] flex items-center justify-start overflow-hidden relative group mt-2">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10" />
               <div className="flex items-center gap-4 relative z-10">
@@ -374,7 +374,7 @@ function StatBox({ label, value, icon, accent = false, pulseIcon = false, glowCo
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`p-4 rounded-xl border flex flex-col gap-2 transition-all duration-300 hover:-translate-y-0.5 relative overflow-hidden group ${onClick ? 'cursor-pointer hover:shadow-lg' : ''}
+      className={`p-4 rounded-xl border flex flex-col gap-2 transition-all duration-300 relative overflow-hidden group ${onClick ? 'cursor-pointer hover:shadow-lg' : ''}
       ${accent ? 'glass-surface theme-border-accent bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-[0_4px_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg'}`}
     >
       <div

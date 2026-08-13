@@ -81,7 +81,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
         if (parsed && parsed.template_version) {
           version = parsed.template_version;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     return version;
   };
@@ -136,13 +136,13 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
         data && (data.is_paid || data.is_early_access) ? (
           <div className="flex gap-2 shrink-0 flex-col items-end">
             {data.is_early_access && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-md shadow-lg">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-[2px] shadow-lg">
                 <span className="material-symbols-outlined !text-[12px] text-[#d8b4fe]">science</span>
                 <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access")}</span>
               </div>
             )}
             {data.is_paid && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-md shadow-lg">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-[2px] shadow-lg">
                 <span className="material-symbols-outlined !text-[12px] text-[#fef08a]">monetization_on</span>
                 <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#fef08a]">{t("badge_paid")}</span>
               </div>
@@ -158,7 +158,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
             onDanger={session?.user?.user_metadata?.username !== data.author && onFlag ? () => { onFlag(assetId, assetType); } : undefined}
             dangerLabel={t("feed_btn_flag")}
             dangerIcon="flag"
-            
+
             onAction={async (e?: React.MouseEvent) => {
               e?.stopPropagation();
               if (assetType === 'blueprint') {

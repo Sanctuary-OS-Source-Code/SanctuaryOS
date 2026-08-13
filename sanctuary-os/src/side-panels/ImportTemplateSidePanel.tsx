@@ -105,7 +105,7 @@ export function ImportTemplateSidePanel({
                 onClick={() => {
                   onSelectTemplate(JSON.stringify(template, null, 2));
                 }}
-                className="flex flex-col items-start gap-4 p-6 glass-panel rounded-[var(--radius)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:-translate-y-1 transition-all duration-300 group text-left border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden w-full"
+                className="flex flex-col items-start gap-4 p-6 glass-panel rounded-[var(--radius)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] transition-all duration-300 group text-left border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden w-full"
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-full blur-3xl group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
                 

@@ -13,7 +13,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
       className="!fixed bottom-14 right-4 w-[420px] max-h-[60vh] glass-panel border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-[var(--radius)] z-[99998] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/5 before:to-transparent before:pointer-events-none"
     >
       <div
-        className="flex items-center justify-start p-5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 relative z-10 cursor-move"
+        className="flex items-center justify-between p-5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 relative z-10 cursor-move"
         onPointerDown={handleLogPointerDown}
         onPointerMove={handleLogPointerMove}
         onPointerUp={handleLogPointerUp}
@@ -27,10 +27,10 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button onPointerDown={(e) => e.stopPropagation()} onClick={() => { clearStatusLog(); setIsLogExpanded(false); }} className="p-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--subtext)] hover:text-red-400 rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+          <button onPointerDown={(e) => { e.stopPropagation(); clearStatusLog(); setIsLogExpanded(false); }} className="p-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--subtext)] hover:text-red-400 rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
             <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_sweep")}</span>
           </button>
-          <button onPointerDown={(e) => e.stopPropagation()} onClick={() => setIsLogExpanded(false)} className="p-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+          <button onPointerDown={(e) => { e.stopPropagation(); setIsLogExpanded(false); }} className="p-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
             <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
           </button>
         </div>

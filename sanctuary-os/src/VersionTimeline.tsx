@@ -143,7 +143,7 @@ export default function VersionTimeline({
               {filteredHistory.map((entry, idx) => (
                 <div
                   key={entry.timestamp}
-                  className={`p-5 rounded-2xl border flex flex-col gap-4 transition-all cursor-pointer ${selectedEntry?.timestamp === entry.timestamp ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:-translate-y-1 hover:shadow-lg'} ${entry.pinned && selectedEntry?.timestamp !== entry.timestamp ? '!border-[color-mix(in_srgb,var(--accent)_15%,transparent)]' : ''}`}
+                  className={`p-5 rounded-2xl border flex flex-col gap-4 transition-all cursor-pointer ${selectedEntry?.timestamp === entry.timestamp ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-lg'} ${entry.pinned && selectedEntry?.timestamp !== entry.timestamp ? '!border-[color-mix(in_srgb,var(--accent)_15%,transparent)]' : ''}`}
                   onClick={() => {
                     setSelectedEntry(entry);
                   }}

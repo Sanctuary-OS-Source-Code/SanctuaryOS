@@ -167,7 +167,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                   <div
                     key={id}
                     onClick={() => setActiveThemeId(id)}
-                    className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
+                    className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
                       ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
                       : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                       }`}
@@ -268,7 +268,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                       <div
                         key={id}
                         onClick={() => setActiveThemeId(id)}
-                        className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
+                        className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
                           ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
                           : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                           }`}
@@ -377,7 +377,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                   <div
                     key={id}
                     onClick={() => setActiveThemeId(id)}
-                    className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
+                    className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
                       ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
                       : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                       }`}
@@ -489,7 +489,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                       <div
                         key={id}
                         onClick={() => setActiveThemeId(id)}
-                        className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
+                        className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
                           ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
                           : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                           }`}

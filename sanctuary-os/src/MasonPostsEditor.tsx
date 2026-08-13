@@ -402,7 +402,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       return (
         <div
           key={post.id}
-          className={`glass-panel p-4 rounded-[var(--radius)] flex flex-col gap-4 group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden border ${isDraft ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' : post.is_pinned ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
+          className={`glass-panel p-4 rounded-[var(--radius)] flex flex-col gap-4 group transition-all duration-300 hover:shadow-xl relative overflow-hidden border ${isDraft ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' : post.is_pinned ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
         >
           {/* Background Hover Effect */}
           <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
@@ -465,7 +465,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
           </div>
 
           {/* Footer Actions */}
-          <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-start items-center z-10">
+          <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center z-10">
             <div className="flex gap-2">
               {confirmDelete === post.id ? (
                 <>
@@ -674,7 +674,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                                 setShowImageInput(false);
                               }
                             }}
-                            className="px-6 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-xl font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:-translate-y-0.5 transition-all hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                            className="px-6 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-xl font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] transition-all hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                           >
                             {t("ui_btn_insert")}
                           </button>
@@ -758,7 +758,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
               <>
                 {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported")} title={t("no_assets")} className="col-span-full py-16" />}
                 {filteredAssets.slice(0, 100).map(asset => (
-                  <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl glass-surface hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
+                  <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl glass-surface hover:theme-border-accent transition-all flex items-center gap-4 group">
                     <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("icon_extension")) : asset.type === 'blueprint' ? (t("icon_architecture")) : asset.type === 'lexicon' ? (t("icon_translate")) : (t("icon_palette"))}</span>
                     <span className="text-sm font-black text-[var(--text)] capitalize tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
                   </button>

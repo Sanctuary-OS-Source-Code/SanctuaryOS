@@ -8,16 +8,27 @@ import { useStore } from './store';
 const DEFAULT_CORE_THEMES: any = {
   // Flagship Premium Dark
   architect: {
-    name: "Architect", bg: "#020617", sidebar: "#020617", sidebartext: "#f8fafc", accent: "#38bdf8",
+    name: "Architect", bg: "#000000", sidebar: "#000000", sidebartext: "#f8fafc", accent: "#38bdf8",
     text: "#ffffff", subtext: "#94a3b8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
     panelTint: "#ffffff", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.04", glassBlur: "64px", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.5)",
-    bgGradient: "radial-gradient(circle at 15% 30%, rgba(56, 189, 248, 0.12), transparent 50%), radial-gradient(circle at 85% 60%, rgba(99, 102, 241, 0.12), transparent 50%), radial-gradient(circle at 50% 100%, rgba(139, 92, 246, 0.08), transparent 50%), #020617",
-    panelBackground: "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 30%, transparent 100%)",
-    panelBorder: "1px solid rgba(255, 255, 255, 0.1)",
-    panelShadow: "0 20px 40px -10px rgba(0, 0, 0, 0.4), 0 0 30px rgba(56, 189, 248, 0.05)",
-    panelInnerShadow: "inset 0 1px 1px rgba(14, 9, 9, 0.25), inset 0 0 30px rgba(255, 255, 255, 0.02)",
-    animated: true, ambientOrb: true, ambientNoise: true,
+    glassOpacity: "5%", glassBlur: "24px", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.3)",
+    bgGradient: "transparent",
+    bgImage: "/themes/architect.png",
+    animated: true, ambientOrb: false, ambientNoise: true,
+    volumetricOrbs: [],
+    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
+    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
+  },
+  // The Sims 4 Pilot Theme
+  sims_4: {
+    name: "The Sims 4", bg: "#f8fafc", sidebar: "#f8fafc", sidebartext: "#0f172a", accent: "#5ac126",
+    text: "#020617", subtext: "#475569", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
+    panelTint: "#ffffff", headerText: "#0f172a", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "40%", glassBlur: "48px", radius: "1rem", shadowColor: "rgba(0,0,0,0.06)",
+    bgGradient: "transparent",
+    bgImage: "/themes/sims4.png",
+    animated: true, ambientOrb: false, ambientNoise: true,
+    volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
@@ -26,13 +37,11 @@ const DEFAULT_CORE_THEMES: any = {
     name: "Radiant", bg: "#fdfdfd", sidebar: "#fdfdfd", sidebartext: "#0f172a", accent: "#ec4899",
     text: "#020617", subtext: "#475569", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
     panelTint: "#ffffff", headerText: "#020617", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.4", glassBlur: "32px", radius: "1rem", shadowColor: "rgba(0,0,0,0.06)",
-    bgGradient: "radial-gradient(circle at 10% 10%, rgba(255, 182, 255, 0.8) 0%, transparent 60%), radial-gradient(circle at 90% 90%, rgba(132, 204, 255, 0.8) 0%, transparent 60%), radial-gradient(circle at 50% 50%, rgba(255, 228, 160, 0.6) 0%, transparent 100%), #f8fafc",
-    panelBackground: "linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 100%)",
-    panelBorder: "1px solid rgba(255, 255, 255, 0.8)",
-    panelShadow: "0 16px 32px rgba(0, 0, 0, 0.05), 0 0 40px rgba(236, 72, 153, 0.05)",
-    panelInnerShadow: "inset 0 1px 2px rgba(255, 255, 255, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.5)",
-    animated: true, ambientOrb: true, ambientNoise: true,
+    glassOpacity: "30%", glassBlur: "48px", radius: "1rem", shadowColor: "rgba(0,0,0,0.06)",
+    bgGradient: "transparent",
+    bgImage: "/themes/radiant.png",
+    animated: true, ambientOrb: false, ambientNoise: true,
+    volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
@@ -41,13 +50,11 @@ const DEFAULT_CORE_THEMES: any = {
     name: "Aurora", bg: "#000000", sidebar: "#000000", sidebartext: "#f8fafc", accent: "#06b6d4",
     text: "#f8fafc", subtext: "#94a3b8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
     panelTint: "#0a0a0a", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.2", glassBlur: "32px", radius: "1.5rem", shadowColor: "rgba(0,0,0,0.8)",
-    bgGradient: "radial-gradient(circle at 20% 0%, rgba(16, 185, 129, 0.4) 0%, transparent 40%), radial-gradient(circle at 80% 100%, rgba(6, 182, 212, 0.4) 0%, transparent 40%), #000000",
-    panelBackground: "linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(16, 185, 129, 0.02) 100%)",
-    panelBorder: "1px solid rgba(6, 182, 212, 0.3)",
-    panelShadow: "0 0 40px rgba(6, 182, 212, 0.15), 0 16px 32px rgba(0, 0, 0, 0.6)",
-    panelInnerShadow: "inset 0 1px 1px rgba(6, 182, 212, 0.4), inset 0 0 20px rgba(6, 182, 212, 0.15)",
-    animated: true, ambientOrb: true, ambientNoise: true,
+    glassOpacity: "10%", glassBlur: "48px", radius: "1.5rem", shadowColor: "rgba(0,0,0,0.8)",
+    bgGradient: "transparent",
+    bgImage: "/themes/aurora.png",
+    animated: true, ambientOrb: false, ambientNoise: true,
+    volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
@@ -55,12 +62,23 @@ const DEFAULT_CORE_THEMES: any = {
     name: "Bunker", bg: "#020602", sidebar: "#020602", sidebartext: "#00ff41", accent: "#00ff41",
     text: "#00ff41", subtext: "#008f11", success: "#0ce471", warning: "#ffea00", danger: "#ff003c",
     panelTint: "#050a05", headerText: "#00ff41", fontFamily: "'Space Mono', monospace", fontSizeBase: "16px",
-    glassOpacity: "0.15", glassBlur: "16px", radius: "0rem", shadowColor: "rgba(0,255,65,0.15)",
-    bgGradient: "radial-gradient(circle at 50% 50%, rgba(0, 255, 65, 0.1) 0%, transparent 60%), #020602",
-    panelBorder: "1px solid var(--accent)",
-    panelShadow: "0 0 10px rgba(0, 255, 65, 0.1)",
-    panelInnerShadow: "inset 0 0 20px rgba(0, 255, 65, 0.05)",
+    glassOpacity: "5%", glassBlur: "16px", radius: "0rem", shadowColor: "rgba(0,255,65,0.15)",
+    bgGradient: "transparent",
+    bgImage: "/themes/bunker.png",
+    animated: true, ambientOrb: false, ambientNoise: true, scanlines: true,
+    volumetricOrbs: [],
+    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
+    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
+  },
+  synthwave: {
+    name: "Miami Vice", bg: "#050110", sidebar: "#050110", sidebartext: "#fdf2f8", accent: "#f92aad",
+    text: "#fdf2f8", subtext: "#d8b4e2", success: "#0ce471", warning: "#f9df6d", danger: "#fe4450",
+    panelTint: "#1a0b2e", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "20%", glassBlur: "32px", radius: "1rem", shadowColor: "rgba(0,0,0,0.6)",
+    bgGradient: "transparent",
+    bgImage: "/themes/synthwave.png",
     animated: true, ambientOrb: false, ambientNoise: true,
+    volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
@@ -69,29 +87,28 @@ const DEFAULT_CORE_THEMES: any = {
     text: "#f8f8f2", subtext: "#6272a4", success: "#50fa7b", warning: "#f1fa8c", danger: "#ff5555",
     panelTint: "#282a36", headerText: "#f8f8f2", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
     glassOpacity: "0.25", glassBlur: "32px", radius: "1rem", shadowColor: "rgba(0,0,0,0.6)",
-    bgGradient: "radial-gradient(circle at 10% 0%, rgba(189, 147, 249, 0.4) 0%, transparent 40%), radial-gradient(circle at 90% 100%, rgba(255, 121, 198, 0.3) 0%, transparent 40%), #282a36",
+    bgGradient: "transparent",
+    bgImage: "/themes/dracula.png",
     panelBackground: "linear-gradient(135deg, rgba(189,147,249,0.15) 0%, rgba(255,121,198,0.05) 100%)",
     panelBorder: "1px solid rgba(189, 147, 249, 0.4)",
     panelShadow: "0 16px 32px rgba(0, 0, 0, 0.5), 0 0 30px rgba(189, 147, 249, 0.15)",
     panelInnerShadow: "inset 0 1px 2px rgba(189, 147, 249, 0.3), inset 0 0 15px rgba(255, 121, 198, 0.1)",
-    animated: true, ambientOrb: true, ambientNoise: true,
+    animated: true, ambientOrb: false, ambientNoise: true,
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
-  synthwave: {
-    name: "Miami Vice", bg: "#050110", sidebar: "#050110", sidebartext: "#fdf2f8", accent: "#f92aad",
-    text: "#fdf2f8", subtext: "#d8b4e2", success: "#0ce471", warning: "#f9df6d", danger: "#fe4450",
-    panelTint: "#1a0b2e", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.2", glassBlur: "32px", radius: "1rem", shadowColor: "rgba(0,0,0,0.6)",
-    bgGradient: "radial-gradient(circle at 0% 100%, rgba(249, 42, 173, 0.5) 0%, transparent 40%), radial-gradient(circle at 100% 0%, rgba(0, 255, 255, 0.5) 0%, transparent 40%), #050110",
-    panelBackground: "linear-gradient(180deg, rgba(249,42,173,0.15) 0%, rgba(0,255,255,0.05) 100%)",
-    panelBorder: "1px solid rgba(249, 42, 173, 0.6)",
-    panelShadow: "0 0 30px rgba(249, 42, 173, 0.25), 0 16px 32px rgba(0, 0, 0, 0.7)",
-    panelInnerShadow: "inset 0 1px 2px rgba(249, 42, 173, 0.5), inset 0 0 15px rgba(0, 255, 255, 0.2)",
-    animated: true, ambientOrb: true, ambientNoise: true,
+  true_glass: {
+    name: "True Glass", bg: "transparent", sidebar: "transparent", sidebartext: "#f8fafc", accent: "#ffffff",
+    text: "#ffffff", subtext: "#94a3b8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
+    panelTint: "#ffffff", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.05", glassBlur: "16px", radius: "1rem", shadowColor: "rgba(0,0,0,0.15)",
+    bgGradient: "transparent",
+    bgImage: "",
+    animated: true, ambientOrb: false, ambientNoise: false,
+    volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  },
+  }
 };
 
 const ThemeContext = createContext<any>(null);
@@ -99,12 +116,6 @@ const ThemeContext = createContext<any>(null);
 export const ThemeProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const wsId = activeWorkspaceId || localStorage.getItem('sanctuary_last_active_workspace') || 'default';
-
-  const [isTotalGlass, setIsTotalGlassState] = useState(() => localStorage.getItem('sanctuary_total_glass') === 'true');
-  const setTotalGlass = (val: boolean) => {
-    setIsTotalGlassState(val);
-    localStorage.setItem('sanctuary_total_glass', String(val));
-  };
 
   const [useGlobalThemeState, setUseGlobalThemeState] = useState(() => localStorage.getItem('sanctuary_use_global_theme') === 'true');
   const [CORE_THEMES, setCoreThemes] = useState<any>(DEFAULT_CORE_THEMES);
@@ -249,25 +260,23 @@ export const ThemeProvider = ({ children }: any) => {
         if (key === 'glassOpacity' && typeof finalVal === 'string' && finalVal.endsWith('%')) {
           finalVal = (parseFloat(finalVal) / 100).toString();
         }
-
-        if (isTotalGlass && (key === 'bg' || key === 'bgGradient')) {
-          root.style.setProperty(`--${key}`, 'transparent');
-        } else if (key === 'bgGradient' && (val === 'none' || !val)) {
+        if (key === 'bgGradient' && (val === 'none' || !val)) {
           root.style.setProperty(`--bgGradient`, currentTheme.bg);
         } else {
-          root.style.setProperty(`--${key}`, finalVal);
           if (key === 'glassOpacity') {
-            root.style.setProperty(`--glassOpacityPercent`, `${parseFloat(finalVal) * 100}%`);
+            let parsedVal = parseFloat(finalVal);
+            // Legacy support: if value is a decimal like 0.04, convert it to 4% so color-mix doesn't break
+            if (!String(finalVal).endsWith('%') && parsedVal <= 1.0) {
+              finalVal = `${parsedVal * 100}%`;
+            }
+            root.style.setProperty(`--glassOpacityPercent`, finalVal);
+            root.style.setProperty(`--${key}`, finalVal);
+          } else {
+            root.style.setProperty(`--${key}`, finalVal);
           }
         }
       }
     });
-
-    if (isTotalGlass) {
-      root.classList.add('total-glass');
-    } else {
-      root.classList.remove('total-glass');
-    }
 
     const bgHex = (currentTheme.bg || '#000000').replace('#', '');
     if (bgHex.length === 6) {
@@ -294,20 +303,21 @@ export const ThemeProvider = ({ children }: any) => {
       root.style.setProperty('--text-rgb', `${tr}, ${tg}, ${tb}`);
     }
 
-    // Fallback support for older Webview2 missing calc() inside rgb() alpha or color-mix() percentages
+    // Provide bulletproof decimal values for App.css rgba() injection
     let finalOpacityStr = String(currentTheme.glassOpacity || "0.35");
     if (finalOpacityStr.endsWith('%')) {
       finalOpacityStr = (parseFloat(finalOpacityStr) / 100).toString();
     }
     const rawOpacity = parseFloat(finalOpacityStr);
-    root.style.setProperty('--glassOpacitySurface', (rawOpacity * 0.7).toString());
+    root.style.setProperty('--glassOpacityDecimal', rawOpacity.toString());
+    root.style.setProperty('--glassOpacitySurfaceDecimal', (rawOpacity * 0.7).toString());
 
     const yiq = (((parseInt(bgHex.substring(0, 2), 16) || 0) * 299) + ((parseInt(bgHex.substring(2, 4), 16) || 0) * 587) + ((parseInt(bgHex.substring(4, 6), 16) || 0) * 114)) / 1000;
     const isLight = yiq >= 128;
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
       getCurrentWindow().setTheme(isLight ? 'light' : 'dark').catch(() => { });
     }).catch(() => { });
-  }, [activeThemeIdState, currentTheme, isTotalGlass]);
+  }, [activeThemeIdState, currentTheme]);
 
   const saveThemeToVault = (id: string, json: any, isDev: boolean = false) => {
     (async () => {
@@ -467,7 +477,6 @@ export const ThemeProvider = ({ children }: any) => {
       activeThemeId: activeThemeIdState, setActiveThemeId, currentTheme, CORE_THEMES, setCoreThemes, customThemes, devThemes,
       updateActiveTheme, updateTheme, renameTheme, createNewTheme, createNewDevTheme, exportDevThemeToCustom, deleteTheme,
       useGlobalTheme: useGlobalThemeState, setUseGlobalTheme,
-      isTotalGlass, setTotalGlass,
       importTheme: (json: any) => {
         const id = `import_${Date.now()}`;
         setCustomThemes((prev: any) => ({ ...prev, [id]: json }));

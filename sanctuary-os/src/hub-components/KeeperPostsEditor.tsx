@@ -420,7 +420,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
     return filteredPosts.map(post => {
       const hasUnsavedEdits = draftSet.has(post.id);
       return (
-        <div key={post.id} onClick={() => openEditor(post)} className={`glass-panel p-5 rounded-[var(--radius)] relative group flex flex-col gap-4 transition-all duration-500 hover:-translate-y-1 shadow-lg backdrop-blur-3xl overflow-hidden cursor-pointer ${hasUnsavedEdits ? '!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 !bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : isPostPinned(post) ? '!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] shadow-[0_10px_30px_rgba(var(--danger-rgb),0.1)]' : 'border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
+        <div key={post.id} onClick={() => openEditor(post)} className={`glass-panel p-5 rounded-[var(--radius)] relative group flex flex-col gap-4 transition-all duration-500 shadow-lg backdrop-blur-3xl overflow-hidden cursor-pointer ${hasUnsavedEdits ? '!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 !bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : isPostPinned(post) ? '!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] shadow-[0_10px_30px_rgba(var(--danger-rgb),0.1)]' : 'border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
           <div className={`absolute -top-32 -right-32 w-64 h-64 blur-[80px] rounded-full pointer-events-none transition-opacity duration-700 z-0 ${isPostPinned(post) ? 'bg-[var(--danger)] opacity-20' : 'bg-[var(--text)] opacity-0 group-hover:opacity-[0.03]'}`} />
           {extractPostImage(post) && (
             <div className="-mx-5 -mt-5 rounded-t-3xl overflow-hidden h-36 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 z-10">
@@ -729,7 +729,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                                 setShowImageInput(false);
                               }
                             }}
-                            className="px-6 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-xl font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:-translate-y-0.5 transition-all hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                            className="px-6 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-xl font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] transition-all hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                           >
                             {t("ui_btn_insert")}
                           </button>
@@ -815,7 +815,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
               <>
                 {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported")} title={t("no_assets")} className="col-span-full py-16" />}
                 {filteredAssets.slice(0, 100).map(asset => (
-                  <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl glass-surface hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
+                  <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl glass-surface hover:theme-border-accent transition-all flex items-center gap-4 group">
                     <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("icon_extension")) : asset.type === 'blueprint' ? (t("icon_architecture")) : asset.type === 'lexicon' ? (t("icon_translate")) : (t("icon_palette"))}</span>
                     <span className="text-sm font-black text-[var(--text)] capitalize tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
                   </button>

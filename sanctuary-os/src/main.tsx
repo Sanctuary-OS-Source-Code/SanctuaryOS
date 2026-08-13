@@ -16,6 +16,12 @@ import { LexiconProvider } from "./LexiconContext";
 import { ThemeProvider } from "./ThemeContext";
 import AuthWrapper from "./AuthWrapper";
 
+if (typeof document !== "undefined" && !document.getElementById("sa-portals")) {
+  const portalsDiv = document.createElement("div");
+  portalsDiv.id = "sa-portals";
+  document.body.appendChild(portalsDiv);
+}
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <LexiconProvider> 

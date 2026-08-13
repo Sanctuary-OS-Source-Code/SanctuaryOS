@@ -780,7 +780,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
           <div className="flex flex-col gap-2">
             {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported")} title={t("no_assets")} className="col-span-full py-16" />}
             {filteredAssets.map(asset => (
-              <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-[var(--radius)] glass-surface hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
+              <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-[var(--radius)] glass-surface hover:theme-border-accent transition-all flex items-center gap-4 group">
                 <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("icon_extension")) : asset.type === 'blueprint' ? (t("icon_architecture")) : asset.type === 'lexicon' ? (t("icon_translate")) : (t("icon_palette"))}</span>
                 <span className="text-sm font-black text-[var(--text)] capitalize tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
               </button>

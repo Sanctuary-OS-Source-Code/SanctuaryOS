@@ -328,7 +328,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       >
         <button
           onClick={onClose}
-          className="absolute top-14 right-6 z-50 w-12 h-12 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 "
+          className="!absolute top-14 right-6 z-50 w-12 h-12 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 "
         ><span className="material-symbols-outlined !text-[28px]">{t("icon_close")}</span></button>
 
         <div className="flex flex-col relative z-10 w-full">
@@ -934,7 +934,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
         >
           <button
             onClick={() => setSelectedKid(null)}
-            className="absolute top-14 right-6 z-50 w-12 h-12 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 "
+            className="!absolute top-14 right-6 z-50 w-12 h-12 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 "
           ><span className="material-symbols-outlined !text-[28px]">{t("icon_close")}</span></button>
 
           <div className="flex flex-col relative z-10 w-full">
@@ -1053,7 +1053,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
           noPadding={true}
         >
           <div className="flex flex-col relative z-10 w-full h-full">
-            <button onClick={() => setShowFlagModal(false)} className="absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ">
+            <button onClick={() => setShowFlagModal(false)} className="!absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ">
               <span className="material-symbols-outlined !text-[24px]">{t("icon_close")}</span>
             </button>
             <div className="h-48 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col items-center justify-center overflow-hidden">

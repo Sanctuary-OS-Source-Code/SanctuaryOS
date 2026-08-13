@@ -94,7 +94,7 @@ export default function MasonRecentRepliesSidePanel({
                     replies.map(reply => (
                         <div 
                             key={reply.id}
-                            className="glass-panel rounded-2xl p-6 flex flex-col gap-3 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:shadow-md transition-all hover:-translate-y-1"
+                            className="glass-panel rounded-2xl p-6 flex flex-col gap-3 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:shadow-md transition-all"
                             onClick={() => {
                                 if (onReplyClick && reply.post_id) {
                                     onReplyClick(reply.post_id, reply.id);

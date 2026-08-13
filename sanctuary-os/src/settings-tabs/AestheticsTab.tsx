@@ -8,7 +8,6 @@ import { UniversalCard } from '../components/universal/UniversalCard';
 
 export default function AestheticsTab({ config }: any) {
   const { t } = useLexicon();
-  const { isTotalGlass, setTotalGlass } = useTheme();
   const [isChameleonOpen, setIsChameleonOpen] = useState(false);
   const [isLexiconOpen, setIsLexiconOpen] = useState(false);
 
@@ -16,9 +15,9 @@ export default function AestheticsTab({ config }: any) {
     <>
       <TabContainer title={t("tab_aesthetics")} icon="format_paint">
         <SettingsGrid>
-          <UniversalCard 
-            title={t("chameleon_title")} 
-            subtitle={t("chameleon_desc")} 
+          <UniversalCard
+            title={t("chameleon_title")}
+            subtitle={t("chameleon_desc")}
             icon="palette"
             onClick={() => setIsChameleonOpen(true)}
             actions={
@@ -27,9 +26,9 @@ export default function AestheticsTab({ config }: any) {
               </div>
             }
           />
-          <UniversalCard 
-            title={t("lexicon_title")} 
-            subtitle={t("lexicon_desc")} 
+          <UniversalCard
+            title={t("lexicon_title")}
+            subtitle={t("lexicon_desc")}
             icon="language"
             onClick={() => setIsLexiconOpen(true)}
             actions={
@@ -38,18 +37,7 @@ export default function AestheticsTab({ config }: any) {
               </div>
             }
           />
-          <UniversalCard 
-            title={t("ui_total_glass")}
-            subtitle={t("ui_total_glass_desc")}
-            icon={isTotalGlass ? "visibility" : "visibility_off"}
-            isActive={isTotalGlass}
-            onClick={() => setTotalGlass(!isTotalGlass)}
-            actions={
-              <div className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors ${isTotalGlass ? 'bg-[color-mix(in_srgb,var(--success)_50%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isTotalGlass ? 'translate-x-6' : ''}`} />
-              </div>
-            }
-          />
+
         </SettingsGrid>
       </TabContainer>
 

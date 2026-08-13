@@ -50,7 +50,7 @@ function ErrorBoundaryContent({ moduleName, error, resetErrorBoundary }: any) {
 
       <button 
         onClick={resetErrorBoundary}
-        className="mt-10 px-10 py-4 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-red-500 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-red-500 hover:shadow-md hover:-translate-y-1 font-black text-[11px] capitalize tracking-[0.3em] transition-all duration-300 flex items-center gap-3 relative z-10 group/btn"
+        className="mt-10 px-10 py-4 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-red-500 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-red-500 hover:shadow-md font-black text-[11px] capitalize tracking-[0.3em] transition-all duration-300 flex items-center gap-3 relative z-10 group/btn"
       >
         <span className="material-symbols-outlined !text-[20px] group-hover/btn:-rotate-180 transition-transform duration-700">{t("icon_restart_alt")}</span>
         {t("err_reboot")}

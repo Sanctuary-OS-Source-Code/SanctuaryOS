@@ -452,7 +452,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
           </button>
         )}
       </div>
-      {isOpen && !selectedItem && createPortal(
+      {isOpen && !selectedItem && (
         (() => {
           const rect = inputRef.current?.getBoundingClientRect();
           if (!rect) return null;
@@ -461,8 +461,9 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
 
           return (
             <>
-              <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-              <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl overflow-hidden z-[200001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+              <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
+              <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl overflow-hidden pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+                zIndex: 200001,
                 top: shouldDropUp ? undefined : rect.bottom + 8,
                 bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
                 left: rect.left,
@@ -491,8 +492,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
               </div>
             </>
           );
-        })(),
-        document.body
+        })()
       )}
     </div>
   );
@@ -558,11 +558,11 @@ export function HubTabs({ tabs, activeTab, setTab, className = "" }: any) {
 export function FilterTabs({ children, className = "", icon = "tune", label, buttonClassName = "" }: any) {
   const childrenArray = React.Children.toArray(children);
   if (childrenArray.length === 0) return null;
-  
+
   const firstChild: any = childrenArray[0];
   const activeTab = firstChild?.props?.activeTab;
   const setTab = firstChild?.props?.setTab;
-  
+
   const options = childrenArray.map((child: any) => ({
     id: child.props.id,
     label: child.props.label || child.props.children,
@@ -570,13 +570,13 @@ export function FilterTabs({ children, className = "", icon = "tune", label, but
   })).filter((o: any) => o.id !== undefined);
 
   return (
-    <FilterPopover 
-      icon={icon} 
-      label={label} 
-      options={options} 
-      activeTab={activeTab} 
-      setTab={setTab} 
-      className={className} 
+    <FilterPopover
+      icon={icon}
+      label={label}
+      options={options}
+      activeTab={activeTab}
+      setTab={setTab}
+      className={className}
       buttonClassName={buttonClassName}
     />
   );
@@ -595,11 +595,10 @@ export function ViewToggle({ options, activeTab, setTab, className = "" }: any) 
           <button
             key={opt.id}
             onClick={() => setTab(opt.id)}
-            className={`h-7 px-4 flex items-center justify-center gap-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${
-              isActive
-                ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] shadow-[0_2px_10px_rgba(0,0,0,0.2)]'
-                : 'border border-transparent text-[var(--subtext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
-            }`}
+            className={`h-7 px-4 flex items-center justify-center gap-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${isActive
+              ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] shadow-[0_2px_10px_rgba(0,0,0,0.2)]'
+              : 'border border-transparent text-[var(--subtext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+              }`}
           >
             {opt.icon && <span className="material-symbols-outlined !text-[14px]">{opt.icon}</span>}
             <span className="leading-none pt-0.5">{opt.label}</span>
@@ -632,8 +631,8 @@ export function FilterPopover({ icon = "tune", label, options, activeTab, setTab
     return activeTab === id;
   };
 
-  const hasActiveFilter = multiSelect 
-    ? (Array.isArray(activeTab) && activeTab.length > 0) 
+  const hasActiveFilter = multiSelect
+    ? (Array.isArray(activeTab) && activeTab.length > 0)
     : (activeTab !== undefined && activeTab !== null && String(activeTab).toLowerCase() !== "all" && String(activeTab).toLowerCase() !== "any");
 
   return (
@@ -641,29 +640,26 @@ export function FilterPopover({ icon = "tune", label, options, activeTab, setTab
       <button
         ref={btnRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-center gap-2 h-12 ${label ? 'px-5' : 'w-12'} rounded-[calc(var(--radius)-4px)] transition-all duration-300 backdrop-blur-[3px] ${
-          hasActiveFilter || isOpen
-            ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-md'
-            : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'
-        } ${buttonClassName}`}
+        className={`flex items-center justify-center gap-2 h-12 ${label ? 'px-5' : 'w-12'} rounded-[calc(var(--radius)-4px)] transition-all duration-300 backdrop-blur-[3px] ${hasActiveFilter || isOpen
+          ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-md'
+          : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'
+          } ${buttonClassName}`}
       >
         <span className="material-symbols-outlined !text-[20px]">{icon}</span>
         {label && <span className="text-[10px] font-black uppercase tracking-widest leading-none pt-0.5">{label}</span>}
       </button>
 
-      {isOpen && createPortal(
+      {isOpen && (
         <>
-          <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-          <div 
-            className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in zoom-in-95 duration-200 min-w-[200px] p-2 flex flex-col gap-1 backdrop-blur-xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)]"
+          <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
+          <div
+            className="absolute glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden pointer-events-auto animate-in fade-in zoom-in-95 duration-200 min-w-[200px] p-2 flex flex-col gap-1 backdrop-blur-xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)]"
             style={{
-              top: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 
-                ? undefined 
-                : (btnRef.current?.getBoundingClientRect().bottom || 0) + 8,
-              bottom: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 
-                ? window.innerHeight - (btnRef.current?.getBoundingClientRect().top || 0) + 8 
-                : undefined,
-              right: window.innerWidth - (btnRef.current?.getBoundingClientRect().right || 0),
+              zIndex: 200001,
+              top: 'calc(100% + 8px)',
+              right: (btnRef.current?.getBoundingClientRect().left || 0) >= window.innerWidth / 2 ? 0 : undefined,
+              left: (btnRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2 ? 0 : undefined,
+              width: 'max-content',
             }}
           >
             {options.map((opt: any) => {
@@ -672,11 +668,10 @@ export function FilterPopover({ icon = "tune", label, options, activeTab, setTab
                 <button
                   key={opt.id}
                   onClick={() => handleSelect(opt.id)}
-                  className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg transition-colors group ${
-                    active 
-                      ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]' 
-                      : 'text-[var(--text)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
-                  }`}
+                  className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg transition-colors group ${active
+                    ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]'
+                    : 'text-[var(--text)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+                    }`}
                 >
                   <div className={`w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors ${active ? 'bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]' : 'border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]'}`}>
                     {active && <span className="material-symbols-outlined !text-[12px] font-bold">check</span>}
@@ -686,8 +681,7 @@ export function FilterPopover({ icon = "tune", label, options, activeTab, setTab
               );
             })}
           </div>
-        </>,
-        document.body
+        </>
       )}
     </div>
   );
@@ -707,11 +701,10 @@ export function RadioCard({ id, icon, label, description, activeValue, onChange,
     <button
       type="button"
       onClick={() => onChange(id)}
-      className={`flex flex-col items-center justify-center gap-2 p-5 rounded-xl border transition-all duration-300 ${
-        isActive
-          ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)] text-[var(--accent)] shadow-lg scale-[1.02] z-10'
-          : 'glass-panel bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
-      } ${className}`}
+      className={`flex flex-col items-center justify-center gap-2 p-5 rounded-xl border transition-all duration-300 ${isActive
+        ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)] text-[var(--accent)] shadow-lg scale-[1.02] z-10'
+        : 'glass-panel bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+        } ${className}`}
     >
       {icon && <span className={`material-symbols-outlined !text-3xl mb-1 ${isActive ? 'scale-110 drop-shadow-[0_0_10px_currentColor]' : 'opacity-70'} transition-all duration-500`}>{icon}</span>}
       <span className="text-[11px] font-black uppercase tracking-widest leading-none text-center pt-1">{label}</span>
@@ -757,32 +750,36 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
         <span className="material-symbols-outlined !text-md ml-1 opacity-50">{isOpen ? 'expand_less' : 'expand_more'}</span>
       </button>
 
-      {isOpen && createPortal(
-        <div
-          ref={menuRef}
-          className="fixed mt-2 min-w-[200px] glass-panel border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl z-[200001] overflow-hidden flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
-          style={{
-            top: btnRef.current?.getBoundingClientRect().bottom,
-            left: btnRef.current?.getBoundingClientRect().left,
-            width: Math.max(200, btnRef.current?.getBoundingClientRect().width || 0),
-          }}
-        >
-          <div className="px-3 py-2 text-[12px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-1">{label}</div>
-          {options.map((opt: any) => (
-            <button
-              key={opt.id}
-              onClick={() => { setTab(opt.id); setIsOpen(false); }}
-              className={`px-4 py-3 w-full flex items-center gap-3 rounded-lg text-[12px] font-black capitalize tracking-widest transition-all text-left ${activeTab === opt.id
-                ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]'
-                : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
-                }`}
-            >
-              {opt.icon && <span className="material-symbols-outlined !text-md opacity-80">{opt.icon}</span>}
-              {opt.label}
-            </button>
-          ))}
-        </div>,
-        document.body
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
+          <div
+            ref={menuRef}
+            className="absolute mt-2 min-w-[200px] glass-panel border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl pointer-events-auto overflow-hidden flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
+            style={{
+              zIndex: 200001,
+              top: 'calc(100% + 4px)',
+              right: (btnRef.current?.getBoundingClientRect().left || 0) >= window.innerWidth / 2 ? 0 : undefined,
+              left: (btnRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2 ? 0 : undefined,
+              width: Math.max(200, btnRef.current?.getBoundingClientRect().width || 0),
+            }}
+          >
+            <div className="px-3 py-2 text-[12px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-1">{label}</div>
+            {options.map((opt: any) => (
+              <button
+                key={opt.id}
+                onClick={() => { setTab(opt.id); setIsOpen(false); }}
+                className={`px-4 py-3 w-full flex items-center gap-3 rounded-lg text-[12px] font-black capitalize tracking-widest transition-all text-left ${activeTab === opt.id
+                  ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]'
+                  : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+                  }`}
+              >
+                {opt.icon && <span className="material-symbols-outlined !text-md opacity-80">{opt.icon}</span>}
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
@@ -981,20 +978,25 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
     ? selectedValues.length > 0
     : value !== undefined && value !== null && String(value).trim() !== "" && String(value).toLowerCase() !== "all" && String(value).toLowerCase() !== "any" && String(value).toLowerCase() !== "vlocal");
 
+  if (isOpen) {
+    const rect = btnRef.current?.getBoundingClientRect();
+    console.log("CustomDropdown isOpen is TRUE! Rect:", rect, "Window InnerHeight:", window.innerHeight);
+  }
+
   return (
     <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className || ''}`}>
       <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-start items-center focus:outline-none group relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90' : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} shadow-inner text-sm font-bold backdrop-blur-[3px] ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-md' : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`} ${buttonClassName || ''}`}>
         <span className="truncate pr-4 flex-1 text-left flex items-center h-full capitalize">{getSelectedLabel()}</span>
         <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)]'}`}><span className={`material-symbols-outlined ${flat ? '!text-[16px]' : '!text-[20px]'}`}>{isOpen ? 'expand_less' : 'expand_more'}</span></span>
       </button>
-      {isOpen && createPortal(
+      {isOpen && (
         <>
-          <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-          <div className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl overflow-hidden z-[200001] animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
-            top: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 ? undefined : (btnRef.current?.getBoundingClientRect().bottom || 0) + 8,
-            bottom: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 ? window.innerHeight - (btnRef.current?.getBoundingClientRect().top || 0) + 8 : undefined,
-            left: btnRef.current?.getBoundingClientRect().left,
-            minWidth: btnRef.current?.getBoundingClientRect().width,
+          <div className="fixed inset-0" style={{ zIndex: 99998 }} onClick={() => setIsOpen(false)} />
+          <div className="absolute glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl overflow-hidden animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+            zIndex: 99999,
+            top: 'calc(100% + 4px)',
+            left: 0,
+            minWidth: '100%',
             width: 'max-content',
           }}>
             {searchable && (
@@ -1037,8 +1039,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
               )}
             </div>
           </div>
-        </>,
-        document.body
+        </>
       )}
     </div>
   );
@@ -1095,10 +1096,18 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
         }}
         className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black capitalize tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:opacity-30"
       />
-      {isOpen && createPortal(
-        <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
-          top: containerRef.current?.getBoundingClientRect().bottom,
-          left: containerRef.current?.getBoundingClientRect().left,
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
+          <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden pointer-events-auto animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
+            zIndex: 200001,
+            top: containerRef.current?.getBoundingClientRect().bottom,
+          left: (containerRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2
+            ? containerRef.current?.getBoundingClientRect().left
+            : undefined,
+          right: (containerRef.current?.getBoundingClientRect().left || 0) >= window.innerWidth / 2
+            ? window.innerWidth - (containerRef.current?.getBoundingClientRect().right || 0)
+            : undefined,
           width: containerRef.current?.getBoundingClientRect().width,
         }}>
           <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
@@ -1133,8 +1142,8 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
               </button>
             )}
           </div>
-        </div>,
-        document.body
+        </div>
+        </>
       )}
     </div>
   );
@@ -1179,12 +1188,18 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
           </span>
         </div>
       </button>
-      {isOpen && createPortal(
+      {isOpen && (
         <>
-          <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-          <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 p-4 w-64" style={{
+          <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
+          <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden pointer-events-auto animate-in fade-in slide-in-from-top-2 p-4 w-64" style={{
+            zIndex: 200001,
             top: btnRef.current?.getBoundingClientRect().bottom,
-            left: btnRef.current ? Math.min(btnRef.current.getBoundingClientRect().left, window.innerWidth - 270) : 0,
+            left: (btnRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2
+              ? btnRef.current?.getBoundingClientRect().left
+              : undefined,
+            right: (btnRef.current?.getBoundingClientRect().left || 0) >= window.innerWidth / 2
+              ? window.innerWidth - (btnRef.current?.getBoundingClientRect().right || 0)
+              : undefined,
             minWidth: btnRef.current?.getBoundingClientRect().width,
           }}>
             <div className="flex justify-start items-center mb-4">
@@ -1214,8 +1229,7 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
               })}
             </div>
           </div>
-        </>,
-        document.body
+        </>
       )}
     </div>
   );
@@ -1334,6 +1348,7 @@ export const stripMarkdown = (text: string) => {
     .trim();
 };
 
+export const PanelDepthContext = React.createContext(0);
 
 export function SidePanel({
   isOpen,
@@ -1395,6 +1410,7 @@ export function SidePanel({
   coverImage?: string
 }) {
   const { t } = useLexicon();
+  const depth = React.useContext(PanelDepthContext);
   const [panelWidth, setPanelWidth] = useState<number>(defaultWidth || 800);
   useEffect(() => {
     if (defaultWidth) setPanelWidth(defaultWidth);
@@ -1426,97 +1442,110 @@ export function SidePanel({
   }, [isResizing, defaultWidth]);
 
   if (!isOpen && !keepMounted) return null;
-  return createPortal(
-    <div style={keepMounted && !isOpen ? { opacity: 0, pointerEvents: 'none', transition: 'opacity 0.2s ease-in-out' } : { opacity: 1, pointerEvents: 'auto', transition: 'opacity 0.2s ease-in-out' }}>
-      {isResizing && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
-      <div className={`fixed inset-0 z-0 ${backdropZ} ${noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[2px]'} animate-in fade-in duration-500 transition-all`} onClick={onClose} />
-      <div
-        ref={panelRef}
-        className={`fixed top-[0px] bottom-[0px] ${position === 'left' ? 'left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} ${position === 'left' ? '!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} duration-500 flex flex-col ${panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''} ${keepMounted ? '' : (position === 'left' ? 'animate-in slide-in-from-left' : 'animate-in slide-in-from-right')}`}
-        style={isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined, ...panelStyle } : panelStyle}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={`absolute inset-0 pointer-events-none z-[-2] glass-panel !border-none !shadow-none !rounded-none ${noPanelBlur ? '!backdrop-blur-none' : ''}`} />
-        {isResizable && (
-          <div
-            className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
-            onMouseDown={() => setIsResizing(true)}
-          >
-            <div className="w-1 h-12 rounded-full bg-[var(--accent)]" />
-          </div>
-        )}
+
+  const calculatedBackdropZ = 40000 + (depth * 10);
+  const calculatedPanelZ = 40000 + (depth * 10) + 1;
+  const parsedBackdropZ = parseInt(backdropZ.replace(/\D/g, '')) || 40000;
+  const parsedPanelZ = parseInt(panelZ.replace(/\D/g, '')) || 40001;
+  const finalBackdropZ = depth > 0 ? calculatedBackdropZ : parsedBackdropZ;
+  const finalPanelZ = depth > 0 ? calculatedPanelZ : parsedPanelZ;
+
+  return (
+    <PanelDepthContext.Provider value={depth + 1}>
+      <div className={`sa-side-panel-wrapper ${isOpen ? 'sa-panel-open' : ''}`} data-depth={depth} style={keepMounted && !isOpen ? { opacity: 0, pointerEvents: 'none', transition: 'opacity 0.2s ease-in-out' } : { opacity: 1, pointerEvents: 'auto', transition: 'opacity 0.2s ease-in-out' }}>
+        {isResizing && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
+        <div
+          className={`sa-side-panel-backdrop fixed inset-0 z-0 ${depth > 0 || noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[3px]'} animate-in fade-in duration-500 transition-all`}
+          style={{ zIndex: finalBackdropZ }}
+          onClick={onClose}
+        />
+        <div
+          ref={panelRef}
+          className={`sa-side-panel-window ${position === 'left' ? 'sa-panel-left' : 'sa-panel-right'} fixed top-[0px] bottom-[0px] ${position === 'left' ? 'left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} ${position === 'left' ? '!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} flex flex-col ${depth > 0 ? '' : panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : 'duration-500 transition-all ease-out'} ${panelClass || ''} ${keepMounted ? '' : (position === 'left' ? 'animate-in slide-in-from-left' : 'animate-in slide-in-from-right')}`}
+          style={{ zIndex: finalPanelZ, ...(isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined } : {}), ...panelStyle }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={`absolute inset-0 pointer-events-none z-[-2] glass-panel !border-none !shadow-none !rounded-none ${noPanelBlur ? '!backdrop-blur-none' : ''}`} />
+          {isResizable && (
+            <div
+              className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
+              onMouseDown={() => setIsResizing(true)}
+            >
+              <div className="w-1 h-12 rounded-full bg-[var(--accent)]" />
+            </div>
+          )}
 
 
 
-        {ambientGlows && (
-          <div className={`absolute inset-0 overflow-hidden pointer-events-none z-[-1] ${position === 'left' ? 'rounded-r-[var(--radius)]' : 'rounded-l-[var(--radius)]'}`}>
-            {ambientGlows}
-          </div>
-        )}
+          {ambientGlows && (
+            <div className={`absolute inset-0 overflow-hidden pointer-events-none z-[-1] ${position === 'left' ? 'rounded-r-[var(--radius)]' : 'rounded-l-[var(--radius)]'}`}>
+              {ambientGlows}
+            </div>
+          )}
 
-        {!hideHeader && (
-          <div className={`pt-8 px-10 pb-4 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${coverImage ? 'pt-48' : ''}`}>
+          {!hideHeader && (
+            <div className={`pt-8 px-10 pb-4 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${coverImage ? 'pt-48' : ''}`}>
 
-            {coverImage && (
-              <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[var(--radius)] rounded-tr-[var(--radius)]">
-                <div
-                  className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-100 opacity-60"
-                  style={{ backgroundImage: `url('${coverImage}')` }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--bg)_60%,transparent)] to-[color-mix(in_srgb,var(--bg)_65%,transparent)] pointer-events-none" />
-              </div>
-            )}
+              {coverImage && (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[var(--radius)] rounded-tr-[var(--radius)]">
+                  <div
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-100 opacity-60"
+                    style={{ backgroundImage: `url('${coverImage}')` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--bg)_60%,transparent)] to-[color-mix(in_srgb,var(--bg)_65%,transparent)] pointer-events-none" />
+                </div>
+              )}
 
-            {headerActions && (
-              <div className="absolute top-8 right-[88px] flex items-center gap-3 z-50">
-                {headerActions}
-              </div>
-            )}
+              {headerActions && (
+                <div className="absolute top-8 right-[88px] flex items-center gap-3 z-50">
+                  {headerActions}
+                </div>
+              )}
 
-            <button onClick={onClose} className="absolute top-8 right-8 z-50 w-12 h-12 rounded-[var(--radius)] flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
-              <span className="material-symbols-outlined !text-[22px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("icon_close")}</span>
-            </button>
+              <button onClick={onClose} className="absolute top-8 right-8 z-50 w-12 h-12 rounded-[var(--radius)] flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
+                <span className="material-symbols-outlined !text-[22px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("icon_close")}</span>
+              </button>
 
-            <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-16">
-              <h2 className="text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-6 min-w-0 w-full">
-                {icon && (
-                  <div className={`w-16 h-16 rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden group/iconbox ${iconColorClass || ''}`}>
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
-                    <span className={`material-symbols-outlined opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
-                      {icon}
-                    </span>
-                  </div>
-                )}
-                <div className="flex flex-col min-w-0 w-full justify-center">
-                  {badgeText && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-current/10 border border-current/20 ${iconColorClass || 'theme-text-accent'}`}>
-                        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current shadow-[0_0_8px_currentColor]"></span>
-                        {badgeText}
+              <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-16">
+                <h2 className="text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-6 min-w-0 w-full">
+                  {icon && (
+                    <div className={`w-16 h-16 rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden group/iconbox ${iconColorClass || ''}`}>
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
+                      <span className={`material-symbols-outlined opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
+                        {icon}
                       </span>
                     </div>
                   )}
-                  <span className="leading-tight text-3xl tracking-tighter truncate w-full drop-shadow-md">{title}</span>
-                  {subtitle && <span className="text-[10px] font-black text-[var(--subtext)] opacity-50 mt-1 capitalize tracking-[0.25em] line-clamp-2 break-words">{subtitle}</span>}
-                </div>
-              </h2>
+                  <div className="flex flex-col min-w-0 w-full justify-center">
+                    {badgeText && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-current/10 border border-current/20 ${iconColorClass || 'theme-text-accent'}`}>
+                          <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current shadow-[0_0_8px_currentColor]"></span>
+                          {badgeText}
+                        </span>
+                      </div>
+                    )}
+                    <span className="leading-tight text-3xl tracking-tighter truncate w-full drop-shadow-md">{title}</span>
+                    {subtitle && <span className="text-[10px] font-black text-[var(--subtext)] opacity-50 mt-1 capitalize tracking-[0.25em] line-clamp-2 break-words">{subtitle}</span>}
+                  </div>
+                </h2>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className={`flex-1 min-h-0 flex flex-col relative z-10 ${noScroll ? '' : 'overflow-y-auto custom-scrollbar'} ${noPadding ? '' : 'p-8'} ${isResizing ? 'pointer-events-none select-none overflow-hidden' : ''}`}>
-          {children}
+          <div className={`flex-1 min-h-0 flex flex-col relative z-10 ${noScroll ? '' : 'overflow-y-auto custom-scrollbar'} ${noPadding ? '' : 'p-8'} ${isResizing ? 'pointer-events-none select-none overflow-hidden' : ''}`}>
+            {children}
+          </div>
+
+          {(footer || actions) && (
+            <div className={`px-8 pb-8 pt-10 flex justify-center items-center gap-4 shrink-0 relative z-30 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${footerClass || ''}`}>
+              {footer}
+              {actions}
+            </div>
+          )}
         </div>
-
-        {(footer || actions) && (
-          <div className={`px-8 pb-8 pt-10 flex justify-center items-center gap-4 shrink-0 relative z-30 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${footerClass || ''}`}>
-            {footer}
-            {actions}
-          </div>
-        )}
       </div>
-    </div>,
-    document.body
+    </PanelDepthContext.Provider>
   );
 }
 
@@ -1651,20 +1680,20 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={style}
-      className={`flex-1 min-w-0 h-full flex items-center p-3 gap-3 glass-panel ${cleanColorClass} ${textColor} transition-all duration-500 relative overflow-hidden group ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-2 hover:shadow-[0_20px_40px_-10px_currentColor]'}`}
+      className={`flex-1 min-w-0 h-full flex items-center p-3 gap-3 glass-panel ${cleanColorClass} ${textColor} relative overflow-hidden group ${disabled ? 'opacity-50 cursor-not-allowed' : onClick ? 'cursor-pointer' : ''}`}
     >
-      <div className="absolute inset-0 bg-current opacity-0 group-hover:opacity-[0.05] transition-opacity duration-700 pointer-events-none rounded-[inherit] blur-xl" />
-      
-      <div className="h-14 w-14 rounded-[1rem] flex flex-col items-center justify-center shrink-0 relative overflow-hidden bg-[color-mix(in_srgb,currentColor_10%,transparent)] border border-[color-mix(in_srgb,currentColor_30%,transparent)] group-hover:scale-105 transition-transform duration-500 shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)]">
-        <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none mix-blend-overlay" />
-        <span className="opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all drop-shadow-[0_0_15px_currentColor] shrink-0 [&_.material-symbols-outlined]:!text-[28px]">{icon}</span>
+      <div className="absolute inset-0 bg-current opacity-0 pointer-events-none rounded-[inherit] blur-xl" />
+
+      <div className="h-14 w-14 rounded-[1rem] flex flex-col items-center justify-center shrink-0 relative overflow-hidden bg-[color-mix(in_srgb,currentColor_10%,transparent)] border border-[color-mix(in_srgb,currentColor_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)]">
+        <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent opacity-0 pointer-events-none mix-blend-overlay" />
+        <span className="opacity-80 drop-shadow-[0_0_15px_currentColor] shrink-0 [&_.material-symbols-outlined]:!text-[28px]">{icon}</span>
       </div>
 
       <div className="w-[1px] h-10 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,currentColor_30%,transparent)] to-transparent shrink-0" />
 
       <div className="flex flex-col flex-1 min-w-0 relative z-10 py-1">
-        <span className="text-[11px] uppercase tracking-widest font-black text-[var(--subtext)] opacity-70 mb-0 w-full leading-tight group-hover:opacity-100 transition-opacity duration-300">{label}</span>
-        <span className={`${sizeClass} font-[900] tracking-tighter truncate drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)] group-hover:drop-shadow-[0_0_20px_currentColor] transition-all duration-500`} title={strVal}>
+        <span className="text-[11px] uppercase tracking-widest font-black text-[var(--subtext)] opacity-70 mb-0 w-full leading-tight">{label}</span>
+        <span className={`${sizeClass} font-[900] tracking-tighter truncate drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)]`} title={strVal}>
           {displayValue}
         </span>
       </div>

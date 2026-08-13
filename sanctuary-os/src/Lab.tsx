@@ -596,7 +596,7 @@ export default function Lab({
             {filteredReports.map((report: any) => {
               const isError = report.errorFound;
               return (
-                <div key={report.id} onClick={() => setSelectedReport(report)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-all flex flex-col gap-3 relative overflow-hidden group cursor-pointer hover:-translate-y-1 hover:shadow-xl ${isError ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]'}`}>
+                <div key={report.id} onClick={() => setSelectedReport(report)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-all flex flex-col gap-3 relative overflow-hidden group cursor-pointer hover:shadow-xl ${isError ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]'}`}>
                   <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${isError ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)]'}`} />
 
                   <div className="flex items-center gap-3 relative z-10">

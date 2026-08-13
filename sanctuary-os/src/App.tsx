@@ -2095,6 +2095,7 @@ function App() {
       className={`flex flex-col h-screen w-screen overflow-hidden relative ${currentTheme?.animated !== false ? 'animated-fluid-bg' : ''}`}
       style={{ color: "var(--text)" } as React.CSSProperties}
     >
+      <div id="sa-portals" className="absolute"></div>
       <SystemBackground />
 
       <div className="relative z-10 flex flex-col h-full w-full overflow-hidden py-6 pl-6 pr-0 gap-6">
@@ -2114,7 +2115,7 @@ function App() {
             unreadNotificationCount={unreadNotificationCount}
             handleQuickLaunch={handleQuickLaunch}
           />
-          <main className="flex-1 relative overflow-y-auto pl-4 pb-4 pr-6 pt-[70px] custom-scrollbar" style={{ flexGrow: 1, width: '100%' }}>
+          <main className="flex-1 relative overflow-y-auto px-6 pb-4 pt-[70px] custom-scrollbar" style={{ flexGrow: 1, width: '100%' }}>
             <div className="relative z-10 w-full h-full pb-[100px]">
               {isGlobalConfigLoaded && (
                 <>

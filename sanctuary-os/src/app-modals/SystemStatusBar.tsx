@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
@@ -52,7 +53,24 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   const isStandby = typeof status === 'string' && (status.toUpperCase().includes('STANDING BY') || status.toUpperCase().includes('STANDBY'));
   const showToast = (!isStandby && status) || isErrorStatus || isSuccessStatus || isScanning;
 
-  return (
+  const [isDockHovered, setIsDockHovered] = useState(false);
+  const dockTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const handleDockEnter = () => {
+    if (dockTimeout.current) clearTimeout(dockTimeout.current);
+    setIsDockHovered(true);
+  };
+
+  const handleDockLeave = () => {
+    dockTimeout.current = setTimeout(() => {
+      setIsDockHovered(false);
+    }, 300);
+  };
+
+  const dockTransformClass = isDockHovered ? 'translate-y-0' : 'translate-y-[calc(100%-16px)]';
+  const dockOpacityClass = isDockHovered ? 'opacity-100' : 'opacity-40';
+
+  return createPortal(
     <>
       {/* Status Toast Notification (Centered Above Dock) */}
       <div
@@ -93,15 +111,21 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
         </div>
       </div>
 
-      {/* Dock Area Container (Hover Trigger & Centered Content) */}
+      {/* Dock Area Container */}
       <div 
-        className="fixed bottom-0 left-0 right-0 h-[60px] z-[140000] group pointer-events-auto flex items-end justify-center pb-4 pointer-events-none"
+        className="fixed bottom-0 left-0 right-0 z-[140000] flex items-end justify-center pointer-events-none"
+        onMouseEnter={handleDockEnter}
+        onMouseLeave={handleDockLeave}
       >
-        {/* Invisible Hit Area to trigger hover */}
-        <div className="absolute inset-x-0 bottom-0 h-10 pointer-events-auto cursor-default" />
+        
+        {/* Contiguous Hover Wrapper */}
+        <div className={`pointer-events-auto flex flex-col items-center justify-end transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${dockTransformClass} pb-4`}>
+          
+          {/* Invisible hit bar to fully encapsulate tooltips so mouse-up doesn't drop hover */}
+          <div className="w-[800px] max-w-[100vw] h-16 cursor-default" />
 
-        {/* The Dock Pill */}
-        <div className="glass-panel pointer-events-auto rounded-full flex items-center px-4 py-1.5 gap-1 shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
+          {/* The Dock Pill */}
+          <div className={`glass-panel rounded-full flex items-center px-4 py-1.5 gap-1 shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-opacity duration-500 ${dockOpacityClass}`}>
           
 
 
@@ -242,7 +266,9 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           </button>
 
         </div>
+        </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

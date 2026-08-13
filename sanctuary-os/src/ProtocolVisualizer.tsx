@@ -106,8 +106,7 @@ function ServerModSearchDropdown({ onSelect, selectedItem, placeholder, masonId,
               </div>
             </>
           );
-        })(),
-        document.body
+        })(), document.body
       )}
     </div>
   );

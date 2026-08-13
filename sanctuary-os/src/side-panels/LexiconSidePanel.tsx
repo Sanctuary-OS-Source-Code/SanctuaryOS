@@ -164,7 +164,7 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                 <div
                   key={code}
                   onClick={() => setActiveLang(code)}
-                  className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeLang === code
+                  className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl active:scale-95 border cursor-pointer group relative overflow-hidden ${activeLang === code
                       ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
                       : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                     }`}
@@ -237,7 +237,7 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                     <div
                       key={code}
                       onClick={() => setActiveLang(code)}
-                      className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeLang === code
+                      className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl active:scale-95 border cursor-pointer group relative overflow-hidden ${activeLang === code
                           ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
                           : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                         }`}

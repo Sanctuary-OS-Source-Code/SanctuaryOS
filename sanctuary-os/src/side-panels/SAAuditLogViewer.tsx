@@ -216,7 +216,7 @@ export function AuditLogViewer({
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-start items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                   <div className="h-6 w-24 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded animate-pulse" />
                   <div className="h-6 w-16 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded animate-pulse" />
                 </div>
@@ -226,7 +226,7 @@ export function AuditLogViewer({
         ) : (
           <div className={`grid grid-cols-1 ${isSidePanel ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'} gap-6 w-full`}>
             {filteredLogs.map(log => (
-              <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer hover:-translate-y-1.5">
+              <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer">
                 <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -252,7 +252,7 @@ export function AuditLogViewer({
                   </div>
                 </div>
 
-                <div className="flex justify-start items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                   <div className="flex flex-col min-w-0 flex-1 pr-2">
                     <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("audit_actor")}</span>
                     <span className="text-[10px] font-bold text-[var(--text)] opacity-90 mt-1 flex items-center gap-1 truncate">

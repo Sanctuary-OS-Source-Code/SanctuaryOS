@@ -538,7 +538,7 @@ export const DbpfScout = () => {
                         const sCount = scanScope === blueprint.name && hasScanned ? softConflicts.length : cachedStats.soft;
 
                         return (
-                          <div key={blueprint.name} className={`glass-panel rounded-2xl p-6 border ${scanScope === blueprint.name ? 'border-[var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} shadow-lg flex flex-col gap-4 group transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:-translate-y-1 relative overflow-hidden`} style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', boxShadow: '0 0 40px color-mix(in srgb, var(--accent) 15%, transparent)' } : {}}>
+                          <div key={blueprint.name} className={`glass-panel rounded-2xl p-6 border ${scanScope === blueprint.name ? 'border-[var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} shadow-lg flex flex-col gap-4 group transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] relative overflow-hidden`} style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', boxShadow: '0 0 40px color-mix(in srgb, var(--accent) 15%, transparent)' } : {}}>
                             <div className="flex items-start justify-start">
                               <div className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-xl ${scanScope === blueprint.name ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'} border flex items-center justify-center transition-colors relative`}>
@@ -743,7 +743,7 @@ export const DbpfScout = () => {
                   </div>
                   {fatalConflicts.length > visibleFatal && (
                     <div className="flex justify-center mt-8">
-                      <button onClick={() => setVisibleFatal(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                      <button onClick={() => setVisibleFatal(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
                         {t("nav_load_more")} ({fatalConflicts.length - visibleFatal})
                       </button>
                     </div>
@@ -772,7 +772,7 @@ export const DbpfScout = () => {
                   </div>
                   {tuningConflicts.length > visibleTuning && (
                     <div className="flex justify-center mt-8">
-                      <button onClick={() => setVisibleTuning(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                      <button onClick={() => setVisibleTuning(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
                         {t("nav_load_more")} ({tuningConflicts.length - visibleTuning})
                       </button>
                     </div>
@@ -843,7 +843,7 @@ export const DbpfScout = () => {
                   </div>
                   {cloneConflicts.length > visibleClone && (
                     <div className="flex justify-center mt-8">
-                      <button onClick={() => setVisibleClone(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                      <button onClick={() => setVisibleClone(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
                         {t("nav_load_more")} ({cloneConflicts.length - visibleClone})
                       </button>
                     </div>
@@ -871,7 +871,7 @@ export const DbpfScout = () => {
                   </div>
                   {softConflicts.length > visibleSoft && (
                     <div className="flex justify-center mt-6">
-                      <button onClick={() => setVisibleSoft(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-1">
+                      <button onClick={() => setVisibleSoft(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
                         {t("nav_load_more")} ({softConflicts.length - visibleSoft})
                       </button>
                     </div>
@@ -987,7 +987,7 @@ export const DbpfScout = () => {
                         const displayLoserName = override.isManual ? cleanLoserPath : formatDisplayName(cleanLoserPath, activeGameSchema);
 
                         return (
-                          <div key={`active_${idx}`} className="p-5 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-xl relative group/card hover:-translate-y-1 hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]">
+                          <div key={`active_${idx}`} className="p-5 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-xl relative group/card hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]">
                             <div className="absolute inset-0 bg-gradient-to-tr from-[color-mix(in_srgb,var(--bg)_5%,transparent)] to-transparent pointer-events-none z-0" />
                             <div className="flex items-center justify-start relative z-10">
                               <div className="flex items-center gap-3">
@@ -1041,7 +1041,7 @@ export const DbpfScout = () => {
                         const rightName = right.split(/[/\\]/).pop();
 
                         return (
-                          <div key={`ignored_${i}`} className="p-5 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl relative group/card hover:-translate-y-1 hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
+                          <div key={`ignored_${i}`} className="p-5 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl relative group/card hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
                             <div className="absolute inset-0 bg-gradient-to-tr from-[color-mix(in_srgb,var(--bg)_5%,transparent)] to-transparent pointer-events-none z-0" />
                             <div className="flex items-center justify-start relative z-10">
                               <div className="flex items-center gap-3">

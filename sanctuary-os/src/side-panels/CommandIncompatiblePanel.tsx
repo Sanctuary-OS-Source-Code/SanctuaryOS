@@ -22,7 +22,7 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
   const image = (showImages && (mod.image_url || mod.imageUrl) && String(mod.image_url || mod.imageUrl) !== "null" && String(mod.image_url || mod.imageUrl).trim() !== "") ? (mod.image_url || mod.imageUrl) : undefined;
   
   return (
-    <div className="relative group/shadow h-[250px] shadow-xl [perspective:1000px] transition-all duration-500 hover:-translate-y-1 z-10 hover:z-[100]" style={{ borderRadius: 'var(--radius)' }}>
+    <div className="relative group/shadow h-[250px] shadow-xl [perspective:1000px] transition-all duration-500 z-10 hover:z-[100]" style={{ borderRadius: 'var(--radius)' }}>
       <div className={`relative w-full h-full transition-transform duration-500 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
         
         <UniversalCard

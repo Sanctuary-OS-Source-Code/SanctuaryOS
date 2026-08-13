@@ -301,7 +301,7 @@ export const UniversalGridPicker = ({
           <div 
             key={item.id} 
             onClick={() => onSelect(item.id, item.originalItem || item)}
-            className={`glass-panel border transition-all duration-300 rounded-full p-4 flex flex-col cursor-pointer group hover:-translate-y-0.5
+            className={`glass-panel border transition-all duration-300 rounded-full p-4 flex flex-col cursor-pointer group
               ${isSelected 
                 ? 'border-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]' 
                 : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}

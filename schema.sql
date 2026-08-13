@@ -378,6 +378,22 @@ CREATE TABLE sanctuary_themes (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE sanctuary_theme_images (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    theme_id TEXT REFERENCES sanctuary_themes(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_data TEXT NOT NULL, -- Base64 encoded image data
+    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS and add basic policies for sanctuary_theme_images
+ALTER TABLE sanctuary_theme_images ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access theme images" ON public.sanctuary_theme_images FOR SELECT USING (true);
+CREATE POLICY "Allow insert access theme images" ON public.sanctuary_theme_images FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access theme images" ON public.sanctuary_theme_images FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access theme images" ON public.sanctuary_theme_images FOR DELETE USING (true);
+
+
 
 -- ==========================================
 -- 10. NEXUS & HOMESTEAD (FORMERLY MARKETPLACE & SOLDER LAB)
@@ -392,6 +408,14 @@ CREATE TABLE nexus_assets (
     image_url TEXT,
     description TEXT,
     is_community_default BOOLEAN DEFAULT false,
+    version TEXT,
+    release_notes TEXT,
+    is_public BOOLEAN DEFAULT true,
+    theme_mode TEXT,
+    downloads INTEGER DEFAULT 0,
+    is_paid BOOLEAN DEFAULT false,
+    is_early_access BOOLEAN DEFAULT false,
+    lexicon_type TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -403,6 +427,20 @@ CREATE TABLE nexus_reports (
     report_status TEXT DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Enable RLS and add basic policies for nexus_assets
+ALTER TABLE nexus_assets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access" ON public.nexus_assets FOR SELECT USING (true);
+CREATE POLICY "Allow insert access" ON public.nexus_assets FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access" ON public.nexus_assets FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access" ON public.nexus_assets FOR DELETE USING (true);
+
+-- Enable RLS and add basic policies for nexus_reports
+ALTER TABLE nexus_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access reports" ON public.nexus_reports FOR SELECT USING (true);
+CREATE POLICY "Allow insert access reports" ON public.nexus_reports FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access reports" ON public.nexus_reports FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access reports" ON public.nexus_reports FOR DELETE USING (true);
 
 CREATE TABLE collections (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

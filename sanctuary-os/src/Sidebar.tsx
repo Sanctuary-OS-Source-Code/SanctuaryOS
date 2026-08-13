@@ -89,10 +89,11 @@ export function Sidebar({
 
   return (
     <nav
-      className={`${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 h-full flex flex-col relative z-20 transition-all duration-500 glass-panel rounded-3xl`}
+      className={`${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 h-full flex flex-col relative z-20 transition-all duration-500 rounded-3xl border border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)] shadow-2xl backdrop-blur-[var(--glassBlur)]`}
       style={{
         width: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)',
-        minWidth: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)'
+        minWidth: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)',
+        background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal) * 100%), transparent)`
       }}
     >
       {/* Revolutionary Watermark Layout */}
@@ -418,8 +419,7 @@ export function Sidebar({
               <span>{hoveredTooltip.label}</span>
             </div>
           </div>
-        </div>,
-        document.body
+        </div>, document.body
       )}
     </nav >
   );

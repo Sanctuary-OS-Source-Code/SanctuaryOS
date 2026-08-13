@@ -481,7 +481,7 @@ export default function SidePanelBrowser() {
         noScroll={true}
         isResizable={!isBrowserFullscreen}
         defaultWidth={window.innerWidth / 2}
-        panelClass={isBrowserFullscreen ? "!top-[50px] !inset-x-0 !bottom-10 !border-0 !rounded-none !bg-[var(--bg)]" : "!top-[52px] !bottom-10 !border-y-0 !border-r-0"}
+        panelClass={isBrowserFullscreen ? "!top-[0px] !inset-x-0 !bottom-0 !border-0 !rounded-none" : "!top-[0px] !bottom-0 !border-y-0 !border-r-0"}
         panelStyle={isBrowserFullscreen ? { width: '100vw', right: 0 } : { right: 0 }}
       >
         <div className="pt-6 px-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex flex-col gap-3 rounded-tl-[3rem] !rounded-tr-none">

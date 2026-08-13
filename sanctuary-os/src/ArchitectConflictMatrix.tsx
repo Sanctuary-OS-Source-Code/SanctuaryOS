@@ -76,8 +76,7 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
               </div>
             </>
           );
-        })(),
-        document.body
+        })(), document.body
       )}
     </div>
   );
@@ -252,7 +251,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                   <div
                     key={g.id}
                     onClick={() => handleEditConflict(g)}
-                    className="glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 overflow-hidden relative cursor-pointer"
+                    className="glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl transition-all duration-500 overflow-hidden relative cursor-pointer"
                   >
                     <div className="absolute inset-0 pointer-events-none transition-all duration-700 opacity-20 group-hover:opacity-40" />
 
@@ -329,7 +328,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                     const tierColor = g.severity_rank == 4 ? 'text-[var(--danger)]' : g.severity_rank == 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]';
                     const borderHover = g.severity_rank == 4 ? 'hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : g.severity_rank == 3 ? 'hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]';
                     return (
-                      <div key={g.id} onClick={() => handleEditConflict(g)} className={`glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl hover:-translate-y-1 ${borderHover} transition-all duration-500 overflow-hidden relative`}>
+                      <div key={g.id} onClick={() => handleEditConflict(g)} className={`glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl ${borderHover} transition-all duration-500 overflow-hidden relative`}>
 
                         <div className="flex justify-start items-center z-10">
                           <div className="flex items-center gap-2">

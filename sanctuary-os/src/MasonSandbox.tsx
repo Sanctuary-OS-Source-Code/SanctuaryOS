@@ -465,7 +465,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                   </div>
                 )}
                 <div className="flex justify-end gap-4 mt-2">
-                  <button onClick={() => setIsLinkModalOpen(true)} disabled={isCommitting} className="flex-1 py-4 font-black text-xs capitalize tracking-widest rounded-2xl transition-all duration-300 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
+                  <button onClick={() => setIsLinkModalOpen(true)} disabled={isCommitting} className="flex-1 py-4 font-black text-xs capitalize tracking-widest rounded-2xl transition-all duration-300 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] disabled:opacity-50 flex items-center justify-center gap-2">
                     <span className="material-symbols-outlined !text-[16px]">{t("icon_link")}</span> {t("btn_link_existing")}
                   </button>
                 </div>
@@ -504,7 +504,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                 <button
                   key={m.id}
                   onClick={() => handleLinkToExisting(m.id)}
-                  className="w-full text-left p-5 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 transition-all duration-300 group flex items-center justify-start"
+                  className="w-full text-left p-5 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] transition-all duration-300 group flex items-center justify-start"
                 >
                   <span className="font-black text-xs text-[var(--text)] capitalize tracking-tight truncate mr-4 group-hover:text-[var(--accent)] transition-colors">{m.name}</span>
                   <span className="text-[9px] font-black capitalize tracking-widest text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span> {t("btn_link_existing")}</span>
